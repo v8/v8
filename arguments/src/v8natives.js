@@ -938,8 +938,10 @@ function ObjectSeal(obj) {
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnProperty(obj, name);
-    if (desc.isConfigurable()) desc.setConfigurable(false);
-    DefineOwnProperty(obj, name, desc, true);
+    if (desc.isConfigurable()) {
+      desc.setConfigurable(false);
+      DefineOwnProperty(obj, name, desc, true);
+    }
   }
   return ObjectPreventExtension(obj);
 }
@@ -954,9 +956,11 @@ function ObjectFreeze(obj) {
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnProperty(obj, name);
-    if (IsDataDescriptor(desc)) desc.setWritable(false);
-    if (desc.isConfigurable()) desc.setConfigurable(false);
-    DefineOwnProperty(obj, name, desc, true);
+    if (desc.isWritable() || desc.isConfigurable()) {
+      if (IsDataDescriptor(desc)) desc.setWritable(false);
+      desc.setConfigurable(false);
+      DefineOwnProperty(obj, name, desc, true);
+    }
   }
   return ObjectPreventExtension(obj);
 }

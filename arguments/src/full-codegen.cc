@@ -90,14 +90,14 @@ void BreakableStatementChecker::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void BreakableStatementChecker::VisitWithEnterStatement(
-    WithEnterStatement* stmt) {
+void BreakableStatementChecker::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
   Visit(stmt->expression());
 }
 
 
-void BreakableStatementChecker::VisitWithExitStatement(
-    WithExitStatement* stmt) {
+void BreakableStatementChecker::VisitExitContextStatement(
+    ExitContextStatement* stmt) {
 }
 
 
@@ -572,88 +572,78 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->start_position());
-  }
+  CodeGenerator::RecordPositions(masm_, fun->start_position());
 }
 
 
 void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->end_position() - 1);
-  }
+  CodeGenerator::RecordPositions(masm_, fun->end_position() - 1);
 }
 
 
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
-  if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!isolate()->debugger()->IsDebuggerActive()) {
-      CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
-    } else {
-      // Check if the statement will be breakable without adding a debug break
-      // slot.
-      BreakableStatementChecker checker;
-      checker.Check(stmt);
-      // Record the statement position right here if the statement is not
-      // breakable. For breakable statements the actual recording of the
-      // position will be postponed to the breakable code (typically an IC).
-      bool position_recorded = CodeGenerator::RecordPositions(
-          masm_, stmt->statement_pos(), !checker.is_breakable());
-      // If the position recording did record a new position generate a debug
-      // break slot to make the statement breakable.
-      if (position_recorded) {
-        Debug::GenerateSlot(masm_);
-      }
-    }
-#else
+  if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
-#endif
+  } else {
+    // Check if the statement will be breakable without adding a debug break
+    // slot.
+    BreakableStatementChecker checker;
+    checker.Check(stmt);
+    // Record the statement position right here if the statement is not
+    // breakable. For breakable statements the actual recording of the
+    // position will be postponed to the breakable code (typically an IC).
+    bool position_recorded = CodeGenerator::RecordPositions(
+        masm_, stmt->statement_pos(), !checker.is_breakable());
+    // If the position recording did record a new position generate a debug
+    // break slot to make the statement breakable.
+    if (position_recorded) {
+      Debug::GenerateSlot(masm_);
+    }
   }
+#else
+  CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+#endif
 }
 
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
-  if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!isolate()->debugger()->IsDebuggerActive()) {
-      CodeGenerator::RecordPositions(masm_, pos);
-    } else {
-      // Check if the expression will be breakable without adding a debug break
-      // slot.
-      BreakableStatementChecker checker;
-      checker.Check(expr);
-      // Record a statement position right here if the expression is not
-      // breakable. For breakable expressions the actual recording of the
-      // position will be postponed to the breakable code (typically an IC).
-      // NOTE this will record a statement position for something which might
-      // not be a statement. As stepping in the debugger will only stop at
-      // statement positions this is used for e.g. the condition expression of
-      // a do while loop.
-      bool position_recorded = CodeGenerator::RecordPositions(
-          masm_, pos, !checker.is_breakable());
-      // If the position recording did record a new position generate a debug
-      // break slot to make the statement breakable.
-      if (position_recorded) {
-        Debug::GenerateSlot(masm_);
-      }
-    }
-#else
+  if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, pos);
-#endif
+  } else {
+    // Check if the expression will be breakable without adding a debug break
+    // slot.
+    BreakableStatementChecker checker;
+    checker.Check(expr);
+    // Record a statement position right here if the expression is not
+    // breakable. For breakable expressions the actual recording of the
+    // position will be postponed to the breakable code (typically an IC).
+    // NOTE this will record a statement position for something which might
+    // not be a statement. As stepping in the debugger will only stop at
+    // statement positions this is used for e.g. the condition expression of
+    // a do while loop.
+    bool position_recorded = CodeGenerator::RecordPositions(
+        masm_, pos, !checker.is_breakable());
+    // If the position recording did record a new position generate a debug
+    // break slot to make the statement breakable.
+    if (position_recorded) {
+      Debug::GenerateSlot(masm_);
+    }
   }
+#else
+  CodeGenerator::RecordPositions(masm_, pos);
+#endif
 }
 
 
 void FullCodeGenerator::SetStatementPosition(int pos) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, pos);
-  }
+  CodeGenerator::RecordPositions(masm_, pos);
 }
 
 
 void FullCodeGenerator::SetSourcePosition(int pos) {
-  if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
+  if (pos != RelocInfo::kNoPosition) {
     masm_->positions_recorder()->RecordPosition(pos);
   }
 }
@@ -952,18 +942,19 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  Comment cmnt(masm_, "[ WithEnterStatement");
+void FullCodeGenerator::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
+  Comment cmnt(masm_, "[ EnterWithContextStatement");
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
-  __ CallRuntime(Runtime::kPushContext, 1);
+  __ CallRuntime(Runtime::kPushWithContext, 1);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
-void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  Comment cmnt(masm_, "[ WithExitStatement");
+void FullCodeGenerator::VisitExitContextStatement(ExitContextStatement* stmt) {
+  Comment cmnt(masm_, "[ ExitContextStatement");
   SetStatementPosition(stmt);
 
   // Pop context.

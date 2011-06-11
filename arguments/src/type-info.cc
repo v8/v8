@@ -171,20 +171,6 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
   return check;
 }
 
-ExternalArrayType TypeFeedbackOracle::GetKeyedLoadExternalArrayType(
-    Property* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
-  ASSERT(stub->IsCode());
-  return Code::cast(*stub)->external_array_type();
-}
-
-ExternalArrayType TypeFeedbackOracle::GetKeyedStoreExternalArrayType(
-    Expression* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
-  ASSERT(stub->IsCode());
-  return Code::cast(*stub)->external_array_type();
-}
-
 Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
     CheckType check) {
   JSFunction* function = NULL;

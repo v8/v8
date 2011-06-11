@@ -735,7 +735,6 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
   V(Context)                                   \
-  V(CatchContext)                              \
   V(GlobalContext)                             \
   V(JSFunction)                                \
   V(Code)                                      \
@@ -3603,12 +3602,6 @@ class Code: public HeapObject {
   // receiver is valid for the given call.
   inline CheckType check_type();
   inline void set_check_type(CheckType value);
-
-  // [external array type]: For kind KEYED_EXTERNAL_ARRAY_LOAD_IC and
-  // KEYED_EXTERNAL_ARRAY_STORE_IC, identifies the type of external
-  // array that the code stub is specialized for.
-  inline ExternalArrayType external_array_type();
-  inline void set_external_array_type(ExternalArrayType value);
 
   // [type-recording unary op type]: For all UNARY_OP_IC.
   inline byte unary_op_type();

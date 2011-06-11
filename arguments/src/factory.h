@@ -149,10 +149,13 @@ class Factory {
   Handle<Context> NewFunctionContext(int length,
                                      Handle<JSFunction> closure);
 
+  // Create a catch context.
+  Handle<Context> NewCatchContext(Handle<Context> previous,
+                                  Handle<JSObject> extension);
+
   // Create a 'with' context.
   Handle<Context> NewWithContext(Handle<Context> previous,
-                                 Handle<JSObject> extension,
-                                 bool is_catch_context);
+                                 Handle<JSObject> extension);
 
   // Return the Symbol matching the passed in string.
   Handle<String> SymbolFromString(Handle<String> value);

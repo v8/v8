@@ -168,9 +168,6 @@ enum ContextLookupFlags {
 //   the moment we also use it in generated code for context slot accesses -
 //   and there we don't want a loop because of code bloat - but we may not
 //   need it there after all (see comment in codegen_*.cc).
-//
-// - If we cannot get rid of fcontext, consider making 'previous' never NULL
-//   except for the global context. This could simplify Context::Lookup.
 
 class Context: public FixedArray {
  public:
@@ -292,8 +289,17 @@ class Context: public FixedArray {
   // Compute the global context by traversing the context chain.
   Context* global_context();
 
-  // Tells if this is a function context (as opposed to a 'with' context).
-  bool is_function_context() { return unchecked_previous() == NULL; }
+  // Predicates for context types.  IsGlobalContext is defined on Object
+  // because we frequently have to know if arbitrary objects are global
+  // contexts.
+  bool IsFunctionContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->function_context_map();
+  }
+  bool IsCatchContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->catch_context_map();
+  }
 
   // Tells whether the global context is marked with out of memory.
   inline bool has_out_of_memory();

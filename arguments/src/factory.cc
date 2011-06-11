@@ -249,14 +249,20 @@ Handle<Context> Factory::NewFunctionContext(int length,
 }
 
 
-Handle<Context> Factory::NewWithContext(Handle<Context> previous,
-                                        Handle<JSObject> extension,
-                                        bool is_catch_context) {
+Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
+                                         Handle<JSObject> extension) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateWithContext(*previous,
-                                             *extension,
-                                             is_catch_context),
+      isolate()->heap()->AllocateCatchContext(*previous, *extension),
+      Context);
+}
+
+
+Handle<Context> Factory::NewWithContext(Handle<Context> previous,
+                                        Handle<JSObject> extension) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateWithContext(*previous, *extension),
       Context);
 }
 

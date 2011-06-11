@@ -81,19 +81,19 @@ namespace internal {
   RUNTIME_ASSERT(obj->IsBoolean());                                   \
   bool name = (obj)->IsTrue();
 
-// Cast the given object to a Smi and store its value in an int variable
-// with the given name.  If the object is not a Smi call IllegalOperation
+// Cast the given argument to a Smi and store its value in an int variable
+// with the given name.  If the argument is not a Smi call IllegalOperation
 // and return.
-#define CONVERT_SMI_CHECKED(name, obj)                            \
-  RUNTIME_ASSERT(obj->IsSmi());                                   \
-  int name = Smi::cast(obj)->value();
+#define CONVERT_SMI_ARG_CHECKED(name, index)                         \
+  RUNTIME_ASSERT(args[index]->IsSmi());                              \
+  int name = args.smi_at(index);
 
-// Cast the given object to a double and store it in a variable with
-// the given name.  If the object is not a number (as opposed to
+// Cast the given argument to a double and store it in a variable with
+// the given name.  If the argument is not a number (as opposed to
 // the number not-a-number) call IllegalOperation and return.
-#define CONVERT_DOUBLE_CHECKED(name, obj)                            \
-  RUNTIME_ASSERT(obj->IsNumber());                                   \
-  double name = (obj)->Number();
+#define CONVERT_DOUBLE_ARG_CHECKED(name, index)                      \
+  RUNTIME_ASSERT(args[index]->IsNumber());                           \
+  double name = args.number_at(index);
 
 // Call the specified converter on the object *comand store the result in
 // a variable of the specified type with the given name.  If the
@@ -482,7 +482,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralBoilerplate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_CHECKED(FixedArray, elements, 2);
 
   Handle<Object> object =
@@ -499,9 +499,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-  CONVERT_SMI_CHECKED(flags, args[3]);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
 
@@ -525,9 +525,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectLiteralShallow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-  CONVERT_SMI_CHECKED(flags, args[3]);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
 
@@ -551,7 +551,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_CHECKED(FixedArray, elements, 2);
 
   // Check if boilerplate exists. If not, create it first.
@@ -570,7 +570,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_CHECKED(FixedArray, elements, 2);
 
   // Check if boilerplate exists. If not, create it first.
@@ -1117,9 +1117,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
-  bool is_eval = Smi::cast(args[2])->value() == 1;
-  StrictModeFlag strict_mode =
-      static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
+  bool is_eval = args.smi_at(2) == 1;
+  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
   ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // Compute the property attributes. According to ECMA-262, section
@@ -1258,8 +1257,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   CONVERT_ARG_CHECKED(Context, context, 0);
   Handle<String> name(String::cast(args[1]));
-  PropertyAttributes mode =
-      static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
+  PropertyAttributes mode = static_cast<PropertyAttributes>(args.smi_at(2));
   RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3], isolate);
 
@@ -1372,8 +1370,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
-  StrictModeFlag strict_mode =
-      static_cast<StrictModeFlag>(Smi::cast(args[1])->value());
+  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(1));
   ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // According to ECMA-262, section 12.2, page 62, the property must
@@ -1655,7 +1652,7 @@ RUNTIME_FUNCTION(MaybeObject*,
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSObject, object, 0);
-  CONVERT_SMI_CHECKED(properties, args[1]);
+  CONVERT_SMI_ARG_CHECKED(properties, 1);
   if (object->HasFastProperties()) {
     NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
   }
@@ -1670,7 +1667,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
   CONVERT_ARG_CHECKED(String, subject, 1);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_SMI_CHECKED(index, args[2]);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index >= 0);
@@ -1687,7 +1684,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
   ASSERT(args.length() == 3);
-  CONVERT_SMI_CHECKED(elements_count, args[0]);
+  CONVERT_SMI_ARG_CHECKED(elements_count, 0);
   if (elements_count > JSArray::kMaxFastElementsLength) {
     return isolate->ThrowIllegalOperation();
   }
@@ -1842,7 +1839,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaterializeRegExpLiteral) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  int index = Smi::cast(args[1])->value();
+  int index = args.smi_at(1);
   Handle<String> pattern = args.at<String>(2);
   Handle<String> flags = args.at<String>(3);
 
@@ -2068,7 +2065,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_SMI_CHECKED(num, args[1]);
+  CONVERT_SMI_ARG_CHECKED(num, 1);
   RUNTIME_ASSERT(num >= 0);
   SetExpectedNofProperties(function, num);
   return isolate->heap()->undefined_value();
@@ -3122,17 +3119,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
   ASSERT(args.length() == 3);
 
   CONVERT_CHECKED(String, value, args[0]);
-  Object* from = args[1];
-  Object* to = args[2];
   int start, end;
   // We have a fast integer-only case here to avoid a conversion to double in
   // the common case where from and to are Smis.
-  if (from->IsSmi() && to->IsSmi()) {
-    start = Smi::cast(from)->value();
-    end = Smi::cast(to)->value();
+  if (args[1]->IsSmi() && args[2]->IsSmi()) {
+    CONVERT_SMI_ARG_CHECKED(from_number, 1);
+    CONVERT_SMI_ARG_CHECKED(to_number, 2);
+    start = from_number;
+    end = to_number;
   } else {
-    CONVERT_DOUBLE_CHECKED(from_number, from);
-    CONVERT_DOUBLE_CHECKED(to_number, to);
+    CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
+    CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
     start = FastD2I(from_number);
     end = FastD2I(to_number);
   }
@@ -3568,12 +3565,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  CONVERT_SMI_CHECKED(radix, args[1]);
+  CONVERT_SMI_ARG_CHECKED(radix, 1);
   RUNTIME_ASSERT(2 <= radix && radix <= 36);
 
   // Fast case where the result is a one character string.
   if (args[0]->IsSmi()) {
-    int value = Smi::cast(args[0])->value();
+    int value = args.smi_at(0);
     if (value >= 0 && value < radix) {
       // Character array used for conversion.
       static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -3583,7 +3580,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   }
 
   // Slow case.
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
     return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
   }
@@ -3605,7 +3602,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
     return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
   }
@@ -3615,7 +3612,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
     }
     return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
   }
-  CONVERT_DOUBLE_CHECKED(f_number, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= 0);
   char* str = DoubleToFixedCString(value, f);
@@ -3630,7 +3627,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
     return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
   }
@@ -3640,7 +3637,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
     }
     return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
   }
-  CONVERT_DOUBLE_CHECKED(f_number, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
   char* str = DoubleToExponentialCString(value, f);
@@ -3655,7 +3652,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
     return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
   }
@@ -3665,7 +3662,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
     }
     return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
   }
-  CONVERT_DOUBLE_CHECKED(f_number, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
   char* str = DoubleToPrecisionCString(value, f);
@@ -3827,7 +3824,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
     // Fast case for string indexing using [] with a smi index.
     HandleScope scope(isolate);
     Handle<String> str = args.at<String>(0);
-    int index = Smi::cast(args[1])->value();
+    int index = args.smi_at(1);
     if (index >= 0 && index < str->length()) {
       Handle<Object> result = GetCharAt(str, index);
       return *result;
@@ -4130,7 +4127,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  CONVERT_SMI_CHECKED(unchecked_attributes, args[3]);
+  CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
   RUNTIME_ASSERT(
       (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   // Compute attributes.
@@ -4139,7 +4136,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 
   StrictModeFlag strict_mode = kNonStrictMode;
   if (args.length() == 5) {
-    CONVERT_SMI_CHECKED(strict_unchecked, args[4]);
+    CONVERT_SMI_ARG_CHECKED(strict_unchecked, 4);
     RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                    strict_unchecked == kNonStrictMode);
     strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
@@ -4200,7 +4197,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  CONVERT_SMI_CHECKED(strict, args[2]);
+  CONVERT_SMI_ARG_CHECKED(strict, 2);
   return object->DeleteProperty(key, (strict == kStrictMode)
                                       ? JSObject::STRICT_DELETION
                                       : JSObject::NORMAL_DELETION);
@@ -5358,7 +5355,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  CONVERT_SMI_CHECKED(radix, args[1]);
+  CONVERT_SMI_ARG_CHECKED(radix, 1);
 
   s->TryFlatten();
 
@@ -5947,7 +5944,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToInteger) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(number, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
 
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
@@ -5961,7 +5958,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToIntegerMapMinusZero) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(number, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
 
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
@@ -5989,7 +5986,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToJSInt32) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(number, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
 
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
@@ -6031,8 +6028,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberAdd) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   return isolate->heap()->NumberFromDouble(x + y);
 }
 
@@ -6041,8 +6038,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberSub) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   return isolate->heap()->NumberFromDouble(x - y);
 }
 
@@ -6051,8 +6048,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMul) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   return isolate->heap()->NumberFromDouble(x * y);
 }
 
@@ -6061,7 +6058,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberUnaryMinus) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->NumberFromDouble(-x);
 }
 
@@ -6078,8 +6075,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberDiv) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   return isolate->heap()->NumberFromDouble(x / y);
 }
 
@@ -6088,8 +6085,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMod) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
 
   x = modulo(x, y);
   // NumberFromDouble may return a Smi instead of a Number object
@@ -6154,7 +6151,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     isolate->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-  int array_length = Smi::cast(args[1])->value();
+  int array_length = args.smi_at(1);
   CONVERT_CHECKED(String, special, args[2]);
 
   // This assumption is used by the slice encoding in one or two smis.
@@ -6267,7 +6264,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     isolate->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-  int array_length = Smi::cast(args[1])->value();
+  int array_length = args.smi_at(1);
   CONVERT_CHECKED(String, separator, args[2]);
 
   if (!array->HasFastElements()) {
@@ -6545,8 +6542,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberEquals) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   if (isnan(x)) return Smi::FromInt(NOT_EQUAL);
   if (isnan(y)) return Smi::FromInt(NOT_EQUAL);
   if (x == y) return Smi::FromInt(EQUAL);
@@ -6582,8 +6579,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberCompare) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   if (isnan(x) || isnan(y)) return args[2];
   if (x == y) return Smi::FromInt(EQUAL);
   if (isless(x, y)) return Smi::FromInt(LESS);
@@ -6756,7 +6753,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_acos) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_acos()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::ACOS, x);
 }
 
@@ -6766,7 +6763,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_asin) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_asin()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::ASIN, x);
 }
 
@@ -6776,7 +6773,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_atan()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::ATAN, x);
 }
 
@@ -6789,8 +6786,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_atan2) {
   ASSERT(args.length() == 2);
   isolate->counters()->math_atan2()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   double result;
   if (isinf(x) && isinf(y)) {
     // Make sure that the result in case of two infinite arguments
@@ -6812,7 +6809,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_ceil) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_ceil()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->NumberFromDouble(ceiling(x));
 }
 
@@ -6822,7 +6819,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_cos) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_cos()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::COS, x);
 }
 
@@ -6832,7 +6829,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_exp) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_exp()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::EXP, x);
 }
 
@@ -6842,7 +6839,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_floor) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_floor()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->NumberFromDouble(floor(x));
 }
 
@@ -6852,7 +6849,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_log()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
 }
 
@@ -6862,16 +6859,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   ASSERT(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
 
   // If the second argument is a smi, it is much faster to call the
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
-    int y = Smi::cast(args[1])->value();
+    int y = args.smi_at(1);
     return isolate->heap()->NumberFromDouble(power_double_int(x, y));
   }
 
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   return isolate->heap()->AllocateHeapNumber(power_double_double(x, y));
 }
 
@@ -6880,8 +6877,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
-  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   if (y == 0) {
     return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
@@ -6940,7 +6937,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sin) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_sin()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::SIN, x);
 }
 
@@ -6950,7 +6947,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_sqrt()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->AllocateHeapNumber(sqrt(x));
 }
 
@@ -6960,7 +6957,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
   ASSERT(args.length() == 1);
   isolate->counters()->math_tan()->Increment();
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->transcendental_cache()->Get(TranscendentalCache::TAN, x);
 }
 
@@ -7014,9 +7011,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
-  CONVERT_SMI_CHECKED(year, args[0]);
-  CONVERT_SMI_CHECKED(month, args[1]);
-  CONVERT_SMI_CHECKED(date, args[2]);
+  CONVERT_SMI_ARG_CHECKED(year, 0);
+  CONVERT_SMI_ARG_CHECKED(month, 1);
+  CONVERT_SMI_ARG_CHECKED(date, 2);
 
   return Smi::FromInt(MakeDay(year, month, date));
 }
@@ -7313,7 +7310,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  CONVERT_DOUBLE_CHECKED(t, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(t, 0);
   CONVERT_CHECKED(JSArray, res_array, args[1]);
 
   int year, month, day;
@@ -7435,7 +7432,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStrictArgumentsFast) {
 
   JSFunction* callee = JSFunction::cast(args[0]);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
-  const int length = Smi::cast(args[2])->value();
+  const int length = args.smi_at(2);
 
   Object* result;
   { MaybeObject* maybe_result =
@@ -7736,7 +7733,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   ASSERT(args.length() == 1);
   RUNTIME_ASSERT(args[0]->IsSmi());
   Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(Smi::cast(args[0])->value());
+      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
   int frames = deoptimizer->output_count();
@@ -7820,6 +7817,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeoptimizeFunction) {
   Deoptimizer::DeoptimizeFunction(*function);
 
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
+#if defined(USE_SIMULATOR)
+  return isolate->heap()->true_value();
+#else
+  return isolate->heap()->false_value();
+#endif
 }
 
 
@@ -7986,7 +7992,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NewContext) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
@@ -8004,50 +8010,50 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewContext) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* PushContextHelper(Isolate* isolate,
-                                                      Object* object,
-                                                      bool is_catch_context) {
-  // Convert the object to a proper JavaScript object.
-  Object* js_object = object;
-  if (!js_object->IsJSObject()) {
-    MaybeObject* maybe_js_object = js_object->ToObject();
-    if (!maybe_js_object->ToObject(&js_object)) {
-      if (!Failure::cast(maybe_js_object)->IsInternalError()) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  JSObject* extension_object;
+  if (args[0]->IsJSObject()) {
+    extension_object = JSObject::cast(args[0]);
+  } else {
+    // Convert the object to a proper JavaScript object.
+    MaybeObject* maybe_js_object = args[0]->ToObject();
+    if (!maybe_js_object->To(&extension_object)) {
+      if (Failure::cast(maybe_js_object)->IsInternalError()) {
+        HandleScope scope(isolate);
+        Handle<Object> handle = args.at<Object>(0);
+        Handle<Object> result =
+            isolate->factory()->NewTypeError("with_expression",
+                                             HandleVector(&handle, 1));
+        return isolate->Throw(*result);
+      } else {
         return maybe_js_object;
       }
-      HandleScope scope(isolate);
-      Handle<Object> handle(object, isolate);
-      Handle<Object> result =
-          isolate->factory()->NewTypeError("with_expression",
-                                           HandleVector(&handle, 1));
-      return isolate->Throw(*result);
     }
   }
 
-  Object* result;
-  { MaybeObject* maybe_result = isolate->heap()->AllocateWithContext(
-      isolate->context(), JSObject::cast(js_object), is_catch_context);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  Context* context = Context::cast(result);
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateWithContext(isolate->context(),
+                                           extension_object);
+  if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
-
-  return result;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_PushContext) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  return PushContextHelper(isolate, args[0], false);
+  return context;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  return PushContextHelper(isolate, args[0], true);
+  JSObject* extension_object = JSObject::cast(args[0]);
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateCatchContext(isolate->context(),
+                                            extension_object);
+  if (!maybe_context->To(&context)) return maybe_context;
+  isolate->set_context(context);
+  return context;
 }
 
 
@@ -8237,7 +8243,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   Handle<Object> value(args[0], isolate);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
-  CONVERT_SMI_CHECKED(strict_unchecked, args[3]);
+  CONVERT_SMI_ARG_CHECKED(strict_unchecked, 3);
   RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                  strict_unchecked == kNonStrictMode);
   StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
@@ -8551,7 +8557,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   const char* zone = OS::LocalTimezone(x);
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
 }
@@ -8569,7 +8575,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateDaylightSavingsOffset) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   return isolate->heap()->NumberFromDouble(OS::DaylightSavingsOffset(x));
 }
 
@@ -8710,12 +8716,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     // Stop search when eval is found or when the global context is
     // reached.
     if (attributes != ABSENT || context->IsGlobalContext()) break;
-    if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
-    } else {
-      context = Handle<Context>(context->previous(), isolate);
-    }
+    context = Handle<Context>(context->previous(), isolate);
   }
 
   // If eval could not be resolved, it has been deleted and we need to
@@ -8748,8 +8749,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           static_cast<StrictModeFlag>(
-                                Smi::cast(args[3])->value()));
+                           static_cast<StrictModeFlag>(args.smi_at(3)));
 }
 
 
@@ -8770,8 +8770,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEvalNoLookup) {
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           static_cast<StrictModeFlag>(
-                                Smi::cast(args[3])->value()));
+                           static_cast<StrictModeFlag>(args.smi_at(3)));
 }
 
 
@@ -9945,8 +9944,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
   ScopeInfo<> info(*scope_info);
 
-  // Get the context.
-  Handle<Context> context(Context::cast(it.frame()->context()));
+  // Get the nearest enclosing function context.
+  Handle<Context> context(Context::cast(it.frame()->context())->fcontext());
 
   // Get the locals names and values into a temporary array.
   //
@@ -9962,25 +9961,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   }
 
   // Fill in the values of the locals.
-  for (int i = 0; i < info.NumberOfLocals(); i++) {
-    if (is_optimized_frame) {
-      // If we are inspecting an optimized frame use undefined as the
-      // value for all locals.
-      //
-      // TODO(1140): We should be able to get the correct values
-      // for locals in optimized frames.
+  if (is_optimized_frame) {
+    // If we are inspecting an optimized frame use undefined as the
+    // value for all locals.
+    //
+    // TODO(1140): We should be able to get the correct values
+    // for locals in optimized frames.
+    for (int i = 0; i < info.NumberOfLocals(); i++) {
       locals->set(i * 2 + 1, isolate->heap()->undefined_value());
-    } else if (i < info.number_of_stack_slots()) {
+    }
+  } else {
+    for (int i = 0; i < info.number_of_stack_slots(); i++) {
       // Get the value from the stack.
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
-    } else {
-      // Traverse the context chain to the function context as all local
-      // variables stored in the context will be on the function context.
+    }
+    for (int i = info.number_of_stack_slots(); i < info.NumberOfLocals(); i++) {
       Handle<String> name = info.LocalName(i);
-      while (!context->is_function_context()) {
-        context = Handle<Context>(context->previous());
-      }
-      ASSERT(context->is_function_context());
       locals->set(i * 2 + 1,
                   context->get(scope_info->ContextSlotIndex(*name, NULL)));
     }
@@ -10238,7 +10234,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
 // context.
 static Handle<JSObject> MaterializeClosure(Isolate* isolate,
                                            Handle<Context> context) {
-  ASSERT(context->is_function_context());
+  ASSERT(context->IsFunctionContext());
 
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<SerializedScopeInfo> serialized_scope_info(shared->scope_info());
@@ -10314,7 +10310,7 @@ class ScopeIterator {
       int index = function_->shared()->scope_info()->
           StackSlotIndex(isolate_->heap()->result_symbol());
       at_local_ = index < 0;
-    } else if (context_->is_function_context()) {
+    } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
       // The context_ is a with block from the outer function.
@@ -10348,16 +10344,12 @@ class ScopeIterator {
     }
 
     // Move to the next context.
-    if (context_->is_function_context()) {
-      context_ = Handle<Context>(Context::cast(context_->closure()->context()));
-    } else {
-      context_ = Handle<Context>(context_->previous());
-    }
+    context_ = Handle<Context>(context_->previous(), isolate_);
 
     // If passing the local scope indicate that the current scope is now the
     // local scope.
     if (!local_done_ &&
-        (context_->IsGlobalContext() || (context_->is_function_context()))) {
+        (context_->IsGlobalContext() || context_->IsFunctionContext())) {
       at_local_ = true;
     }
   }
@@ -10371,7 +10363,7 @@ class ScopeIterator {
       ASSERT(context_->global()->IsGlobalObject());
       return ScopeTypeGlobal;
     }
-    if (context_->is_function_context()) {
+    if (context_->IsFunctionContext()) {
       return ScopeTypeClosure;
     }
     ASSERT(context_->has_extension());
@@ -10939,19 +10931,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 
 // Creates a copy of the with context chain. The copy of the context chain is
 // is linked to the function context supplied.
-static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
-                                            Handle<Context> function_context) {
-  // At the bottom of the chain. Return the function context to link to.
-  if (context_chain->is_function_context()) {
-    return function_context;
+static Handle<Context> CopyWithContextChain(Isolate* isolate,
+                                            Handle<Context> current,
+                                            Handle<Context> base) {
+  // At the end of the chain. Return the base context to link to.
+  if (current->IsFunctionContext() || current->IsGlobalContext()) {
+    return base;
   }
 
-  // Recursively copy the with contexts.
-  Handle<Context> previous(context_chain->previous());
-  Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  Handle<Context> context = CopyWithContextChain(previous, function_context);
-  return context->GetIsolate()->factory()->NewWithContext(
-      context, extension, context_chain->IsCatchContext());
+  // Recursively copy the with and catch contexts.
+  HandleScope scope(isolate);
+  Handle<Context> previous(current->previous());
+  Handle<Context> new_previous = CopyWithContextChain(isolate, previous, base);
+  Handle<JSObject> extension(JSObject::cast(current->extension()));
+  Handle<Context> new_current = current->IsCatchContext()
+      ? isolate->factory()->NewCatchContext(new_previous, extension)
+      : isolate->factory()->NewWithContext(new_previous, extension);
+  return scope.CloseAndEscape(new_current);
 }
 
 
@@ -11080,11 +11076,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->fcontext());
-  context = CopyWithContextChain(frame_context, context);
+  context = CopyWithContextChain(isolate, frame_context, context);
 
   if (additional_context->IsJSObject()) {
-    context = isolate->factory()->NewWithContext(context,
-        Handle<JSObject>::cast(additional_context), false);
+    Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
+    context = isolate->factory()->NewWithContext(context, extension);
   }
 
   // Wrap the evaluation statement in a new function compiled in the newly
@@ -11806,7 +11802,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CaptureLOL) {
 // Deletes the specified live object list.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteLOL) {
 #ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_CHECKED(id, args[0]);
+  CONVERT_SMI_ARG_CHECKED(id, 0);
   bool success = LiveObjectList::Delete(id);
   return success ? isolate->heap()->true_value() :
                    isolate->heap()->false_value();
@@ -11824,10 +11820,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteLOL) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DumpLOL) {
 #ifdef LIVE_OBJECT_LIST
   HandleScope scope;
-  CONVERT_SMI_CHECKED(id1, args[0]);
-  CONVERT_SMI_CHECKED(id2, args[1]);
-  CONVERT_SMI_CHECKED(start, args[2]);
-  CONVERT_SMI_CHECKED(count, args[3]);
+  CONVERT_SMI_ARG_CHECKED(id1, 0);
+  CONVERT_SMI_ARG_CHECKED(id2, 1);
+  CONVERT_SMI_ARG_CHECKED(start, 2);
+  CONVERT_SMI_ARG_CHECKED(count, 3);
   CONVERT_ARG_CHECKED(JSObject, filter_obj, 4);
   EnterDebugger enter_debugger;
   return LiveObjectList::Dump(id1, id2, start, count, filter_obj);
@@ -11841,7 +11837,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DumpLOL) {
 // This is only used for obj ids shown in live object lists.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObj) {
 #ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
   Object* result = LiveObjectList::GetObj(obj_id);
   return result;
 #else
@@ -11868,7 +11864,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjId) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjRetainers) {
 #ifdef LIVE_OBJECT_LIST
   HandleScope scope;
-  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
   RUNTIME_ASSERT(args[1]->IsUndefined() || args[1]->IsJSObject());
   RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsBoolean());
   RUNTIME_ASSERT(args[3]->IsUndefined() || args[3]->IsSmi());
@@ -11885,11 +11881,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjRetainers) {
   }
   int start = 0;
   if (args[3]->IsSmi()) {
-    start = Smi::cast(args[3])->value();
+    start = args.smi_at(3);
   }
   int limit = Smi::kMaxValue;
   if (args[4]->IsSmi()) {
-    limit = Smi::cast(args[4])->value();
+    limit = args.smi_at(4);
   }
 
   return LiveObjectList::GetObjRetainers(obj_id,
@@ -11908,8 +11904,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjRetainers) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLPath) {
 #ifdef LIVE_OBJECT_LIST
   HandleScope scope;
-  CONVERT_SMI_CHECKED(obj_id1, args[0]);
-  CONVERT_SMI_CHECKED(obj_id2, args[1]);
+  CONVERT_SMI_ARG_CHECKED(obj_id1, 0);
+  CONVERT_SMI_ARG_CHECKED(obj_id2, 1);
   RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsJSObject());
 
   Handle<JSObject> instance_filter;
@@ -11930,8 +11926,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLPath) {
 // previously captured live object lists.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InfoLOL) {
 #ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_CHECKED(start, args[0]);
-  CONVERT_SMI_CHECKED(count, args[1]);
+  CONVERT_SMI_ARG_CHECKED(start, 0);
+  CONVERT_SMI_ARG_CHECKED(count, 1);
   return LiveObjectList::Info(start, count);
 #else
   return isolate->heap()->undefined_value();
@@ -11944,7 +11940,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InfoLOL) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PrintLOLObj) {
 #ifdef LIVE_OBJECT_LIST
   HandleScope scope;
-  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
   Object* result = LiveObjectList::PrintObj(obj_id);
   return result;
 #else
@@ -11972,8 +11968,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ResetLOL) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
 #ifdef LIVE_OBJECT_LIST
   HandleScope scope;
-  CONVERT_SMI_CHECKED(id1, args[0]);
-  CONVERT_SMI_CHECKED(id2, args[1]);
+  CONVERT_SMI_ARG_CHECKED(id1, 0);
+  CONVERT_SMI_ARG_CHECKED(id2, 1);
   CONVERT_ARG_CHECKED(JSObject, filter_obj, 2);
 
   EnterDebugger enter_debugger;
@@ -12163,8 +12159,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
   ASSERT(args.length() == 2);
-  OS::PrintError("abort: %s\n", reinterpret_cast<char*>(args[0]) +
-                                    Smi::cast(args[1])->value());
+  OS::PrintError("abort: %s\n",
+                 reinterpret_cast<char*>(args[0]) + args.smi_at(1));
   isolate->PrintStack();
   OS::Abort();
   UNREACHABLE();

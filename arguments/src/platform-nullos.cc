@@ -314,18 +314,16 @@ class Thread::PlatformData : public Malloced {
 };
 
 
-Thread::Thread(Isolate* isolate, const Options& options)
+Thread::Thread(const Options& options)
     : data_(new PlatformData()),
-      isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
   UNIMPLEMENTED();
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
+Thread::Thread(const char* name)
     : data_(new PlatformData()),
-      isolate_(isolate),
       stack_size_(0) {
   set_name(name);
   UNIMPLEMENTED();

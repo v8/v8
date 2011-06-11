@@ -129,7 +129,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Setup the object header.
   Factory* factory = masm->isolate()->factory();
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), factory->context_map());
+  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
+         factory->function_context_map());
   __ mov(FieldOperand(eax, Context::kLengthOffset),
          Immediate(Smi::FromInt(length)));
 
@@ -137,14 +138,11 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ Set(ebx, Immediate(0));  // Set to NULL.
   __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
   __ mov(Operand(eax, Context::SlotOffset(Context::FCONTEXT_INDEX)), eax);
-  __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), ebx);
+  __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), esi);
   __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
 
-  // Copy the global object from the surrounding context. We go through the
-  // context in the function (ecx) to match the allocation behavior we have
-  // in the runtime system (see Heap::AllocateFunctionContext).
-  __ mov(ebx, FieldOperand(ecx, JSFunction::kContextOffset));
-  __ mov(ebx, Operand(ebx, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Copy the global object from the previous context.
+  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_INDEX)), ebx);
 
   // Initialize the rest of the slots to undefined.
@@ -159,7 +157,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
@@ -516,12 +514,6 @@ static void IntegerConvert(MacroAssembler* masm,
 }
 
 
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
-  UnaryOpStub stub(key, type_info);
-  return stub.GetCode();
-}
-
-
 const char* UnaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
@@ -849,14 +841,6 @@ void UnaryOpStub::GenerateGenericCodeFallback(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
-}
-
-
-Handle<Code> GetBinaryOpStub(int key,
-    BinaryOpIC::TypeInfo type_info,
-    BinaryOpIC::TypeInfo result_type_info) {
-  BinaryOpStub stub(key, type_info, result_type_info);
-  return stub.GetCode();
 }
 
 

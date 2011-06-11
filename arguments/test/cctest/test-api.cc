@@ -9342,8 +9342,7 @@ void ApiTestFuzzer::Setup(PartOfTest part) {
   int end = (count * (part + 1) / (LAST_PART + 1)) - 1;
   active_tests_ = tests_being_run_ = end - start + 1;
   for (int i = 0; i < tests_being_run_; i++) {
-    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(
-        i::Isolate::Current(), i + start);
+    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(i + start);
   }
   for (int i = 0; i < active_tests_; i++) {
     RegisterThreadedTest::nth(i)->fuzzer_->Start();
@@ -9915,6 +9914,19 @@ void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
 }
 
 
+void CheckOwnProperties(v8::Handle<v8::Value> val,
+                        int elmc,
+                        const char* elmv[]) {
+  v8::Handle<v8::Object> obj = val.As<v8::Object>();
+  v8::Handle<v8::Array> props = obj->GetOwnPropertyNames();
+  CHECK_EQ(elmc, props->Length());
+  for (int i = 0; i < elmc; i++) {
+    v8::String::Utf8Value elm(props->Get(v8::Integer::New(i)));
+    CHECK_EQ(elmv[i], *elm);
+  }
+}
+
+
 THREADED_TEST(PropertyEnumeration) {
   v8::HandleScope scope;
   LocalContext context;
@@ -9932,15 +9944,21 @@ THREADED_TEST(PropertyEnumeration) {
   int elmc0 = 0;
   const char** elmv0 = NULL;
   CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+  CheckOwnProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
   int elmc1 = 2;
   const char* elmv1[] = {"a", "b"};
   CheckProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
+  CheckOwnProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
   int elmc2 = 3;
   const char* elmv2[] = {"0", "1", "2"};
   CheckProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
+  CheckOwnProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
   int elmc3 = 4;
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
+  int elmc4 = 2;
+  const char* elmv4[] = {"w", "z"};
+  CheckOwnProperties(elms->Get(v8::Integer::New(3)), elmc4, elmv4);
 }
 
 THREADED_TEST(PropertyEnumeration2) {
@@ -10460,7 +10478,7 @@ class RegExpInterruptTest {
     gc_during_regexp_ = 0;
     regexp_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(i::Isolate::Current(), this);
+    GCThread gc_thread(this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -10480,8 +10498,8 @@ class RegExpInterruptTest {
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(i::Isolate* isolate, RegExpInterruptTest* test)
-        : Thread(isolate, "GCThread"), test_(test) {}
+    explicit GCThread(RegExpInterruptTest* test)
+        : Thread("GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10583,7 +10601,7 @@ class ApplyInterruptTest {
     gc_during_apply_ = 0;
     apply_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(i::Isolate::Current(), this);
+    GCThread gc_thread(this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -10603,8 +10621,8 @@ class ApplyInterruptTest {
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(i::Isolate* isolate, ApplyInterruptTest* test)
-        : Thread(isolate, "GCThread"), test_(test) {}
+    explicit GCThread(ApplyInterruptTest* test)
+        : Thread("GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10878,7 +10896,7 @@ class RegExpStringModificationTest {
         NONE,
         i::kNonStrictMode)->ToObjectChecked();
 
-    MorphThread morph_thread(i::Isolate::Current(), this);
+    MorphThread morph_thread(this);
     morph_thread.Start();
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
@@ -10898,9 +10916,8 @@ class RegExpStringModificationTest {
 
   class MorphThread : public i::Thread {
    public:
-    explicit MorphThread(i::Isolate* isolate,
-                         RegExpStringModificationTest* test)
-        : Thread(isolate, "MorphThread"), test_(test) {}
+    explicit MorphThread(RegExpStringModificationTest* test)
+        : Thread("MorphThread"), test_(test) {}
     virtual void Run() {
       test_->MorphString();
     }
@@ -13717,8 +13734,8 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 
 class IsolateThread : public v8::internal::Thread {
  public:
-  explicit IsolateThread(v8::Isolate* isolate, int fib_limit)
-      : Thread(NULL, "IsolateThread"),
+  IsolateThread(v8::Isolate* isolate, int fib_limit)
+      : Thread("IsolateThread"),
         isolate_(isolate),
         fib_limit_(fib_limit),
         result_(0) { }
@@ -13798,7 +13815,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
   };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
-      : Thread(NULL, "InitDefaultIsolateThread"),
+      : Thread("InitDefaultIsolateThread"),
         testCase_(testCase),
         result_(false) { }
 

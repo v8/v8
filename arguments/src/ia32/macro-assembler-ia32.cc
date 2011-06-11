@@ -1759,12 +1759,9 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.
-    mov(dst, Operand(esi, Context::SlotOffset(Context::CLOSURE_INDEX)));
-    // Load the function context (which is the incoming, outer context).
-    mov(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    mov(dst, Operand(esi, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     for (int i = 1; i < context_chain_length; i++) {
-      mov(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
-      mov(dst, FieldOperand(dst, JSFunction::kContextOffset));
+      mov(dst, Operand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     }
   } else {
     // Slot is in the current function context.  Move it into the

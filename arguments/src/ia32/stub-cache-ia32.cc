@@ -2699,18 +2699,15 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreFastElement(
-    Map* receiver_map) {
+MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreFastElementStub(is_js_array).TryGetCode();
   Code* stub;
+  MaybeObject* maybe_stub = ComputeSharedKeyedStoreElementStub(receiver_map);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(edx,
                  Handle<Map>(receiver_map),
@@ -3163,14 +3160,14 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadFastElement(Map* receiver_map) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  MaybeObject* maybe_stub = KeyedLoadFastElementStub().TryGetCode();
   Code* stub;
+  MaybeObject* maybe_stub = ComputeSharedKeyedLoadElementStub(receiver_map);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(edx,
                  Handle<Map>(receiver_map),
@@ -3351,61 +3348,13 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 }
 
 
-MaybeObject* ExternalArrayLoadStubCompiler::CompileLoad(
-    JSObject*receiver, ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  MaybeObject* maybe_stub =
-      KeyedLoadExternalArrayStub(array_type).TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver->map()),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
-
-  Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode();
-}
-
-
-MaybeObject* ExternalArrayStoreStubCompiler::CompileStore(
-    JSObject* receiver, ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  MaybeObject* maybe_stub =
-      KeyedStoreExternalArrayStub(array_type).TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver->map()),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
-
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  return GetCode();
-}
-
-
 #undef __
 #define __ ACCESS_MASM(masm)
 
 
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
-    ExternalArrayType array_type) {
+    JSObject::ElementsKind elements_kind) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3429,28 +3378,28 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   __ j(above_equal, &miss_force_generic);
   __ mov(ebx, FieldOperand(ebx, ExternalArray::kExternalPointerOffset));
   // ebx: base pointer of external storage
-  switch (array_type) {
-    case kExternalByteArray:
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
       __ movsx_b(eax, Operand(ebx, ecx, times_1, 0));
       break;
-    case kExternalUnsignedByteArray:
-    case kExternalPixelArray:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       __ movzx_b(eax, Operand(ebx, ecx, times_1, 0));
       break;
-    case kExternalShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
       __ movsx_w(eax, Operand(ebx, ecx, times_2, 0));
       break;
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ movzx_w(eax, Operand(ebx, ecx, times_2, 0));
       break;
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
       __ mov(ecx, Operand(ebx, ecx, times_4, 0));
       break;
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       __ fld_s(Operand(ebx, ecx, times_4, 0));
       break;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       __ fld_d(Operand(ebx, ecx, times_8, 0));
       break;
     default:
@@ -3463,17 +3412,17 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // For floating-point array type:
   // FP(0): value
 
-  if (array_type == kExternalIntArray ||
-      array_type == kExternalUnsignedIntArray) {
+  if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS) {
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
     Label box_int;
-    if (array_type == kExternalIntArray) {
+    if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS) {
       __ cmp(ecx, 0xC0000000);
       __ j(sign, &box_int);
     } else {
-      ASSERT_EQ(array_type, kExternalUnsignedIntArray);
+      ASSERT_EQ(JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
       // The test is different for unsigned int values. Since we need
       // the value to be in the range of a positive smi, we can't
       // handle either of the top two bits being set in the value.
@@ -3489,12 +3438,12 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
     // Allocate a HeapNumber for the int and perform int-to-double
     // conversion.
-    if (array_type == kExternalIntArray) {
+    if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS) {
       __ push(ecx);
       __ fild_s(Operand(esp, 0));
       __ pop(ecx);
     } else {
-      ASSERT(array_type == kExternalUnsignedIntArray);
+      ASSERT_EQ(JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
       // Need to zero-extend the value.
       // There's no fild variant for unsigned values, so zero-extend
       // to a 64-bit int manually.
@@ -3510,8 +3459,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     __ mov(eax, ecx);
     __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
     __ ret(0);
-  } else if (array_type == kExternalFloatArray ||
-             array_type == kExternalDoubleArray) {
+  } else if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+             elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
     __ AllocateHeapNumber(ecx, ebx, edi, &failed_allocation);
@@ -3561,7 +3510,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
 void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
-    ExternalArrayType array_type) {
+    JSObject::ElementsKind elements_kind) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3592,7 +3541,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // edi: elements array
   // ebx: untagged index
   __ test(eax, Immediate(kSmiTagMask));
-  if (array_type == kExternalPixelArray)
+  if (elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS)
     __ j(not_equal, &slow);
   else
     __ j(not_equal, &check_heap_number);
@@ -3602,8 +3551,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ SmiUntag(ecx);
   __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
   // ecx: base pointer of external storage
-  switch (array_type) {
-    case kExternalPixelArray:
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       {  // Clamp the value to [0..255].
         Label done;
         __ test(ecx, Immediate(0xFFFFFF00));
@@ -3614,27 +3563,27 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
       break;
-    case kExternalByteArray:
-    case kExternalUnsignedByteArray:
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
       break;
-    case kExternalShortArray:
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
       break;
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
       __ mov(Operand(edi, ebx, times_4, 0), ecx);
       break;
-    case kExternalFloatArray:
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       // Need to perform int-to-float conversion.
       __ push(ecx);
       __ fild_s(Operand(esp, 0));
       __ pop(ecx);
-      if (array_type == kExternalFloatArray) {
+      if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
         __ fstp_s(Operand(edi, ebx, times_4, 0));
-      } else {  // array_type == kExternalDoubleArray.
+      } else {  // elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS.
         __ fstp_d(Operand(edi, ebx, times_8, 0));
       }
       break;
@@ -3645,7 +3594,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ ret(0);  // Return the original value.
 
   // TODO(danno): handle heap number -> pixel array conversion
-  if (array_type != kExternalPixelArray) {
+  if (elements_kind != JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     __ bind(&check_heap_number);
     // eax: value
     // edx: receiver
@@ -3662,11 +3611,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
     // ebx: untagged index
     // edi: base pointer of external storage
-    if (array_type == kExternalFloatArray) {
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
       __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ fstp_s(Operand(edi, ebx, times_4, 0));
       __ ret(0);
-    } else if (array_type == kExternalDoubleArray) {
+    } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
       __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ fstp_d(Operand(edi, ebx, times_8, 0));
       __ ret(0);
@@ -3679,14 +3628,14 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // (code-stubs-ia32.cc) is roughly what is needed here though the
       // conversion failure case does not need to be handled.
       if (CpuFeatures::IsSupported(SSE2)) {
-        if (array_type != kExternalIntArray &&
-            array_type != kExternalUnsignedIntArray) {
+        if (elements_kind != JSObject::EXTERNAL_INT_ELEMENTS &&
+            elements_kind != JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS) {
           ASSERT(CpuFeatures::IsSupported(SSE2));
           CpuFeatures::Scope scope(SSE2);
           __ cvttsd2si(ecx, FieldOperand(eax, HeapNumber::kValueOffset));
           // ecx: untagged integer value
-          switch (array_type) {
-            case kExternalPixelArray:
+          switch (elements_kind) {
+            case JSObject::EXTERNAL_PIXEL_ELEMENTS:
               {  // Clamp the value to [0..255].
                 Label done;
                 __ test(ecx, Immediate(0xFFFFFF00));
@@ -3697,12 +3646,12 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
               }
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
               break;
-            case kExternalByteArray:
-            case kExternalUnsignedByteArray:
+            case JSObject::EXTERNAL_BYTE_ELEMENTS:
+            case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
               break;
-            case kExternalShortArray:
-            case kExternalUnsignedShortArray:
+            case JSObject::EXTERNAL_SHORT_ELEMENTS:
+            case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
               __ mov_w(Operand(edi, ebx, times_2, 0), ecx);
               break;
             default:
@@ -3773,8 +3722,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ jmp(miss_ic, RelocInfo::CODE_TARGET);
 }
-
-
 
 
 void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {

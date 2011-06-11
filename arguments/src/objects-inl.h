@@ -534,19 +534,14 @@ bool Object::IsDeoptimizationOutputData() {
 
 bool Object::IsContext() {
   if (Object::IsHeapObject()) {
-    Heap* heap = HeapObject::cast(this)->GetHeap();
-    return (HeapObject::cast(this)->map() == heap->context_map() ||
-            HeapObject::cast(this)->map() == heap->catch_context_map() ||
-            HeapObject::cast(this)->map() == heap->global_context_map());
+    Map* map = HeapObject::cast(this)->map();
+    Heap* heap = map->GetHeap();
+    return (map == heap->function_context_map() ||
+            map == heap->catch_context_map() ||
+            map == heap->with_context_map() ||
+            map == heap->global_context_map());
   }
   return false;
-}
-
-
-bool Object::IsCatchContext() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->catch_context_map();
 }
 
 
@@ -895,7 +890,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using load-double (mips ldc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline double read_double_field(HeapNumber* p, int offset) {
+  static inline double read_double_field(void* p, int offset) {
     union conversion {
       double d;
       uint32_t u[2];
@@ -914,7 +909,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using store-double (mips sdc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline void write_double_field(HeapNumber* p, int offset,
+  static inline void write_double_field(void* p, int offset,
                                         double value) {
     union conversion {
       double d;
@@ -2843,19 +2838,6 @@ CheckType Code::check_type() {
 void Code::set_check_type(CheckType value) {
   ASSERT(is_call_stub() || is_keyed_call_stub());
   WRITE_BYTE_FIELD(this, kCheckTypeOffset, value);
-}
-
-
-ExternalArrayType Code::external_array_type() {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
-  return static_cast<ExternalArrayType>(type);
-}
-
-
-void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
 }
 
 

@@ -108,8 +108,9 @@ inline Heap* _inline_get_heap_();
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
   V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
-  V(Map, context_map, ContextMap)                                              \
+  V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
+  V(Map, with_context_map, WithContextMap)                                     \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -181,14 +182,14 @@ inline Heap* _inline_get_heap_();
   V(value_of_symbol, "valueOf")                                          \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
-  V(KeyedLoadSpecializedMonomorphic_symbol,                              \
-    "KeyedLoadSpecializedMonomorphic")                                   \
-  V(KeyedLoadSpecializedPolymorphic_symbol,                              \
-    "KeyedLoadSpecializedPolymorphic")                                   \
-  V(KeyedStoreSpecializedMonomorphic_symbol,                             \
-    "KeyedStoreSpecializedMonomorphic")                                  \
-  V(KeyedStoreSpecializedPolymorphic_symbol,                             \
-    "KeyedStoreSpecializedPolymorphic")                                  \
+  V(KeyedLoadElementMonomorphic_symbol,                                  \
+    "KeyedLoadElementMonomorphic")                                       \
+  V(KeyedLoadElementPolymorphic_symbol,                                  \
+    "KeyedLoadElementPolymorphic")                                       \
+  V(KeyedStoreElementMonomorphic_symbol,                                 \
+    "KeyedStoreElementMonomorphic")                                      \
+  V(KeyedStoreElementPolymorphic_symbol,                                 \
+    "KeyedStoreElementPolymorphic")                                      \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -645,10 +646,12 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
                                                        JSFunction* closure);
 
+  // Allocate a catch context.
+  MUST_USE_RESULT MaybeObject* AllocateCatchContext(Context* previous,
+                                                    JSObject* extension);
   // Allocate a 'with' context.
   MUST_USE_RESULT MaybeObject* AllocateWithContext(Context* previous,
-                                                   JSObject* extension,
-                                                   bool is_catch_context);
+                                                   JSObject* extension);
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);

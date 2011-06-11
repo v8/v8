@@ -122,6 +122,7 @@ class Profiler: public Thread {
   // Returns the next index in the cyclic buffer.
   int Succ(int index) { return (index + 1) % kBufferSize; }
 
+  Isolate* isolate_;
   // Cyclic buffer for communicating profiling samples
   // between the signal handler and the worker thread.
   static const int kBufferSize = 128;
@@ -271,7 +272,8 @@ void SlidingStateWindow::AddState(StateTag state) {
 // Profiler implementation.
 //
 Profiler::Profiler(Isolate* isolate)
-    : Thread(isolate, "v8:Profiler"),
+    : Thread("v8:Profiler"),
+      isolate_(isolate),
       head_(0),
       tail_(0),
       overflow_(false),
@@ -326,9 +328,8 @@ void Profiler::Disengage() {
 void Profiler::Run() {
   TickSample sample;
   bool overflow = Remove(&sample);
-  i::Isolate* isolate = ISOLATE;
   while (running_) {
-    LOG(isolate, TickEvent(&sample, overflow));
+    LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
 }
@@ -1842,9 +1843,9 @@ bool Logger::Setup() {
 
   if (FLAG_ll_prof) LogCodeInfo();
 
-  ticker_ = new Ticker(Isolate::Current(), kSamplingIntervalMs);
-
   Isolate* isolate = Isolate::Current();
+  ticker_ = new Ticker(isolate, kSamplingIntervalMs);
+
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow(isolate);
   }

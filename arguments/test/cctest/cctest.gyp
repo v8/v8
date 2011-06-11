@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -26,36 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
-  'target_defaults': {
-    'conditions': [
-      ['OS!="mac"', {
-        # TODO(sgjesse): This is currently copied from v8.gyp, should probably
-        # be refactored.
-        'conditions': [
-          ['v8_target_arch=="arm"', {
-            'defines': [
-              'V8_TARGET_ARCH_ARM',
-            ],
-          }],
-          ['v8_target_arch=="ia32"', {
-            'defines': [
-              'V8_TARGET_ARCH_IA32',
-            ],
-          }],
-          ['v8_target_arch=="mips"', {
-            'defines': [
-              'V8_TARGET_ARCH_MIPS',
-            ],
-          }],
-          ['v8_target_arch=="x64"', {
-            'defines': [
-              'V8_TARGET_ARCH_X64',
-            ],
-          }],
-        ],
-      }],
-    ],
-  },
+  'includes': [ '../../build/v8-features.gypi' ],
   'targets': [
     {
       'target_name': 'cctest',

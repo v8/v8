@@ -2763,6 +2763,25 @@ Local<Array> v8::Object::GetPropertyNames() {
 }
 
 
+Local<Array> v8::Object::GetOwnPropertyNames() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetOwnPropertyNames()",
+             return Local<v8::Array>());
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::FixedArray> value =
+      i::GetKeysInFixedArrayFor(self, i::LOCAL_ONLY);
+  // Because we use caching to speed up enumeration it is important
+  // to never change the result of the basic enumeration function so
+  // we clone the result.
+  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
+  i::Handle<i::JSArray> result =
+      isolate->factory()->NewJSArrayWithElements(elms);
+  return Utils::ToLocal(scope.CloseAndEscape(result));
+}
+
+
 Local<String> v8::Object::ObjectProtoToString() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::ObjectProtoToString()",
@@ -4902,9 +4921,10 @@ void V8::TerminateExecution(Isolate* isolate) {
 }
 
 
-bool V8::IsExecutionTerminating() {
-  i::Isolate* isolate = i::Isolate::Current();
-  return IsExecutionTerminatingCheck(isolate);
+bool V8::IsExecutionTerminating(Isolate* isolate) {
+  i::Isolate* i_isolate = isolate != NULL ?
+      reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
+  return IsExecutionTerminatingCheck(i_isolate);
 }
 
 

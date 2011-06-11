@@ -123,15 +123,16 @@ void PrettyPrinter::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void PrettyPrinter::VisitWithEnterStatement(WithEnterStatement* node) {
-  Print("<enter with> (");
+void PrettyPrinter::VisitEnterWithContextStatement(
+    EnterWithContextStatement* node) {
+  Print("<enter with context> (");
   Visit(node->expression());
   Print(") ");
 }
 
 
-void PrettyPrinter::VisitWithExitStatement(WithExitStatement* node) {
-  Print("<exit with>");
+void PrettyPrinter::VisitExitContextStatement(ExitContextStatement* node) {
+  Print("<exit context>");
 }
 
 
@@ -797,13 +798,14 @@ void AstPrinter::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void AstPrinter::VisitWithEnterStatement(WithEnterStatement* node) {
-  PrintIndentedVisit("WITH ENTER", node->expression());
+void AstPrinter::VisitEnterWithContextStatement(
+    EnterWithContextStatement* node) {
+  PrintIndentedVisit("ENTER WITH CONTEXT", node->expression());
 }
 
 
-void AstPrinter::VisitWithExitStatement(WithExitStatement* node) {
-  PrintIndented("WITH EXIT\n");
+void AstPrinter::VisitExitContextStatement(ExitContextStatement* node) {
+  PrintIndented("EXIT CONTEXT\n");
 }
 
 
@@ -1191,14 +1193,15 @@ void JsonAstBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void JsonAstBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  TagScope tag(this, "WithEnterStatement");
+void JsonAstBuilder::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
+  TagScope tag(this, "EnterWithContextStatement");
   Visit(stmt->expression());
 }
 
 
-void JsonAstBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
-  TagScope tag(this, "WithExitStatement");
+void JsonAstBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
+  TagScope tag(this, "ExitContextStatement");
 }
 
 

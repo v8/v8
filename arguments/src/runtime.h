@@ -88,6 +88,7 @@ namespace internal {
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
+  F(RunningInSimulator, 0, 1) \
   F(OptimizeFunctionOnNextCall, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
@@ -298,8 +299,8 @@ namespace internal {
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 1, 1) \
-  F(PushContext, 1, 1) \
+  F(NewFunctionContext, 1, 1) \
+  F(PushWithContext, 1, 1) \
   F(PushCatchContext, 1, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \

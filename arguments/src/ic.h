@@ -351,7 +351,7 @@ class KeyedIC: public IC {
       bool is_js_array) = 0;
 
   virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
-      ExternalArrayType array_type) = 0;
+      JSObject::ElementsKind elements_kind) = 0;
 
  protected:
   virtual Code* string_stub() {
@@ -423,7 +423,7 @@ class KeyedLoadIC: public KeyedIC {
       bool is_js_array);
 
   virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
-      ExternalArrayType array_type);
+      JSObject::ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
@@ -578,7 +578,7 @@ class KeyedStoreIC: public KeyedIC {
       bool is_js_array);
 
   virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
-      ExternalArrayType array_type);
+      JSObject::ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }

@@ -35,6 +35,7 @@
 #include "data-flow.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
+#include "utils.h"
 #include "zone.h"
 
 namespace v8 {
@@ -487,6 +488,7 @@ class HValue: public ZoneObject {
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
+    kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
     kLastFlag = kTruncatingToInt32
@@ -595,6 +597,7 @@ class HValue: public ZoneObject {
   void SetOperandAt(int index, HValue* value);
 
   void DeleteAndReplaceWith(HValue* other);
+  void ReplaceAllUsesWith(HValue* other);
   bool HasNoUses() const { return use_list_ == NULL; }
   bool HasMultipleUses() const {
     return use_list_ != NULL && use_list_->tail() != NULL;
@@ -684,8 +687,6 @@ class HValue: public ZoneObject {
   // removed list node or NULL.
   HUseListNode* RemoveUse(HValue* value, int index);
 
-  void ReplaceAllUsesWith(HValue* other);
-
   void RegisterUse(int index, HValue* new_value);
 
   HBasicBlock* block_;
@@ -757,53 +758,6 @@ class HInstruction: public HValue {
 };
 
 
-class HControlInstruction: public HInstruction {
- public:
-  HControlInstruction(HBasicBlock* first, HBasicBlock* second)
-      : first_successor_(first), second_successor_(second) {
-  }
-
-  HBasicBlock* FirstSuccessor() const { return first_successor_; }
-  HBasicBlock* SecondSuccessor() const { return second_successor_; }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
-
- private:
-  HBasicBlock* first_successor_;
-  HBasicBlock* second_successor_;
-};
-
-
-template<int NumElements>
-class HOperandContainer {
- public:
-  HOperandContainer() : elems_() { }
-
-  int length() { return NumElements; }
-  HValue*& operator[](int i) {
-    ASSERT(i < length());
-    return elems_[i];
-  }
-
- private:
-  HValue* elems_[NumElements];
-};
-
-
-template<>
-class HOperandContainer<0> {
- public:
-  int length() { return 0; }
-  HValue*& operator[](int i) {
-    UNREACHABLE();
-    static HValue* t = 0;
-    return t;
-  }
-};
-
-
 template<int V>
 class HTemplateInstruction : public HInstruction {
  public:
@@ -814,23 +768,59 @@ class HTemplateInstruction : public HInstruction {
   void InternalSetOperandAt(int i, HValue* value) { inputs_[i] = value; }
 
  private:
-  HOperandContainer<V> inputs_;
+  EmbeddedContainer<HValue*, V> inputs_;
 };
 
 
-template<int V>
-class HTemplateControlInstruction : public HControlInstruction {
+class HControlInstruction: public HInstruction {
  public:
-  HTemplateControlInstruction<V>(HBasicBlock* first, HBasicBlock* second)
-    : HControlInstruction(first, second) { }
+  virtual HBasicBlock* SuccessorAt(int i) = 0;
+  virtual int SuccessorCount() = 0;
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  HBasicBlock* FirstSuccessor() {
+    return SuccessorCount() > 0 ? SuccessorAt(0) : NULL;
+  }
+  HBasicBlock* SecondSuccessor() {
+    return SuccessorCount() > 1 ? SuccessorAt(1) : NULL;
+  }
+
+  DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
+};
+
+
+class HSuccessorIterator BASE_EMBEDDED {
+ public:
+  explicit HSuccessorIterator(HControlInstruction* instr)
+      : instr_(instr), current_(0) { }
+
+  bool Done() { return current_ >= instr_->SuccessorCount(); }
+  HBasicBlock* Current() { return instr_->SuccessorAt(current_); }
+  void Advance() { current_++; }
+
+ private:
+  HControlInstruction* instr_;
+  int current_;
+};
+
+
+template<int S, int V>
+class HTemplateControlInstruction: public HControlInstruction {
+ public:
+  int SuccessorCount() { return S; }
+  HBasicBlock* SuccessorAt(int i) { return successors_[i]; }
+
   int OperandCount() { return V; }
   HValue* OperandAt(int i) { return inputs_[i]; }
 
  protected:
+  void SetSuccessorAt(int i, HBasicBlock* block) { successors_[i] = block; }
   void InternalSetOperandAt(int i, HValue* value) { inputs_[i] = value; }
 
  private:
-  HOperandContainer<V> inputs_;
+  EmbeddedContainer<HBasicBlock*, S> successors_;
+  EmbeddedContainer<HValue*, V> inputs_;
 };
 
 
@@ -859,9 +849,7 @@ class HSoftDeoptimize: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  explicit HDeoptimize(int environment_length)
-      : HControlInstruction(NULL, NULL),
-        values_(environment_length) { }
+  explicit HDeoptimize(int environment_length) : values_(environment_length) { }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -870,6 +858,12 @@ class HDeoptimize: public HControlInstruction {
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) { return values_[index]; }
   virtual void PrintDataTo(StringStream* stream);
+
+  virtual int SuccessorCount() { return 0; }
+  virtual HBasicBlock* SuccessorAt(int i) {
+    UNREACHABLE();
+    return NULL;
+  }
 
   void AddEnvironmentValue(HValue* value) {
     values_.Add(NULL);
@@ -893,11 +887,12 @@ class HDeoptimize: public HControlInstruction {
 };
 
 
-class HGoto: public HTemplateControlInstruction<0> {
+class HGoto: public HTemplateControlInstruction<1, 0> {
  public:
   explicit HGoto(HBasicBlock* target)
-      : HTemplateControlInstruction<0>(target, NULL),
-        include_stack_check_(false) { }
+      : include_stack_check_(false) {
+        SetSuccessorAt(0, target);
+      }
 
   void set_include_stack_check(bool include_stack_check) {
     include_stack_check_ = include_stack_check;
@@ -915,13 +910,14 @@ class HGoto: public HTemplateControlInstruction<0> {
 };
 
 
-class HUnaryControlInstruction: public HTemplateControlInstruction<1> {
+class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
  public:
-  explicit HUnaryControlInstruction(HValue* value,
-                                    HBasicBlock* true_target,
-                                    HBasicBlock* false_target)
-      : HTemplateControlInstruction<1>(true_target, false_target) {
+  HUnaryControlInstruction(HValue* value,
+                           HBasicBlock* true_target,
+                           HBasicBlock* false_target) {
     SetOperandAt(0, value);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -973,24 +969,26 @@ class HCompareMap: public HUnaryControlInstruction {
 };
 
 
-class HReturn: public HUnaryControlInstruction {
+class HReturn: public HTemplateControlInstruction<0, 1> {
  public:
-  explicit HReturn(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
+  explicit HReturn(HValue* value) {
+    SetOperandAt(0, value);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
+  HValue* value() { return OperandAt(0); }
+
   DECLARE_CONCRETE_INSTRUCTION(Return)
 };
 
 
-class HAbnormalExit: public HTemplateControlInstruction<0> {
+class HAbnormalExit: public HTemplateControlInstruction<0, 0> {
  public:
-  HAbnormalExit() : HTemplateControlInstruction<0>(NULL, NULL) { }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
@@ -1068,8 +1066,11 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation from,
           Representation to,
-          bool is_truncating)
-      : HUnaryOperation(value), from_(from) {
+          bool is_truncating,
+          bool deoptimize_on_undefined)
+      : HUnaryOperation(value),
+        from_(from),
+        deoptimize_on_undefined_(deoptimize_on_undefined) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
@@ -1085,6 +1086,7 @@ class HChange: public HUnaryOperation {
 
   Representation from() const { return from_; }
   Representation to() const { return representation(); }
+  bool deoptimize_on_undefined() const { return deoptimize_on_undefined_; }
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
@@ -1098,11 +1100,13 @@ class HChange: public HUnaryOperation {
     if (!other->IsChange()) return false;
     HChange* change = HChange::cast(other);
     return value() == change->value()
-        && to().Equals(change->to());
+        && to().Equals(change->to())
+        && deoptimize_on_undefined() == change->deoptimize_on_undefined();
   }
 
  private:
   Representation from_;
+  bool deoptimize_on_undefined_;
 };
 
 
@@ -2403,6 +2407,7 @@ class HBoundsCheck: public HBinaryOperation {
  public:
   HBoundsCheck(HValue* index, HValue* length)
       : HBinaryOperation(index, length) {
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
@@ -3467,11 +3472,11 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
-                                    ExternalArrayType array_type)
+                                    JSObject::ElementsKind elements_kind)
       : HBinaryOperation(external_elements, key),
-        array_type_(array_type) {
-    if (array_type == kExternalFloatArray ||
-        array_type == kExternalDoubleArray) {
+        elements_kind_(elements_kind) {
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3493,7 +3498,7 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 
@@ -3502,11 +3507,11 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
     if (!other->IsLoadKeyedSpecializedArrayElement()) return false;
     HLoadKeyedSpecializedArrayElement* cast_other =
         HLoadKeyedSpecializedArrayElement::cast(other);
-    return array_type_ == cast_other->array_type();
+    return elements_kind_ == cast_other->elements_kind();
   }
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 
@@ -3649,8 +3654,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
-                                     ExternalArrayType array_type)
-      : array_type_(array_type) {
+                                     JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) {
     SetFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
@@ -3663,8 +3668,10 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      if (index == 2 && (array_type() == kExternalFloatArray ||
-                         array_type() == kExternalDoubleArray)) {
+      bool float_or_double_elements =
+          elements_kind() == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+          elements_kind() == JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      if (index == 2 && float_or_double_elements) {
         return Representation::Double();
       } else {
         return Representation::Integer32();
@@ -3675,12 +3682,12 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 

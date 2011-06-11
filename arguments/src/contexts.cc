@@ -98,7 +98,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       PrintF("\n");
     }
 
-    // Check the context extension object.
+    // Check extension/with/global object.
     if (context->has_extension()) {
       Handle<JSObject> extension = Handle<JSObject>(context->extension(),
                                                     isolate);
@@ -120,7 +120,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
     }
 
-    if (context->is_function_context()) {
+    // Only functions can have locals, parameters, and a function name.
+    if (context->IsFunctionContext()) {
       // We may have context-local slots.  Check locals in the context.
       Handle<SerializedScopeInfo> scope_info(
           context->closure()->shared()->scope_info(), isolate);
@@ -173,12 +174,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
     }
 
-    // Proceed with the enclosing context.
+    // Proceed with the previous context.
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
-    } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
     } else {
       context = Handle<Context>(context->previous(), isolate);
     }
@@ -198,11 +196,12 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // before the global context and check that there are no context
   // extension objects (conservative check for with statements).
   while (!context->IsGlobalContext()) {
-    // Check if the context is a potentially a with context.
+    // Check if the context is a catch or with context, or has called
+    // non-strict eval.
     if (context->has_extension()) return false;
 
     // Not a with context so it must be a function context.
-    ASSERT(context->is_function_context());
+    ASSERT(context->IsFunctionContext());
 
     // Check non-parameter locals.
     Handle<SerializedScopeInfo> scope_info(
@@ -219,7 +218,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     // Check context only holding the function name variable.
     index = scope_info->FunctionContextSlotIndex(*name);
     if (index >= 0) return false;
-    context = Context::cast(context->closure()->context());
+    context = context->previous();
   }
 
   // No local or potential with statement found so the variable is
@@ -230,8 +229,10 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 
 void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
                                    bool* outer_scope_calls_non_strict_eval) {
-  Context* context = this;
-  while (true) {
+  // Skip up the context chain checking all the function contexts to see
+  // whether they call eval.
+  Context* context = fcontext();
+  while (!context->IsGlobalContext()) {
     Handle<SerializedScopeInfo> scope_info(
         context->closure()->shared()->scope_info());
     if (scope_info->CallsEval()) {
@@ -243,8 +244,7 @@ void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
         return;
       }
     }
-    if (context->IsGlobalContext()) break;
-    context = Context::cast(context->closure()->context());
+    context = context->previous()->fcontext();
   }
 }
 

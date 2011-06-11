@@ -125,7 +125,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, Operand(rsp, 1 * kPointerSize));
 
   // Setup the object header.
-  __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
+  __ LoadRoot(kScratchRegister, Heap::kFunctionContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
@@ -133,10 +133,10 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ Set(rbx, 0);  // Set to NULL.
   __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
   __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
-  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rsi);
   __ movq(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
 
-  // Copy the global object from the surrounding context.
+  // Copy the global object from the previous context.
   __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_INDEX)), rbx);
 
@@ -152,7 +152,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
@@ -403,12 +403,6 @@ void IntegerConvert(MacroAssembler* masm,
   }
 
   __ bind(&done);
-}
-
-
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
-  UnaryOpStub stub(key, type_info);
-  return stub.GetCode();
 }
 
 
@@ -674,14 +668,6 @@ const char* UnaryOpStub::GetName() {
                overwrite_name,
                UnaryOpIC::GetName(operand_type_));
   return name_;
-}
-
-
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type_info) {
-  BinaryOpStub stub(key, type_info, result_type_info);
-  return stub.GetCode();
 }
 
 

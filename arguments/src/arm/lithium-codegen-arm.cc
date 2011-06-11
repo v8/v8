@@ -189,7 +189,7 @@ bool LCodeGen::GeneratePrologue() {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
-      __ CallRuntime(Runtime::kNewContext, 1);
+      __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoDeoptimizationIndex);
     // Context is returned in both r0 and cp.  It replaces the context
@@ -770,7 +770,7 @@ void LCodeGen::RecordSafepointWithRegistersAndDoubles(
 
 
 void LCodeGen::RecordPosition(int position) {
-  if (!FLAG_debug_info || position == RelocInfo::kNoPosition) return;
+  if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
 }
 
@@ -2611,7 +2611,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = no_reg;
-  ExternalArrayType array_type = instr->array_type();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
   if (key_is_constant) {
@@ -2622,18 +2622,19 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ExternalArrayTypeToShiftSize(array_type);
+  int shift_size = ElementsKindToShiftSize(elements_kind);
 
-  if (array_type == kExternalFloatArray || array_type == kExternalDoubleArray) {
+  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister result(ToDoubleRegister(instr->result()));
     Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
                                     : Operand(key, LSL, shift_size));
     __ add(scratch0(), external_pointer, operand);
-    if (array_type == kExternalFloatArray) {
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
       __ vldr(result.low(), scratch0(), 0);
       __ vcvt_f64_f32(result, result.low());
-    } else  {  // i.e. array_type == kExternalDoubleArray
+    } else  {  // i.e. elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS
       __ vldr(result, scratch0(), 0);
     }
   } else {
@@ -2641,24 +2642,24 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     MemOperand mem_operand(key_is_constant
         ? MemOperand(external_pointer, constant_key * (1 << shift_size))
         : MemOperand(external_pointer, key, LSL, shift_size));
-    switch (array_type) {
-      case kExternalByteArray:
+    switch (elements_kind) {
+      case JSObject::EXTERNAL_BYTE_ELEMENTS:
         __ ldrsb(result, mem_operand);
         break;
-      case kExternalUnsignedByteArray:
-      case kExternalPixelArray:
+      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ ldrb(result, mem_operand);
         break;
-      case kExternalShortArray:
+      case JSObject::EXTERNAL_SHORT_ELEMENTS:
         __ ldrsh(result, mem_operand);
         break;
-      case kExternalUnsignedShortArray:
+      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ ldrh(result, mem_operand);
         break;
-      case kExternalIntArray:
+      case JSObject::EXTERNAL_INT_ELEMENTS:
         __ ldr(result, mem_operand);
         break;
-      case kExternalUnsignedIntArray:
+      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ ldr(result, mem_operand);
         __ cmp(result, Operand(0x80000000));
         // TODO(danno): we could be more clever here, perhaps having a special
@@ -2666,8 +2667,12 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         // happens, and generate code that returns a double rather than int.
         DeoptimizeIf(cs, instr->environment());
         break;
-      case kExternalFloatArray:
-      case kExternalDoubleArray:
+      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      case JSObject::FAST_DOUBLE_ELEMENTS:
+      case JSObject::FAST_ELEMENTS:
+      case JSObject::DICTIONARY_ELEMENTS:
+      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -2843,8 +2848,7 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ ldr(result,
-         MemOperand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
-  __ ldr(result, FieldMemOperand(result, JSFunction::kContextOffset));
+         MemOperand(context, Context::SlotOffset(Context::PREVIOUS_INDEX)));
 }
 
 
@@ -3423,7 +3427,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
 
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = no_reg;
-  ExternalArrayType array_type = instr->array_type();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
   if (key_is_constant) {
@@ -3434,18 +3438,19 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ExternalArrayTypeToShiftSize(array_type);
+  int shift_size = ElementsKindToShiftSize(elements_kind);
 
-  if (array_type == kExternalFloatArray || array_type == kExternalDoubleArray) {
+  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
                                     : Operand(key, LSL, shift_size));
     __ add(scratch0(), external_pointer, operand);
-    if (array_type == kExternalFloatArray) {
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
       __ vstr(double_scratch0().low(), scratch0(), 0);
-    } else {  // i.e. array_type == kExternalDoubleArray
+    } else {  // i.e. elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS
       __ vstr(value, scratch0(), 0);
     }
   } else {
@@ -3453,22 +3458,26 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     MemOperand mem_operand(key_is_constant
         ? MemOperand(external_pointer, constant_key * (1 << shift_size))
         : MemOperand(external_pointer, key, LSL, shift_size));
-    switch (array_type) {
-      case kExternalPixelArray:
-      case kExternalByteArray:
-      case kExternalUnsignedByteArray:
+    switch (elements_kind) {
+      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ strb(value, mem_operand);
         break;
-      case kExternalShortArray:
-      case kExternalUnsignedShortArray:
+      case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ strh(value, mem_operand);
         break;
-      case kExternalIntArray:
-      case kExternalUnsignedIntArray:
+      case JSObject::EXTERNAL_INT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ str(value, mem_operand);
         break;
-      case kExternalFloatArray:
-      case kExternalDoubleArray:
+      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      case JSObject::FAST_DOUBLE_ELEMENTS:
+      case JSObject::FAST_ELEMENTS:
+      case JSObject::DICTIONARY_ELEMENTS:
+      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -3836,6 +3845,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
+                                bool deoptimize_on_undefined,
                                 LEnvironment* env) {
   Register scratch = scratch0();
   SwVfpRegister flt_scratch = s0;
@@ -3851,20 +3861,25 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
   __ cmp(scratch, Operand(ip));
-  __ b(eq, &heap_number);
+  if (deoptimize_on_undefined) {
+    DeoptimizeIf(ne, env);
+  } else {
+    Label heap_number;
+    __ b(eq, &heap_number);
 
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(input_reg, Operand(ip));
-  DeoptimizeIf(ne, env);
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(input_reg, Operand(ip));
+    DeoptimizeIf(ne, env);
 
-  // Convert undefined to NaN.
-  __ LoadRoot(ip, Heap::kNanValueRootIndex);
-  __ sub(ip, ip, Operand(kHeapObjectTag));
-  __ vldr(result_reg, ip, HeapNumber::kValueOffset);
-  __ jmp(&done);
+    // Convert undefined to NaN.
+    __ LoadRoot(ip, Heap::kNanValueRootIndex);
+    __ sub(ip, ip, Operand(kHeapObjectTag));
+    __ vldr(result_reg, ip, HeapNumber::kValueOffset);
+    __ jmp(&done);
 
+    __ bind(&heap_number);
+  }
   // Heap number to double register conversion.
-  __ bind(&heap_number);
   __ sub(ip, input_reg, Operand(kHeapObjectTag));
   __ vldr(result_reg, ip, HeapNumber::kValueOffset);
   __ jmp(&done);
@@ -3998,7 +4013,9 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   DoubleRegister result_reg = ToDoubleRegister(result);
 
-  EmitNumberUntagD(input_reg, result_reg, instr->environment());
+  EmitNumberUntagD(input_reg, result_reg,
+                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->environment());
 }
 
 
