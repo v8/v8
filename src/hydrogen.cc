@@ -1286,7 +1286,12 @@ class SparseSet {
       : capacity_(capacity),
         length_(0),
         dense_(zone->NewArray<int>(capacity)),
-        sparse_(zone->NewArray<int>(capacity)) {}
+        sparse_(zone->NewArray<int>(capacity)) {
+#ifndef NVALGRIND
+    // Initialize the sparse array to make valgrind happy.
+    memset(sparse_, 0, sizeof(sparse_[0]) * capacity);
+#endif
+  }
 
   bool Contains(int n) const {
     ASSERT(0 <= n && n < capacity_);
