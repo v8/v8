@@ -1232,6 +1232,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
+  ASSERT(context->IsFunctionContext());
 
   int index;
   PropertyAttributes attributes;
@@ -10227,8 +10228,8 @@ class ScopeIterator {
     } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
-      // The context_ is a with block from the outer function.
-      ASSERT(context_->has_extension());
+      // The context_ is a with or catch block from the outer function.
+      ASSERT(context_->IsWithContext() || context_->IsCatchContext());
       at_local_ = true;
     }
   }
@@ -10280,10 +10281,10 @@ class ScopeIterator {
     if (context_->IsFunctionContext()) {
       return ScopeTypeClosure;
     }
-    ASSERT(context_->has_extension());
     if (context_->IsCatchContext()) {
       return ScopeTypeCatch;
     }
+    ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
 

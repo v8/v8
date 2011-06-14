@@ -224,8 +224,8 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // before the global context and check that there are no context
   // extension objects (conservative check for with statements).
   while (!context->IsGlobalContext()) {
-    // Check if the context is a catch or with context, or has called
-    // non-strict eval.
+    // Check if the context is a catch or with context, or has introduced
+    // bindings by calling non-strict eval.
     if (context->has_extension()) return false;
 
     // Not a with context so it must be a function context.
