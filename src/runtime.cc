@@ -1232,7 +1232,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
-  ASSERT(context->IsFunctionContext());
+  ASSERT(context->IsFunctionContext() || context->IsGlobalContext());
 
   int index;
   PropertyAttributes attributes;
