@@ -295,6 +295,10 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
         SeqTwoByteStringSize(map->instance_type());
   }
 
+  static inline int VisitFreeSpace(Map* map, HeapObject* object) {
+    return FreeSpace::cast(object)->Size();
+  }
+
   class DataObjectVisitor {
    public:
     template<int object_size>

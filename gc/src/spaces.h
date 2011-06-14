@@ -1529,6 +1529,15 @@ class NewSpacePage : public MemoryChunk {
 
   bool is_anchor() { return !this->InNewSpace(); }
 
+  static bool IsAtStart(Address addr) {
+    return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask)
+        == kObjectStartOffset;
+  }
+
+  static bool IsAtEnd(Address addr) {
+    return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) == 0;
+  }
+
   // Finds the NewSpacePage containg the given address.
   static inline NewSpacePage* FromAddress(Address address_in_page) {
     Address page_start =
@@ -1633,7 +1642,7 @@ class SemiSpace : public Space {
 
   bool AdvancePage() {
     NewSpacePage* next_page = current_page_->next_page();
-    if (next_page == &anchor_) return false;
+    if (next_page == anchor()) return false;
     current_page_ = next_page;
     return true;
   }
@@ -1673,7 +1682,13 @@ class SemiSpace : public Space {
 #ifdef DEBUG
   virtual void Print();
   virtual void Verify();
-  static void ValidateRange(Address from, Address to);
+  // Validate a range of of addresses in a SemiSpace.
+  // The "from" address must be on a page prior to the "to" address,
+  // in the linked page order, or it must be earlier on the same page.
+  static void AssertValidRange(Address from, Address to);
+#else
+  // Do nothing.
+  inline static void AssertValidRange(Address from, Address to) {}
 #endif
 
   // Returns the current capacity of the semi space.
@@ -1747,8 +1762,8 @@ class SemiSpaceIterator : public ObjectIterator {
 
   HeapObject* Next() {
     if (current_ == limit_) return NULL;
-    if (current_ == current_page_limit_) {
-      NewSpacePage* page = NewSpacePage::FromAddress(current_ - 1);
+    if (NewSpacePage::IsAtEnd(current_)) {
+      NewSpacePage* page = NewSpacePage::FromLimit(current_);
       page = page->next_page();
       ASSERT(!page->is_anchor());
       current_ = page->body();
@@ -1772,8 +1787,6 @@ class SemiSpaceIterator : public ObjectIterator {
 
   // The current iteration point.
   Address current_;
-  // The end of the current page.
-  Address current_page_limit_;
   // The end of iteration.
   Address limit_;
   // The callback function.
@@ -1785,9 +1798,13 @@ class SemiSpaceIterator : public ObjectIterator {
 // A PageIterator iterates the pages in a semi-space.
 class NewSpacePageIterator BASE_EMBEDDED {
  public:
+  // Make an iterator that runs over all pages in to-space.
+  explicit inline NewSpacePageIterator(NewSpace* space);
+
   // Make an iterator that runs over all pages in the given semispace,
   // even those not used in allocation.
   explicit inline NewSpacePageIterator(SemiSpace* space);
+
   // Make iterator that iterates from the page containing start
   // to the page that contains limit in the same semispace.
   inline NewSpacePageIterator(Address start, Address limit);
@@ -1947,12 +1964,12 @@ class NewSpace : public Space {
   void ResetAllocationInfo();
 
   void LowerInlineAllocationLimit(intptr_t step) {
-    inline_alloction_limit_step_ = step;
+    inline_allocation_limit_step_ = step;
     if (step == 0) {
       allocation_info_.limit = to_space_.page_high();
     } else {
       allocation_info_.limit = Min(
-          allocation_info_.top + inline_alloction_limit_step_,
+          allocation_info_.top + inline_allocation_limit_step_,
           allocation_info_.limit);
     }
     top_on_previous_step_ = allocation_info_.top;
@@ -2045,17 +2062,11 @@ class NewSpace : public Space {
     return from_space_.Uncommit();
   }
 
-  inline intptr_t inline_alloction_limit_step() {
-    return inline_alloction_limit_step_;
+  inline intptr_t inline_allocation_limit_step() {
+    return inline_allocation_limit_step_;
   }
 
-  NewSpacePage* ActivePage() {
-    return to_space_.current_page();
-  }
-
-  NewSpacePage* InactivePage() {
-    return from_space_.current_page();
-  }
+  SemiSpace* active_space() { return &to_space_; }
 
  private:
   // Update allocation info to match the current to-space page.
@@ -2082,7 +2093,7 @@ class NewSpace : public Space {
   // to be lower than actual limit and then will gradually increase it
   // in steps to guarantee that we do incremental marking steps even
   // when all allocation is performed from inlined generated code.
-  intptr_t inline_alloction_limit_step_;
+  intptr_t inline_allocation_limit_step_;
 
   Address top_on_previous_step_;
 

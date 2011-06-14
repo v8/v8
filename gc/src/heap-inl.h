@@ -40,10 +40,19 @@ namespace v8 {
 namespace internal {
 
 void PromotionQueue::insert(HeapObject* target, int size) {
+  if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(rear_))) {
+    NewSpacePage* rear_page =
+        NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
+    ASSERT(!rear_page->prev_page()->is_anchor());
+    rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->body_limit());
+  }
   *(--rear_) = reinterpret_cast<intptr_t>(target);
   *(--rear_) = size;
   // Assert no overflow into live objects.
-  ASSERT(reinterpret_cast<Address>(rear_) >= HEAP->new_space()->top());
+#ifdef DEBUG
+  SemiSpace::AssertValidRange(HEAP->new_space()->top(),
+                              reinterpret_cast<Address>(rear_));
+#endif
 }
 
 

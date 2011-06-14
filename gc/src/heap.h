@@ -265,22 +265,37 @@ class PromotionQueue {
   PromotionQueue() : front_(NULL), rear_(NULL) { }
 
   void Initialize(Address start_address) {
+    // Assumes that a NewSpacePage exactly fits a number of promotion queue
+    // entries (where each is a pair of intptr_t). This allows us to simplify
+    // the test fpr when to switch pages.
+    ASSERT((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize)
+           == 0);
+    ASSERT(NewSpacePage::IsAtEnd(start_address));
     front_ = rear_ = reinterpret_cast<intptr_t*>(start_address);
   }
 
-  bool is_empty() { return front_ <= rear_; }
+  bool is_empty() { return front_ == rear_; }
 
   inline void insert(HeapObject* target, int size);
 
   void remove(HeapObject** target, int* size) {
+    ASSERT(!is_empty());
+    if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(front_))) {
+      NewSpacePage* front_page =
+          NewSpacePage::FromAddress(reinterpret_cast<Address>(front_));
+      ASSERT(!front_page->prev_page()->is_anchor());
+      front_ =
+          reinterpret_cast<intptr_t*>(front_page->prev_page()->body_limit());
+    }
     *target = reinterpret_cast<HeapObject*>(*(--front_));
     *size = static_cast<int>(*(--front_));
     // Assert no underflow.
-    ASSERT(front_ >= rear_);
+    SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
+                                reinterpret_cast<Address>(front_));
   }
 
  private:
-  // The front of the queue is higher in memory than the rear.
+  // The front of the queue is higher in the memory page chain than the rear.
   intptr_t* front_;
   intptr_t* rear_;
 

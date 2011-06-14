@@ -123,6 +123,7 @@ static void VerifyMarking(NewSpace* space) {
   while (it.has_next()) {
     NewSpacePage* page = it.next();
     Address limit = it.has_next() ? page->body_limit() : end;
+    ASSERT(limit == end || !page->Contains(end));
     VerifyMarking(page->body(), limit);
   }
 }
@@ -193,13 +194,22 @@ static void VerifyMarkbitsAreClean(PagedSpace* space) {
   }
 }
 
+static void VerifyMarkbitsAreClean(NewSpace* space) {
+  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+
+  while (it.has_next()) {
+    NewSpacePage* p = it.next();
+    ASSERT(p->markbits()->IsClean());
+  }
+}
+
 static void VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(HEAP->old_pointer_space());
   VerifyMarkbitsAreClean(HEAP->old_data_space());
   VerifyMarkbitsAreClean(HEAP->code_space());
   VerifyMarkbitsAreClean(HEAP->cell_space());
   VerifyMarkbitsAreClean(HEAP->map_space());
-  ASSERT(HEAP->new_space()->ActivePage()->markbits()->IsClean());
+  VerifyMarkbitsAreClean(HEAP->new_space());
 }
 #endif
 
@@ -214,14 +224,25 @@ static void ClearMarkbits(PagedSpace* space) {
 }
 
 
+static void ClearMarkbits(NewSpace* space) {
+  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+
+  while (it.has_next()) {
+    NewSpacePage* p = it.next();
+    p->markbits()->Clear();
+  }
+}
+
+
 static void ClearMarkbits() {
   // TODO(gc): Clean the mark bits while sweeping.
-  ClearMarkbits(HEAP->code_space());
-  ClearMarkbits(HEAP->map_space());
-  ClearMarkbits(HEAP->old_pointer_space());
-  ClearMarkbits(HEAP->old_data_space());
-  ClearMarkbits(HEAP->cell_space());
-  HEAP->new_space()->ActivePage()->markbits()->Clear();
+  Heap* heap = HEAP;
+  ClearMarkbits(heap->code_space());
+  ClearMarkbits(heap->map_space());
+  ClearMarkbits(heap->old_pointer_space());
+  ClearMarkbits(heap->old_data_space());
+  ClearMarkbits(heap->cell_space());
+  ClearMarkbits(heap->new_space());
 }
 
 

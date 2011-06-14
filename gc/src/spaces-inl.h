@@ -63,18 +63,21 @@ Page* PageIterator::next() {
 // NewSpacePageIterator
 
 
+NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
+    : prev_page_(NewSpacePage::FromAddress(space->ToSpaceLow())->prev_page()),
+      next_page_(NewSpacePage::FromAddress(space->ToSpaceLow())),
+      last_page_(NewSpacePage::FromLimit(space->ToSpaceHigh())) { }
+
 NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
-    : prev_page_(&space->anchor_),
+    : prev_page_(space->anchor()),
       next_page_(prev_page_->next_page()),
       last_page_(prev_page_->prev_page()) { }
 
-  NewSpacePageIterator::NewSpacePageIterator(Address start, Address limit)
+NewSpacePageIterator::NewSpacePageIterator(Address start, Address limit)
     : prev_page_(NewSpacePage::FromAddress(start)->prev_page()),
       next_page_(NewSpacePage::FromAddress(start)),
       last_page_(NewSpacePage::FromLimit(limit)) {
-#ifdef DEBUG
-    SemiSpace::ValidateRange(start, limit);
-#endif
+  SemiSpace::AssertValidRange(start, limit);
 }
 
 
@@ -286,8 +289,10 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   if (new_top > allocation_info_.limit) {
     Address high = to_space_.page_high();
     if (allocation_info_.limit < high) {
+      // Incremental marking has lowered the limit to get a
+      // chance to do a step.
       allocation_info_.limit = Min(
-          allocation_info_.limit + inline_alloction_limit_step_,
+          allocation_info_.limit + inline_allocation_limit_step_,
           high);
       int bytes_allocated = new_top - top_on_previous_step_;
       heap()->incremental_marking()->Step(bytes_allocated);

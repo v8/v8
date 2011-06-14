@@ -37,7 +37,7 @@ namespace internal {
 
 
 MarkBit Marking::MarkBitFrom(Address addr) {
-  Page *p = Page::FromAddress(addr);
+  MemoryChunk *p = MemoryChunk::FromAddress(addr);
   return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
                                          p->ContainsOnlyData());
 }

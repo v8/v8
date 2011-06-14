@@ -1093,7 +1093,7 @@ void Heap::Scavenge() {
   new_space_.set_age_mark(new_space_.top());
 
   new_space_.LowerInlineAllocationLimit(
-      new_space_.inline_alloction_limit_step());
+      new_space_.inline_allocation_limit_step());
 
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
@@ -1253,14 +1253,19 @@ class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
 Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
                          Address new_space_front) {
   do {
-    ASSERT(new_space_front <= new_space_.top());
-
+    SemiSpace::AssertValidRange(new_space_front, new_space_.top());
     // The addresses new_space_front and new_space_.top() define a
     // queue of unprocessed copied objects.  Process them until the
     // queue is empty.
-    while (new_space_front < new_space_.top()) {
-      HeapObject* object = HeapObject::FromAddress(new_space_front);
-      new_space_front += NewSpaceScavenger::IterateBody(object->map(), object);
+    while (new_space_front != new_space_.top()) {
+      if (!NewSpacePage::IsAtEnd(new_space_front)) {
+        HeapObject* object = HeapObject::FromAddress(new_space_front);
+        new_space_front +=
+          NewSpaceScavenger::IterateBody(object->map(), object);
+      } else {
+        new_space_front =
+            NewSpacePage::FromLimit(new_space_front)->next_page()->body();
+      }
     }
 
     // Promote and process all the to-be-promoted objects.
@@ -1286,7 +1291,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
     // Take another spin if there are now unswept objects in new space
     // (there are currently no more unswept promoted objects).
-  } while (new_space_front < new_space_.top());
+  } while (new_space_front != new_space_.top());
 
   return new_space_front;
 }

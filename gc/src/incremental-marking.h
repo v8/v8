@@ -38,7 +38,7 @@ namespace internal {
 
 
 // TODO(gc) rename into IncrementalMarker after merge.
-class IncrementalMarking : public AllStatic {
+class IncrementalMarking {
  public:
   enum State {
     STOPPED,
@@ -141,7 +141,7 @@ class IncrementalMarking : public AllStatic {
     SetOldSpacePageFlags(chunk, IsMarking());
   }
 
-  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
+  inline void SetNewSpacePageFlags(NewSpacePage* chunk) {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
@@ -159,20 +159,23 @@ class IncrementalMarking : public AllStatic {
   }
 
   static void ClearMarkbits(PagedSpace* space);
+  static void ClearMarkbits(NewSpace* space);
   void ClearMarkbits();
 
 #ifdef DEBUG
   void VerifyMarkbitsAreClean();
   static void VerifyMarkbitsAreClean(PagedSpace* space);
+  static void VerifyMarkbitsAreClean(NewSpace* space);
 #endif
 
   void StartMarking();
 
-  void DeactivateWriteBarrierForSpace(PagedSpace* space);
-  void DeactivateWriteBarrier();
+  void DeactivateIncrementalWriteBarrierForSpace(PagedSpace* space);
+  void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
+  void DeactivateIncrementalWriteBarrier();
 
   static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
-  static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
+  static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   void EnsureMarkingDequeIsCommitted();
 

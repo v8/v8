@@ -69,6 +69,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   &JSObjectVisitor::
                       template VisitSpecialized<JSFunction::kSize>);
 
+  table_.Register(kVisitFreeSpace, &VisitFreeSpace);
+
   table_.template RegisterSpecializations<DataObjectVisitor,
                                           kVisitDataObject,
                                           kVisitDataObjectGeneric>();
