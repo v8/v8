@@ -2007,9 +2007,10 @@ FunctionState::FunctionState(HGraphBuilder* owner,
       HBasicBlock* if_false = owner->graph()->CreateBasicBlock();
       if_true->MarkAsInlineReturnTarget();
       if_false->MarkAsInlineReturnTarget();
+      Expression* cond = TestContext::cast(owner->ast_context())->condition();
       // The AstContext constructor pushed on the context stack.  This newed
       // instance is the reason that AstContext can't be BASE_EMBEDDED.
-      test_context_ = new TestContext(owner, if_true, if_false);
+      test_context_ = new TestContext(owner, cond, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
       function_return()->MarkAsInlineReturnTarget();
@@ -2179,7 +2180,7 @@ void HGraphBuilder::VisitForTypeOf(Expression* expr) {
 void HGraphBuilder::VisitForControl(Expression* expr,
                                     HBasicBlock* true_block,
                                     HBasicBlock* false_block) {
-  TestContext for_test(this, true_block, false_block);
+  TestContext for_test(this, expr, true_block, false_block);
   Visit(expr);
 }
 

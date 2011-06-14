@@ -210,7 +210,7 @@ class Expression: public AstNode {
     kTest
   };
 
-  Expression() : id_(GetNextId()) {}
+  Expression() : id_(GetNextId()), test_id_(GetNextId()) {}
 
   virtual int position() const {
     UNREACHABLE();
@@ -262,9 +262,11 @@ class Expression: public AstNode {
   }
 
   unsigned id() const { return id_; }
+  unsigned test_id() const { return test_id_; }
 
  private:
   unsigned id_;
+  unsigned test_id_;
 };
 
 

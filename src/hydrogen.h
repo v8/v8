@@ -551,9 +551,11 @@ class ValueContext: public AstContext {
 class TestContext: public AstContext {
  public:
   TestContext(HGraphBuilder* owner,
+              Expression* condition,
               HBasicBlock* if_true,
               HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
+        condition_(condition),
         if_true_(if_true),
         if_false_(if_false) {
   }
@@ -566,6 +568,7 @@ class TestContext: public AstContext {
     return reinterpret_cast<TestContext*>(context);
   }
 
+  Expression* condition() const { return condition_; }
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
@@ -574,6 +577,7 @@ class TestContext: public AstContext {
   // control flow.
   void BuildBranch(HValue* value);
 
+  Expression* condition_;
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
 };
