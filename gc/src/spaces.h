@@ -389,6 +389,7 @@ class MemoryChunk {
     SCAN_ON_SCAVENGE,
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
+    NEW_SPACE_BELOW_AGE_MARK,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -1642,7 +1643,7 @@ class SemiSpace : public Space {
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
-  void set_age_mark(Address mark) { age_mark_ = mark; }
+  void set_age_mark(Address mark);
 
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called.

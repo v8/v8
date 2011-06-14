@@ -1092,71 +1092,6 @@ void NewSpace::Verify() {
 }
 #endif
 
-
-bool SemiSpace::Commit() {
-  ASSERT(!is_committed());
-  int pages = capacity_ / Page::kPageSize;
-  if (!heap()->isolate()->memory_allocator()->CommitBlock(start_,
-                                                          capacity_,
-                                                          executable())) {
-    return false;
-  }
-
-  NewSpacePage* page = anchor();
-  for (int i = 0; i < pages; i++) {
-    NewSpacePage* new_page =
-      NewSpacePage::Initialize(heap(), start_ + i * Page::kPageSize, this);
-    new_page->InsertAfter(page);
-    page = new_page;
-  }
-
-  committed_ = true;
-  Reset();
-  return true;
-}
-
-
-bool SemiSpace::Uncommit() {
-  ASSERT(is_committed());
-  if (!heap()->isolate()->memory_allocator()->UncommitBlock(start_,
-                                                            capacity_)) {
-    return false;
-  }
-  anchor()->set_next_page(anchor());
-  anchor()->set_prev_page(anchor());
-
-  committed_ = false;
-  return true;
-}
-
-
-void SemiSpace::Reset() {
-  ASSERT(anchor_.next_page() != &anchor_);
-  current_page_ = anchor_.next_page();
-}
-
-
-void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
-  // We won't be swapping semispaces without data in them.
-  ASSERT(from->anchor_.next_page() != &from->anchor_);
-  ASSERT(to->anchor_.next_page() != &to->anchor_);
-
-  // Swap bits.
-  SemiSpace tmp = *from;
-  *from = *to;
-  *to = tmp;
-
-  // Fixup back-pointers to the page list anchor now that its address
-  // has changed.
-  // Swap to/from-space bits on pages.
-  // Copy GC flags from old active space (from-space) to new (to-space).
-  intptr_t flags = from->current_page()->GetFlags();
-  to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
-
-  from->FlipPages(0, 0);
-}
-
-
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
@@ -1251,6 +1186,7 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
     if (becomes_to_space) {
       page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
       page->SetFlag(MemoryChunk::IN_TO_SPACE);
+      page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     } else {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
@@ -1261,6 +1197,82 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
     page = page->next_page();
   }
 }
+
+
+bool SemiSpace::Commit() {
+  ASSERT(!is_committed());
+  int pages = capacity_ / Page::kPageSize;
+  if (!heap()->isolate()->memory_allocator()->CommitBlock(start_,
+                                                          capacity_,
+                                                          executable())) {
+    return false;
+  }
+
+  NewSpacePage* page = anchor();
+  for (int i = 0; i < pages; i++) {
+    NewSpacePage* new_page =
+      NewSpacePage::Initialize(heap(), start_ + i * Page::kPageSize, this);
+    new_page->InsertAfter(page);
+    page = new_page;
+  }
+
+  committed_ = true;
+  Reset();
+  return true;
+}
+
+
+bool SemiSpace::Uncommit() {
+  ASSERT(is_committed());
+  if (!heap()->isolate()->memory_allocator()->UncommitBlock(start_,
+                                                            capacity_)) {
+    return false;
+  }
+  anchor()->set_next_page(anchor());
+  anchor()->set_prev_page(anchor());
+
+  committed_ = false;
+  return true;
+}
+
+
+void SemiSpace::Reset() {
+  ASSERT(anchor_.next_page() != &anchor_);
+  current_page_ = anchor_.next_page();
+}
+
+
+void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
+  // We won't be swapping semispaces without data in them.
+  ASSERT(from->anchor_.next_page() != &from->anchor_);
+  ASSERT(to->anchor_.next_page() != &to->anchor_);
+
+  // Swap bits.
+  SemiSpace tmp = *from;
+  *from = *to;
+  *to = tmp;
+
+  // Fixup back-pointers to the page list anchor now that its address
+  // has changed.
+  // Swap to/from-space bits on pages.
+  // Copy GC flags from old active space (from-space) to new (to-space).
+  intptr_t flags = from->current_page()->GetFlags();
+  to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
+
+  from->FlipPages(0, 0);
+}
+
+
+void SemiSpace::set_age_mark(Address mark) {
+  ASSERT(NewSpacePage::FromLimit(mark)->semi_space() == this);
+  age_mark_ = mark;
+  // Mark all pages up to the one containing mark.
+  NewSpacePageIterator it(space_low(), mark);
+  while (it.has_next()) {
+    it.next()->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+  }
+}
+
 
 #ifdef DEBUG
 void SemiSpace::Print() { }
@@ -1552,7 +1564,6 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
   promoted_histogram_[type].increment_bytes(obj->Size());
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-
 
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces implementation
