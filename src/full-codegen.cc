@@ -1107,9 +1107,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     __ Push(stmt->name());
     __ push(result_register());
-    __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-    __ push(result_register());
-    __ CallRuntime(Runtime::kPushCatchContext, 1);
+    __ CallRuntime(Runtime::kPushCatchContext, 2);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }

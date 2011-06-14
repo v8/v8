@@ -3230,7 +3230,7 @@ bool JSObject::ReferencesObject(Object* obj) {
 
     // Check the context extension if any.
     if (context->has_extension()) {
-      return context->extension()->ReferencesObject(obj);
+      return JSObject::cast(context->extension())->ReferencesObject(obj);
     }
   }
 

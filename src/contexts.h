@@ -181,9 +181,15 @@ class Context: public FixedArray {
     CLOSURE_INDEX,
     FCONTEXT_INDEX,
     PREVIOUS_INDEX,
+    // The extension slot is used for either the global object (in global
+    // contexts), eval extension object (function contexts), subject of with
+    // (with contexts), or the variable name (catch contexts).
     EXTENSION_INDEX,
     GLOBAL_INDEX,
     MIN_CONTEXT_SLOTS,
+
+    // This slot holds the thrown value in catch contexts.
+    THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots are only in global contexts.
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
@@ -265,9 +271,9 @@ class Context: public FixedArray {
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
-  bool has_extension() { return unchecked_extension() != NULL; }
-  JSObject* extension() { return JSObject::cast(unchecked_extension()); }
-  void set_extension(JSObject* object) { set(EXTENSION_INDEX, object); }
+  bool has_extension() { return extension() != NULL; }
+  Object* extension() { return get(EXTENSION_INDEX); }
+  void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);
@@ -385,7 +391,6 @@ class Context: public FixedArray {
  private:
   // Unchecked access to the slots.
   Object* unchecked_previous() { return get(PREVIOUS_INDEX); }
-  Object* unchecked_extension() { return get(EXTENSION_INDEX); }
 
 #ifdef DEBUG
   // Bootstrapping-aware type checks.

@@ -283,9 +283,6 @@ namespace internal {
   F(IsJSProxy, 1, 1) \
   F(GetHandler, 1, 1) \
   \
-  /* Catch context extension objects */ \
-  F(CreateCatchExtensionObject, 2, 1) \
-  \
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \
@@ -300,7 +297,7 @@ namespace internal {
   /* Contexts */ \
   F(NewFunctionContext, 1, 1) \
   F(PushWithContext, 1, 1) \
-  F(PushCatchContext, 1, 1) \
+  F(PushCatchContext, 2, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \

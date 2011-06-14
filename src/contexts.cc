@@ -98,24 +98,38 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // Check extension/with/global object.
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
-                                                    isolate);
-      // Context extension objects needs to behave as if they have no
-      // prototype.  So even if we want to follow prototype chains, we
-      // need to only do a local lookup for context extension objects.
-      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-          extension->IsJSContextExtensionObject()) {
-        *attributes = extension->GetLocalPropertyAttribute(*name);
-      } else {
-        *attributes = extension->GetPropertyAttribute(*name);
-      }
-      if (*attributes != ABSENT) {
-        // property found
-        if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n",
-                 reinterpret_cast<void*>(*extension));
+      if (context->IsCatchContext()) {
+        // Catch contexts have the variable name in the extension slot.
+        if (name->Equals(String::cast(context->extension()))) {
+          if (FLAG_trace_contexts) {
+            PrintF("=> found in catch context\n");
+          }
+          *index_ = Context::THROWN_OBJECT_INDEX;
+          *attributes = NONE;
+          return context;
         }
-        return extension;
+      } else {
+        // Global, function, and with contexts may have an object in the
+        // extension slot.
+        Handle<JSObject> extension(JSObject::cast(context->extension()),
+                                   isolate);
+        // Context extension objects needs to behave as if they have no
+        // prototype.  So even if we want to follow prototype chains, we
+        // need to only do a local lookup for context extension objects.
+        if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+            extension->IsJSContextExtensionObject()) {
+          *attributes = extension->GetLocalPropertyAttribute(*name);
+        } else {
+          *attributes = extension->GetPropertyAttribute(*name);
+        }
+        if (*attributes != ABSENT) {
+          // property found
+          if (FLAG_trace_contexts) {
+            PrintF("=> found property in context object %p\n",
+                   reinterpret_cast<void*>(*extension));
+          }
+          return extension;
+        }
       }
     }
 

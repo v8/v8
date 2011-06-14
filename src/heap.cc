@@ -3936,9 +3936,12 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
 
 
 MaybeObject* Heap::AllocateCatchContext(Context* previous,
-                                        JSObject* extension) {
+                                        String* name,
+                                        Object* thrown_object) {
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
   Object* result;
-  { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
+  { MaybeObject* maybe_result =
+        AllocateFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
@@ -3946,8 +3949,9 @@ MaybeObject* Heap::AllocateCatchContext(Context* previous,
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);
-  context->set_extension(extension);
+  context->set_extension(name);
   context->set_global(previous->global());
+  context->set(Context::THROWN_OBJECT_INDEX, thrown_object);
   return context;
 }
 
