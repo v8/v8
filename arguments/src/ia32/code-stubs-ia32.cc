@@ -2918,8 +2918,6 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
               StandardFrameConstants::kCallerSPOffset));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
-  // Try the new space allocation. Start out with computing the size of
-  // the arguments object and the elements array.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
@@ -3122,11 +3120,13 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ sub(Operand(edx), ebx);  // Is there a smarter way to do negative scaling?
   __ sub(Operand(edx), ebx);
   __ jmp(&arguments_test, Label::kNear);
+
   __ bind(&arguments_loop);
   __ sub(Operand(edx), Immediate(kPointerSize));
   __ mov(eax, Operand(edx, 0));
   __ mov(FieldOperand(edi, ebx, times_2, FixedArray::kHeaderSize), eax);
   __ add(Operand(ebx), Immediate(Smi::FromInt(1)));
+
   __ bind(&arguments_test);
   __ cmp(ebx, Operand(ecx));
   __ j(less, &arguments_loop, Label::kNear);

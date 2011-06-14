@@ -574,7 +574,6 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
-  UNIMPLEMENTED();
   Factory* factory = Isolate::Current()->factory();
   int args_count = inlined_function->shared()->formal_parameter_count();
   ScopedVector<SlotRef> args_slots(args_count);

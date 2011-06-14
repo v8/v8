@@ -230,9 +230,15 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     //   function, receiver address, parameter count.
     // The stub will rewrite receiever and parameter count if the previous
     // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(
-        is_strict_mode() ? ArgumentsAccessStub::NEW_STRICT
-                         : ArgumentsAccessStub::NEW_NON_STRICT_SLOW);
+    ArgumentsAccessStub::Type type;
+    if (is_strict_mode()) {
+      type = ArgumentsAccessStub::NEW_STRICT;
+    } else if (function()->has_duplicate_parameters()) {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_SLOW;
+    } else {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_FAST;
+    }
+    ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
 
     Move(arguments->AsSlot(), r0, r1, r2);
