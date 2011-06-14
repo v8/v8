@@ -190,7 +190,7 @@ function FormatMessage(message) {
       proto_object_or_null:         ["Object prototype may only be an Object or null"],
       property_desc_object:         ["Property description must be an object: ", "%0"],
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
-      define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
+      define_disallowed:            ["Cannot define property:", "%0", ", object is not extensible."],
       non_extensible_proto:         ["%0", " is not extensible"],
       handler_non_object:           ["Proxy.", "%0", " called with non-object as handler"],
       handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],

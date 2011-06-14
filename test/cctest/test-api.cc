@@ -3039,8 +3039,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
@@ -3085,8 +3084,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 
@@ -3204,8 +3202,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
   {
     v8::TryCatch try_catch;
@@ -3213,8 +3210,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
 }
 
