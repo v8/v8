@@ -7056,7 +7056,6 @@ void Code::Disassemble(const char* name, FILE* out) {
   Disassembler::Decode(out, this);
   PrintF(out, "\n");
 
-#ifdef DEBUG
   if (kind() == FUNCTION) {
     DeoptimizationOutputData* data =
         DeoptimizationOutputData::cast(this->deoptimization_data());
@@ -7067,7 +7066,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     data->DeoptimizationInputDataPrint(out);
   }
   PrintF("\n");
-#endif
 
   if (kind() == OPTIMIZED_FUNCTION) {
     SafepointTable table(this);
