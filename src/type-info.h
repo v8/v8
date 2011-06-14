@@ -215,8 +215,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
  public:
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
-  bool LoadIsMonomorphic(Property* expr);
-  bool StoreIsMonomorphic(Expression* expr);
+  bool LoadIsMonomorphicNormal(Property* expr);
+  bool StoreIsMonomorphicNormal(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
