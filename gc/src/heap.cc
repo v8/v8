@@ -992,18 +992,6 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 }
 
 
-static void ScavengeObjectAndMarkSlot(HeapObject** p, HeapObject* object) {
-  Heap::ScavengeObject(p, object);
-
-  // TODO(gc) ISOLATES MERGE
-  if (HEAP->InNewSpace(*p)) {
-    ASSERT(HEAP->InToSpace(*p));
-    HEAP->store_buffer()->EnterDirectlyIntoStoreBuffer(
-        reinterpret_cast<Address>(p));
-  }
-}
-
-
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -1067,7 +1055,7 @@ void Heap::Scavenge() {
     StoreBufferRebuildScope scope(this,
                                   store_buffer(),
                                   &ScavengeStoreBufferCallback);
-    store_buffer()->IteratePointersToNewSpace(&ScavengeObjectAndMarkSlot);
+    store_buffer()->IteratePointersToNewSpace(&ScavengeObject);
   }
 
   // Copy objects reachable from cells by scavenging cell values directly.
@@ -4151,50 +4139,6 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 
 
 #ifdef DEBUG
-static void DummyScavengePointer(HeapObject** p, HeapObject* o) {
-  // When we are not in GC the Heap::InNewSpace() predicate
-  // checks that pointers which satisfy predicate point into
-  // the active semispace.
-  // TODO(gc) ISOLATES MERGE
-  HEAP->InNewSpace(*p);
-}
-
-
-static void VerifyPointers(
-    PagedSpace* space,
-    PointerRegionCallback visit_pointer_region) {
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* page = it.next();
-    HEAP->IteratePointersOnPage(reinterpret_cast<PagedSpace*>(page->owner()),
-                                visit_pointer_region,
-                                &DummyScavengePointer,
-                                page);
-  }
-}
-
-
-static void VerifyPointers(LargeObjectSpace* space) {
-  LargeObjectIterator it(space);
-  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-    if (object->IsFixedArray()) {
-      Address slot_address = object->address();
-      Address end = object->address() + object->Size();
-
-      while (slot_address < end) {
-        HeapObject** slot = reinterpret_cast<HeapObject**>(slot_address);
-        // When we are not in GC the Heap::InNewSpace() predicate
-        // checks that pointers which satisfy predicate point into
-        // the active semispace.
-        HEAP->InNewSpace(*slot);
-        slot_address += kPointerSize;
-      }
-    }
-  }
-}
-
-
 void Heap::Verify() {
   ASSERT(HasBeenSetup());
 
@@ -4207,10 +4151,6 @@ void Heap::Verify() {
 
   old_pointer_space_->Verify(&visitor);
   map_space_->Verify(&visitor);
-
-  VerifyPointers(old_pointer_space_, &IteratePointersToNewSpace);
-  VerifyPointers(map_space_, &IteratePointersFromMapsToNewSpace);
-  VerifyPointers(lo_space_);
 
   VerifyPointersVisitor no_dirty_regions_visitor;
   old_data_space_->Verify(&no_dirty_regions_visitor);
@@ -4326,80 +4266,6 @@ void Heap::ZapFromSpace() {
   }
 }
 #endif  // DEBUG
-
-
-void Heap::IteratePointersToNewSpace(Heap* heap,
-                                     Address start,
-                                     Address end,
-                                     ObjectSlotCallback copy_object_func) {
-  for (Address slot_address = start;
-       slot_address < end;
-       slot_address += kPointerSize) {
-    Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (heap->InNewSpace(*slot)) {
-      HeapObject* object = reinterpret_cast<HeapObject*>(*slot);
-      ASSERT(object->IsHeapObject());
-      copy_object_func(reinterpret_cast<HeapObject**>(slot), object);
-    }
-  }
-}
-
-
-// Compute start address of the first map following given addr.
-static inline Address MapStartAlign(Address addr) {
-  Address page = Page::FromAddress(addr)->ObjectAreaStart();
-  return page + (((addr - page) + (Map::kSize - 1)) / Map::kSize * Map::kSize);
-}
-
-
-// Compute end address of the first map preceding given addr.
-static inline Address MapEndAlign(Address addr) {
-  Address page = Page::FromAllocationTop(addr)->ObjectAreaStart();
-  return page + ((addr - page) / Map::kSize * Map::kSize);
-}
-
-
-static void IteratePointersToNewSpaceInMaps(
-    Heap* heap,
-    Address start,
-    Address end,
-    ObjectSlotCallback copy_object_func) {
-  ASSERT(MapStartAlign(start) == start);
-  ASSERT(MapEndAlign(end) == end);
-
-  Address map_address = start;
-  while (map_address < end) {
-    ASSERT(!heap->InNewSpace(Memory::Object_at(map_address)));
-    ASSERT(Memory::Object_at(map_address)->IsMap());
-
-    Address pointer_fields_start = map_address + Map::kPointerFieldsBeginOffset;
-    Address pointer_fields_end = map_address + Map::kPointerFieldsEndOffset;
-
-    Heap::IteratePointersToNewSpace(heap,
-                                    pointer_fields_start,
-                                    pointer_fields_end,
-                                    copy_object_func);
-    map_address += Map::kSize;
-  }
-}
-
-
-void Heap::IteratePointersFromMapsToNewSpace(
-    Heap* heap,
-    Address start,
-    Address end,
-    ObjectSlotCallback copy_object_func) {
-  Address map_aligned_start = MapStartAlign(start);
-  Address map_aligned_end   = MapEndAlign(end);
-
-  ASSERT(map_aligned_start == start);
-  ASSERT(map_aligned_end == end);
-
-  IteratePointersToNewSpaceInMaps(heap,
-                                  map_aligned_start,
-                                  map_aligned_end,
-                                  copy_object_func);
-}
 
 
 void Heap::IterateAndMarkPointersToFromSpace(Address start,
@@ -4578,104 +4444,7 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
     }
   }
 }
-
-
 #endif
-
-
-// This function iterates over all the pointers in a paged space in the heap,
-// looking for pointers into new space.  Within the pages there may be dead
-// objects that have not been overwritten by free spaces or fillers because of
-// lazy sweeping.  These dead objects may not contain pointers to new space.
-// The garbage areas that have been swept properly (these will normally be the
-// large ones) will be marked with free space and filler map words.  In
-// addition any area that has never been used at all for object allocation must
-// be marked with a free space or filler.  Because the free space and filler
-// maps do not move we can always recognize these even after a compaction.
-// Normal objects like FixedArrays and JSObjects should not contain references
-// to these maps.  The special garbage section (see comment in spaces.h) is
-// skipped since it can contain absolutely anything.  Any objects that are
-// allocated during iteration may or may not be visited by the iteration, but
-// they will not be partially visited.
-void Heap::IteratePointers(
-    PagedSpace* space,
-    PointerRegionCallback visit_pointer_region,
-    ObjectSlotCallback copy_object_func) {
-
-  PageIterator pages(space);
-
-  while (pages.has_next()) {
-    Page* page = pages.next();
-    IteratePointersOnPage(space, visit_pointer_region, copy_object_func, page);
-  }
-}
-
-
-void Heap::IteratePointersOnPage(
-    PagedSpace* space,
-    PointerRegionCallback visit_pointer_region,
-    ObjectSlotCallback copy_object_func,
-    Page* page) {
-  Address visitable_start = page->ObjectAreaStart();
-  Address end_of_page = page->ObjectAreaEnd();
-
-  Address visitable_end = visitable_start;
-
-  // TODO(gc) ISOLATES
-  Object* free_space_map = HEAP->free_space_map();
-  Object* two_pointer_filler_map = HEAP->two_pointer_filler_map();
-
-  while (visitable_end < end_of_page) {
-#ifdef DEBUG
-    int offset = visitable_start - page->ObjectAreaStart();
-    ASSERT(offset == space->RoundSizeDownToObjectAlignment(offset));
-#endif
-    Object* o = *reinterpret_cast<Object**>(visitable_end);
-    // Skip fillers but not things that look like fillers in the special
-    // garbage section which can contain anything.
-    if (o == free_space_map ||
-        o == two_pointer_filler_map ||
-        visitable_end == space->top()) {
-      if (visitable_start != visitable_end) {
-        // After calling this the special garbage section may have moved.
-        visit_pointer_region(HEAP,
-                             visitable_start,
-                             visitable_end,
-                             copy_object_func);
-        if (visitable_end >= space->top() && visitable_end < space->limit()) {
-          visitable_end = space->limit();
-          visitable_start = visitable_end;
-          continue;
-        }
-      }
-      if (visitable_end == space->top() && visitable_end != space->limit()) {
-        visitable_start = visitable_end = space->limit();
-      } else {
-        // At this point we are either at the start of a filler or we are at
-        // the point where the space->top() used to be before the
-        // visit_pointer_region call above.  Either way we can skip the
-        // object at the current spot:  We don't promise to visit objects
-        // allocated during heap traversal, and if space->top() moved then it
-        // must be because an object was allocated at this point.
-        visitable_start =
-            visitable_end + HeapObject::FromAddress(visitable_end)->Size();
-        visitable_end = visitable_start;
-      }
-    } else {
-      ASSERT(o != free_space_map);
-      ASSERT(o != two_pointer_filler_map);
-      ASSERT(visitable_end < space->top() || visitable_end >= space->limit());
-      visitable_end += kPointerSize;
-    }
-  }
-  ASSERT(visitable_end == end_of_page);
-  if (visitable_start != visitable_end) {
-    visit_pointer_region(HEAP,
-                         visitable_start,
-                         visitable_end,
-                         copy_object_func);
-  }
-}
 
 
 void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {

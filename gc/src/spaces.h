@@ -2321,9 +2321,6 @@ class LargeObjectSpace : public Space {
   // if such a page doesn't exist.
   LargePage* FindPageContainingPc(Address pc);
 
-  // Iterates over pointers to new space.
-  void IteratePointersToNewSpace(ObjectSlotCallback func);
-
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
 

@@ -37,9 +37,12 @@
 namespace v8 {
 namespace internal {
 
+class StoreBuffer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
+typedef void (StoreBuffer::*RegionCallback)(
+    Address start, Address end, ObjectSlotCallback slot_callback);
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
@@ -149,6 +152,42 @@ class StoreBuffer {
   bool HashTablesAreZapped();
   void FilterScanOnScavengeEntries();
   void ExemptPopularPages(int prime_sample_step, int threshold);
+
+  void FindPointersToNewSpaceInRegion(Address start,
+                                      Address end,
+                                      ObjectSlotCallback slot_callback);
+
+  // For each region of pointers on a page in use from an old space call
+  // visit_pointer_region callback.
+  // If either visit_pointer_region or callback can cause an allocation
+  // in old space and changes in allocation watermark then
+  // can_preallocate_during_iteration should be set to true.
+  void IteratePointersOnPage(
+      PagedSpace* space,
+      Page* page,
+      RegionCallback region_callback,
+      ObjectSlotCallback slot_callback);
+
+  void FindPointersToNewSpaceInMaps(
+    Address start,
+    Address end,
+    ObjectSlotCallback slot_callback);
+
+  void FindPointersToNewSpaceInMapsRegion(
+    Address start,
+    Address end,
+    ObjectSlotCallback slot_callback);
+
+  void FindPointersToNewSpaceOnPage(
+    PagedSpace* space,
+    Page* page,
+    RegionCallback region_callback,
+    ObjectSlotCallback slot_callback);
+
+#ifdef DEBUG
+  void VerifyPointers(PagedSpace* space, RegionCallback region_callback);
+  void VerifyPointers(LargeObjectSpace* space);
+#endif
 
   friend class StoreBufferRebuildScope;
   friend class DontMoveStoreBufferEntriesScope;

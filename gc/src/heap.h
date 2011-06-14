@@ -228,11 +228,6 @@ class WeakObjectRetainer;
 typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
                                                       Object** pointer);
 
-typedef void (*PointerRegionCallback)(Heap* heap,
-                                      Address start,
-                                      Address end,
-                                      ObjectSlotCallback copy_object_func);
-
 class StoreBufferRebuilder {
  public:
   explicit StoreBufferRebuilder(StoreBuffer* store_buffer)
@@ -962,23 +957,6 @@ class Heap {
   void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all the other roots in the heap.
   void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
-
-  // For each region of pointers on a page in use from an old space call
-  // visit_pointer_region callback.
-  // If either visit_pointer_region or callback can cause an allocation
-  // in old space and changes in allocation watermark then
-  // can_preallocate_during_iteration should be set to true.
-  // All pages will be marked as having invalid watermark upon
-  // iteration completion.
-  void IteratePointers(
-      PagedSpace* space,
-      PointerRegionCallback visit_pointer_region,
-      ObjectSlotCallback callback);
-  static void IteratePointersOnPage(
-      PagedSpace* space,
-      PointerRegionCallback visit_pointer_region,
-      ObjectSlotCallback callback,
-      Page* page);
 
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end.

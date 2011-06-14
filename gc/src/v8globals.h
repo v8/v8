@@ -257,12 +257,6 @@ struct CodeDesc {
 };
 
 
-// Callback function on object slots, used for iterating heap object slots in
-// HeapObjects, global pointers to heap objects, etc. The callback allows the
-// callback function to change the value of the slot.
-typedef void (*ObjectSlotCallback)(HeapObject** pointer, HeapObject* object);
-
-
 // Callback function used for iterating objects in heap spaces,
 // for example, scanning heap objects.
 typedef int (*HeapObjectCallback)(HeapObject* obj);

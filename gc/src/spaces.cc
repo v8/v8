@@ -2282,25 +2282,6 @@ LargePage* LargeObjectSpace::FindPageContainingPc(Address pc) {
 }
 
 
-void LargeObjectSpace::IteratePointersToNewSpace(
-    ObjectSlotCallback copy_object) {
-  LargeObjectIterator it(this);
-  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-    // We only have code, sequential strings, or fixed arrays in large
-    // object space, and only fixed arrays can possibly contain pointers to
-    // the young generation.
-    if (object->IsFixedArray()) {
-      // TODO(gc): we can no longer assume that LargePage is bigger than normal
-      // page.
-
-      Address start = object->address();
-      Address object_end = start + object->Size();
-      heap()->IteratePointersToNewSpace(heap(), start, object_end, copy_object);
-    }
-  }
-}
-
-
 void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* previous = NULL;
   LargePage* current = first_page_;

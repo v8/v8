@@ -2013,10 +2013,6 @@ static void UpdatePointerToNewGen(HeapObject** p, HeapObject* object) {
   // the store buffer which we are rebuilding.
   if (new_addr != NULL) {
     *p = HeapObject::FromAddress(new_addr);
-    if (HEAP->InNewSpace(new_addr)) {
-      HEAP->store_buffer()->
-          EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(p));
-    }
   } else {
     // We have to zap this pointer, because the store buffer may overflow later,
     // and then we have to scan the entire heap and we don't want to find
