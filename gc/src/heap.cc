@@ -61,8 +61,10 @@ namespace v8 {
 namespace internal {
 
 
-static const intptr_t kMinimumPromotionLimit = 2 * MB;
-static const intptr_t kMinimumAllocationLimit = 8 * MB;
+static const intptr_t kMinimumPromotionLimit =
+    2 * (Page::kPageSize > MB ? Page::kPageSize : MB);
+static const intptr_t kMinimumAllocationLimit =
+    8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
 
 static Mutex* gc_initializer_mutex = OS::CreateMutex();
@@ -73,27 +75,21 @@ Heap::Heap()
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
-      reserved_semispace_size_(2*MB),
-      max_semispace_size_(2*MB),
-      initial_semispace_size_(128*KB),
-      max_old_generation_size_(192*MB),
-      max_executable_size_(max_old_generation_size_),
+#define LUMP_OF_MEMORY (128 * KB)
       code_range_size_(0),
 #elif defined(V8_TARGET_ARCH_X64)
-      reserved_semispace_size_(16*MB),
-      max_semispace_size_(16*MB),
-      initial_semispace_size_(1*MB),
-      max_old_generation_size_(1*GB),
-      max_executable_size_(256*MB),
+#define LUMP_OF_MEMORY (2 * MB)
       code_range_size_(512*MB),
 #else
-      reserved_semispace_size_(4*MB),
-      max_semispace_size_(4*MB),
-      initial_semispace_size_(1*MB),
-      max_old_generation_size_(512*MB),
-      max_executable_size_(128*MB),
+#define LUMP_OF_MEMORY MB
       code_range_size_(0),
 #endif
+      reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      initial_semispace_size_(Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      max_old_generation_size_(1024ul * LUMP_OF_MEMORY),
+      max_executable_size_(256l * LUMP_OF_MEMORY),
+
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
 // Will be 4 * reserved_semispace_size_ to ensure that young

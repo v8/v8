@@ -1331,12 +1331,12 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
+  intptr_t code_range_size_;
   int reserved_semispace_size_;
   int max_semispace_size_;
   int initial_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
-  intptr_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -1501,8 +1501,6 @@ class Heap {
   bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
-  static const intptr_t kMinimumPromotionLimit = 2 * MB;
-  static const intptr_t kMinimumAllocationLimit = 8 * MB;
 
   inline void UpdateOldSpaceLimits();
 

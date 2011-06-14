@@ -1425,10 +1425,6 @@ class PagedSpace : public Space {
   Page* first_unswept_page_;
   Page* last_unswept_page_;
 
-  // Sets allocation pointer.  If the allocation pointer already pointed to a
-  // non-zero-length area then that area may be returned to the free list.
-  void SetAllocationInfo(Address start, Address end);
-
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS.
   bool Expand();

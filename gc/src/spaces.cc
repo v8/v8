@@ -729,14 +729,6 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
 }
 
 
-void PagedSpace::SetAllocationInfo(Address top, Address limit) {
-  Free(allocation_info_.top, allocation_info_.limit - allocation_info_.top);
-  allocation_info_.top = top;
-  allocation_info_.limit = limit;
-  ASSERT(allocation_info_.VerifyPagedAllocation());
-}
-
-
 bool PagedSpace::Expand() {
   ASSERT(max_capacity_ % Page::kObjectAreaSize == 0);
   ASSERT(Capacity() % Page::kObjectAreaSize == 0);
