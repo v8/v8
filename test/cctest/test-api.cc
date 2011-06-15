@@ -14480,3 +14480,25 @@ THREADED_TEST(CallAPIFunctionOnNonObject) {
   TryCatch try_catch;
   CompileRun("f.call(2)");
 }
+
+
+// Regression test for issue 1470.
+THREADED_TEST(ReadOnlyIndexedProperties) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+  obj->Set(v8_str("1"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("1"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("1")));
+  obj->Set(v8_num(2), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_num(2), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_num(2)));
+
+  // Test non-smi case.
+  obj->Set(v8_str("2000000000"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("2000000000"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("2000000000")));
+}

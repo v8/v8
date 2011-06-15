@@ -3936,6 +3936,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
+// Special case for elements if any of the flags are true.
+// If elements are in fast case we always implicitly assume that:
+// DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
+static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
+                                              Handle<JSObject> js_object,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              PropertyAttributes attr) {
+  // Normalize the elements to enable attributes on the property.
+  NormalizeElements(js_object);
+  Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+  // Make sure that we never go back to fast case.
+  dictionary->set_requires_slow_elements();
+  PropertyDetails details = PropertyDetails(attr, NORMAL);
+  Handle<NumberDictionary> extended_dictionary =
+      NumberDictionarySet(dictionary, index, value, details);
+  if (*extended_dictionary != *dictionary) {
+    js_object->set_elements(*extended_dictionary);
+  }
+  return *value;
+}
+
+
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
@@ -3971,6 +3994,10 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
+    if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
+      return NormalizeObjectSetElement(isolate, js_object, index, value, attr);
+    }
+
     Handle<Object> result = SetElement(js_object, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3979,6 +4006,13 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
+        return NormalizeObjectSetElement(isolate,
+                                         js_object,
+                                         index,
+                                         value,
+                                         attr);
+      }
       result = SetElement(js_object, index, value, strict_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
