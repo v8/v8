@@ -84,8 +84,8 @@ Heap::Heap()
 #define LUMP_OF_MEMORY MB
       code_range_size_(0),
 #endif
-      reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      reserved_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_old_generation_size_(1024ul * LUMP_OF_MEMORY),
       max_executable_size_(256l * LUMP_OF_MEMORY),
