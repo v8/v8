@@ -614,6 +614,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(String, key, args[0]);
+  Object* value = args[1];
+  ASSERT(!value->IsFailure());
+  // Create a catch context extension object.
+  JSFunction* constructor =
+      isolate->context()->global_context()->
+          context_extension_function();
+  Object* object;
+  { MaybeObject* maybe_object = isolate->heap()->AllocateJSObject(constructor);
+    if (!maybe_object->ToObject(&object)) return maybe_object;
+  }
+  // Assign the exception value to the catch variable and make sure
+  // that the catch variable is DontDelete.
+  { MaybeObject* maybe_value =
+        // Passing non-strict per ECMA-262 5th Ed. 12.14. Catch, bullet #4.
+        JSObject::cast(object)->SetProperty(
+            key, value, DONT_DELETE, kNonStrictMode);
+    if (!maybe_value->ToObject(&value)) return maybe_value;
+  }
+  return object;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -876,7 +901,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
           ASSERT(proto->IsJSGlobalObject());
           holder = Handle<JSObject>(JSObject::cast(proto));
         }
-        NumberDictionary* dictionary = holder->element_dictionary();
+        FixedArray* elements = FixedArray::cast(holder->elements());
+        NumberDictionary* dictionary = NULL;
+        if (elements->map() == heap->non_strict_arguments_elements_map()) {
+          dictionary = NumberDictionary::cast(elements->get(1));
+        } else {
+          dictionary = NumberDictionary::cast(elements);
+        }
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1232,7 +1263,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
-  ASSERT(context->IsFunctionContext() || context->IsGlobalContext());
 
   int index;
   PropertyAttributes attributes;
@@ -1286,7 +1316,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     Handle<JSObject> context_ext;
     if (context->has_extension()) {
       // The function context's extension context exists - use it.
-      context_ext = Handle<JSObject>(JSObject::cast(context->extension()));
+      context_ext = Handle<JSObject>(context->extension());
     } else {
       // The function context's extension context does not exists - allocate
       // it.
@@ -3945,29 +3975,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
-// Special case for elements if any of the flags are true.
-// If elements are in fast case we always implicitly assume that:
-// DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
-static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
-                                              Handle<JSObject> js_object,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              PropertyAttributes attr) {
-  // Normalize the elements to enable attributes on the property.
-  NormalizeElements(js_object);
-  Handle<NumberDictionary> dictionary(js_object->element_dictionary());
-  // Make sure that we never go back to fast case.
-  dictionary->set_requires_slow_elements();
-  PropertyDetails details = PropertyDetails(attr, NORMAL);
-  Handle<NumberDictionary> extended_dictionary =
-      NumberDictionarySet(dictionary, index, value, details);
-  if (*extended_dictionary != *dictionary) {
-    js_object->set_elements(*extended_dictionary);
-  }
-  return *value;
-}
-
-
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
@@ -4003,10 +4010,6 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
-      return NormalizeObjectSetElement(isolate, js_object, index, value, attr);
-    }
-
     Handle<Object> result = SetElement(js_object, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -4015,13 +4018,6 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
-        return NormalizeObjectSetElement(isolate,
-                                         js_object,
-                                         index,
-                                         value,
-                                         attr);
-      }
       result = SetElement(js_object, index, value, strict_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
@@ -4039,7 +4035,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, strict_mode);
+    return js_object->SetElement(index, *value, strict_mode, true);
   } else {
     return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
@@ -4067,12 +4063,12 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    return js_object->SetElement(index, *value, kNonStrictMode);
+    return js_object->SetElement(index, *value, kNonStrictMode, true);
   }
 
   if (key->IsString()) {
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      return js_object->SetElement(index, *value, kNonStrictMode);
+      return js_object->SetElement(index, *value, kNonStrictMode, true);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4089,7 +4085,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, kNonStrictMode);
+    return js_object->SetElement(index, *value, kNonStrictMode, true);
   } else {
     return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
@@ -7343,6 +7339,103 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewArgumentsFast) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
+  const int argument_count = Smi::cast(args[2])->value();
+
+  Handle<JSObject> result =
+      isolate->factory()->NewArgumentsObject(callee, argument_count);
+  // Allocate the elements if needed.
+  int parameter_count = callee->shared()->formal_parameter_count();
+  if (argument_count > 0) {
+    if (parameter_count > 0) {
+      int mapped_count = Min(argument_count, parameter_count);
+      Handle<FixedArray> parameter_map =
+          isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
+      parameter_map->set_map(
+          isolate->heap()->non_strict_arguments_elements_map());
+
+      Handle<Map> old_map(result->map());
+      Handle<Map> new_map =
+          isolate->factory()->CopyMapDropTransitions(old_map);
+      new_map->set_elements_kind(JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+
+      result->set_map(*new_map);
+      result->set_elements(*parameter_map);
+
+      // Store the context and the arguments array at the beginning of the
+      // parameter map.
+      Handle<Context> context(isolate->context());
+      Handle<FixedArray> arguments =
+          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      parameter_map->set(0, *context);
+      parameter_map->set(1, *arguments);
+
+      // Loop over the actual parameters backwards.
+      int index = argument_count - 1;
+      while (index >= mapped_count) {
+        // These go directly in the arguments array and have no
+        // corresponding slot in the parameter map.
+        arguments->set(index, *(parameters - index - 1));
+        --index;
+      }
+
+      ScopeInfo<> scope_info(callee->shared()->scope_info());
+      while (index >= 0) {
+        // Detect duplicate names to the right in the parameter list.
+        Handle<String> name = scope_info.parameter_name(index);
+        int context_slot_count = scope_info.number_of_context_slots();
+        bool duplicate = false;
+        for (int j = index + 1; j < parameter_count; ++j) {
+          if (scope_info.parameter_name(j).is_identical_to(name)) {
+            duplicate = true;
+            break;
+          }
+        }
+
+        if (duplicate) {
+          // This goes directly in the arguments array with a hole in the
+          // parameter map.
+          arguments->set(index, *(parameters - index - 1));
+          parameter_map->set_the_hole(index + 2);
+        } else {
+          // The context index goes in the parameter map with a hole in the
+          // arguments array.
+          int context_index = -1;
+          for (int j = Context::MIN_CONTEXT_SLOTS;
+               j < context_slot_count;
+               ++j) {
+            if (scope_info.context_slot_name(j).is_identical_to(name)) {
+              context_index = j;
+              break;
+            }
+          }
+          ASSERT(context_index >= 0);
+          arguments->set_the_hole(index);
+          parameter_map->set(index + 2, Smi::FromInt(context_index));
+        }
+
+        --index;
+      }
+    } else {
+      // If there is no aliasing, the arguments object elements are not
+      // special in any way.
+      Handle<FixedArray> elements =
+          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      result->set_elements(*elements);
+      for (int i = 0; i < argument_count; ++i) {
+        elements->set(i, *(parameters - i - 1));
+      }
+    }
+  }
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStrictArgumentsFast) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
@@ -7784,7 +7877,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
   // We're not prepared to handle a function with arguments object.
-  ASSERT(!function->shared()->scope_info()->HasArgumentsShadow());
+  ASSERT(!function->shared()->uses_arguments());
 
   // We have hit a back edge in an unoptimized frame for a function that was
   // selected for on-stack replacement.  Find the unoptimized code object.
@@ -7961,14 +8054,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  String* name = String::cast(args[0]);
-  Object* thrown_object = args[1];
+  ASSERT(args.length() == 1);
+  JSObject* extension_object = JSObject::cast(args[0]);
   Context* context;
   MaybeObject* maybe_context =
       isolate->heap()->AllocateCatchContext(isolate->context(),
-                                            name,
-                                            thrown_object);
+                                            extension_object);
   if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
   return context;
@@ -8749,8 +8840,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
   }
   Object* obj;
   // Strict not needed. Used for cycle detection in Array join implementation.
-  { MaybeObject* maybe_obj = array->SetFastElement(length, element,
-                                                   kNonStrictMode);
+  { MaybeObject* maybe_obj =
+        array->SetFastElement(length, element, kNonStrictMode, true);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   return isolate->heap()->true_value();
@@ -10061,18 +10152,14 @@ static bool CopyContextLocalsToScopeObject(
     int context_index = serialized_scope_info->ContextSlotIndex(
         *scope_info.context_slot_name(i), NULL);
 
-    // Don't include the arguments shadow (.arguments) context variable.
-    if (*scope_info.context_slot_name(i) !=
-        isolate->heap()->arguments_shadow_symbol()) {
-      RETURN_IF_EMPTY_HANDLE_VALUE(
-          isolate,
-          SetProperty(scope_object,
-                      scope_info.context_slot_name(i),
-                      Handle<Object>(context->get(context_index), isolate),
-                      NONE,
-                      kNonStrictMode),
-          false);
-    }
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        isolate,
+        SetProperty(scope_object,
+                    scope_info.context_slot_name(i),
+                    Handle<Object>(context->get(context_index), isolate),
+                    NONE,
+                    kNonStrictMode),
+        false);
   }
 
   return true;
@@ -10167,29 +10254,6 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
   Handle<JSObject> closure_scope =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  // Check whether the arguments shadow object exists.
-  int arguments_shadow_index =
-      shared->scope_info()->ContextSlotIndex(
-          isolate->heap()->arguments_shadow_symbol(), NULL);
-  if (arguments_shadow_index >= 0) {
-    // In this case all the arguments are available in the arguments shadow
-    // object.
-    Handle<JSObject> arguments_shadow(
-        JSObject::cast(context->get(arguments_shadow_index)));
-    for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
-      // We don't expect exception-throwing getters on the arguments shadow.
-      Object* element = arguments_shadow->GetElement(i)->ToObjectUnchecked();
-      RETURN_IF_EMPTY_HANDLE_VALUE(
-          isolate,
-          SetProperty(closure_scope,
-                      scope_info.parameter_name(i),
-                      Handle<Object>(element, isolate),
-                      NONE,
-                      kNonStrictMode),
-          Handle<JSObject>());
-    }
-  }
-
   // Fill all context locals to the context extension.
   if (!CopyContextLocalsToScopeObject(isolate,
                                       serialized_scope_info, scope_info,
@@ -10221,23 +10285,6 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
 }
 
 
-// Create a plain JSObject which materializes the scope for the specified
-// catch context.
-static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
-                                              Handle<Context> context) {
-  ASSERT(context->IsCatchContext());
-  Handle<String> name(String::cast(context->extension()));
-  Handle<Object> thrown_object(context->get(Context::THROWN_OBJECT_INDEX));
-  Handle<JSObject> catch_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  RETURN_IF_EMPTY_HANDLE_VALUE(
-      isolate,
-      SetProperty(catch_scope, name, thrown_object, NONE, kNonStrictMode),
-      Handle<JSObject>());
-  return catch_scope;
-}
-
-
 // Iterate over the actual scopes visible from a stack frame. All scopes are
 // backed by an actual context except the local scope, which is inserted
 // "artifically" in the context chain.
@@ -10248,6 +10295,10 @@ class ScopeIterator {
     ScopeTypeLocal,
     ScopeTypeWith,
     ScopeTypeClosure,
+    // Every catch block contains an implicit with block (its parameter is
+    // a JSContextExtensionObject) that extends current scope with a variable
+    // holding exception object. Such with blocks are treated as scopes of their
+    // own type.
     ScopeTypeCatch
   };
 
@@ -10271,8 +10322,8 @@ class ScopeIterator {
     } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
-      // The context_ is a with or catch block from the outer function.
-      ASSERT(context_->IsWithContext() || context_->IsCatchContext());
+      // The context_ is a with block from the outer function.
+      ASSERT(context_->has_extension());
       at_local_ = true;
     }
   }
@@ -10324,10 +10375,15 @@ class ScopeIterator {
     if (context_->IsFunctionContext()) {
       return ScopeTypeClosure;
     }
-    if (context_->IsCatchContext()) {
+    ASSERT(context_->has_extension());
+    // Current scope is either an explicit with statement or a with statement
+    // implicitely generated for a catch block.
+    // If the extension object here is a JSContextExtensionObject then
+    // current with statement is one frome a catch block otherwise it's a
+    // regular with statement.
+    if (context_->extension()->IsJSContextExtensionObject()) {
       return ScopeTypeCatch;
     }
-    ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
 
@@ -10336,17 +10392,20 @@ class ScopeIterator {
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
         return Handle<JSObject>(CurrentContext()->global());
+        break;
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
         return MaterializeLocalScope(isolate_, frame_);
+        break;
       case ScopeIterator::ScopeTypeWith:
-        // Return the with object.
-        return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
       case ScopeIterator::ScopeTypeCatch:
-        return MaterializeCatchScope(isolate_, CurrentContext());
+        // Return the with object.
+        return Handle<JSObject>(CurrentContext()->extension());
+        break;
       case ScopeIterator::ScopeTypeClosure:
         // Materialize the content of the closure scope into a JSObject.
         return MaterializeClosure(isolate_, CurrentContext());
+        break;
     }
     UNREACHABLE();
     return Handle<JSObject>();
@@ -10377,7 +10436,8 @@ class ScopeIterator {
         if (!CurrentContext().is_null()) {
           CurrentContext()->Print();
           if (CurrentContext()->has_extension()) {
-            Handle<Object> extension(CurrentContext()->extension());
+            Handle<JSObject> extension =
+                Handle<JSObject>(CurrentContext()->extension());
             if (extension->IsJSContextExtensionObject()) {
               extension->Print();
             }
@@ -10386,27 +10446,34 @@ class ScopeIterator {
         break;
       }
 
-      case ScopeIterator::ScopeTypeWith:
+      case ScopeIterator::ScopeTypeWith: {
         PrintF("With:\n");
-        CurrentContext()->extension()->Print();
+        Handle<JSObject> extension =
+            Handle<JSObject>(CurrentContext()->extension());
+        extension->Print();
         break;
+      }
 
-      case ScopeIterator::ScopeTypeCatch:
+      case ScopeIterator::ScopeTypeCatch: {
         PrintF("Catch:\n");
-        CurrentContext()->extension()->Print();
-        CurrentContext()->get(Context::THROWN_OBJECT_INDEX)->Print();
+        Handle<JSObject> extension =
+            Handle<JSObject>(CurrentContext()->extension());
+        extension->Print();
         break;
+      }
 
-      case ScopeIterator::ScopeTypeClosure:
+      case ScopeIterator::ScopeTypeClosure: {
         PrintF("Closure:\n");
         CurrentContext()->Print();
         if (CurrentContext()->has_extension()) {
-          Handle<Object> extension(CurrentContext()->extension());
+          Handle<JSObject> extension =
+              Handle<JSObject>(CurrentContext()->extension());
           if (extension->IsJSContextExtensionObject()) {
             extension->Print();
           }
         }
         break;
+      }
 
       default:
         UNREACHABLE();
@@ -10885,17 +10952,10 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
   HandleScope scope(isolate);
   Handle<Context> previous(current->previous());
   Handle<Context> new_previous = CopyWithContextChain(isolate, previous, base);
-  Handle<Context> new_current;
-  if (current->IsCatchContext()) {
-    Handle<String> name(String::cast(current->extension()));
-    Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX));
-    new_current =
-        isolate->factory()->NewCatchContext(new_previous, name, thrown_object);
-  } else {
-    Handle<JSObject> extension(JSObject::cast(current->extension()));
-    new_current =
-        isolate->factory()->NewWithContext(new_previous, extension);
-  }
+  Handle<JSObject> extension(JSObject::cast(current->extension()));
+  Handle<Context> new_current = current->IsCatchContext()
+      ? isolate->factory()->NewCatchContext(new_previous, extension)
+      : isolate->factory()->NewWithContext(new_previous, extension);
   return scope.CloseAndEscape(new_current);
 }
 

@@ -1055,6 +1055,21 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 #endif
   }
 
+  {  // --- aliased_arguments_boilerplate_
+    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
+    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
+    new_map->set_pre_allocated_property_fields(2);
+    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
+    new_map->set_elements_kind(JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+    // Set up a well-formed parameter map to make assertions happy.
+    Handle<FixedArray> elements = factory->NewFixedArray(2);
+    elements->set_map(heap->non_strict_arguments_elements_map());
+    elements->set(0, *factory->NewFixedArray(0));
+    elements->set(1, *factory->NewFixedArray(0));
+    result->set_elements(*elements);
+    global_context()->set_aliased_arguments_boilerplate(*result);
+  }
+
   {  // --- strict mode arguments boilerplate
     const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);

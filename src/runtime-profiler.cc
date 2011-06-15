@@ -185,7 +185,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // We are not prepared to do OSR for a function that already has an
   // allocated arguments object.  The optimized code would bypass it for
   // arguments accesses, which is unsound.  Don't try OSR.
-  if (shared->scope_info()->HasArgumentsShadow()) return;
+  if (shared->uses_arguments()) return;
 
   // We're using on-stack replacement: patch the unoptimized code so that
   // any back edge in any unoptimized frame will trigger on-stack

@@ -441,7 +441,7 @@ void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(this);
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
 
@@ -463,7 +463,7 @@ void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(this);
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
 }
 
 
@@ -510,14 +510,6 @@ void FullCodeGenerator::TestContext::PrepareTest(
   *if_true = true_label_;
   *if_false = false_label_;
   *fall_through = fall_through_;
-}
-
-
-void FullCodeGenerator::DoTest(const TestContext* context) {
-  DoTest(context->condition(),
-         context->true_label(),
-         context->false_label(),
-         context->fall_through());
 }
 
 
@@ -742,9 +734,9 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     Label discard, restore;
     PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
-      DoTest(left, &discard, &restore, &restore);
+      DoTest(&discard, &restore, &restore);
     } else {
-      DoTest(left, &restore, &discard, &restore);
+      DoTest(&restore, &discard, &restore);
     }
     __ bind(&restore);
     __ pop(result_register());
@@ -761,9 +753,9 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     Label discard;
     PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
-      DoTest(left, &discard, &done, &discard);
+      DoTest(&discard, &done, &discard);
     } else {
-      DoTest(left, &done, &discard, &discard);
+      DoTest(&done, &discard, &discard);
     }
     __ bind(&discard);
     __ Drop(1);
@@ -1107,7 +1099,9 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     __ Push(stmt->name());
     __ push(result_register());
-    __ CallRuntime(Runtime::kPushCatchContext, 2);
+    __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+    __ push(result_register());
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }

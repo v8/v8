@@ -143,6 +143,7 @@ var knownProblems = {
   // These functions should not be callable as runtime functions.
   "NewFunctionContext": true,
   "NewArgumentsFast": true,
+  "NewStrictArgumentsFast": true,
   "PushWithContext": true,
   "PushCatchContext": true,
   "LazyCompile": true,

@@ -1351,6 +1351,9 @@ static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
   KeyedLoadIC::GenerateIndexedInterceptor(masm);
 }
 
+static void Generate_KeyedLoadIC_NonStrictArguments(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateNonStrictArguments(masm);
+}
 
 static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
   StoreIC::GenerateInitialize(masm);
@@ -1441,6 +1444,9 @@ static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
 }
 
+static void Generate_KeyedStoreIC_NonStrictArguments(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateNonStrictArguments(masm);
+}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {

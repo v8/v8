@@ -283,6 +283,7 @@ class KeyedCallIC: public CallICBase {
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
+  static void GenerateNonStrictArguments(MacroAssembler* masm, int argc);
 };
 
 
@@ -408,8 +409,8 @@ class KeyedLoadIC: public KeyedIC {
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
-
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
+  static void GenerateNonStrictArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -466,6 +467,10 @@ class KeyedLoadIC: public KeyedIC {
   Code* indexed_interceptor_stub() {
     return isolate()->builtins()->builtin(
         Builtins::kKeyedLoadIC_IndexedInterceptor);
+  }
+  Code* non_strict_arguments_stub() {
+    return isolate()->builtins()->builtin(
+        Builtins::kKeyedLoadIC_NonStrictArguments);
   }
 
   static void Clear(Address address, Code* target);
@@ -567,6 +572,7 @@ class KeyedStoreIC: public KeyedIC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
+  static void GenerateNonStrictArguments(MacroAssembler* masm);
 
   virtual MaybeObject* GetFastElementStubWithoutMapCheck(
       bool is_js_array);
@@ -624,6 +630,10 @@ class KeyedStoreIC: public KeyedIC {
   Code* generic_stub_strict() {
     return isolate()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Generic_Strict);
+  }
+  Code* non_strict_arguments_stub() {
+    return isolate()->builtins()->builtin(
+        Builtins::kKeyedStoreIC_NonStrictArguments);
   }
 
   static void Clear(Address address, Code* target);

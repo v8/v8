@@ -74,28 +74,26 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
+bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
         code->FindFirstMap() != NULL;
   }
   return false;
 }
 
 
-bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
+bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_store_stub() &&
-        code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL;
+        code->ic_state() == MONOMORPHIC;
   }
   return false;
 }
@@ -108,7 +106,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
-  ASSERT(LoadIsMonomorphicNormal(expr));
+  ASSERT(LoadIsMonomorphic(expr));
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -121,7 +119,7 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
-  ASSERT(StoreIsMonomorphicNormal(expr));
+  ASSERT(StoreIsMonomorphic(expr));
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);

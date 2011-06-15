@@ -1849,6 +1849,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_external_float_array_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_non_strict_arguments_elements_map(Map::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
                                          ExternalArray::kAlignedSize);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3936,12 +3942,9 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
 
 
 MaybeObject* Heap::AllocateCatchContext(Context* previous,
-                                        String* name,
-                                        Object* thrown_object) {
-  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
+                                        JSObject* extension) {
   Object* result;
-  { MaybeObject* maybe_result =
-        AllocateFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
+  { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
@@ -3949,9 +3952,8 @@ MaybeObject* Heap::AllocateCatchContext(Context* previous,
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);
-  context->set_extension(name);
+  context->set_extension(extension);
   context->set_global(previous->global());
-  context->set(Context::THROWN_OBJECT_INDEX, thrown_object);
   return context;
 }
 

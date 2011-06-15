@@ -869,6 +869,18 @@ class MarkingVisitor : public ObjectVisitor {
     StaticMarkingVisitor::VisitPointers(heap_, start, end);
   }
 
+  void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitCodeTarget(heap, rinfo);
+  }
+
+  void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitGlobalPropertyCell(heap, rinfo);
+  }
+
+  void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitDebugTarget(heap, rinfo);
+  }
+
  private:
   Heap* heap_;
 };

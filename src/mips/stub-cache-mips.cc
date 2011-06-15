@@ -3098,8 +3098,15 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- a0    : key
   //  -- a1    : receiver
   // -----------------------------------
+  MaybeObject* maybe_stub;
+  if (receiver_map->has_fast_elements()) {
+    maybe_stub = KeyedLoadFastElementStub().TryGetCode();
+  } else {
+    ASSERT(receiver_map->has_external_array_elements());
+    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+    maybe_stub = KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
+  }
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedLoadElementStub(receiver_map);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(a1,
                  a2,
@@ -3181,7 +3188,8 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
+MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(
+    Map* receiver_map) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3189,8 +3197,16 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- ra    : return address
   //  -- a3    : scratch
   // -----------------------------------
+  MaybeObject* maybe_stub;
+  if (receiver_map->has_fast_elements()) {
+    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+    maybe_stub = KeyedStoreFastElementStub(is_js_array).TryGetCode();
+  } else {
+    ASSERT(receiver_map->has_external_array_elements());
+    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+    maybe_stub = KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
+  }
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedStoreElementStub(receiver_map);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(a2,
                  a3,

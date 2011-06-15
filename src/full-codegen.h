@@ -113,7 +113,6 @@ class FullCodeGenerator: public AstVisitor {
   class TryFinally;
   class Finally;
   class ForIn;
-  class TestContext;
 
   class NestedStatement BASE_EMBEDDED {
    public:
@@ -299,11 +298,7 @@ class FullCodeGenerator: public AstVisitor {
   // Helper function to convert a pure value into a test context.  The value
   // is expected on the stack or the accumulator, depending on the platform.
   // See the platform-specific implementation for details.
-  void DoTest(Expression* condition,
-              Label* if_true,
-              Label* if_false,
-              Label* fall_through);
-  void DoTest(const TestContext* context);
+  void DoTest(Label* if_true, Label* if_false, Label* fall_through);
 
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
@@ -352,7 +347,7 @@ class FullCodeGenerator: public AstVisitor {
                        Label* if_true,
                        Label* if_false,
                        Label* fall_through) {
-    TestContext context(this, expr, if_true, if_false, fall_through);
+    TestContext context(this, if_true, if_false, fall_through);
     VisitInCurrentContext(expr);
   }
 
@@ -675,13 +670,11 @@ class FullCodeGenerator: public AstVisitor {
 
   class TestContext : public ExpressionContext {
    public:
-    TestContext(FullCodeGenerator* codegen,
-                Expression* condition,
-                Label* true_label,
-                Label* false_label,
-                Label* fall_through)
+    explicit TestContext(FullCodeGenerator* codegen,
+                         Label* true_label,
+                         Label* false_label,
+                         Label* fall_through)
         : ExpressionContext(codegen),
-          condition_(condition),
           true_label_(true_label),
           false_label_(false_label),
           fall_through_(fall_through) { }
@@ -691,7 +684,6 @@ class FullCodeGenerator: public AstVisitor {
       return reinterpret_cast<const TestContext*>(context);
     }
 
-    Expression* condition() const { return condition_; }
     Label* true_label() const { return true_label_; }
     Label* false_label() const { return false_label_; }
     Label* fall_through() const { return fall_through_; }
@@ -712,7 +704,6 @@ class FullCodeGenerator: public AstVisitor {
     virtual bool IsTest() const { return true; }
 
    private:
-    Expression* condition_;
     Label* true_label_;
     Label* false_label_;
     Label* fall_through_;
