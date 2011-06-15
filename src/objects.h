@@ -4597,6 +4597,11 @@ class SharedFunctionInfo: public HeapObject {
   inline bool native();
   inline void set_native(bool value);
 
+  // Indicates whether the function is a bound function created using
+  // the bind function.
+  inline bool bound();
+  inline void set_bound(bool value);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -4783,6 +4788,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptimizationDisabled = 6;
   static const int kStrictModeFunction = 7;
   static const int kNative = 8;
+  static const int kBoundFunction = 9;
 
  private:
 #if V8_HOST_ARCH_32_BIT

@@ -1358,7 +1358,8 @@ function FunctionBind(this_arg) { // Length is 1.
   // Set the correct length.
   var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;
   %FunctionSetLength(result, length);
-
+  %FunctionRemovePrototype(result);
+  %FunctionSetBound(result);
   return result;
 }
 

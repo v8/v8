@@ -1855,6 +1855,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetName) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetBound) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  fun->shared()->set_bound(true);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -7499,7 +7508,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
 
   // If function should not have prototype, construction is not allowed. In this
   // case generated code bailouts here, since function has no initial_map.
-  if (!function->should_have_prototype()) {
+  if (!function->should_have_prototype() && !function->shared()->bound()) {
     Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
     Handle<Object> type_error =
         isolate->factory()->NewTypeError("not_constructor", arguments);

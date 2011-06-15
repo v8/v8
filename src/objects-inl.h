@@ -3438,6 +3438,18 @@ void SharedFunctionInfo::set_native(bool value) {
 }
 
 
+bool SharedFunctionInfo::bound() {
+  return BooleanBit::get(compiler_hints(), kBoundFunction);
+}
+
+
+void SharedFunctionInfo::set_bound(bool value) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kBoundFunction,
+                                     value));
+}
+
+
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 
