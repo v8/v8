@@ -684,18 +684,24 @@ function DefineOneShotAccessor(obj, name, fun) {
   // can't rely on 'this' being the same as 'obj'.
   var hasBeenSet = false;
   var value;
-  obj.__defineGetter__(name, function () {
+  function getter() {
     if (hasBeenSet) {
       return value;
     }
     hasBeenSet = true;
     value = fun(obj);
     return value;
-  });
-  obj.__defineSetter__(name, function (v) {
+  }
+  function setter(v) {
     hasBeenSet = true;
     value = v;
-  });
+  }
+  var desc = { get: getter,
+               set: setter,
+               enumerable: false,
+               configurable: true };
+  desc = ToPropertyDescriptor(desc);
+  DefineOwnProperty(obj, name, desc, true);
 }
 
 function CallSite(receiver, fun, pos) {
@@ -999,15 +1005,15 @@ function DefineError(f) {
   // overwriting allows leaks of error objects between script blocks
   // in the same context in a browser setting. Therefore we fix the
   // name.
-  %SetProperty(f.prototype, "name", name, READ_ONLY | DONT_DELETE);
+  %SetProperty(f.prototype, "name", name, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetCode(f, function(m) {
     if (%_IsConstructCall()) {
       // Define all the expected properties directly on the error
       // object. This avoids going through getters and setters defined
       // on prototype objects.
-      %IgnoreAttributesAndSetProperty(this, 'stack', void 0);
-      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0);
-      %IgnoreAttributesAndSetProperty(this, 'type', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'stack', void 0, DONT_ENUM);
+      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0, DONT_ENUM);
+      %IgnoreAttributesAndSetProperty(this, 'type', void 0, DONT_ENUM);
       if (m === kAddMessageAccessorsMarker) {
         // DefineOneShotAccessor always inserts a message property and
         // ignores setters.
@@ -1015,7 +1021,10 @@ function DefineError(f) {
             return FormatMessage(%NewMessageObject(obj.type, obj.arguments));
         });
       } else if (!IS_UNDEFINED(m)) {
-        %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
+        %IgnoreAttributesAndSetProperty(this,
+                                        'message',
+                                        ToString(m),
+                                        DONT_ENUM);
       }
       captureStackTrace(this, f);
     } else {
@@ -1050,7 +1059,19 @@ DefineError(function URIError() { });
 $Error.captureStackTrace = captureStackTrace;
 
 // Setup extra properties of the Error.prototype object.
-$Error.prototype.message = '';
+function setErrorMessage() {
+  var desc = {value: '',
+              enumerable: false,
+              configurable: true,
+              writable: true };
+  DefineOwnProperty($Error.prototype,
+                    'message',
+                    ToPropertyDescriptor(desc),
+                    true);
+
+}
+
+setErrorMessage();
 
 // Global list of error objects visited during errorToString. This is
 // used to detect cycles in error toString formatting.
