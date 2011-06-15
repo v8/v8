@@ -925,6 +925,26 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 }
 
 
+bool RegExpDisjunction::ContainsExpandedQuantifier() {
+  if (contains_expanded_quantifier_) return true;
+  int len = alternatives_->length();
+  for (int i = 0; i < len; i++) {
+    if (alternatives_->at(i)->ContainsExpandedQuantifier()) return true;
+  }
+  return false;
+}
+
+
+bool RegExpAlternative::ContainsExpandedQuantifier() {
+  if (contains_expanded_quantifier_) return true;
+  int len = nodes_->length();
+  for (int i = 0; i < len; i++) {
+    if (nodes_->at(i)->ContainsExpandedQuantifier()) return true;
+  }
+  return false;
+}
+
+
 // Convert regular expression trees to a simple sexp representation.
 // This representation should be different from the input grammar
 // in as many cases as possible, to make it more difficult for incorrect
