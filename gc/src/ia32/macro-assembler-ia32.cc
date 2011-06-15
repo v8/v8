@@ -211,10 +211,6 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Array access: calculate the destination address in the same manner as
   // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
   // into an array of words.
-  ASSERT_EQ(1, kSmiTagSize);
-  ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done, Label::kNear);
   Register dst = index;
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
