@@ -1579,6 +1579,21 @@ HType HUnaryPredicate::CalculateInferredType() {
 }
 
 
+HType HInstanceOf::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
+HType HDeleteProperty::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
+HType HInstanceOfKnownGlobal::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
 HType HBitwiseBinaryOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
