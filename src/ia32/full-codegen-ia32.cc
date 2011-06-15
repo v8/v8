@@ -175,7 +175,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
-      __ CallRuntime(Runtime::kNewContext, 1);
+      __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     function_in_register = false;
     // Context is returned in both eax and esi.  It replaces the context
@@ -374,7 +374,7 @@ void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
   // For simplicity we always test the accumulator register.
   codegen()->Move(result_register(), slot);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -448,7 +448,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
   } else {
     // For simplicity we always test the accumulator register.
     __ mov(result_register(), lit);
-    codegen()->DoTest(true_label_, false_label_, fall_through_);
+    codegen()->DoTest(this);
   }
 }
 
@@ -484,7 +484,7 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   __ Drop(count);
   __ Move(result_register(), reg);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -561,7 +561,8 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 }
 
 
-void FullCodeGenerator::DoTest(Label* if_true,
+void FullCodeGenerator::DoTest(Expression* condition,
+                               Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
   ToBooleanStub stub;
@@ -1078,8 +1079,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
         __ j(not_equal, slow);
       }
       // Load next context in chain.
-      __ mov(temp, ContextOperand(context, Context::CLOSURE_INDEX));
-      __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+      __ mov(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering esi.
       context = temp;
     }
@@ -1106,8 +1106,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
     __ cmp(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
     __ j(not_equal, slow);
     // Load next context in chain.
-    __ mov(temp, ContextOperand(temp, Context::CLOSURE_INDEX));
-    __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+    __ mov(temp, ContextOperand(temp, Context::PREVIOUS_INDEX));
     __ jmp(&next);
     __ bind(&fast);
   }
@@ -1139,8 +1138,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
                Immediate(0));
         __ j(not_equal, slow);
       }
-      __ mov(temp, ContextOperand(context, Context::CLOSURE_INDEX));
-      __ mov(temp, FieldOperand(temp, JSFunction::kContextOffset));
+      __ mov(temp, ContextOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering esi.
       context = temp;
     }

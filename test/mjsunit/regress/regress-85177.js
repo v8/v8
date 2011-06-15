@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,10 +27,39 @@
 
 // Flags: --allow-natives-syntax
 
-function compare(a, b) {
-  return a === b;
+gW=gH=175;
+g=[];
+
+for(var n=0; n<gW; n++){
+ var l=[];
+ for(var p=0; p<gH; p++){
+   l.push(1)
+ }
+ g.push(l)
 }
 
-compare(1.5, 2.5);
-%OptimizeFunctionOnNextCall(compare);
-assertTrue(compare(undefined, undefined));
+function k(a,b){
+ if(a<0||b<0||a>=gW||b>=gH)
+   return 0;
+ return g[a][b];
+}
+
+function f(){
+ for(var a=[],f=0; f<gW; f++){
+   var b=[];
+   for(var h=0; h<gH; h++){
+     var e=0;
+     for(var i=-1; i<=1; i++)
+       for(var j=-1; j<=1; j++)
+          e+=k(f+i,h+j);
+     e=k(f,h)==1?1:0;
+     b.push(e)
+   }
+   a.push(b)
+ }
+}
+
+f();
+%OptimizeFunctionOnNextCall(f);
+f();
+

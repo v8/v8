@@ -74,26 +74,28 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
+bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
+        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
         code->FindFirstMap() != NULL;
   }
   return false;
 }
 
 
-bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
+bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_store_stub() &&
-        code->ic_state() == MONOMORPHIC;
+        code->ic_state() == MONOMORPHIC &&
+        Code::ExtractTypeFromFlags(code->flags()) == NORMAL;
   }
   return false;
 }
@@ -106,7 +108,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
-  ASSERT(LoadIsMonomorphic(expr));
+  ASSERT(LoadIsMonomorphicNormal(expr));
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -119,7 +121,7 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
-  ASSERT(StoreIsMonomorphic(expr));
+  ASSERT(StoreIsMonomorphicNormal(expr));
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -169,20 +171,6 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
   CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
   ASSERT(check != RECEIVER_MAP_CHECK);
   return check;
-}
-
-ExternalArrayType TypeFeedbackOracle::GetKeyedLoadExternalArrayType(
-    Property* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
-  ASSERT(stub->IsCode());
-  return Code::cast(*stub)->external_array_type();
-}
-
-ExternalArrayType TypeFeedbackOracle::GetKeyedStoreExternalArrayType(
-    Expression* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
-  ASSERT(stub->IsCode());
-  return Code::cast(*stub)->external_array_type();
 }
 
 Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
@@ -407,7 +395,7 @@ void TypeFeedbackOracle::SetInfo(unsigned ast_id, Object* target) {
   MaybeObject* maybe_result = dictionary_->AtNumberPut(ast_id, target);
   USE(maybe_result);
 #ifdef DEBUG
-  Object* result;
+  Object* result = NULL;
   // Dictionary has been allocated with sufficient size for all elements.
   ASSERT(maybe_result->ToObject(&result));
   ASSERT(*dictionary_ == result);

@@ -293,11 +293,11 @@ void ObjectLiteral::CalculateEmitStore() {
 
 void TargetCollector::AddTarget(Label* target) {
   // Add the label to the collector, but discard duplicates.
-  int length = targets_->length();
+  int length = targets_.length();
   for (int i = 0; i < length; i++) {
-    if (targets_->at(i) == target) return;
+    if (targets_[i] == target) return;
   }
-  targets_->Add(target);
+  targets_.Add(target);
 }
 
 
@@ -362,12 +362,12 @@ bool ForInStatement::IsInlineable() const {
 }
 
 
-bool WithEnterStatement::IsInlineable() const {
+bool EnterWithContextStatement::IsInlineable() const {
   return false;
 }
 
 
-bool WithExitStatement::IsInlineable() const {
+bool ExitContextStatement::IsInlineable() const {
   return false;
 }
 
@@ -388,11 +388,6 @@ bool TryCatchStatement::IsInlineable() const {
 
 
 bool TryFinallyStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool CatchExtensionObject::IsInlineable() const {
   return false;
 }
 
@@ -592,7 +587,7 @@ bool CountOperation::IsInlineable() const {
 
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
-  is_monomorphic_ = oracle->LoadIsMonomorphic(this);
+  is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
@@ -612,9 +607,6 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedLoadExternalArrayType(this));
-    }
   }
 }
 
@@ -622,7 +614,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
-  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
     ASSERT(lit_key != NULL && lit_key->handle()->IsString());
@@ -632,21 +624,15 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
-    }
   }
 }
 
 
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
-    }
   }
 }
 

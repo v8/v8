@@ -1286,6 +1286,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+    table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
 
     table_.Register(kVisitGlobalContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
@@ -1430,6 +1431,18 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                  slot,
                                                  object,
                                                  object_size);
+  }
+
+
+  static inline void EvacuateFixedDoubleArray(Map* map,
+                                              HeapObject** slot,
+                                              HeapObject* object) {
+    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
+    int object_size = FixedDoubleArray::SizeFor(length);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map,
+                                              slot,
+                                              object,
+                                              object_size);
   }
 
 
@@ -1772,6 +1785,12 @@ bool Heap::CreateInitialMaps() {
   Map::cast(obj)->set_is_undetectable();
 
   { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_DOUBLE_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_fixed_double_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -1875,13 +1894,19 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_context_map(Map::cast(obj));
+  set_function_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_catch_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_with_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -3812,6 +3837,62 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
 }
 
 
+MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
+  int size = FixedDoubleArray::SizeFor(0);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  // Initialize the object.
+  reinterpret_cast<FixedDoubleArray*>(result)->set_map(
+      fixed_double_array_map());
+  reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+
+  reinterpret_cast<FixedDoubleArray*>(obj)->set_map(fixed_double_array_map());
+  FixedDoubleArray::cast(obj)->set_length(length);
+  return obj;
+}
+
+
+MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
+                                               PretenureFlag pretenure) {
+  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  int size = FixedDoubleArray::SizeFor(length);
+  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
+    // Too big for new space.
+    space = LO_SPACE;
+  } else if (space == OLD_DATA_SPACE &&
+             size > MaxObjectSizeInPagedSpace()) {
+    // Too big for old data space.
+    space = LO_SPACE;
+  }
+
+  AllocationSpace retry_space =
+      (size <= MaxObjectSizeInPagedSpace()) ? OLD_DATA_SPACE : LO_SPACE;
+
+  return AllocateRaw(size, space, retry_space);
+}
+
+
 MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
@@ -3844,38 +3925,51 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(context_map());
+  context->set_map(function_context_map());
   context->set_closure(function);
   context->set_fcontext(context);
-  context->set_previous(NULL);
+  context->set_previous(function->context());
   context->set_extension(NULL);
   context->set_global(function->context()->global());
-  ASSERT(!context->IsGlobalContext());
-  ASSERT(context->is_function_context());
-  ASSERT(result->IsContext());
-  return result;
+  return context;
+}
+
+
+MaybeObject* Heap::AllocateCatchContext(Context* previous,
+                                        String* name,
+                                        Object* thrown_object) {
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map(catch_context_map());
+  context->set_closure(previous->closure());
+  context->set_fcontext(previous->fcontext());
+  context->set_previous(previous);
+  context->set_extension(name);
+  context->set_global(previous->global());
+  context->set(Context::THROWN_OBJECT_INDEX, thrown_object);
+  return context;
 }
 
 
 MaybeObject* Heap::AllocateWithContext(Context* previous,
-                                       JSObject* extension,
-                                       bool is_catch_context) {
+                                       JSObject* extension) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(is_catch_context ? catch_context_map() :
-      context_map());
+  context->set_map(with_context_map());
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);
   context->set_extension(extension);
   context->set_global(previous->global());
-  ASSERT(!context->IsGlobalContext());
-  ASSERT(!context->is_function_context());
-  ASSERT(result->IsContext());
-  return result;
+  return context;
 }
 
 

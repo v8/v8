@@ -217,6 +217,10 @@ bool Object::IsExternalTwoByteString() {
          String::cast(this)->IsTwoByteRepresentation();
 }
 
+bool Object::HasValidElements() {
+  // Dictionary is covered under FixedArray.
+  return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray();
+}
 
 StringShape::StringShape(String* str)
   : type_(str->map()->instance_type()) {
@@ -489,6 +493,13 @@ bool Object::IsFixedArray() {
 }
 
 
+bool Object::IsFixedDoubleArray() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() ==
+          FIXED_DOUBLE_ARRAY_TYPE;
+}
+
+
 bool Object::IsDescriptorArray() {
   return IsFixedArray();
 }
@@ -523,19 +534,14 @@ bool Object::IsDeoptimizationOutputData() {
 
 bool Object::IsContext() {
   if (Object::IsHeapObject()) {
-    Heap* heap = HeapObject::cast(this)->GetHeap();
-    return (HeapObject::cast(this)->map() == heap->context_map() ||
-            HeapObject::cast(this)->map() == heap->catch_context_map() ||
-            HeapObject::cast(this)->map() == heap->global_context_map());
+    Map* map = HeapObject::cast(this)->map();
+    Heap* heap = map->GetHeap();
+    return (map == heap->function_context_map() ||
+            map == heap->catch_context_map() ||
+            map == heap->with_context_map() ||
+            map == heap->global_context_map());
   }
   return false;
-}
-
-
-bool Object::IsCatchContext() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->catch_context_map();
 }
 
 
@@ -884,7 +890,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using load-double (mips ldc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline double read_double_field(HeapNumber* p, int offset) {
+  static inline double read_double_field(void* p, int offset) {
     union conversion {
       double d;
       uint32_t u[2];
@@ -903,7 +909,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using store-double (mips sdc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline void write_double_field(HeapNumber* p, int offset,
+  static inline void write_double_field(void* p, int offset,
                                         double value) {
     union conversion {
       double d;
@@ -1318,8 +1324,7 @@ ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 HeapObject* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
-  // In the assert below Dictionary is covered under FixedArray.
-  ASSERT(array->IsFixedArray() || array->IsExternalArray());
+  ASSERT(array->HasValidElements());
   return reinterpret_cast<HeapObject*>(array);
 }
 
@@ -1328,8 +1333,7 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
-  // In the assert below Dictionary is covered under FixedArray.
-  ASSERT(value->IsFixedArray() || value->IsExternalArray());
+  ASSERT(value->HasValidElements());
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, mode);
 }
@@ -1577,6 +1581,12 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 }
 
 
+FixedArrayBase* FixedArrayBase::cast(Object* object) {
+  ASSERT(object->IsFixedArray() || object->IsFixedDoubleArray());
+  return reinterpret_cast<FixedArrayBase*>(object);
+}
+
+
 Object* FixedArray::get(int index) {
   ASSERT(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
@@ -1597,6 +1607,88 @@ void FixedArray::set(int index, Object* value) {
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset);
+}
+
+
+double FixedDoubleArray::get(int index) {
+  ASSERT(map() != HEAP->fixed_cow_array_map() &&
+         map() != HEAP->fixed_array_map());
+  ASSERT(index >= 0 && index < this->length());
+  double result = READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
+  ASSERT(!is_the_hole_nan(result));
+  return result;
+}
+
+
+void FixedDoubleArray::set(int index, double value) {
+  ASSERT(map() != HEAP->fixed_cow_array_map() &&
+         map() != HEAP->fixed_array_map());
+  int offset = kHeaderSize + index * kDoubleSize;
+  if (isnan(value)) value = canonical_not_the_hole_nan_as_double();
+  WRITE_DOUBLE_FIELD(this, offset, value);
+}
+
+
+void FixedDoubleArray::set_the_hole(int index) {
+  ASSERT(map() != HEAP->fixed_cow_array_map() &&
+         map() != HEAP->fixed_array_map());
+  int offset = kHeaderSize + index * kDoubleSize;
+  WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+}
+
+
+bool FixedDoubleArray::is_the_hole(int index) {
+  int offset = kHeaderSize + index * kDoubleSize;
+  return is_the_hole_nan(READ_DOUBLE_FIELD(this, offset));
+}
+
+
+void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
+  int old_length = from->length();
+  ASSERT(old_length < length());
+  OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
+              FIELD_ADDR(from, kHeaderSize),
+              old_length * kDoubleSize);
+  int offset = kHeaderSize + old_length * kDoubleSize;
+  for (int current = from->length(); current < length(); ++current) {
+    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+    offset += kDoubleSize;
+  }
+}
+
+
+void FixedDoubleArray::Initialize(FixedArray* from) {
+  int old_length = from->length();
+  ASSERT(old_length < length());
+  for (int i = 0; i < old_length; i++) {
+    Object* hole_or_object = from->get(i);
+    if (hole_or_object->IsTheHole()) {
+      set_the_hole(i);
+    } else {
+      set(i, hole_or_object->Number());
+    }
+  }
+  int offset = kHeaderSize + old_length * kDoubleSize;
+  for (int current = from->length(); current < length(); ++current) {
+    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+    offset += kDoubleSize;
+  }
+}
+
+
+void FixedDoubleArray::Initialize(NumberDictionary* from) {
+  int offset = kHeaderSize;
+  for (int current = 0; current < length(); ++current) {
+    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+    offset += kDoubleSize;
+  }
+  for (int i = 0; i < from->Capacity(); i++) {
+    Object* key = from->KeyAt(i);
+    if (key->IsNumber()) {
+      uint32_t entry = static_cast<uint32_t>(key->Number());
+      set(entry, from->ValueAt(i)->Number());
+    }
+  }
 }
 
 
@@ -1900,6 +1992,7 @@ void NumberDictionary::set_requires_slow_elements() {
 
 
 CAST_ACCESSOR(FixedArray)
+CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
@@ -1964,7 +2057,7 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 }
 
 
-SMI_ACCESSORS(FixedArray, length, kLengthOffset)
+SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SMI_ACCESSORS(ByteArray, length, kLengthOffset)
 
 INT_ACCESSORS(ExternalArray, length, kLengthOffset)
@@ -2423,6 +2516,10 @@ int HeapObject::SizeFromMap(Map* map) {
     return SeqTwoByteString::SizeFor(
         reinterpret_cast<SeqTwoByteString*>(this)->length());
   }
+  if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+    return FixedDoubleArray::SizeFor(
+        reinterpret_cast<FixedDoubleArray*>(this)->length());
+  }
   ASSERT(instance_type == CODE_TYPE);
   return reinterpret_cast<Code*>(this)->CodeSize();
 }
@@ -2744,19 +2841,6 @@ void Code::set_check_type(CheckType value) {
 }
 
 
-ExternalArrayType Code::external_array_type() {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
-  return static_cast<ExternalArrayType>(type);
-}
-
-
-void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
-}
-
-
 byte Code::unary_op_type() {
   ASSERT(is_unary_op_stub());
   return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
@@ -2981,20 +3065,33 @@ MaybeObject* Map::GetFastElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_elements_kind(JSObject::FAST_ELEMENTS);
-  isolate()->counters()->map_slow_to_fast_elements()->Increment();
+  isolate()->counters()->map_to_fast_elements()->Increment();
+  return new_map;
+}
+
+
+MaybeObject* Map::GetFastDoubleElementsMap() {
+  if (has_fast_double_elements()) return this;
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  Map* new_map = Map::cast(obj);
+  new_map->set_elements_kind(JSObject::FAST_DOUBLE_ELEMENTS);
+  isolate()->counters()->map_to_fast_double_elements()->Increment();
   return new_map;
 }
 
 
 MaybeObject* Map::GetSlowElementsMap() {
-  if (!has_fast_elements()) return this;
+  if (!has_fast_elements() && !has_fast_double_elements()) return this;
   Object* obj;
   { MaybeObject* maybe_obj = CopyDropTransitions();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
   new_map->set_elements_kind(JSObject::DICTIONARY_ELEMENTS);
-  isolate()->counters()->map_fast_to_slow_elements()->Increment();
+  isolate()->counters()->map_to_slow_elements()->Increment();
   return new_map;
 }
 
@@ -3788,6 +3885,8 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
   ASSERT((kind == FAST_ELEMENTS &&
           (elements()->map() == GetHeap()->fixed_array_map() ||
            elements()->map() == GetHeap()->fixed_cow_array_map())) ||
+         (kind == FAST_DOUBLE_ELEMENTS &&
+          elements()->IsFixedDoubleArray()) ||
          (kind == DICTIONARY_ELEMENTS &&
           elements()->IsFixedArray() &&
           elements()->IsDictionary()) ||
@@ -3798,6 +3897,11 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
 
 bool JSObject::HasFastElements() {
   return GetElementsKind() == FAST_ELEMENTS;
+}
+
+
+bool JSObject::HasFastDoubleElements() {
+  return GetElementsKind() == FAST_DOUBLE_ELEMENTS;
 }
 
 

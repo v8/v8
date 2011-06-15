@@ -183,15 +183,11 @@ class StubCache {
       Map* transition,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
+  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreElement(
       JSObject* receiver,
       bool is_store,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreFastElement(
-      JSObject* receiver,
-      bool is_store,
-      StrictModeFlag strict_mode);
   // ---
 
   MUST_USE_RESULT MaybeObject* ComputeCallField(
@@ -650,14 +646,14 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadStringLength(String* name);
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadFastElement(Map* receiver_map);
+  MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);
 
   MUST_USE_RESULT MaybeObject* CompileLoadMegamorphic(
       MapList* receiver_maps,
       CodeList* handler_ics);
 
   static void GenerateLoadExternalArray(MacroAssembler* masm,
-                                        ExternalArrayType array_type);
+                                        JSObject::ElementsKind elements_kind);
 
   static void GenerateLoadFastElement(MacroAssembler* masm);
 
@@ -665,6 +661,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MaybeObject* GetCode(PropertyType type,
                        String* name,
                        InlineCacheState state = MONOMORPHIC);
+
+  MaybeObject* ComputeSharedKeyedLoadElementStub(Map* receiver_map);
 };
 
 
@@ -705,7 +703,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  Map* transition,
                                                  String* name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreFastElement(Map* receiver_map);
+  MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
 
   MUST_USE_RESULT MaybeObject* CompileStoreMegamorphic(
       MapList* receiver_maps,
@@ -715,12 +713,14 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                        bool is_js_array);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         ExternalArrayType array_type);
+                                         JSObject::ElementsKind elements_kind);
 
  private:
   MaybeObject* GetCode(PropertyType type,
                        String* name,
                        InlineCacheState state = MONOMORPHIC);
+
+  MaybeObject* ComputeSharedKeyedStoreElementStub(Map* receiver_map);
 
   StrictModeFlag strict_mode_;
 };
@@ -892,35 +892,6 @@ class CallOptimization BASE_EMBEDDED {
   bool is_simple_api_call_;
   FunctionTemplateInfo* expected_receiver_type_;
   CallHandlerInfo* api_call_info_;
-};
-
-class ExternalArrayLoadStubCompiler: public StubCompiler {
- public:
-  explicit ExternalArrayLoadStubCompiler(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
-
-  MUST_USE_RESULT MaybeObject* CompileLoad(
-      JSObject* receiver, ExternalArrayType array_type);
-
- private:
-  MaybeObject* GetCode();
-
-  StrictModeFlag strict_mode_;
-};
-
-
-class ExternalArrayStoreStubCompiler: public StubCompiler {
- public:
-  explicit ExternalArrayStoreStubCompiler(StrictModeFlag strict_mode)
-      : strict_mode_(strict_mode) {}
-
-  MUST_USE_RESULT MaybeObject* CompileStore(
-      JSObject* receiver, ExternalArrayType array_type);
-
- private:
-  MaybeObject* GetCode();
-
-  StrictModeFlag strict_mode_;
 };
 
 

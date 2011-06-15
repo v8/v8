@@ -90,14 +90,14 @@ void BreakableStatementChecker::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void BreakableStatementChecker::VisitWithEnterStatement(
-    WithEnterStatement* stmt) {
+void BreakableStatementChecker::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
   Visit(stmt->expression());
 }
 
 
-void BreakableStatementChecker::VisitWithExitStatement(
-    WithExitStatement* stmt) {
+void BreakableStatementChecker::VisitExitContextStatement(
+    ExitContextStatement* stmt) {
 }
 
 
@@ -184,11 +184,6 @@ void BreakableStatementChecker::VisitObjectLiteral(ObjectLiteral* expr) {
 
 
 void BreakableStatementChecker::VisitArrayLiteral(ArrayLiteral* expr) {
-}
-
-
-void BreakableStatementChecker::VisitCatchExtensionObject(
-    CatchExtensionObject* expr) {
 }
 
 
@@ -446,7 +441,7 @@ void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -468,7 +463,7 @@ void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -515,6 +510,14 @@ void FullCodeGenerator::TestContext::PrepareTest(
   *if_true = true_label_;
   *if_false = false_label_;
   *fall_through = fall_through_;
+}
+
+
+void FullCodeGenerator::DoTest(const TestContext* context) {
+  DoTest(context->condition(),
+         context->true_label(),
+         context->false_label(),
+         context->fall_through());
 }
 
 
@@ -577,88 +580,78 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->start_position());
-  }
+  CodeGenerator::RecordPositions(masm_, fun->start_position());
 }
 
 
 void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, fun->end_position() - 1);
-  }
+  CodeGenerator::RecordPositions(masm_, fun->end_position() - 1);
 }
 
 
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
-  if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!isolate()->debugger()->IsDebuggerActive()) {
-      CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
-    } else {
-      // Check if the statement will be breakable without adding a debug break
-      // slot.
-      BreakableStatementChecker checker;
-      checker.Check(stmt);
-      // Record the statement position right here if the statement is not
-      // breakable. For breakable statements the actual recording of the
-      // position will be postponed to the breakable code (typically an IC).
-      bool position_recorded = CodeGenerator::RecordPositions(
-          masm_, stmt->statement_pos(), !checker.is_breakable());
-      // If the position recording did record a new position generate a debug
-      // break slot to make the statement breakable.
-      if (position_recorded) {
-        Debug::GenerateSlot(masm_);
-      }
-    }
-#else
+  if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
-#endif
+  } else {
+    // Check if the statement will be breakable without adding a debug break
+    // slot.
+    BreakableStatementChecker checker;
+    checker.Check(stmt);
+    // Record the statement position right here if the statement is not
+    // breakable. For breakable statements the actual recording of the
+    // position will be postponed to the breakable code (typically an IC).
+    bool position_recorded = CodeGenerator::RecordPositions(
+        masm_, stmt->statement_pos(), !checker.is_breakable());
+    // If the position recording did record a new position generate a debug
+    // break slot to make the statement breakable.
+    if (position_recorded) {
+      Debug::GenerateSlot(masm_);
+    }
   }
+#else
+  CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+#endif
 }
 
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
-  if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!isolate()->debugger()->IsDebuggerActive()) {
-      CodeGenerator::RecordPositions(masm_, pos);
-    } else {
-      // Check if the expression will be breakable without adding a debug break
-      // slot.
-      BreakableStatementChecker checker;
-      checker.Check(expr);
-      // Record a statement position right here if the expression is not
-      // breakable. For breakable expressions the actual recording of the
-      // position will be postponed to the breakable code (typically an IC).
-      // NOTE this will record a statement position for something which might
-      // not be a statement. As stepping in the debugger will only stop at
-      // statement positions this is used for e.g. the condition expression of
-      // a do while loop.
-      bool position_recorded = CodeGenerator::RecordPositions(
-          masm_, pos, !checker.is_breakable());
-      // If the position recording did record a new position generate a debug
-      // break slot to make the statement breakable.
-      if (position_recorded) {
-        Debug::GenerateSlot(masm_);
-      }
-    }
-#else
+  if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, pos);
-#endif
+  } else {
+    // Check if the expression will be breakable without adding a debug break
+    // slot.
+    BreakableStatementChecker checker;
+    checker.Check(expr);
+    // Record a statement position right here if the expression is not
+    // breakable. For breakable expressions the actual recording of the
+    // position will be postponed to the breakable code (typically an IC).
+    // NOTE this will record a statement position for something which might
+    // not be a statement. As stepping in the debugger will only stop at
+    // statement positions this is used for e.g. the condition expression of
+    // a do while loop.
+    bool position_recorded = CodeGenerator::RecordPositions(
+        masm_, pos, !checker.is_breakable());
+    // If the position recording did record a new position generate a debug
+    // break slot to make the statement breakable.
+    if (position_recorded) {
+      Debug::GenerateSlot(masm_);
+    }
   }
+#else
+  CodeGenerator::RecordPositions(masm_, pos);
+#endif
 }
 
 
 void FullCodeGenerator::SetStatementPosition(int pos) {
-  if (FLAG_debug_info) {
-    CodeGenerator::RecordPositions(masm_, pos);
-  }
+  CodeGenerator::RecordPositions(masm_, pos);
 }
 
 
 void FullCodeGenerator::SetSourcePosition(int pos) {
-  if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
+  if (pos != RelocInfo::kNoPosition) {
     masm_->positions_recorder()->RecordPosition(pos);
   }
 }
@@ -749,9 +742,9 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     Label discard, restore;
     PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
-      DoTest(&discard, &restore, &restore);
+      DoTest(left, &discard, &restore, &restore);
     } else {
-      DoTest(&restore, &discard, &restore);
+      DoTest(left, &restore, &discard, &restore);
     }
     __ bind(&restore);
     __ pop(result_register());
@@ -768,9 +761,9 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     Label discard;
     PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
-      DoTest(&discard, &done, &discard);
+      DoTest(left, &discard, &done, &discard);
     } else {
-      DoTest(&done, &discard, &discard);
+      DoTest(left, &done, &discard, &discard);
     }
     __ bind(&discard);
     __ Drop(1);
@@ -957,26 +950,19 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  Comment cmnt(masm_, "[ WithEnterStatement");
+void FullCodeGenerator::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
+  Comment cmnt(masm_, "[ EnterWithContextStatement");
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
-  if (stmt->is_catch_block()) {
-    __ CallRuntime(Runtime::kPushCatchContext, 1);
-  } else {
-    __ CallRuntime(Runtime::kPushContext, 1);
-  }
-  // Both runtime calls return the new context in both the context and the
-  // result registers.
-
-  // Update local stack frame context field.
+  __ CallRuntime(Runtime::kPushWithContext, 1);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
-void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  Comment cmnt(masm_, "[ WithExitStatement");
+void FullCodeGenerator::VisitExitContextStatement(ExitContextStatement* stmt) {
+  Comment cmnt(masm_, "[ ExitContextStatement");
   SetStatementPosition(stmt);
 
   // Pop context.
@@ -1117,15 +1103,13 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   __ Call(&try_handler_setup);
   // Try handler code, exception in result register.
 
-  // Store exception in local .catch variable before executing catch block.
-  {
-    // The catch variable is *always* a variable proxy for a local variable.
-    Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
-    ASSERT_NOT_NULL(catch_var);
-    Slot* variable_slot = catch_var->AsSlot();
-    ASSERT_NOT_NULL(variable_slot);
-    ASSERT_EQ(Slot::LOCAL, variable_slot->type());
-    StoreToFrameField(SlotOffset(variable_slot), result_register());
+  // Extend the context before executing the catch block.
+  { Comment cmnt(masm_, "[ Extend catch context");
+    __ Push(stmt->name());
+    __ push(result_register());
+    __ CallRuntime(Runtime::kPushCatchContext, 2);
+    StoreToFrameField(StandardFrameConstants::kContextOffset,
+                      context_register());
   }
 
   Visit(stmt->catch_block());
@@ -1278,18 +1262,6 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* expr) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
   EmitNewClosure(expr->shared_function_info(), false);
-}
-
-
-void FullCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  // Call runtime routine to allocate the catch extension object and
-  // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[ CatchExtensionObject");
-  VisitForStackValue(expr->key());
-  VisitForStackValue(expr->value());
-  // Create catch extension object.
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  context()->Plug(result_register());
 }
 
 

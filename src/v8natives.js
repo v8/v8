@@ -592,10 +592,10 @@ function GetProperty(obj, p) {
 // ES5 section 8.12.6
 function HasProperty(obj, p) {
   if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj)
-    var has = handler.has
-    if (IS_UNDEFINED(has)) has = DerivedHasTrap
-    return ToBoolean(has.call(handler, obj, p))
+    var handler = %GetHandler(obj);
+    var has = handler.has;
+    if (IS_UNDEFINED(has)) has = DerivedHasTrap;
+    return ToBoolean(has.call(handler, obj, p));
   }
   var desc = GetProperty(obj, p);
   return IS_UNDEFINED(desc) ? false : true;
@@ -629,7 +629,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
   // Step 3
   if (IS_UNDEFINED(current) && !extensible) {
     if (should_throw) {
-      throw MakeTypeError("define_disallowed", ["defineProperty"]);
+      throw MakeTypeError("define_disallowed", [p]);
     } else {
       return;
     }
@@ -659,7 +659,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
           (desc.hasEnumerable() &&
            desc.isEnumerable() != current.isEnumerable())) {
         if (should_throw) {
-          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          throw MakeTypeError("redefine_disallowed", [p]);
         } else {
           return;
         }
@@ -669,7 +669,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
         // Step 9a
         if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
           if (should_throw) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            throw MakeTypeError("redefine_disallowed", [p]);
           } else {
             return;
           }
@@ -678,7 +678,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
           if (!current.isWritable() && desc.isWritable()) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+              throw MakeTypeError("redefine_disallowed", [p]);
             } else {
               return;
             }
@@ -686,7 +686,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+              throw MakeTypeError("redefine_disallowed", [p]);
             } else {
               return;
             }
@@ -696,14 +696,14 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
           if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+              throw MakeTypeError("redefine_disallowed", [p]);
             } else {
               return;
             }
           }
           if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             if (should_throw) {
-              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+              throw MakeTypeError("redefine_disallowed", [p]);
             } else {
               return;
             }
@@ -938,8 +938,10 @@ function ObjectSeal(obj) {
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnProperty(obj, name);
-    if (desc.isConfigurable()) desc.setConfigurable(false);
-    DefineOwnProperty(obj, name, desc, true);
+    if (desc.isConfigurable()) {
+      desc.setConfigurable(false);
+      DefineOwnProperty(obj, name, desc, true);
+    }
   }
   return ObjectPreventExtension(obj);
 }
@@ -954,9 +956,11 @@ function ObjectFreeze(obj) {
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnProperty(obj, name);
-    if (IsDataDescriptor(desc)) desc.setWritable(false);
-    if (desc.isConfigurable()) desc.setConfigurable(false);
-    DefineOwnProperty(obj, name, desc, true);
+    if (desc.isWritable() || desc.isConfigurable()) {
+      if (IsDataDescriptor(desc)) desc.setWritable(false);
+      desc.setConfigurable(false);
+      DefineOwnProperty(obj, name, desc, true);
+    }
   }
   return ObjectPreventExtension(obj);
 }
@@ -1012,7 +1016,7 @@ function ObjectIsFrozen(obj) {
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+    throw MakeTypeError("obj_ctor_property_non_object", ["isExtensible"]);
   }
   return %IsExtensible(obj);
 }

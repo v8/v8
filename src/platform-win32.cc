@@ -1473,10 +1473,6 @@ static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
 // convention.
 static unsigned int __stdcall ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the last parameter to _beginthreadex() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return 0;
 }
@@ -1492,17 +1488,15 @@ class Thread::PlatformData : public Malloced {
 // Initialize a Win32 thread object. The thread has an invalid thread
 // handle until it is started.
 
-Thread::Thread(Isolate* isolate, const Options& options)
-    : isolate_(isolate),
-      stack_size_(options.stack_size) {
+Thread::Thread(const Options& options)
+    : stack_size_(options.stack_size) {
   data_ = new PlatformData(kNoThread);
   set_name(options.name);
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
-    : isolate_(isolate),
-      stack_size_(0) {
+Thread::Thread(const char* name)
+    : stack_size_(0) {
   data_ = new PlatformData(kNoThread);
   set_name(name);
 }
@@ -1871,7 +1865,7 @@ class Sampler::PlatformData : public Malloced {
 class SamplerThread : public Thread {
  public:
   explicit SamplerThread(int interval)
-      : Thread(NULL, "SamplerThread"),
+      : Thread("SamplerThread"),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {

@@ -158,7 +158,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, MemOperand(sp, 0));
 
   // Setup the object header.
-  __ LoadRoot(r2, Heap::kContextMapRootIndex);
+  __ LoadRoot(r2, Heap::kFunctionContextMapRootIndex);
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ mov(r2, Operand(Smi::FromInt(length)));
   __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
@@ -167,10 +167,10 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ mov(r1, Operand(Smi::FromInt(0)));
   __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+  __ str(cp, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
   __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
 
-  // Copy the global object from the surrounding context.
+  // Copy the global object from the previous context.
   __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
 
@@ -187,7 +187,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 
@@ -1707,12 +1707,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
-  UnaryOpStub stub(key, type_info);
-  return stub.GetCode();
-}
-
-
 const char* UnaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
@@ -2016,14 +2010,6 @@ void UnaryOpStub::GenerateGenericCodeFallback(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
-}
-
-
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type_info) {
-  BinaryOpStub stub(key, type_info, result_type_info);
-  return stub.GetCode();
 }
 
 
@@ -3417,15 +3403,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   __ mov(r2, Operand(ExternalReference::isolate_address()));
 
-
-  // TODO(1242173): To let the GC traverse the return address of the exit
-  // frames, we need to know where the return address is. Right now,
-  // we store it on the stack to be able to find it again, but we never
-  // restore from it in case of changes, which makes it impossible to
-  // support moving the C entry code stub. This should be fixed, but currently
-  // this is OK because the CEntryStub gets generated so early in the V8 boot
-  // sequence that it is not moving ever.
-
+  // To let the GC traverse the return address of the exit frames, we need to
+  // know where the return address is. The CEntryStub is unmovable, so
+  // we can store the address on the stack to be able to find it again and
+  // we never have to restore it, because it will not change.
   // Compute the return address in lr to return to after the jump below. Pc is
   // already at '+ 8' from the current instruction but return is after three
   // instructions so add another 4 to pc to get the return address.

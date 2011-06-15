@@ -32,6 +32,7 @@
 #include "lithium-allocator.h"
 #include "lithium.h"
 #include "safepoint-table.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -86,7 +87,6 @@ class LCodeGen;
   V(CmpSymbolEq)                                \
   V(CmpSymbolEqAndBranch)                       \
   V(CmpT)                                       \
-  V(CmpTAndBranch)                              \
   V(ConstantD)                                  \
   V(ConstantI)                                  \
   V(ConstantT)                                  \
@@ -108,7 +108,6 @@ class LCodeGen;
   V(HasInstanceTypeAndBranch)                   \
   V(In)                                         \
   V(InstanceOf)                                 \
-  V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
@@ -288,37 +287,6 @@ class LInstruction: public ZoneObject {
 };
 
 
-template<typename ElementType, int NumElements>
-class OperandContainer {
- public:
-  OperandContainer() {
-    for (int i = 0; i < NumElements; i++) elems_[i] = NULL;
-  }
-  int length() { return NumElements; }
-  ElementType& operator[](int i) {
-    ASSERT(i < length());
-    return elems_[i];
-  }
-  void PrintOperandsTo(StringStream* stream);
-
- private:
-  ElementType elems_[NumElements];
-};
-
-
-template<typename ElementType>
-class OperandContainer<ElementType, 0> {
- public:
-  int length() { return 0; }
-  void PrintOperandsTo(StringStream* stream) { }
-  ElementType& operator[](int i) {
-    UNREACHABLE();
-    static ElementType t = 0;
-    return t;
-  }
-};
-
-
 // R = number of result operands (0 or 1).
 // I = number of input operands.
 // T = number of temporary operands.
@@ -341,9 +309,9 @@ class LTemplateInstruction: public LInstruction {
   virtual void PrintOutputOperandTo(StringStream* stream);
 
  protected:
-  OperandContainer<LOperand*, R> results_;
-  OperandContainer<LOperand*, I> inputs_;
-  OperandContainer<LOperand*, T> temps_;
+  EmbeddedContainer<LOperand*, R> results_;
+  EmbeddedContainer<LOperand*, I> inputs_;
+  EmbeddedContainer<LOperand*, T> temps_;
 };
 
 
@@ -895,20 +863,6 @@ class LCmpT: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCmpTAndBranch: public LControlInstruction<2, 0> {
- public:
-  LCmpTAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpTAndBranch, "cmp-t-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(Compare)
-
-  Token::Value op() const { return hydrogen()->token(); }
-};
-
-
 class LIn: public LTemplateInstruction<1, 2, 0> {
  public:
   LIn(LOperand* key, LOperand* object) {
@@ -931,17 +885,6 @@ class LInstanceOf: public LTemplateInstruction<1, 2, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
-};
-
-
-class LInstanceOfAndBranch: public LControlInstruction<2, 0> {
- public:
-  LInstanceOfAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOfAndBranch, "instance-of-and-branch")
 };
 
 
@@ -1324,8 +1267,8 @@ class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
 
   LOperand* external_pointer() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
-  ExternalArrayType array_type() const {
-    return hydrogen()->array_type();
+  JSObject::ElementsKind elements_kind() const {
+    return hydrogen()->elements_kind();
   }
 };
 
@@ -1678,6 +1621,7 @@ class LNumberUntagD: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
+  DECLARE_HYDROGEN_ACCESSOR(Change);
 };
 
 
@@ -1777,8 +1721,8 @@ class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* external_pointer() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
-  ExternalArrayType array_type() const {
-    return hydrogen()->array_type();
+  JSObject::ElementsKind elements_kind() const {
+    return hydrogen()->elements_kind();
   }
 };
 

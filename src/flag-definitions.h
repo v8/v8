@@ -99,6 +99,9 @@ private:
 // Flags for experimental language features.
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 
+// Flags for experimental implementation features.
+DEFINE_bool(unbox_double_arrays, false, "automatically unbox arrays of doubles")
+
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
   DEFINE_bool(crankshaft, false, "use crankshaft")
@@ -134,8 +137,6 @@ DEFINE_int(deopt_every_n_times,
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
-DEFINE_bool(aggressive_loop_invariant_motion, true,
-            "aggressive motion of instructions out of loops")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
 
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
@@ -198,7 +199,6 @@ DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(opt_eagerly, false, "be more eager when adaptively optimizing")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
 DEFINE_bool(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(deopt, true, "support deoptimization")
 DEFINE_bool(trace_deopt, false, "trace deoptimization")
 

@@ -63,6 +63,14 @@ class Arguments BASE_EMBEDDED {
     return Handle<S>(reinterpret_cast<S**>(value));
   }
 
+  int smi_at(int index) {
+    return Smi::cast((*this)[index])->value();
+  }
+
+  double number_at(int index) {
+    return (*this)[index]->Number();
+  }
+
   // Get the total number of arguments including the receiver.
   int length() const { return length_; }
 

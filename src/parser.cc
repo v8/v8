@@ -1906,13 +1906,9 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 }
 
 
-Block* Parser::WithHelper(Expression* obj,
-                          ZoneStringList* labels,
-                          bool is_catch_block,
-                          bool* ok) {
+Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<Label*>* target_list = new(zone()) ZoneList<Label*>(0);
-  TargetCollector collector(target_list);
+  TargetCollector collector;
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
     with_nesting_level_++;
@@ -1926,7 +1922,7 @@ Block* Parser::WithHelper(Expression* obj,
   Block* result = new(zone()) Block(NULL, 2, false);
 
   if (result != NULL) {
-    result->AddStatement(new(zone()) WithEnterStatement(obj, is_catch_block));
+    result->AddStatement(new(zone()) EnterWithContextStatement(obj));
 
     // Create body block.
     Block* body = new(zone()) Block(NULL, 1, false);
@@ -1934,7 +1930,7 @@ Block* Parser::WithHelper(Expression* obj,
 
     // Create exit block.
     Block* exit = new(zone()) Block(NULL, 1, false);
-    exit->AddStatement(new(zone()) WithExitStatement());
+    exit->AddStatement(new(zone()) ExitContextStatement());
 
     // Return a try-finally statement.
     TryFinallyStatement* wrapper = new(zone()) TryFinallyStatement(body, exit);
@@ -1961,7 +1957,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  return WithHelper(expr, labels, false, CHECK_OK);
+  return WithHelper(expr, labels, CHECK_OK);
 }
 
 
@@ -2057,17 +2053,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<Label*>* target_list = new(zone()) ZoneList<Label*>(0);
-  TargetCollector collector(target_list);
+  TargetCollector try_collector;
   Block* try_block;
 
-  { Target target(&this->target_stack_, &collector);
+  { Target target(&this->target_stack_, &try_collector);
     try_block = ParseBlock(NULL, CHECK_OK);
   }
-
-  Block* catch_block = NULL;
-  Variable* catch_var = NULL;
-  Block* finally_block = NULL;
 
   Token::Value tok = peek();
   if (tok != Token::CATCH && tok != Token::FINALLY) {
@@ -2077,18 +2068,17 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   // If we can break out from the catch block and there is a finally block,
-  // then we will need to collect jump targets from the catch block. Since
-  // we don't know yet if there will be a finally block, we always collect
-  // the jump targets.
-  ZoneList<Label*>* catch_target_list = new(zone()) ZoneList<Label*>(0);
-  TargetCollector catch_collector(catch_target_list);
-  bool has_catch = false;
+  // then we will need to collect escaping targets from the catch
+  // block. Since we don't know yet if there will be a finally block, we
+  // always collect the targets.
+  TargetCollector catch_collector;
+  Block* catch_block = NULL;
+  Handle<String> name;
   if (tok == Token::CATCH) {
-    has_catch = true;
     Consume(Token::CATCH);
 
     Expect(Token::LPAREN, CHECK_OK);
-    Handle<String> name = ParseIdentifier(CHECK_OK);
+    name = ParseIdentifier(CHECK_OK);
 
     if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_catch_variable", Vector<const char*>::empty());
@@ -2099,17 +2089,33 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
-      // Allocate a temporary for holding the finally state while
-      // executing the finally block.
-      catch_var =
-          top_scope_->NewTemporary(isolate()->factory()->catch_var_symbol());
-      Literal* name_literal = new(zone()) Literal(name);
-      VariableProxy* catch_var_use = new(zone()) VariableProxy(catch_var);
-      Expression* obj =
-          new(zone()) CatchExtensionObject(name_literal, catch_var_use);
+      // Rewrite the catch body B to a single statement block
+      // { try B finally { PopContext }}.
+      Block* inner_body;
+      // We need to collect escapes from the body for both the inner
+      // try/finally used to pop the catch context and any possible outer
+      // try/finally.
+      TargetCollector inner_collector;
       { Target target(&this->target_stack_, &catch_collector);
-        catch_block = WithHelper(obj, NULL, true, CHECK_OK);
+        { Target target(&this->target_stack_, &inner_collector);
+          ++with_nesting_level_;
+          top_scope_->RecordWithStatement();
+          inner_body = ParseBlock(NULL, CHECK_OK);
+          --with_nesting_level_;
+        }
       }
+
+      // Create exit block.
+      Block* inner_finally = new(zone()) Block(NULL, 1, false);
+      inner_finally->AddStatement(new(zone()) ExitContextStatement());
+
+      // Create a try/finally statement.
+      TryFinallyStatement* inner_try_finally =
+          new(zone()) TryFinallyStatement(inner_body, inner_finally);
+      inner_try_finally->set_escaping_targets(inner_collector.targets());
+
+      catch_block = new(zone()) Block(NULL, 1, false);
+      catch_block->AddStatement(inner_try_finally);
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }
@@ -2117,23 +2123,21 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     tok = peek();
   }
 
-  if (tok == Token::FINALLY || !has_catch) {
+  Block* finally_block = NULL;
+  if (tok == Token::FINALLY || catch_block == NULL) {
     Consume(Token::FINALLY);
-    // Declare a variable for holding the finally state while
-    // executing the finally block.
     finally_block = ParseBlock(NULL, CHECK_OK);
   }
 
   // Simplify the AST nodes by converting:
-  //   'try { } catch { } finally { }'
+  //   'try B0 catch B1 finally B2'
   // to:
-  //   'try { try { } catch { } } finally { }'
+  //   'try { try B0 catch B1 } finally B2'
 
   if (catch_block != NULL && finally_block != NULL) {
-    VariableProxy* catch_var_defn = new(zone()) VariableProxy(catch_var);
     TryCatchStatement* statement =
-        new(zone()) TryCatchStatement(try_block, catch_var_defn, catch_block);
-    statement->set_escaping_targets(collector.targets());
+        new(zone()) TryCatchStatement(try_block, name, catch_block);
+    statement->set_escaping_targets(try_collector.targets());
     try_block = new(zone()) Block(NULL, 1, false);
     try_block->AddStatement(statement);
     catch_block = NULL;
@@ -2142,20 +2146,16 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   TryStatement* result = NULL;
   if (catch_block != NULL) {
     ASSERT(finally_block == NULL);
-    VariableProxy* catch_var_defn = new(zone()) VariableProxy(catch_var);
     result =
-        new(zone()) TryCatchStatement(try_block, catch_var_defn, catch_block);
-    result->set_escaping_targets(collector.targets());
+        new(zone()) TryCatchStatement(try_block, name, catch_block);
   } else {
     ASSERT(finally_block != NULL);
     result = new(zone()) TryFinallyStatement(try_block, finally_block);
-    // Add the jump targets of the try block and the catch block.
-    for (int i = 0; i < collector.targets()->length(); i++) {
-      catch_collector.AddTarget(collector.targets()->at(i));
-    }
-    result->set_escaping_targets(catch_collector.targets());
+    // Combine the jump targets of the try block and the possible catch block.
+    try_collector.targets()->AddAll(*catch_collector.targets());
   }
 
+  result->set_escaping_targets(try_collector.targets());
   return result;
 }
 
@@ -3635,6 +3635,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       scanner().SeekForward(end_pos - 1);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
+      if (entry.strict_mode()) top_scope_->EnableStrictMode();
       only_simple_this_property_assignments = false;
       this_property_assignments = isolate()->factory()->empty_fixed_array();
       Expect(Token::RBRACE, CHECK_OK);

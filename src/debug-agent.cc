@@ -116,8 +116,8 @@ void DebuggerAgent::CreateSession(Socket* client) {
   }
 
   // Create a new session and hook up the debug message handler.
-  session_ = new DebuggerAgentSession(isolate(), this, client);
-  v8::Debug::SetMessageHandler2(DebuggerAgentMessageHandler);
+  session_ = new DebuggerAgentSession(this, client);
+  isolate_->debugger()->SetMessageHandler(DebuggerAgentMessageHandler);
   session_->Start();
 }
 
@@ -203,7 +203,9 @@ void DebuggerAgentSession::Run() {
 
     // Send the request received to the debugger.
     v8::Debug::SendCommand(reinterpret_cast<const uint16_t *>(temp.start()),
-                           len);
+                           len,
+                           NULL,
+                           reinterpret_cast<v8::Isolate*>(agent_->isolate()));
 
     if (is_closing_session) {
       // Session is closed.

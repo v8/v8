@@ -2016,6 +2016,12 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+void MacroAssembler::Push(Handle<Object> handle) {
+  li(at, Operand(handle));
+  push(at);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {
@@ -3565,12 +3571,9 @@ void MacroAssembler::Abort(const char* msg) {
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.
-    lw(dst, MemOperand(cp, Context::SlotOffset(Context::CLOSURE_INDEX)));
-    // Load the function context (which is the incoming, outer context).
-    lw(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+    lw(dst, MemOperand(cp, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     for (int i = 1; i < context_chain_length; i++) {
-      lw(dst, MemOperand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
-      lw(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+      lw(dst, MemOperand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     }
   } else {
     // Slot is in the current function context.  Move it into the

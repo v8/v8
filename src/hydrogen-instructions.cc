@@ -686,21 +686,24 @@ void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 void HControlInstruction::PrintDataTo(StringStream* stream) {
-  if (FirstSuccessor() != NULL) {
-    int first_id = FirstSuccessor()->block_id();
-    if (SecondSuccessor() == NULL) {
-      stream->Add(" B%d", first_id);
-    } else {
-      int second_id = SecondSuccessor()->block_id();
-      stream->Add(" goto (B%d, B%d)", first_id, second_id);
-    }
+  stream->Add(" goto (");
+  bool first_block = true;
+  for (HSuccessorIterator it(this); !it.Done(); it.Advance()) {
+    stream->Add(first_block ? "B%d" : ", B%d", it.Current()->block_id());
+    first_block = false;
   }
+  stream->Add(")");
 }
 
 
 void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HReturn::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
 }
 
 
@@ -1240,6 +1243,10 @@ void HCompare::SetInputRepresentation(Representation r) {
   if (r.IsTagged()) {
     SetAllSideEffects();
     ClearFlag(kUseGVN);
+  } else if (r.IsDouble()) {
+    SetFlag(kDeoptimizeOnUndefined);
+    ClearAllSideEffects();
+    SetFlag(kUseGVN);
   } else {
     ClearAllSideEffects();
     SetFlag(kUseGVN);
@@ -1351,33 +1358,38 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
     StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
   stream->Add(".");
-  switch (array_type()) {
-    case kExternalByteArray:
+  switch (elements_kind()) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
       stream->Add("byte");
       break;
-    case kExternalUnsignedByteArray:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       stream->Add("u_byte");
       break;
-    case kExternalShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
       stream->Add("short");
       break;
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       stream->Add("u_short");
       break;
-    case kExternalIntArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
       stream->Add("int");
       break;
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
       stream->Add("u_int");
       break;
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       stream->Add("float");
       break;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       stream->Add("double");
       break;
-    case kExternalPixelArray:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
+      break;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   stream->Add("[");
@@ -1431,33 +1443,38 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
   stream->Add(".");
-  switch (array_type()) {
-    case kExternalByteArray:
+  switch (elements_kind()) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
       stream->Add("byte");
       break;
-    case kExternalUnsignedByteArray:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       stream->Add("u_byte");
       break;
-    case kExternalShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
       stream->Add("short");
       break;
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       stream->Add("u_short");
       break;
-    case kExternalIntArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
       stream->Add("int");
       break;
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
       stream->Add("u_int");
       break;
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       stream->Add("float");
       break;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       stream->Add("double");
       break;
-    case kExternalPixelArray:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
+      break;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   stream->Add("[");
@@ -1558,6 +1575,21 @@ HType HCompareJSObjectEq::CalculateInferredType() {
 
 
 HType HUnaryPredicate::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
+HType HInstanceOf::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
+HType HDeleteProperty::CalculateInferredType() {
+  return HType::Boolean();
+}
+
+
+HType HInstanceOfKnownGlobal::CalculateInferredType() {
   return HType::Boolean();
 }
 
@@ -1734,7 +1766,6 @@ void HSimulate::Verify() {
 
 void HBoundsCheck::Verify() {
   HInstruction::Verify();
-  ASSERT(HasNoUses());
 }
 
 

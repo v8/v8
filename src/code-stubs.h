@@ -975,11 +975,11 @@ class KeyedStoreFastElementStub : public CodeStub {
 
 class KeyedLoadExternalArrayStub : public CodeStub {
  public:
-  explicit KeyedLoadExternalArrayStub(ExternalArrayType array_type)
-      : array_type_(array_type) { }
+  explicit KeyedLoadExternalArrayStub(JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) { }
 
   Major MajorKey() { return KeyedLoadExternalArray; }
-  int MinorKey() { return array_type_; }
+  int MinorKey() { return elements_kind_; }
 
   void Generate(MacroAssembler* masm);
 
@@ -988,17 +988,17 @@ class KeyedLoadExternalArrayStub : public CodeStub {
   DECLARE_ARRAY_STUB_PRINT(KeyedLoadExternalArrayStub)
 
  protected:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 
 class KeyedStoreExternalArrayStub : public CodeStub {
  public:
-  explicit KeyedStoreExternalArrayStub(ExternalArrayType array_type)
-      : array_type_(array_type) { }
+  explicit KeyedStoreExternalArrayStub(JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) { }
 
   Major MajorKey() { return KeyedStoreExternalArray; }
-  int MinorKey() { return array_type_; }
+  int MinorKey() { return elements_kind_; }
 
   void Generate(MacroAssembler* masm);
 
@@ -1007,7 +1007,7 @@ class KeyedStoreExternalArrayStub : public CodeStub {
   DECLARE_ARRAY_STUB_PRINT(KeyedStoreExternalArrayStub)
 
  protected:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 

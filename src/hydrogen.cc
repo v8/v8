@@ -68,7 +68,8 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       last_instruction_index_(-1),
       deleted_phis_(4),
       parent_loop_header_(NULL),
-      is_inline_return_target_(false) { }
+      is_inline_return_target_(false),
+      is_deoptimizing_(false) { }
 
 
 void HBasicBlock::AttachLoopInformation() {
@@ -156,11 +157,8 @@ void HBasicBlock::Finish(HControlInstruction* end) {
   ASSERT(!IsFinished());
   AddInstruction(end);
   end_ = end;
-  if (end->FirstSuccessor() != NULL) {
-    end->FirstSuccessor()->RegisterPredecessor(this);
-    if (end->SecondSuccessor() != NULL) {
-      end->SecondSuccessor()->RegisterPredecessor(this);
-    }
+  for (HSuccessorIterator it(end); !it.Done(); it.Advance()) {
+    it.Current()->RegisterPredecessor(this);
   }
 }
 
@@ -400,8 +398,9 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
   void Analyze() {
     while (!stack_.is_empty()) {
       HControlInstruction* end = stack_.RemoveLast()->end();
-      PushBlock(end->FirstSuccessor());
-      PushBlock(end->SecondSuccessor());
+      for (HSuccessorIterator it(end); !it.Done(); it.Advance()) {
+        PushBlock(it.Current());
+      }
     }
   }
 
@@ -696,8 +695,9 @@ void HGraph::PostorderLoopBlocks(HLoopInformation* loop,
                                  HBasicBlock* loop_header) {
   for (int i = 0; i < loop->blocks()->length(); ++i) {
     HBasicBlock* b = loop->blocks()->at(i);
-    Postorder(b->end()->SecondSuccessor(), visited, order, loop_header);
-    Postorder(b->end()->FirstSuccessor(), visited, order, loop_header);
+    for (HSuccessorIterator it(b->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, loop_header);
+    }
     if (b->IsLoopHeader() && b != loop->loop_header()) {
       PostorderLoopBlocks(b->loop_information(), visited, order, loop_header);
     }
@@ -714,11 +714,13 @@ void HGraph::Postorder(HBasicBlock* block,
   visited->Add(block->block_id());
   if (block->IsLoopHeader()) {
     PostorderLoopBlocks(block->loop_information(), visited, order, loop_header);
-    Postorder(block->end()->SecondSuccessor(), visited, order, block);
-    Postorder(block->end()->FirstSuccessor(), visited, order, block);
+    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, block);
+    }
   } else {
-    Postorder(block->end()->SecondSuccessor(), visited, order, loop_header);
-    Postorder(block->end()->FirstSuccessor(), visited, order, loop_header);
+    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, loop_header);
+    }
   }
   ASSERT(block->end()->FirstSuccessor() == NULL ||
          order->Contains(block->end()->FirstSuccessor()) ||
@@ -741,8 +743,20 @@ void HGraph::AssignDominators() {
       }
     }
   }
+
+  // Propagate flag marking blocks containing unconditional deoptimize.
+  MarkAsDeoptimizingRecursively(entry_block());
 }
 
+
+// Mark all blocks that are dominated by an unconditional deoptimize.
+void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
+  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
+    HBasicBlock* dominated = block->dominated_blocks()->at(i);
+    if (block->IsDeoptimizing()) dominated->MarkAsDeoptimizing();
+    MarkAsDeoptimizingRecursively(dominated);
+  }
+}
 
 void HGraph::EliminateRedundantPhis() {
   HPhase phase("Redundant phi elimination", this);
@@ -897,7 +911,7 @@ void HRangeAnalysis::TraceRange(const char* msg, ...) {
 
 void HRangeAnalysis::Analyze() {
   HPhase phase("Range analysis", graph_);
-  Analyze(graph_->blocks()->at(0));
+  Analyze(graph_->entry_block());
 }
 
 
@@ -1272,7 +1286,12 @@ class SparseSet {
       : capacity_(capacity),
         length_(0),
         dense_(zone->NewArray<int>(capacity)),
-        sparse_(zone->NewArray<int>(capacity)) {}
+        sparse_(zone->NewArray<int>(capacity)) {
+#ifndef NVALGRIND
+    // Initialize the sparse array to make valgrind happy.
+    memset(sparse_, 0, sizeof(sparse_[0]) * capacity);
+#endif
+  }
 
   bool Contains(int n) const {
     ASSERT(0 <= n && n < capacity_);
@@ -1355,7 +1374,7 @@ void HGlobalValueNumberer::Analyze() {
     LoopInvariantCodeMotion();
   }
   HValueMap* map = new(zone()) HValueMap();
-  AnalyzeBlock(graph_->blocks()->at(0), map);
+  AnalyzeBlock(graph_->entry_block(), map);
 }
 
 
@@ -1447,37 +1466,9 @@ bool HGlobalValueNumberer::AllowCodeMotion() {
 
 bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
                                       HBasicBlock* loop_header) {
-  // If we've disabled code motion, don't move any instructions.
-  if (!AllowCodeMotion()) return false;
-
-  // If --aggressive-loop-invariant-motion, move everything except change
-  // instructions.
-  if (FLAG_aggressive_loop_invariant_motion && !instr->IsChange()) {
-    return true;
-  }
-
-  // Otherwise only move instructions that postdominate the loop header
-  // (i.e. are always executed inside the loop). This is to avoid
-  // unnecessary deoptimizations assuming the loop is executed at least
-  // once.  TODO(fschneider): Better type feedback should give us
-  // information about code that was never executed.
-  HBasicBlock* block = instr->block();
-  bool result = true;
-  if (block != loop_header) {
-    for (int i = 1; i < loop_header->predecessors()->length(); ++i) {
-      bool found = false;
-      HBasicBlock* pred = loop_header->predecessors()->at(i);
-      while (pred != loop_header) {
-        if (pred == block) found = true;
-        pred = pred->dominator();
-      }
-      if (!found) {
-        result = false;
-        break;
-      }
-    }
-  }
-  return result;
+  // If we've disabled code motion or we're in a block that unconditionally
+  // deoptimizes, don't move any instructions.
+  return AllowCodeMotion() && !instr->block()->IsDeoptimizing();
 }
 
 
@@ -1850,6 +1841,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // change instructions for them.
   HInstruction* new_value = NULL;
   bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
+  bool deoptimize_on_undefined =
+      use_value->CheckFlag(HValue::kDeoptimizeOnUndefined);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -1859,8 +1852,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   if (new_value == NULL) {
-    new_value =
-        new(zone()) HChange(value, value->representation(), to, is_truncating);
+    new_value = new(zone()) HChange(value, value->representation(), to,
+                                    is_truncating, deoptimize_on_undefined);
   }
 
   new_value->InsertBefore(next);
@@ -1942,6 +1935,40 @@ void HGraph::InsertRepresentationChanges() {
 }
 
 
+void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
+  if (phi->CheckFlag(HValue::kDeoptimizeOnUndefined)) return;
+  phi->SetFlag(HValue::kDeoptimizeOnUndefined);
+  for (int i = 0; i < phi->OperandCount(); ++i) {
+    HValue* input = phi->OperandAt(i);
+    if (input->IsPhi()) {
+      RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi::cast(input));
+    }
+  }
+}
+
+
+void HGraph::MarkDeoptimizeOnUndefined() {
+  HPhase phase("MarkDeoptimizeOnUndefined", this);
+  // Compute DeoptimizeOnUndefined flag for phis.
+  // Any phi that can reach a use with DeoptimizeOnUndefined set must
+  // have DeoptimizeOnUndefined set.  Currently only HCompare, with
+  // double input representation, has this flag set.
+  // The flag is used by HChange tagged->double, which must deoptimize
+  // if one of its uses has this flag set.
+  for (int i = 0; i < phi_list()->length(); i++) {
+    HPhi* phi = phi_list()->at(i);
+    if (phi->representation().IsDouble()) {
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        if (it.value()->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
+          RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
+          break;
+        }
+      }
+    }
+  }
+}
+
+
 void HGraph::ComputeMinusZeroChecks() {
   BitVector visited(GetMaximumValueID());
   for (int i = 0; i < blocks_.length(); ++i) {
@@ -1985,9 +2012,10 @@ FunctionState::FunctionState(HGraphBuilder* owner,
       HBasicBlock* if_false = owner->graph()->CreateBasicBlock();
       if_true->MarkAsInlineReturnTarget();
       if_false->MarkAsInlineReturnTarget();
+      Expression* cond = TestContext::cast(owner->ast_context())->condition();
       // The AstContext constructor pushed on the context stack.  This newed
       // instance is the reason that AstContext can't be BASE_EMBEDDED.
-      test_context_ = new TestContext(owner, if_true, if_false);
+      test_context_ = new TestContext(owner, cond, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
       function_return()->MarkAsInlineReturnTarget();
@@ -2157,7 +2185,7 @@ void HGraphBuilder::VisitForTypeOf(Expression* expr) {
 void HGraphBuilder::VisitForControl(Expression* expr,
                                     HBasicBlock* true_block,
                                     HBasicBlock* false_block) {
-  TestContext for_test(this, true_block, false_block);
+  TestContext for_test(this, expr, true_block, false_block);
   Visit(expr);
 }
 
@@ -2248,6 +2276,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->InitializeInferredTypes();
   graph()->Canonicalize();
+  graph()->MarkDeoptimizeOnUndefined();
   graph()->InsertRepresentationChanges();
   graph()->ComputeMinusZeroChecks();
 
@@ -2262,7 +2291,29 @@ HGraph* HGraphBuilder::CreateGraph() {
     gvn.Analyze();
   }
 
+  // Replace the results of check instructions with the original value, if the
+  // result is used. This is safe now, since we don't do code motion after this
+  // point. It enables better register allocation since the value produced by
+  // check instructions is really a copy of the original value.
+  graph()->ReplaceCheckedValues();
+
   return graph();
+}
+
+
+void HGraph::ReplaceCheckedValues() {
+  HPhase phase("Replace checked values", this);
+  for (int i = 0; i < blocks()->length(); ++i) {
+    HInstruction* instr = blocks()->at(i)->first();
+    while (instr != NULL) {
+      if (instr->IsBoundsCheck()) {
+        // Replace all uses of the checked value with the original input.
+        ASSERT(instr->UseCount() > 0);
+        instr->ReplaceAllUsesWith(HBoundsCheck::cast(instr)->index());
+      }
+      instr = instr->next();
+    }
+  }
 }
 
 
@@ -2529,19 +2580,20 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void HGraphBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
+void HGraphBuilder::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("WithEnterStatement");
+  return Bailout("EnterWithContextStatement");
 }
 
 
-void HGraphBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
+void HGraphBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("WithExitStatement");
+  return Bailout("ExitContextStatement");
 }
 
 
@@ -3187,14 +3239,6 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void HGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  ASSERT(!HasStackOverflow());
-  ASSERT(current_block() != NULL);
-  ASSERT(current_block()->HasPredecessor());
-  return Bailout("CatchExtensionObject");
-}
-
-
 // Sets the lookup result and returns true if the store can be inlined.
 static bool ComputeStoredField(Handle<Map> type,
                                Handle<String> name,
@@ -3722,16 +3766,17 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HLoadElements* elements = new(zone()) HLoadElements(object);
   HInstruction* length = NULL;
+  HInstruction* checked_key = NULL;
   if (is_array) {
     length = AddInstruction(new(zone()) HJSArrayLength(object));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     AddInstruction(elements);
   } else {
     AddInstruction(elements);
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   }
-  return new(zone()) HLoadKeyedFastElement(elements, key);
+  return new(zone()) HLoadKeyedFastElement(elements, checked_key);
 }
 
 
@@ -3749,13 +3794,14 @@ HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
   AddInstruction(elements);
   HInstruction* length = new(zone()) HExternalArrayLength(elements);
   AddInstruction(length);
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
   HLoadKeyedSpecializedArrayElement* pixel_array_value =
       new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, key, expr->external_array_type());
+          external_elements, checked_key, map->elements_kind());
   return pixel_array_value;
 }
 
@@ -3810,8 +3856,9 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   } else {
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
   }
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
-  return new(zone()) HStoreKeyedFastElement(elements, key, val);
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
+  return new(zone()) HStoreKeyedFastElement(elements, checked_key, val);
 }
 
 
@@ -3830,38 +3877,45 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   AddInstruction(elements);
   HInstruction* length = AddInstruction(
       new(zone()) HExternalArrayLength(elements));
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  ExternalArrayType array_type = expr->external_array_type();
-  switch (array_type) {
-    case kExternalPixelArray: {
+  JSObject::ElementsKind elements_kind = map->elements_kind();
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
       HClampToUint8* clamp = new(zone()) HClampToUint8(val);
       AddInstruction(clamp);
       val = clamp;
       break;
     }
-    case kExternalByteArray:
-    case kExternalUnsignedByteArray:
-    case kExternalShortArray:
-    case kExternalUnsignedShortArray:
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray: {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
       HToInt32* floor_val = new(zone()) HToInt32(val);
       AddInstruction(floor_val);
       val = floor_val;
       break;
     }
-    case kExternalFloatArray:
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      break;
+
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
-      key,
+      checked_key,
       val,
-      expr->external_array_type());
+      map->elements_kind());
 }
 
 
@@ -3917,8 +3971,9 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
     HInstruction* length = AddInstruction(
         new(zone()) HArgumentsLength(elements));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
-    result = new(zone()) HAccessArgumentsAt(elements, length, key);
+    HInstruction* checked_key =
+        AddInstruction(new(zone()) HBoundsCheck(key, length));
+    result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
   }
   ast_context()->ReturnInstruction(result, expr->id());
   return true;
@@ -4793,6 +4848,7 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   TypeInfo info = oracle()->UnaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     info = TypeInfo::Unknown();
   }
   Representation rep = ToRepresentation(info);
@@ -4808,6 +4864,7 @@ void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   TypeInfo info = oracle()->UnaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
   }
   HInstruction* instr = new(zone()) HBitNot(value);
   ast_context()->ReturnInstruction(instr, expr->id());
@@ -5031,8 +5088,9 @@ HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
   AddInstruction(HCheckInstanceType::NewIsString(string));
   HStringLength* length = new(zone()) HStringLength(string);
   AddInstruction(length);
-  AddInstruction(new(zone()) HBoundsCheck(index, length));
-  return new(zone()) HStringCharCodeAt(string, index);
+  HInstruction* checked_index =
+      AddInstruction(new(zone()) HBoundsCheck(index, length));
+  return new(zone()) HStringCharCodeAt(string, checked_index);
 }
 
 
@@ -5042,6 +5100,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
   TypeInfo info = oracle()->BinaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     info = TypeInfo::Unknown();
   }
   HInstruction* instr = NULL;
@@ -5311,6 +5370,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // Check if this expression was ever executed according to type feedback.
   if (type_info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     type_info = TypeInfo::Unknown();
   }
 
@@ -6086,15 +6146,15 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       PrintEmptyProperty("predecessors");
     }
 
-    if (current->end() == NULL || current->end()->FirstSuccessor() == NULL) {
+    if (current->end()->SuccessorCount() == 0) {
       PrintEmptyProperty("successors");
-    } else if (current->end()->SecondSuccessor() == NULL) {
-      PrintBlockProperty("successors",
-                             current->end()->FirstSuccessor()->block_id());
-    } else {
-      PrintBlockProperty("successors",
-                             current->end()->FirstSuccessor()->block_id(),
-                             current->end()->SecondSuccessor()->block_id());
+    } else  {
+      PrintIndent();
+      trace_.Add("successors");
+      for (HSuccessorIterator it(current->end()); !it.Done(); it.Advance()) {
+        trace_.Add(" \"B%d\"", it.Current()->block_id());
+      }
+      trace_.Add("\n");
     }
 
     PrintEmptyProperty("xhandlers");

@@ -143,6 +143,9 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
+  bool IsDeoptimizing() const { return is_deoptimizing_; }
+  void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
+
   inline Zone* zone();
 
 #ifdef DEBUG
@@ -175,6 +178,7 @@ class HBasicBlock: public ZoneObject {
   ZoneList<int> deleted_phis_;
   HBasicBlock* parent_loop_header_;
   bool is_inline_return_target_;
+  bool is_deoptimizing_;
 };
 
 
@@ -216,6 +220,7 @@ class HGraph: public ZoneObject {
   void InitializeInferredTypes();
   void InsertTypeConversions();
   void InsertRepresentationChanges();
+  void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
@@ -223,6 +228,8 @@ class HGraph: public ZoneObject {
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
+  void ReplaceCheckedValues();
+  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -279,6 +286,7 @@ class HGraph: public ZoneObject {
 
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
+  void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void InsertRepresentationChangeForUse(HValue* value,
                                         HValue* use_value,
                                         int use_index,
@@ -543,9 +551,11 @@ class ValueContext: public AstContext {
 class TestContext: public AstContext {
  public:
   TestContext(HGraphBuilder* owner,
+              Expression* condition,
               HBasicBlock* if_true,
               HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
+        condition_(condition),
         if_true_(if_true),
         if_false_(if_false) {
   }
@@ -558,6 +568,7 @@ class TestContext: public AstContext {
     return reinterpret_cast<TestContext*>(context);
   }
 
+  Expression* condition() const { return condition_; }
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
@@ -566,6 +577,7 @@ class TestContext: public AstContext {
   // control flow.
   void BuildBranch(HValue* value);
 
+  Expression* condition_;
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
 };
@@ -1169,11 +1181,6 @@ class HTracer: public Malloced {
   void PrintBlockProperty(const char* name, int block_id) {
     PrintIndent();
     trace_.Add("%s \"B%d\"\n", name, block_id);
-  }
-
-  void PrintBlockProperty(const char* name, int block_id1, int block_id2) {
-    PrintIndent();
-    trace_.Add("%s \"B%d\" \"B%d\"\n", name, block_id1, block_id2);
   }
 
   void PrintIntProperty(const char* name, int value) {

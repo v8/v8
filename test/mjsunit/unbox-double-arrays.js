@@ -25,38 +25,54 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PREPARSE_DATA_FORMAT_H_
-#define V8_PREPARSE_DATA_FORMAT_H_
+// Test dictionary -> double elements -> dictionary elements round trip
 
-namespace v8 {
-namespace internal {
+var foo = new Array(500000);
 
-// Generic and general data used by preparse data recorders and readers.
+function func(a) {
+  for (var i= 0; i < 100000; ++i ) {
+    a[i] = i+0.5;
+  }
+}
 
-struct PreparseDataConstants {
- public:
-  // Layout and constants of the preparse data exchange format.
-  static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 7;
+func(foo);
 
-  static const int kMagicOffset = 0;
-  static const int kVersionOffset = 1;
-  static const int kHasErrorOffset = 2;
-  static const int kFunctionsSizeOffset = 3;
-  static const int kSymbolCountOffset = 4;
-  static const int kSizeOffset = 5;
-  static const int kHeaderSize = 6;
+for (var i= 0; i < 100000; i += 500 ) {
+  assertEquals(i+0.5, foo[i]);
+}
 
-  // If encoding a message, the following positions are fixed.
-  static const int kMessageStartPos = 0;
-  static const int kMessageEndPos = 1;
-  static const int kMessageArgCountPos = 2;
-  static const int kMessageTextPos = 3;
+delete foo[5];
+// Don't use assertEquals for comparison to undefined due to
+assertTrue(undefined === foo[5]);
+assertTrue(undefined === foo[500000-1]);
+assertTrue(undefined === foo[-1]);
+assertEquals(500000, foo.length);
 
-  static const unsigned char kNumberTerminator = 0x80u;
-};
+// Cause the array to grow beyond it's JSArray length. This will double the
+// size of the capacity and force the array into "slow" dictionary case.
+foo[500001] = 50;
+assertEquals(50, foo[500001]);
+assertEquals(500002, foo.length);
+assertTrue(undefined === foo[5])
+assertTrue(undefined === foo[500000-1])
+assertTrue(undefined === foo[-1])
+assertEquals(500002, foo.length);
 
+// Test dictionary -> double elements -> fast elements.
 
-} }  // namespace v8::internal.
+var foo2 = new Array(500000);
+func(foo2);
+delete foo2[5];
 
-#endif  // V8_PREPARSE_DATA_FORMAT_H_
+// Convert back to fast elements and make sure the contents of the array are
+// unchanged.
+foo2[25] = new Object();
+for (var i= 0; i < 100000; i += 500 ) {
+  if (i != 25 && i != 5) {
+    assertEquals(i+0.5, foo2[i]);
+  }
+}
+assertTrue(undefined === foo2[5])
+assertTrue(undefined === foo2[500000-1])
+assertTrue(undefined === foo2[-1])
+assertEquals(500000, foo2.length);

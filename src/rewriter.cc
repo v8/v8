@@ -197,137 +197,18 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 void Processor::VisitDeclaration(Declaration* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
-void Processor::VisitWithEnterStatement(WithEnterStatement* node) {}
-void Processor::VisitWithExitStatement(WithExitStatement* node) {}
+void Processor::VisitEnterWithContextStatement(
+    EnterWithContextStatement* node) {
+}
+void Processor::VisitExitContextStatement(ExitContextStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
 
 
 // Expressions are never visited yet.
-void Processor::VisitFunctionLiteral(FunctionLiteral* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitConditional(Conditional* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitVariableProxy(VariableProxy* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitLiteral(Literal* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitRegExpLiteral(RegExpLiteral* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitArrayLiteral(ArrayLiteral* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitObjectLiteral(ObjectLiteral* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCatchExtensionObject(CatchExtensionObject* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitAssignment(Assignment* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitThrow(Throw* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitProperty(Property* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCall(Call* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCallNew(CallNew* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCallRuntime(CallRuntime* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitUnaryOperation(UnaryOperation* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCountOperation(CountOperation* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitBinaryOperation(BinaryOperation* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCompareOperation(CompareOperation* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitCompareToNull(CompareToNull* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitThisFunction(ThisFunction* node) {
-  USE(node);
-  UNREACHABLE();
-}
+#define DEF_VISIT(type)                                         \
+  void Processor::Visit##type(type* expr) { UNREACHABLE(); }
+EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
 
 
 // Assumes code has been parsed and scopes have been analyzed.  Mutates the

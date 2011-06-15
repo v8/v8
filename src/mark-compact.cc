@@ -396,6 +396,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
+    table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
+
     table_.Register(kVisitGlobalContext,
                     &FixedBodyVisitor<StaticMarkingVisitor,
                                       Context::MarkCompactBodyDescriptor,
@@ -670,8 +672,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     Map* map = SafeMap(ctx);
     Heap* heap = map->heap();
-    if (!(map == heap->raw_unchecked_context_map() ||
+    if (!(map == heap->raw_unchecked_function_context_map() ||
           map == heap->raw_unchecked_catch_context_map() ||
+          map == heap->raw_unchecked_with_context_map() ||
           map == heap->raw_unchecked_global_context_map())) {
       return false;
     }
@@ -864,18 +867,6 @@ class MarkingVisitor : public ObjectVisitor {
 
   void VisitPointers(Object** start, Object** end) {
     StaticMarkingVisitor::VisitPointers(heap_, start, end);
-  }
-
-  void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitCodeTarget(heap, rinfo);
-  }
-
-  void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitGlobalPropertyCell(heap, rinfo);
-  }
-
-  void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitDebugTarget(heap, rinfo);
   }
 
  private:

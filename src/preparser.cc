@@ -1256,7 +1256,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
     int end_pos = scanner_->location().end_pos;
     log_->LogFunction(function_block_pos, end_pos,
                       function_scope.materialized_literal_count(),
-                      function_scope.expected_properties());
+                      function_scope.expected_properties(),
+                      strict_mode() ? 1 : 0);
   } else {
     ParseSourceElements(i::Token::RBRACE, CHECK_OK);
     Expect(i::Token::RBRACE, CHECK_OK);

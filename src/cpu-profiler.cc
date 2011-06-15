@@ -46,9 +46,8 @@ static const int kTickSamplesBufferChunkSize = 64*KB;
 static const int kTickSamplesBufferChunksCount = 16;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
-                                                 ProfileGenerator* generator)
-    : Thread(isolate, "v8:ProfEvntProc"),
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
+    : Thread("v8:ProfEvntProc"),
       generator_(generator),
       running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),
@@ -507,7 +506,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     saved_logging_nesting_ = isolate->logger()->logging_nesting_;
     isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(isolate, generator_);
+    processor_ = new ProfilerEventsProcessor(generator_);
     NoBarrier_Store(&is_profiling_, true);
     processor_->Start();
     // Enumerate stuff we already have in the heap.

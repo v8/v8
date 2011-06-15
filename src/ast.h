@@ -60,8 +60,8 @@ namespace internal {
   V(ContinueStatement)                          \
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
-  V(WithEnterStatement)                         \
-  V(WithExitStatement)                          \
+  V(EnterWithContextStatement)                  \
+  V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
   V(WhileStatement)                             \
@@ -80,7 +80,6 @@ namespace internal {
   V(RegExpLiteral)                              \
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
-  V(CatchExtensionObject)                       \
   V(Assignment)                                 \
   V(Throw)                                      \
   V(Property)                                   \
@@ -211,7 +210,7 @@ class Expression: public AstNode {
     kTest
   };
 
-  Expression() : id_(GetNextId()) {}
+  Expression() : id_(GetNextId()), test_id_(GetNextId()) {}
 
   virtual int position() const {
     UNREACHABLE();
@@ -262,18 +261,12 @@ class Expression: public AstNode {
     return Handle<Map>();
   }
 
-  ExternalArrayType external_array_type() const {
-    return external_array_type_;
-  }
-  void set_external_array_type(ExternalArrayType array_type) {
-    external_array_type_ = array_type;
-  }
-
   unsigned id() const { return id_; }
+  unsigned test_id() const { return test_id_; }
 
  private:
-  ExternalArrayType external_array_type_;
   unsigned id_;
+  unsigned test_id_;
 };
 
 
@@ -612,31 +605,27 @@ class ReturnStatement: public Statement {
 };
 
 
-class WithEnterStatement: public Statement {
+class EnterWithContextStatement: public Statement {
  public:
-  explicit WithEnterStatement(Expression* expression, bool is_catch_block)
-      : expression_(expression), is_catch_block_(is_catch_block) { }
+  explicit EnterWithContextStatement(Expression* expression)
+      : expression_(expression) { }
 
-  DECLARE_NODE_TYPE(WithEnterStatement)
+  DECLARE_NODE_TYPE(EnterWithContextStatement)
 
   Expression* expression() const { return expression_; }
 
-  bool is_catch_block() const { return is_catch_block_; }
   virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
-  bool is_catch_block_;
 };
 
 
-class WithExitStatement: public Statement {
+class ExitContextStatement: public Statement {
  public:
-  WithExitStatement() { }
-
   virtual bool IsInlineable() const;
 
-  DECLARE_NODE_TYPE(WithExitStatement)
+  DECLARE_NODE_TYPE(ExitContextStatement)
 };
 
 
@@ -743,9 +732,7 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public AstNode {
  public:
-  explicit TargetCollector(ZoneList<Label*>* targets)
-      : targets_(targets) {
-  }
+  TargetCollector(): targets_(0) { }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
@@ -756,11 +743,11 @@ class TargetCollector: public AstNode {
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<Label*>* targets() { return targets_; }
+  ZoneList<Label*>* targets() { return &targets_; }
   virtual bool IsInlineable() const;
 
  private:
-  ZoneList<Label*>* targets_;
+  ZoneList<Label*> targets_;
 };
 
 
@@ -785,22 +772,20 @@ class TryStatement: public Statement {
 
 class TryCatchStatement: public TryStatement {
  public:
-  TryCatchStatement(Block* try_block,
-                    VariableProxy* catch_var,
-                    Block* catch_block)
+  TryCatchStatement(Block* try_block, Handle<String> name, Block* catch_block)
       : TryStatement(try_block),
-        catch_var_(catch_var),
+        name_(name),
         catch_block_(catch_block) {
   }
 
   DECLARE_NODE_TYPE(TryCatchStatement)
 
-  VariableProxy* catch_var() const { return catch_var_; }
   Block* catch_block() const { return catch_block_; }
+  Handle<String> name() const { return name_; }
   virtual bool IsInlineable() const;
 
  private:
-  VariableProxy* catch_var_;
+  Handle<String> name_;
   Block* catch_block_;
 };
 
@@ -1037,27 +1022,6 @@ class ArrayLiteral: public MaterializedLiteral {
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
   int first_element_id_;
-};
-
-
-// Node for constructing a context extension object for a catch block.
-// The catch context extension object has one property, the catch
-// variable, which should be DontDelete.
-class CatchExtensionObject: public Expression {
- public:
-  CatchExtensionObject(Literal* key, VariableProxy* value)
-      : key_(key), value_(value) {
-  }
-
-  DECLARE_NODE_TYPE(CatchExtensionObject)
-
-  Literal* key() const { return key_; }
-  VariableProxy* value() const { return value_; }
-  virtual bool IsInlineable() const;
-
- private:
-  Literal* key_;
-  VariableProxy* value_;
 };
 
 

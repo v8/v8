@@ -88,6 +88,9 @@ void HeapObject::HeapObjectVerify() {
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
@@ -307,6 +310,17 @@ void FixedArray::FixedArrayVerify() {
 }
 
 
+void FixedDoubleArray::FixedDoubleArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    if (!is_the_hole(i)) {
+      double value = get(i);
+      ASSERT(!isnan(value) ||
+             BitCast<uint64_t>(value) == kCanonicalNonHoleNanInt64);
+    }
+  }
+}
+
+
 void JSValue::JSValueVerify() {
   Object* v = value();
   if (v->IsHeapObject()) {
@@ -432,7 +446,9 @@ void Code::CodeVerify() {
 void JSArray::JSArrayVerify() {
   JSObjectVerify();
   ASSERT(length()->IsNumber() || length()->IsUndefined());
-  ASSERT(elements()->IsUndefined() || elements()->IsFixedArray());
+  ASSERT(elements()->IsUndefined() ||
+         elements()->IsFixedArray() ||
+         elements()->IsFixedDoubleArray());
 }
 
 

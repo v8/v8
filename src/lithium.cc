@@ -166,21 +166,25 @@ void LPointerMap::PrintTo(StringStream* stream) {
 }
 
 
-int ExternalArrayTypeToShiftSize(ExternalArrayType type) {
-  switch (type) {
-    case kExternalByteArray:
-    case kExternalUnsignedByteArray:
-    case kExternalPixelArray:
+int ElementsKindToShiftSize(JSObject::ElementsKind elements_kind) {
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       return 0;
-    case kExternalShortArray:
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       return 1;
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray:
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       return 2;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
       return 3;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      return kPointerSizeLog2;
   }
   UNREACHABLE();
   return 0;

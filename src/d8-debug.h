@@ -53,11 +53,11 @@ class ReceiverThread;
 // Remote debugging class.
 class RemoteDebugger {
  public:
-  RemoteDebugger(i::Isolate* isolate, int port)
+  explicit RemoteDebugger(int port)
       : port_(port),
         event_access_(i::OS::CreateMutex()),
         event_available_(i::OS::CreateSemaphore(0)),
-        head_(NULL), tail_(NULL), isolate_(isolate) {}
+        head_(NULL), tail_(NULL) {}
   void Run();
 
   // Handle events from the subordinate threads.
@@ -89,7 +89,6 @@ class RemoteDebugger {
   i::Semaphore* event_available_;
   RemoteDebuggerEvent* head_;
   RemoteDebuggerEvent* tail_;
-  i::Isolate* isolate_;
 
   friend class ReceiverThread;
 };
@@ -98,8 +97,8 @@ class RemoteDebugger {
 // Thread reading from debugged V8 instance.
 class ReceiverThread: public i::Thread {
  public:
-  ReceiverThread(i::Isolate* isolate, RemoteDebugger* remote_debugger)
-      : Thread(isolate, "d8:ReceiverThrd"),
+  explicit ReceiverThread(RemoteDebugger* remote_debugger)
+      : Thread("d8:ReceiverThrd"),
         remote_debugger_(remote_debugger) {}
   ~ReceiverThread() {}
 
@@ -113,8 +112,8 @@ class ReceiverThread: public i::Thread {
 // Thread reading keyboard input.
 class KeyboardThread: public i::Thread {
  public:
-  explicit KeyboardThread(i::Isolate* isolate, RemoteDebugger* remote_debugger)
-      : Thread(isolate, "d8:KeyboardThrd"),
+  explicit KeyboardThread(RemoteDebugger* remote_debugger)
+      : Thread("d8:KeyboardThrd"),
         remote_debugger_(remote_debugger) {}
   ~KeyboardThread() {}
 

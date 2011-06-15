@@ -113,21 +113,18 @@ void LInstruction::PrintTo(StringStream* stream) {
 template<int R, int I, int T>
 void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  inputs_.PrintOperandsTo(stream);
+  for (int i = 0; i < inputs_.length(); i++) {
+    if (i > 0) stream->Add(" ");
+    inputs_[i]->PrintTo(stream);
+  }
 }
 
 
 template<int R, int I, int T>
 void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
-  results_.PrintOperandsTo(stream);
-}
-
-
-template<typename T, int N>
-void OperandContainer<T, N>::PrintOperandsTo(StringStream* stream) {
-  for (int i = 0; i < N; i++) {
+  for (int i = 0; i < results_.length(); i++) {
     if (i > 0) stream->Add(" ");
-    elems_[i]->PrintTo(stream);
+    results_[i]->PrintTo(stream);
   }
 }
 
@@ -1051,9 +1048,9 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
-  if (!v->EmitAtUses()) {
-    return new LBranch(UseRegisterAtStart(v));
-  } else if (v->IsClassOfTest()) {
+  if (!v->EmitAtUses()) return new LBranch(UseRegisterAtStart(v));
+  ASSERT(!v->HasSideEffects());
+  if (v->IsClassOfTest()) {
     HClassOfTest* compare = HClassOfTest::cast(v);
     ASSERT(compare->value()->representation().IsTagged());
     return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
@@ -1061,7 +1058,6 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
                                      TempRegister());
   } else if (v->IsCompare()) {
     HCompare* compare = HCompare::cast(v);
-    Token::Value op = compare->token();
     HValue* left = compare->left();
     HValue* right = compare->right();
     Representation r = compare->GetInputRepresentation();
@@ -1070,19 +1066,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(right->representation().IsInteger32());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseOrConstantAtStart(right));
-    } else if (r.IsDouble()) {
+    } else {
+      ASSERT(r.IsDouble());
       ASSERT(left->representation().IsDouble());
       ASSERT(right->representation().IsDouble());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseRegisterAtStart(right));
-    } else {
-      ASSERT(left->representation().IsTagged());
-      ASSERT(right->representation().IsTagged());
-      bool reversed = op == Token::GT || op == Token::LTE;
-      LOperand* left_operand = UseFixed(left, reversed ? eax : edx);
-      LOperand* right_operand = UseFixed(right, reversed ? edx : eax);
-      LCmpTAndBranch* result = new LCmpTAndBranch(left_operand, right_operand);
-      return MarkAsCall(result, instr);
     }
   } else if (v->IsIsSmi()) {
     HIsSmi* compare = HIsSmi::cast(v);
@@ -1125,14 +1114,6 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
     return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
                                      UseRegisterAtStart(compare->right()));
-  } else if (v->IsInstanceOf()) {
-    HInstanceOf* instance_of = HInstanceOf::cast(v);
-    LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
-    LOperand* right = UseFixed(instance_of->right(), InstanceofStub::right());
-    LOperand* context = UseFixed(instance_of->context(), esi);
-    LInstanceOfAndBranch* result =
-        new LInstanceOfAndBranch(context, left, right);
-    return MarkAsCall(result, instr);
   } else if (v->IsTypeofIs()) {
     HTypeofIs* typeof_is = HTypeofIs::cast(v);
     return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
@@ -1981,13 +1962,15 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
-  ExternalArrayType array_type = instr->array_type();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   Representation representation(instr->representation());
   ASSERT(
-      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
-                                        array_type != kExternalDoubleArray)) ||
-      (representation.IsDouble() && (array_type == kExternalFloatArray ||
-                                     array_type == kExternalDoubleArray)));
+      (representation.IsInteger32() &&
+       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
+      (representation.IsDouble() &&
+       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
@@ -1997,7 +1980,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
   LInstruction* load_instr = DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
-  return (array_type == kExternalUnsignedIntArray)
+  return (elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS)
       ? AssignEnvironment(load_instr)
       : load_instr;
 }
@@ -2035,21 +2018,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
   Representation representation(instr->value()->representation());
-  ExternalArrayType array_type = instr->array_type();
-  ASSERT(
-      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
-                                        array_type != kExternalDoubleArray)) ||
-      (representation.IsDouble() && (array_type == kExternalFloatArray ||
-                                     array_type == kExternalDoubleArray)));
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
+    ASSERT(
+      (representation.IsInteger32() &&
+       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
+      (representation.IsDouble() &&
+       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
-  if (array_type == kExternalByteArray ||
-      array_type == kExternalUnsignedByteArray ||
-      array_type == kExternalPixelArray) {
+  if (elements_kind == JSObject::EXTERNAL_BYTE_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
+      elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     // We need a byte register in this case for the value.
     val = UseFixed(instr->value(), eax);
   } else {

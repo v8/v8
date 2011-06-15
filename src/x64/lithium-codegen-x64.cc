@@ -197,7 +197,7 @@ bool LCodeGen::GeneratePrologue() {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {
-      __ CallRuntime(Runtime::kNewContext, 1);
+      __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoDeoptimizationIndex);
     // Context is returned in both rax and rsi.  It replaces the context
@@ -692,7 +692,7 @@ void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
 
 
 void LCodeGen::RecordPosition(int position) {
-  if (!FLAG_debug_info || position == RelocInfo::kNoPosition) return;
+  if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
 }
 
@@ -2014,19 +2014,6 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
 }
 
 
-void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  InstanceofStub stub(InstanceofStub::kNoFlags);
-  __ push(ToRegister(instr->InputAt(0)));
-  __ push(ToRegister(instr->InputAt(1)));
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  __ testq(rax, rax);
-  EmitBranch(true_block, false_block, zero);
-}
-
-
 void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   class DeferredInstanceOfKnownGlobal: public LDeferredCode {
    public:
@@ -2155,25 +2142,6 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   __ bind(&true_value);
   __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
   __ bind(&done);
-}
-
-
-void LCodeGen::DoCmpTAndBranch(LCmpTAndBranch* instr) {
-  Token::Value op = instr->op();
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  Handle<Code> ic = CompareIC::GetUninitialized(op);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-
-  // The compare stub expects compare condition and the input operands
-  // reversed for GT and LTE.
-  Condition condition = TokenToCondition(op, false);
-  if (op == Token::GT || op == Token::LTE) {
-    condition = ReverseCondition(condition);
-  }
-  __ testq(rax, rax);
-  EmitBranch(true_block, false_block, condition);
 }
 
 
@@ -2477,11 +2445,12 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
-Operand LCodeGen::BuildExternalArrayOperand(LOperand* external_pointer,
-                                            LOperand* key,
-                                            ExternalArrayType array_type) {
+Operand LCodeGen::BuildExternalArrayOperand(
+    LOperand* external_pointer,
+    LOperand* key,
+    JSObject::ElementsKind elements_kind) {
   Register external_pointer_reg = ToRegister(external_pointer);
-  int shift_size = ExternalArrayTypeToShiftSize(array_type);
+  int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
@@ -2497,35 +2466,35 @@ Operand LCodeGen::BuildExternalArrayOperand(LOperand* external_pointer,
 
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
-  ExternalArrayType array_type = instr->array_type();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), array_type));
-  if (array_type == kExternalFloatArray) {
+                                            instr->key(), elements_kind));
+  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
     __ cvtss2sd(result, result);
-  } else if (array_type == kExternalDoubleArray) {
+  } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     __ movsd(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
-    switch (array_type) {
-      case kExternalByteArray:
+    switch (elements_kind) {
+      case JSObject::EXTERNAL_BYTE_ELEMENTS:
         __ movsxbq(result, operand);
         break;
-      case kExternalUnsignedByteArray:
-      case kExternalPixelArray:
+      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
         __ movzxbq(result, operand);
         break;
-      case kExternalShortArray:
+      case JSObject::EXTERNAL_SHORT_ELEMENTS:
         __ movsxwq(result, operand);
         break;
-      case kExternalUnsignedShortArray:
+      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ movzxwq(result, operand);
         break;
-      case kExternalIntArray:
+      case JSObject::EXTERNAL_INT_ELEMENTS:
         __ movsxlq(result, operand);
         break;
-      case kExternalUnsignedIntArray:
+      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ movl(result, operand);
         __ testl(result, result);
         // TODO(danno): we could be more clever here, perhaps having a special
@@ -2533,8 +2502,11 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         // happens, and generate code that returns a double rather than int.
         DeoptimizeIf(negative, instr->environment());
         break;
-      case kExternalFloatArray:
-      case kExternalDoubleArray:
+      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      case JSObject::FAST_ELEMENTS:
+      case JSObject::FAST_DOUBLE_ELEMENTS:
+      case JSObject::DICTIONARY_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -2710,8 +2682,7 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ movq(result,
-          Operand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
-  __ movq(result, FieldOperand(result, JSFunction::kContextOffset));
+          Operand(context, Context::SlotOffset(Context::PREVIOUS_INDEX)));
 }
 
 
@@ -3221,33 +3192,36 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
-  ExternalArrayType array_type = instr->array_type();
+  JSObject::ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), array_type));
-  if (array_type == kExternalFloatArray) {
+                                            instr->key(), elements_kind));
+  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
     __ movss(operand, value);
-  } else if (array_type == kExternalDoubleArray) {
+  } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     __ movsd(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value(ToRegister(instr->value()));
-    switch (array_type) {
-      case kExternalPixelArray:
-      case kExternalByteArray:
-      case kExternalUnsignedByteArray:
+    switch (elements_kind) {
+      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ movb(operand, value);
         break;
-      case kExternalShortArray:
-      case kExternalUnsignedShortArray:
+      case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ movw(operand, value);
         break;
-      case kExternalIntArray:
-      case kExternalUnsignedIntArray:
+      case JSObject::EXTERNAL_INT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ movl(operand, value);
         break;
-      case kExternalFloatArray:
-      case kExternalDoubleArray:
+      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      case JSObject::FAST_ELEMENTS:
+      case JSObject::FAST_DOUBLE_ELEMENTS:
+      case JSObject::DICTIONARY_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -3591,8 +3565,9 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
+                                bool deoptimize_on_undefined,
                                 LEnvironment* env) {
-  Label load_smi, heap_number, done;
+  Label load_smi, done;
 
   // Smi check.
   __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
@@ -3600,18 +3575,23 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Heap number map check.
   __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                  Heap::kHeapNumberMapRootIndex);
-  __ j(equal, &heap_number, Label::kNear);
+  if (deoptimize_on_undefined) {
+    DeoptimizeIf(not_equal, env);
+  } else {
+    Label heap_number;
+    __ j(equal, &heap_number, Label::kNear);
 
-  __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-  DeoptimizeIf(not_equal, env);
+    __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+    DeoptimizeIf(not_equal, env);
 
-  // Convert undefined to NaN. Compute NaN as 0/0.
-  __ xorps(result_reg, result_reg);
-  __ divsd(result_reg, result_reg);
-  __ jmp(&done, Label::kNear);
+    // Convert undefined to NaN. Compute NaN as 0/0.
+    __ xorps(result_reg, result_reg);
+    __ divsd(result_reg, result_reg);
+    __ jmp(&done, Label::kNear);
 
+    __ bind(&heap_number);
+  }
   // Heap number to XMM conversion.
-  __ bind(&heap_number);
   __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
   __ jmp(&done, Label::kNear);
 
@@ -3702,7 +3682,9 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   XMMRegister result_reg = ToDoubleRegister(result);
 
-  EmitNumberUntagD(input_reg, result_reg, instr->environment());
+  EmitNumberUntagD(input_reg, result_reg,
+                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->environment());
 }
 
 

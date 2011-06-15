@@ -72,22 +72,14 @@ class FunctionEntry BASE_EMBEDDED {
   FunctionEntry() : backing_(Vector<unsigned>::empty()) { }
 
   int start_pos() { return backing_[kStartPosOffset]; }
-  void set_start_pos(int value) { backing_[kStartPosOffset] = value; }
-
   int end_pos() { return backing_[kEndPosOffset]; }
-  void set_end_pos(int value) { backing_[kEndPosOffset] = value; }
-
   int literal_count() { return backing_[kLiteralCountOffset]; }
-  void set_literal_count(int value) { backing_[kLiteralCountOffset] = value; }
-
   int property_count() { return backing_[kPropertyCountOffset]; }
-  void set_property_count(int value) {
-    backing_[kPropertyCountOffset] = value;
-  }
+  bool strict_mode() { return backing_[kStrictModeOffset] != 0; }
 
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 4;
+  static const int kSize = 5;
 
  private:
   Vector<unsigned> backing_;
@@ -95,6 +87,7 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kEndPosOffset = 1;
   static const int kLiteralCountOffset = 2;
   static const int kPropertyCountOffset = 3;
+  static const int kStrictModeOffset = 4;
 };
 
 
@@ -498,10 +491,7 @@ class Parser {
   Statement* ParseContinueStatement(bool* ok);
   Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Block* WithHelper(Expression* obj,
-                    ZoneStringList* labels,
-                    bool is_catch_block,
-                    bool* ok);
+  Block* WithHelper(Expression* obj, ZoneStringList* labels, bool* ok);
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);

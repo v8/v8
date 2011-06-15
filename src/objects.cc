@@ -58,6 +58,10 @@ namespace internal {
 const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
+uint64_t FixedDoubleArray::kHoleNanInt64 = -1;
+uint64_t FixedDoubleArray::kCanonicalNonHoleNanLower32 = 0x7FF00000;
+uint64_t FixedDoubleArray::kCanonicalNonHoleNanInt64 =
+    kCanonicalNonHoleNanLower32 << 32;
 
 MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
                                                   Object* value) {
@@ -1177,6 +1181,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
   switch (type) {
     case FIXED_ARRAY_TYPE:
       FixedArray::BodyDescriptor::IterateBody(this, object_size, v);
+      break;
+    case FIXED_DOUBLE_ARRAY_TYPE:
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2800,7 +2806,7 @@ MaybeObject* JSObject::NormalizeElements() {
   ASSERT(!HasExternalArrayElements());
   if (HasDictionaryElements()) return this;
   Map* old_map = map();
-  ASSERT(old_map->has_fast_elements());
+  ASSERT(old_map->has_fast_elements() || old_map->has_fast_double_elements());
 
   Object* obj;
   { MaybeObject* maybe_obj = old_map->GetSlowElementsMap();
@@ -2809,7 +2815,7 @@ MaybeObject* JSObject::NormalizeElements() {
   Map* new_map = Map::cast(obj);
 
   // Get number of entries.
-  FixedArray* array = FixedArray::cast(elements());
+  FixedArrayBase* array = FixedArrayBase::cast(elements());
 
   // Compute the effective length.
   int length = IsJSArray() ?
@@ -2818,17 +2824,35 @@ MaybeObject* JSObject::NormalizeElements() {
   { MaybeObject* maybe_obj = NumberDictionary::Allocate(length);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
+  bool has_double_elements = old_map->has_fast_double_elements();
   NumberDictionary* dictionary = NumberDictionary::cast(obj);
   // Copy entries.
   for (int i = 0; i < length; i++) {
-    Object* value = array->get(i);
-    if (!value->IsTheHole()) {
-      PropertyDetails details = PropertyDetails(NONE, NORMAL);
-      Object* result;
-      { MaybeObject* maybe_result =
-            dictionary->AddNumberEntry(i, array->get(i), details);
-        if (!maybe_result->ToObject(&result)) return maybe_result;
+    Object* value = NULL;
+    if (has_double_elements) {
+      FixedDoubleArray* double_array = FixedDoubleArray::cast(array);
+      if (double_array->is_the_hole(i)) {
+        value = GetIsolate()->heap()->the_hole_value();
+      } else {
+        // Objects must be allocated in the old object space, since the
+        // overall number of HeapNumbers needed for the conversion might
+        // exceed the capacity of new space, and we would fail repeatedly
+        // trying to convert the FixedDoubleArray.
+        MaybeObject* maybe_value_object =
+            GetHeap()->AllocateHeapNumber(double_array->get(i), TENURED);
+        if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
       }
+    } else {
+      ASSERT(old_map->has_fast_elements());
+      FixedArray* fixed_array = FixedArray::cast(array);
+      value = fixed_array->get(i);
+    }
+    PropertyDetails details = PropertyDetails(NONE, NORMAL);
+    if (!value->IsTheHole()) {
+      Object* result;
+      MaybeObject* maybe_result =
+          dictionary->AddNumberEntry(i, value, details);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
       dictionary = NumberDictionary::cast(result);
     }
   }
@@ -2998,11 +3022,20 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       { MaybeObject* maybe_obj = EnsureWritableFastElements();
         if (!maybe_obj->ToObject(&obj)) return maybe_obj;
       }
-      uint32_t length = IsJSArray() ?
-      static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
-      static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if (index < length) {
+      int length = IsJSArray()
+          ? Smi::cast(JSArray::cast(this)->length())->value()
+          : FixedArray::cast(elements())->length();
+      if (index < static_cast<uint32_t>(length)) {
         FixedArray::cast(elements())->set_the_hole(index);
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      int length = IsJSArray()
+          ? Smi::cast(JSArray::cast(this)->length())->value()
+          : FixedArray::cast(elements())->length();
+      if (index < static_cast<uint32_t>(length)) {
+        FixedDoubleArray::cast(elements())->set_the_hole(index);
       }
       break;
     }
@@ -3195,9 +3228,9 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
     }
 
-    // Check the context extension if any.
-    if (context->has_extension()) {
-      return context->extension()->ReferencesObject(obj);
+    // Check the context extension (if any) if it can have references.
+    if (context->has_extension() && !context->IsCatchContext()) {
+      return JSObject::cast(context->extension())->ReferencesObject(obj);
     }
   }
 
@@ -7023,7 +7056,6 @@ void Code::Disassemble(const char* name, FILE* out) {
   Disassembler::Decode(out, this);
   PrintF(out, "\n");
 
-#ifdef DEBUG
   if (kind() == FUNCTION) {
     DeoptimizationOutputData* data =
         DeoptimizationOutputData::cast(this->deoptimization_data());
@@ -7034,7 +7066,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     data->DeoptimizationInputDataPrint(out);
   }
   PrintF("\n");
-#endif
 
   if (kind() == OPTIMIZED_FUNCTION) {
     SafepointTable table(this);
@@ -7098,10 +7129,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
   }
   Map* new_map = Map::cast(obj);
 
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = elems->GetWriteBarrierMode(no_gc);
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = elems->GetWriteBarrierMode(no_gc);
       FixedArray* old_elements = FixedArray::cast(elements());
       uint32_t old_length = static_cast<uint32_t>(old_elements->length());
       // Fill out the new array with this content and array holes.
@@ -7110,7 +7141,32 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* old_elements = FixedDoubleArray::cast(elements());
+      uint32_t old_length = static_cast<uint32_t>(old_elements->length());
+      // Fill out the new array with this content and array holes.
+      for (uint32_t i = 0; i < old_length; i++) {
+        if (!old_elements->is_the_hole(i)) {
+          Object* obj;
+          // Objects must be allocated in the old object space, since the
+          // overall number of HeapNumbers needed for the conversion might
+          // exceed the capacity of new space, and we would fail repeatedly
+          // trying to convert the FixedDoubleArray.
+          MaybeObject* maybe_value_object =
+              GetHeap()->AllocateHeapNumber(old_elements->get(i), TENURED);
+          if (!maybe_value_object->ToObject(&obj)) return maybe_value_object;
+          // Force write barrier. It's not worth trying to exploit
+          // elems->GetWriteBarrierMode(), since it requires an
+          // AssertNoAllocation stack object that would have to be positioned
+          // after the HeapNumber allocation anyway.
+          elems->set(i, obj, UPDATE_WRITE_BARRIER);
+        }
+      }
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = elems->GetWriteBarrierMode(no_gc);
       NumberDictionary* dictionary = NumberDictionary::cast(elements());
       for (int i = 0; i < dictionary->Capacity(); i++) {
         Object* key = dictionary->KeyAt(i);
@@ -7119,6 +7175,55 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
           elems->set(entry, dictionary->ValueAt(i), mode);
         }
       }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  set_map(new_map);
+  set_elements(elems);
+
+  if (IsJSArray()) {
+    JSArray::cast(this)->set_length(Smi::FromInt(length));
+  }
+
+  return this;
+}
+
+
+MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
+    int capacity,
+    int length) {
+  Heap* heap = GetHeap();
+  // We should never end in here with a pixel or external array.
+  ASSERT(!HasExternalArrayElements());
+
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        heap->AllocateUninitializedFixedDoubleArray(capacity);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  FixedDoubleArray* elems = FixedDoubleArray::cast(obj);
+
+  { MaybeObject* maybe_obj = map()->GetFastDoubleElementsMap();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  Map* new_map = Map::cast(obj);
+
+  AssertNoAllocation no_gc;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      elems->Initialize(FixedArray::cast(elements()));
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      elems->Initialize(FixedDoubleArray::cast(elements()));
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      elems->Initialize(NumberDictionary::cast(elements()));
       break;
     }
     default:
@@ -7858,7 +7963,6 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (found) return result;
   }
 
-
   // Check whether there is extra space in fixed array..
   if (index < elms_length) {
     elms->set(index, value);
@@ -7886,6 +7990,89 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         if (!maybe_obj->ToObject(&obj)) return maybe_obj;
       }
       FixedArray::cast(elements())->set(index, value);
+      return value;
+    }
+  }
+
+  // Otherwise default to slow case.
+  Object* obj;
+  { MaybeObject* maybe_obj = NormalizeElements();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  ASSERT(HasDictionaryElements());
+  return SetElement(index, value, strict_mode, check_prototype);
+}
+
+
+MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
+    uint32_t index,
+    Object* value,
+    StrictModeFlag strict_mode,
+    bool check_prototype) {
+  ASSERT(HasFastDoubleElements());
+
+  FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+  uint32_t elms_length = static_cast<uint32_t>(elms->length());
+
+  // If storing to an element that isn't in the array, pass the store request
+  // up the prototype chain before storing in the receiver's elements.
+  if (check_prototype &&
+      (index >= elms_length || elms->is_the_hole(index))) {
+    bool found;
+    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
+                                                                   value,
+                                                                   &found,
+                                                                   strict_mode);
+    if (found) return result;
+  }
+
+  // If the value object is not a heap number, switch to fast elements and try
+  // again.
+  bool value_is_smi = value->IsSmi();
+  if (!value->IsNumber()) {
+    Object* obj;
+    uint32_t length = elms_length;
+    if (IsJSArray()) {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+    }
+    MaybeObject* maybe_obj =
+        SetFastElementsCapacityAndLength(elms_length, length);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    return SetFastElement(index, value, strict_mode, check_prototype);
+  }
+
+  double double_value = value_is_smi
+      ? static_cast<double>(Smi::cast(value)->value())
+      : HeapNumber::cast(value)->value();
+
+  // Check whether there is extra space in the fixed array.
+  if (index < elms_length) {
+    elms->set(index, double_value);
+    if (IsJSArray()) {
+      // Update the length of the array if needed.
+      uint32_t array_length = 0;
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+      if (index >= array_length) {
+        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
+      }
+    }
+    return value;
+  }
+
+  // Allow gap in fast case.
+  if ((index - elms_length) < kMaxGap) {
+    // Try allocating extra space.
+    int new_capacity = NewElementsCapacity(index+1);
+    if (new_capacity <= kMaxFastElementsLength ||
+        !ShouldConvertToSlowElements(new_capacity)) {
+      ASSERT(static_cast<uint32_t>(new_capacity) > index);
+      Object* obj;
+      { MaybeObject* maybe_obj =
+            SetFastDoubleElementsCapacityAndLength(new_capacity,
+                                                   index + 1);
+        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      }
+      FixedDoubleArray::cast(elements())->set(index, double_value);
       return value;
     }
   }
@@ -7949,6 +8136,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
     case FAST_ELEMENTS:
       // Fast case.
       return SetFastElement(index, value, strict_mode, check_prototype);
+    case FAST_DOUBLE_ELEMENTS:
+      return SetFastDoubleElement(index, value, strict_mode, check_prototype);
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -8072,24 +8261,35 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         } else {
           new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
         }
-        Object* obj;
-        { MaybeObject* maybe_obj =
-              SetFastElementsCapacityAndLength(new_length, new_length);
-          if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-        }
+        if (ShouldConvertToFastDoubleElements()) {
+          Object* obj;
+          { MaybeObject* maybe_obj =
+                SetFastDoubleElementsCapacityAndLength(new_length, new_length);
+            if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+          }
 #ifdef DEBUG
-        if (FLAG_trace_normalization) {
-          PrintF("Object elements are fast case again:\n");
-          Print();
-        }
+          if (FLAG_trace_normalization) {
+            PrintF("Object elements are fast double case again:\n");
+            Print();
+          }
 #endif
+        } else {
+          Object* obj;
+          { MaybeObject* maybe_obj =
+                SetFastElementsCapacityAndLength(new_length, new_length);
+            if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+          }
+#ifdef DEBUG
+          if (FLAG_trace_normalization) {
+            PrintF("Object elements are fast case again:\n");
+            Print();
+          }
+#endif
+        }
       }
 
       return value;
     }
-    default:
-      UNREACHABLE();
-      break;
   }
   // All possible cases have been handled above. Add a return to avoid the
   // complaints from the compiler.
@@ -8126,6 +8326,15 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
       if (index < static_cast<uint32_t>(elms->length())) {
         Object* value = elms->get(index);
         if (!value->IsTheHole()) return value;
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        if (!elms->is_the_hole(index)) {
+          return GetHeap()->NumberFromDouble(elms->get(index));
+        }
       }
       break;
     }
@@ -8229,6 +8438,16 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
       if (index < static_cast<uint32_t>(elms->length())) {
         Object* value = elms->get(index);
         if (!value->IsTheHole()) return value;
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        if (!elms->is_the_hole(index)) {
+          double double_value = elms->get(index);
+          return GetHeap()->NumberFromDouble(double_value);
+        }
       }
       break;
     }
@@ -8351,6 +8570,7 @@ MaybeObject* JSObject::GetExternalElement(uint32_t index) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
     case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS:
       UNREACHABLE();
@@ -8370,6 +8590,14 @@ bool JSObject::HasDenseElements() {
       capacity = elms->length();
       for (int i = 0; i < capacity; i++) {
         if (!elms->get(i)->IsTheHole()) number_of_elements++;
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      capacity = elms->length();
+      for (int i = 0; i < capacity; i++) {
+        if (!elms->is_the_hole(i)) number_of_elements++;
       }
       break;
     }
@@ -8401,11 +8629,17 @@ bool JSObject::HasDenseElements() {
 
 
 bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
-  ASSERT(HasFastElements());
   // Keep the array in fast case if the current backing storage is
   // almost filled and if the new capacity is no more than twice the
   // old capacity.
-  int elements_length = FixedArray::cast(elements())->length();
+  int elements_length = 0;
+  if (HasFastElements()) {
+    elements_length = FixedArray::cast(elements())->length();
+  } else if (HasFastDoubleElements()) {
+    elements_length = FixedDoubleArray::cast(elements())->length();
+  } else {
+    UNREACHABLE();
+  }
   return !HasDenseElements() || ((new_capacity / 2) > elements_length);
 }
 
@@ -8432,6 +8666,23 @@ bool JSObject::ShouldConvertToFastElements() {
   }
   return static_cast<uint32_t>(dictionary->Capacity()) >=
       (length / (2 * NumberDictionary::kEntrySize));
+}
+
+
+bool JSObject::ShouldConvertToFastDoubleElements() {
+  if (FLAG_unbox_double_arrays) {
+    ASSERT(HasDictionaryElements());
+    NumberDictionary* dictionary = NumberDictionary::cast(elements());
+    for (int i = 0; i < dictionary->Capacity(); i++) {
+      Object* key = dictionary->KeyAt(i);
+      if (key->IsNumber()) {
+        if (!dictionary->ValueAt(i)->IsNumber()) return false;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
 }
 
 

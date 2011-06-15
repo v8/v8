@@ -25,38 +25,55 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PREPARSE_DATA_FORMAT_H_
-#define V8_PREPARSE_DATA_FORMAT_H_
+// Check that reduce and reduceRight call the callback function with
+// undefined as the receiver (which for non-strict functions is
+// transformed to the global object).
 
-namespace v8 {
-namespace internal {
+// Check receiver for reduce and reduceRight.
 
-// Generic and general data used by preparse data recorders and readers.
+var global = this;
+function non_strict(){ assertEquals(global, this); }
+function strict(){ "use strict"; assertEquals(void 0, this); }
+function strict_null(){ "use strict"; assertEquals(null, this); }
 
-struct PreparseDataConstants {
- public:
-  // Layout and constants of the preparse data exchange format.
-  static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 7;
-
-  static const int kMagicOffset = 0;
-  static const int kVersionOffset = 1;
-  static const int kHasErrorOffset = 2;
-  static const int kFunctionsSizeOffset = 3;
-  static const int kSymbolCountOffset = 4;
-  static const int kSizeOffset = 5;
-  static const int kHeaderSize = 6;
-
-  // If encoding a message, the following positions are fixed.
-  static const int kMessageStartPos = 0;
-  static const int kMessageEndPos = 1;
-  static const int kMessageArgCountPos = 2;
-  static const int kMessageTextPos = 3;
-
-  static const unsigned char kNumberTerminator = 0x80u;
-};
+[2, 3].reduce(non_strict);
+[2, 3].reduce(strict);
+[2, 3].reduceRight(non_strict);
+[2, 3].reduceRight(strict);
 
 
-} }  // namespace v8::internal.
+// Check the receiver for callbacks in other array methods.
+[2, 3].every(non_strict);
+[2, 3].every(non_strict, undefined);
+[2, 3].every(non_strict, null);
+[2, 3].every(strict);
+[2, 3].every(strict, undefined);
+[2, 3].every(strict_null, null);
 
-#endif  // V8_PREPARSE_DATA_FORMAT_H_
+[2, 3].filter(non_strict);
+[2, 3].filter(non_strict, undefined);
+[2, 3].filter(non_strict, null);
+[2, 3].filter(strict);
+[2, 3].filter(strict, undefined);
+[2, 3].filter(strict_null, null);
+
+[2, 3].forEach(non_strict);
+[2, 3].forEach(non_strict, undefined);
+[2, 3].forEach(non_strict, null);
+[2, 3].forEach(strict);
+[2, 3].forEach(strict, undefined);
+[2, 3].forEach(strict_null, null);
+
+[2, 3].map(non_strict);
+[2, 3].map(non_strict, undefined);
+[2, 3].map(non_strict, null);
+[2, 3].map(strict);
+[2, 3].map(strict, undefined);
+[2, 3].map(strict_null, null);
+
+[2, 3].some(non_strict);
+[2, 3].some(non_strict, undefined);
+[2, 3].some(non_strict, null);
+[2, 3].some(strict);
+[2, 3].some(strict, undefined);
+[2, 3].some(strict_null, null);

@@ -807,6 +807,12 @@ D8_FLAGS = {
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
     },
+    'compress_startup_data:bz2': {
+      'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2'],
+      'os:linux': {
+        'LIBS': ['bz2']
+      }
+    }
   },
   'msvc': {
     'all': {

@@ -1465,6 +1465,13 @@ class Object : public Value {
   V8EXPORT Local<Array> GetPropertyNames();
 
   /**
+   * This function has the same functionality as GetPropertyNames but
+   * the returned array doesn't contain the names of properties from
+   * prototype objects.
+   */
+  V8EXPORT Local<Array> GetOwnPropertyNames();
+
+  /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
@@ -3098,8 +3105,10 @@ class V8EXPORT V8 {
    * because of a call to TerminateExecution.  In that case there are
    * still JavaScript frames on the stack and the termination
    * exception is still active.
+   *
+   * \param isolate The isolate in which to check.
    */
-  static bool IsExecutionTerminating();
+  static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
    * Releases any resources used by v8 and stops any utility threads
@@ -3726,7 +3735,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa2;
+  static const int kJSObjectType = 0xa3;
   static const int kFirstNonstringType = 0x80;
   static const int kForeignType = 0x85;
 

@@ -3070,7 +3070,7 @@ void LargeObjectSpace::Verify() {
     // strings), fixed arrays, and byte arrays in large object space.
     ASSERT(object->IsCode() || object->IsSeqString() ||
            object->IsExternalString() || object->IsFixedArray() ||
-           object->IsByteArray());
+           object->IsFixedDoubleArray() || object->IsByteArray());
 
     // The object itself should look OK.
     object->Verify();

@@ -578,13 +578,7 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
         // out of bounds, update the state to record this fact.
         if (StringStubState::decode(*extra_ic_state) == DEFAULT_STRING_STUB &&
             argc >= 1 && args[1]->IsNumber()) {
-          double index;
-          if (args[1]->IsSmi()) {
-            index = Smi::cast(args[1])->value();
-          } else {
-            ASSERT(args[1]->IsHeapNumber());
-            index = DoubleToInteger(HeapNumber::cast(args[1])->value());
-          }
+          double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
             *extra_ic_state =
                 StringStubState::update(*extra_ic_state,
@@ -1070,10 +1064,10 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 String* KeyedLoadIC::GetStubNameForCache(IC::State ic_state) {
   if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedLoadSpecializedMonomorphic_symbol();
+    return isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
   } else {
     ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedLoadSpecializedPolymorphic_symbol();
+    return isolate()->heap()->KeyedLoadElementPolymorphic_symbol();
   }
 }
 
@@ -1085,8 +1079,8 @@ MaybeObject* KeyedLoadIC::GetFastElementStubWithoutMapCheck(
 
 
 MaybeObject* KeyedLoadIC::GetExternalArrayStubWithoutMapCheck(
-    ExternalArrayType array_type) {
-  return KeyedLoadExternalArrayStub(array_type).TryGetCode();
+    JSObject::ElementsKind elements_kind) {
+  return KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
 }
 
 
@@ -1697,8 +1691,8 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
       return generic_stub;
     }
     Code* default_stub = Code::cast(maybe_default_stub);
-    return GetExternalArrayStubWithoutMapCheck(
-        default_stub->external_array_type());
+    Map* first_map = default_stub->FindFirstMap();
+    return GetExternalArrayStubWithoutMapCheck(first_map->elements_kind());
   } else if (receiver_map->has_fast_elements()) {
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     return GetFastElementStubWithoutMapCheck(is_js_array);
@@ -1713,14 +1707,10 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              StrictModeFlag strict_mode,
                                              Code* generic_stub) {
   Code* result = NULL;
-  if (receiver->HasExternalArrayElements()) {
+  if (receiver->HasFastElements() ||
+      receiver->HasExternalArrayElements()) {
     MaybeObject* maybe_stub =
-        isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
-            receiver, is_store, strict_mode);
-    if (!maybe_stub->To(&result)) return maybe_stub;
-  } else if (receiver->map()->has_fast_elements()) {
-    MaybeObject* maybe_stub =
-        isolate()->stub_cache()->ComputeKeyedLoadOrStoreFastElement(
+        isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
             receiver, is_store, strict_mode);
     if (!maybe_stub->To(&result)) return maybe_stub;
   } else {
@@ -1732,10 +1722,10 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 
 String* KeyedStoreIC::GetStubNameForCache(IC::State ic_state) {
   if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedStoreSpecializedMonomorphic_symbol();
+    return isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
   } else {
     ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedStoreSpecializedPolymorphic_symbol();
+    return isolate()->heap()->KeyedStoreElementPolymorphic_symbol();
   }
 }
 
@@ -1747,8 +1737,8 @@ MaybeObject* KeyedStoreIC::GetFastElementStubWithoutMapCheck(
 
 
 MaybeObject* KeyedStoreIC::GetExternalArrayStubWithoutMapCheck(
-    ExternalArrayType array_type) {
-  return KeyedStoreExternalArrayStub(array_type).TryGetCode();
+    JSObject::ElementsKind elements_kind) {
+  return KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
 }
 
 
@@ -2293,25 +2283,21 @@ BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Handle<Object> left,
 }
 
 
-// defined in code-stubs-<arch>.cc
-// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info);
-
-
 RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   ASSERT(args.length() == 4);
 
   HandleScope scope(isolate);
   Handle<Object> operand = args.at<Object>(0);
-  int key = Smi::cast(args[1])->value();
-  Token::Value op = static_cast<Token::Value>(Smi::cast(args[2])->value());
+  int key = args.smi_at(1);
+  Token::Value op = static_cast<Token::Value>(args.smi_at(2));
   UnaryOpIC::TypeInfo previous_type =
-      static_cast<UnaryOpIC::TypeInfo>(Smi::cast(args[3])->value());
+      static_cast<UnaryOpIC::TypeInfo>(args.smi_at(3));
 
   UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
   type = UnaryOpIC::ComputeNewType(type, previous_type);
 
-  Handle<Code> code = GetUnaryOpStub(key, type);
+  UnaryOpStub stub(key, type);
+  Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC (%s->%s)#%s]\n",
@@ -2348,23 +2334,16 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   return *result;
 }
 
-// defined in code-stubs-<arch>.cc
-// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type);
-
-
 RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
-  int key = Smi::cast(args[2])->value();
-  Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
+  int key = args.smi_at(2);
+  Token::Value op = static_cast<Token::Value>(args.smi_at(3));
   BinaryOpIC::TypeInfo previous_type =
-      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
+      static_cast<BinaryOpIC::TypeInfo>(args.smi_at(4));
 
   BinaryOpIC::TypeInfo type = BinaryOpIC::GetTypeInfo(left, right);
   type = BinaryOpIC::JoinTypes(type, previous_type);
@@ -2393,7 +2372,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
     result_type = BinaryOpIC::HEAP_NUMBER;
   }
 
-  Handle<Code> code = GetBinaryOpStub(key, type, result_type);
+  BinaryOpStub stub(key, type, result_type);
+  Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[BinaryOpIC (%s->(%s->%s))#%s]\n",
@@ -2523,7 +2503,7 @@ CompareIC::State CompareIC::TargetState(State state,
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
-  CompareIC ic(isolate, static_cast<Token::Value>(Smi::cast(args[2])->value()));
+  CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
   return ic.target();
 }
