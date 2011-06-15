@@ -3905,7 +3905,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   }
 
   LookupResult result;
-  js_object->LookupRealNamedProperty(*name, &result);
+  js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // To be compatible with safari we do not change the value on API objects
   // in defineProperty. Firefox disagrees here, and actually changes the value.
