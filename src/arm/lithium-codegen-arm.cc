@@ -839,6 +839,8 @@ void LCodeGen::DoModI(LModI* instr) {
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ b(ne, &done);
       DeoptimizeIf(al, instr->environment());
+    } else {
+      __ b(&done);
     }
     __ bind(&positive_dividend);
     __ and_(dividend, dividend, Operand(divisor - 1));
