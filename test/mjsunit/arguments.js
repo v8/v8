@@ -152,8 +152,8 @@ function f6(x, y) {
   return [arguments.length, arguments[0], y, arguments[2]];
 }
 
-assertArrayEquals([0, void 0, void 0, void 0], f6());
-assertArrayEquals([1, "x", void 0, void 0], f6(1));
+assertArrayEquals([0, "x", "y", void 0], f6());
+assertArrayEquals([1, "x", "y", void 0], f6(1));
 assertArrayEquals([2, "x", "y", void 0], f6(9, 17));
 assertArrayEquals([3, "x", "y", 7], f6(3, 5, 7));
 assertArrayEquals([4, "x", "y", "c"], f6("a", "b", "c", "d"));

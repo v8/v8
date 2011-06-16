@@ -30,6 +30,14 @@ def FAIL_OK = FAIL, OKAY
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
+# 900066: Deleting elements in .arguments should disconnect the
+# element from the actual arguments.  Implementing this is nontrivial
+# and we have no indication that anything on the web depends on this
+# feature.
+S13_A13_T1: FAIL_OK
+S13_A13_T2: FAIL_OK
+S13_A13_T3: FAIL_OK
+
 # This tests precision of trignometric functions.  We're slightly off
 # from the implementation in libc (~ 1e-17) but it's not clear if we
 # or they are closer to the right answer, or if it even matters.

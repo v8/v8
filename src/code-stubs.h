@@ -632,8 +632,7 @@ class ArgumentsAccessStub: public CodeStub {
  public:
   enum Type {
     READ_ELEMENT,
-    NEW_NON_STRICT_FAST,
-    NEW_NON_STRICT_SLOW,
+    NEW_NON_STRICT,
     NEW_STRICT
   };
 
@@ -647,9 +646,20 @@ class ArgumentsAccessStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
   void GenerateReadElement(MacroAssembler* masm);
-  void GenerateNewStrict(MacroAssembler* masm);
-  void GenerateNewNonStrictFast(MacroAssembler* masm);
-  void GenerateNewNonStrictSlow(MacroAssembler* masm);
+  void GenerateNewObject(MacroAssembler* masm);
+
+  int GetArgumentsBoilerplateIndex() const {
+  return (type_ == NEW_STRICT)
+      ? Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX
+      : Context::ARGUMENTS_BOILERPLATE_INDEX;
+  }
+
+  int GetArgumentsObjectSize() const {
+    if (type_ == NEW_STRICT)
+      return Heap::kArgumentsObjectSizeStrict;
+    else
+      return Heap::kArgumentsObjectSize;
+  }
 
   const char* GetName() { return "ArgumentsAccessStub"; }
 

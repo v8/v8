@@ -226,9 +226,15 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub stub(
         is_strict_mode() ? ArgumentsAccessStub::NEW_STRICT
-                         : ArgumentsAccessStub::NEW_NON_STRICT_SLOW);
+                         : ArgumentsAccessStub::NEW_NON_STRICT);
     __ CallStub(&stub);
 
+    Variable* arguments_shadow = scope()->arguments_shadow();
+    if (arguments_shadow != NULL) {
+      // Store new arguments object in both "arguments" and ".arguments" slots.
+      __ movq(rcx, rax);
+      Move(arguments_shadow->AsSlot(), rcx, rbx, rdx);
+    }
     Move(arguments->AsSlot(), rax, rbx, rdx);
   }
 
@@ -371,7 +377,7 @@ void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
 void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
   codegen()->Move(result_register(), slot);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -404,7 +410,7 @@ void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
     if (true_label_ != fall_through_) __ jmp(true_label_);
   } else {
     __ LoadRoot(result_register(), index);
-    codegen()->DoTest(true_label_, false_label_, fall_through_);
+    codegen()->DoTest(this);
   }
 }
 
@@ -449,7 +455,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
   } else {
     // For simplicity we always test the accumulator register.
     __ Move(result_register(), lit);
-    codegen()->DoTest(true_label_, false_label_, fall_through_);
+    codegen()->DoTest(this);
   }
 }
 
@@ -485,7 +491,7 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   __ Drop(count);
   __ Move(result_register(), reg);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-  codegen()->DoTest(true_label_, false_label_, fall_through_);
+  codegen()->DoTest(this);
 }
 
 
@@ -560,7 +566,8 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 }
 
 
-void FullCodeGenerator::DoTest(Label* if_true,
+void FullCodeGenerator::DoTest(Expression* condition,
+                               Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
   ToBooleanStub stub;
@@ -1214,12 +1221,13 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
 
 
 void FullCodeGenerator::EmitVariableLoad(Variable* var) {
-  // Three cases: non-this global variables, lookup slots, and all other
-  // types of slots.
+  // Four cases: non-this global variables, lookup slots, all other
+  // types of slots, and parameters that rewrite to explicit property
+  // accesses on the arguments object.
   Slot* slot = var->AsSlot();
-  ASSERT((var->is_global() && !var->is_this()) == (slot == NULL));
+  Property* property = var->AsProperty();
 
-  if (slot == NULL) {
+  if (var->is_global() && !var->is_this()) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in rcx and the global
     // object on the stack.
@@ -1245,7 +1253,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
 
     context()->Plug(rax);
 
-  } else {
+  } else if (slot != NULL) {
     Comment cmnt(masm_, (slot->type() == Slot::CONTEXT)
                             ? "Context slot"
                             : "Stack slot");
@@ -1263,6 +1271,34 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     } else {
       context()->Plug(slot);
     }
+
+  } else {
+    Comment cmnt(masm_, "Rewritten parameter");
+    ASSERT_NOT_NULL(property);
+    // Rewritten parameter accesses are of the form "slot[literal]".
+
+    // Assert that the object is in a slot.
+    Variable* object_var = property->obj()->AsVariableProxy()->AsVariable();
+    ASSERT_NOT_NULL(object_var);
+    Slot* object_slot = object_var->AsSlot();
+    ASSERT_NOT_NULL(object_slot);
+
+    // Load the object.
+    MemOperand object_loc = EmitSlotSearch(object_slot, rax);
+    __ movq(rdx, object_loc);
+
+    // Assert that the key is a smi.
+    Literal* key_literal = property->key()->AsLiteral();
+    ASSERT_NOT_NULL(key_literal);
+    ASSERT(key_literal->handle()->IsSmi());
+
+    // Load the key.
+    __ Move(rax, key_literal->handle());
+
+    // Do a keyed property load.
+    Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
+    EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(property));
+    context()->Plug(rax);
   }
 }
 
@@ -1495,7 +1531,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   }
 
   // Left-hand side can only be a property, a global or a (parameter or local)
-  // slot.
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
   Property* property = expr->target()->AsProperty();
@@ -1521,13 +1557,29 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     case KEYED_PROPERTY: {
       if (expr->is_compound()) {
-        VisitForStackValue(property->obj());
-        VisitForAccumulatorValue(property->key());
+        if (property->is_arguments_access()) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), rcx);
+          __ push(slot_operand);
+          __ Move(rax, property->key()->AsLiteral()->handle());
+        } else {
+          VisitForStackValue(property->obj());
+          VisitForAccumulatorValue(property->key());
+        }
         __ movq(rdx, Operand(rsp, 0));
         __ push(rax);
       } else {
-        VisitForStackValue(property->obj());
-        VisitForStackValue(property->key());
+        if (property->is_arguments_access()) {
+          VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+          MemOperand slot_operand =
+              EmitSlotSearch(obj_proxy->var()->AsSlot(), rcx);
+          __ push(slot_operand);
+          __ Push(property->key()->AsLiteral()->handle());
+        } else {
+          VisitForStackValue(property->obj());
+          VisitForStackValue(property->key());
+        }
       }
       break;
     }
@@ -1694,7 +1746,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
   }
 
   // Left-hand side can only be a property, a global or a (parameter or local)
-  // slot.
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
   Property* prop = expr->AsProperty();
@@ -1725,10 +1777,20 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case KEYED_PROPERTY: {
       __ push(rax);  // Preserve value.
-      VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      __ movq(rcx, rax);
-      __ pop(rdx);
+      if (prop->is_synthetic()) {
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        { AccumulatorValueContext for_object(this);
+          EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        }
+        __ movq(rdx, rax);
+        __ Move(rcx, prop->key()->AsLiteral()->handle());
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+        __ movq(rcx, rax);
+        __ pop(rdx);
+      }
       __ pop(rax);  // Restore value.
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
@@ -1744,6 +1806,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Token::Value op) {
+  // Left-hand sides that rewrite to explicit property accesses do not reach
+  // here.
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->AsSlot() != NULL);
 
@@ -3698,7 +3762,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Expression can only be a property, a global or a (parameter or local)
-  // slot.
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
   Property* prop = expr->expression()->AsProperty();
@@ -3724,8 +3788,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ push(rax);  // Copy of receiver, needed for later store.
       EmitNamedPropertyLoad(prop);
     } else {
-      VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
+      if (prop->is_arguments_access()) {
+        VariableProxy* obj_proxy = prop->obj()->AsVariableProxy();
+        MemOperand slot_operand =
+            EmitSlotSearch(obj_proxy->var()->AsSlot(), rcx);
+        __ push(slot_operand);
+        __ Move(rax, prop->key()->AsLiteral()->handle());
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+      }
       __ movq(rdx, Operand(rsp, 0));  // Leave receiver on stack
       __ push(rax);  // Copy of key, needed for later store.
       EmitKeyedPropertyLoad(prop);

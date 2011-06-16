@@ -1370,6 +1370,10 @@ void JsonAstBuilder::VisitThrow(Throw* expr) {
 
 void JsonAstBuilder::VisitProperty(Property* expr) {
   TagScope tag(this, "Property");
+  {
+    AttributesScope attributes(this);
+    AddAttribute("type", expr->is_synthetic() ? "SYNTHETIC" : "NORMAL");
+  }
   Visit(expr->obj());
   Visit(expr->key());
 }

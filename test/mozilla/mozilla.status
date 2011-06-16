@@ -599,6 +599,11 @@ js1_5/Regress/regress-416737-02: FAIL_OK
 js1_5/Array/regress-350256-02: FAIL
 
 
+# This fails because 'delete arguments[i]' does not disconnect the
+# argument from the arguments array.  See issue #900066.
+ecma_3/Function/regress-137181: FAIL
+
+
 # 'export' and 'import' are not keywords in V8.
 ecma_2/Exceptions/lexical-010: FAIL
 ecma_2/Exceptions/lexical-022: FAIL

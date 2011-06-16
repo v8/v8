@@ -3039,8 +3039,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
@@ -3085,8 +3084,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 
@@ -3204,8 +3202,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
   {
     v8::TryCatch try_catch;
@@ -3213,8 +3210,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
 }
 
@@ -9575,7 +9571,6 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  HEAP->global_context_map();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();
@@ -14484,4 +14479,26 @@ THREADED_TEST(CallAPIFunctionOnNonObject) {
   context->Global()->Set(v8_str("f"), function);
   TryCatch try_catch;
   CompileRun("f.call(2)");
+}
+
+
+// Regression test for issue 1470.
+THREADED_TEST(ReadOnlyIndexedProperties) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+  obj->Set(v8_str("1"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("1"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("1")));
+  obj->Set(v8_num(2), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_num(2), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_num(2)));
+
+  // Test non-smi case.
+  obj->Set(v8_str("2000000000"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("2000000000"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("2000000000")));
 }

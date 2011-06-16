@@ -107,7 +107,6 @@ inline Heap* _inline_get_heap_();
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
-  V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
@@ -144,6 +143,7 @@ inline Heap* _inline_get_heap_();
   V(StringImpl_symbol, "StringImpl")                                     \
   V(arguments_symbol, "arguments")                                       \
   V(Arguments_symbol, "Arguments")                                       \
+  V(arguments_shadow_symbol, ".arguments")                               \
   V(call_symbol, "call")                                                 \
   V(apply_symbol, "apply")                                               \
   V(caller_symbol, "caller")                                             \
@@ -648,7 +648,8 @@ class Heap {
 
   // Allocate a catch context.
   MUST_USE_RESULT MaybeObject* AllocateCatchContext(Context* previous,
-                                                    JSObject* extension);
+                                                    String* name,
+                                                    Object* thrown_object);
   // Allocate a 'with' context.
   MUST_USE_RESULT MaybeObject* AllocateWithContext(Context* previous,
                                                    JSObject* extension);

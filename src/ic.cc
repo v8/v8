@@ -793,35 +793,18 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  if (FLAG_use_ic && state != MEGAMORPHIC && object->IsHeapObject()) {
+  if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
-    Heap* heap = Handle<HeapObject>::cast(object)->GetHeap();
-    Map* map = heap->non_strict_arguments_elements_map();
-    if (object->IsJSObject() &&
-        Handle<JSObject>::cast(object)->elements()->map() == map) {
-      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallArguments(
-          argc, in_loop, Code::KEYED_CALL_IC);
-      Object* code;
-      if (maybe_code->ToObject(&code)) {
-        set_target(Code::cast(code));
+    MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
+        argc, in_loop, Code::KEYED_CALL_IC, Code::kNoExtraICState);
+    Object* code;
+    if (maybe_code->ToObject(&code)) {
+      set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC(
-            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+      TraceIC(
+          "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
 #endif
-      }
-    } else if (FLAG_use_ic && state != MEGAMORPHIC &&
-               !object->IsAccessCheckNeeded()) {
-      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, in_loop, Code::KEYED_CALL_IC, Code::kNoExtraICState);
-      Object* code;
-      if (maybe_code->ToObject(&code)) {
-        set_target(Code::cast(code));
-#ifdef DEBUG
-        TraceIC(
-            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
-#endif
-      }
     }
   }
 
@@ -1254,13 +1237,9 @@ MaybeObject* KeyedLoadIC::Load(State state,
         }
       } else if (object->IsJSObject()) {
         JSObject* receiver = JSObject::cast(*object);
-        Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
-        Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
-        if (elements_map == heap->non_strict_arguments_elements_map()) {
-          stub = non_strict_arguments_stub();
-        } else if (receiver->HasIndexedInterceptor()) {
+        if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
-        } else if (key->IsSmi() && (target() != non_strict_arguments_stub())) {
+        } else if (key->IsSmi()) {
           MaybeObject* maybe_stub = ComputeStub(receiver,
                                                 false,
                                                 kNonStrictMode,
@@ -1830,21 +1809,15 @@ MaybeObject* KeyedStoreIC::Store(State state,
     Code* stub = (strict_mode == kStrictMode)
         ? generic_stub_strict()
         : generic_stub();
-    if (object->IsJSObject()) {
-      JSObject* receiver = JSObject::cast(*object);
-      Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
-      Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
-      if (elements_map == heap->non_strict_arguments_elements_map()) {
-        stub = non_strict_arguments_stub();
-      } else if (!force_generic) {
-        if (key->IsSmi() && (target() != non_strict_arguments_stub())) {
-          MaybeObject* maybe_stub = ComputeStub(receiver,
-                                                true,
-                                                strict_mode,
-                                                stub);
-          stub = maybe_stub->IsFailure() ?
-              NULL : Code::cast(maybe_stub->ToObjectUnchecked());
-        }
+    if (!force_generic) {
+      if (object->IsJSObject() && key->IsSmi()) {
+        JSObject* receiver = JSObject::cast(*object);
+        MaybeObject* maybe_stub = ComputeStub(receiver,
+                                              true,
+                                              strict_mode,
+                                              stub);
+        stub = maybe_stub->IsFailure() ?
+            NULL : Code::cast(maybe_stub->ToObjectUnchecked());
       }
     }
     if (stub != NULL) set_target(stub);

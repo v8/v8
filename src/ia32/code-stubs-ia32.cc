@@ -2898,259 +2898,16 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // esp[0] : return address
   // esp[4] : number of parameters
   // esp[8] : receiver displacement
-  // esp[12] : function
+  // esp[16] : function
 
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &runtime, Label::kNear);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(Operand(esp, 1 * kPointerSize), ecx);
-  __ lea(edx, Operand(edx, ecx, times_2,
-              StandardFrameConstants::kCallerSPOffset));
-  __ mov(Operand(esp, 2 * kPointerSize), edx);
-
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
-}
-
-
-void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
-  // esp[0] : return address
-  // esp[4] : number of parameters (tagged)
-  // esp[8] : receiver displacement
-  // esp[12] : function
-
-  // ebx = parameter count (tagged)
-  __ mov(ebx, Operand(esp, 1 * kPointerSize));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  // TODO(rossberg): Factor out some of the bits that are shared with the other
-  // Generate* functions.
-  Label runtime;
-  Label adaptor_frame, try_allocate;
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
-  __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor_frame, Label::kNear);
-
-  // No adaptor, parameter count = argument count.
-  __ mov(ecx, ebx);
-  __ jmp(&try_allocate, Label::kNear);
-
-  // We have an adaptor frame. Patch the parameters pointer.
-  __ bind(&adaptor_frame);
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lea(edx, Operand(edx, ecx, times_2,
-                      StandardFrameConstants::kCallerSPOffset));
-  __ mov(Operand(esp, 2 * kPointerSize), edx);
-
-  // ebx = parameter count (tagged)
-  // ecx = argument count (tagged)
-  // esp[4] = parameter count (tagged)
-  // esp[8] = address of receiver argument
-  // Compute the mapped parameter count = min(ebx, ecx) in ebx.
-  __ cmp(ebx, Operand(ecx));
-  __ j(less_equal, &try_allocate, Label::kNear);
-  __ mov(ebx, ecx);
-
-  __ bind(&try_allocate);
-
-  // Save mapped parameter count.
-  __ push(ebx);
-
-  // Compute the sizes of backing store, parameter map, and arguments object.
-  // 1. Parameter map, has 2 extra words containing context and backing store.
-  const int kParameterMapHeaderSize =
-      FixedArray::kHeaderSize + 2 * kPointerSize;
-  Label no_parameter_map;
-  __ test(ebx, Operand(ebx));
-  __ j(zero, &no_parameter_map, Label::kNear);
-  __ lea(ebx, Operand(ebx, times_2, kParameterMapHeaderSize));
-  __ bind(&no_parameter_map);
-
-  // 2. Backing store.
-  __ lea(ebx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
-
-  // 3. Arguments object.
-  __ add(Operand(ebx), Immediate(Heap::kArgumentsObjectSize));
-
-  // Do the allocation of all three objects in one go.
-  __ AllocateInNewSpace(ebx, eax, edx, edi, &runtime, TAG_OBJECT);
-
-  // eax = address of new object(s) (tagged)
-  // ecx = argument count (tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[8] = parameter count (tagged)
-  // esp[12] = address of receiver argument
-  // Get the arguments boilerplate from the current (global) context into edi.
-  Label has_mapped_parameters, copy;
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
-  __ mov(ebx, Operand(esp, 0 * kPointerSize));
-  __ test(ebx, Operand(ebx));
-  __ j(not_zero, &has_mapped_parameters, Label::kNear);
-  __ mov(edi, Operand(edi,
-         Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX)));
-  __ jmp(&copy, Label::kNear);
-
-  __ bind(&has_mapped_parameters);
-  __ mov(edi, Operand(edi,
-            Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX)));
-  __ bind(&copy);
-
-  // eax = address of new object (tagged)
-  // ebx = mapped parameter count (tagged)
-  // ecx = argument count (tagged)
-  // edi = address of boilerplate object (tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[8] = parameter count (tagged)
-  // esp[12] = address of receiver argument
-  // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ mov(edx, FieldOperand(edi, i));
-    __ mov(FieldOperand(eax, i), edx);
-  }
-
-  // Setup the callee in-object property.
-  STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-  __ mov(edx, Operand(esp, 4 * kPointerSize));
-  __ mov(FieldOperand(eax, JSObject::kHeaderSize +
-                      Heap::kArgumentsCalleeIndex * kPointerSize),
-         edx);
-
-  // Use the length (smi tagged) and set that as an in-object property too.
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ mov(FieldOperand(eax, JSObject::kHeaderSize +
-                      Heap::kArgumentsLengthIndex * kPointerSize),
-         ecx);
-
-  // Setup the elements pointer in the allocated arguments object.
-  // If we allocated a parameter map, edi will point there, otherwise to the
-  // backing store.
-  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
-
-  // eax = address of new object (tagged)
-  // ebx = mapped parameter count (tagged)
-  // ecx = argument count (tagged)
-  // edi = address of parameter map or backing store (tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[8] = parameter count (tagged)
-  // esp[12] = address of receiver argument
-  // Free a register.
-  __ push(eax);
-
-  // Initialize parameter map. If there are no mapped arguments, we're done.
-  Label skip_parameter_map;
-  __ test(ebx, Operand(ebx));
-  __ j(zero, &skip_parameter_map);
-
-  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->non_strict_arguments_elements_map()));
-  __ lea(eax, Operand(ebx, reinterpret_cast<intptr_t>(Smi::FromInt(2))));
-  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), eax);
-  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 0 * kPointerSize), esi);
-  __ lea(eax, Operand(edi, ebx, times_2, kParameterMapHeaderSize));
-  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 1 * kPointerSize), eax);
-
-  // Copy the parameter slots and the holes in the arguments.
-  // We need to fill in mapped_parameter_count slots. They index the context,
-  // where parameters are stored in reverse order, at
-  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+parameter_count-1
-  // The mapped parameter thus need to get indices
-  //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
-  //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
-  // We loop from right to left.
-  Label parameters_loop, parameters_test;
-  __ push(ecx);
-  __ mov(eax, Operand(esp, 2 * kPointerSize));
-  __ mov(ebx, Immediate(Smi::FromInt(Context::MIN_CONTEXT_SLOTS)));
-  __ add(ebx, Operand(esp, 4 * kPointerSize));
-  __ sub(ebx, Operand(eax));
-  __ mov(ecx, FACTORY->the_hole_value());
-  __ mov(edx, edi);
-  __ lea(edi, Operand(edi, eax, times_2, kParameterMapHeaderSize));
-  // eax = loop variable (tagged)
-  // ebx = mapping index (tagged)
-  // ecx = the hole value
-  // edx = address of parameter map (tagged)
-  // edi = address of backing store (tagged)
-  // esp[0] = argument count (tagged)
-  // esp[4] = address of new object (tagged)
-  // esp[8] = mapped parameter count (tagged)
-  // esp[16] = parameter count (tagged)
-  // esp[20] = address of receiver argument
-  __ jmp(&parameters_test, Label::kNear);
-
-  __ bind(&parameters_loop);
-  __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-  __ mov(FieldOperand(edx, eax, times_2, kParameterMapHeaderSize), ebx);
-  __ mov(FieldOperand(edi, eax, times_2, FixedArray::kHeaderSize), ecx);
-  __ add(Operand(ebx), Immediate(Smi::FromInt(1)));
-  __ bind(&parameters_test);
-  __ test(eax, Operand(eax));
-  __ j(not_zero, &parameters_loop, Label::kNear);
-  __ pop(ecx);
-
-  __ bind(&skip_parameter_map);
-
-  // ecx = argument count (tagged)
-  // edi = address of backing store (tagged)
-  // esp[0] = address of new object (tagged)
-  // esp[4] = mapped parameter count (tagged)
-  // esp[12] = parameter count (tagged)
-  // esp[16] = address of receiver argument
-  // Copy arguments header and remaining slots (if there are any).
-  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
-  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
-
-  Label arguments_loop, arguments_test;
-  __ mov(ebx, Operand(esp, 1 * kPointerSize));
-  __ mov(edx, Operand(esp, 4 * kPointerSize));
-  __ sub(Operand(edx), ebx);  // Is there a smarter way to do negative scaling?
-  __ sub(Operand(edx), ebx);
-  __ jmp(&arguments_test, Label::kNear);
-
-  __ bind(&arguments_loop);
-  __ sub(Operand(edx), Immediate(kPointerSize));
-  __ mov(eax, Operand(edx, 0));
-  __ mov(FieldOperand(edi, ebx, times_2, FixedArray::kHeaderSize), eax);
-  __ add(Operand(ebx), Immediate(Smi::FromInt(1)));
-
-  __ bind(&arguments_test);
-  __ cmp(ebx, Operand(ecx));
-  __ j(less, &arguments_loop, Label::kNear);
-
-  // Restore.
-  __ pop(eax);  // Address of arguments object.
-  __ pop(ebx);  // Parameter count.
-
-  // Return and remove the on-stack parameters.
-  __ ret(3 * kPointerSize);
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ pop(eax);  // Remove saved parameter count.
-  __ mov(Operand(esp, 1 * kPointerSize), ecx);  // Patch argument count.
-  __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
-}
-
-
-void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
-  // esp[0] : return address
-  // esp[4] : number of parameters
-  // esp[8] : receiver displacement
-  // esp[12] : function
+  // The displacement is used for skipping the return address and the
+  // frame pointer on the stack. It is the offset of the last
+  // parameter (if any) relative to the frame pointer.
+  static const int kDisplacement = 2 * kPointerSize;
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
@@ -3167,8 +2924,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ mov(Operand(esp, 1 * kPointerSize), ecx);
-  __ lea(edx, Operand(edx, ecx, times_2,
-                      StandardFrameConstants::kCallerSPOffset));
+  __ lea(edx, Operand(edx, ecx, times_2, kDisplacement));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // Try the new space allocation. Start out with computing the size of
@@ -3179,7 +2935,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ j(zero, &add_arguments_object, Label::kNear);
   __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
-  __ add(Operand(ecx), Immediate(Heap::kArgumentsObjectSizeStrict));
+  __ add(Operand(ecx), Immediate(GetArgumentsObjectSize()));
 
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
@@ -3187,9 +2943,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the arguments boilerplate from the current (global) context.
   __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
-  const int offset =
-      Context::SlotOffset(Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX);
-  __ mov(edi, Operand(edi, offset));
+  __ mov(edi, Operand(edi,
+                      Context::SlotOffset(GetArgumentsBoilerplateIndex())));
 
   // Copy the JS object part.
   for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
@@ -3197,11 +2952,20 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
     __ mov(FieldOperand(eax, i), ebx);
   }
 
+  if (type_ == NEW_NON_STRICT) {
+    // Setup the callee in-object property.
+    STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
+    __ mov(ebx, Operand(esp, 3 * kPointerSize));
+    __ mov(FieldOperand(eax, JSObject::kHeaderSize +
+                             Heap::kArgumentsCalleeIndex * kPointerSize),
+           ebx);
+  }
+
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
-                      Heap::kArgumentsLengthIndex * kPointerSize),
+                           Heap::kArgumentsLengthIndex * kPointerSize),
          ecx);
 
   // If there are no actual arguments, we're done.
@@ -3214,10 +2978,10 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSizeStrict));
+  __ lea(edi, Operand(eax, GetArgumentsObjectSize()));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
   __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
+         Immediate(masm->isolate()->factory()->fixed_array_map()));
 
   __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
   // Untag the length for the loop below.
@@ -3239,7 +3003,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 

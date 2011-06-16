@@ -465,76 +465,6 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
 }
 
 
-static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
-                                             Register object,
-                                             Register key,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* unmapped_case,
-                                             Label* slow_case) {
-  Heap* heap = masm->isolate()->heap();
-  Factory* factory = masm->isolate()->factory();
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(object, slow_case);
-
-  // Check that the key is a positive smi.
-  __ test(key, Immediate(0x8000001));
-  __ j(not_zero, slow_case);
-
-  // Load the elements into scratch1 and check its map.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
-  __ mov(scratch1, FieldOperand(object, JSObject::kElementsOffset));
-  __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
-
-  // Check if element is in the range of mapped arguments. If not, jump
-  // to the unmapped lookup with the parameter map in scratch1.
-  __ mov(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
-  __ sub(Operand(scratch2), Immediate(Smi::FromInt(2)));
-  __ cmp(key, Operand(scratch2));
-  __ j(greater_equal, unmapped_case);
-
-  // Load element index and check whether it is the hole.
-  const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
-  __ mov(scratch2, FieldOperand(scratch1,
-                                key,
-                                times_half_pointer_size,
-                                kHeaderSize));
-  __ cmp(scratch2, factory->the_hole_value());
-  __ j(equal, unmapped_case);
-
-  // Load value from context and return it. We can reuse scratch1 because
-  // we do not jump to the unmapped lookup (which requires the parameter
-  // map in scratch1).
-  const int kContextOffset = FixedArray::kHeaderSize;
-  __ mov(scratch1, FieldOperand(scratch1, kContextOffset));
-  return FieldOperand(scratch1,
-                      scratch2,
-                      times_half_pointer_size,
-                      Context::kHeaderSize);
-}
-
-
-static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
-                                               Register key,
-                                               Register parameter_map,
-                                               Register scratch,
-                                               Label* slow_case) {
-  // Element is in arguments backing store, which is referenced by the
-  // second element of the parameter_map.
-  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
-  Register backing_store = parameter_map;
-  __ mov(backing_store, FieldOperand(parameter_map, kBackingStoreOffset));
-  __ mov(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(scratch));
-  __ j(greater_equal, slow_case);
-  return FieldOperand(backing_store,
-                      key,
-                      times_half_pointer_size,
-                      FixedArray::kHeaderSize);
-}
-
-
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -764,54 +694,6 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
                         masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 
-  __ bind(&slow);
-  GenerateMiss(masm, false);
-}
-
-
-void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label slow, notin;
-  Factory* factory = masm->isolate()->factory();
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(masm, edx, eax, ebx, ecx, &notin, &slow);
-  __ mov(eax, mapped_location);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, eax, ebx, ecx, &slow);
-  __ cmp(unmapped_location, factory->the_hole_value());
-  __ j(equal, &slow);
-  __ mov(eax, unmapped_location);
-  __ Ret();
-  __ bind(&slow);
-  GenerateMiss(masm, false);
-}
-
-
-void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label slow, notin;
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(masm, edx, ecx, ebx, edi, &notin, &slow);
-  __ mov(mapped_location, eax);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, ecx, ebx, edi, &slow);
-  __ mov(unmapped_location, eax);
-  __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
 }
@@ -1261,35 +1143,6 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ IndexFromHash(ebx, ecx);
   // Now jump to the place where smi keys are handled.
   __ jmp(&index_smi);
-}
-
-
-void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
-                                             int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-  Label slow, notin;
-  Factory* factory = masm->isolate()->factory();
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(masm, edx, ecx, ebx, eax, &notin, &slow);
-  __ mov(edi, mapped_location);
-  GenerateFunctionTailCall(masm, argc, &slow);
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, ecx, ebx, eax, &slow);
-  __ cmp(unmapped_location, factory->the_hole_value());
-  __ j(equal, &slow);
-  __ mov(edi, unmapped_location);
-  GenerateFunctionTailCall(masm, argc, &slow);
-  __ bind(&slow);
-  GenerateMiss(masm, argc);
 }
 
 

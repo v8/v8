@@ -81,7 +81,7 @@ class Variable: public ZoneObject {
   // Printing support
   static const char* Mode2String(Mode mode);
 
-  // Type testing & conversion.  Global variables are not slots.
+  // Type testing & conversion
   Property* AsProperty() const;
   Slot* AsSlot() const;
 
@@ -138,8 +138,8 @@ class Variable: public ZoneObject {
     local_if_not_shadowed_ = local;
   }
 
-  Slot* rewrite() const { return rewrite_; }
-  void set_rewrite(Slot* slot) { rewrite_ = slot; }
+  Expression* rewrite() const { return rewrite_; }
+  void set_rewrite(Expression* expr) { rewrite_ = expr; }
 
  private:
   Scope* scope_;
@@ -150,7 +150,8 @@ class Variable: public ZoneObject {
   Variable* local_if_not_shadowed_;
 
   // Code generation.
-  Slot* rewrite_;
+  // rewrite_ is usually a Slot or a Property, but may be any expression.
+  Expression* rewrite_;
 
   // Valid as a LHS? (const and this are not valid LHS, for example)
   bool is_valid_LHS_;

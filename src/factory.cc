@@ -250,10 +250,11 @@ Handle<Context> Factory::NewFunctionContext(int length,
 
 
 Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
-                                         Handle<JSObject> extension) {
+                                         Handle<String> name,
+                                         Handle<Object> thrown_object) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateCatchContext(*previous, *extension),
+      isolate()->heap()->AllocateCatchContext(*previous, *name, *thrown_object),
       Context);
 }
 
