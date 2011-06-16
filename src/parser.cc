@@ -657,6 +657,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           0,
           source->length(),
+          false,
           false);
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
@@ -3549,6 +3550,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   int end_pos;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
+  bool has_duplicate_parameters = false;
   // Parse function body.
   { LexicalScope lexical_scope(this, scope, isolate());
     top_scope_->SetScopeName(name);
@@ -3572,6 +3574,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         name_loc = scanner().location();
       }
       if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        has_duplicate_parameters = true;
         dupe_loc = scanner().location();
       }
       if (!reserved_loc.IsValid() && is_reserved) {
@@ -3707,7 +3710,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                                   num_parameters,
                                   start_pos,
                                   end_pos,
-                                  (function_name->length() > 0));
+                                  (function_name->length() > 0),
+                                  has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
 
   if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);

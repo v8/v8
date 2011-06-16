@@ -88,6 +88,8 @@ enum ContextLookupFlags {
   V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
+  V(ALIASED_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    aliased_arguments_boilerplate) \
   V(STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
     strict_mode_arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
@@ -195,6 +197,7 @@ class Context: public FixedArray {
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     ARGUMENTS_BOILERPLATE_INDEX,
+    ALIASED_ARGUMENTS_BOILERPLATE_INDEX,
     STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX,
     JS_ARRAY_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,

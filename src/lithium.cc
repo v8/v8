@@ -184,6 +184,7 @@ int ElementsKindToShiftSize(JSObject::ElementsKind elements_kind) {
       return 3;
     case JSObject::FAST_ELEMENTS:
     case JSObject::DICTIONARY_ELEMENTS:
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
       return kPointerSizeLog2;
   }
   UNREACHABLE();

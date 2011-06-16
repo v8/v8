@@ -251,12 +251,7 @@ class Scope: public ZoneObject {
   int num_parameters() const { return params_.length(); }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
-  // If arguments() exist, arguments_shadow() exists, too.
   Variable* arguments() const { return arguments_; }
-
-  // The '.arguments' shadow variable if we need to allocate it; NULL otherwise.
-  // If arguments_shadow() exist, arguments() exists, too.
-  Variable* arguments_shadow() const { return arguments_shadow_; }
 
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
@@ -355,8 +350,6 @@ class Scope: public ZoneObject {
   Variable* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Convenience variable; function scopes only.
-  Variable* arguments_shadow_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;

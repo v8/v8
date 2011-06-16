@@ -1849,6 +1849,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_external_float_array_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_non_strict_arguments_elements_map(Map::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
                                          ExternalArray::kAlignedSize);
     if (!maybe_obj->ToObject(&obj)) return false;

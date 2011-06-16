@@ -645,8 +645,8 @@ bool Object::IsHashTable() {
 
 
 bool Object::IsDictionary() {
-  return IsHashTable() && this !=
-         HeapObject::cast(this)->GetHeap()->symbol_table();
+  return IsHashTable() &&
+      this != HeapObject::cast(this)->GetHeap()->symbol_table();
 }
 
 
@@ -3288,13 +3288,22 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
-BOOL_GETTER(SharedFunctionInfo, compiler_hints,
+BOOL_GETTER(SharedFunctionInfo,
+            compiler_hints,
             has_only_simple_this_property_assignments,
             kHasOnlySimpleThisPropertyAssignments)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                allows_lazy_compilation,
                kAllowLazyCompilation)
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               uses_arguments,
+               kUsesArguments)
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               has_duplicate_parameters,
+               kHasDuplicateParameters)
 
 
 #if V8_HOST_ARCH_32_BIT
@@ -3378,18 +3387,10 @@ void SharedFunctionInfo::set_construction_count(int value) {
 }
 
 
-bool SharedFunctionInfo::live_objects_may_exist() {
-  return (compiler_hints() & (1 << kLiveObjectsMayExist)) != 0;
-}
-
-
-void SharedFunctionInfo::set_live_objects_may_exist(bool value) {
-  if (value) {
-    set_compiler_hints(compiler_hints() | (1 << kLiveObjectsMayExist));
-  } else {
-    set_compiler_hints(compiler_hints() & ~(1 << kLiveObjectsMayExist));
-  }
-}
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               live_objects_may_exist,
+               kLiveObjectsMayExist)
 
 
 bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
@@ -3397,9 +3398,10 @@ bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
 }
 
 
-bool SharedFunctionInfo::optimization_disabled() {
-  return BooleanBit::get(compiler_hints(), kOptimizationDisabled);
-}
+BOOL_GETTER(SharedFunctionInfo,
+            compiler_hints,
+            optimization_disabled,
+            kOptimizationDisabled)
 
 
 void SharedFunctionInfo::set_optimization_disabled(bool disable) {
@@ -3414,16 +3416,10 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-bool SharedFunctionInfo::strict_mode() {
-  return BooleanBit::get(compiler_hints(), kStrictModeFunction);
-}
-
-
-void SharedFunctionInfo::set_strict_mode(bool value) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kStrictModeFunction,
-                                     value));
-}
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               strict_mode,
+               kStrictModeFunction)
 
 
 bool SharedFunctionInfo::native() {

@@ -82,6 +82,7 @@ namespace internal {
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
+  F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \

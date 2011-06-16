@@ -74,8 +74,10 @@ void Context::set_global_proxy(JSObject* object) {
 }
 
 
-Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
-                               int* index_, PropertyAttributes* attributes) {
+Handle<Object> Context::Lookup(Handle<String> name,
+                               ContextLookupFlags flags,
+                               int* index_,
+                               PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -135,16 +137,13 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // Only functions can have locals, parameters, and a function name.
     if (context->IsFunctionContext()) {
-      // we have context-local slots
-
-      // check non-parameter locals in context
+      // We may have context-local slots.  Check locals in the context.
       Handle<SerializedScopeInfo> scope_info(
           context->closure()->shared()->scope_info(), isolate);
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
       if (index >= 0) {
-        // slot found
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
                  index, mode);
@@ -157,39 +156,28 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         // declared variables that were introduced through declaration nodes)
         // must not appear here.
         switch (mode) {
-          case Variable::INTERNAL:  // fall through
-          case Variable::VAR: *attributes = NONE; break;
-          case Variable::CONST: *attributes = READ_ONLY; break;
-          case Variable::DYNAMIC: UNREACHABLE(); break;
-          case Variable::DYNAMIC_GLOBAL: UNREACHABLE(); break;
-          case Variable::DYNAMIC_LOCAL: UNREACHABLE(); break;
-          case Variable::TEMPORARY: UNREACHABLE(); break;
+          case Variable::INTERNAL:  // Fall through.
+          case Variable::VAR:
+            *attributes = NONE;
+            break;
+          case Variable::CONST:
+            *attributes = READ_ONLY;
+            break;
+          case Variable::DYNAMIC:
+          case Variable::DYNAMIC_GLOBAL:
+          case Variable::DYNAMIC_LOCAL:
+          case Variable::TEMPORARY:
+            UNREACHABLE();
+            break;
         }
         return context;
       }
 
-      // check parameter locals in context
-      int param_index = scope_info->ParameterIndex(*name);
-      if (param_index >= 0) {
-        // slot found.
-        int index = scope_info->ContextSlotIndex(
-            isolate->heap()->arguments_shadow_symbol(), NULL);
-        ASSERT(index >= 0);  // arguments must exist and be in the heap context
-        Handle<JSObject> arguments(JSObject::cast(context->get(index)),
-                                   isolate);
-        if (FLAG_trace_contexts) {
-          PrintF("=> found parameter %d in arguments object\n", param_index);
-        }
-        *index_ = param_index;
-        *attributes = NONE;
-        return arguments;
-      }
-
-      // check intermediate context (holding only the function name variable)
+      // Check the slot corresponding to the intermediate context holding
+      // only the function name variable.
       if (follow_context_chain) {
         int index = scope_info->FunctionContextSlotIndex(*name);
         if (index >= 0) {
-          // slot found
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
                    index);
@@ -209,7 +197,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     }
   } while (follow_context_chain);
 
-  // slot not found
   if (FLAG_trace_contexts) {
     PrintF("=> no property/slot found\n");
   }

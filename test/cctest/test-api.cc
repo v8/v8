@@ -9571,6 +9571,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
+  HEAP->global_context_map();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();
