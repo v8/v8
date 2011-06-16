@@ -1064,8 +1064,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Set up a well-formed parameter map to make assertions happy.
     Handle<FixedArray> elements = factory->NewFixedArray(2);
     elements->set_map(heap->non_strict_arguments_elements_map());
-    elements->set(0, *factory->NewFixedArray(0));
-    elements->set(1, *factory->NewFixedArray(0));
+    Handle<FixedArray> array;
+    array = factory->NewFixedArray(0);
+    elements->set(0, *array);
+    array = factory->NewFixedArray(0);
+    elements->set(1, *array);
     result->set_elements(*elements);
     global_context()->set_aliased_arguments_boilerplate(*result);
   }
