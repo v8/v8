@@ -3381,7 +3381,7 @@ class DeoptimizationInputData: public FixedArray {
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationInputDataPrint(FILE* out);
 #endif
 
@@ -3420,7 +3420,7 @@ class DeoptimizationOutputData: public FixedArray {
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationOutputDataPrint(FILE* out);
 #endif
 };

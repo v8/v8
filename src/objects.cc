@@ -6802,9 +6802,7 @@ Map* Code::FindFirstMap() {
 }
 
 
-#ifdef ENABLE_DISASSEMBLER
-
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   disasm::NameConverter converter;
@@ -6952,8 +6950,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
   }
 }
 
-#endif
+#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
+
+#ifdef ENABLE_DISASSEMBLER
 
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
