@@ -3409,7 +3409,7 @@ class DeoptimizationInputData: public FixedArray {
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationInputDataPrint(FILE* out);
 #endif
 
@@ -3448,7 +3448,7 @@ class DeoptimizationOutputData: public FixedArray {
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationOutputDataPrint(FILE* out);
 #endif
 };
@@ -4628,6 +4628,11 @@ class SharedFunctionInfo: public HeapObject {
   inline bool native();
   inline void set_native(bool value);
 
+  // Indicates whether the function is a bound function created using
+  // the bind function.
+  inline bool bound();
+  inline void set_bound(bool value);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -4808,6 +4813,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
   static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
+  static const int kBoundFunction = 9;
 
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,

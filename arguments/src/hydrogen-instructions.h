@@ -2789,13 +2789,11 @@ class HInstanceOf: public HTemplateInstruction<3> {
   HValue* left() { return OperandAt(1); }
   HValue* right() { return OperandAt(2); }
 
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType();
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -2816,6 +2814,8 @@ class HInstanceOfKnownGlobal: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal)
 
@@ -4004,6 +4004,8 @@ class HDeleteProperty: public HBinaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(DeleteProperty)
 

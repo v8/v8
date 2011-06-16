@@ -1286,7 +1286,12 @@ class SparseSet {
       : capacity_(capacity),
         length_(0),
         dense_(zone->NewArray<int>(capacity)),
-        sparse_(zone->NewArray<int>(capacity)) {}
+        sparse_(zone->NewArray<int>(capacity)) {
+#ifndef NVALGRIND
+    // Initialize the sparse array to make valgrind happy.
+    memset(sparse_, 0, sizeof(sparse_[0]) * capacity);
+#endif
+  }
 
   bool Contains(int n) const {
     ASSERT(0 <= n && n < capacity_);
@@ -2007,9 +2012,10 @@ FunctionState::FunctionState(HGraphBuilder* owner,
       HBasicBlock* if_false = owner->graph()->CreateBasicBlock();
       if_true->MarkAsInlineReturnTarget();
       if_false->MarkAsInlineReturnTarget();
+      Expression* cond = TestContext::cast(owner->ast_context())->condition();
       // The AstContext constructor pushed on the context stack.  This newed
       // instance is the reason that AstContext can't be BASE_EMBEDDED.
-      test_context_ = new TestContext(owner, if_true, if_false);
+      test_context_ = new TestContext(owner, cond, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
       function_return()->MarkAsInlineReturnTarget();
@@ -2179,7 +2185,7 @@ void HGraphBuilder::VisitForTypeOf(Expression* expr) {
 void HGraphBuilder::VisitForControl(Expression* expr,
                                     HBasicBlock* true_block,
                                     HBasicBlock* false_block) {
-  TestContext for_test(this, true_block, false_block);
+  TestContext for_test(this, expr, true_block, false_block);
   Visit(expr);
 }
 

@@ -587,7 +587,7 @@ bool CountOperation::IsInlineable() const {
 
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
-  is_monomorphic_ = oracle->LoadIsMonomorphic(this);
+  is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
@@ -614,7 +614,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
-  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
     ASSERT(lit_key != NULL && lit_key->handle()->IsString());
@@ -629,7 +629,7 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
@@ -922,6 +922,26 @@ bool RegExpCapture::IsAnchoredAtStart() {
 
 bool RegExpCapture::IsAnchoredAtEnd() {
   return body()->IsAnchoredAtEnd();
+}
+
+
+bool RegExpDisjunction::ContainsExpandedQuantifier() {
+  if (contains_expanded_quantifier_) return true;
+  int len = alternatives_->length();
+  for (int i = 0; i < len; i++) {
+    if (alternatives_->at(i)->ContainsExpandedQuantifier()) return true;
+  }
+  return false;
+}
+
+
+bool RegExpAlternative::ContainsExpandedQuantifier() {
+  if (contains_expanded_quantifier_) return true;
+  int len = nodes_->length();
+  for (int i = 0; i < len; i++) {
+    if (nodes_->at(i)->ContainsExpandedQuantifier()) return true;
+  }
+  return false;
 }
 
 

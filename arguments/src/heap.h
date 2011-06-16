@@ -648,7 +648,8 @@ class Heap {
 
   // Allocate a catch context.
   MUST_USE_RESULT MaybeObject* AllocateCatchContext(Context* previous,
-                                                    JSObject* extension);
+                                                    String* name,
+                                                    Object* thrown_object);
   // Allocate a 'with' context.
   MUST_USE_RESULT MaybeObject* AllocateWithContext(Context* previous,
                                                    JSObject* extension);

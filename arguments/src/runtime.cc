@@ -614,31 +614,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(String, key, args[0]);
-  Object* value = args[1];
-  ASSERT(!value->IsFailure());
-  // Create a catch context extension object.
-  JSFunction* constructor =
-      isolate->context()->global_context()->
-          context_extension_function();
-  Object* object;
-  { MaybeObject* maybe_object = isolate->heap()->AllocateJSObject(constructor);
-    if (!maybe_object->ToObject(&object)) return maybe_object;
-  }
-  // Assign the exception value to the catch variable and make sure
-  // that the catch variable is DontDelete.
-  { MaybeObject* maybe_value =
-        // Passing non-strict per ECMA-262 5th Ed. 12.14. Catch, bullet #4.
-        JSObject::cast(object)->SetProperty(
-            key, value, DONT_DELETE, kNonStrictMode);
-    if (!maybe_value->ToObject(&value)) return maybe_value;
-  }
-  return object;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -1263,6 +1238,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
+  ASSERT(context->IsFunctionContext() || context->IsGlobalContext());
 
   int index;
   PropertyAttributes attributes;
@@ -1316,7 +1292,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     Handle<JSObject> context_ext;
     if (context->has_extension()) {
       // The function context's extension context exists - use it.
-      context_ext = Handle<JSObject>(context->extension());
+      context_ext = Handle<JSObject>(JSObject::cast(context->extension()));
     } else {
       // The function context's extension context does not exists - allocate
       // it.
@@ -1884,6 +1860,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetName) {
   return isolate->heap()->undefined_value();
 }
 
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetBound) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  fun->shared()->set_bound(true);
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   NoHandleAllocation ha;
@@ -3926,7 +3911,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   }
 
   LookupResult result;
-  js_object->LookupRealNamedProperty(*name, &result);
+  js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // To be compatible with safari we do not change the value on API objects
   // in defineProperty. Firefox disagrees here, and actually changes the value.
@@ -3966,6 +3951,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
+// Special case for elements if any of the flags are true.
+// If elements are in fast case we always implicitly assume that:
+// DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
+static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
+                                              Handle<JSObject> js_object,
+                                              uint32_t index,
+                                              Handle<Object> value,
+                                              PropertyAttributes attr) {
+  // Normalize the elements to enable attributes on the property.
+  NormalizeElements(js_object);
+  Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+  // Make sure that we never go back to fast case.
+  dictionary->set_requires_slow_elements();
+  PropertyDetails details = PropertyDetails(attr, NORMAL);
+  Handle<NumberDictionary> extended_dictionary =
+      NumberDictionarySet(dictionary, index, value, details);
+  if (*extended_dictionary != *dictionary) {
+    js_object->set_elements(*extended_dictionary);
+  }
+  return *value;
+}
+
+
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
@@ -4001,6 +4009,10 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
+    if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
+      return NormalizeObjectSetElement(isolate, js_object, index, value, attr);
+    }
+
     Handle<Object> result = SetElement(js_object, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -4009,6 +4021,13 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
+        return NormalizeObjectSetElement(isolate,
+                                         js_object,
+                                         index,
+                                         value,
+                                         attr);
+      }
       result = SetElement(js_object, index, value, strict_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
@@ -7592,7 +7611,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
 
   // If function should not have prototype, construction is not allowed. In this
   // case generated code bailouts here, since function has no initial_map.
-  if (!function->should_have_prototype()) {
+  if (!function->should_have_prototype() && !function->shared()->bound()) {
     Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
     Handle<Object> type_error =
         isolate->factory()->NewTypeError("not_constructor", arguments);
@@ -8045,12 +8064,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  JSObject* extension_object = JSObject::cast(args[0]);
+  ASSERT(args.length() == 2);
+  String* name = String::cast(args[0]);
+  Object* thrown_object = args[1];
   Context* context;
   MaybeObject* maybe_context =
       isolate->heap()->AllocateCatchContext(isolate->context(),
-                                            extension_object);
+                                            name,
+                                            thrown_object);
   if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
   return context;
@@ -10276,6 +10297,23 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
 }
 
 
+// Create a plain JSObject which materializes the scope for the specified
+// catch context.
+static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
+                                              Handle<Context> context) {
+  ASSERT(context->IsCatchContext());
+  Handle<String> name(String::cast(context->extension()));
+  Handle<Object> thrown_object(context->get(Context::THROWN_OBJECT_INDEX));
+  Handle<JSObject> catch_scope =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  RETURN_IF_EMPTY_HANDLE_VALUE(
+      isolate,
+      SetProperty(catch_scope, name, thrown_object, NONE, kNonStrictMode),
+      Handle<JSObject>());
+  return catch_scope;
+}
+
+
 // Iterate over the actual scopes visible from a stack frame. All scopes are
 // backed by an actual context except the local scope, which is inserted
 // "artifically" in the context chain.
@@ -10286,10 +10324,6 @@ class ScopeIterator {
     ScopeTypeLocal,
     ScopeTypeWith,
     ScopeTypeClosure,
-    // Every catch block contains an implicit with block (its parameter is
-    // a JSContextExtensionObject) that extends current scope with a variable
-    // holding exception object. Such with blocks are treated as scopes of their
-    // own type.
     ScopeTypeCatch
   };
 
@@ -10313,8 +10347,8 @@ class ScopeIterator {
     } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
-      // The context_ is a with block from the outer function.
-      ASSERT(context_->has_extension());
+      // The context_ is a with or catch block from the outer function.
+      ASSERT(context_->IsWithContext() || context_->IsCatchContext());
       at_local_ = true;
     }
   }
@@ -10366,15 +10400,10 @@ class ScopeIterator {
     if (context_->IsFunctionContext()) {
       return ScopeTypeClosure;
     }
-    ASSERT(context_->has_extension());
-    // Current scope is either an explicit with statement or a with statement
-    // implicitely generated for a catch block.
-    // If the extension object here is a JSContextExtensionObject then
-    // current with statement is one frome a catch block otherwise it's a
-    // regular with statement.
-    if (context_->extension()->IsJSContextExtensionObject()) {
+    if (context_->IsCatchContext()) {
       return ScopeTypeCatch;
     }
+    ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
 
@@ -10383,20 +10412,17 @@ class ScopeIterator {
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
         return Handle<JSObject>(CurrentContext()->global());
-        break;
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
         return MaterializeLocalScope(isolate_, frame_);
-        break;
       case ScopeIterator::ScopeTypeWith:
-      case ScopeIterator::ScopeTypeCatch:
         // Return the with object.
-        return Handle<JSObject>(CurrentContext()->extension());
-        break;
+        return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
+      case ScopeIterator::ScopeTypeCatch:
+        return MaterializeCatchScope(isolate_, CurrentContext());
       case ScopeIterator::ScopeTypeClosure:
         // Materialize the content of the closure scope into a JSObject.
         return MaterializeClosure(isolate_, CurrentContext());
-        break;
     }
     UNREACHABLE();
     return Handle<JSObject>();
@@ -10427,8 +10453,7 @@ class ScopeIterator {
         if (!CurrentContext().is_null()) {
           CurrentContext()->Print();
           if (CurrentContext()->has_extension()) {
-            Handle<JSObject> extension =
-                Handle<JSObject>(CurrentContext()->extension());
+            Handle<Object> extension(CurrentContext()->extension());
             if (extension->IsJSContextExtensionObject()) {
               extension->Print();
             }
@@ -10437,34 +10462,27 @@ class ScopeIterator {
         break;
       }
 
-      case ScopeIterator::ScopeTypeWith: {
+      case ScopeIterator::ScopeTypeWith:
         PrintF("With:\n");
-        Handle<JSObject> extension =
-            Handle<JSObject>(CurrentContext()->extension());
-        extension->Print();
+        CurrentContext()->extension()->Print();
         break;
-      }
 
-      case ScopeIterator::ScopeTypeCatch: {
+      case ScopeIterator::ScopeTypeCatch:
         PrintF("Catch:\n");
-        Handle<JSObject> extension =
-            Handle<JSObject>(CurrentContext()->extension());
-        extension->Print();
+        CurrentContext()->extension()->Print();
+        CurrentContext()->get(Context::THROWN_OBJECT_INDEX)->Print();
         break;
-      }
 
-      case ScopeIterator::ScopeTypeClosure: {
+      case ScopeIterator::ScopeTypeClosure:
         PrintF("Closure:\n");
         CurrentContext()->Print();
         if (CurrentContext()->has_extension()) {
-          Handle<JSObject> extension =
-              Handle<JSObject>(CurrentContext()->extension());
+          Handle<Object> extension(CurrentContext()->extension());
           if (extension->IsJSContextExtensionObject()) {
             extension->Print();
           }
         }
         break;
-      }
 
       default:
         UNREACHABLE();
@@ -10943,10 +10961,17 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
   HandleScope scope(isolate);
   Handle<Context> previous(current->previous());
   Handle<Context> new_previous = CopyWithContextChain(isolate, previous, base);
-  Handle<JSObject> extension(JSObject::cast(current->extension()));
-  Handle<Context> new_current = current->IsCatchContext()
-      ? isolate->factory()->NewCatchContext(new_previous, extension)
-      : isolate->factory()->NewWithContext(new_previous, extension);
+  Handle<Context> new_current;
+  if (current->IsCatchContext()) {
+    Handle<String> name(String::cast(current->extension()));
+    Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX));
+    new_current =
+        isolate->factory()->NewCatchContext(new_previous, name, thrown_object);
+  } else {
+    Handle<JSObject> extension(JSObject::cast(current->extension()));
+    new_current =
+        isolate->factory()->NewWithContext(new_previous, extension);
+  }
   return scope.CloseAndEscape(new_current);
 }
 

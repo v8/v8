@@ -151,7 +151,8 @@ class Factory {
 
   // Create a catch context.
   Handle<Context> NewCatchContext(Handle<Context> previous,
-                                  Handle<JSObject> extension);
+                                  Handle<String> name,
+                                  Handle<Object> thrown_object);
 
   // Create a 'with' context.
   Handle<Context> NewWithContext(Handle<Context> previous,

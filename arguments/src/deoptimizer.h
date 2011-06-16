@@ -495,7 +495,7 @@ class Translation BASE_EMBEDDED {
 
   static int NumberOfOperandsFor(Opcode opcode);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   static const char* StringFor(Opcode opcode);
 #endif
 

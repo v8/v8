@@ -3766,7 +3766,9 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool needs_capture_clearing = !capture_registers.is_empty();
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (FLAG_regexp_optimization && !needs_capture_clearing) {
+  } else if (FLAG_regexp_optimization &&
+             !body->ContainsExpandedQuantifier() &&
+             !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
@@ -3780,6 +3782,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
       for (int i = 0; i < min; i++) {
         answer = body->ToNode(compiler, answer);
       }
+      if (min > 1) body->set_contains_expanded_quantifier(true);
       return answer;
     }
     if (max <= kMaxUnrolledMaxMatches) {
@@ -3800,6 +3803,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
         answer = alternation;
         if (not_at_start) alternation->set_not_at_start();
       }
+      if (max > 1) body->set_contains_expanded_quantifier(true);
       return answer;
     }
   }

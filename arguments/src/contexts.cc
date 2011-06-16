@@ -100,23 +100,38 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     // Check extension/with/global object.
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
-                                                    isolate);
-      // Context extension objects needs to behave as if they have no
-      // prototype.  So even if we want to follow prototype chains, we
-      // need to only do a local lookup for context extension objects.
-      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-          extension->IsJSContextExtensionObject()) {
-        *attributes = extension->GetLocalPropertyAttribute(*name);
-      } else {
-        *attributes = extension->GetPropertyAttribute(*name);
-      }
-      if (*attributes != ABSENT) {
-        if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n",
-                 reinterpret_cast<void*>(*extension));
+      if (context->IsCatchContext()) {
+        // Catch contexts have the variable name in the extension slot.
+        if (name->Equals(String::cast(context->extension()))) {
+          if (FLAG_trace_contexts) {
+            PrintF("=> found in catch context\n");
+          }
+          *index_ = Context::THROWN_OBJECT_INDEX;
+          *attributes = NONE;
+          return context;
         }
-        return extension;
+      } else {
+        // Global, function, and with contexts may have an object in the
+        // extension slot.
+        Handle<JSObject> extension(JSObject::cast(context->extension()),
+                                   isolate);
+        // Context extension objects needs to behave as if they have no
+        // prototype.  So even if we want to follow prototype chains, we
+        // need to only do a local lookup for context extension objects.
+        if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+            extension->IsJSContextExtensionObject()) {
+          *attributes = extension->GetLocalPropertyAttribute(*name);
+        } else {
+          *attributes = extension->GetPropertyAttribute(*name);
+        }
+        if (*attributes != ABSENT) {
+          // property found
+          if (FLAG_trace_contexts) {
+            PrintF("=> found property in context object %p\n",
+                   reinterpret_cast<void*>(*extension));
+          }
+          return extension;
+        }
       }
     }
 
@@ -196,8 +211,8 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // before the global context and check that there are no context
   // extension objects (conservative check for with statements).
   while (!context->IsGlobalContext()) {
-    // Check if the context is a catch or with context, or has called
-    // non-strict eval.
+    // Check if the context is a catch or with context, or has introduced
+    // bindings by calling non-strict eval.
     if (context->has_extension()) return false;
 
     // Not a with context so it must be a function context.

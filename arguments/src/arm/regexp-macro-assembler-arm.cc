@@ -899,13 +899,12 @@ void RegExpMacroAssemblerARM::PushBacktrack(Label* label) {
       constant_offset - offset_of_pc_register_read;
     ASSERT(pc_offset_of_constant < 0);
     if (is_valid_memory_offset(pc_offset_of_constant)) {
-      masm_->BlockConstPoolBefore(masm_->pc_offset() + Assembler::kInstrSize);
+      Assembler::BlockConstPoolScope block_const_pool(masm_);
       __ ldr(r0, MemOperand(pc, pc_offset_of_constant));
     } else {
       // Not a 12-bit offset, so it needs to be loaded from the constant
       // pool.
-      masm_->BlockConstPoolBefore(
-          masm_->pc_offset() + 2 * Assembler::kInstrSize);
+      Assembler::BlockConstPoolScope block_const_pool(masm_);
       __ mov(r0, Operand(pc_offset_of_constant + Assembler::kInstrSize));
       __ ldr(r0, MemOperand(pc, r0));
     }
@@ -1185,8 +1184,7 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
 
 void RegExpMacroAssemblerARM::EmitBacktrackConstantPool() {
   __ CheckConstPool(false, false);
-  __ BlockConstPoolBefore(
-      masm_->pc_offset() + kBacktrackConstantPoolSize * Assembler::kInstrSize);
+  Assembler::BlockConstPoolScope block_const_pool(masm_);
   backtrack_constant_pool_offset_ = masm_->pc_offset();
   for (int i = 0; i < kBacktrackConstantPoolSize; i++) {
     __ emit(0);

@@ -3297,9 +3297,9 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
     }
 
-    // Check the context extension if any.
-    if (context->has_extension()) {
-      return context->extension()->ReferencesObject(obj);
+    // Check the context extension (if any) if it can have references.
+    if (context->has_extension() && !context->IsCatchContext()) {
+      return JSObject::cast(context->extension())->ReferencesObject(obj);
     }
   }
 
@@ -6924,9 +6924,7 @@ Map* Code::FindFirstMap() {
 }
 
 
-#ifdef ENABLE_DISASSEMBLER
-
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   disasm::NameConverter converter;
@@ -7074,8 +7072,10 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
   }
 }
 
-#endif
+#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
+
+#ifdef ENABLE_DISASSEMBLER
 
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
@@ -7178,7 +7178,6 @@ void Code::Disassemble(const char* name, FILE* out) {
   Disassembler::Decode(out, this);
   PrintF(out, "\n");
 
-#ifdef DEBUG
   if (kind() == FUNCTION) {
     DeoptimizationOutputData* data =
         DeoptimizationOutputData::cast(this->deoptimization_data());
@@ -7189,7 +7188,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     data->DeoptimizationInputDataPrint(out);
   }
   PrintF("\n");
-#endif
 
   if (kind() == OPTIMIZED_FUNCTION) {
     SafepointTable table(this);
