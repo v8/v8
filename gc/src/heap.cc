@@ -1035,8 +1035,8 @@ void Heap::Scavenge() {
   // for the addresses of promoted objects: every object promoted
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
-  Address new_space_front = new_space_.ToSpaceLow();
-  promotion_queue_.Initialize(new_space_.ToSpaceHigh());
+  Address new_space_front = new_space_.ToSpaceStart();
+  promotion_queue_.Initialize(new_space_.ToSpaceEnd());
 
 #ifdef DEBUG
   store_buffer()->Clean();
@@ -1444,8 +1444,9 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
     }
-    Object* result =
-        heap->new_space()->AllocateRaw(object_size)->ToObjectUnchecked();
+    MaybeObject* allocation = heap->new_space()->AllocateRaw(object_size);
+    Object* result = allocation->ToObjectUnchecked();
+
     *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
     return;
   }
@@ -4255,8 +4256,8 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
 
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
-  NewSpacePageIterator it(new_space_.FromSpaceLow(),
-                          new_space_.FromSpaceHigh());
+  NewSpacePageIterator it(new_space_.FromSpaceStart(),
+                          new_space_.FromSpaceEnd());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
     for (Address cursor = page->body(), limit = page->body_limit();

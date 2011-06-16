@@ -210,7 +210,7 @@ void IncrementalMarking::ClearMarkbits(PagedSpace* space) {
 
 
 void IncrementalMarking::ClearMarkbits(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
   while (it.has_next()) {
     NewSpacePage* p = it.next();
     p->markbits()->Clear();
@@ -248,7 +248,7 @@ void IncrementalMarking::VerifyMarkbitsAreClean(PagedSpace* space) {
 
 
 void IncrementalMarking::VerifyMarkbitsAreClean(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
     NewSpacePage* p = it.next();
@@ -375,8 +375,8 @@ void IncrementalMarking::StartMarking() {
 
 void IncrementalMarking::PrepareForScavenge() {
   if (!IsMarking()) return;
-  NewSpacePageIterator it(heap_->new_space()->FromSpaceLow(),
-                          heap_->new_space()->FromSpaceHigh());
+  NewSpacePageIterator it(heap_->new_space()->FromSpaceStart(),
+                          heap_->new_space()->FromSpaceEnd());
   while (it.has_next()) {
     it.next()->markbits()->Clear();
   }

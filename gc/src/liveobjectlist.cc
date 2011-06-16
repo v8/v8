@@ -2576,7 +2576,7 @@ void LiveObjectList::VerifyNotInFromSpace() {
     HeapObject* heap_obj = it.Obj();
     if (Heap::InFromSpace(heap_obj)) {
       OS::Print(" ERROR: VerifyNotInFromSpace: [%d] obj %p in From space %p\n",
-                i++, heap_obj, Heap::new_space()->FromSpaceLow());
+                i++, heap_obj, Heap::new_space()->FromSpaceStart());
     }
   }
 }

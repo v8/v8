@@ -1025,6 +1025,8 @@ class AllocationInfo {
 
 #ifdef DEBUG
   bool VerifyPagedAllocation() {
+    // TODO(gc): Make this type-correct. NewSpacePage isn't a Page,
+    // but NewSpace still uses AllocationInfo.
     return (Page::FromAllocationTop(top) == Page::FromAllocationTop(limit))
         && (top <= limit);
   }
@@ -1305,7 +1307,9 @@ class PagedSpace : public Space {
   virtual intptr_t Waste() { return accounting_stats_.Waste(); }
 
   // Returns the allocation pointer in this space.
-  Address top() { return allocation_info_.top; }
+  Address top() {
+    return allocation_info_.top;
+  }
   Address limit() { return allocation_info_.limit; }
 
   // Allocate the requested number of bytes in the space if possible, return a
@@ -1534,6 +1538,10 @@ class NewSpacePage : public MemoryChunk {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) == 0;
   }
 
+  Address address() {
+    return reinterpret_cast<Address>(this);
+  }
+
   // Finds the NewSpacePage containg the given address.
   static inline NewSpacePage* FromAddress(Address address_in_page) {
     Address page_start =
@@ -1615,7 +1623,7 @@ class SemiSpace : public Space {
   bool ShrinkTo(int new_capacity);
 
   // Returns the start address of the first page of the space.
-  Address space_low() {
+  Address space_start() {
     ASSERT(anchor_.next_page() != &anchor_);
     return anchor_.next_page()->body();
   }
@@ -1627,7 +1635,7 @@ class SemiSpace : public Space {
   }
 
   // Returns one past the end address of the space.
-  Address space_high() {
+  Address space_end() {
     return anchor_.prev_page()->body_limit();
   }
 
@@ -1886,11 +1894,21 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  virtual intptr_t Size() { return static_cast<int>(top() - bottom()); }
+  virtual intptr_t Size() {
+    return pages_used_ * Page::kObjectAreaSize +
+        static_cast<int>(top() - to_space_.page_low());
+  }
+
   // The same, but returning an int.  We have to have the one that returns
   // intptr_t because it is inherited, but if we know we are dealing with the
   // new space, which can't get as big as the other spaces then this is useful:
   int SizeAsInt() { return static_cast<int>(Size()); }
+
+  // Return the current capacity of a semispace.
+  intptr_t EffectiveCapacity() {
+    ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    return (to_space_.Capacity() / Page::kPageSize) * Page::kObjectAreaSize;
+  }
 
   // Return the current capacity of a semispace.
   intptr_t Capacity() {
@@ -1923,9 +1941,12 @@ class NewSpace : public Space {
   }
 
   // Return the address of the allocation pointer in the active semispace.
-  Address top() { return allocation_info_.top; }
+  Address top() {
+    ASSERT(to_space_.current_page()->ContainsLimit(allocation_info_.top));
+    return allocation_info_.top;
+  }
   // Return the address of the first object in the active semispace.
-  Address bottom() { return to_space_.space_low(); }
+  Address bottom() { return to_space_.space_start(); }
 
   // Get the age mark of the inactive semispace.
   Address age_mark() { return from_space_.age_mark(); }
@@ -1972,14 +1993,16 @@ class NewSpace : public Space {
   }
 
   // Get the extent of the inactive semispace (for use as a marking stack,
-  // or to zap it).
+  // or to zap it). Notice: space-addresses are not necessarily on the
+  // same page, so FromSpaceStart() might be above FromSpaceEnd().
   Address FromSpacePageLow() { return from_space_.page_low(); }
-  Address FromSpaceLow() { return from_space_.space_low(); }
-  Address FromSpaceHigh() { return from_space_.space_high(); }
+  Address FromSpacePageHigh() { return from_space_.page_high(); }
+  Address FromSpaceStart() { return from_space_.space_start(); }
+  Address FromSpaceEnd() { return from_space_.space_end(); }
 
   // Get the extent of the active semispace's pages' memory.
-  Address ToSpaceLow() { return to_space_.space_low(); }
-  Address ToSpaceHigh() { return to_space_.space_high(); }
+  Address ToSpaceStart() { return to_space_.space_start(); }
+  Address ToSpaceEnd() { return to_space_.space_end(); }
 
   inline bool ToSpaceContains(Address address) {
     MemoryChunk* page = MemoryChunk::FromAddress(address);
@@ -2074,6 +2097,7 @@ class NewSpace : public Space {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
+  int pages_used_;
 
   // Start address and bit mask for containment testing.
   Address start_;

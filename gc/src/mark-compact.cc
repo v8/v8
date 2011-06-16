@@ -195,7 +195,7 @@ static void VerifyMarkbitsAreClean(PagedSpace* space) {
 }
 
 static void VerifyMarkbitsAreClean(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
     NewSpacePage* p = it.next();
@@ -225,7 +225,7 @@ static void ClearMarkbits(PagedSpace* space) {
 
 
 static void ClearMarkbits(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceLow(), space->ToSpaceHigh());
+  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
     NewSpacePage* p = it.next();
@@ -1731,7 +1731,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // The to space contains live objects, a page in from space is used as a
   // marking stack.
   Address marking_deque_start = heap()->new_space()->FromSpacePageLow();
-  Address marking_deque_end = heap()->new_space()->FromSpaceHigh();
+  Address marking_deque_end = heap()->new_space()->FromSpacePageHigh();
   if (FLAG_force_marking_deque_overflows) {
     marking_deque_end = marking_deque_start + 64 * kPointerSize;
   }

@@ -64,9 +64,9 @@ Page* PageIterator::next() {
 
 
 NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
-    : prev_page_(NewSpacePage::FromAddress(space->ToSpaceLow())->prev_page()),
-      next_page_(NewSpacePage::FromAddress(space->ToSpaceLow())),
-      last_page_(NewSpacePage::FromLimit(space->ToSpaceHigh())) { }
+    : prev_page_(NewSpacePage::FromAddress(space->ToSpaceStart())->prev_page()),
+      next_page_(NewSpacePage::FromAddress(space->ToSpaceStart())),
+      last_page_(NewSpacePage::FromLimit(space->ToSpaceEnd())) { }
 
 NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
     : prev_page_(space->anchor()),
@@ -285,8 +285,8 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   Address old_top = allocation_info_.top;
-  Address new_top = old_top + size_in_bytes;
-  if (new_top > allocation_info_.limit) {
+  if (allocation_info_.limit - old_top < size_in_bytes) {
+    Address new_top = old_top + size_in_bytes;
     Address high = to_space_.page_high();
     if (allocation_info_.limit < high) {
       // Incremental marking has lowered the limit to get a
@@ -310,7 +310,7 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   }
 
   Object* obj = HeapObject::FromAddress(allocation_info_.top);
-  allocation_info_.top = new_top;
+  allocation_info_.top += size_in_bytes;
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   return obj;

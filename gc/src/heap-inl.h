@@ -305,8 +305,8 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Address age_mark = new_space_.age_mark();
   bool below_mark = page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
       (!page->ContainsLimit(age_mark) || old_address < age_mark);
-  return below_mark ||
-      (new_space_.Size() + object_size) >= (new_space_.Capacity() >> 2);
+  return below_mark || (new_space_.Size() + object_size) >=
+                        (new_space_.EffectiveCapacity() >> 2);
 }
 
 
