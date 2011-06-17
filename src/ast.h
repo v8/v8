@@ -1751,7 +1751,6 @@ class RegExpVisitor BASE_EMBEDDED {
 class RegExpTree: public ZoneObject {
  public:
   static const int kInfinity = kMaxInt;
-  RegExpTree() : contains_expanded_quantifier_(false) { }
   virtual ~RegExpTree() { }
   virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
@@ -1761,12 +1760,6 @@ class RegExpTree: public ZoneObject {
   virtual bool IsAnchoredAtEnd() { return false; }
   virtual int min_match() = 0;
   virtual int max_match() = 0;
-  virtual bool ContainsExpandedQuantifier() {
-    return contains_expanded_quantifier_;
-  }
-  void set_contains_expanded_quantifier(bool value) {
-    contains_expanded_quantifier_ = value;
-  }
   // Returns the interval of registers used for captures within this
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
@@ -1777,9 +1770,6 @@ class RegExpTree: public ZoneObject {
   virtual bool Is##Name();
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ASTYPE)
 #undef MAKE_ASTYPE
-
- protected:
-  bool contains_expanded_quantifier_;
 };
 
 
@@ -1796,7 +1786,6 @@ class RegExpDisjunction: public RegExpTree {
   virtual bool IsAnchoredAtEnd();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
-  virtual bool ContainsExpandedQuantifier();
   ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
  private:
   ZoneList<RegExpTree*>* alternatives_;
@@ -1818,7 +1807,6 @@ class RegExpAlternative: public RegExpTree {
   virtual bool IsAnchoredAtEnd();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
-  virtual bool ContainsExpandedQuantifier();
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
  private:
   ZoneList<RegExpTree*>* nodes_;
@@ -1968,8 +1956,7 @@ class RegExpQuantifier: public RegExpTree {
         min_(min),
         max_(max),
         min_match_(min * body->min_match()),
-        type_(type),
-        contains_expanded_quantifier_(false) {
+        type_(type) {
     if (max > 0 && body->max_match() > kInfinity / max) {
       max_match_ = kInfinity;
     } else {
@@ -1991,9 +1978,6 @@ class RegExpQuantifier: public RegExpTree {
   virtual bool IsQuantifier();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
-  virtual bool ContainsExpandedQuantifier() {
-    return contains_expanded_quantifier_ || body_->ContainsExpandedQuantifier();
-  }
   int min() { return min_; }
   int max() { return max_; }
   bool is_possessive() { return type_ == POSSESSIVE; }
@@ -2008,7 +1992,6 @@ class RegExpQuantifier: public RegExpTree {
   int min_match_;
   int max_match_;
   Type type_;
-  bool contains_expanded_quantifier_;
 };
 
 
@@ -2030,9 +2013,6 @@ class RegExpCapture: public RegExpTree {
   virtual bool IsCapture();
   virtual int min_match() { return body_->min_match(); }
   virtual int max_match() { return body_->max_match(); }
-  virtual bool ContainsExpandedQuantifier() {
-    return contains_expanded_quantifier_ || body_->ContainsExpandedQuantifier();
-  }
   RegExpTree* body() { return body_; }
   int index() { return index_; }
   static int StartRegister(int index) { return index * 2; }
@@ -2064,9 +2044,6 @@ class RegExpLookahead: public RegExpTree {
   virtual bool IsAnchoredAtStart();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
-  virtual bool ContainsExpandedQuantifier() {
-    return contains_expanded_quantifier_ || body_->ContainsExpandedQuantifier();
-  }
   RegExpTree* body() { return body_; }
   bool is_positive() { return is_positive_; }
   int capture_count() { return capture_count_; }
