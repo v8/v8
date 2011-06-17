@@ -329,11 +329,6 @@ js1_5/Regress/regress-234389: FAIL_OK
 js1_5/Regress/regress-320119: FAIL_OK
 
 
-# We do not recognize a multiline comment as newline character.
-# We are compatible with JSC.
-ecma_3/LexicalConventions/7.4-01: FAIL_OK
-
-
 # No support for toSource().
 js1_5/Regress/regress-248444: FAIL_OK
 js1_5/Regress/regress-313967-01: FAIL_OK
@@ -682,7 +677,6 @@ js1_5/extensions/regress-352060: FAIL_OK
 js1_5/extensions/regress-352094: FAIL_OK
 js1_5/extensions/regress-352261: FAIL_OK
 js1_5/extensions/regress-352281: FAIL_OK
-js1_5/extensions/regress-352372: FAIL_OK
 js1_5/extensions/regress-352455: FAIL_OK
 js1_5/extensions/regress-352604: FAIL_OK
 js1_5/extensions/regress-353214: FAIL_OK
