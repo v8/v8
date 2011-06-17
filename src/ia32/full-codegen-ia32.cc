@@ -875,8 +875,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Convert the object to a JS object.
   Label convert, done_convert;
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &convert, Label::kNear);
+  __ JumpIfSmi(eax, &convert, Label::kNear);
   __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &done_convert, Label::kNear);
   __ bind(&convert);
@@ -910,8 +909,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // descriptors (edx).  This is the case if the next enumeration
   // index field does not contain a smi.
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &call_runtime);
+  __ JumpIfSmi(edx, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
   Label check_prototype;
@@ -2338,8 +2336,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ cmp(eax, isolate()->factory()->null_value());
   __ j(equal, if_true);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
@@ -2370,8 +2367,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(equal, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(above_equal, if_true, if_false, fall_through);
@@ -2392,8 +2388,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
   __ test(ebx, Immediate(1 << Map::kIsUndetectable));
@@ -2467,8 +2462,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // If a valueOf property is not found on the object check that it's
   // prototype is the un-modified String prototype. If not result is false.
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(zero, if_false);
+  __ JumpIfSmi(ecx, if_false);
   __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(edx,
@@ -2500,8 +2494,7 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
@@ -2522,8 +2515,7 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(equal, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
@@ -2544,8 +2536,7 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(equal, if_false);
+  __ JumpIfSmi(eax, if_false);
   __ CmpObjectType(eax, JS_REGEXP_TYPE, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
@@ -2653,8 +2644,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &null);
+  __ JumpIfSmi(eax, &null);
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
@@ -2807,8 +2797,7 @@ void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
 
   Label done;
   // If the object is a smi return the object.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &done, Label::kNear);
+  __ JumpIfSmi(eax, &done, Label::kNear);
   // If the object is not a value type, return the object.
   __ CmpObjectType(eax, JS_VALUE_TYPE, ebx);
   __ j(not_equal, &done, Label::kNear);
@@ -2844,8 +2833,7 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
   Label done;
   // If the object is a smi, return the value.
-  __ test(ebx, Immediate(kSmiTagMask));
-  __ j(zero, &done, Label::kNear);
+  __ JumpIfSmi(ebx, &done, Label::kNear);
 
   // If the object is not a value type, return the value.
   __ CmpObjectType(ebx, JS_VALUE_TYPE, ecx);
@@ -3119,8 +3107,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(index_2, Operand(esp, 0));
   __ mov(temp, index_1);
   __ or_(temp, Operand(index_2));
-  __ test(temp, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow_case);
+  __ JumpIfNotSmi(temp, &slow_case);
 
   // Check that both indices are valid.
   __ mov(temp, FieldOperand(object, JSArray::kLengthOffset));
@@ -3225,8 +3212,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   // Fail if either is a non-HeapObject.
   __ mov(tmp, left);
   __ and_(Operand(tmp), right);
-  __ test(Operand(tmp), Immediate(kSmiTagMask));
-  __ j(zero, &fail);
+  __ JumpIfSmi(tmp, &fail);
   __ mov(tmp, FieldOperand(left, HeapObject::kMapOffset));
   __ CmpInstanceType(tmp, JS_REGEXP_TYPE);
   __ j(not_equal, &fail);
@@ -3318,8 +3304,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ sub(Operand(esp), Immediate(2 * kPointerSize));
   __ cld();
   // Check that the array is a JSArray
-  __ test(array, Immediate(kSmiTagMask));
-  __ j(zero, &bailout);
+  __ JumpIfSmi(array, &bailout);
   __ CmpObjectType(array, JS_ARRAY_TYPE, scratch);
   __ j(not_equal, &bailout);
 
@@ -3360,8 +3345,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
                               index,
                               times_pointer_size,
                               FixedArray::kHeaderSize));
-  __ test(string, Immediate(kSmiTagMask));
-  __ j(zero, &bailout);
+  __ JumpIfSmi(string, &bailout);
   __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
@@ -3394,8 +3378,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
   // Check that the separator is a flat ASCII string.
   __ mov(string, separator_operand);
-  __ test(string, Immediate(kSmiTagMask));
-  __ j(zero, &bailout);
+  __ JumpIfSmi(string, &bailout);
   __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
@@ -3687,8 +3670,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmt(masm_, "[ UnaryOperation (ADD)");
       VisitForAccumulatorValue(expr->expression());
       Label no_conversion;
-      __ test(result_register(), Immediate(kSmiTagMask));
-      __ j(zero, &no_conversion);
+      __ JumpIfSmi(result_register(), &no_conversion);
       ToNumberStub convert_stub;
       __ CallStub(&convert_stub);
       __ bind(&no_conversion);
@@ -3785,8 +3767,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
   if (ShouldInlineSmiCase(expr->op())) {
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &no_conversion, Label::kNear);
+    __ JumpIfSmi(eax, &no_conversion, Label::kNear);
   }
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
@@ -4152,8 +4133,7 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
     __ j(equal, if_true);
     __ cmp(eax, isolate()->factory()->undefined_value());
     __ j(equal, if_true);
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_false);
+    __ JumpIfSmi(eax, if_false);
     // It can be an undetectable object.
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ movzx_b(edx, FieldOperand(edx, Map::kBitFieldOffset));

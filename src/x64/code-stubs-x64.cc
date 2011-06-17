@@ -248,8 +248,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // Smis: 0 -> false, all other -> true
   __ Cmp(rax, Smi::FromInt(0));
   __ j(equal, &false_result);
-  Condition is_smi = __ CheckSmi(rax);
-  __ j(is_smi, &true_result);
+  __ JumpIfSmi(rax, &true_result);
 
   // 'null' => false.
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
@@ -4033,15 +4032,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Make sure that both arguments are strings if not known in advance.
   if (flags_ == NO_STRING_ADD_FLAGS) {
-    Condition is_smi;
-    is_smi = masm->CheckSmi(rax);
-    __ j(is_smi, &string_add_runtime);
+    __ JumpIfSmi(rax, &string_add_runtime);
     __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, r8);
     __ j(above_equal, &string_add_runtime);
 
     // First argument is a a string, test second.
-    is_smi = masm->CheckSmi(rdx);
-    __ j(is_smi, &string_add_runtime);
+    __ JumpIfSmi(rdx, &string_add_runtime);
     __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, r9);
     __ j(above_equal, &string_add_runtime);
   } else {

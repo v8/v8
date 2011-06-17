@@ -72,8 +72,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   //   r1: used to hold receivers map.
 
   // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the receiver is a valid JS object.
   __ mov(r1, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -373,8 +372,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   //   map - used to hold the map of the receiver.
 
   // Check that the object isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, slow);
+  __ JumpIfSmi(receiver, slow);
 
   // Get the map of the receiver.
   __ mov(map, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -545,8 +543,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string);
+  __ JumpIfNotSmi(eax, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
@@ -735,8 +732,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Label slow;
 
   // Check that the receiver isn't a smi.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(edx, &slow);
 
   // Check that the key is an array index, that is Uint32.
   __ test(eax, Immediate(kSmiTagMask | kSmiSignMask));
@@ -828,8 +824,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label slow, fast, array, extra;
 
   // Check that the object isn't a smi.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(edx, &slow);
   // Get the map from the receiver.
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
@@ -838,8 +833,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
             1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &slow);
   // Check that the key is a smi.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow);
+  __ JumpIfNotSmi(ecx, &slow);
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JSObject.
@@ -939,8 +933,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &number);
+  __ JumpIfSmi(edx, &number);
   __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
   __ j(not_equal, &non_number);
   __ bind(&number);
@@ -987,8 +980,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
   // -----------------------------------
 
   // Check that the result is not a smi.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(edi, miss);
 
   // Check that the value is a JavaScript function, fetching its map into eax.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
@@ -1069,8 +1061,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
-    __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &invoke, Label::kNear);
+    __ JumpIfSmi(edx, &invoke, Label::kNear);
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
     __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
     __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
@@ -1163,8 +1154,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   Label index_smi, index_string;
 
   // Check that the key is a smi.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string);
+  __ JumpIfNotSmi(ecx, &check_string);
 
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
@@ -1304,8 +1294,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Check if the name is a string.
   Label miss;
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(ecx, &miss);
   Condition cond = masm->IsObjectStringType(ecx, eax, eax);
   __ j(NegateCondition(cond), &miss);
   GenerateCallNormal(masm, argc);
@@ -1490,8 +1479,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   Register scratch = ebx;
 
   // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the object is a JS array.
   __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
@@ -1505,8 +1493,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Check that value is a smi.
-  __ test(value, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss);
+  __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
   __ pop(scratch);

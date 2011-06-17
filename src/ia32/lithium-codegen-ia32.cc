@@ -1222,8 +1222,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   ASSERT(input.is(result));
   Label done;
   // If the object is a smi return the object.
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, &done, Label::kNear);
+  __ JumpIfSmi(input, &done, Label::kNear);
 
   // If the object is not a value type, return the object.
   __ CmpObjectType(input, JS_VALUE_TYPE, map);
@@ -1381,8 +1380,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ j(equal, false_label);
       __ test(reg, Operand(reg));
       __ j(equal, false_label);
-      __ test(reg, Immediate(kSmiTagMask));
-      __ j(zero, true_label);
+      __ JumpIfSmi(reg, true_label);
 
       // Test for double values. Zero is false.
       Label call_stub;
@@ -1604,8 +1602,7 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ j(equal, &true_value, Label::kNear);
     __ cmp(reg, factory()->undefined_value());
     __ j(equal, &true_value, Label::kNear);
-    __ test(reg, Immediate(kSmiTagMask));
-    __ j(zero, &false_value, Label::kNear);
+    __ JumpIfSmi(reg, &false_value, Label::kNear);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     Register scratch = result;
@@ -1641,8 +1638,7 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
     __ j(equal, true_label);
     __ cmp(reg, factory()->undefined_value());
     __ j(equal, true_label);
-    __ test(reg, Immediate(kSmiTagMask));
-    __ j(zero, false_label);
+    __ JumpIfSmi(reg, false_label);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     Register scratch = ToRegister(instr->TempAt(0));
@@ -1663,8 +1659,7 @@ Condition LCodeGen::EmitIsObject(Register input,
   ASSERT(!input.is(temp2));
   ASSERT(!temp1.is(temp2));
 
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(equal, is_not_object);
+  __ JumpIfSmi(input, is_not_object);
 
   __ cmp(input, isolate()->factory()->null_value());
   __ j(equal, is_object);
@@ -1724,10 +1719,9 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
   Register result = ToRegister(instr->result());
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ test(input, Immediate(kSmiTagMask));
-  __ mov(result, factory()->true_value());
   Label done;
-  __ j(zero, &done, Label::kNear);
+  __ mov(result, factory()->true_value());
+  __ JumpIfSmi(input, &done, Label::kNear);
   __ mov(result, factory()->false_value());
   __ bind(&done);
 }
@@ -1751,8 +1745,7 @@ void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   Label false_label, done;
   STATIC_ASSERT(kSmiTag == 0);
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, &false_label, Label::kNear);
+  __ JumpIfSmi(input, &false_label, Label::kNear);
   __ mov(result, FieldOperand(input, HeapObject::kMapOffset));
   __ test_b(FieldOperand(result, Map::kBitFieldOffset),
             1 << Map::kIsUndetectable);
@@ -1773,8 +1766,7 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
   STATIC_ASSERT(kSmiTag == 0);
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, chunk_->GetAssemblyLabel(false_block));
+  __ JumpIfSmi(input, chunk_->GetAssemblyLabel(false_block));
   __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
   __ test_b(FieldOperand(temp, Map::kBitFieldOffset),
             1 << Map::kIsUndetectable);
@@ -1807,9 +1799,8 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
   Register result = ToRegister(instr->result());
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ test(input, Immediate(kSmiTagMask));
   Label done, is_false;
-  __ j(zero, &is_false, Label::kNear);
+  __ JumpIfSmi(input, &is_false, Label::kNear);
   __ CmpObjectType(input, TestType(instr->hydrogen()), result);
   __ j(NegateCondition(BranchCondition(instr->hydrogen())),
        &is_false, Label::kNear);
@@ -1830,8 +1821,7 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, false_label);
+  __ JumpIfSmi(input, false_label);
 
   __ CmpObjectType(input, TestType(instr->hydrogen()), temp);
   EmitBranch(true_block, false_block, BranchCondition(instr->hydrogen()));
@@ -1889,8 +1879,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register temp2) {
   ASSERT(!input.is(temp));
   ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
-  __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, is_false);
+  __ JumpIfSmi(input, is_false);
   __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, temp);
   __ j(below, is_false);
 
@@ -2036,8 +2025,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register temp = ToRegister(instr->TempAt(0));
 
   // A Smi is not an instance of anything.
-  __ test(object, Immediate(kSmiTagMask));
-  __ j(zero, &false_result);
+  __ JumpIfSmi(object, &false_result);
 
   // This is the inlined call site instanceof cache. The two occurences of the
   // hole value will be patched to the last map/result pair generated by the
@@ -2841,8 +2829,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
         new DeferredMathAbsTaggedHeapNumber(this, instr);
     Register input_reg = ToRegister(instr->InputAt(0));
     // Smi check.
-    __ test(input_reg, Immediate(kSmiTagMask));
-    __ j(not_zero, deferred->entry());
+    __ JumpIfNotSmi(input_reg, deferred->entry());
     EmitIntegerMathAbs(instr);
     __ bind(deferred->exit());
   }
@@ -2964,8 +2951,7 @@ void LCodeGen::DoPower(LPower* instr) {
     Register right_reg = ToRegister(right);
 
     Label non_smi, call;
-    __ test(right_reg, Immediate(kSmiTagMask));
-    __ j(not_zero, &non_smi);
+    __ JumpIfNotSmi(right_reg, &non_smi);
     __ SmiUntag(right_reg);
     __ cvtsi2sd(result_reg, Operand(right_reg));
     __ jmp(&call);
@@ -3633,8 +3619,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Label load_smi, done;
 
   // Smi check.
-  __ test(input_reg, Immediate(kSmiTagMask));
-  __ j(zero, &load_smi, Label::kNear);
+  __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
   // Heap number map check.
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
@@ -3768,8 +3753,7 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   DeferredTaggedToI* deferred = new DeferredTaggedToI(this, instr);
 
   // Smi check.
-  __ test(input_reg, Immediate(kSmiTagMask));
-  __ j(not_zero, deferred->entry());
+  __ JumpIfNotSmi(input_reg, deferred->entry());
 
   // Smi to int32 conversion
   __ SmiUntag(input_reg);  // Untag smi.

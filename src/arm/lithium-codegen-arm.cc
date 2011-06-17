@@ -1378,8 +1378,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   Label done;
 
   // If the object is a smi return the object.
-  __ tst(input, Operand(kSmiTagMask));
-  __ b(eq, &done);
+  __ JumpIfSmi(input, &done);
 
   // If the object is not a value type, return the object.
   __ CompareObjectType(input, map, map, JS_VALUE_TYPE);
@@ -1544,8 +1543,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ b(eq, false_label);
       __ cmp(reg, Operand(0));
       __ b(eq, false_label);
-      __ tst(reg, Operand(kSmiTagMask));
-      __ b(eq, true_label);
+      __ JumpIfSmi(reg, true_label);
 
       // Test double values. Zero and NaN are false.
       Label call_stub;
@@ -1761,8 +1759,7 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
     __ cmp(ip, reg);
     __ b(eq, &true_value);
-    __ tst(reg, Operand(kSmiTagMask));
-    __ b(eq, &false_value);
+    __ JumpIfSmi(reg, &false_value);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     Register scratch = result;
@@ -1801,8 +1798,7 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
     __ cmp(reg, ip);
     __ b(eq, true_label);
-    __ tst(reg, Operand(kSmiTagMask));
-    __ b(eq, false_label);
+    __ JumpIfSmi(reg, false_label);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
@@ -1881,10 +1877,9 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   Register result = ToRegister(instr->result());
   Register input_reg = EmitLoadRegister(instr->InputAt(0), ip);
-  __ tst(input_reg, Operand(kSmiTagMask));
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
   Label done;
-  __ b(eq, &done);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ JumpIfSmi(input_reg, &done);
   __ LoadRoot(result, Heap::kFalseValueRootIndex);
   __ bind(&done);
 }
@@ -1960,9 +1955,8 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   Label done;
-  __ tst(input, Operand(kSmiTagMask));
   __ LoadRoot(result, Heap::kFalseValueRootIndex, eq);
-  __ b(eq, &done);
+  __ JumpIfSmi(input, &done);
   __ CompareObjectType(input, result, result, TestType(instr->hydrogen()));
   Condition cond = BranchCondition(instr->hydrogen());
   __ LoadRoot(result, Heap::kTrueValueRootIndex, cond);
@@ -1980,8 +1974,7 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-  __ tst(input, Operand(kSmiTagMask));
-  __ b(eq, false_label);
+  __ JumpIfSmi(input, false_label);
 
   __ CompareObjectType(input, scratch, scratch, TestType(instr->hydrogen()));
   EmitBranch(true_block, false_block, BranchCondition(instr->hydrogen()));
@@ -2040,8 +2033,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register temp2) {
   ASSERT(!input.is(temp));
   ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
-  __ tst(input, Operand(kSmiTagMask));
-  __ b(eq, is_false);
+  __ JumpIfSmi(input, is_false);
   __ CompareObjectType(input, temp, temp2, FIRST_SPEC_OBJECT_TYPE);
   __ b(lt, is_false);
 
@@ -3856,8 +3848,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Label load_smi, heap_number, done;
 
   // Smi check.
-  __ tst(input_reg, Operand(kSmiTagMask));
-  __ b(eq, &load_smi);
+  __ JumpIfSmi(input_reg, &load_smi);
 
   // Heap number map check.
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));

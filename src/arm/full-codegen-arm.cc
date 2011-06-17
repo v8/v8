@@ -2533,8 +2533,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // If a valueOf property is not found on the object check that it's
   // prototype is the un-modified String prototype. If not result is false.
   __ ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, if_false);
+  __ JumpIfSmi(r2, if_false);
   __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ ldr(r3, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalContextOffset));
@@ -3290,8 +3289,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ b(eq, &ok);
   // Fail if either is a non-HeapObject.
   __ and_(tmp, left, Operand(right));
-  __ tst(tmp, Operand(kSmiTagMask));
-  __ b(eq, &fail);
+  __ JumpIfSmi(tmp, &fail);
   __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
   __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
   __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
@@ -3719,8 +3717,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmt(masm_, "[ UnaryOperation (ADD)");
       VisitForAccumulatorValue(expr->expression());
       Label no_conversion;
-      __ tst(result_register(), Operand(kSmiTagMask));
-      __ b(eq, &no_conversion);
+      __ JumpIfSmi(result_register(), &no_conversion);
       ToNumberStub convert_stub;
       __ CallStub(&convert_stub);
       __ bind(&no_conversion);
@@ -4175,8 +4172,7 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
     __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
     __ cmp(r0, r1);
     __ b(eq, if_true);
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
+    __ JumpIfSmi(r0, if_false);
     // It can be an undetectable object.
     __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));

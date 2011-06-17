@@ -79,8 +79,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   //       elements map.
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the receiver is a valid JS object.
   __ CompareObjectType(receiver, t0, t1, FIRST_SPEC_OBJECT_TYPE);
@@ -503,8 +502,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &number);
+  __ JumpIfSmi(r1, &number);
   __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE);
   __ b(ne, &non_number);
   __ bind(&number);
@@ -548,8 +546,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
   // r1: function
 
   // Check that the value isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(r1, miss);
 
   // Check that the value is a JSFunction.
   __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE);
@@ -624,8 +621,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &invoke);
+    __ JumpIfSmi(r2, &invoke);
     __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE);
     __ b(eq, &global);
     __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
@@ -812,8 +808,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Check if the name is a string.
   Label miss;
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r2, &miss);
   __ IsObjectJSStringType(r2, r0, &miss);
 
   GenerateCallNormal(masm, argc);
@@ -1367,11 +1362,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.
-  __ tst(key, Operand(kSmiTagMask));
-  __ b(ne, &slow);
+  __ JumpIfNotSmi(key, &slow);
   // Check that the object isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, &slow);
+  __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need

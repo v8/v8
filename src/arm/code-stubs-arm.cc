@@ -69,8 +69,7 @@ static void EmitCheckForHeapNumber(MacroAssembler* masm, Register operand,
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // The ToNumber stub takes one argument in eax.
   Label check_heap_number, call_builtin;
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &check_heap_number);
+  __ JumpIfNotSmi(r0, &check_heap_number);
   __ Ret();
 
   __ bind(&check_heap_number);
@@ -1029,8 +1028,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
          (lhs.is(r1) && rhs.is(r0)));
 
   Label rhs_is_smi;
-  __ tst(rhs, Operand(kSmiTagMask));
-  __ b(eq, &rhs_is_smi);
+  __ JumpIfSmi(rhs, &rhs_is_smi);
 
   // Lhs is a Smi.  Check whether the rhs is a heap number.
   __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE);
@@ -1458,8 +1456,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (include_smi_compare_) {
     Label not_two_smis, smi_done;
     __ orr(r2, r1, r0);
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(ne, &not_two_smis);
+    __ JumpIfNotSmi(r2, &not_two_smis);
     __ mov(r1, Operand(r1, ASR, 1));
     __ sub(r0, r1, Operand(r0, ASR, 1));
     __ Ret();
@@ -1482,8 +1479,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT_EQ(0, Smi::FromInt(0));
   __ and_(r2, lhs_, Operand(rhs_));
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(ne, &not_smis);
+  __ JumpIfNotSmi(r2, &not_smis);
   // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
   // 1) Return the answer.
   // 2) Go to slow.
@@ -2447,8 +2443,7 @@ void BinaryOpStub::GenerateSmiCode(
   // Perform combined smi check on both operands.
   __ orr(scratch1, left, Operand(right));
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(scratch1, Operand(kSmiTagMask));
-  __ b(ne, &not_smis);
+  __ JumpIfNotSmi(scratch1, &not_smis);
 
   // If the smi-smi operation results in a smi return is generated.
   GenerateSmiSmiOperation(masm);
@@ -4295,8 +4290,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the first argument is a JSRegExp object.
   __ ldr(r0, MemOperand(sp, kJSRegExpOffset));
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
+  __ JumpIfSmi(r0, &runtime);
   __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
   __ b(ne, &runtime);
 
@@ -4332,8 +4326,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // regexp_data: RegExp data (FixedArray)
   // Check that the second argument is a string.
   __ ldr(subject, MemOperand(sp, kSubjectOffset));
-  __ tst(subject, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
+  __ JumpIfSmi(subject, &runtime);
   Condition is_string = masm->IsObjectStringType(subject, r0);
   __ b(NegateCondition(is_string), &runtime);
   // Get the length of the string to r3.
@@ -4346,8 +4339,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
   __ ldr(r0, MemOperand(sp, kPreviousIndexOffset));
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &runtime);
+  __ JumpIfNotSmi(r0, &runtime);
   __ cmp(r3, Operand(r0));
   __ b(ls, &runtime);
 
@@ -4356,8 +4348,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // regexp_data: RegExp data (FixedArray)
   // Check that the fourth object is a JSArray object.
   __ ldr(r0, MemOperand(sp, kLastMatchInfoOffset));
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
+  __ JumpIfSmi(r0, &runtime);
   __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
   __ b(ne, &runtime);
   // Check that the JSArray is in fast case.
@@ -4617,8 +4608,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(sp, kPointerSize * 2));
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(ne, &slowcase);
+  __ JumpIfNotSmi(r1, &slowcase);
   __ cmp(r1, Operand(Smi::FromInt(kMaxInlineLength)));
   __ b(hi, &slowcase);
   // Smi-tagging is equivalent to multiplying by 2.
@@ -5499,8 +5489,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Make sure first argument is a sequential (or flat) string.
   __ ldr(r5, MemOperand(sp, kStringOffset));
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(r5, Operand(kSmiTagMask));
-  __ b(eq, &runtime);
+  __ JumpIfSmi(r5, &runtime);
   Condition is_string = masm->IsObjectStringType(r5, r1);
   __ b(NegateCondition(is_string), &runtime);
 
@@ -6137,8 +6126,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMIS);
   Label miss;
   __ orr(r2, r1, r0);
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(ne, &miss);
+  __ JumpIfNotSmi(r2, &miss);
 
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
@@ -6162,8 +6150,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   Label unordered;
   Label miss;
   __ and_(r2, r1, Operand(r0));
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &generic_stub);
+  __ JumpIfSmi(r2, &generic_stub);
 
   __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE);
   __ b(ne, &miss);
@@ -6312,8 +6299,7 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
   Label miss;
   __ and_(r2, r1, Operand(r0));
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r2, &miss);
 
   __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE);
   __ b(ne, &miss);

@@ -2692,8 +2692,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
-  tst(scratch1, Operand(kSmiTagMask));
-  b(eq, failure);
+  JumpIfSmi(scratch1, failure);
   JumpIfNonSmisNotBothSequentialAsciiStrings(first,
                                              second,
                                              scratch1,

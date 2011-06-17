@@ -289,14 +289,25 @@ class MacroAssembler: public Assembler {
   }
 
   // Jump the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label) {
+  inline void JumpIfSmi(Register value,
+                        Label* smi_label,
+                        Label::Distance distance = Label::kFar) {
     test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label);
+    j(zero, smi_label, distance);
+  }
+  // Jump if the operand is a smi.
+  inline void JumpIfSmi(Operand value,
+                        Label* smi_label,
+                        Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(zero, smi_label, distance);
   }
   // Jump if register contain a non-smi.
-  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
+  inline void JumpIfNotSmi(Register value,
+                           Label* not_smi_label,
+                           Label::Distance distance = Label::kFar) {
     test(value, Immediate(kSmiTagMask));
-    j(not_zero, not_smi_label);
+    j(not_zero, not_smi_label, distance);
   }
 
   void LoadInstanceDescriptors(Register map, Register descriptors);

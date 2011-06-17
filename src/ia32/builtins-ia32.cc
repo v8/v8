@@ -82,8 +82,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label non_function_call;
   // Check that function is not a smi.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &non_function_call);
+  __ JumpIfSmi(edi, &non_function_call);
   // Check that function is a JSFunction.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &non_function_call);
@@ -140,8 +139,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: constructor
     __ mov(eax, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &rt_call);
+    __ JumpIfSmi(eax, &rt_call);
     // edi: constructor
     // eax: initial map (if proven valid below)
     __ CmpObjectType(eax, MAP_TYPE, ebx);
@@ -357,8 +355,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   Label use_receiver, exit;
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &use_receiver);
+  __ JumpIfSmi(eax, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
   // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
@@ -596,8 +593,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   Label non_function;
   // 1 ~ return address.
   __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
-  __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &non_function);
+  __ JumpIfSmi(edi, &non_function);
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &non_function);
 
@@ -624,8 +620,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Call ToObject on the receiver if it is not an object, or use the
     // global object if it is null or undefined.
-    __ test(ebx, Immediate(kSmiTagMask));
-    __ j(zero, &convert_to_object);
+    __ JumpIfSmi(ebx, &convert_to_object);
     __ cmp(ebx, factory->null_value());
     __ j(equal, &use_global_receiver);
     __ cmp(ebx, factory->undefined_value());
@@ -786,8 +781,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Compute the receiver in non-strict mode.
   // Call ToObject on the receiver if it is not an object, or use the
   // global object if it is null or undefined.
-  __ test(ebx, Immediate(kSmiTagMask));
-  __ j(zero, &call_to_object);
+  __ JumpIfSmi(ebx, &call_to_object);
   __ cmp(ebx, factory->null_value());
   __ j(equal, &use_global_receiver);
   __ cmp(ebx, factory->undefined_value());
@@ -1390,8 +1384,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   Label convert_argument;
   __ bind(&not_cached);
   STATIC_ASSERT(kSmiTag == 0);
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &convert_argument);
+  __ JumpIfSmi(eax, &convert_argument);
   Condition is_string = masm->IsObjectStringType(eax, ebx, ecx);
   __ j(NegateCondition(is_string), &convert_argument);
   __ mov(ebx, eax);
