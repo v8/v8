@@ -2561,37 +2561,36 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-    // Load both operands and check that they are 32-bit integer.
-    // Jump to type transition if they are not. The registers r0 and r1 (right
-    // and left) are preserved for the runtime call.
-    FloatingPointHelper::Destination destination =
-        CpuFeatures::IsSupported(VFP3) &&
-        op_ != Token::MOD ?
-        FloatingPointHelper::kVFPRegisters :
-        FloatingPointHelper::kCoreRegisters;
+      // Load both operands and check that they are 32-bit integer.
+      // Jump to type transition if they are not. The registers r0 and r1 (right
+      // and left) are preserved for the runtime call.
+      FloatingPointHelper::Destination destination =
+          (CpuFeatures::IsSupported(VFP3) && op_ != Token::MOD)
+              ? FloatingPointHelper::kVFPRegisters
+              : FloatingPointHelper::kCoreRegisters;
 
-    FloatingPointHelper::LoadNumberAsInt32Double(masm,
-                                                 right,
-                                                 destination,
-                                                 d7,
-                                                 r2,
-                                                 r3,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 s0,
-                                                 &transition);
-    FloatingPointHelper::LoadNumberAsInt32Double(masm,
-                                                 left,
-                                                 destination,
-                                                 d6,
-                                                 r4,
-                                                 r5,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 s0,
-                                                 &transition);
+      FloatingPointHelper::LoadNumberAsInt32Double(masm,
+                                                   right,
+                                                   destination,
+                                                   d7,
+                                                   r2,
+                                                   r3,
+                                                   heap_number_map,
+                                                   scratch1,
+                                                   scratch2,
+                                                   s0,
+                                                   &transition);
+      FloatingPointHelper::LoadNumberAsInt32Double(masm,
+                                                   left,
+                                                   destination,
+                                                   d6,
+                                                   r4,
+                                                   r5,
+                                                   heap_number_map,
+                                                   scratch1,
+                                                   scratch2,
+                                                   s0,
+                                                   &transition);
 
       if (destination == FloatingPointHelper::kVFPRegisters) {
         CpuFeatures::Scope scope(VFP3);
@@ -2655,8 +2654,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ bind(&return_heap_number);
         // Return a heap number, or fall through to type transition or runtime
         // call if we can't.
-        if (result_type_ >= (op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
-                                                : BinaryOpIC::INT32) {
+        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
+                                                 : BinaryOpIC::INT32)) {
           // We are using vfp registers so r5 is available.
           heap_number_result = r5;
           GenerateHeapResultAllocation(masm,
