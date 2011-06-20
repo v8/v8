@@ -1216,6 +1216,20 @@ void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
 }
 
 
+void LCodeGen::DoElementsKind(LElementsKind* instr) {
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+
+  // Load map into |result|.
+  __ movq(result, FieldOperand(input, HeapObject::kMapOffset));
+  // Load the map's "bit field 2" into |result|. We only need the first byte.
+  __ movzxbq(result, FieldOperand(result, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ and_(result, Immediate(Map::kElementsKindMask));
+  __ shr(result, Immediate(Map::kElementsKindShift));
+}
+
+
 void LCodeGen::DoValueOf(LValueOf* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1590,6 +1604,29 @@ void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
   __ cmpq(left, right);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::DoCmpConstantEq(LCmpConstantEq* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  Label done;
+  __ cmpq(left, Immediate(instr->hydrogen()->right()));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ j(equal, &done, Label::kNear);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ cmpq(left, Immediate(instr->hydrogen()->right()));
   EmitBranch(true_block, false_block, equal);
 }
 
@@ -2380,7 +2417,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
   Register input = ToRegister(instr->InputAt(0));
   __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
-    Label done;
+    Label done, ok, fail;
     __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
                    Heap::kFixedArrayMapRootIndex);
     __ j(equal, &done, Label::kNear);
@@ -2390,11 +2427,19 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     Register temp((result.is(rax)) ? rbx : rax);
     __ push(temp);
     __ movq(temp, FieldOperand(result, HeapObject::kMapOffset));
-    __ movzxbq(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ subq(temp, Immediate(FIRST_EXTERNAL_ARRAY_TYPE));
-    __ cmpq(temp, Immediate(kExternalArrayTypeCount));
+    __ movzxbq(temp, FieldOperand(temp, Map::kBitField2Offset));
+    __ and_(temp, Immediate(Map::kElementsKindMask));
+    __ shr(temp, Immediate(Map::kElementsKindShift));
+    __ cmpl(temp, Immediate(JSObject::FAST_ELEMENTS));
+    __ j(equal, &ok, Label::kNear);
+    __ cmpl(temp, Immediate(JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ j(less, &fail, Label::kNear);
+    __ cmpl(temp, Immediate(JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ j(less_equal, &ok, Label::kNear);
+    __ bind(&fail);
+    __ Abort("Check for fast or external elements failed");
+    __ bind(&ok);
     __ pop(temp);
-    __ Check(below, "Check for fast elements failed.");
     __ bind(&done);
   }
 }

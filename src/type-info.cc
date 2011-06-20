@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "code-stubs.h"
 #include "compiler.h"
 #include "ic.h"
 #include "macro-assembler.h"
@@ -88,6 +89,19 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
 }
 
 
+bool TypeFeedbackOracle::LoadIsMegamorphicWithTypeInfo(Property* expr) {
+  Handle<Object> map_or_code(GetInfo(expr->id()));
+  if (map_or_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    Builtins* builtins = Isolate::Current()->builtins();
+    return code->is_keyed_load_stub() &&
+        *code != builtins->builtin(Builtins::kKeyedLoadIC_Generic) &&
+        code->ic_state() == MEGAMORPHIC;
+  }
+  return false;
+}
+
+
 bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
@@ -96,6 +110,19 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
     return code->is_keyed_store_stub() &&
         code->ic_state() == MONOMORPHIC &&
         Code::ExtractTypeFromFlags(code->flags()) == NORMAL;
+  }
+  return false;
+}
+
+
+bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
+  Handle<Object> map_or_code(GetInfo(expr->id()));
+  if (map_or_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    Builtins* builtins = Isolate::Current()->builtins();
+    return code->is_keyed_store_stub() &&
+        *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic) &&
+        code->ic_state() == MEGAMORPHIC;
   }
   return false;
 }
@@ -386,6 +413,27 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
     return types->length() > 0 ? types : NULL;
   } else {
     return NULL;
+  }
+}
+
+
+void TypeFeedbackOracle::CollectKeyedReceiverTypes(
+    unsigned ast_id,
+    ZoneMapList* types) {
+  Handle<Object> object = GetInfo(ast_id);
+  if (!object->IsCode()) return;
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (code->kind() == Code::KEYED_LOAD_IC ||
+      code->kind() == Code::KEYED_STORE_IC) {
+    AssertNoAllocation no_allocation;
+    int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
+      RelocInfo* info = it.rinfo();
+      Object* object = info->target_object();
+      if (object->IsMap()) {
+        types->Add(Handle<Map>(Map::cast(object)));
+      }
+    }
   }
 }
 

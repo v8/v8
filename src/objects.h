@@ -3758,7 +3758,6 @@ class Code: public HeapObject {
   static const int kOptimizableOffset = kKindSpecificFlagsOffset;
   static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
   static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
-  static const int kExternalArrayTypeOffset = kKindSpecificFlagsOffset;
 
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;

@@ -1405,7 +1405,8 @@ class CountOperation: public Expression {
         expression_(expr),
         pos_(pos),
         assignment_id_(GetNextId()),
-        count_id_(GetNextId()) { }
+        count_id_(GetNextId()),
+        receiver_types_(NULL) { }
 
   DECLARE_NODE_TYPE(CountOperation)
 
@@ -1429,6 +1430,7 @@ class CountOperation: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
+  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -1443,6 +1445,7 @@ class CountOperation: public Expression {
   int assignment_id_;
   int count_id_;
   Handle<Map> monomorphic_receiver_type_;
+  ZoneMapList* receiver_types_;
 };
 
 

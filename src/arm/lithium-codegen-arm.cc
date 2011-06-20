@@ -1370,6 +1370,20 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
+void LCodeGen::DoElementsKind(LElementsKind* instr) {
+  Register result = ToRegister(instr->result());
+  Register input = ToRegister(instr->InputAt(0));
+
+  // Load map into |result|.
+  __ ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
+  // Load the map's "bit field 2" into |result|. We only need the first byte,
+  // but the following bit field extraction takes care of that anyway.
+  __ ldr(result, FieldMemOperand(result, Map::kBitField2Offset));
+  // Retrieve elements_kind from bit field 2.
+  __ ubfx(result, result, Map::kElementsKindShift, Map::kElementsKindBitCount);
+}
+
+
 void LCodeGen::DoValueOf(LValueOf* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1740,6 +1754,27 @@ void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
   __ cmp(left, Operand(right));
+  EmitBranch(true_block, false_block, eq);
+}
+
+
+void LCodeGen::DoCmpConstantEq(LCmpConstantEq* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  Label done;
+  __ cmp(left, Operand(instr->hydrogen()->right()));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
+}
+
+
+void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ cmp(left, Operand(instr->hydrogen()->right()));
   EmitBranch(true_block, false_block, eq);
 }
 
@@ -2536,7 +2571,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 
   __ ldr(result, FieldMemOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
-    Label done;
+    Label done, fail;
     __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
     __ cmp(scratch, ip);
@@ -2544,11 +2579,18 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
-    __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-    __ sub(scratch, scratch, Operand(FIRST_EXTERNAL_ARRAY_TYPE));
-    __ cmp(scratch, Operand(kExternalArrayTypeCount));
-    __ Check(cc, "Check for fast elements failed.");
+    // |scratch| still contains |input|'s map.
+    __ ldr(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
+    __ ubfx(scratch, scratch, Map::kElementsKindShift,
+            Map::kElementsKindBitCount);
+    __ cmp(scratch, Operand(JSObject::FAST_ELEMENTS));
+    __ b(eq, &done);
+    __ cmp(scratch, Operand(JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ b(lt, &fail);
+    __ cmp(scratch, Operand(JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ b(le, &done);
+    __ bind(&fail);
+    __ Abort("Check for fast or external elements failed.");
     __ bind(&done);
   }
 }

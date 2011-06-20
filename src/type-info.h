@@ -36,6 +36,8 @@
 namespace v8 {
 namespace internal {
 
+const int kMaxKeyedPolymorphism = 4;
+
 //         Unknown
 //           |   \____________
 //           |                |
@@ -216,7 +218,9 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
   bool LoadIsMonomorphicNormal(Property* expr);
+  bool LoadIsMegamorphicWithTypeInfo(Property* expr);
   bool StoreIsMonomorphicNormal(Expression* expr);
+  bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
@@ -227,6 +231,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   ZoneMapList* CallReceiverTypes(Call* expr,
                                  Handle<String> name,
                                  CallKind call_kind);
+  void CollectKeyedReceiverTypes(unsigned ast_id,
+                                 ZoneMapList* types);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);

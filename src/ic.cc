@@ -1653,7 +1653,7 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
-  if (target_receiver_maps.length() > KeyedIC::kMaxKeyedPolymorphism) {
+  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     return generic_stub;
   }
 

@@ -4518,8 +4518,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
 
   MapList* maps_;  // weak.
   int code_flags_;
-  static const int kDefaultListAllocationSize =
-      KeyedIC::kMaxKeyedPolymorphism + 1;
+  static const int kDefaultListAllocationSize = kMaxKeyedPolymorphism + 1;
 };
 
 
@@ -7152,7 +7151,7 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
   if (name != NULL) {
     PrintF(out, "extra_ic_state = %s\n", name);
   } else {
-    PrintF(out, "etra_ic_state = %d\n", extra);
+    PrintF(out, "extra_ic_state = %d\n", extra);
   }
 }
 

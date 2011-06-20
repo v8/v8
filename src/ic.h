@@ -345,8 +345,6 @@ class KeyedIC: public IC {
   explicit KeyedIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {}
   virtual ~KeyedIC() {}
 
-  static const int kMaxKeyedPolymorphism = 4;
-
   virtual MaybeObject* GetFastElementStubWithoutMapCheck(
       bool is_js_array) = 0;
 
