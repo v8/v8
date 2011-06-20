@@ -1780,7 +1780,8 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
       expr != NULL &&
       expr->AsVariableProxy() != NULL &&
       expr->AsVariableProxy()->name()->Equals(
-          isolate()->heap()->native_symbol())) {
+          isolate()->heap()->native_symbol()) &&
+      !scanner().literal_contains_escapes()) {
     return ParseNativeDeclaration(ok);
   }
 
