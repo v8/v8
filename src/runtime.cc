@@ -7488,10 +7488,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
   CONVERT_ARG_CHECKED(SharedFunctionInfo, shared, 1);
   CONVERT_BOOLEAN_CHECKED(pretenure, args[2]);
 
-  // Allocate global closures in old space and allocate local closures
-  // in new space. Additionally pretenure closures that are assigned
+  // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  pretenure = pretenure || (context->global_context() == *context);
   PretenureFlag pretenure_flag = pretenure ? TENURED : NOT_TENURED;
   Handle<JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
