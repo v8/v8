@@ -1990,8 +1990,9 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   Label done;
+  __ tst(input, Operand(kSmiTagMask));
   __ LoadRoot(result, Heap::kFalseValueRootIndex, eq);
-  __ JumpIfSmi(input, &done);
+  __ b(eq, &done);
   __ CompareObjectType(input, result, result, TestType(instr->hydrogen()));
   Condition cond = BranchCondition(instr->hydrogen());
   __ LoadRoot(result, Heap::kTrueValueRootIndex, cond);
