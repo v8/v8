@@ -254,11 +254,14 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   void SetInfo(unsigned ast_id, Object* target);
 
-  void PopulateMap(Handle<Code> code);
-
-  void CollectIds(Code* code,
-                  List<int>* code_positions,
-                  List<unsigned>* ast_ids);
+  void BuildDictionary(Handle<Code> code);
+  void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void CreateDictionary(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void RelocateRelocInfos(ZoneList<RelocInfo>* infos,
+                          byte* old_start,
+                          byte* new_start);
+  void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
+  void ProcessTarget(unsigned ast_id, Code* target);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
