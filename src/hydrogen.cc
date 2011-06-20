@@ -1250,16 +1250,20 @@ void HStackCheckEliminator::Process() {
     if (block->IsLoopHeader()) {
       HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
       HBasicBlock* dominator = back_edge;
-      bool back_edge_dominated_by_call = false;
-      while (dominator != block && !back_edge_dominated_by_call) {
+      while (true) {
         HInstruction* instr = dominator->first();
-        while (instr != NULL && !back_edge_dominated_by_call) {
+        while (instr != NULL) {
           if (instr->IsCall()) {
             RemoveStackCheck(back_edge);
-            back_edge_dominated_by_call = true;
+            break;
           }
           instr = instr->next();
         }
+
+        // Done when the loop header is processed.
+        if (dominator == block) break;
+
+        // Move up the dominator tree.
         dominator = dominator->dominator();
       }
     }
