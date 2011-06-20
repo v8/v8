@@ -159,6 +159,7 @@ inline Heap* _inline_get_heap_();
   V(function_symbol, "function")                                         \
   V(length_symbol, "length")                                             \
   V(name_symbol, "name")                                                 \
+  V(native_symbol, "native")                                             \
   V(number_symbol, "number")                                             \
   V(Number_symbol, "Number")                                             \
   V(nan_symbol, "NaN")                                                   \

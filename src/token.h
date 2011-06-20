@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -168,7 +168,6 @@ namespace internal {
   /* Future reserved words (ECMA-262, section 7.6.1.2). */              \
   T(FUTURE_RESERVED_WORD, NULL, 0)                                      \
   K(CONST, "const", 0)                                                  \
-  K(NATIVE, "native", 0)                                                \
                                                                         \
   /* Illegal token - not able to scan. */                               \
   T(ILLEGAL, "ILLEGAL", 0)                                              \

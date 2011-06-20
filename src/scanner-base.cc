@@ -897,7 +897,6 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) return;
       break;
     case N:
-      if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;
       if (MatchKeywordStart(input, "new", 1, Token::NEW)) return;
       if (MatchKeywordStart(input, "null", 1, Token::NULL_LITERAL)) return;
       break;

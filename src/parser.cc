@@ -1269,9 +1269,6 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return ParseFunctionDeclaration(ok);
     }
 
-    case Token::NATIVE:
-      return ParseNativeDeclaration(ok);
-
     case Token::DEBUGGER:
       stmt = ParseDebuggerStatement(ok);
       break;
@@ -1392,13 +1389,6 @@ VariableProxy* Parser::Declare(Handle<String> name,
 // declaration is resolved by looking up the function through a
 // callback provided by the extension.
 Statement* Parser::ParseNativeDeclaration(bool* ok) {
-  if (extension_ == NULL) {
-    ReportUnexpectedToken(Token::NATIVE);
-    *ok = false;
-    return NULL;
-  }
-
-  Expect(Token::NATIVE, CHECK_OK);
   Expect(Token::FUNCTION, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
@@ -1751,7 +1741,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   //   Identifier ':' Statement
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && starts_with_idenfifier && expr &&
+  if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
       expr->AsVariableProxy() != NULL &&
       !expr->AsVariableProxy()->is_this()) {
     // Expression is a single identifier, and not, e.g., a parenthesized
@@ -1779,6 +1769,19 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     top_scope_->RemoveUnresolved(var);
     Expect(Token::COLON, CHECK_OK);
     return ParseStatement(labels, ok);
+  }
+
+  // If we have an extension, we allow a native function declaration.
+  // A native function declaration starts with "native function" with
+  // no line-terminator between the two words.
+  if (extension_ != NULL &&
+      peek() == Token::FUNCTION &&
+      !scanner().has_line_terminator_before_next() &&
+      expr != NULL &&
+      expr->AsVariableProxy() != NULL &&
+      expr->AsVariableProxy()->name()->Equals(
+          isolate()->heap()->native_symbol())) {
+    return ParseNativeDeclaration(ok);
   }
 
   // Parsed expression statement.
@@ -4982,6 +4985,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
     Parser parser(script, true, NULL, NULL);
     result = parser.ParseLazy(info);
   } else {
+    // Whether we allow %identifier(..) syntax.
     bool allow_natives_syntax =
         info->allows_natives_syntax() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
