@@ -261,6 +261,10 @@ class StubCache {
                                                  Code::Kind kind,
                                                  Code::ExtraICState state);
 
+  MUST_USE_RESULT MaybeObject* ComputeCallArguments(int argc,
+                                                    InLoopFlag in_loop,
+                                                    Code::Kind kind);
+
   MUST_USE_RESULT MaybeObject* ComputeCallMegamorphic(int argc,
                                                       InLoopFlag in_loop,
                                                       Code::Kind kind,
@@ -425,6 +429,7 @@ class StubCompiler BASE_EMBEDDED {
   MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallNormal(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallMegamorphic(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* CompileCallArguments(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallMiss(Code::Flags flags);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   MUST_USE_RESULT MaybeObject* CompileCallDebugBreak(Code::Flags flags);

@@ -1,3 +1,21 @@
+2011-06-20: Version 3.4.5
+
+        Fixed issues 794, 1097, 1215(partial), 1417, 1435, 1472, 1473,
+        1476, and 1477.
+
+        Improved code generation for !0 and !1.
+
+        Reduced memory usage for regular expressions with nested qualifiers.
+        (issue 1472)
+
+        Fixed V8 to count line terminators in multi-line comments.
+        (Chromium issue 86431)
+
+        Fixed disassembler=on option for release-mode builds. (issue 1473)
+
+        Performance improvements on all platforms.
+
+
 2011-06-15: Version 3.4.4
 
 	Added snapshot compression support and --stress-opt flag to d8.

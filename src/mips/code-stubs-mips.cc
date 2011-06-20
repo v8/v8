@@ -2690,37 +2690,36 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-    // Load both operands and check that they are 32-bit integer.
-    // Jump to type transition if they are not. The registers a0 and a1 (right
-    // and left) are preserved for the runtime call.
-    FloatingPointHelper::Destination destination =
-        CpuFeatures::IsSupported(FPU) &&
-        op_ != Token::MOD ?
-        FloatingPointHelper::kFPURegisters :
-        FloatingPointHelper::kCoreRegisters;
+      // Load both operands and check that they are 32-bit integer.
+      // Jump to type transition if they are not. The registers a0 and a1 (right
+      // and left) are preserved for the runtime call.
+      FloatingPointHelper::Destination destination =
+          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
+              ? FloatingPointHelper::kFPURegisters
+              : FloatingPointHelper::kCoreRegisters;
 
-    FloatingPointHelper::LoadNumberAsInt32Double(masm,
-                                                 right,
-                                                 destination,
-                                                 f14,
-                                                 a2,
-                                                 a3,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 f2,
-                                                 &transition);
-    FloatingPointHelper::LoadNumberAsInt32Double(masm,
-                                                 left,
-                                                 destination,
-                                                 f12,
-                                                 t0,
-                                                 t1,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 f2,
-                                                 &transition);
+      FloatingPointHelper::LoadNumberAsInt32Double(masm,
+                                                   right,
+                                                   destination,
+                                                   f14,
+                                                   a2,
+                                                   a3,
+                                                   heap_number_map,
+                                                   scratch1,
+                                                   scratch2,
+                                                   f2,
+                                                   &transition);
+      FloatingPointHelper::LoadNumberAsInt32Double(masm,
+                                                   left,
+                                                   destination,
+                                                   f12,
+                                                   t0,
+                                                   t1,
+                                                   heap_number_map,
+                                                   scratch1,
+                                                   scratch2,
+                                                   f2,
+                                                   &transition);
 
       if (destination == FloatingPointHelper::kFPURegisters) {
         CpuFeatures::Scope scope(FPU);
@@ -2790,8 +2789,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // DIV just falls through to allocating a heap number.
         }
 
-        if (result_type_ >= (op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
-                                                : BinaryOpIC::INT32) {
+        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
+                                                 : BinaryOpIC::INT32)) {
           __ bind(&return_heap_number);
           // We are using FPU registers so s0 is available.
           heap_number_result = s0;

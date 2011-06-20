@@ -898,18 +898,37 @@ class HGraphBuilder: public AstVisitor {
                                        LookupResult* result,
                                        bool smi_and_map_check);
   HInstruction* BuildLoadNamedGeneric(HValue* object, Property* expr);
-  HInstruction* BuildLoadKeyedFastElement(HValue* object,
-                                          HValue* key,
-                                          Property* expr);
-  HInstruction* BuildLoadKeyedSpecializedArrayElement(HValue* object,
-                                                      HValue* key,
-                                                      Property* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
+  HInstruction* BuildExternalArrayElementAccess(
+      HValue* external_elements,
+      HValue* checked_key,
+      HValue* val,
+      JSObject::ElementsKind elements_kind,
+      bool is_store);
 
-  HInstruction* BuildLoadKeyed(HValue* obj,
-                               HValue* key,
-                               Property* prop);
+  HInstruction* BuildMonomorphicElementAccess(HValue* object,
+                                              HValue* key,
+                                              HValue* val,
+                                              Expression* expr,
+                                              bool is_store);
+  HValue* HandlePolymorphicElementAccess(HValue* object,
+                                         HValue* key,
+                                         HValue* val,
+                                         Expression* prop,
+                                         int ast_id,
+                                         int position,
+                                         bool is_store,
+                                         bool* has_side_effects);
+
+  HValue* HandleKeyedElementAccess(HValue* obj,
+                                   HValue* key,
+                                   HValue* val,
+                                   Expression* expr,
+                                   int ast_id,
+                                   int position,
+                                   bool is_store,
+                                   bool* has_side_effects);
 
   HInstruction* BuildLoadNamed(HValue* object,
                                Property* prop,
@@ -930,22 +949,6 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildStoreKeyedGeneric(HValue* object,
                                        HValue* key,
                                        HValue* value);
-
-  HInstruction* BuildStoreKeyedFastElement(HValue* object,
-                                           HValue* key,
-                                           HValue* val,
-                                           Expression* expr);
-
-  HInstruction* BuildStoreKeyedSpecializedArrayElement(
-      HValue* object,
-      HValue* key,
-      HValue* val,
-      Expression* expr);
-
-  HInstruction* BuildStoreKeyed(HValue* object,
-                                HValue* key,
-                                HValue* value,
-                                Expression* assignment);
 
   HValue* BuildContextChainWalk(Variable* var);
 

@@ -30,14 +30,6 @@ def FAIL_OK = FAIL, OKAY
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-# 900066: Deleting elements in .arguments should disconnect the
-# element from the actual arguments.  Implementing this is nontrivial
-# and we have no indication that anything on the web depends on this
-# feature.
-S13_A13_T1: FAIL_OK
-S13_A13_T2: FAIL_OK
-S13_A13_T3: FAIL_OK
-
 # This tests precision of trignometric functions.  We're slightly off
 # from the implementation in libc (~ 1e-17) but it's not clear if we
 # or they are closer to the right answer, or if it even matters.
@@ -97,22 +89,20 @@ S7.8.4_A7.4_T1: FAIL_OK
 S7.8.4_A4.3_T5: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 
-# We allow some keywords to be used as identifiers
-S7.5.3_A1.26: FAIL_OK
-S7.5.3_A1.18: FAIL_OK
-S7.5.3_A1.27: FAIL_OK
+# We allow some keywords to be used as identifiers.
 S7.5.3_A1.5: FAIL_OK
 S7.5.3_A1.9: FAIL_OK
 S7.5.3_A1.10: FAIL_OK
 S7.5.3_A1.11: FAIL_OK
-# native
-S7.5.3_A1.20: FAIL_OK
+S7.5.3_A1.15: FAIL_OK
+S7.5.3_A1.16: FAIL_OK
+S7.5.3_A1.18: FAIL_OK
 S7.5.3_A1.21: FAIL_OK
 S7.5.3_A1.22: FAIL_OK
 S7.5.3_A1.23: FAIL_OK
-S7.5.3_A1.15: FAIL_OK
 S7.5.3_A1.24: FAIL_OK
-S7.5.3_A1.16: FAIL_OK
+S7.5.3_A1.26: FAIL_OK
+S7.5.3_A1.27: FAIL_OK
 
 # This checks for non-262 behavior
 S12.6.4_A14_T1: PASS || FAIL_OK

@@ -144,7 +144,7 @@ Token::Value JavaScriptScanner::SkipSingleLineComment() {
   // to be part of the single-line comment; it is recognized
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
-  // ECMA-262, section 7.4, page 12).
+  // ECMA-262, section 7.4).
   while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
@@ -160,13 +160,14 @@ Token::Value JavaScriptScanner::SkipMultiLineComment() {
   while (c0_ >= 0) {
     char ch = c0_;
     Advance();
+    if (unicode_cache_->IsLineTerminator(ch)) {
+      // Following ECMA-262, section 7.4, a comment containing
+      // a newline will make the comment count as a line-terminator.
+      has_line_terminator_before_next_ = true;
+    }
     // If we have reached the end of the multi-line comment, we
     // consume the '/' and insert a whitespace. This way all
-    // multi-line comments are treated as whitespace - even the ones
-    // containing line terminators. This contradicts ECMA-262, section
-    // 7.4, page 12, that says that multi-line comments containing
-    // line terminators should be treated as a line terminator, but it
-    // matches the behaviour of SpiderMonkey and KJS.
+    // multi-line comments are treated as whitespace.
     if (ch == '*' && c0_ == '/') {
       c0_ = ' ';
       return Token::WHITESPACE;
@@ -896,7 +897,6 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) return;
       break;
     case N:
-      if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;
       if (MatchKeywordStart(input, "new", 1, Token::NEW)) return;
       if (MatchKeywordStart(input, "null", 1, Token::NULL_LITERAL)) return;
       break;

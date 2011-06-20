@@ -1040,6 +1040,26 @@ MaybeObject* StubCache::ComputeCallNormal(int argc,
 }
 
 
+MaybeObject* StubCache::ComputeCallArguments(int argc,
+                                             InLoopFlag in_loop,
+                                             Code::Kind kind) {
+  ASSERT(kind == Code::KEYED_CALL_IC);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         in_loop,
+                                         MEGAMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
+  Object* probe;
+  { MaybeObject* maybe_probe = ProbeCache(isolate_, flags);
+    if (!maybe_probe->ToObject(&probe)) return maybe_probe;
+  }
+  if (!probe->IsUndefined()) return probe;
+  StubCompiler compiler;
+  return FillCache(isolate_, compiler.CompileCallArguments(flags));
+}
+
+
 MaybeObject* StubCache::ComputeCallMegamorphic(
     int argc,
     InLoopFlag in_loop,
@@ -1485,6 +1505,26 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   isolate()->counters()->call_megamorphic_stubs()->Increment();
+  Code* code = Code::cast(result);
+  USE(code);
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
+                          code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, Code::cast(code)));
+  return result;
+}
+
+
+MaybeObject* StubCompiler::CompileCallArguments(Code::Flags flags) {
+  HandleScope scope(isolate());
+  int argc = Code::ExtractArgumentsCountFromFlags(flags);
+  KeyedCallIC::GenerateNonStrictArguments(masm(), argc);
+  Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Object* result;
+  { MaybeObject* maybe_result =
+        GetCodeWithFlags(flags, "CompileCallArguments");
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),

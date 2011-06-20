@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When a property of the arguments array is deleted, it
-// must be "disconnected" from the corresponding parameter.
-// Re-introducing the property does not connect to the parameter.
+// Flags: --allow-natives-syntax
 
-function f(x) {
-  delete arguments[0];
-  arguments[0] = 100;
-  return x;
-}
+function foo (i) { return (i % 2) | 0; }
 
-assertEquals(10, f(10));
+assertEquals (-1, foo(-1));
+assertEquals (-1, foo(-1));
+%OptimizeFunctionOnNextCall(foo);
+assertEquals (-1, foo(-1));

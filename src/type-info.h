@@ -36,6 +36,8 @@
 namespace v8 {
 namespace internal {
 
+const int kMaxKeyedPolymorphism = 4;
+
 //         Unknown
 //           |   \____________
 //           |                |
@@ -216,7 +218,9 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
   bool LoadIsMonomorphicNormal(Property* expr);
+  bool LoadIsMegamorphicWithTypeInfo(Property* expr);
   bool StoreIsMonomorphicNormal(Expression* expr);
+  bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
@@ -227,6 +231,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   ZoneMapList* CallReceiverTypes(Call* expr,
                                  Handle<String> name,
                                  CallKind call_kind);
+  void CollectKeyedReceiverTypes(unsigned ast_id,
+                                 ZoneMapList* types);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
@@ -248,11 +254,14 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   void SetInfo(unsigned ast_id, Object* target);
 
-  void PopulateMap(Handle<Code> code);
-
-  void CollectIds(Code* code,
-                  List<int>* code_positions,
-                  List<unsigned>* ast_ids);
+  void BuildDictionary(Handle<Code> code);
+  void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void CreateDictionary(Handle<Code> code, ZoneList<RelocInfo>* infos);
+  void RelocateRelocInfos(ZoneList<RelocInfo>* infos,
+                          byte* old_start,
+                          byte* new_start);
+  void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
+  void ProcessTarget(unsigned ast_id, Code* target);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.

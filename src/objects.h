@@ -1438,6 +1438,7 @@ class JSObject: public JSReceiver {
 
     // The "slow" kind.
     DICTIONARY_ELEMENTS,
+    NON_STRICT_ARGUMENTS_ELEMENTS,
     // The "fast" kind for external arrays
     EXTERNAL_BYTE_ELEMENTS,
     EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
@@ -1475,13 +1476,16 @@ class JSObject: public JSReceiver {
   //
   // In the fast mode elements is a FixedArray and so each element can
   // be quickly accessed. This fact is used in the generated code. The
-  // elements array can have one of the two maps in this mode:
-  // fixed_array_map or fixed_cow_array_map (for copy-on-write
-  // arrays). In the latter case the elements array may be shared by a
-  // few objects and so before writing to any element the array must
-  // be copied. Use EnsureWritableFastElements in this case.
+  // elements array can have one of three maps in this mode:
+  // fixed_array_map, non_strict_arguments_elements_map or
+  // fixed_cow_array_map (for copy-on-write arrays). In the latter case
+  // the elements array may be shared by a few objects and so before
+  // writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
   //
-  // In the slow mode elements is either a NumberDictionary or an ExternalArray.
+  // In the slow mode the elements is either a NumberDictionary, an
+  // ExternalArray, or a FixedArray parameter map for a (non-strict)
+  // arguments object.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   MUST_USE_RESULT inline MaybeObject* ResetElements();
@@ -1499,9 +1503,12 @@ class JSObject: public JSReceiver {
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
   inline bool HasExternalDoubleElements();
+  bool HasFastArgumentsElements();
+  bool HasDictionaryArgumentsElements();
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
-  // Requires: this->HasFastElements().
+
+  // Requires: HasFastElements().
   MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
@@ -1687,7 +1694,11 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
                                               StrictModeFlag strict_mode,
-                                              bool check_prototype = true);
+                                              bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetDictionaryElement(uint32_t index,
+                                                    Object* value,
+                                                    StrictModeFlag strict_mode,
+                                                    bool check_prototype);
 
   MUST_USE_RESULT MaybeObject* SetFastDoubleElement(
       uint32_t index,
@@ -1700,7 +1711,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
                                           StrictModeFlag strict_mode,
-                                          bool check_prototype = true);
+                                          bool check_prototype);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
@@ -1712,6 +1723,9 @@ class JSObject: public JSReceiver {
   // failed.
   MaybeObject* GetExternalElement(uint32_t index);
 
+  // Replace the elements' backing store with fast elements of the given
+  // capacity.  Update the length for JSArrays.  Returns the new backing
+  // store.
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
   MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
@@ -1841,6 +1855,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* NormalizeProperties(
       PropertyNormalizationMode mode,
       int expected_additional_properties);
+
+  // Convert and update the elements backing store to be a NumberDictionary
+  // dictionary.  Returns the backing after conversion.
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
@@ -1985,6 +2002,17 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DeleteElementPostInterceptor(uint32_t index,
                                                             DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
+
+  MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
+  MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,
+                                                       DeleteMode mode);
+
+  bool ReferencesObjectFromElements(FixedArray* elements,
+                                    ElementsKind kind,
+                                    Object* object);
+  bool HasElementInElements(FixedArray* elements,
+                            ElementsKind kind,
+                            uint32_t index);
 
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
@@ -3381,7 +3409,7 @@ class DeoptimizationInputData: public FixedArray {
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationInputDataPrint(FILE* out);
 #endif
 
@@ -3420,7 +3448,7 @@ class DeoptimizationOutputData: public FixedArray {
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   void DeoptimizationOutputDataPrint(FILE* out);
 #endif
 };
@@ -3730,7 +3758,6 @@ class Code: public HeapObject {
   static const int kOptimizableOffset = kKindSpecificFlagsOffset;
   static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
   static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
-  static const int kExternalArrayTypeOffset = kKindSpecificFlagsOffset;
 
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
@@ -3894,6 +3921,8 @@ class Map: public HeapObject {
         (bit_field2() & kElementsKindMask) >> kElementsKindShift);
   }
 
+  // Tells whether the instance has fast elements.
+  // Equivalent to instance->GetElementsKind() == FAST_ELEMENTS.
   inline bool has_fast_elements() {
     return elements_kind() == JSObject::FAST_ELEMENTS;
   }
@@ -4475,9 +4504,7 @@ class SharedFunctionInfo: public HeapObject {
   // False if there are definitely no live objects created from this function.
   // True if live objects _may_ exist (existence not guaranteed).
   // May go back from true to false after GC.
-  inline bool live_objects_may_exist();
-
-  inline void set_live_objects_may_exist(bool value);
+  DECL_BOOLEAN_ACCESSORS(live_objects_may_exist)
 
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
@@ -4568,8 +4595,7 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates if this function can be lazy compiled.
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
-  inline bool allows_lazy_compilation();
-  inline void set_allows_lazy_compilation(bool flag);
+  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
   // Indicates how many full GCs this function has survived with assigned
   // code object. Used to determine when it is relatively safe to flush
@@ -4583,12 +4609,16 @@ class SharedFunctionInfo: public HeapObject {
   // shared function info. If a function is repeatedly optimized or if
   // we cannot optimize the function we disable optimization to avoid
   // spending time attempting to optimize it again.
-  inline bool optimization_disabled();
-  inline void set_optimization_disabled(bool value);
+  DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates whether the function is a strict mode function.
-  inline bool strict_mode();
-  inline void set_strict_mode(bool value);
+  DECL_BOOLEAN_ACCESSORS(strict_mode)
+
+  // False if the function definitely does not allocate an arguments object.
+  DECL_BOOLEAN_ACCESSORS(uses_arguments)
+
+  // True if the function has any duplicated parameter names.
+  DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
   // Indicates whether the function is a native function.
   // These needs special threatment in .call and .apply since
@@ -4596,6 +4626,11 @@ class SharedFunctionInfo: public HeapObject {
   // global object.
   inline bool native();
   inline void set_native(bool value);
+
+  // Indicates whether the function is a bound function created using
+  // the bind function.
+  inline bool bound();
+  inline void set_bound(bool value);
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -4775,14 +4810,21 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
-  static const int kHasOnlySimpleThisPropertyAssignments = 0;
-  static const int kAllowLazyCompilation = 1;
-  static const int kLiveObjectsMayExist = 2;
-  static const int kCodeAgeShift = 3;
-  static const int kCodeAgeMask = 0x7;
-  static const int kOptimizationDisabled = 6;
-  static const int kStrictModeFunction = 7;
-  static const int kNative = 8;
+  static const int kCodeAgeSize = 3;
+  static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
+  static const int kBoundFunction = 9;
+
+  enum CompilerHints {
+    kHasOnlySimpleThisPropertyAssignments,
+    kAllowLazyCompilation,
+    kLiveObjectsMayExist,
+    kCodeAgeShift,
+    kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
+    kStrictModeFunction,
+    kUsesArguments,
+    kHasDuplicateParameters,
+    kNative
+  };
 
  private:
 #if V8_HOST_ARCH_32_BIT

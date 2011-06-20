@@ -1107,7 +1107,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
 }
 
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 const char* Translation::StringFor(Opcode opcode) {
   switch (opcode) {

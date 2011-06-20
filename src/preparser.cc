@@ -209,9 +209,6 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     case i::Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
 
-    case i::Token::NATIVE:
-      return ParseNativeDeclaration(ok);
-
     case i::Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
@@ -243,29 +240,6 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     *ok = false;
   }
   return Statement::FunctionDeclaration();
-}
-
-
-// Language extension which is only enabled for source files loaded
-// through the API's extension mechanism.  A native function
-// declaration is resolved by looking up the function through a
-// callback provided by the extension.
-PreParser::Statement PreParser::ParseNativeDeclaration(bool* ok) {
-  Expect(i::Token::NATIVE, CHECK_OK);
-  Expect(i::Token::FUNCTION, CHECK_OK);
-  ParseIdentifier(CHECK_OK);
-  Expect(i::Token::LPAREN, CHECK_OK);
-  bool done = (peek() == i::Token::RPAREN);
-  while (!done) {
-    ParseIdentifier(CHECK_OK);
-    done = (peek() == i::Token::RPAREN);
-    if (!done) {
-      Expect(i::Token::COMMA, CHECK_OK);
-    }
-  }
-  Expect(i::Token::RPAREN, CHECK_OK);
-  Expect(i::Token::SEMICOLON, CHECK_OK);
-  return Statement::Default();
 }
 
 
@@ -362,8 +336,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   //   Identifier ':' Statement
 
   Expression expr = ParseExpression(true, CHECK_OK);
-  if (peek() == i::Token::COLON && expr.IsRawIdentifier()) {
-    if (!strict_mode() || !expr.AsIdentifier().IsFutureReserved()) {
+  if (expr.IsRawIdentifier()) {
+    if (peek() == i::Token::COLON &&
+        (!strict_mode() || !expr.AsIdentifier().IsFutureReserved())) {
       Consume(i::Token::COLON);
       i::Scanner::Location start_location = scanner_->peek_location();
       Statement statement = ParseStatement(CHECK_OK);
@@ -375,6 +350,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
       }
       return Statement::Default();
     }
+    // Preparsing is disabled for extensions (because the extension details
+    // aren't passed to lazily compiled functions), so we don't
+    // accept "native function" in the preparser.
   }
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);

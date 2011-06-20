@@ -657,6 +657,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           0,
           source->length(),
+          false,
           false);
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
@@ -1268,9 +1269,6 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return ParseFunctionDeclaration(ok);
     }
 
-    case Token::NATIVE:
-      return ParseNativeDeclaration(ok);
-
     case Token::DEBUGGER:
       stmt = ParseDebuggerStatement(ok);
       break;
@@ -1391,13 +1389,6 @@ VariableProxy* Parser::Declare(Handle<String> name,
 // declaration is resolved by looking up the function through a
 // callback provided by the extension.
 Statement* Parser::ParseNativeDeclaration(bool* ok) {
-  if (extension_ == NULL) {
-    ReportUnexpectedToken(Token::NATIVE);
-    *ok = false;
-    return NULL;
-  }
-
-  Expect(Token::NATIVE, CHECK_OK);
   Expect(Token::FUNCTION, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
@@ -1750,7 +1741,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   //   Identifier ':' Statement
   bool starts_with_idenfifier = peek_any_identifier();
   Expression* expr = ParseExpression(true, CHECK_OK);
-  if (peek() == Token::COLON && starts_with_idenfifier && expr &&
+  if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
       expr->AsVariableProxy() != NULL &&
       !expr->AsVariableProxy()->is_this()) {
     // Expression is a single identifier, and not, e.g., a parenthesized
@@ -1778,6 +1769,20 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     top_scope_->RemoveUnresolved(var);
     Expect(Token::COLON, CHECK_OK);
     return ParseStatement(labels, ok);
+  }
+
+  // If we have an extension, we allow a native function declaration.
+  // A native function declaration starts with "native function" with
+  // no line-terminator between the two words.
+  if (extension_ != NULL &&
+      peek() == Token::FUNCTION &&
+      !scanner().has_line_terminator_before_next() &&
+      expr != NULL &&
+      expr->AsVariableProxy() != NULL &&
+      expr->AsVariableProxy()->name()->Equals(
+          isolate()->heap()->native_symbol()) &&
+      !scanner().literal_contains_escapes()) {
+    return ParseNativeDeclaration(ok);
   }
 
   // Parsed expression statement.
@@ -2544,18 +2549,26 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     int position = scanner().location().beg_pos;
     Expression* expression = ParseUnaryExpression(CHECK_OK);
 
-    // Compute some expressions involving only number literals.
-    if (expression != NULL && expression->AsLiteral() &&
-        expression->AsLiteral()->handle()->IsNumber()) {
-      double value = expression->AsLiteral()->handle()->Number();
-      switch (op) {
-        case Token::ADD:
-          return expression;
-        case Token::SUB:
-          return NewNumberLiteral(-value);
-        case Token::BIT_NOT:
-          return NewNumberLiteral(~DoubleToInt32(value));
-        default: break;
+    if (expression != NULL && (expression->AsLiteral() != NULL)) {
+      Handle<Object> literal = expression->AsLiteral()->handle();
+      if (op == Token::NOT) {
+        // Convert the literal to a boolean condition and negate it.
+        bool condition = literal->ToBoolean()->IsTrue();
+        Handle<Object> result(isolate()->heap()->ToBoolean(!condition));
+        return new(zone()) Literal(result);
+      } else if (literal->IsNumber()) {
+        // Compute some expressions involving only number literals.
+        double value = literal->Number();
+        switch (op) {
+          case Token::ADD:
+            return expression;
+          case Token::SUB:
+            return NewNumberLiteral(-value);
+          case Token::BIT_NOT:
+            return NewNumberLiteral(~DoubleToInt32(value));
+          default:
+            break;
+        }
       }
     }
 
@@ -3549,6 +3562,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   int end_pos;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
+  bool has_duplicate_parameters = false;
   // Parse function body.
   { LexicalScope lexical_scope(this, scope, isolate());
     top_scope_->SetScopeName(name);
@@ -3572,6 +3586,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         name_loc = scanner().location();
       }
       if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        has_duplicate_parameters = true;
         dupe_loc = scanner().location();
       }
       if (!reserved_loc.IsValid() && is_reserved) {
@@ -3707,7 +3722,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                                   num_parameters,
                                   start_pos,
                                   end_pos,
-                                  (function_name->length() > 0));
+                                  (function_name->length() > 0),
+                                  has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
 
   if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
@@ -4970,6 +4986,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
     Parser parser(script, true, NULL, NULL);
     result = parser.ParseLazy(info);
   } else {
+    // Whether we allow %identifier(..) syntax.
     bool allow_natives_syntax =
         info->allows_natives_syntax() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();

@@ -149,8 +149,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done, Label::kNear);
+  JumpIfSmi(value, &done, Label::kNear);
 
   InNewSpace(object, value, equal, &done, Label::kNear);
 
@@ -195,8 +194,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done);
+  JumpIfSmi(value, &done, Label::kNear);
 
   InNewSpace(object, value, equal, &done);
 
@@ -364,8 +362,7 @@ void MacroAssembler::FCmp() {
 
 void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
-  test(object, Immediate(kSmiTagMask));
-  j(zero, &ok);
+  JumpIfSmi(object, &ok);
   cmp(FieldOperand(object, HeapObject::kMapOffset),
       isolate()->factory()->heap_number_map());
   Assert(equal, "Operand not a number");
@@ -1176,8 +1173,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register scratch,
                                              Label* miss) {
   // Check that the receiver isn't a smi.
-  test(function, Immediate(kSmiTagMask));
-  j(zero, miss);
+  JumpIfSmi(function, miss);
 
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
@@ -2056,8 +2052,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   ASSERT_EQ(0, kSmiTag);
   mov(scratch1, Operand(object1));
   and_(scratch1, Operand(object2));
-  test(scratch1, Immediate(kSmiTagMask));
-  j(zero, failure);
+  JumpIfSmi(scratch1, failure);
 
   // Load instance type for both strings.
   mov(scratch1, FieldOperand(object1, HeapObject::kMapOffset));

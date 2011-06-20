@@ -72,8 +72,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   //   r1: used to hold receivers map.
 
   // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the receiver is a valid JS object.
   __ mov(r1, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -373,8 +372,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   //   map - used to hold the map of the receiver.
 
   // Check that the object isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, slow);
+  __ JumpIfSmi(receiver, slow);
 
   // Get the map of the receiver.
   __ mov(map, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -465,6 +463,76 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
 }
 
 
+static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
+                                             Register object,
+                                             Register key,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* unmapped_case,
+                                             Label* slow_case) {
+  Heap* heap = masm->isolate()->heap();
+  Factory* factory = masm->isolate()->factory();
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(object, slow_case);
+
+  // Check that the key is a positive smi.
+  __ test(key, Immediate(0x8000001));
+  __ j(not_zero, slow_case);
+
+  // Load the elements into scratch1 and check its map.
+  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  __ mov(scratch1, FieldOperand(object, JSObject::kElementsOffset));
+  __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
+
+  // Check if element is in the range of mapped arguments. If not, jump
+  // to the unmapped lookup with the parameter map in scratch1.
+  __ mov(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
+  __ sub(Operand(scratch2), Immediate(Smi::FromInt(2)));
+  __ cmp(key, Operand(scratch2));
+  __ j(greater_equal, unmapped_case);
+
+  // Load element index and check whether it is the hole.
+  const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
+  __ mov(scratch2, FieldOperand(scratch1,
+                                key,
+                                times_half_pointer_size,
+                                kHeaderSize));
+  __ cmp(scratch2, factory->the_hole_value());
+  __ j(equal, unmapped_case);
+
+  // Load value from context and return it. We can reuse scratch1 because
+  // we do not jump to the unmapped lookup (which requires the parameter
+  // map in scratch1).
+  const int kContextOffset = FixedArray::kHeaderSize;
+  __ mov(scratch1, FieldOperand(scratch1, kContextOffset));
+  return FieldOperand(scratch1,
+                      scratch2,
+                      times_half_pointer_size,
+                      Context::kHeaderSize);
+}
+
+
+static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
+                                               Register key,
+                                               Register parameter_map,
+                                               Register scratch,
+                                               Label* slow_case) {
+  // Element is in arguments backing store, which is referenced by the
+  // second element of the parameter_map.
+  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
+  Register backing_store = parameter_map;
+  __ mov(backing_store, FieldOperand(parameter_map, kBackingStoreOffset));
+  __ mov(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
+  __ cmp(key, Operand(scratch));
+  __ j(greater_equal, slow_case);
+  return FieldOperand(backing_store,
+                      key,
+                      times_half_pointer_size,
+                      FixedArray::kHeaderSize);
+}
+
+
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -475,8 +543,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string);
+  __ JumpIfNotSmi(eax, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
@@ -665,8 +732,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Label slow;
 
   // Check that the receiver isn't a smi.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(edx, &slow);
 
   // Check that the key is an array index, that is Uint32.
   __ test(eax, Immediate(kSmiTagMask | kSmiSignMask));
@@ -699,6 +765,54 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow, notin;
+  Factory* factory = masm->isolate()->factory();
+  Operand mapped_location =
+      GenerateMappedArgumentsLookup(masm, edx, eax, ebx, ecx, &notin, &slow);
+  __ mov(eax, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in ebx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, eax, ebx, ecx, &slow);
+  __ cmp(unmapped_location, factory->the_hole_value());
+  __ j(equal, &slow);
+  __ mov(eax, unmapped_location);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow, notin;
+  Operand mapped_location =
+      GenerateMappedArgumentsLookup(masm, edx, ecx, ebx, edi, &notin, &slow);
+  __ mov(mapped_location, eax);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in ebx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, ecx, ebx, edi, &slow);
+  __ mov(unmapped_location, eax);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                    StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
@@ -710,8 +824,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label slow, fast, array, extra;
 
   // Check that the object isn't a smi.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
+  __ JumpIfSmi(edx, &slow);
   // Get the map from the receiver.
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
@@ -720,8 +833,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
             1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &slow);
   // Check that the key is a smi.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow);
+  __ JumpIfNotSmi(ecx, &slow);
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JSObject.
@@ -821,8 +933,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &number);
+  __ JumpIfSmi(edx, &number);
   __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
   __ j(not_equal, &non_number);
   __ bind(&number);
@@ -869,8 +980,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
   // -----------------------------------
 
   // Check that the result is not a smi.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(edi, miss);
 
   // Check that the value is a JavaScript function, fetching its map into eax.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
@@ -951,8 +1061,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
-    __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &invoke, Label::kNear);
+    __ JumpIfSmi(edx, &invoke, Label::kNear);
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
     __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
     __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
@@ -1045,8 +1154,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   Label index_smi, index_string;
 
   // Check that the key is a smi.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string);
+  __ JumpIfNotSmi(ecx, &check_string);
 
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
@@ -1146,6 +1254,35 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 }
 
 
+void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
+                                             int argc) {
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+  Label slow, notin;
+  Factory* factory = masm->isolate()->factory();
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+  Operand mapped_location =
+      GenerateMappedArgumentsLookup(masm, edx, ecx, ebx, eax, &notin, &slow);
+  __ mov(edi, mapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow);
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in ebx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, ecx, ebx, eax, &slow);
+  __ cmp(unmapped_location, factory->the_hole_value());
+  __ j(equal, &slow);
+  __ mov(edi, unmapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow);
+  __ bind(&slow);
+  GenerateMiss(masm, argc);
+}
+
+
 void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
@@ -1157,8 +1294,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Check if the name is a string.
   Label miss;
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(ecx, &miss);
   Condition cond = masm->IsObjectStringType(ecx, eax, eax);
   __ j(NegateCondition(cond), &miss);
   GenerateCallNormal(masm, argc);
@@ -1343,8 +1479,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   Register scratch = ebx;
 
   // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Check that the object is a JS array.
   __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
@@ -1358,8 +1493,7 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Check that value is a smi.
-  __ test(value, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss);
+  __ JumpIfNotSmi(value, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
   __ pop(scratch);

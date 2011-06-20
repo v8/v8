@@ -117,11 +117,6 @@ class SerializedScopeInfo : public FixedArray {
   // Is this scope a strict mode scope?
   bool IsStrictMode();
 
-  // Does this scope have an arguments shadow?
-  bool HasArgumentsShadow() {
-    return StackSlotIndex(GetHeap()->arguments_shadow_symbol()) >= 0;
-  }
-
   // Return the number of stack slots for code.
   int NumberOfStackSlots();
 

@@ -507,7 +507,8 @@ Handle<Object> SetElement(Handle<JSObject> object,
     }
   }
   CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetElement(index, *value, strict_mode), Object);
+                     object->SetElement(index, *value, strict_mode, true),
+                     Object);
 }
 
 

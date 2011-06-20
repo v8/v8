@@ -1372,9 +1372,11 @@ def BuildSpecific(env, mode, env_overrides, tools):
     pdb_name = library_name + '.dll.pdb'
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
     preparser_pdb_name = preparser_library_name + '.dll.pdb';
+    preparser_soname = 'lib' + preparser_library_name + '.so';
     preparser_library = env.SharedLibrary(preparser_library_name,
                                           preparser_files,
-                                          PDB=preparser_pdb_name)
+                                          PDB=preparser_pdb_name,
+                                          SONAME=preparser_soname)
   context.library_targets.append(library)
   context.library_targets.append(preparser_library)
 

@@ -1250,16 +1250,20 @@ void HStackCheckEliminator::Process() {
     if (block->IsLoopHeader()) {
       HBasicBlock* back_edge = block->loop_information()->GetLastBackEdge();
       HBasicBlock* dominator = back_edge;
-      bool back_edge_dominated_by_call = false;
-      while (dominator != block && !back_edge_dominated_by_call) {
+      while (true) {
         HInstruction* instr = dominator->first();
-        while (instr != NULL && !back_edge_dominated_by_call) {
+        while (instr != NULL) {
           if (instr->IsCall()) {
             RemoveStackCheck(back_edge);
-            back_edge_dominated_by_call = true;
+            break;
           }
           instr = instr->next();
         }
+
+        // Done when the loop header is processed.
+        if (dominator == block) break;
+
+        // Move up the dominator tree.
         dominator = dominator->dominator();
       }
     }
@@ -2386,18 +2390,13 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   // Handle the arguments and arguments shadow variables specially (they do
   // not have declarations).
   if (scope->arguments() != NULL) {
-    if (!scope->arguments()->IsStackAllocated() ||
-        (scope->arguments_shadow() != NULL &&
-        !scope->arguments_shadow()->IsStackAllocated())) {
+    if (!scope->arguments()->IsStackAllocated()) {
       return Bailout("context-allocated arguments");
     }
     HArgumentsObject* object = new(zone()) HArgumentsObject;
     AddInstruction(object);
     graph()->SetArgumentsObject(object);
     environment()->Bind(scope->arguments(), object);
-    if (scope->arguments_shadow() != NULL) {
-      environment()->Bind(scope->arguments_shadow(), object);
-    }
   }
 }
 
@@ -3449,7 +3448,16 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     value = Pop();
     HValue* key = Pop();
     HValue* object = Pop();
-    instr = BuildStoreKeyed(object, key, value, expr);
+    bool has_side_effects = false;
+    HandleKeyedElementAccess(object, key, value, expr, expr->AssignmentId(),
+                             expr->position(),
+                             true,  // is_store
+                             &has_side_effects);
+    Push(value);
+    ASSERT(has_side_effects);  // Stores always have side effects.
+    AddSimulate(expr->AssignmentId());
+    ast_context()->ReturnValue(Pop());
+    return;
   }
   Push(value);
   instr->set_position(expr->position());
@@ -3520,6 +3528,20 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     } else if (var->IsStackAllocated()) {
       Bind(var, Top());
     } else if (var->IsContextSlot()) {
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            Bailout("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
       HStoreContextSlot* instr =
@@ -3573,9 +3595,14 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       HValue* obj = environment()->ExpressionStackAt(1);
       HValue* key = environment()->ExpressionStackAt(0);
 
-      HInstruction* load = BuildLoadKeyed(obj, key, prop);
-      PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(expr->CompoundLoadId());
+      bool has_side_effects = false;
+      HValue* load = HandleKeyedElementAccess(
+          obj, key, NULL, prop, expr->CompoundLoadId(), RelocInfo::kNoPosition,
+          false,  // is_store
+          &has_side_effects);
+      Push(load);
+      if (has_side_effects) AddSimulate(expr->CompoundLoadId());
+
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -3586,12 +3613,16 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       if (instr->HasSideEffects()) AddSimulate(operation->id());
 
       expr->RecordTypeFeedback(oracle());
-      HInstruction* store = BuildStoreKeyed(obj, key, instr, expr);
-      AddInstruction(store);
+      HandleKeyedElementAccess(obj, key, instr, expr, expr->AssignmentId(),
+                               RelocInfo::kNoPosition,
+                               true,  // is_store
+                               &has_side_effects);
+
       // Drop the simulated receiver, key, and value.  Return the value.
       Drop(3);
       Push(instr);
-      if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
+      ASSERT(has_side_effects);  // Stores always have side effects.
+      AddSimulate(expr->AssignmentId());
       ast_context()->ReturnValue(Pop());
     }
 
@@ -3643,6 +3674,20 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
 
     } else if (var->IsContextSlot()) {
       ASSERT(var->mode() != Variable::CONST);
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            Bailout("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
@@ -3755,19 +3800,79 @@ HInstruction* HGraphBuilder::BuildLoadKeyedGeneric(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
-                                                       HValue* key,
-                                                       Property* expr) {
-  ASSERT(!expr->key()->IsPropertyName() && expr->IsMonomorphic());
-  AddInstruction(new(zone()) HCheckNonSmi(object));
+HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
+    HValue* external_elements,
+    HValue* checked_key,
+    HValue* val,
+    JSObject::ElementsKind elements_kind,
+    bool is_store) {
+  if (is_store) {
+    ASSERT(val != NULL);
+    switch (elements_kind) {
+      case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+        HClampToUint8* clamp = new(zone()) HClampToUint8(val);
+        AddInstruction(clamp);
+        val = clamp;
+        break;
+      }
+      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case JSObject::EXTERNAL_INT_ELEMENTS:
+      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+        HToInt32* floor_val = new(zone()) HToInt32(val);
+        AddInstruction(floor_val);
+        val = floor_val;
+        break;
+      }
+      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+        break;
+      case JSObject::FAST_ELEMENTS:
+      case JSObject::FAST_DOUBLE_ELEMENTS:
+      case JSObject::DICTIONARY_ELEMENTS:
+      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNREACHABLE();
+        break;
+    }
+    return new(zone()) HStoreKeyedSpecializedArrayElement(
+        external_elements, checked_key, val, elements_kind);
+  } else {
+    return new(zone()) HLoadKeyedSpecializedArrayElement(
+        external_elements, checked_key, elements_kind);
+  }
+}
+
+
+HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
+                                                           HValue* key,
+                                                           HValue* val,
+                                                           Expression* expr,
+                                                           bool is_store) {
+  ASSERT(expr->IsMonomorphic());
   Handle<Map> map = expr->GetMonomorphicReceiverType();
-  ASSERT(map->has_fast_elements());
+  if (!map->has_fast_elements() && !map->has_external_array_elements()) {
+    return is_store ? BuildStoreKeyedGeneric(object, key, val)
+                    : BuildLoadKeyedGeneric(object, key);
+  }
+  AddInstruction(new(zone()) HCheckNonSmi(object));
   AddInstruction(new(zone()) HCheckMap(object, map));
-  bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
-  HLoadElements* elements = new(zone()) HLoadElements(object);
+  HInstruction* elements = new(zone()) HLoadElements(object);
   HInstruction* length = NULL;
   HInstruction* checked_key = NULL;
-  if (is_array) {
+  if (map->has_external_array_elements()) {
+    AddInstruction(elements);
+    length = AddInstruction(new(zone()) HExternalArrayLength(elements));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+    HLoadExternalArrayPointer* external_elements =
+        new(zone()) HLoadExternalArrayPointer(elements);
+    AddInstruction(external_elements);
+    return BuildExternalArrayElementAccess(external_elements, checked_key,
+                                           val, map->elements_kind(), is_store);
+  }
+  ASSERT(map->has_fast_elements());
+  if (map->instance_type() == JS_ARRAY_TYPE) {
     length = AddInstruction(new(zone()) HJSArrayLength(object));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     AddInstruction(elements);
@@ -3776,51 +3881,181 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   }
-  return new(zone()) HLoadKeyedFastElement(elements, checked_key);
+  if (is_store) {
+    return new(zone()) HStoreKeyedFastElement(elements, checked_key, val);
+  } else {
+    return new(zone()) HLoadKeyedFastElement(elements, checked_key);
+  }
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
-    HValue* object,
-    HValue* key,
-    Property* expr) {
-  ASSERT(!expr->key()->IsPropertyName() && expr->IsMonomorphic());
+HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
+                                                      HValue* key,
+                                                      HValue* val,
+                                                      Expression* prop,
+                                                      int ast_id,
+                                                      int position,
+                                                      bool is_store,
+                                                      bool* has_side_effects) {
+  *has_side_effects = false;
   AddInstruction(new(zone()) HCheckNonSmi(object));
-  Handle<Map> map = expr->GetMonomorphicReceiverType();
-  ASSERT(!map->has_fast_elements());
-  ASSERT(map->has_external_array_elements());
-  AddInstruction(new(zone()) HCheckMap(object, map));
-  HLoadElements* elements = new(zone()) HLoadElements(object);
-  AddInstruction(elements);
-  HInstruction* length = new(zone()) HExternalArrayLength(elements);
-  AddInstruction(length);
-  HInstruction* checked_key =
-      AddInstruction(new(zone()) HBoundsCheck(key, length));
-  HLoadExternalArrayPointer* external_elements =
-      new(zone()) HLoadExternalArrayPointer(elements);
-  AddInstruction(external_elements);
-  HLoadKeyedSpecializedArrayElement* pixel_array_value =
-      new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, checked_key, map->elements_kind());
-  return pixel_array_value;
-}
+  AddInstruction(HCheckInstanceType::NewIsSpecObject(object));
+  ZoneMapList* maps = prop->GetReceiverTypes();
+  bool todo_external_array = false;
 
+  static const int kNumElementTypes = JSObject::kElementsKindCount;
+  bool type_todo[kNumElementTypes];
+  for (int i = 0; i < kNumElementTypes; ++i) {
+    type_todo[i] = false;
+  }
 
-HInstruction* HGraphBuilder::BuildLoadKeyed(HValue* obj,
-                                            HValue* key,
-                                            Property* prop) {
-  if (prop->IsMonomorphic()) {
-    Handle<Map> receiver_type(prop->GetMonomorphicReceiverType());
-    // An object has either fast elements or pixel array elements, but never
-    // both. Pixel array maps that are assigned to pixel array elements are
-    // always created with the fast elements flag cleared.
-    if (receiver_type->has_external_array_elements()) {
-      return BuildLoadKeyedSpecializedArrayElement(obj, key, prop);
-    } else if (receiver_type->has_fast_elements()) {
-      return BuildLoadKeyedFastElement(obj, key, prop);
+  for (int i = 0; i < maps->length(); ++i) {
+    ASSERT(maps->at(i)->IsMap());
+    type_todo[maps->at(i)->elements_kind()] = true;
+    if (maps->at(i)->elements_kind()
+        >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
+      todo_external_array = true;
     }
   }
-  return BuildLoadKeyedGeneric(obj, key);
+  // We can't treat dictionary elements here (need to deopt instead).
+  type_todo[JSObject::DICTIONARY_ELEMENTS] = false;
+  // Support for FAST_DOUBLE_ELEMENTS isn't implemented yet, so we deopt.
+  type_todo[JSObject::FAST_DOUBLE_ELEMENTS] = false;
+
+  HBasicBlock* join = graph()->CreateBasicBlock();
+
+  HInstruction* elements_kind_instr =
+      AddInstruction(new(zone()) HElementsKind(object));
+  HInstruction* elements = NULL;
+  HLoadExternalArrayPointer* external_elements = NULL;
+  HInstruction* checked_key = NULL;
+
+  // FAST_ELEMENTS is assumed to be the first case.
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+
+  for (JSObject::ElementsKind elements_kind = JSObject::FAST_ELEMENTS;
+       elements_kind <= JSObject::LAST_ELEMENTS_KIND;
+       elements_kind = JSObject::ElementsKind(elements_kind + 1)) {
+    // After having handled FAST_ELEMENTS in the first run of the loop, we
+    // need to add some code that's executed for all other cases.
+    if (elements_kind == 1 && todo_external_array) {
+      elements = AddInstruction(new(zone()) HLoadElements(object));
+      // We need to forcibly prevent some ElementsKind-dependent instructions
+      // from being hoisted out of any loops they might occur in, because
+      // the current loop-invariant-code-motion algorithm isn't clever enough
+      // to deal with them properly.
+      // There's some performance to be gained by developing a smarter
+      // solution for this.
+      elements->ClearFlag(HValue::kUseGVN);
+      HInstruction* length =
+          AddInstruction(new(zone()) HExternalArrayLength(elements));
+      checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+      external_elements = new(zone()) HLoadExternalArrayPointer(elements);
+      AddInstruction(external_elements);
+    }
+    if (type_todo[elements_kind]) {
+      HBasicBlock* if_true = graph()->CreateBasicBlock();
+      HBasicBlock* if_false = graph()->CreateBasicBlock();
+      HCompareConstantEq* compare = new(zone()) HCompareConstantEq(
+          elements_kind_instr,
+          elements_kind,
+          Token::EQ_STRICT);
+      AddInstruction(compare);
+      HTest* branch = new(zone()) HTest(compare, if_true, if_false);
+      current_block()->Finish(branch);
+
+      set_current_block(if_true);
+      HInstruction* access;
+      if (elements_kind == JSObject::FAST_ELEMENTS) {
+        HBasicBlock* if_jsarray = graph()->CreateBasicBlock();
+        HBasicBlock* if_fastobject = graph()->CreateBasicBlock();
+        HInstruction* typecheck =
+            AddInstruction(new(zone()) HHasInstanceType(object, JS_ARRAY_TYPE));
+        HTest* test = new(zone()) HTest(typecheck, if_jsarray, if_fastobject);
+        current_block()->Finish(test);
+
+        set_current_block(if_jsarray);
+        HInstruction* length = new(zone()) HJSArrayLength(object);
+        AddInstruction(length);
+        length->ClearFlag(HValue::kUseGVN);
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        elements = AddInstruction(new(zone()) HLoadElements(object));
+        elements->ClearFlag(HValue::kUseGVN);
+        if (is_store) {
+          access = AddInstruction(
+              new(zone()) HStoreKeyedFastElement(elements, checked_key, val));
+        } else {
+          access = AddInstruction(
+              new(zone()) HLoadKeyedFastElement(elements, checked_key));
+          Push(access);
+        }
+        *has_side_effects |= access->HasSideEffects();
+        if (position != -1) {
+          access->set_position(position);
+        }
+        if_jsarray->Goto(join);
+
+        set_current_block(if_fastobject);
+        elements = AddInstruction(new(zone()) HLoadElements(object));
+        elements->ClearFlag(HValue::kUseGVN);
+        length = AddInstruction(new(zone()) HFixedArrayLength(elements));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        if (is_store) {
+          access = AddInstruction(
+              new(zone()) HStoreKeyedFastElement(elements, checked_key, val));
+        } else {
+          access = AddInstruction(
+              new(zone()) HLoadKeyedFastElement(elements, checked_key));
+        }
+      } else {  // External array elements.
+        access = AddInstruction(BuildExternalArrayElementAccess(
+            external_elements, checked_key, val, elements_kind, is_store));
+      }
+      *has_side_effects |= access->HasSideEffects();
+      access->set_position(position);
+      if (!is_store) {
+        Push(access);
+      }
+      current_block()->Goto(join);
+      set_current_block(if_false);
+    }
+  }
+
+  // Deopt if none of the cases matched.
+  current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
+  join->SetJoinId(ast_id);
+  set_current_block(join);
+  return is_store ? NULL : Pop();
+}
+
+
+HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
+                                                HValue* key,
+                                                HValue* val,
+                                                Expression* expr,
+                                                int ast_id,
+                                                int position,
+                                                bool is_store,
+                                                bool* has_side_effects) {
+  ASSERT(!expr->IsPropertyName());
+  HInstruction* instr = NULL;
+  if (expr->IsMonomorphic()) {
+    instr = BuildMonomorphicElementAccess(obj, key, val, expr, is_store);
+  } else if (expr->GetReceiverTypes() != NULL &&
+             !expr->GetReceiverTypes()->is_empty()) {
+    return HandlePolymorphicElementAccess(
+        obj, key, val, expr, ast_id, position, is_store, has_side_effects);
+  } else {
+    if (is_store) {
+      instr = BuildStoreKeyedGeneric(obj, key, val);
+    } else {
+      instr = BuildLoadKeyedGeneric(obj, key);
+    }
+  }
+  instr->set_position(position);
+  AddInstruction(instr);
+  *has_side_effects = instr->HasSideEffects();
+  return instr;
 }
 
 
@@ -3835,111 +4070,6 @@ HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                          value,
                          function_strict_mode());
 }
-
-
-HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
-                                                        HValue* key,
-                                                        HValue* val,
-                                                        Expression* expr) {
-  ASSERT(expr->IsMonomorphic());
-  AddInstruction(new(zone()) HCheckNonSmi(object));
-  Handle<Map> map = expr->GetMonomorphicReceiverType();
-  ASSERT(map->has_fast_elements());
-  AddInstruction(new(zone()) HCheckMap(object, map));
-  HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
-  AddInstruction(new(zone()) HCheckMap(
-      elements, isolate()->factory()->fixed_array_map()));
-  bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
-  HInstruction* length = NULL;
-  if (is_array) {
-    length = AddInstruction(new(zone()) HJSArrayLength(object));
-  } else {
-    length = AddInstruction(new(zone()) HFixedArrayLength(elements));
-  }
-  HInstruction* checked_key =
-      AddInstruction(new(zone()) HBoundsCheck(key, length));
-  return new(zone()) HStoreKeyedFastElement(elements, checked_key, val);
-}
-
-
-HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
-    HValue* object,
-    HValue* key,
-    HValue* val,
-    Expression* expr) {
-  ASSERT(expr->IsMonomorphic());
-  AddInstruction(new(zone()) HCheckNonSmi(object));
-  Handle<Map> map = expr->GetMonomorphicReceiverType();
-  ASSERT(!map->has_fast_elements());
-  ASSERT(map->has_external_array_elements());
-  AddInstruction(new(zone()) HCheckMap(object, map));
-  HLoadElements* elements = new(zone()) HLoadElements(object);
-  AddInstruction(elements);
-  HInstruction* length = AddInstruction(
-      new(zone()) HExternalArrayLength(elements));
-  HInstruction* checked_key =
-      AddInstruction(new(zone()) HBoundsCheck(key, length));
-  HLoadExternalArrayPointer* external_elements =
-      new(zone()) HLoadExternalArrayPointer(elements);
-  AddInstruction(external_elements);
-  JSObject::ElementsKind elements_kind = map->elements_kind();
-  switch (elements_kind) {
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
-      HClampToUint8* clamp = new(zone()) HClampToUint8(val);
-      AddInstruction(clamp);
-      val = clamp;
-      break;
-    }
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      HToInt32* floor_val = new(zone()) HToInt32(val);
-      AddInstruction(floor_val);
-      val = floor_val;
-      break;
-    }
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      break;
-
-    case JSObject::FAST_ELEMENTS:
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-    case JSObject::DICTIONARY_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
-  return new(zone()) HStoreKeyedSpecializedArrayElement(
-      external_elements,
-      checked_key,
-      val,
-      map->elements_kind());
-}
-
-
-HInstruction* HGraphBuilder::BuildStoreKeyed(HValue* object,
-                                             HValue* key,
-                                             HValue* value,
-                                             Expression* expr) {
-  if (expr->IsMonomorphic()) {
-    Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
-    // An object has either fast elements or external array elements, but
-    // never both. Pixel array maps that are assigned to pixel array elements
-    // are always created with the fast elements flag cleared.
-    if (receiver_type->has_external_array_elements()) {
-      return BuildStoreKeyedSpecializedArrayElement(object,
-                                                    key,
-                                                    value,
-                                                    expr);
-    } else if (receiver_type->has_fast_elements()) {
-      return BuildStoreKeyedFastElement(object, key, value, expr);
-    }
-  }
-  return BuildStoreKeyedGeneric(object, key, value);
-}
-
 
 bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
   VariableProxy* proxy = expr->obj()->AsVariableProxy();
@@ -4034,7 +4164,23 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
     HValue* key = Pop();
     HValue* obj = Pop();
-    instr = BuildLoadKeyed(obj, key, expr);
+
+    bool has_side_effects = false;
+    HValue* load = HandleKeyedElementAccess(
+        obj, key, NULL, expr, expr->id(), expr->position(),
+        false,  // is_store
+        &has_side_effects);
+    if (has_side_effects) {
+      if (ast_context()->IsEffect()) {
+        AddSimulate(expr->id());
+      } else {
+        Push(load);
+        AddSimulate(expr->id());
+        Drop(1);
+      }
+    }
+    ast_context()->ReturnValue(load);
+    return;
   }
   instr->set_position(expr->position());
   ast_context()->ReturnInstruction(instr, expr->id());
@@ -4804,7 +4950,7 @@ void HGraphBuilder::VisitDelete(UnaryOperation* expr) {
       // Result of deleting parameters is false, even when they rewrite
       // to accesses on the arguments object.
       ast_context()->ReturnValue(graph()->GetConstantFalse());
-    } else {
+  } else {
       CHECK_ALIVE(VisitForValue(prop->obj()));
       CHECK_ALIVE(VisitForValue(prop->key()));
       HValue* key = Pop();
@@ -4989,6 +5135,20 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
     } else if (var->IsStackAllocated()) {
       Bind(var, after);
     } else if (var->IsContextSlot()) {
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            Bailout("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
       HStoreContextSlot* instr =
@@ -5044,16 +5204,22 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* obj = environment()->ExpressionStackAt(1);
       HValue* key = environment()->ExpressionStackAt(0);
 
-      HInstruction* load = BuildLoadKeyed(obj, key, prop);
-      PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(expr->CountId());
+      bool has_side_effects = false;
+      HValue* load = HandleKeyedElementAccess(
+          obj, key, NULL, prop, expr->CountId(), RelocInfo::kNoPosition,
+          false,  // is_store
+          &has_side_effects);
+      Push(load);
+      if (has_side_effects) AddSimulate(expr->CountId());
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
 
       expr->RecordTypeFeedback(oracle());
-      HInstruction* store = BuildStoreKeyed(obj, key, after, expr);
-      AddInstruction(store);
+      HandleKeyedElementAccess(obj, key, after, expr, expr->AssignmentId(),
+                               RelocInfo::kNoPosition,
+                               true,  // is_store
+                               &has_side_effects);
 
       // Drop the key from the bailout environment.  Overwrite the receiver
       // with the result of the operation, and the placeholder with the
@@ -5061,7 +5227,8 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Drop(1);
       environment()->SetExpressionStackAt(0, after);
       if (returns_original_input) environment()->SetExpressionStackAt(1, input);
-      if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
+      ASSERT(has_side_effects);  // Stores always have side effects.
+      AddSimulate(expr->AssignmentId());
     }
   }
 

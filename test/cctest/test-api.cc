@@ -4157,6 +4157,69 @@ THREADED_TEST(NativeCallInExtensions) {
 }
 
 
+class NativeFunctionExtension : public Extension {
+ public:
+  NativeFunctionExtension(const char* name,
+                          const char* source,
+                          v8::InvocationCallback fun = &Echo)
+      : Extension(name, source),
+        function_(fun) { }
+
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name) {
+    return v8::FunctionTemplate::New(function_);
+  }
+
+  static v8::Handle<v8::Value> Echo(const v8::Arguments& args) {
+    if (args.Length() >= 1) return (args[0]);
+    return v8::Undefined();
+  }
+ private:
+  v8::InvocationCallback function_;
+};
+
+
+THREADED_TEST(NativeFunctionDeclaration) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedecl";
+  v8::RegisterExtension(new NativeFunctionExtension(name,
+                                                    "native function foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str("foo(42);"))->Run();
+  CHECK_EQ(result, v8::Integer::New(42));
+}
+
+
+THREADED_TEST(NativeFunctionDeclarationError) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedecl";
+  // Syntax error in extension code.
+  v8::RegisterExtension(new NativeFunctionExtension(name,
+                                                    "native\nfunction foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  ASSERT(context.IsEmpty());
+}
+
+THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedecl";
+  // Syntax error in extension code - escape code in "native" means that
+  // it's not treated as a keyword.
+  v8::RegisterExtension(new NativeFunctionExtension(
+      name,
+      "nativ\\u0065 function foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  ASSERT(context.IsEmpty());
+}
+
+
 static void CheckDependencies(const char* name, const char* expected) {
   v8::HandleScope handle_scope;
   v8::ExtensionConfiguration config(1, &name);
@@ -9571,6 +9634,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
+  HEAP->global_context_map();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();

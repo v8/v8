@@ -189,8 +189,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!extra2.is(no_reg));
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Get the map of the receiver and compute the hash.
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
@@ -282,8 +281,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register scratch,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss_label);
+  __ JumpIfSmi(receiver, miss_label);
 
   // Check that the object is a JS array.
   __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
@@ -305,8 +303,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
                                 Label* smi,
                                 Label* non_string_object) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, smi);
+  __ JumpIfSmi(receiver, smi);
 
   // Check that the object is a string.
   __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -381,8 +378,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   Label exit;
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver_reg, Operand(kSmiTagMask));
-  __ b(eq, miss_label);
+  __ JumpIfSmi(receiver_reg, miss_label);
 
   // Check that the map of the receiver hasn't changed.
   __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
@@ -431,8 +427,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ str(r0, FieldMemOperand(receiver_reg, offset));
 
     // Skip updating write barrier if storing a smi.
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &exit);
+    __ JumpIfSmi(r0, &exit);
 
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
@@ -445,8 +440,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ str(r0, FieldMemOperand(scratch, offset));
 
     // Skip updating write barrier if storing a smi.
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &exit);
+    __ JumpIfSmi(r0, &exit);
 
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
@@ -1165,8 +1159,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
                                      String* name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1187,8 +1180,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         String* name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1212,8 +1204,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
                                                 String* name,
                                                 Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1426,8 +1417,7 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(JSObject* object,
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, miss);
+    __ JumpIfSmi(r0, miss);
   }
 
   // Check that the maps haven't changed.
@@ -1449,8 +1439,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
     // the nice side effect that multiple closures based on the same
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, miss);
+    __ JumpIfSmi(r1, miss);
     __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
     __ b(ne, miss);
 
@@ -1495,8 +1484,7 @@ MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
   // Get the receiver of the function from the stack into r0.
   __ ldr(r0, MemOperand(sp, argc * kPointerSize));
   // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r0, &miss);
 
   // Do the right check and compute the holder register.
   Register reg = CheckPrototypes(object, r0, holder, r1, r3, r4, name, &miss);
@@ -1967,8 +1955,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &miss);
+    __ JumpIfSmi(r1, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
                     &miss);
@@ -1985,8 +1972,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   // Check the code is a smi.
   Label slow;
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(code, Operand(kSmiTagMask));
-  __ b(ne, &slow);
+  __ JumpIfNotSmi(code, &slow);
 
   // Convert the smi code to uint16.
   __ and_(code, code, Operand(Smi::FromInt(0xffff)));
@@ -2188,8 +2174,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &miss);
+    __ JumpIfSmi(r1, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
                     &miss);
@@ -2292,8 +2277,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss_before_stack_reserved);
+  __ JumpIfSmi(r1, &miss_before_stack_reserved);
 
   __ IncrementCounter(counters->call_const(), 1, r0, r3);
   __ IncrementCounter(counters->call_const_fast_api(), 1, r0, r3);
@@ -2347,8 +2331,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &miss);
+    __ JumpIfSmi(r1, &miss);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
@@ -2398,8 +2381,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         Label fast;
         // Check that the object is a smi or a heap number.
-        __ tst(r1, Operand(kSmiTagMask));
-        __ b(eq, &fast);
+        __ JumpIfSmi(r1, &fast);
         __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE);
         __ b(ne, &miss);
         __ bind(&fast);
@@ -2619,8 +2601,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   Label miss;
 
   // Check that the object isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r1, &miss);
 
   // Check that the map of the object hasn't changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -2667,8 +2648,7 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   Label miss;
 
   // Check that the object isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r1, &miss);
 
   // Check that the map of the object hasn't changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -2759,8 +2739,7 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   Label miss;
 
   // Check that receiver is not a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r0, &miss);
 
   // Check the maps of the full prototype chain.
   CheckPrototypes(object, r0, last, r3, r1, r4, name, &miss);
@@ -2904,8 +2883,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &miss);
+    __ JumpIfSmi(r0, &miss);
   }
 
   // Check that the map of the global has not changed.
@@ -3289,8 +3267,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // r1: constructor function
   // r7: undefined
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &generic_stub_call);
+  __ JumpIfSmi(r2, &generic_stub_call);
   __ CompareObjectType(r2, r3, r4, MAP_TYPE);
   __ b(ne, &generic_stub_call);
 
@@ -3429,6 +3406,7 @@ static bool IsElementTypeSigned(JSObject::ElementsKind elements_kind) {
     case JSObject::FAST_ELEMENTS:
     case JSObject::FAST_DOUBLE_ELEMENTS:
     case JSObject::DICTIONARY_ELEMENTS:
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       return false;
   }
@@ -3514,6 +3492,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     case JSObject::FAST_ELEMENTS:
     case JSObject::FAST_DOUBLE_ELEMENTS:
     case JSObject::DICTIONARY_ELEMENTS:
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -3855,6 +3834,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     case JSObject::FAST_ELEMENTS:
     case JSObject::FAST_DOUBLE_ELEMENTS:
     case JSObject::DICTIONARY_ELEMENTS:
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -3919,6 +3899,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case JSObject::FAST_ELEMENTS:
           case JSObject::FAST_DOUBLE_ELEMENTS:
           case JSObject::DICTIONARY_ELEMENTS:
+          case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
             break;
         }
@@ -4057,6 +4038,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case JSObject::FAST_ELEMENTS:
           case JSObject::FAST_DOUBLE_ELEMENTS:
           case JSObject::DICTIONARY_ELEMENTS:
+          case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
             break;
         }

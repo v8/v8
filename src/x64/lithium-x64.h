@@ -79,6 +79,8 @@ class LCodeGen;
   V(ClampTToUint8)                              \
   V(ClassOfTest)                                \
   V(ClassOfTestAndBranch)                       \
+  V(CmpConstantEq)                              \
+  V(CmpConstantEqAndBranch)                     \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
@@ -95,6 +97,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(ElementsKind)                               \
   V(ExternalArrayLength)                        \
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
@@ -662,6 +665,29 @@ class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
 };
 
 
+class LCmpConstantEq: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LCmpConstantEq(LOperand* left) {
+    inputs_[0] = left;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpConstantEq, "cmp-constant-eq")
+  DECLARE_HYDROGEN_ACCESSOR(CompareConstantEq)
+};
+
+
+class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
+ public:
+  explicit LCmpConstantEqAndBranch(LOperand* left) {
+    inputs_[0] = left;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpConstantEqAndBranch,
+                               "cmp-constant-eq-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(CompareConstantEq)
+};
+
+
 class LIsNull: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LIsNull(LOperand* value) {
@@ -1060,6 +1086,17 @@ class LFixedArrayLength: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(FixedArrayLength, "fixed-array-length")
   DECLARE_HYDROGEN_ACCESSOR(FixedArrayLength)
+};
+
+
+class LElementsKind: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LElementsKind(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ElementsKind, "elements-kind")
+  DECLARE_HYDROGEN_ACCESSOR(ElementsKind)
 };
 
 

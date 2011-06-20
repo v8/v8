@@ -373,7 +373,6 @@ class PreParser {
   SourceElements ParseSourceElements(int end_token, bool* ok);
   Statement ParseStatement(bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseNativeDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(bool* ok);
   Statement ParseVariableDeclarations(bool accept_IN, int* num_decl, bool* ok);

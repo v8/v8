@@ -1158,10 +1158,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
-  // Postpone the generation of the constant pool for the specified number of
-  // instructions.
-  void BlockConstPoolFor(int instructions);
-
   // Debugging
 
   // Mark address of the ExitJSFrame code.
@@ -1221,17 +1217,17 @@ class Assembler : public AssemblerBase {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
 
-  // Buffer size and constant pool distance are checked together at regular
-  // intervals of kBufferCheckInterval emitted bytes
-  static const int kBufferCheckInterval = 1*KB/2;
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB thereby defining a maximum distance between the instruction
-  // and the accessed constant. We satisfy this constraint by limiting the
-  // distance between pools.
-  static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
-  static const int kMaxNumPRInfo = kMaxDistBetweenPools/kInstrSize;
+  // and the accessed constant.
+  static const int kMaxDistToPool = 4*KB;
+  static const int kMaxNumPendingRelocInfo = kMaxDistToPool/kInstrSize;
 
-  // Check if is time to emit a constant pool for pending reloc info entries
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
+
+  // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
@@ -1256,18 +1252,37 @@ class Assembler : public AssemblerBase {
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
 
-  // Block the emission of the constant pool before pc_offset
-  void BlockConstPoolBefore(int pc_offset) {
-    if (no_const_pool_before_ < pc_offset) no_const_pool_before_ = pc_offset;
+  // Prevent contant pool emission until EndBlockConstPool is called.
+  // Call to this function can be nested but must be followed by an equal
+  // number of call to EndBlockConstpool.
+  void StartBlockConstPool() {
+    if (const_pool_blocked_nesting_++ == 0) {
+      // Prevent constant pool checks happening by setting the next check to
+      // the biggest possible offset.
+      next_buffer_check_ = kMaxInt;
+    }
   }
 
-  void StartBlockConstPool() {
-    const_pool_blocked_nesting_++;
-  }
+  // Resume constant pool emission. Need to be called as many time as
+  // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
-    const_pool_blocked_nesting_--;
+    if (--const_pool_blocked_nesting_ == 0) {
+      // Check the constant pool hasn't been blocked for too long.
+      ASSERT((num_pending_reloc_info_ == 0) ||
+             (pc_offset() < (first_const_pool_use_ + kMaxDistToPool)));
+      // Two cases:
+      //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
+      //    still blocked
+      //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
+      //    trigger a check.
+      next_buffer_check_ = no_const_pool_before_;
+    }
   }
-  bool is_const_pool_blocked() const { return const_pool_blocked_nesting_ > 0; }
+
+  bool is_const_pool_blocked() const {
+    return (const_pool_blocked_nesting_ > 0) ||
+           (pc_offset() < no_const_pool_before_);
+  }
 
  private:
   // Code buffer:
@@ -1301,33 +1316,41 @@ class Assembler : public AssemblerBase {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckConstIntervalInst = 32;
-  static const int kCheckConstInterval = kCheckConstIntervalInst * kInstrSize;
+  static const int kCheckPoolIntervalInst = 32;
+  static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
 
-  // Pools are emitted after function return and in dead code at (more or less)
-  // regular intervals of kDistBetweenPools bytes
-  static const int kDistBetweenPools = 1*KB;
+  // Average distance beetween a constant pool and the first instruction
+  // accessing the constant pool. Longer distance should result in less I-cache
+  // pollution.
+  // In practice the distance will be smaller since constant pool emission is
+  // forced after function return and sometimes after unconditional branches.
+  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
 
-  // Keep track of the last emitted pool to guarantee a maximal distance
-  int last_const_pool_end_;  // pc offset following the last constant pool
+  // Keep track of the first instruction requiring a constant pool entry
+  // since the previous constant pool was emitted.
+  int first_const_pool_use_;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
   // to the constant pool. These pending relocation info records are temporarily
   // stored in a separate buffer until a constant pool is emitted.
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
-  RelocInfo prinfo_[kMaxNumPRInfo];  // the buffer of pending relocation info
-  int num_prinfo_;  // number of pending reloc info entries in the buffer
+
+  // the buffer of pending relocation info
+  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
+  // number of pending reloc info entries in the buffer
+  int num_pending_reloc_info_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;

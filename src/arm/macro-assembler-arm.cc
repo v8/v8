@@ -445,20 +445,6 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
 }
 
 
-void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
-  // Empty the const pool.
-  CheckConstPool(true, true);
-  add(pc, pc, Operand(index,
-                      LSL,
-                      Instruction::kInstrSizeLog2 - kSmiTagSize));
-  BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * kInstrSize);
-  nop();  // Jump table alignment.
-  for (int i = 0; i < targets.length(); i++) {
-    b(targets[i]);
-  }
-}
-
-
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
@@ -2706,8 +2692,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
-  tst(scratch1, Operand(kSmiTagMask));
-  b(eq, failure);
+  JumpIfSmi(scratch1, failure);
   JumpIfNonSmisNotBothSequentialAsciiStrings(first,
                                              second,
                                              scratch1,

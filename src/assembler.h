@@ -90,14 +90,18 @@ class Label BASE_EMBEDDED {
     Unuse();
     UnuseNear();
   }
-  INLINE(~Label())                { ASSERT(!is_linked()); }
 
-  INLINE(void Unuse())            { pos_ = 0; }
-  INLINE(void UnuseNear())        { near_link_pos_ = 0; }
+  INLINE(~Label()) {
+    ASSERT(!is_linked());
+    ASSERT(!is_near_linked());
+  }
 
-  INLINE(bool is_bound() const)  { return pos_ <  0; }
-  INLINE(bool is_unused() const)  { return pos_ == 0 && near_link_pos_ == 0; }
-  INLINE(bool is_linked() const)  { return pos_ >  0; }
+  INLINE(void Unuse()) { pos_ = 0; }
+  INLINE(void UnuseNear()) { near_link_pos_ = 0; }
+
+  INLINE(bool is_bound() const) { return pos_ <  0; }
+  INLINE(bool is_unused() const) { return pos_ == 0 && near_link_pos_ == 0; }
+  INLINE(bool is_linked() const) { return pos_ >  0; }
   INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used

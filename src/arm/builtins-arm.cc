@@ -619,8 +619,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label non_function_call;
   // Check that the function is not a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &non_function_call);
+  __ JumpIfSmi(r1, &non_function_call);
   // Check that the function is a JSFunction.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &non_function_call);
@@ -675,8 +674,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Load the initial map and verify that it is in fact a map.
     // r1: constructor function
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &rt_call);
+    __ JumpIfSmi(r2, &rt_call);
     __ CompareObjectType(r2, r3, r4, MAP_TYPE);
     __ b(ne, &rt_call);
 
@@ -946,8 +944,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // sp[0]: receiver (newly allocated object)
   // sp[1]: constructor function
   // sp[2]: number of arguments (smi-tagged)
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &use_receiver);
+  __ JumpIfSmi(r0, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
   // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
@@ -1236,8 +1233,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   Label non_function;
   __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &non_function);
+  __ JumpIfSmi(r1, &non_function);
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &non_function);
 
@@ -1266,8 +1262,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // r0: actual number of arguments
     // r1: function
     // r2: first argument
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &convert_to_object);
+    __ JumpIfSmi(r2, &convert_to_object);
 
     __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ cmp(r2, r3);
@@ -1445,8 +1440,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ b(ne, &push_receiver);
 
   // Compute the receiver in non-strict mode.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &call_to_object);
+  __ JumpIfSmi(r0, &call_to_object);
   __ LoadRoot(r1, Heap::kNullValueRootIndex);
   __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);

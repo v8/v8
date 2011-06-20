@@ -79,8 +79,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   //       elements map.
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the receiver is a valid JS object.
   __ CompareObjectType(receiver, t0, t1, FIRST_SPEC_OBJECT_TYPE);
@@ -503,8 +502,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &number);
+  __ JumpIfSmi(r1, &number);
   __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE);
   __ b(ne, &non_number);
   __ bind(&number);
@@ -548,8 +546,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
   // r1: function
 
   // Check that the value isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, miss);
+  __ JumpIfSmi(r1, miss);
 
   // Check that the value is a JSFunction.
   __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE);
@@ -624,8 +621,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &invoke);
+    __ JumpIfSmi(r2, &invoke);
     __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE);
     __ b(eq, &global);
     __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
@@ -812,8 +808,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Check if the name is a string.
   Label miss;
-  __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ JumpIfSmi(r2, &miss);
   __ IsObjectJSStringType(r2, r0, &miss);
 
   GenerateCallNormal(masm, argc);
@@ -885,6 +880,162 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
       ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
   __ TailCallExternalReference(ref, 2, 1);
 }
+
+
+static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
+                                                Register object,
+                                                Register key,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                Label* unmapped_case,
+                                                Label* slow_case) {
+  Heap* heap = masm->isolate()->heap();
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(object, slow_case);
+
+  // Check that the key is a positive smi.
+  __ tst(key, Operand(0x8000001));
+  __ b(ne, slow_case);
+
+  // Load the elements into scratch1 and check its map.
+  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  __ ldr(scratch1, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ CheckMap(scratch1, scratch2, arguments_map, slow_case, DONT_DO_SMI_CHECK);
+
+  // Check if element is in the range of mapped arguments. If not, jump
+  // to the unmapped lookup with the parameter map in scratch1.
+  __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
+  __ sub(scratch2, scratch2, Operand(Smi::FromInt(2)));
+  __ cmp(key, Operand(scratch2));
+  __ b(cs, unmapped_case);
+
+  // Load element index and check whether it is the hole.
+  const int kOffset =
+      FixedArray::kHeaderSize + 2 * kPointerSize - kHeapObjectTag;
+
+  __ mov(scratch3, Operand(kPointerSize >> 1));
+  __ mul(scratch3, key, scratch3);
+  __ add(scratch3, scratch3, Operand(kOffset));
+
+  __ ldr(scratch2, MemOperand(scratch1, scratch3));
+  __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
+  __ cmp(scratch2, scratch3);
+  __ b(eq, unmapped_case);
+
+  // Load value from context and return it. We can reuse scratch1 because
+  // we do not jump to the unmapped lookup (which requires the parameter
+  // map in scratch1).
+  __ ldr(scratch1, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  __ mov(scratch3, Operand(kPointerSize >> 1));
+  __ mul(scratch3, scratch2, scratch3);
+  __ add(scratch3, scratch3, Operand(Context::kHeaderSize - kHeapObjectTag));
+  return MemOperand(scratch1, scratch3);
+}
+
+
+static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
+                                                  Register key,
+                                                  Register parameter_map,
+                                                  Register scratch,
+                                                  Label* slow_case) {
+  // Element is in arguments backing store, which is referenced by the
+  // second element of the parameter_map. The parameter_map register
+  // must be loaded with the parameter map of the arguments object and is
+  // overwritten.
+  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
+  Register backing_store = parameter_map;
+  __ ldr(backing_store, FieldMemOperand(parameter_map, kBackingStoreOffset));
+  __ ldr(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
+  __ cmp(key, Operand(scratch));
+  __ b(cs, slow_case);
+  __ mov(scratch, Operand(kPointerSize >> 1));
+  __ mul(scratch, key, scratch);
+  __ add(scratch,
+         scratch,
+         Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  return MemOperand(backing_store, scratch);
+}
+
+
+void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- r0     : key
+  //  -- r1     : receiver
+  // -----------------------------------
+  Label slow, notin;
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, r1, r0, r2, r3, r4, &notin, &slow);
+  __ ldr(r0, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in r2.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, r0, r2, r3, &slow);
+  __ ldr(r2, unmapped_location);
+  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+  __ cmp(r2, r3);
+  __ b(eq, &slow);
+  __ mov(r0, r2);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- r0     : value
+  //  -- r1     : key
+  //  -- r2     : receiver
+  //  -- lr     : return address
+  // -----------------------------------
+  Label slow, notin;
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, r2, r1, r3, r4, r5, &notin, &slow);
+  __ str(r0, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in r3.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, r1, r3, r4, &slow);
+  __ str(r0, unmapped_location);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
+                                             int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label slow, notin;
+  // Load receiver.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, r1, r2, r3, r4, r5, &notin, &slow);
+  __ ldr(r1, mapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow, r3);
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in r3.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, r2, r3, r4, &slow);
+  __ ldr(r1, unmapped_location);
+  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+  __ cmp(r1, r3);
+  __ b(eq, &slow);
+  GenerateFunctionTailCall(masm, argc, &slow, r3);
+  __ bind(&slow);
+  GenerateMiss(masm, argc);
+}
+
+
+Object* KeyedLoadIC_Miss(Arguments args);
 
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
@@ -1211,11 +1362,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.
-  __ tst(key, Operand(kSmiTagMask));
-  __ b(ne, &slow);
+  __ JumpIfNotSmi(key, &slow);
   // Check that the object isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, &slow);
+  __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need

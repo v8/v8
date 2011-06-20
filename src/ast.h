@@ -1032,16 +1032,7 @@ class VariableProxy: public Expression {
   DECLARE_NODE_TYPE(VariableProxy)
 
   // Type testing & conversion
-  virtual Property* AsProperty() {
-    return var_ == NULL ? NULL : var_->AsProperty();
-  }
-
-  Variable* AsVariable() {
-    if (this == NULL || var_ == NULL) return NULL;
-    Expression* rewrite = var_->rewrite();
-    if (rewrite == NULL || rewrite->AsSlot() != NULL) return var_;
-    return NULL;
-  }
+  Variable* AsVariable() { return (this == NULL) ? NULL : var_; }
 
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
@@ -1170,8 +1161,7 @@ class Property: public Expression {
         is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
-        is_function_prototype_(false),
-        is_arguments_access_(false) { }
+        is_function_prototype_(false) { }
 
   DECLARE_NODE_TYPE(Property)
 
@@ -1186,13 +1176,6 @@ class Property: public Expression {
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
-
-  // Marks that this is actually an argument rewritten to a keyed property
-  // accessing the argument through the arguments shadow object.
-  void set_is_arguments_access(bool is_arguments_access) {
-    is_arguments_access_ = is_arguments_access;
-  }
-  bool is_arguments_access() const { return is_arguments_access_; }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -1215,7 +1198,6 @@ class Property: public Expression {
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
-  bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
 };
 
@@ -1423,7 +1405,8 @@ class CountOperation: public Expression {
         expression_(expr),
         pos_(pos),
         assignment_id_(GetNextId()),
-        count_id_(GetNextId()) { }
+        count_id_(GetNextId()),
+        receiver_types_(NULL) { }
 
   DECLARE_NODE_TYPE(CountOperation)
 
@@ -1447,6 +1430,7 @@ class CountOperation: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
+  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -1461,6 +1445,7 @@ class CountOperation: public Expression {
   int assignment_id_;
   int count_id_;
   Handle<Map> monomorphic_receiver_type_;
+  ZoneMapList* receiver_types_;
 };
 
 
@@ -1648,7 +1633,8 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression)
+                  bool is_expression,
+                  bool has_duplicate_parameters)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1660,10 +1646,12 @@ class FunctionLiteral: public Expression {
         num_parameters_(num_parameters),
         start_position_(start_position),
         end_position_(end_position),
-        is_expression_(is_expression),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        pretenure_(false) { }
+        is_expression_(is_expression),
+        pretenure_(false),
+        has_duplicate_parameters_(has_duplicate_parameters) {
+  }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
 
@@ -1703,6 +1691,8 @@ class FunctionLiteral: public Expression {
   void set_pretenure(bool value) { pretenure_ = value; }
   virtual bool IsInlineable() const;
 
+  bool has_duplicate_parameters() { return has_duplicate_parameters_; }
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1714,10 +1704,11 @@ class FunctionLiteral: public Expression {
   int num_parameters_;
   int start_position_;
   int end_position_;
-  bool is_expression_;
   int function_token_position_;
   Handle<String> inferred_name_;
+  bool is_expression_;
   bool pretenure_;
+  bool has_duplicate_parameters_;
 };
 
 

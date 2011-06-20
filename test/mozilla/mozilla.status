@@ -329,11 +329,6 @@ js1_5/Regress/regress-234389: FAIL_OK
 js1_5/Regress/regress-320119: FAIL_OK
 
 
-# We do not recognize a multiline comment as newline character.
-# We are compatible with JSC.
-ecma_3/LexicalConventions/7.4-01: FAIL_OK
-
-
 # No support for toSource().
 js1_5/Regress/regress-248444: FAIL_OK
 js1_5/Regress/regress-313967-01: FAIL_OK
@@ -471,10 +466,6 @@ js1_5/extensions/regress-356378: FAIL_OK
 js1_5/extensions/regress-452178: FAIL_OK
 
 
-# 'native' *is* a keyword in V8.
-js1_5/Regress/regress-240317: FAIL_OK
-
-
 # Requires Mozilla-specific strict mode or options() function.
 ecma_3/Object/8.6.1-01: FAIL_OK
 js1_5/Exceptions/regress-315147: FAIL_OK
@@ -599,11 +590,6 @@ js1_5/Regress/regress-416737-02: FAIL_OK
 js1_5/Array/regress-350256-02: FAIL
 
 
-# This fails because 'delete arguments[i]' does not disconnect the
-# argument from the arguments array.  See issue #900066.
-ecma_3/Function/regress-137181: FAIL
-
-
 # 'export' and 'import' are not keywords in V8.
 ecma_2/Exceptions/lexical-010: FAIL
 ecma_2/Exceptions/lexical-022: FAIL
@@ -687,7 +673,6 @@ js1_5/extensions/regress-352060: FAIL_OK
 js1_5/extensions/regress-352094: FAIL_OK
 js1_5/extensions/regress-352261: FAIL_OK
 js1_5/extensions/regress-352281: FAIL_OK
-js1_5/extensions/regress-352372: FAIL_OK
 js1_5/extensions/regress-352455: FAIL_OK
 js1_5/extensions/regress-352604: FAIL_OK
 js1_5/extensions/regress-353214: FAIL_OK

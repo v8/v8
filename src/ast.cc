@@ -607,6 +607,9 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
+  } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
   }
 }
 
@@ -622,8 +625,11 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     ZoneMapList* types = oracle->StoreReceiverTypes(this, name);
     receiver_types_ = types;
   } else if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed loads.
+    // Record receiver type for monomorphic keyed stores.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
   }
 }
 
@@ -631,8 +637,11 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed loads.
+    // Record receiver type for monomorphic keyed stores.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
   }
 }
 
