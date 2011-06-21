@@ -634,7 +634,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
     if (space_index == kLargeData) {
-      new_allocation = lo_space->AllocateRaw(size)->ToObjectUnchecked();
+      new_allocation = lo_space->AllocateRawData(size)->ToObjectUnchecked();
     } else if (space_index == kLargeFixedArray) {
       new_allocation =
           lo_space->AllocateRawFixedArray(size)->ToObjectUnchecked();

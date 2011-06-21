@@ -383,13 +383,14 @@ class MemoryChunk {
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
     WAS_SWEPT_CONSERVATIVELY,
-    CONTAINS_ONLY_DATA,
+    ABOUT_TO_BE_FREED,
     POINTERS_TO_HERE_ARE_INTERESTING,
     POINTERS_FROM_HERE_ARE_INTERESTING,
     SCAN_ON_SCAVENGE,
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
+    CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -1344,6 +1345,8 @@ class PagedSpace : public Space {
     return size_in_bytes - wasted;
   }
 
+  int FreeOrUnmapPage(Page* page, Address start, int size_in_bytes);
+
   // Set space allocation info.
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
@@ -1404,6 +1407,8 @@ class PagedSpace : public Space {
 
     Page* p = first;
     do {
+      // The WAS_SWEPT_CONSERVATIVELY flag means that we can't iterate over the
+      // page.  We have to set this flag on the pages to indicate this.
       p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
       p = p->next_page();
     } while (p != last);
@@ -1428,7 +1433,7 @@ class PagedSpace : public Space {
 
     if (FLAG_trace_fragmentation) {
       PrintF("%p: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
-             (void*) p,
+             reinterpret_cast<void*>(p),
              sizes[0],
              static_cast<double>(sizes[0] * 100) / Page::kObjectAreaSize,
              sizes[1],
@@ -1699,6 +1704,19 @@ class SemiSpace : public Space {
   Address age_mark() { return age_mark_; }
   void set_age_mark(Address mark);
 
+  // True if the address is in the address range of this semispace (not
+  // necessarily below the allocation pointer).
+  bool Contains(Address a) {
+    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
+           == reinterpret_cast<uintptr_t>(start_);
+  }
+
+  // True if the object is a heap object in the address range of this
+  // semispace (not necessarily below the allocation pointer).
+  bool Contains(Object* o) {
+    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
+  }
+
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called.
   virtual intptr_t Size() {
@@ -1906,32 +1924,13 @@ class NewSpace : public Space {
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Address a) {
-    // TODO(gc): Replace by PageContains when we stop passing
-    // pointers to non-paged space.
     return (reinterpret_cast<uintptr_t>(a) & address_mask_)
         == reinterpret_cast<uintptr_t>(start_);
   }
 
-  // True if the address or object lies on a NewSpacePage.
-  // Must be a pointer into a heap page, and if it's a large object
-  // page, it must be a pointer into the beginning of it.
-  // TODO(gc): When every call to Contains is converted to PageContains,
-  //           remove Contains and rename PageContains to Contains.
-  bool PageContains(Address a) {
-    MemoryChunk* page = MemoryChunk::FromAddress(a);
-    // Tagged zero-page pointers are not real heap pointers.
-    // TODO(gc): Remove when we no longer have tagged zero-page
-    // pointers intermingled with real heap object pointers.
-    if (!page->is_valid()) return false;
-    return page->InNewSpace();
-  }
-
   bool Contains(Object* o) {
-    if (o->IsSmi()) return false;
     Address a = reinterpret_cast<Address>(o);
-    MemoryChunk* page = MemoryChunk::FromAddress(a);
-    if (!page->is_valid()) return false;
-    return page->InNewSpace();
+    return (reinterpret_cast<uintptr_t>(a) & object_mask_) == object_expected_;
   }
 
   // Return the allocated bytes in the active semispace.
@@ -2046,29 +2045,17 @@ class NewSpace : public Space {
   Address ToSpaceEnd() { return to_space_.space_end(); }
 
   inline bool ToSpaceContains(Address address) {
-    MemoryChunk* page = MemoryChunk::FromAddress(address);
-    return page->is_valid() && page->InToSpace();
+    return to_space_.Contains(address);
   }
-
   inline bool FromSpaceContains(Address address) {
-    MemoryChunk* page = MemoryChunk::FromAddress(address);
-    return page->is_valid() && page->InFromSpace();
+    return from_space_.Contains(address);
   }
 
   // True if the object is a heap object in the address range of the
   // respective semispace (not necessarily below the allocation pointer of the
   // semispace).
-  bool ToSpaceContains(Object* o) {
-    if (o->IsSmi()) return false;
-    Address address = reinterpret_cast<Address>(o);
-    return ToSpaceContains(address);
-  }
-
-  bool FromSpaceContains(Object* o) {
-    if (o->IsSmi()) return false;
-    Address address = reinterpret_cast<Address>(o);
-    return FromSpaceContains(address);
-  }
+  inline bool ToSpaceContains(Object* o) { return to_space_.Contains(o); }
+  inline bool FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -2356,7 +2343,7 @@ class LargeObjectSpace : public Space {
   void TearDown();
 
   // Allocates a (non-FixedArray, non-Code) large object.
-  MUST_USE_RESULT MaybeObject* AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT MaybeObject* AllocateRawData(int size_in_bytes);
   // Allocates a large Code object.
   MUST_USE_RESULT MaybeObject* AllocateRawCode(int size_in_bytes);
   // Allocates a large FixedArray.

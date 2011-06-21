@@ -145,7 +145,9 @@ Heap::Heap()
       number_idle_notifications_(0),
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
-      configured_(false) {
+      configured_(false),
+      last_empty_page_was_given_back_to_the_os_(false),
+      chunks_queued_for_free_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -1440,7 +1442,11 @@ class ScavengingVisitor : public StaticVisitorBase {
 
       if ((size_restriction != SMALL) &&
           (object_size > Page::kMaxHeapObjectSize)) {
-        maybe_result = heap->lo_space()->AllocateRawFixedArray(object_size);
+        if (object_contents == DATA_OBJECT) {
+          maybe_result = heap->lo_space()->AllocateRawData(object_size);
+        } else {
+          maybe_result = heap->lo_space()->AllocateRawFixedArray(object_size);
+        }
       } else {
         if (object_contents == DATA_OBJECT) {
           maybe_result = heap->old_data_space()->AllocateRaw(object_size);
@@ -2781,7 +2787,7 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   Object* result;
   { MaybeObject* maybe_result = (size <= MaxObjectSizeInPagedSpace())
                    ? old_data_space_->AllocateRaw(size)
-                   : lo_space_->AllocateRaw(size);
+                   : lo_space_->AllocateRawData(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -3622,7 +3628,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   // Allocate string.
   Object* result;
   { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
-                   ? lo_space_->AllocateRaw(size)
+                   ? lo_space_->AllocateRawData(size)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
@@ -5808,5 +5814,27 @@ void ExternalStringTable::TearDown() {
   old_space_strings_.Free();
 }
 
+
+void Heap::QueueMemoryChunkForFree(MemoryChunk* chunk) {
+  chunk->set_next_chunk(chunks_queued_for_free_);
+  chunks_queued_for_free_ = chunk;
+}
+
+
+void Heap::FreeQueuedChunks() {
+  if (chunks_queued_for_free_ == NULL) return;
+  MemoryChunk* next;
+  MemoryChunk* chunk;
+  for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
+    next = chunk->next_chunk();
+    chunk->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
+  }
+  isolate_->heap()->store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
+  for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
+    next = chunk->next_chunk();
+    isolate_->memory_allocator()->Free(chunk);
+  }
+  chunks_queued_for_free_ = NULL;
+}
 
 } }  // namespace v8::internal

@@ -119,6 +119,8 @@ class StoreBuffer {
   bool CellIsInStoreBuffer(Address cell);
 #endif
 
+  void Filter(int flag);
+
  private:
   Heap* heap_;
 
@@ -150,7 +152,6 @@ class StoreBuffer {
   void Uniq();
   void ZapHashTables();
   bool HashTablesAreZapped();
-  void FilterScanOnScavengeEntries();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
   void FindPointersToNewSpaceInRegion(Address start,

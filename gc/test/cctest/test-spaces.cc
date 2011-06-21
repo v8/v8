@@ -197,7 +197,7 @@ TEST(LargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(lo_size)->ToObjectUnchecked();
+  Object* obj = lo->AllocateRawData(lo_size)->ToObjectUnchecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
@@ -210,7 +210,7 @@ TEST(LargeObjectSpace) {
 
   while (true) {
     intptr_t available = lo->Available();
-    { MaybeObject* maybe_obj = lo->AllocateRaw(lo_size);
+    { MaybeObject* maybe_obj = lo->AllocateRawData(lo_size);
       if (!maybe_obj->ToObject(&obj)) break;
     }
     CHECK(lo->Available() < available);
@@ -218,7 +218,7 @@ TEST(LargeObjectSpace) {
 
   CHECK(!lo->IsEmpty());
 
-  CHECK(lo->AllocateRaw(lo_size)->IsFailure());
+  CHECK(lo->AllocateRawData(lo_size)->IsFailure());
 
   HEAP->TearDown();
 }

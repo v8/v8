@@ -168,7 +168,7 @@ void StoreBuffer::HandleFullness() {
   }
 
   if (page_has_scan_on_scavenge_flag) {
-    FilterScanOnScavengeEntries();
+    Filter(MemoryChunk::SCAN_ON_SCAVENGE);
   }
 
   // If filtering out the entries from scan_on_scavenge pages got us down to
@@ -225,13 +225,13 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
     previous_chunk = containing_chunk;
   }
   if (created_new_scan_on_scavenge_pages) {
-    FilterScanOnScavengeEntries();
+    Filter(MemoryChunk::SCAN_ON_SCAVENGE);
   }
   old_buffer_is_filtered_ = true;
 }
 
 
-void StoreBuffer::FilterScanOnScavengeEntries() {
+void StoreBuffer::Filter(int flag) {
   Address* new_top = old_start_;
   MemoryChunk* previous_chunk = NULL;
   for (Address* p = old_start_; p < old_top_; p++) {
@@ -243,7 +243,7 @@ void StoreBuffer::FilterScanOnScavengeEntries() {
       containing_chunk = MemoryChunk::FromAnyPointerAddress(addr);
       previous_chunk = containing_chunk;
     }
-    if (!containing_chunk->scan_on_scavenge()) {
+    if (!containing_chunk->IsFlagSet(flag)) {
       *new_top++ = addr;
     }
   }
@@ -275,7 +275,7 @@ bool StoreBuffer::PrepareForIteration() {
   }
 
   if (page_has_scan_on_scavenge_flag) {
-    FilterScanOnScavengeEntries();
+    Filter(MemoryChunk::SCAN_ON_SCAVENGE);
   }
   ZapHashTables();
   return page_has_scan_on_scavenge_flag;

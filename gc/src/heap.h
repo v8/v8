@@ -1317,12 +1317,20 @@ class Heap {
     if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
   }
 
-
   inline bool OldGenerationAllocationLimitReached();
 
   inline void DoScavengeObject(Map* map, HeapObject** slot, HeapObject* obj) {
     scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
   }
+
+  bool ShouldWeGiveBackAPageToTheOS() {
+    last_empty_page_was_given_back_to_the_os_ =
+        !last_empty_page_was_given_back_to_the_os_;
+    return last_empty_page_was_given_back_to_the_os_;
+  }
+
+  void QueueMemoryChunkForFree(MemoryChunk* chunk);
+  void FreeQueuedChunks();
 
  private:
   Heap();
@@ -1678,6 +1686,9 @@ class Heap {
   ExternalStringTable external_string_table_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
+
+  bool last_empty_page_was_given_back_to_the_os_;
+  MemoryChunk* chunks_queued_for_free_;
 
   friend class Factory;
   friend class GCTracer;

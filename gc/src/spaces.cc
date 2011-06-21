@@ -300,9 +300,6 @@ void MemoryAllocator::FreeMemory(Address base,
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
-  // TODO(gc) actually free some memory here!
-  return;
-
   if (executable == EXECUTABLE) {
     ASSERT(size_executable_ >= size);
     size_executable_ -= size;
@@ -460,6 +457,10 @@ void MemoryChunk::InsertAfter(MemoryChunk* other) {
 
 
 void MemoryChunk::Unlink() {
+  if (!InNewSpace() && IsFlagSet(SCAN_ON_SCAVENGE)) {
+    heap_->decrement_scan_on_scavenge_pages();
+    ClearFlag(SCAN_ON_SCAVENGE);
+  }
   next_chunk_->prev_chunk_ = prev_chunk_;
   prev_chunk_->next_chunk_ = next_chunk_;
   prev_chunk_ = NULL;
@@ -471,6 +472,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
                                             Executability executable,
                                             Space* owner) {
   size_t chunk_size = MemoryChunk::kObjectStartOffset + body_size;
+  Heap* heap = isolate_->heap();
   Address base = NULL;
   if (executable == EXECUTABLE) {
     // Check executable memory limit.
@@ -519,7 +521,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
     PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
   }
 
-  return MemoryChunk::Initialize(isolate_->heap(),
+  return MemoryChunk::Initialize(heap,
                                  base,
                                  chunk_size,
                                  executable,
@@ -1688,6 +1690,25 @@ void FreeList::Reset() {
 }
 
 
+int PagedSpace::FreeOrUnmapPage(Page* page, Address start, int size_in_bytes) {
+  Heap* heap = page->heap();
+  // TODO(gc): When we count the live bytes per page we can free empty pages
+  // instead of sweeping.  At that point this if should be turned into an
+  // ASSERT that the area to be freed cannot be the entire page.
+  if (size_in_bytes == Page::kObjectAreaSize &&
+      heap->ShouldWeGiveBackAPageToTheOS()) {
+    page->Unlink();
+    if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
+      heap->isolate()->memory_allocator()->Free(page);
+    } else {
+      heap->QueueMemoryChunkForFree(page);
+    }
+    return 0;
+  }
+  return Free(start, size_in_bytes);
+}
+
+
 int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
   FreeListNode* node = FreeListNode::FromAddress(start);
@@ -1944,8 +1965,9 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   Page* last = last_unswept_page_->next_page();
   Page* p = first_unswept_page_;
   do {
+    Page* next_page = p->next_page();
     freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
-    p = p->next_page();
+    p = next_page;
   } while (p != last && freed_bytes < bytes_to_sweep);
 
   if (p == last) {
@@ -1955,6 +1977,8 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   }
 
   heap()->LowerOldGenLimits(freed_bytes);
+
+  heap()->FreeQueuedChunks();
 
   return IsSweepingComplete();
 }
@@ -2304,7 +2328,7 @@ MaybeObject* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
 }
 
 
-MaybeObject* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
+MaybeObject* LargeObjectSpace::AllocateRawData(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
   return AllocateRawInternal(size_in_bytes, NOT_EXECUTABLE);
 }
@@ -2344,6 +2368,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
+    // Can this large page contain pointers to non-trivial objects.  No other
+    // pointer object is this big.
+    bool is_pointer_object = object->IsFixedArray();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
@@ -2366,9 +2393,14 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       objects_size_ -= object->Size();
       page_count_--;
 
-      heap()->isolate()->memory_allocator()->Free(page);
+      if (is_pointer_object) {
+        heap()->QueueMemoryChunkForFree(page);
+      } else {
+        heap()->isolate()->memory_allocator()->Free(page);
+      }
     }
   }
+  heap()->FreeQueuedChunks();
 }
 
 

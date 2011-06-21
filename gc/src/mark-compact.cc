@@ -1101,8 +1101,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     VisitPointers(
         heap,
-        HeapObject::RawField(object, JSFunction::kCodeEntryOffset + kPointerSize),
-        HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset));
+        HeapObject::RawField(object,
+                             JSFunction::kCodeEntryOffset + kPointerSize),
+        HeapObject::RawField(object,
+                             JSFunction::kNonWeakFieldsEndOffset));
 
     // Don't visit the next function list field as it is a weak reference.
     Object** next_function =
@@ -2411,8 +2413,9 @@ static uint32_t SweepFree(PagedSpace* space,
   }
 
   uint32_t free_end = Bitmap::CellToIndex(free_cell_index);
-  space->Free(p->MarkbitIndexToAddress(free_start),
-              (free_end - free_start) << kPointerSizeLog2);
+  space->FreeOrUnmapPage(p,
+                         p->MarkbitIndexToAddress(free_start),
+                         (free_end - free_start) << kPointerSizeLog2);
 
   return free_cell_index;
 }
@@ -2865,19 +2868,23 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
         SweepConservatively(space, p);
         break;
       }
-      case LAZY_CONSERVATIVE:
+      case LAZY_CONSERVATIVE: {
+        Page* next_page = p->next_page();
         freed_bytes += SweepConservatively(space, p);
         // TODO(gc): tweak the heuristic.
         if (freed_bytes >= newspace_size && p != space->LastPage()) {
-          space->SetPagesToSweep(p->next_page(), space->LastPage());
+          space->SetPagesToSweep(next_page, space->LastPage());
           return;
         }
         break;
-      case PRECISE:
+      }
+      case PRECISE: {
         SweepPrecisely(space, p);
         break;
-      default:
+      }
+      default: {
         UNREACHABLE();
+      }
     }
   }
 
