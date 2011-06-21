@@ -1776,7 +1776,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
   // no line-terminator between the two words.
   if (extension_ != NULL &&
       peek() == Token::FUNCTION &&
-      !scanner().has_line_terminator_before_next() &&
+      !scanner().HasAnyLineTerminatorBeforeNext() &&
       expr != NULL &&
       expr->AsVariableProxy() != NULL &&
       expr->AsVariableProxy()->name()->Equals(
@@ -1818,7 +1818,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   Expect(Token::CONTINUE, CHECK_OK);
   Handle<String> label = Handle<String>::null();
   Token::Value tok = peek();
-  if (!scanner().has_line_terminator_before_next() &&
+  if (!scanner().HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
@@ -1848,7 +1848,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::BREAK, CHECK_OK);
   Handle<String> label;
   Token::Value tok = peek();
-  if (!scanner().has_line_terminator_before_next() &&
+  if (!scanner().HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
@@ -1897,7 +1897,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   }
 
   Token::Value tok = peek();
-  if (scanner().has_line_terminator_before_next() ||
+  if (scanner().HasAnyLineTerminatorBeforeNext() ||
       tok == Token::SEMICOLON ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
@@ -2032,7 +2032,7 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
 
   Expect(Token::THROW, CHECK_OK);
   int pos = scanner().location().beg_pos;
-  if (scanner().has_line_terminator_before_next()) {
+  if (scanner().HasAnyLineTerminatorBeforeNext()) {
     ReportMessage("newline_after_throw", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2619,7 +2619,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
   //   LeftHandSideExpression ('++' | '--')?
 
   Expression* expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner().has_line_terminator_before_next() &&
+  if (!scanner().HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
     // Signal a reference error if the expression is an invalid
     // left-hand side expression.  We could report this as a syntax
@@ -3818,7 +3818,7 @@ void Parser::ExpectSemicolon(bool* ok) {
     Next();
     return;
   }
-  if (scanner().has_line_terminator_before_next() ||
+  if (scanner().HasAnyLineTerminatorBeforeNext() ||
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     return;

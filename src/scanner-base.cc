@@ -80,6 +80,7 @@ JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
 Token::Value JavaScriptScanner::Next() {
   current_ = next_;
   has_line_terminator_before_next_ = false;
+  has_multiline_comment_before_next_ = false;
   Scan();
   return current_.token;
 }
@@ -163,7 +164,7 @@ Token::Value JavaScriptScanner::SkipMultiLineComment() {
     if (unicode_cache_->IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
-      has_line_terminator_before_next_ = true;
+      has_multiline_comment_before_next_ = true;
     }
     // If we have reached the end of the multi-line comment, we
     // consume the '/' and insert a whitespace. This way all
@@ -449,6 +450,7 @@ void JavaScriptScanner::SeekForward(int pos) {
     // of the end of a function (at the "}" token). It doesn't matter
     // whether there was a line terminator in the part we skip.
     has_line_terminator_before_next_ = false;
+    has_multiline_comment_before_next_ = false;
   }
   Scan();
 }
