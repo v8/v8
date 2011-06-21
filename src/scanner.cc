@@ -337,6 +337,7 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   // Skip initial whitespace allowing HTML comment ends just like
   // after a newline and scan first token.
   has_line_terminator_before_next_ = true;
+  has_multiline_comment_before_next_ = false;
   SkipWhiteSpace();
   Scan();
 }

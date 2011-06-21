@@ -383,7 +383,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
 
   Expect(i::Token::CONTINUE, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -400,7 +400,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
 
   Expect(i::Token::BREAK, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -426,7 +426,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // This is not handled during preparsing.
 
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -577,7 +577,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
   //   'throw' [no line terminator] Expression ';'
 
   Expect(i::Token::THROW, CHECK_OK);
-  if (scanner_->has_line_terminator_before_next()) {
+  if (scanner_->HasAnyLineTerminatorBeforeNext()) {
     i::JavaScriptScanner::Location pos = scanner_->location();
     ReportMessageAt(pos.beg_pos, pos.end_pos,
                     "newline_after_throw", NULL);
@@ -800,7 +800,7 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
 
   i::Scanner::Location before = scanner_->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       i::Token::IsCountOp(peek())) {
     if (strict_mode() && expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
@@ -1274,7 +1274,7 @@ void PreParser::ExpectSemicolon(bool* ok) {
     Next();
     return;
   }
-  if (scanner_->has_line_terminator_before_next() ||
+  if (scanner_->HasAnyLineTerminatorBeforeNext() ||
       tok == i::Token::RBRACE ||
       tok == i::Token::EOS) {
     return;

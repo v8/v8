@@ -474,9 +474,11 @@ class JavaScriptScanner : public Scanner {
   // Returns the next token.
   Token::Value Next();
 
-  // Returns true if there was a line terminator before the peek'ed token.
-  bool has_line_terminator_before_next() const {
-    return has_line_terminator_before_next_;
+  // Returns true if there was a line terminator before the peek'ed token,
+  // possibly inside a multi-line comment.
+  bool HasAnyLineTerminatorBeforeNext() const {
+    return has_line_terminator_before_next_ ||
+           has_multiline_comment_before_next_;
   }
 
   // Scans the input as a regular expression pattern, previous
@@ -529,7 +531,13 @@ class JavaScriptScanner : public Scanner {
   // Start position of the octal literal last scanned.
   Location octal_pos_;
 
+  // Whether there is a line terminator whitespace character after
+  // the current token, and  before the next. Does not count newlines
+  // inside multiline comments.
   bool has_line_terminator_before_next_;
+  // Whether there is a multi-line comment that containins a
+  // line-terminator after the current token, and before the next.
+  bool has_multiline_comment_before_next_;
 };
 
 

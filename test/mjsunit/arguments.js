@@ -180,3 +180,11 @@ assertArrayEquals([0], f1());
 assertArrayEquals([1, void 0], f1(3));
 assertArrayEquals([2, 5, 5], f1(3, 5));
 assertArrayEquals([3, 5, 5, 7], f1(3, 5, 7));
+
+// Check out of bounds behavior.
+function arg_get(x) { return arguments[x]; }
+function arg_del(x) { return delete arguments[x]; }
+function arg_set(x) { return (arguments[x] = 117); }
+assertEquals(undefined, arg_get(0xFFFFFFFF));
+assertEquals(true, arg_del(0xFFFFFFFF));
+assertEquals(117, arg_set(0xFFFFFFFF));

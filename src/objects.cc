@@ -3107,7 +3107,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
-          (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+          index < (length - 2) ? parameter_map->get(index + 2) : NULL;
       if (probe != NULL && !probe->IsTheHole()) {
         // TODO(kmillikin): We could check if this was the last aliased
         // parameter, and revert to normal elements in that case.  That
@@ -3554,7 +3554,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
         FixedArray* parameter_map = FixedArray::cast(elements());
         uint32_t length = parameter_map->length();
         Object* probe =
-            (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+            index < (length - 2) ? parameter_map->get(index + 2) : NULL;
         if (probe == NULL || probe->IsTheHole()) {
           FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
           if (arguments->IsDictionary()) {
@@ -3652,7 +3652,7 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
     // would allow GC of the context.
     FixedArray* parameter_map = FixedArray::cast(elements());
     uint32_t length = parameter_map->length();
-    if (index + 2 < length) {
+    if (index < length - 2) {
       parameter_map->set(index + 2, GetHeap()->the_hole_value());
     }
     parameter_map->set(1, dictionary);
@@ -7902,7 +7902,7 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
-          (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+          index < (length - 2) ? parameter_map->get(index + 2) : NULL;
       if (probe != NULL && !probe->IsTheHole()) return FAST_ELEMENT;
       // If not aliased, check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
@@ -8007,7 +8007,7 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
-          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+          (index < length - 2) ? parameter_map->get(index + 2) : NULL;
       if (probe != NULL && !probe->IsTheHole()) return true;
 
       // Not a mapped parameter, check the arguments.
@@ -8549,7 +8549,7 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
-          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+          (index < length - 2) ? parameter_map->get(index + 2) : NULL;
       if (probe != NULL && !probe->IsTheHole()) {
         Context* context = Context::cast(parameter_map->get(0));
         int context_index = Smi::cast(probe)->value();
@@ -8763,7 +8763,7 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
-          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+          (index < length - 2) ? parameter_map->get(index + 2) : NULL;
       if (probe != NULL && !probe->IsTheHole()) {
         Context* context = Context::cast(parameter_map->get(0));
         int context_index = Smi::cast(probe)->value();
