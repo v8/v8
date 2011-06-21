@@ -3542,15 +3542,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   __ li(a2, Operand(ExternalReference::isolate_address()));
 
-  // From arm version of this function:
-  // TODO(1242173): To let the GC traverse the return address of the exit
-  // frames, we need to know where the return address is. Right now,
-  // we push it on the stack to be able to find it again, but we never
-  // restore from it in case of changes, which makes it impossible to
-  // support moving the C entry code stub. This should be fixed, but currently
-  // this is OK because the CEntryStub gets generated so early in the V8 boot
-  // sequence that it is not moving ever.
-
+  // To let the GC traverse the return address of the exit frames, we need to
+  // know where the return address is. The CEntryStub is unmovable, so
+  // we can store the address on the stack to be able to find it again and
+  // we never have to restore it, because it will not change.
   { Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
     // This branch-and-link sequence is needed to find the current PC on mips,
     // saved to the ra register.
