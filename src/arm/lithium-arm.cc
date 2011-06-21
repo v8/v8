@@ -1103,13 +1103,9 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     ASSERT(compare->value()->representation().IsTagged());
     LOperand* temp = TempRegister();
     return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
-  } else if (v->IsCompareJSObjectEq()) {
-    HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
-    return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
-                                       UseRegisterAtStart(compare->right()));
-  } else if (v->IsCompareSymbolEq()) {
-    HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
-    return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
+  } else if (v->IsCompareObjectEq()) {
+    HCompareObjectEq* compare = HCompareObjectEq::cast(v);
+    return new LCmpObjectEqAndBranch(UseRegisterAtStart(compare->left()),
                                      UseRegisterAtStart(compare->right()));
   } else if (v->IsCompareConstantEq()) {
     HCompareConstantEq* compare = HCompareConstantEq::cast(v);
@@ -1504,20 +1500,10 @@ LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareJSObjectEq(
-    HCompareJSObjectEq* instr) {
+LInstruction* LChunkBuilder::DoCompareObjectEq(HCompareObjectEq* instr) {
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterAtStart(instr->right());
-  LCmpJSObjectEq* result = new LCmpJSObjectEq(left, right);
-  return DefineAsRegister(result);
-}
-
-
-LInstruction* LChunkBuilder::DoCompareSymbolEq(
-    HCompareSymbolEq* instr) {
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
-  LCmpSymbolEq* result = new LCmpSymbolEq(left, right);
+  LCmpObjectEq* result = new LCmpObjectEq(left, right);
   return DefineAsRegister(result);
 }
 

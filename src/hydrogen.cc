@@ -5237,18 +5237,6 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 }
 
 
-HCompareSymbolEq* HGraphBuilder::BuildSymbolCompare(HValue* left,
-                                                    HValue* right,
-                                                    Token::Value op) {
-  ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
-  AddInstruction(new(zone()) HCheckNonSmi(left));
-  AddInstruction(HCheckInstanceType::NewIsSymbol(left));
-  AddInstruction(new(zone()) HCheckNonSmi(right));
-  AddInstruction(HCheckInstanceType::NewIsSymbol(right));
-  return new(zone()) HCompareSymbolEq(left, right, op);
-}
-
-
 HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
                                                         HValue* index) {
   AddInstruction(new(zone()) HCheckNonSmi(string));
@@ -5594,7 +5582,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         AddInstruction(HCheckInstanceType::NewIsSpecObject(left));
         AddInstruction(new(zone()) HCheckNonSmi(right));
         AddInstruction(HCheckInstanceType::NewIsSpecObject(right));
-        instr = new(zone()) HCompareJSObjectEq(left, right);
+        instr = new(zone()) HCompareObjectEq(left, right);
         break;
       }
       default:
@@ -5603,7 +5591,11 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     }
   } else if (type_info.IsString() && oracle()->IsSymbolCompare(expr) &&
              (op == Token::EQ || op == Token::EQ_STRICT)) {
-    instr = BuildSymbolCompare(left, right, op);
+    AddInstruction(new(zone()) HCheckNonSmi(left));
+    AddInstruction(HCheckInstanceType::NewIsSymbol(left));
+    AddInstruction(new(zone()) HCheckNonSmi(right));
+    AddInstruction(HCheckInstanceType::NewIsSymbol(right));
+    instr = new(zone()) HCompareObjectEq(left, right);
   } else {
     HCompare* compare = new(zone()) HCompare(left, right, op);
     Representation r = ToRepresentation(type_info);
@@ -5849,7 +5841,7 @@ void HGraphBuilder::GenerateObjectEquals(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   HValue* right = Pop();
   HValue* left = Pop();
-  HCompareJSObjectEq* result = new(zone()) HCompareJSObjectEq(left, right);
+  HCompareObjectEq* result = new(zone()) HCompareObjectEq(left, right);
   ast_context()->ReturnInstruction(result, call->id());
 }
 

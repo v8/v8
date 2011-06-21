@@ -1571,7 +1571,7 @@ HType HCompare::CalculateInferredType() {
 }
 
 
-HType HCompareJSObjectEq::CalculateInferredType() {
+HType HCompareObjectEq::CalculateInferredType() {
   return HType::Boolean();
 }
 

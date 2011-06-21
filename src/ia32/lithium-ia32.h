@@ -75,11 +75,9 @@ class LCodeGen;
   V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
-  V(CmpJSObjectEq)                              \
-  V(CmpJSObjectEqAndBranch)                     \
+  V(CmpObjectEq)                                \
+  V(CmpObjectEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
-  V(CmpSymbolEq)                                \
-  V(CmpSymbolEqAndBranch)                       \
   V(CmpT)                                       \
   V(CmpConstantEq)                              \
   V(CmpConstantEqAndBranch)                     \
@@ -622,48 +620,26 @@ class LUnaryMathOperation: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LCmpJSObjectEq: public LTemplateInstruction<1, 2, 0> {
+class LCmpObjectEq: public LTemplateInstruction<1, 2, 0> {
  public:
-  LCmpJSObjectEq(LOperand* left, LOperand* right) {
+  LCmpObjectEq(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpJSObjectEq, "cmp-jsobject-eq")
+  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEq, "cmp-object-eq")
 };
 
 
-class LCmpJSObjectEqAndBranch: public LControlInstruction<2, 0> {
+class LCmpObjectEqAndBranch: public LControlInstruction<2, 0> {
  public:
-  LCmpJSObjectEqAndBranch(LOperand* left, LOperand* right) {
+  LCmpObjectEqAndBranch(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CmpJSObjectEqAndBranch,
-                               "cmp-jsobject-eq-and-branch")
-};
-
-
-class LCmpSymbolEq: public LTemplateInstruction<1, 2, 0> {
- public:
-  LCmpSymbolEq(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEq, "cmp-symbol-eq")
-};
-
-
-class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
- public:
-  LCmpSymbolEqAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEqAndBranch, "cmp-symbol-eq-and-branch")
+  DECLARE_CONCRETE_INSTRUCTION(CmpObjectEqAndBranch,
+                               "cmp-object-eq-and-branch")
 };
 
 
