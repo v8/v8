@@ -2789,9 +2789,11 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // DIV just falls through to allocating a heap number.
         }
 
+        __ bind(&return_heap_number);
+        // Return a heap number, or fall through to type transition or runtime
+        // call if we can't.
         if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
                                                  : BinaryOpIC::INT32)) {
-          __ bind(&return_heap_number);
           // We are using FPU registers so s0 is available.
           heap_number_result = s0;
           GenerateHeapResultAllocation(masm,
@@ -2970,7 +2972,11 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       UNREACHABLE();
   }
 
-  if (transition.is_linked()) {
+  // We never expect DIV to yield an integer result, so we always generate
+  // type transition code for DIV operations expecting an integer result: the
+  // code will fall through to this type transition.
+  if (transition.is_linked() ||
+      ((op_ == Token::DIV) && (result_type_ <= BinaryOpIC::INT32))) {
     __ bind(&transition);
     GenerateTypeTransition(masm);
   }
