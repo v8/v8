@@ -473,6 +473,8 @@ DEFINE_bool(debug_serialization, false,
 DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
+DEFINE_bool(trace_fragmentation, false,
+            "report fragmentation for old pointer and data pages")
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 

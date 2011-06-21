@@ -3751,7 +3751,6 @@ class Map: public HeapObject {
   //    1 + 2 * i: prototype
   //    2 + 2 * i: target map
   DECL_ACCESSORS(prototype_transitions, FixedArray)
-  inline FixedArray* unchecked_prototype_transitions();
 
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be

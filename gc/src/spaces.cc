@@ -1673,13 +1673,13 @@ void FreeListNode::set_next(FreeListNode* next) {
 }
 
 
-OldSpaceFreeList::OldSpaceFreeList(PagedSpace* owner)
+FreeList::FreeList(PagedSpace* owner)
     : owner_(owner), heap_(owner->heap()) {
   Reset();
 }
 
 
-void OldSpaceFreeList::Reset() {
+void FreeList::Reset() {
   available_ = 0;
   small_list_ = NULL;
   medium_list_ = NULL;
@@ -1688,7 +1688,7 @@ void OldSpaceFreeList::Reset() {
 }
 
 
-int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
+int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(heap_, size_in_bytes);
@@ -1721,7 +1721,7 @@ int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
 // allocation space has been set up with the top and limit of the space.  If
 // the allocation fails then NULL is returned, and the caller can perform a GC
 // or allocate a new page before retrying.
-HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
+HeapObject* FreeList::Allocate(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
   ASSERT(size_in_bytes <= kMaxBlockSize);
   ASSERT(IsAligned(size_in_bytes, kPointerSize));
@@ -1802,8 +1802,28 @@ HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
 }
 
 
+static intptr_t CountFreeListItemsInList(FreeListNode* n, Page* p) {
+  intptr_t sum = 0;
+  while (n != NULL) {
+    if (Page::FromAddress(n->address()) == p) {
+      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(n);
+      sum += free_space->Size();
+    }
+    n = n->next();
+  }
+  return sum;
+}
+
+
+void FreeList::CountFreeListItems(Page* p, intptr_t* sizes) {
+  sizes[0] = CountFreeListItemsInList(small_list_, p);
+  sizes[1] = CountFreeListItemsInList(medium_list_, p);
+  sizes[2] = CountFreeListItemsInList(large_list_, p);
+  sizes[3] = CountFreeListItemsInList(huge_list_, p);
+}
+
 #ifdef DEBUG
-intptr_t OldSpaceFreeList::SumFreeList(FreeListNode* cur) {
+intptr_t FreeList::SumFreeList(FreeListNode* cur) {
   intptr_t sum = 0;
   while (cur != NULL) {
     ASSERT(cur->map() == HEAP->raw_unchecked_free_space_map());
@@ -1818,7 +1838,7 @@ intptr_t OldSpaceFreeList::SumFreeList(FreeListNode* cur) {
 static const int kVeryLongFreeList = 500;
 
 
-int OldSpaceFreeList::FreeListLength(FreeListNode* cur) {
+int FreeList::FreeListLength(FreeListNode* cur) {
   int length = 0;
   while (cur != NULL) {
     length++;
@@ -1829,7 +1849,7 @@ int OldSpaceFreeList::FreeListLength(FreeListNode* cur) {
 }
 
 
-bool OldSpaceFreeList::IsVeryLong() {
+bool FreeList::IsVeryLong() {
   if (FreeListLength(small_list_) == kVeryLongFreeList) return  true;
   if (FreeListLength(medium_list_) == kVeryLongFreeList) return  true;
   if (FreeListLength(large_list_) == kVeryLongFreeList) return  true;
@@ -1841,7 +1861,7 @@ bool OldSpaceFreeList::IsVeryLong() {
 // This can take a very long time because it is linear in the number of entries
 // on the free list, so it should not be called if FreeListLength returns
 // kVeryLongFreeList.
-intptr_t OldSpaceFreeList::SumFreeLists() {
+intptr_t FreeList::SumFreeLists() {
   intptr_t sum = SumFreeList(small_list_);
   sum += SumFreeList(medium_list_);
   sum += SumFreeList(large_list_);
@@ -1854,15 +1874,14 @@ intptr_t OldSpaceFreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-void OldSpace::PrepareForMarkCompact(bool will_compact) {
-  ASSERT(!will_compact);
+void OldSpace::PrepareForMarkCompact() {
   // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact(will_compact);
+  PagedSpace::PrepareForMarkCompact();
 
+  // Stop lazy sweeping for this space.
   first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
-  // TODO(gc): can we avoid resetting free list?
   free_list_.Reset();
 }
 
@@ -1877,8 +1896,7 @@ bool NewSpace::ReserveSpace(int bytes) {
 }
 
 
-void PagedSpace::PrepareForMarkCompact(bool will_compact) {
-  ASSERT(!will_compact);
+void PagedSpace::PrepareForMarkCompact() {
   // We don't have a linear allocation area while sweeping.  It will be restored
   // on the first allocation after the sweep.
   // Mark the old linear allocation area with a free space map so it can be
@@ -2126,11 +2144,9 @@ void PagedSpace::ReportStatistics() {
 // -----------------------------------------------------------------------------
 // FixedSpace implementation
 
-void FixedSpace::PrepareForMarkCompact(bool will_compact) {
+void FixedSpace::PrepareForMarkCompact() {
   // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact(will_compact);
-
-  ASSERT(!will_compact);
+  PagedSpace::PrepareForMarkCompact();
 
   // During a non-compacting collection, everything below the linear
   // allocation pointer except wasted top-of-page blocks is considered
@@ -2145,12 +2161,6 @@ void FixedSpace::PrepareForMarkCompact(bool will_compact) {
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
-
-void MapSpace::PrepareForMarkCompact(bool will_compact) {
-  // Call prepare of the super class.
-  FixedSpace::PrepareForMarkCompact(will_compact);
-}
-
 
 #ifdef DEBUG
 void MapSpace::VerifyObject(HeapObject* object) {
@@ -2337,7 +2347,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
-      heap()->mark_compact_collector()->tracer()->decrement_marked_count();
       previous = current;
       current = current->next_page();
     } else {

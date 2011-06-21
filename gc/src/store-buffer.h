@@ -184,6 +184,8 @@ class StoreBuffer {
     RegionCallback region_callback,
     ObjectSlotCallback slot_callback);
 
+  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback);
+
 #ifdef DEBUG
   void VerifyPointers(PagedSpace* space, RegionCallback region_callback);
   void VerifyPointers(LargeObjectSpace* space);

@@ -555,13 +555,8 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
 }
 
 
-
-void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
-  // We do not sort or remove duplicated entries from the store buffer because
-  // we expect that callback will rebuild the store buffer thus removing
-  // all duplicates and pointers to old space.
-  bool some_pages_to_scan = PrepareForIteration();
-
+void StoreBuffer::IteratePointersInStoreBuffer(
+    ObjectSlotCallback slot_callback) {
   Address* limit = old_top_;
   old_top_ = old_start_;
   {
@@ -582,6 +577,20 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
       ASSERT(old_top_ == saved_top + 1 || old_top_ == saved_top);
     }
   }
+}
+
+
+void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
+  // We do not sort or remove duplicated entries from the store buffer because
+  // we expect that callback will rebuild the store buffer thus removing
+  // all duplicates and pointers to old space.
+  bool some_pages_to_scan = PrepareForIteration();
+
+  // TODO(gc): we want to skip slots on evacuation candidates
+  // but we can't simply figure that out from slot address
+  // because slot can belong to a large object.
+  IteratePointersInStoreBuffer(slot_callback);
+
   // We are done scanning all the pointers that were in the store buffer, but
   // there may be some pages marked scan_on_scavenge that have pointers to new
   // space that are not in the store buffer.  We must scan them now.  As we

@@ -2451,12 +2451,6 @@ JSFunction* Map::unchecked_constructor() {
 }
 
 
-FixedArray* Map::unchecked_prototype_transitions() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kPrototypeTransitionsOffset));
-}
-
-
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }

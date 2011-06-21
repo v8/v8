@@ -366,26 +366,6 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 
-void Heap::CopyBlockToOldSpaceAndUpdateWriteBarrier(Address dst,
-                                                    Address src,
-                                                    int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
-
-  for (int remaining = byte_size / kPointerSize;
-       remaining > 0;
-       remaining--) {
-    Memory::Object_at(dst) = Memory::Object_at(src);
-
-    if (InNewSpace(Memory::Object_at(dst))) {
-      store_buffer_.Mark(dst);
-    }
-
-    dst += kPointerSize;
-    src += kPointerSize;
-  }
-}
-
-
 void Heap::MoveBlock(Address dst, Address src, int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
 

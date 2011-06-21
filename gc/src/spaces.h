@@ -117,7 +117,7 @@ class PagedSpace;
 class MemoryAllocator;
 class AllocationInfo;
 class Space;
-class OldSpaceFreeList;
+class FreeList;
 
 
 // TODO(gc): Check that this all gets inlined and register allocated on
@@ -390,6 +390,7 @@ class MemoryChunk {
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
+    EVACUATION_CANDIDATE,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -603,6 +604,19 @@ class Page : public MemoryChunk {
                                  PagedSpace* owner);
 
   void InitializeAsAnchor(PagedSpace* owner);
+
+  bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
+
+  bool IsEvacuationCandidateOrNewSpace() {
+    intptr_t mask = (1 << EVACUATION_CANDIDATE) |
+        (1 << IN_FROM_SPACE) |
+        (1 << IN_TO_SPACE);
+    return (flags_ & mask) != 0;
+  }
+
+  void MarkEvacuationCandidate() { SetFlag(EVACUATION_CANDIDATE); }
+
+  void ClearEvacuationCandidate() { ClearFlag(EVACUATION_CANDIDATE); }
 
   friend class MemoryAllocator;
 };
@@ -1172,9 +1186,9 @@ class FreeListNode: public HeapObject {
 //     These spaces are call large.
 // At least 16384 words.  This list is for objects of 2048 words or larger.
 //     Empty pages are added to this list.  These spaces are called huge.
-class OldSpaceFreeList BASE_EMBEDDED {
+class FreeList BASE_EMBEDDED {
  public:
-  explicit OldSpaceFreeList(PagedSpace* owner);
+  explicit FreeList(PagedSpace* owner);
 
   // Clear the free list.
   void Reset();
@@ -1206,6 +1220,8 @@ class OldSpaceFreeList BASE_EMBEDDED {
   bool IsVeryLong();
 #endif
 
+  void CountFreeListItems(Page* p, intptr_t* sizes);
+
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
@@ -1229,7 +1245,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
   FreeListNode* large_list_;
   FreeListNode* huge_list_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OldSpaceFreeList);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
 
 
@@ -1268,7 +1284,7 @@ class PagedSpace : public Space {
   MUST_USE_RESULT MaybeObject* FindObject(Address addr);
 
   // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact(bool will_compact);
+  virtual void PrepareForMarkCompact();
 
   // Current capacity without growing (Size() + Available()).
   intptr_t Capacity() { return accounting_stats_.Capacity(); }
@@ -1402,6 +1418,31 @@ class PagedSpace : public Space {
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
+
+  bool IsFragmented(Page* p) {
+    intptr_t sizes[4];
+    free_list_.CountFreeListItems(p, sizes);
+
+    intptr_t ratio =
+        (sizes[0] * 5 + sizes[1]) * 100 / Page::kObjectAreaSize;
+
+    if (FLAG_trace_fragmentation) {
+      PrintF("%p: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
+             (void*) p,
+             sizes[0],
+             static_cast<double>(sizes[0] * 100) / Page::kObjectAreaSize,
+             sizes[1],
+             static_cast<double>(sizes[1] * 100) / Page::kObjectAreaSize,
+             sizes[2],
+             static_cast<double>(sizes[2] * 100) / Page::kObjectAreaSize,
+             sizes[3],
+             static_cast<double>(sizes[3] * 100) / Page::kObjectAreaSize,
+             (ratio > 15) ? "[fragmented]" : "");
+    }
+
+    return ratio > 15;
+  }
+
  protected:
   // Maximum capacity of this space.
   intptr_t max_capacity_;
@@ -1413,7 +1454,7 @@ class PagedSpace : public Space {
   Page anchor_;
 
   // The space's free list.
-  OldSpaceFreeList free_list_;
+  FreeList free_list_;
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
@@ -2154,7 +2195,7 @@ class OldSpace : public PagedSpace {
 
   // Prepare for full garbage collection.  Resets the relocation pointer and
   // clears the free list.
-  virtual void PrepareForMarkCompact(bool will_compact);
+  virtual void PrepareForMarkCompact();
 
  public:
   TRACK_MEMORY("OldSpace")
@@ -2193,7 +2234,7 @@ class FixedSpace : public PagedSpace {
   int object_size_in_bytes() { return object_size_in_bytes_; }
 
   // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact(bool will_compact);
+  virtual void PrepareForMarkCompact();
 
   void MarkFreeListNodes() { free_list_.MarkNodes(); }
 
@@ -2224,9 +2265,6 @@ class MapSpace : public FixedSpace {
       : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
         max_map_space_pages_(max_map_space_pages) {
   }
-
-  // Prepares for a mark-compact GC.
-  virtual void PrepareForMarkCompact(bool will_compact);
 
   // Given an index, returns the page address.
   // TODO(gc): this limit is artifical just to keep code compilable

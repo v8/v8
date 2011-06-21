@@ -868,6 +868,7 @@ class Heap {
   inline bool CollectGarbage(AllocationSpace space);
 
   static const int kNoGCFlags = 0;
+  // TODO(gc) we are ignoring this flag
   static const int kForceCompactionMask = 1;
   static const int kMakeHeapIterableMask = 2;
 
@@ -1214,10 +1215,6 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  inline void CopyBlockToOldSpaceAndUpdateWriteBarrier(Address dst,
-                                                       Address src,
-                                                       int byte_size);
-
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
   static inline void MoveBlock(Address dst, Address src, int byte_size);
@@ -1251,6 +1248,9 @@ class Heap {
 
 
   void UpdateNewSpaceReferencesInExternalStringTable(
+      ExternalStringTableUpdaterCallback updater_func);
+
+  void UpdateReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
 
   void ProcessWeakReferences(WeakObjectRetainer* retainer);
@@ -1368,7 +1368,6 @@ class Heap {
   // Returns the amount of external memory registered since last global gc.
   int PromotedExternalMemorySize();
 
-  int mc_count_;  // how many mark-compact collections happened
   int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
 
@@ -1552,7 +1551,7 @@ class Heap {
   void MarkCompact(GCTracer* tracer);
 
   // Code to be run before and after mark-compact.
-  void MarkCompactPrologue(bool is_compacting);
+  void MarkCompactPrologue();
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
@@ -2098,16 +2097,6 @@ class GCTracer BASE_EMBEDDED {
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
 
-  // Sets the flag that this is a compacting full GC.
-  void set_is_compacting() { is_compacting_ = true; }
-  bool is_compacting() const { return is_compacting_; }
-
-  // Increment and decrement the count of marked objects.
-  void increment_marked_count() { ++marked_count_; }
-  void decrement_marked_count() { --marked_count_; }
-
-  int marked_count() { return marked_count_; }
-
   void increment_promoted_objects_size(int object_size) {
     promoted_objects_size_ += object_size;
   }
@@ -2131,15 +2120,6 @@ class GCTracer BASE_EMBEDDED {
 
   // A count (including this one) of the number of full garbage collections.
   int full_gc_count_;
-
-  // True if the current GC is a compacting full collection, false
-  // otherwise.
-  bool is_compacting_;
-
-  // On a full GC, a count of the number of marked objects.  Incremented
-  // when an object is marked and decremented when an object's mark bit is
-  // cleared.  Will be zero on a scavenge collection.
-  int marked_count_;
 
   // Amounts of time spent in different scopes during GC.
   double scopes_[Scope::kNumberOfScopes];

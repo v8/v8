@@ -256,6 +256,29 @@ class MarkingDeque {
 };
 
 
+class SlotsBuffer {
+ public:
+  typedef Object** ObjectSlot;
+
+  SlotsBuffer();
+  ~SlotsBuffer();
+
+  void Clear();
+  void Add(ObjectSlot slot);
+  void Iterate(ObjectVisitor* visitor);
+  void Report();
+
+ private:
+  static const int kBufferSize = 1024;
+
+  List<ObjectSlot*> buffers_;
+  ObjectSlot* buffer_;
+
+  int idx_;
+  int buffer_idx_;
+};
+
+
 // -------------------------------------------------------------------------
 // Mark-Compact collector
 class MarkCompactCollector {
@@ -299,26 +322,16 @@ class MarkCompactCollector {
 
   static void Initialize();
 
+  void CollectEvacuationCandidates(PagedSpace* space);
+
+  void AddEvacuationCandidate(Page* p);
+
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   void Prepare(GCTracer* tracer);
 
   // Performs a global garbage collection.
   void CollectGarbage();
-
-  // True if the last full GC performed heap compaction.
-  bool HasCompacted() { return compacting_collection_; }
-
-  // True after the Prepare phase if the compaction is taking place.
-  bool IsCompacting() {
-#ifdef DEBUG
-    // For the purposes of asserts we don't want this to keep returning true
-    // after the collection is completed.
-    return state_ != IDLE && compacting_collection_;
-#else
-    return compacting_collection_;
-#endif
-  }
 
   // During a full GC, there is a stack-allocated GCTracer that is used for
   // bookkeeping information.  Return a pointer to that tracer.
@@ -338,7 +351,7 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  inline bool IsMarked(Object* obj);
+  static inline bool IsMarked(Object* obj);
 
   inline Heap* heap() const { return heap_; }
 
@@ -355,6 +368,30 @@ class MarkCompactCollector {
   // Sweep a single page from the given space conservatively.
   // Return a number of reclaimed bytes.
   static int SweepConservatively(PagedSpace* space, Page* p);
+
+  INLINE(static bool IsOnEvacuationCandidateOrInNewSpace(Object** anchor)) {
+    return Page::FromAddress(reinterpret_cast<Address>(anchor))->
+        IsEvacuationCandidateOrNewSpace();
+  }
+
+  INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
+    return Page::FromAddress(reinterpret_cast<Address>(obj))->
+        IsEvacuationCandidate();
+  }
+
+  INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object)) {
+    if (IsOnEvacuationCandidate(object) &&
+        !IsOnEvacuationCandidateOrInNewSpace(anchor_slot)) {
+      slots_buffer_.Add(slot);
+    }
+  }
+
+  void MigrateObject(Address dst,
+                     Address src,
+                     int size,
+                     AllocationSpace to_old_space);
+
+  bool TryPromoteObject(HeapObject* object, int object_size);
 
  private:
   MarkCompactCollector();
@@ -375,26 +412,15 @@ class MarkCompactCollector {
   CollectorState state_;
 #endif
 
-  // Global flag that forces a compaction.
-  bool force_compaction_;
-
   // Global flag that forces sweeping to be precise, so we can traverse the
   // heap.
   bool sweep_precisely_;
 
-  // Global flag indicating whether spaces were compacted on the last GC.
-  bool compacting_collection_;
-
-  // Global flag indicating whether spaces will be compacted on the next GC.
-  bool compact_on_next_gc_;
-
-  // The number of objects left marked at the end of the last completed full
-  // GC (expected to be zero).
-  int previous_marked_count_;
-
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   GCTracer* tracer_;
+
+  SlotsBuffer slots_buffer_;
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();
@@ -481,9 +507,6 @@ class MarkCompactCollector {
   void UpdateLiveObjectCount(HeapObject* obj);
 #endif
 
-  // Test whether a (possibly marked) object is a Map.
-  static inline bool SafeIsMap(HeapObject* object);
-
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
@@ -516,8 +539,13 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-  void SweepNewSpace(NewSpace* space);
+  void EvacuateNewSpace();
 
+  void EvacuateLiveObjectsFromPage(Page* p);
+
+  void EvacuatePages();
+
+  void EvacuateNewSpaceAndCandidates();
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
@@ -562,6 +590,8 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
+
+  List<Page*> evacuation_candidates_;
 
   friend class Heap;
 };

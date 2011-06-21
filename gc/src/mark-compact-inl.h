@@ -44,7 +44,6 @@ MarkBit Marking::MarkBitFrom(Address addr) {
 
 
 void MarkCompactCollector::SetFlags(int flags) {
-  force_compaction_ = ((flags & Heap::kForceCompactionMask) != 0);
   sweep_precisely_ = ((flags & Heap::kMakeHeapIterableMask) != 0);
 }
 
@@ -53,7 +52,6 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
     mark_bit.Set();
-    tracer_->increment_marked_count();
 #ifdef DEBUG
     UpdateLiveObjectCount(obj);
 #endif
@@ -61,10 +59,10 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   }
 }
 
+
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
-  tracer_->increment_marked_count();
 #ifdef DEBUG
   UpdateLiveObjectCount(obj);
 #endif

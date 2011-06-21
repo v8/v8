@@ -107,7 +107,6 @@ Heap::Heap()
       cell_space_(NULL),
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
-      mc_count_(0),
       ms_count_(0),
       gc_count_(0),
       unflattened_strings_length_(0),
@@ -774,9 +773,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
         amount_of_external_allocated_memory_;
   }
 
-  GCCallbackFlags callback_flags = tracer->is_compacting()
-      ? kGCCallbackFlagCompacted
-      : kNoGCCallbackFlags;
+  GCCallbackFlags callback_flags = kNoGCCallbackFlags;
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
       gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
@@ -800,16 +797,10 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   mark_compact_collector_.Prepare(tracer);
 
-  bool is_compacting = mark_compact_collector_.IsCompacting();
+  ms_count_++;
+  tracer->set_full_gc_count(ms_count_);
 
-  if (is_compacting) {
-    mc_count_++;
-  } else {
-    ms_count_++;
-  }
-  tracer->set_full_gc_count(mc_count_ + ms_count_);
-
-  MarkCompactPrologue(is_compacting);
+  MarkCompactPrologue();
 
   mark_compact_collector_.CollectGarbage();
 
@@ -825,7 +816,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 }
 
 
-void Heap::MarkCompactPrologue(bool is_compacting) {
+void Heap::MarkCompactPrologue() {
   // At any old GC clear the keyed lookup cache to enable collection of unused
   // maps.
   isolate_->keyed_lookup_cache()->Clear();
@@ -836,7 +827,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   CompletelyClearInstanceofCache();
 
-  if (is_compacting) FlushNumberStringCache();
+  // TODO(gc) select heuristic for flushing NumberString cache with
+  // FlushNumberStringCache
 
   ClearNormalizedMapCaches();
 }
@@ -1149,35 +1141,56 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 }
 
 
+void Heap::UpdateReferencesInExternalStringTable(
+    ExternalStringTableUpdaterCallback updater_func) {
+
+  // Update old space string references.
+  if (external_string_table_.old_space_strings_.length() > 0) {
+    Object** start = &external_string_table_.old_space_strings_[0];
+    Object** end = start + external_string_table_.old_space_strings_.length();
+    for (Object** p = start; p < end; ++p) *p = updater_func(this, p);
+  }
+
+  UpdateNewSpaceReferencesInExternalStringTable(updater_func);
+}
+
+
 static Object* ProcessFunctionWeakReferences(Heap* heap,
                                              Object* function,
                                              WeakObjectRetainer* retainer) {
-  Object* head = heap->undefined_value();
+  Object* undefined = heap->undefined_value();
+  Object* head = undefined;
   JSFunction* tail = NULL;
   Object* candidate = function;
-  while (candidate != heap->undefined_value()) {
+  while (candidate != undefined) {
     // Check whether to keep the candidate in the list.
     JSFunction* candidate_function = reinterpret_cast<JSFunction*>(candidate);
     Object* retain = retainer->RetainAs(candidate);
     if (retain != NULL) {
-      if (head == heap->undefined_value()) {
+      if (head == undefined) {
         // First element in the list.
-        head = candidate_function;
+        head = retain;
       } else {
         // Subsequent elements in the list.
         ASSERT(tail != NULL);
-        tail->set_next_function_link(candidate_function);
+        tail->set_next_function_link(retain);
       }
       // Retained function is new tail.
+      candidate_function = reinterpret_cast<JSFunction*>(retain);
       tail = candidate_function;
+
+      ASSERT(retain->IsUndefined() || retain->IsJSFunction());
+
+      if (retain == undefined) break;
     }
+
     // Move to next element in the list.
     candidate = candidate_function->next_function_link();
   }
 
   // Terminate the list if there is one or more elements.
   if (tail != NULL) {
-    tail->set_next_function_link(heap->undefined_value());
+    tail->set_next_function_link(undefined);
   }
 
   return head;
@@ -1185,27 +1198,31 @@ static Object* ProcessFunctionWeakReferences(Heap* heap,
 
 
 void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
-  Object* head = undefined_value();
+  Object* undefined = undefined_value();
+  Object* head = undefined;
   Context* tail = NULL;
   Object* candidate = global_contexts_list_;
-  while (candidate != undefined_value()) {
+  while (candidate != undefined) {
     // Check whether to keep the candidate in the list.
     Context* candidate_context = reinterpret_cast<Context*>(candidate);
     Object* retain = retainer->RetainAs(candidate);
     if (retain != NULL) {
-      if (head == undefined_value()) {
+      if (head == undefined) {
         // First element in the list.
-        head = candidate_context;
+        head = retain;
       } else {
         // Subsequent elements in the list.
         ASSERT(tail != NULL);
         tail->set_unchecked(this,
                             Context::NEXT_CONTEXT_LINK,
-                            candidate_context,
+                            retain,
                             UPDATE_WRITE_BARRIER);
       }
       // Retained context is new tail.
+      candidate_context = reinterpret_cast<Context*>(retain);
       tail = candidate_context;
+
+      if (retain == undefined) break;
 
       // Process the weak list of optimized functions for the context.
       Object* function_list_head =
@@ -1218,6 +1235,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
                                        function_list_head,
                                        UPDATE_WRITE_BARRIER);
     }
+
     // Move to next element in the list.
     candidate = candidate_context->get(Context::NEXT_CONTEXT_LINK);
   }
@@ -4060,7 +4078,6 @@ void Heap::ReportHeapStatistics(const char* title) {
   USE(title);
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n",
          title, gc_count_);
-  PrintF("mark-compact GC : %d\n", mc_count_);
   PrintF("old_gen_promotion_limit_ %" V8_PTR_PREFIX "d\n",
          old_gen_promotion_limit_);
   PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
@@ -4956,7 +4973,6 @@ void Heap::TearDown() {
     PrintF("\n\n");
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
-    PrintF("mark_compact_count=%d ", mc_count_);
     PrintF("max_gc_pause=%d ", get_max_gc_pause());
     PrintF("min_in_mutator=%d ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
@@ -5431,6 +5447,11 @@ void PathTracer::TracePathFrom(Object** root) {
 }
 
 
+static bool SafeIsGlobalContext(HeapObject* obj) {
+  return obj->map() == obj->GetHeap()->raw_unchecked_global_context_map();
+}
+
+
 void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   if (!(*p)->IsHeapObject()) return;
 
@@ -5449,7 +5470,7 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
     return;
   }
 
-  bool is_global_context = obj->IsGlobalContext();
+  bool is_global_context = SafeIsGlobalContext(obj);
 
   // not visited yet
   Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
@@ -5568,8 +5589,6 @@ GCTracer::GCTracer(Heap* heap)
       start_size_(0),
       gc_count_(0),
       full_gc_count_(0),
-      is_compacting_(false),
-      marked_count_(0),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
       promoted_objects_size_(0),
@@ -5645,8 +5664,7 @@ GCTracer::~GCTracer() {
         PrintF("s");
         break;
       case MARK_COMPACTOR:
-        PrintF("%s",
-               heap_->mark_compact_collector_.HasCompacted() ? "mc" : "ms");
+        PrintF("ms");
         break;
       default:
         UNREACHABLE();
@@ -5684,8 +5702,7 @@ const char* GCTracer::CollectorString() {
     case SCAVENGER:
       return "Scavenge";
     case MARK_COMPACTOR:
-      return heap_->mark_compact_collector_.HasCompacted() ? "Mark-compact"
-                                                           : "Mark-sweep";
+      return "Mark-sweep";
   }
   return "Unknown GC";
 }
