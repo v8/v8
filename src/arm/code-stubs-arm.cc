@@ -3541,6 +3541,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     CpuFeatures::Scope scope(VFP3);
     // Save callee-saved vfp registers.
     __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+    // Set up the reserved register for 0.0.
+    __ vmov(kDoubleRegZero, 0.0);
   }
 
   // Get address of argv, see stm above.
