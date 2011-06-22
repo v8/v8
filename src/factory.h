@@ -133,6 +133,11 @@ class Factory {
                               int begin,
                               int end);
 
+  // Create a new string object which holds a strict substring of a string.
+  Handle<String> NewStrictSubString(Handle<String> str,
+                                    int begin,
+                                    int end);
+
   // Creates a new external String object.  There are two String encodings
   // in the system: ASCII and two byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,

@@ -3146,9 +3146,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 
   ZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
+  int start;
+  int end;
   do {
-    int start;
-    int end;
     {
       AssertNoAllocation no_alloc;
       FixedArray* elements = FixedArray::cast(regexp_info->elements());
@@ -3157,20 +3157,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
     }
     offsets.Add(start);
     offsets.Add(end);
-    int index = start < end ? end : end + 1;
-    if (index > length) break;
-    match = RegExpImpl::Exec(regexp, subject, index, regexp_info);
+    if (start == end) if (++end > length) break;
+    match = RegExpImpl::Exec(regexp, subject, end, regexp_info);
     if (match.is_null()) {
       return Failure::Exception();
     }
   } while (!match->IsNull());
   int matches = offsets.length() / 2;
   Handle<FixedArray> elements = isolate->factory()->NewFixedArray(matches);
-  for (int i = 0; i < matches ; i++) {
+  Handle<String> substring = isolate->factory()->
+    NewSubString(subject, offsets.at(0), offsets.at(1));
+  elements->set(0, *substring);
+  for (int i = 1; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    Handle<String> match = isolate->factory()->NewSubString(subject, from, to);
-    elements->set(i, *match);
+    Handle<String> substring = isolate->factory()->
+        NewStrictSubString(subject, from, to);
+    elements->set(i, *substring);
   }
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3320,6 +3323,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   OffsetsVector registers(required_registers);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
+  bool first = true;
 
   for (;;) {  // Break on failure, return on exception.
     RegExpImpl::IrregexpResult result =
@@ -3337,9 +3341,15 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
       }
       match_end = register_vector[1];
       HandleScope loop_scope(isolate);
-      builder->Add(*isolate->factory()->NewSubString(subject,
-                                                     match_start,
-                                                     match_end));
+      if (!first) {
+        builder->Add(*isolate->factory()->NewStrictSubString(subject,
+                                                             match_start,
+                                                             match_end));
+      } else {
+        builder->Add(*isolate->factory()->NewSubString(subject,
+                                                       match_start,
+                                                       match_end));
+      }
       if (match_start != match_end) {
         pos = match_end;
       } else {
@@ -3352,6 +3362,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
       ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
       return result;
     }
+    first = false;
   }
 
   if (match_start >= 0) {
@@ -3403,7 +3414,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     // at the end, so we have two vectors that we swap between.
     OffsetsVector registers2(required_registers);
     Vector<int> prev_register_vector(registers2.vector(), registers2.length());
-
+    bool first = true;
     do {
       int match_start = register_vector[0];
       builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
@@ -3421,18 +3432,30 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         // subject, i.e., 3 + capture count in total.
         Handle<FixedArray> elements =
             isolate->factory()->NewFixedArray(3 + capture_count);
-        Handle<String> match = isolate->factory()->NewSubString(subject,
-                                                                match_start,
-                                                                match_end);
+        Handle<String> match;
+        if (!first) {
+          match = isolate->factory()->NewStrictSubString(subject,
+                                                         match_start,
+                                                         match_end);
+        } else {
+          match = isolate->factory()->NewSubString(subject,
+                                                   match_start,
+                                                   match_end);
+        }
         elements->set(0, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = register_vector[i * 2];
           if (start >= 0) {
             int end = register_vector[i * 2 + 1];
             ASSERT(start <= end);
-            Handle<String> substring = isolate->factory()->NewSubString(subject,
-                                                                        start,
-                                                                        end);
+            Handle<String> substring;
+            if (!first) {
+              substring = isolate->factory()->NewStrictSubString(subject,
+                                                                 start,
+                                                                 end);
+            } else {
+              substring = isolate->factory()->NewSubString(subject, start, end);
+            }
             elements->set(i, *substring);
           } else {
             ASSERT(register_vector[i * 2 + 1] < 0);
@@ -3462,6 +3485,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
                                             subject,
                                             pos,
                                             register_vector);
+      first = false;
     } while (result == RegExpImpl::RE_SUCCESS);
 
     if (result != RegExpImpl::RE_EXCEPTION) {
@@ -5830,7 +5854,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
     HandleScope local_loop_handle;
     int part_end = indices.at(i);
     Handle<String> substring =
-        isolate->factory()->NewSubString(subject, part_start, part_end);
+        isolate->factory()->NewStrictSubString(subject, part_start, part_end);
     elements->set(i, *substring);
     part_start = part_end + pattern_length;
   }

@@ -214,6 +214,16 @@ Handle<String> Factory::NewSubString(Handle<String> str,
 }
 
 
+Handle<String> Factory::NewStrictSubString(Handle<String> str,
+                                           int begin,
+                                           int end) {
+  ASSERT(begin > 0 || end < str->length());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateSubString(*str, begin, end),
+                     String);
+}
+
+
 Handle<String> Factory::NewExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
   CALL_HEAP_FUNCTION(

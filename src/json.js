@@ -278,7 +278,7 @@ function BasicJSONSerialize(key, value, stack, builder) {
     }
   }
   if (IS_STRING(value)) {
-    builder.push(%QuoteJSONString(value));
+    builder.push(value !== "" ? %QuoteJSONString(value) : '""');
   } else if (IS_NUMBER(value)) {
     builder.push(JSON_NUMBER_TO_STRING(value));
   } else if (IS_BOOLEAN(value)) {
