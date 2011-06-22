@@ -712,6 +712,9 @@ PREPARSER_FLAGS = {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['DEBUG']
     },
+    'os:freebsd': {
+      'LIBPATH' : ['/usr/local/lib'],
+    },
   },
   'msvc': {
     'all': {
