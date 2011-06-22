@@ -149,10 +149,6 @@ class Profiler: public Thread {
 void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
   ASSERT(isolate->IsInitialized());
 
-  sample->tos = NULL;
-  sample->frames_count = 0;
-  sample->has_external_callback = false;
-
   // Avoid collecting traces while doing GC.
   if (sample->state == GC) return;
 

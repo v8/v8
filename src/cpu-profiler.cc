@@ -181,20 +181,16 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 
 
 void ProfilerEventsProcessor::AddCurrentStack() {
-  TickSampleEventRecord record;
+  TickSampleEventRecord record(enqueue_order_);
   TickSample* sample = &record.sample;
   Isolate* isolate = Isolate::Current();
   sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
-  sample->tos = NULL;
-  sample->has_external_callback = false;
-  sample->frames_count = 0;
   for (StackTraceFrameIterator it(isolate);
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
        it.Advance()) {
     sample->stack[sample->frames_count++] = it.frame()->pc();
   }
-  record.order = enqueue_order_;
   ticks_from_vm_buffer_.Enqueue(record);
 }
 

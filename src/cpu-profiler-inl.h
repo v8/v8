@@ -32,6 +32,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include <new>
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
 #include "unbound-queue-inl.h"
@@ -62,24 +63,10 @@ void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
-  TickSampleEventRecord* result =
-      reinterpret_cast<TickSampleEventRecord*>(value);
-  result->filler = 1;
-  ASSERT(result->filler != SamplingCircularQueue::kClear);
-  // Init the required fields only.
-  result->sample.pc = NULL;
-  result->sample.frames_count = 0;
-  result->sample.has_external_callback = false;
-  return result;
-}
-
-
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   generator_->Tick();
   TickSampleEventRecord* evt =
-      TickSampleEventRecord::init(ticks_buffer_.Enqueue());
-  evt->order = enqueue_order_;  // No increment!
+      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
   return &evt->sample;
 }
 
