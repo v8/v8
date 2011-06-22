@@ -396,8 +396,10 @@ class Logger::NameMap {
 
   void Remove(Address code_address) {
     HashMap::Entry* entry = FindEntry(code_address);
-    if (entry != NULL) DeleteArray(static_cast<const char*>(entry->value));
-    RemoveEntry(entry);
+    if (entry != NULL) {
+      DeleteArray(static_cast<char*>(entry->value));
+      RemoveEntry(entry);
+    }
   }
 
   void Move(Address from, Address to) {
