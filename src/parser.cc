@@ -595,7 +595,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  fni_ = new(zone()) FuncNameInferrer();
+  fni_ = new(zone()) FuncNameInferrer(isolate());
 
   // Initialize parser state.
   source->TryFlatten();
@@ -707,7 +707,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
   ASSERT(target_stack_ == NULL);
 
   Handle<String> name(String::cast(shared_info->name()));
-  fni_ = new(zone()) FuncNameInferrer();
+  fni_ = new(zone()) FuncNameInferrer(isolate());
   fni_->PushEnclosingName(name);
 
   mode_ = PARSE_EAGERLY;
@@ -1613,7 +1613,11 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       position = scanner().location().beg_pos;
       value = ParseAssignmentExpression(accept_IN, CHECK_OK);
       // Don't infer if it is "a = function(){...}();"-like expression.
-      if (fni_ != NULL && value->AsCall() == NULL) fni_->Infer();
+      if (fni_ != NULL &&
+          value->AsCall() == NULL &&
+          value->AsCallNew() == NULL) {
+        fni_->Infer();
+      }
     }
 
     // Make sure that 'const c' actually initializes 'c' to undefined
@@ -2380,7 +2384,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     if ((op == Token::INIT_VAR
          || op == Token::INIT_CONST
          || op == Token::ASSIGN)
-        && (right->AsCall() == NULL)) {
+        && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
       fni_->Infer();
     }
     fni_->Leave();
@@ -2787,6 +2791,14 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         int pos = scanner().location().beg_pos;
         Expression* index = ParseExpression(true, CHECK_OK);
         result = new(zone()) Property(result, index, pos);
+        if (fni_ != NULL) {
+          if (index->IsPropertyName()) {
+            fni_->PushLiteralName(index->AsLiteral()->AsPropertyName());
+          } else {
+            fni_->PushLiteralName(
+                isolate()->factory()->anonymous_function_symbol());
+          }
+        }
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
