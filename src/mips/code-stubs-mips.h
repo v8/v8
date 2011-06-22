@@ -59,19 +59,6 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
-class ToBooleanStub: public CodeStub {
- public:
-  explicit ToBooleanStub(Register tos) : tos_(tos) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Register tos_;
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return tos_.code(); }
-};
-
-
 class UnaryOpStub: public CodeStub {
  public:
   UnaryOpStub(Token::Value op, UnaryOverwriteMode mode)

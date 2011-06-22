@@ -566,10 +566,10 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  ToBooleanStub stub;
+  ToBooleanStub stub(result_register());
   __ push(result_register());
   __ CallStub(&stub);
-  __ test(eax, Operand(eax));
+  __ test(result_register(), Operand(result_register()));
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
 }

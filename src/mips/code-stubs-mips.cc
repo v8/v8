@@ -1718,7 +1718,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-// This stub does not handle the inlined cases (Smis, Booleans, undefined).
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses FPU instructions.
@@ -1782,7 +1781,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // "tos_" is a register and contains a non-zero value.
   // Hence we implicitly return true if the greater than
   // condition is satisfied.
-  __ Ret(gt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Ret(ge, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // Check for string.
   __ lw(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
@@ -1790,7 +1789,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // "tos_" is a register and contains a non-zero value.
   // Hence we implicitly return true if the greater than
   // condition is satisfied.
-  __ Ret(gt, scratch0, Operand(FIRST_NONSTRING_TYPE));
+  __ Ret(ge, scratch0, Operand(FIRST_NONSTRING_TYPE));
 
   // String value => false iff empty, i.e., length is zero.
   __ lw(tos_, FieldMemOperand(tos_, String::kLengthOffset));

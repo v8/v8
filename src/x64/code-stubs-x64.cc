@@ -231,8 +231,11 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
+// The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
+  const Register map = rdx;
+
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
   // undefined -> false
@@ -250,48 +253,45 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(equal, &false_result);
   __ JumpIfSmi(rax, &true_result);
 
-  // 'null' => false.
+  // 'null' -> false.
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
   __ j(equal, &false_result, Label::kNear);
 
-  // Get the map and type of the heap object.
-  // We don't use CmpObjectType because we manipulate the type field.
-  __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
+  // Get the map of the heap object.
+  __ movq(map, FieldOperand(rax, HeapObject::kMapOffset));
 
-  // Undetectable => false.
-  __ movzxbq(rbx, FieldOperand(rdx, Map::kBitFieldOffset));
-  __ and_(rbx, Immediate(1 << Map::kIsUndetectable));
+  // Undetectable -> false.
+  __ testb(FieldOperand(map, Map::kBitFieldOffset),
+           Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, &false_result, Label::kNear);
 
-  // JavaScript object => true.
-  __ cmpq(rcx, Immediate(FIRST_SPEC_OBJECT_TYPE));
+  // JavaScript object -> true.
+  __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
   __ j(above_equal, &true_result, Label::kNear);
 
-  // String value => false iff empty.
-  __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
+  // String value -> false iff empty.
+  __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string, Label::kNear);
-  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
-  __ SmiTest(rdx);
+  __ cmpq(FieldOperand(rax, String::kLengthOffset), Immediate(0));
   __ j(zero, &false_result, Label::kNear);
   __ jmp(&true_result, Label::kNear);
 
   __ bind(&not_string);
-  __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &true_result, Label::kNear);
-  // HeapNumber => false iff +0, -0, or NaN.
+  // HeapNumber -> false iff +0, -0, or NaN.
   // These three cases set the zero flag when compared to zero using ucomisd.
+  __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &true_result, Label::kNear);
   __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ j(zero, &false_result, Label::kNear);
   // Fall through to |true_result|.
 
-  // Return 1/0 for true/false in rax.
+  // Return 1/0 for true/false in tos_.
   __ bind(&true_result);
-  __ Set(rax, 1);
+  __ Set(tos_, 1);
   __ ret(1 * kPointerSize);
   __ bind(&false_result);
-  __ Set(rax, 0);
+  __ Set(tos_, 0);
   __ ret(1 * kPointerSize);
 }
 
