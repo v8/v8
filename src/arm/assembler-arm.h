@@ -303,6 +303,10 @@ const DwVfpRegister d13 = { 13 };
 const DwVfpRegister d14 = { 14 };
 const DwVfpRegister d15 = { 15 };
 
+// Aliases for double registers.
+const DwVfpRegister kFirstCalleeSavedDoubleReg = d8;
+const DwVfpRegister kLastCalleeSavedDoubleReg = d15;
+
 
 // Coprocessor register
 struct CRegister {
