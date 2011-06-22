@@ -223,6 +223,102 @@ v8Locale.prototype.createDateTimeFormat = function(settings) {
 };
 
 /**
+ * NumberFormat class implements locale-aware number formatting.
+ * Constructor is not part of public API.
+ * @param {Object} locale - locale object to pass to formatter.
+ * @param {Object} settings - formatting flags:
+ *   - skeleton
+ *   - pattern
+ *   - style - decimal, currency, percent or scientific
+ *   - currencyCode - ISO 4217 3-letter currency code
+ * @private
+ * @constructor
+ */
+v8Locale.__NumberFormat = function(locale, settings) {
+  native function NativeJSNumberFormat();
+
+  settings = v8Locale.__createSettingsOrDefault(settings, {});
+
+  var cleanSettings = {};
+  if (settings.hasOwnProperty('skeleton')) {
+    // Assign skeleton to cleanSettings and fix invalid currency pattern
+    // if present - 'ooxo' becomes 'o'.
+    cleanSettings['skeleton'] =
+        settings['skeleton'].replace(/\u00a4+[^\u00a4]+\u00a4+/g, '\u00a4');
+  } else if (settings.hasOwnProperty('pattern')) {
+    cleanSettings['pattern'] = settings['pattern'];
+  } else if (settings.hasOwnProperty('style')) {
+    var style = settings['style'];
+    if (!/^decimal|currency|percent|scientific$/.test(style)) {
+      style = 'decimal';
+    }
+    cleanSettings['style'] = style;
+  }
+
+  // Default is to show decimal style.
+  if (!cleanSettings.hasOwnProperty('skeleton') &&
+      !cleanSettings.hasOwnProperty('pattern') &&
+      !cleanSettings.hasOwnProperty('style')) {
+    cleanSettings = {'style': 'decimal'};
+  }
+
+  // Add currency code if available and valid (3-letter ASCII code).
+  if (settings.hasOwnProperty('currencyCode') &&
+      /^[a-zA-Z]{3}$/.test(settings['currencyCode'])) {
+    cleanSettings['currencyCode'] = settings['currencyCode'].toUpperCase();
+  }
+
+  locale = v8Locale.__createLocaleOrDefault(locale);
+  // Pass in region ID for proper currency detection. Use ZZ if region is empty.
+  var region = locale.options.regionID !== '' ? locale.options.regionID : 'ZZ';
+  var formatter = NativeJSNumberFormat(
+      locale.__icuLocaleID, 'und_' + region, cleanSettings);
+
+  // ICU doesn't always uppercase the currency code.
+  if (formatter.options.hasOwnProperty('currencyCode')) {
+    formatter.options['currencyCode'] =
+        formatter.options['currencyCode'].toUpperCase();
+  }
+
+  for (key in cleanSettings) {
+    // Don't overwrite keys that are alredy in.
+    if (formatter.options.hasOwnProperty(key)) continue;
+
+    formatter.options[key] = cleanSettings[key];
+  }
+
+  /**
+   * Clones existing number format with possible overrides for some
+   * of the options.
+   * @param {!Object} overrideSettings - overrides for current format settings.
+   * @returns {Object} - new or cached NumberFormat object.
+   * @public
+   */
+  formatter.derive = function(overrideSettings) {
+    // To remove a setting user can specify undefined as its value. We'll remove
+    // it from the map in that case.
+    for (var prop in overrideSettings) {
+      if (settings.hasOwnProperty(prop) && !overrideSettings[prop]) {
+        delete settings[prop];
+      }
+    }
+    return new v8Locale.__NumberFormat(
+        locale, v8Locale.__createSettingsOrDefault(overrideSettings, settings));
+  };
+
+  return formatter;
+};
+
+/**
+ * Creates new NumberFormat based on current locale.
+ * @param {Object} - formatting flags. See constructor.
+ * @returns {Object} - new or cached NumberFormat object.
+ */
+v8Locale.prototype.createNumberFormat = function(settings) {
+  return new v8Locale.__NumberFormat(this, settings);
+};
+
+/**
  * Merges user settings and defaults.
  * Settings that are not of object type are rejected.
  * Actual property values are not validated, but whitespace is trimmed if they
