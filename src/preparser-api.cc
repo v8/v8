@@ -158,24 +158,6 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 };
 
 
-class StandAloneJavaScriptScanner : public JavaScriptScanner {
- public:
-  explicit StandAloneJavaScriptScanner(UnicodeCache* unicode_cache)
-      : JavaScriptScanner(unicode_cache) { }
-
-  void Initialize(UC16CharacterStream* source) {
-    source_ = source;
-    Init();
-    // Skip initial whitespace allowing HTML comment ends just like
-    // after a newline and scan first token.
-    has_line_terminator_before_next_ = true;
-    has_multiline_comment_before_next_ = false;
-    SkipWhiteSpace();
-    Scan();
-  }
-};
-
-
 // Functions declared by allocation.h and implemented in both api.cc (for v8)
 // or here (for a stand-alone preparser).
 
@@ -195,7 +177,7 @@ PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
   internal::UnicodeCache unicode_cache;
-  internal::StandAloneJavaScriptScanner scanner(&unicode_cache);
+  internal::JavaScriptScanner scanner(&unicode_cache);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
   preparser::PreParser::PreParseResult result =

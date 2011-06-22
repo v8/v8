@@ -126,21 +126,6 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
   const uc16* raw_data_;  // Pointer to the actual array of characters.
 };
 
-
-// ----------------------------------------------------------------------------
-// V8JavaScriptScanner
-// JavaScript scanner getting its input from either a V8 String or a unicode
-// CharacterStream.
-
-class V8JavaScriptScanner : public JavaScriptScanner {
- public:
-  explicit V8JavaScriptScanner(UnicodeCache* unicode_cache)
-      : JavaScriptScanner(unicode_cache) {}
-
-  void Initialize(UC16CharacterStream* source);
-};
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_SCANNER_H_
