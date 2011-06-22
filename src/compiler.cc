@@ -217,7 +217,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info->scope();
   if ((scope->num_parameters() + 1) > parameter_limit ||
-      scope->num_stack_slots() > locals_limit) {
+      (info->osr_ast_id() != AstNode::kNoNumber &&
+       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     info->AbortOptimization();
     Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization(*closure);
