@@ -907,8 +907,8 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ JumpIfSmi(object, slow_case);
 
   // Check that the key is a positive smi.
-  __ And(scratch1, scratch1, Operand(0x8000001));
-  __ Branch(slow_case, ne, key, Operand(scratch1));
+  __ And(scratch1, key, Operand(0x8000001));
+  __ Branch(slow_case, ne, scratch1, Operand(zero_reg));
 
   // Load the elements into scratch1 and check its map.
   Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
@@ -978,13 +978,13 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   // -----------------------------------
   Label slow, notin;
   MemOperand mapped_location =
-      GenerateMappedArgumentsLookup(masm, a1, v0, a2, a3, t0, &notin, &slow);
+      GenerateMappedArgumentsLookup(masm, a1, a0, a2, a3, t0, &notin, &slow);
   __ lw(v0, mapped_location);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a2.
   MemOperand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, v0, a2, a3, &slow);
+      GenerateUnmappedArgumentsLookup(masm, a0, a2, a3, &slow);
   __ lw(a2, unmapped_location);
   __ Branch(&slow, eq, a2, Operand(a3));
   __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
@@ -997,7 +997,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   // ---------- S t a t e --------------
-  //  -- v0     : value
+  //  -- a0     : value
   //  -- a1     : key
   //  -- a2     : receiver
   //  -- lr     : return address
@@ -1005,14 +1005,16 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   Label slow, notin;
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a2, a1, a3, t0, t1, &notin, &slow);
-  __ sw(v0, mapped_location);
-  __ Ret();
+  __ sw(a0, mapped_location);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a3.
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, a1, a3, t0, &slow);
-  __ sw(v0, unmapped_location);
-  __ Ret();
+  __ sw(a0, unmapped_location);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
   GenerateMiss(masm, false);
 }
