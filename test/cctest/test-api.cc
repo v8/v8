@@ -6842,6 +6842,56 @@ THREADED_TEST(SetPrototype) {
 }
 
 
+THREADED_TEST(SetPrototypeProperties) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->SetPrototypeAttributes(v8::DontDelete);
+  context->Global()->Set(v8_str("func1"), t1->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t2->SetPrototypeAttributes(v8::DontEnum);
+  context->Global()->Set(v8_str("func2"), t2->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
+  t3->SetPrototypeAttributes(v8::ReadOnly);
+  context->Global()->Set(v8_str("func3"), t3->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func3, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New();
+  t4->SetPrototypeAttributes(v8::ReadOnly | v8::DontEnum | v8::DontDelete);
+  context->Global()->Set(v8_str("func4"), t4->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func4, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
+}
+
+
 THREADED_TEST(SetPrototypeThrows) {
   v8::HandleScope handle_scope;
   LocalContext context;

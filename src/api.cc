@@ -884,6 +884,7 @@ static void InitializeFunctionTemplate(
       i::Handle<i::FunctionTemplateInfo> info) {
   info->set_tag(i::Smi::FromInt(Consts::FUNCTION_TEMPLATE));
   info->set_flag(0);
+  info->set_prototype_attributes(i::Smi::FromInt(v8::None));
 }
 
 
@@ -1103,6 +1104,17 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
   }
   ENTER_V8(isolate);
   Utils::OpenHandle(this)->set_hidden_prototype(value);
+}
+
+
+void FunctionTemplate::SetPrototypeAttributes(int attributes) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetPrototypeAttributes()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_prototype_attributes(
+      i::Smi::FromInt(attributes));
 }
 
 
