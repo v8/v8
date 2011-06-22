@@ -455,6 +455,7 @@ class MemOperand BASE_EMBEDDED {
 
   Register rn() const { return rn_; }
   Register rm() const { return rm_; }
+  AddrMode am() const { return am_; }
 
   bool OffsetIsUint12Encodable() const {
     return offset_ >= 0 ? is_uint12(offset_) : is_uint12(-offset_);
