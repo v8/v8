@@ -2112,6 +2112,9 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
   int spill_index = chunk()->GetNextSpillIndex(false);  // Not double-width.
+  if (spill_index > LUnallocated::kMaxFixedIndex) {
+    Abort("Too many spill slots needed for OSR");
+  }
   return DefineAsSpilled(new LUnknownOSRValue, spill_index);
 }
 
