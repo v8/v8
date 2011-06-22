@@ -860,37 +860,40 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   if (FLAG_use_ic) {
-    Code* non_monomorphic_stub =
-        (state == UNINITIALIZED) ? pre_monomorphic_stub() : megamorphic_stub();
-
     // Use specialized code for getting the length of strings and
     // string wrapper objects.  The length property of string wrapper
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
         name->Equals(isolate()->heap()->length_symbol())) {
-      HandleScope scope(isolate());
-#ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
-#endif
-      if (state == PREMONOMORPHIC) {
+      AssertNoAllocation no_allocation;
+      Code* stub = NULL;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
         if (object->IsString()) {
-          set_target(isolate()->builtins()->builtin(
-              Builtins::kLoadIC_StringLength));
+          stub = isolate()->builtins()->builtin(
+              Builtins::kLoadIC_StringLength);
         } else {
-          set_target(isolate()->builtins()->builtin(
-              Builtins::kLoadIC_StringWrapperLength));
+          stub = isolate()->builtins()->builtin(
+              Builtins::kLoadIC_StringWrapperLength);
         }
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        set_target(isolate()->builtins()->builtin(
-            Builtins::kLoadIC_StringWrapperLength));
-      } else {
-        set_target(non_monomorphic_stub);
+        stub = isolate()->builtins()->builtin(
+            Builtins::kLoadIC_StringWrapperLength);
+      } else if (state != MEGAMORPHIC) {
+        stub = megamorphic_stub();
+      }
+      if (stub != NULL) {
+        set_target(stub);
+#ifdef DEBUG
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+#endif
       }
       // Get the string if we have a string wrapper object.
       if (object->IsJSValue()) {
-        object = Handle<Object>(Handle<JSValue>::cast(object)->value(),
-                                isolate());
+        return Smi::FromInt(
+            String::cast(Handle<JSValue>::cast(object)->value())->length());
       }
       return Smi::FromInt(String::cast(*object)->length());
     }
@@ -898,14 +901,21 @@ MaybeObject* LoadIC::Load(State state,
     // Use specialized code for getting the length of arrays.
     if (object->IsJSArray() &&
         name->Equals(isolate()->heap()->length_symbol())) {
+      AssertNoAllocation no_allocation;
+      Code* stub = NULL;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
+        stub = isolate()->builtins()->builtin(
+            Builtins::kLoadIC_ArrayLength);
+      } else if (state != MEGAMORPHIC) {
+        stub = megamorphic_stub();
+      }
+      if (stub != NULL) {
+        set_target(stub);
 #ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
-      if (state == PREMONOMORPHIC) {
-        set_target(isolate()->builtins()->builtin(
-            Builtins::kLoadIC_ArrayLength));
-      } else {
-        set_target(non_monomorphic_stub);
       }
       return JSArray::cast(*object)->length();
     }
@@ -914,14 +924,22 @@ MaybeObject* LoadIC::Load(State state,
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_symbol()) &&
         JSFunction::cast(*object)->should_have_prototype()) {
+      { AssertNoAllocation no_allocation;
+        Code* stub = NULL;
+        if (state == UNINITIALIZED) {
+          stub = pre_monomorphic_stub();
+        } else if (state == PREMONOMORPHIC) {
+          stub = isolate()->builtins()->builtin(
+              Builtins::kLoadIC_FunctionPrototype);
+        } else if (state != MEGAMORPHIC) {
+          stub = megamorphic_stub();
+        }
+        if (stub != NULL) {
+          set_target(stub);
 #ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
+          if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
-      if (state == PREMONOMORPHIC) {
-        set_target(isolate()->builtins()->builtin(
-            Builtins::kLoadIC_FunctionPrototype));
-      } else {
-        set_target(non_monomorphic_stub);
+        }
       }
       return Accessors::FunctionGetPrototype(*object, 0);
     }
