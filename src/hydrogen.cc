@@ -131,7 +131,7 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
 }
 
 
-HSimulate* HBasicBlock::CreateSimulate(int id) {
+HSimulate* HBasicBlock::CreateSimulate(int ast_id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
   ASSERT(id == AstNode::kNoNumber ||
@@ -140,7 +140,7 @@ HSimulate* HBasicBlock::CreateSimulate(int id) {
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  HSimulate* instr = new(zone()) HSimulate(id, pop_count);
+  HSimulate* instr = new(zone()) HSimulate(ast_id, pop_count);
   for (int i = push_count - 1; i >= 0; --i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
   }
@@ -194,7 +194,7 @@ void HBasicBlock::SetInitialEnvironment(HEnvironment* env) {
 }
 
 
-void HBasicBlock::SetJoinId(int id) {
+void HBasicBlock::SetJoinId(int ast_id) {
   int length = predecessors_.length();
   ASSERT(length > 0);
   for (int i = 0; i < length; i++) {
@@ -204,8 +204,8 @@ void HBasicBlock::SetJoinId(int id) {
     // We only need to verify the ID once.
     ASSERT(i != 0 ||
            predecessor->last_environment()->closure()->shared()
-               ->VerifyBailoutId(id));
-    simulate->set_ast_id(id);
+               ->VerifyBailoutId(ast_id));
+    simulate->set_ast_id(ast_id);
   }
 }
 
@@ -2328,9 +2328,9 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddSimulate(int id) {
+void HGraphBuilder::AddSimulate(int ast_id) {
   ASSERT(current_block() != NULL);
-  current_block()->AddSimulate(id);
+  current_block()->AddSimulate(ast_id);
 }
 
 
