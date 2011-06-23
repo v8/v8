@@ -4195,7 +4195,7 @@ THREADED_TEST(NativeFunctionDeclaration) {
 
 THREADED_TEST(NativeFunctionDeclarationError) {
   v8::HandleScope handle_scope;
-  const char* name = "nativedecl";
+  const char* name = "nativedeclerr";
   // Syntax error in extension code.
   v8::RegisterExtension(new NativeFunctionExtension(name,
                                                     "native\nfunction foo();"));
@@ -4207,7 +4207,7 @@ THREADED_TEST(NativeFunctionDeclarationError) {
 
 THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
   v8::HandleScope handle_scope;
-  const char* name = "nativedecl";
+  const char* name = "nativedeclerresc";
   // Syntax error in extension code - escape code in "native" means that
   // it's not treated as a keyword.
   v8::RegisterExtension(new NativeFunctionExtension(
