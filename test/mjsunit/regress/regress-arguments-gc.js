@@ -25,35 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function foo(x) {
-  var a = arguments;
-  function bar(i) {
-    assertEquals(i, ++a[0]);
-    assertEquals(i, x);
-  };
-  bar(1);
-  bar(2);
-  bar(3);
-  return bar;
-}
-var baz = foo(0);
-baz(4);
-baz(5);
-baz(6);
+// Flags: --expose-gc --nocleanup_code_caches_at_gc
 
-// Test writing a non-smi.
-function foo2(x) {
-  var a = arguments;
-  function bar2(i) {
-    assertEquals(i, ++a[0]);
-    assertEquals(i, x);
-  };
-  bar2(1.5);
-  bar2(2.5);
-  bar2(3.5);
-  return bar2;
+function f(x) {
+  gc();
+  arguments[0] = {};
 }
-var baz2 = foo2(0.5);
-baz2(4.5);
-baz2(5.5);
-baz2(6.5);
+
+f(1);
+f(1);
+f(1);

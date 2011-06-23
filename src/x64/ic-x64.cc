@@ -1308,12 +1308,18 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   Operand mapped_location = GenerateMappedArgumentsLookup(
       masm, rdx, rcx, rbx, rdi, r8, &notin, &slow);
   __ movq(mapped_location, rax);
+  __ lea(r9, mapped_location);
+  __ movq(r8, rax);
+  __ RecordWrite(rbx, r9, r8);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in rbx.
   Operand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, rcx, rbx, rdi, &slow);
   __ movq(unmapped_location, rax);
+  __ lea(r9, unmapped_location);
+  __ movq(r8, rax);
+  __ RecordWrite(rbx, r9, r8);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
