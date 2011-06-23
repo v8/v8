@@ -41,11 +41,8 @@ class StoreBuffer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
-typedef void RegionCallback(
-    StoreBuffer* store_buffer,
-    Address start,
-    Address end,
-    ObjectSlotCallback slot_callback);
+typedef void (StoreBuffer::*RegionCallback)(
+    Address start, Address end, ObjectSlotCallback slot_callback);
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
@@ -84,7 +81,7 @@ class StoreBuffer {
   // surviving old-to-new pointers into the store buffer to rebuild it.
   void IteratePointersToNewSpace(ObjectSlotCallback callback);
 
-  static const int kStoreBufferOverflowBit = 1 << 12;
+  static const int kStoreBufferOverflowBit = 1 << 16;
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
   static const int kOldStoreBufferLength = kStoreBufferLength * 64;
@@ -157,30 +154,9 @@ class StoreBuffer {
   bool HashTablesAreZapped();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
-  enum RecordNewSpacePointers {
-    kDontRecord,
-    kRecord
-  };
-
-  template<RecordNewSpacePointers record>
-  inline void FindPointersToNewSpaceInRegion(Address start,
-                                             Address end,
-                                             ObjectSlotCallback slot_callback);
-
-  // It seems gcc doesn't want to take the address of a templated method,
-  // so we create a new method so that we can give the address.  Also,
-  // pointers to methods tend to have gnarly implementations.
-  static void FindPointersToNewSpaceInRegionRecord(
-      StoreBuffer* store_buffer,
-      Address start,
-      Address end,
-      ObjectSlotCallback slot_callback);
-
-  static void FindPointersToNewSpaceInRegionDontRecord(
-      StoreBuffer* store_buffer,
-      Address start,
-      Address end,
-      ObjectSlotCallback slot_callback);
+  void FindPointersToNewSpaceInRegion(Address start,
+                                      Address end,
+                                      ObjectSlotCallback slot_callback);
 
   // For each region of pointers on a page in use from an old space call
   // visit_pointer_region callback.
@@ -198,8 +174,7 @@ class StoreBuffer {
     Address end,
     ObjectSlotCallback slot_callback);
 
-  static void FindPointersToNewSpaceInMapsRegion(
-    StoreBuffer* store_buffer,
+  void FindPointersToNewSpaceInMapsRegion(
     Address start,
     Address end,
     ObjectSlotCallback slot_callback);
