@@ -395,7 +395,7 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
 void StoreBuffer::Verify() {
 #ifdef DEBUG
   VerifyPointers(heap_->old_pointer_space(),
-                 &StoreBuffer::FindPointersToNewSpaceInRegion);
+                 &StoreBuffer::FindPointersToNewSpaceInRegionDontRecord);
   VerifyPointers(heap_->map_space(),
                  &StoreBuffer::FindPointersToNewSpaceInMapsRegion);
   VerifyPointers(heap_->lo_space());
@@ -410,6 +410,7 @@ void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
 }
 
 
+template<StoreBuffer::RecordNewSpacePointers record>
 void StoreBuffer::FindPointersToNewSpaceInRegion(
     Address start, Address end, ObjectSlotCallback slot_callback) {
   for (Address slot_address = start;
@@ -420,11 +421,33 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
       HeapObject* object = reinterpret_cast<HeapObject*>(*slot);
       ASSERT(object->IsHeapObject());
       slot_callback(reinterpret_cast<HeapObject**>(slot), object);
-      if (heap_->InNewSpace(*slot)) {
-        EnterDirectlyIntoStoreBuffer(slot_address);
+      if (record == kRecord) {
+        if (heap_->InNewSpace(*slot)) {
+          EnterDirectlyIntoStoreBuffer(slot_address);
+        }
       }
     }
   }
+}
+
+
+void StoreBuffer::FindPointersToNewSpaceInRegionRecord(
+    StoreBuffer* store_buffer,
+    Address start,
+    Address end,
+    ObjectSlotCallback slot_callback) {
+  store_buffer->FindPointersToNewSpaceInRegion<kRecord>(
+      start, end, slot_callback);
+}
+
+
+void StoreBuffer::FindPointersToNewSpaceInRegionDontRecord(
+    StoreBuffer* store_buffer,
+    Address start,
+    Address end,
+    ObjectSlotCallback slot_callback) {
+  store_buffer->FindPointersToNewSpaceInRegion<kDontRecord>(
+      start, end, slot_callback);
 }
 
 
@@ -457,15 +480,16 @@ void StoreBuffer::FindPointersToNewSpaceInMaps(
     Address pointer_fields_start = map_address + Map::kPointerFieldsBeginOffset;
     Address pointer_fields_end = map_address + Map::kPointerFieldsEndOffset;
 
-    FindPointersToNewSpaceInRegion(pointer_fields_start,
-                                   pointer_fields_end,
-                                   slot_callback);
+    FindPointersToNewSpaceInRegion<kRecord>(pointer_fields_start,
+                                            pointer_fields_end,
+                                            slot_callback);
     map_address += Map::kSize;
   }
 }
 
 
 void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
+    StoreBuffer* store_buffer,
     Address start,
     Address end,
     ObjectSlotCallback slot_callback) {
@@ -475,9 +499,9 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
   ASSERT(map_aligned_start == start);
   ASSERT(map_aligned_end == end);
 
-  FindPointersToNewSpaceInMaps(map_aligned_start,
-                               map_aligned_end,
-                               slot_callback);
+  store_buffer->FindPointersToNewSpaceInMaps(map_aligned_start,
+                                             map_aligned_end,
+                                             slot_callback);
 }
 
 
@@ -517,9 +541,10 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
         visitable_end == space->top()) {
       if (visitable_start != visitable_end) {
         // After calling this the special garbage section may have moved.
-        (this->*region_callback)(visitable_start,
-                                 visitable_end,
-                                 slot_callback);
+        (*region_callback)(this,
+                           visitable_start,
+                           visitable_end,
+                           slot_callback);
         if (visitable_end >= space->top() && visitable_end < space->limit()) {
           visitable_end = space->limit();
           visitable_start = visitable_end;
@@ -548,9 +573,10 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
   }
   ASSERT(visitable_end == end_of_page);
   if (visitable_start != visitable_end) {
-    (this->*region_callback)(visitable_start,
-                             visitable_end,
-                             slot_callback);
+    (*region_callback)(this,
+                       visitable_start,
+                       visitable_end,
+                       slot_callback);
   }
 }
 
@@ -618,7 +644,20 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
           ASSERT(array->IsFixedArray());
           Address start = array->address();
           Address end = start + array->Size();
-          FindPointersToNewSpaceInRegion(start, end, slot_callback);
+          const int kLump = 10000;
+          for (Address current = start; current < end; current += kLump) {
+            if (chunk->scan_on_scavenge()) {
+              FindPointersToNewSpaceInRegion<kDontRecord>(
+                  current,
+                  Min(end, current + kLump),
+                  slot_callback);
+            } else {
+              FindPointersToNewSpaceInRegion<kRecord>(
+                  current,
+                  Min(end, current + kLump),
+                  slot_callback);
+            }
+          }
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
@@ -627,7 +666,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               page,
               (owner == heap_->map_space() ?
                  &StoreBuffer::FindPointersToNewSpaceInMapsRegion :
-                 &StoreBuffer::FindPointersToNewSpaceInRegion),
+                 &StoreBuffer::FindPointersToNewSpaceInRegionRecord),
               slot_callback);
         }
       }
