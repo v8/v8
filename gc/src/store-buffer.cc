@@ -608,6 +608,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
     MemoryChunk* chunk;
     while ((chunk = it.next()) != NULL) {
       if (chunk->scan_on_scavenge()) {
+        chunk->set_scan_on_scavenge(false);
         if (callback_ != NULL) {
           (*callback_)(heap_, chunk, kStoreBufferScanningPageEvent);
         }
