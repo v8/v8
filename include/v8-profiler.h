@@ -346,6 +346,12 @@ class V8EXPORT HeapSnapshot {
   /** Returns a node by its id. */
   const HeapGraphNode* GetNodeById(uint64_t id) const;
 
+  /** Returns total nodes count in the snapshot. */
+  int GetNodesCount() const;
+
+  /** Returns a node by index. */
+  const HeapGraphNode* GetNode(int index) const;
+
   /**
    * Deletes the snapshot and removes it from HeapProfiler's list.
    * All pointers to nodes, edges and paths previously returned become

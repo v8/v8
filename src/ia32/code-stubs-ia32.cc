@@ -237,55 +237,55 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-// NOTE: The stub does not handle the inlined cases (Smis, Booleans, undefined).
+// The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
   Factory* factory = masm->isolate()->factory();
+  const Register map = edx;
+
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
 
   // undefined -> false
   __ cmp(eax, factory->undefined_value());
   __ j(equal, &false_result);
 
   // Boolean -> its value
-  __ cmp(eax, factory->true_value());
-  __ j(equal, &true_result);
   __ cmp(eax, factory->false_value());
   __ j(equal, &false_result);
+  __ cmp(eax, factory->true_value());
+  __ j(equal, &true_result);
 
   // Smis: 0 -> false, all other -> true
   __ test(eax, Operand(eax));
   __ j(zero, &false_result);
   __ JumpIfSmi(eax, &true_result);
 
-  // 'null' => false.
+  // 'null' -> false.
   __ cmp(eax, factory->null_value());
   __ j(equal, &false_result, Label::kNear);
 
-  // Get the map and type of the heap object.
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  // Get the map of the heap object.
+  __ mov(map, FieldOperand(eax, HeapObject::kMapOffset));
 
-  // Undetectable => false.
-  __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+  // Undetectable -> false.
+  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             1 << Map::kIsUndetectable);
   __ j(not_zero, &false_result, Label::kNear);
 
-  // JavaScript object => true.
-  __ CmpInstanceType(edx, FIRST_SPEC_OBJECT_TYPE);
+  // JavaScript object -> true.
+  __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
   __ j(above_equal, &true_result, Label::kNear);
 
-  // String value => false iff empty.
-  __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
+  // String value -> false iff empty.
+  __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string, Label::kNear);
-  STATIC_ASSERT(kSmiTag == 0);
   __ cmp(FieldOperand(eax, String::kLengthOffset), Immediate(0));
   __ j(zero, &false_result, Label::kNear);
   __ jmp(&true_result, Label::kNear);
 
   __ bind(&not_string);
-  // HeapNumber => false iff +0, -0, or NaN.
-  __ cmp(edx, factory->heap_number_map());
+  // HeapNumber -> false iff +0, -0, or NaN.
+  __ cmp(map, factory->heap_number_map());
   __ j(not_equal, &true_result, Label::kNear);
   __ fldz();
   __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
@@ -293,12 +293,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(zero, &false_result, Label::kNear);
   // Fall through to |true_result|.
 
-  // Return 1/0 for true/false in eax.
+  // Return 1/0 for true/false in tos_.
   __ bind(&true_result);
-  __ mov(eax, 1);
+  __ mov(tos_, 1);
   __ ret(1 * kPointerSize);
   __ bind(&false_result);
-  __ mov(eax, 0);
+  __ mov(tos_, 0);
   __ ret(1 * kPointerSize);
 }
 

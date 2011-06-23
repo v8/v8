@@ -1,3 +1,21 @@
+2011-06-22: Version 3.4.6
+
+        Lowered limit on code space for systems with low memory supply.
+
+        Allowed compiling v8_shell with the 'host' toolset (issue 82437).
+
+        Extended setBreakpoint API to accept partial script name (issue 1418).
+
+        Made multi-line comments not count when deciding whether the '-->'
+        comment starter is first on a line. This matches Safari.
+
+        Made handling of non-array recievers in Array length setter correct
+        (issue 1491).
+
+        Added ability to heap profiler to iterate over snapshot's node
+        (issue 1481).
+
+
 2011-06-20: Version 3.4.5
 
         Fixed issues 794, 1097, 1215(partial), 1417, 1435, 1472, 1473,

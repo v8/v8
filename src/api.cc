@@ -5886,6 +5886,29 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
 }
 
 
+int HeapSnapshot::GetNodesCount() const {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodesCount");
+  return ToInternal(this)->entries()->length();
+#else
+  return 0;
+#endif
+}
+
+
+const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
+  return reinterpret_cast<const HeapGraphNode*>(
+      ToInternal(this)->entries()->at(index));
+#else
+  return 0;
+#endif
+}
+
+
 void HeapSnapshot::Serialize(OutputStream* stream,
                              HeapSnapshot::SerializationFormat format) const {
 #ifdef ENABLE_LOGGING_AND_PROFILING

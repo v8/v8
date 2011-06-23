@@ -1413,7 +1413,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       // The conversion stub doesn't cause garbage collections so it's
       // safe to not record a safepoint after the call.
       __ bind(&call_stub);
-      ToBooleanStub stub;
+      ToBooleanStub stub(rax);
       __ Pushad();
       __ push(reg);
       __ CallStub(&stub);
@@ -1556,7 +1556,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
+void LCodeGen::DoCmpObjectEq(LCmpObjectEq* instr) {
   Register left = ToRegister(instr->InputAt(0));
   Register right = ToRegister(instr->InputAt(1));
   Register result = ToRegister(instr->result());
@@ -1572,32 +1572,7 @@ void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
 }
 
 
-void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-
-  __ cmpq(left, right);
-  EmitBranch(true_block, false_block, equal);
-}
-
-
-void LCodeGen::DoCmpSymbolEq(LCmpSymbolEq* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
-  Register result = ToRegister(instr->result());
-
-  Label done;
-  __ cmpq(left, right);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ j(not_equal, &done, Label::kNear);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ bind(&done);
-}
-
-
-void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
+void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register left = ToRegister(instr->InputAt(0));
   Register right = ToRegister(instr->InputAt(1));
   int false_block = chunk_->LookupDestination(instr->false_block_id());

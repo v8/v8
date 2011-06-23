@@ -1062,11 +1062,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer("movq ");
         current += PrintRightXMMOperand(current);
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
+      } else if (opcode == 0x50) {
+        AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
       } else {
         const char* mnemonic = "?";
-        if (opcode == 0x50) {
-          mnemonic = "movmskpd";
-        } else  if (opcode == 0x54) {
+        if (opcode == 0x54) {
           mnemonic = "andpd";
         } else  if (opcode == 0x56) {
           mnemonic = "orpd";

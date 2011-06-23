@@ -1610,15 +1610,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-// This stub does not handle the inlined cases (Smis, Booleans, undefined).
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses VFP3 instructions.
   CpuFeatures::Scope scope(VFP3);
 
-  Label false_result;
-  Label not_heap_number;
-  Register scratch = r9.is(tos_) ? r7 : r9;
+  Label false_result, true_result, not_string;
+  const Register map = r9.is(tos_) ? r7 : r9;
 
   // undefined -> false
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
@@ -1648,11 +1646,31 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ cmp(tos_, ip);
   __ b(eq, &false_result);
 
-  // HeapNumber => false iff +0, -0, or NaN.
-  __ ldr(scratch, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmp(scratch, ip);
-  __ b(&not_heap_number, ne);
+  // Get the map of the heap object.
+  __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
+
+  // Undetectable -> false.
+  __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ tst(ip, Operand(1 << Map::kIsUndetectable));
+  __ b(&false_result, ne);
+
+  // JavaScript object -> true.
+  __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
+  // "tos_" is a register and contains a non-zero value. Hence we implicitly
+  // return true if the greater than condition is satisfied.
+  __ Ret(ge);
+
+  // String value -> false iff empty.
+  __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
+  __ b(&not_string, ge);
+  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset));
+  // Return string length as boolean value, i.e. return false iff length is 0.
+  __ Ret();
+
+  __ bind(&not_string);
+  // HeapNumber -> false iff +0, -0, or NaN.
+  __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  __ b(&true_result, ne);
   __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
   __ VFPCompareAndSetFlags(d1, 0.0);
   // "tos_" is a register, and contains a non zero value by default.
@@ -1662,41 +1680,10 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
   __ Ret();
 
-  __ bind(&not_heap_number);
-
-  // It can be an undetectable object.
-  // Undetectable => false.
-  __ ldr(ip, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ ldrb(scratch, FieldMemOperand(ip, Map::kBitFieldOffset));
-  __ and_(scratch, scratch, Operand(1 << Map::kIsUndetectable));
-  __ cmp(scratch, Operand(1 << Map::kIsUndetectable));
-  __ b(&false_result, eq);
-
-  // JavaScript object => true.
-  __ ldr(scratch, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(FIRST_SPEC_OBJECT_TYPE));
-  // "tos_" is a register and contains a non-zero value.
-  // Hence we implicitly return true if the greater than
-  // condition is satisfied.
-  __ Ret(gt);
-
-  // Check for string
-  __ ldr(scratch, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(FIRST_NONSTRING_TYPE));
-  // "tos_" is a register and contains a non-zero value.
-  // Hence we implicitly return true if the greater than
-  // condition is satisfied.
-  __ Ret(gt);
-
-  // String value => false iff empty, i.e., length is zero
-  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset));
-  // If length is zero, "tos_" contains zero ==> false.
-  // If length is not zero, "tos_" contains a non-zero value ==> true.
+  // Return 1/0 for true/false in tos_.
+  __ bind(&true_result);
+  __ mov(tos_, Operand(1, RelocInfo::NONE));
   __ Ret();
-
-  // Return 0 in "tos_" for false .
   __ bind(&false_result);
   __ mov(tos_, Operand(0, RelocInfo::NONE));
   __ Ret();
@@ -3550,12 +3537,24 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee-saved registers (incl. cp and fp), sp, and lr
   __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Save callee-saved vfp registers.
+    __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+  }
+
   // Get address of argv, see stm above.
   // r0: code entry
   // r1: function
   // r2: receiver
   // r3: argc
-  __ ldr(r4, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize));  // argv
+
+  // Setup argv in r4.
+  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
+  if (CpuFeatures::IsSupported(VFP3)) {
+    offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize;
+  }
+  __ ldr(r4, MemOperand(sp, offset_to_argv));
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: code entry
@@ -3680,6 +3679,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ mov(lr, Operand(pc));
   }
 #endif
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Restore callee-saved vfp registers.
+    __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+  }
+
   __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
 }
 

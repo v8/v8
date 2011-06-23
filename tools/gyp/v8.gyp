@@ -232,6 +232,7 @@
       'targets': [
         {
           'target_name': 'v8',
+          'toolsets': ['host', 'target'],
           'conditions': [
             ['v8_use_snapshot=="true"', {
               'dependencies': ['v8_snapshot'],
@@ -281,6 +282,7 @@
         {
           'target_name': 'v8_snapshot',
           'type': '<(library)',
+          'toolsets': ['host', 'target'],
           'conditions': [
             ['component=="shared_library"', {
               'conditions': [
@@ -954,6 +956,7 @@
         {
           'target_name': 'v8_shell',
           'type': 'executable',
+          'toolsets': ['host'],
           'dependencies': [
             'v8'
           ],
@@ -977,6 +980,7 @@
         {
           'target_name': 'v8',
           'type': 'settings',
+          'toolsets': ['host', 'target'],
           'link_settings': {
             'libraries': [
               '-lv8',
@@ -986,6 +990,7 @@
         {
           'target_name': 'v8_shell',
           'type': 'none',
+          'toolsets': ['host'],
           'dependencies': [
             'v8'
           ],

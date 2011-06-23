@@ -471,6 +471,8 @@ class JavaScriptScanner : public Scanner {
 
   explicit JavaScriptScanner(UnicodeCache* scanner_contants);
 
+  void Initialize(UC16CharacterStream* source);
+
   // Returns the next token.
   Token::Value Next();
 
@@ -535,7 +537,7 @@ class JavaScriptScanner : public Scanner {
   // the current token, and  before the next. Does not count newlines
   // inside multiline comments.
   bool has_line_terminator_before_next_;
-  // Whether there is a multi-line comment that containins a
+  // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
 };
@@ -547,14 +549,20 @@ class JavaScriptScanner : public Scanner {
 class KeywordMatcher {
 //  Incrementally recognize keywords.
 //
-//  Recognized keywords:
-//      break case catch const* continue debugger* default delete do else
-//      finally false for function if in instanceof native* new null
-//      return switch this throw true try typeof var void while with
+//  Recognized as keywords:
+//      break, case, catch, const*, continue, debugger, default, delete, do,
+//      else, finally, false, for, function, if, in, instanceof, new, null,
+//      return, switch, this, throw, true, try, typeof, var, void, while, with.
 //
-//  *: Actually "future reserved keywords". These are the only ones we
-//     recognize, the remaining are allowed as identifiers.
-//     In ES5 strict mode, we should disallow all reserved keywords.
+//  Recognized as Future Reserved Keywords (normal and strict mode):
+//      class, enum, export, extends, implements, import, interface,
+//      let, package, private, private, protected, public, public,
+//      static, yield.
+//
+//  *: Actually a "future reserved keyword". It's the only one we are
+//     recognizing outside of ES5 strict mode, the remaining are allowed
+//     as identifiers.
+//
  public:
   KeywordMatcher()
       : state_(INITIAL),

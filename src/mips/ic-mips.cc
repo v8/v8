@@ -893,6 +893,162 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
+                                                Register object,
+                                                Register key,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                Label* unmapped_case,
+                                                Label* slow_case) {
+  Heap* heap = masm->isolate()->heap();
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(object, slow_case);
+
+  // Check that the key is a positive smi.
+  __ And(scratch1, key, Operand(0x8000001));
+  __ Branch(slow_case, ne, scratch1, Operand(zero_reg));
+
+  // Load the elements into scratch1 and check its map.
+  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  __ lw(scratch1, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ CheckMap(scratch1, scratch2, arguments_map, slow_case, DONT_DO_SMI_CHECK);
+
+  // Check if element is in the range of mapped arguments. If not, jump
+  // to the unmapped lookup with the parameter map in scratch1.
+  __ lw(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
+  __ Subu(scratch2, scratch2, Operand(Smi::FromInt(2)));
+  __ Branch(unmapped_case, Ugreater_equal, key, Operand(scratch2));
+
+  // Load element index and check whether it is the hole.
+  const int kOffset =
+      FixedArray::kHeaderSize + 2 * kPointerSize - kHeapObjectTag;
+
+  __ li(scratch3, Operand(kPointerSize >> 1));
+  __ mul(scratch3, key, scratch3);
+  __ Addu(scratch3, scratch3, Operand(kOffset));
+
+  __ Addu(scratch2, scratch1, scratch3);
+  __ lw(scratch2, MemOperand(scratch2));
+  __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
+  __ Branch(unmapped_case, eq, scratch2, Operand(scratch3));
+
+  // Load value from context and return it. We can reuse scratch1 because
+  // we do not jump to the unmapped lookup (which requires the parameter
+  // map in scratch1).
+  __ lw(scratch1, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  __ li(scratch3, Operand(kPointerSize >> 1));
+  __ mul(scratch3, scratch2, scratch3);
+  __ Addu(scratch3, scratch3, Operand(Context::kHeaderSize - kHeapObjectTag));
+  __ Addu(scratch2, scratch1, scratch3);
+  return MemOperand(scratch2);
+}
+
+
+static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
+                                                  Register key,
+                                                  Register parameter_map,
+                                                  Register scratch,
+                                                  Label* slow_case) {
+  // Element is in arguments backing store, which is referenced by the
+  // second element of the parameter_map. The parameter_map register
+  // must be loaded with the parameter map of the arguments object and is
+  // overwritten.
+  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
+  Register backing_store = parameter_map;
+  __ lw(backing_store, FieldMemOperand(parameter_map, kBackingStoreOffset));
+  __ lw(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
+  __ Branch(slow_case, Ugreater_equal, key, Operand(scratch));
+  __ li(scratch, Operand(kPointerSize >> 1));
+  __ mul(scratch, key, scratch);
+  __ Addu(scratch,
+          scratch,
+          Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Addu(scratch, backing_store, scratch);
+  return MemOperand(scratch);
+}
+
+
+void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- a0     : key
+  //  -- a1     : receiver
+  // -----------------------------------
+  Label slow, notin;
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, a1, a0, a2, a3, t0, &notin, &slow);
+  __ lw(v0, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in a2.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, a0, a2, a3, &slow);
+  __ lw(a2, unmapped_location);
+  __ Branch(&slow, eq, a2, Operand(a3));
+  __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
+  __ mov(v0, a2);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- a0     : value
+  //  -- a1     : key
+  //  -- a2     : receiver
+  //  -- lr     : return address
+  // -----------------------------------
+  Label slow, notin;
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, a2, a1, a3, t0, t1, &notin, &slow);
+  __ sw(a0, mapped_location);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in a3.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, a1, a3, t0, &slow);
+  __ sw(a0, unmapped_location);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
+                                             int argc) {
+  // ----------- S t a t e -------------
+  //  -- a2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label slow, notin;
+  // Load receiver.
+  __ lw(a1, MemOperand(sp, argc * kPointerSize));
+  MemOperand mapped_location =
+      GenerateMappedArgumentsLookup(masm, a1, a2, a3, t0, t1, &notin, &slow);
+  __ lw(a1, mapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow, a3);
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in a3.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, a2, a3, t0, &slow);
+  __ lw(a1, unmapped_location);
+  __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
+  __ Branch(&slow, eq, a1, Operand(a3));
+  GenerateFunctionTailCall(masm, argc, &slow, a3);
+  __ bind(&slow);
+  GenerateMiss(masm, argc);
+}
+
+
+Object* KeyedLoadIC_Miss(Arguments args);
+
+
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   // ---------- S t a t e --------------
   //  -- ra     : return address

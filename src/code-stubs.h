@@ -1001,6 +1001,18 @@ class KeyedStoreExternalArrayStub : public CodeStub {
 };
 
 
+class ToBooleanStub: public CodeStub {
+ public:
+  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register tos_;
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return tos_.code(); }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_CODE_STUBS_H_

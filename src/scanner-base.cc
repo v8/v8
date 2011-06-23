@@ -77,6 +77,18 @@ JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
   : Scanner(scanner_contants), octal_pos_(Location::invalid()) { }
 
 
+void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
+  source_ = source;
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
+}
+
 Token::Value JavaScriptScanner::Next() {
   current_ = next_;
   has_line_terminator_before_next_ = false;

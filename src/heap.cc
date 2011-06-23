@@ -153,6 +153,15 @@ Heap::Heap()
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
 
+  intptr_t max_virtual = OS::MaxVirtualMemory();
+
+  if (max_virtual > 0) {
+    if (code_range_size_ > 0) {
+      // Reserve no more than 1/8 of the memory for the code range.
+      code_range_size_ = Min(code_range_size_, max_virtual >> 3);
+    }
+  }
+
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   global_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;

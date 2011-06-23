@@ -466,7 +466,7 @@ class Parser {
   void ReportMessage(const char* message, Vector<const char*> args);
 
   bool inside_with() const { return with_nesting_level_ > 0; }
-  V8JavaScriptScanner& scanner()  { return scanner_; }
+  JavaScriptScanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
@@ -695,7 +695,7 @@ class Parser {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  V8JavaScriptScanner scanner_;
+  JavaScriptScanner scanner_;
 
   Scope* top_scope_;
   int with_nesting_level_;

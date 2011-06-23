@@ -91,9 +91,8 @@ class LChunkBuilder;
   V(ClampToUint8)                              \
   V(ClassOfTest)                               \
   V(Compare)                                   \
-  V(CompareJSObjectEq)                         \
+  V(CompareObjectEq)                           \
   V(CompareMap)                                \
-  V(CompareSymbolEq)                           \
   V(CompareConstantEq)                         \
   V(Constant)                                  \
   V(Context)                                   \
@@ -2555,9 +2554,9 @@ class HCompare: public HBinaryOperation {
 };
 
 
-class HCompareJSObjectEq: public HBinaryOperation {
+class HCompareObjectEq: public HBinaryOperation {
  public:
-  HCompareJSObjectEq(HValue* left, HValue* right)
+  HCompareObjectEq(HValue* left, HValue* right)
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
@@ -2573,44 +2572,10 @@ class HCompareJSObjectEq: public HBinaryOperation {
   }
   virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareJSObjectEq)
+  DECLARE_CONCRETE_INSTRUCTION(CompareObjectEq)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HCompareSymbolEq: public HBinaryOperation {
- public:
-  HCompareSymbolEq(HValue* left, HValue* right, Token::Value op)
-      : HBinaryOperation(left, right), op_(op) {
-    ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
-  }
-
-  Token::Value op() const { return op_; }
-
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Tagged();
-  }
-
-  virtual HType CalculateInferredType() { return HType::Boolean(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CompareSymbolEq);
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    return op_ == HCompareSymbolEq::cast(other)->op_;
-  }
-
- private:
-  const Token::Value op_;
 };
 
 

@@ -1372,4 +1372,22 @@ TEST(DocumentURLWithException) {
                reinterpret_cast<const i::HeapEntry*>(global))->name());
 }
 
+
+TEST(NodesIteration) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("iteration"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  // Verify that we can find this object by iteration.
+  const int nodes_count = snapshot->GetNodesCount();
+  int count = 0;
+  for (int i = 0; i < nodes_count; ++i) {
+    if (snapshot->GetNode(i) == global)
+      ++count;
+  }
+  CHECK_EQ(1, count);
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
