@@ -309,9 +309,9 @@ void MacroAssembler::Move(Register dst, Handle<Object> value) {
 }
 
 
-void MacroAssembler::Move(Register dst, Register src, Condition cond) {
+void MacroAssembler::Move(Register dst, Register src) {
   if (!dst.is(src)) {
-    mov(dst, src, LeaveCC, cond);
+    mov(dst, src);
   }
 }
 
@@ -753,23 +753,6 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
   // Compare and load FPSCR.
   vcmp(src1, src2, cond);
   vmrs(fpscr_flags, cond);
-}
-
-void MacroAssembler::Vmov(const DwVfpRegister dst,
-                          const double imm,
-                          const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
-  static const DoubleRepresentation minus_zero(-0.0);
-  static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value(imm);
-  // Handle special values first.
-  if (value.bits == zero.bits) {
-    vmov(dst, kDoubleRegZero, cond);
-  } else if (value.bits == minus_zero.bits) {
-    vneg(dst, kDoubleRegZero, cond);
-  } else {
-    vmov(dst, imm, cond);
-  }
 }
 
 
@@ -3129,7 +3112,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   Label done;
   Label in_bounds;
 
-  Vmov(temp_double_reg, 0.0);
+  vmov(temp_double_reg, 0.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(gt, &above_zero);
 
@@ -3139,7 +3122,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  Vmov(temp_double_reg, 255.0);
+  vmov(temp_double_reg, 255.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(le, &in_bounds);
   mov(result_reg, Operand(255));
@@ -3147,7 +3130,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // In 0-255 range, round and truncate.
   bind(&in_bounds);
-  Vmov(temp_double_reg, 0.5);
+  vmov(temp_double_reg, 0.5);
   vadd(temp_double_reg, input_reg, temp_double_reg);
   vcvt_u32_f64(s0, temp_double_reg);
   vmov(result_reg, s0);

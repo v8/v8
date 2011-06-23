@@ -167,14 +167,13 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
+  // d0 has been excluded from allocation. This is following ia32
+  // where xmm0 is excluded. This should be revisited.
+  // Currently d0 is used as a scratch register.
+  // d1 has also been excluded from allocation to be used as a scratch
+  // register as well.
   static const int kNumRegisters = 16;
-  // A few double registers are reserved: one as a scratch register and one to
-  // hold 0.0, that does not fit in the immediate field of vmov instructions.
-  //  d14: 0.0
-  //  d15: scratch register.
-  static const int kNumReservedRegisters = 2;
-  static const int kNumAllocatableRegisters = kNumRegisters -
-      kNumReservedRegisters;
+  static const int kNumAllocatableRegisters = 15;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -189,7 +188,6 @@ struct DwVfpRegister {
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
-      "d0",
       "d1",
       "d2",
       "d3",
@@ -202,7 +200,9 @@ struct DwVfpRegister {
       "d10",
       "d11",
       "d12",
-      "d13"
+      "d13",
+      "d14",
+      "d15"
     };
     return names[index];
   }
@@ -306,7 +306,6 @@ const DwVfpRegister d15 = { 15 };
 // Aliases for double registers.
 const DwVfpRegister kFirstCalleeSavedDoubleReg = d8;
 const DwVfpRegister kLastCalleeSavedDoubleReg = d15;
-const DwVfpRegister kDoubleRegZero = d14;
 
 
 // Coprocessor register

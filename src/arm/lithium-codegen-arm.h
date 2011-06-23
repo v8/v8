@@ -148,7 +148,7 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk_->graph(); }
 
   Register scratch0() { return r9; }
-  DwVfpRegister double_scratch0() { return d15; }
+  DwVfpRegister double_scratch0() { return d0; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
