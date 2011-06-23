@@ -493,7 +493,16 @@ MaybeObject* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
       cell->set_value(cell->heap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
-      return dictionary->DeleteProperty(entry, mode);
+      Object* deleted = dictionary->DeleteProperty(entry, mode);
+      if (deleted == GetHeap()->true_value()) {
+        FixedArray* new_properties = NULL;
+        MaybeObject* maybe_properties = dictionary->Shrink(name);
+        if (!maybe_properties->To(&new_properties)) {
+          return maybe_properties;
+        }
+        set_properties(new_properties);
+      }
+      return deleted;
     }
   }
   return GetHeap()->true_value();
@@ -2955,7 +2964,16 @@ MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
       if (entry != NumberDictionary::kNotFound) {
-        return dictionary->DeleteProperty(entry, mode);
+        Object* deleted = dictionary->DeleteProperty(entry, mode);
+        if (deleted == GetHeap()->true_value()) {
+          MaybeObject* maybe_elements = dictionary->Shrink(index);
+          FixedArray* new_elements = NULL;
+          if (!maybe_elements->To(&new_elements)) {
+            return maybe_elements;
+          }
+          set_elements(new_elements);
+        }
+        return deleted;
       }
       break;
     }
@@ -3035,6 +3053,14 @@ MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
   int entry = dictionary->FindEntry(index);
   if (entry != NumberDictionary::kNotFound) {
     Object* result = dictionary->DeleteProperty(entry, mode);
+    if (result == heap->true_value()) {
+      MaybeObject* maybe_elements = dictionary->Shrink(index);
+      FixedArray* new_elements = NULL;
+      if (!maybe_elements->To(&new_elements)) {
+        return maybe_elements;
+      }
+      set_elements(new_elements);
+    }
     if (mode == STRICT_DELETION && result == heap->false_value()) {
       // In strict mode, attempting to delete a non-configurable property
       // throws an exception.
@@ -8230,7 +8256,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (found) return result;
   }
 
-  // Check whether there is extra space in fixed array..
+  // Check whether there is extra space in fixed array.
   if (index < length) {
     backing_store->set(index, value);
     if (IsJSArray()) {
@@ -9954,6 +9980,40 @@ int StringDictionary::FindEntry(String* key) {
 
 
 template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
+  ASSERT(NumberOfElements() < new_table->Capacity());
+
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
+
+  // Copy prefix to new array.
+  for (int i = kPrefixStartIndex;
+       i < kPrefixStartIndex + Shape::kPrefixSize;
+       i++) {
+    new_table->set(i, get(i), mode);
+  }
+
+  // Rehash the elements.
+  int capacity = Capacity();
+  for (int i = 0; i < capacity; i++) {
+    uint32_t from_index = EntryToIndex(i);
+    Object* k = get(from_index);
+    if (IsKey(k)) {
+      uint32_t hash = Shape::HashForObject(key, k);
+      uint32_t insertion_index =
+          EntryToIndex(new_table->FindInsertionEntry(hash));
+      for (int j = 0; j < Shape::kEntrySize; j++) {
+        new_table->set(insertion_index + j, get(from_index + j), mode);
+      }
+    }
+  }
+  new_table->SetNumberOfElements(NumberOfElements());
+  new_table->SetNumberOfDeletedElements(0);
+  return new_table;
+}
+
+
+template<typename Shape, typename Key>
 MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
@@ -9975,32 +10035,36 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  AssertNoAllocation no_gc;
-  HashTable* table = HashTable::cast(obj);
-  WriteBarrierMode mode = table->GetWriteBarrierMode(no_gc);
+  return Rehash(HashTable::cast(obj), key);
+}
 
-  // Copy prefix to new array.
-  for (int i = kPrefixStartIndex;
-       i < kPrefixStartIndex + Shape::kPrefixSize;
-       i++) {
-    table->set(i, get(i), mode);
+
+template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::Shrink(Key key) {
+  int capacity = Capacity();
+  int nof = NumberOfElements();
+
+  // Shrink to fit the number of elements if only a quarter of the
+  // capacity is filled with elements.
+  if (nof > (capacity >> 2)) return this;
+  // Allocate a new dictionary with room for at least the current
+  // number of elements. The allocation method will make sure that
+  // there is extra room in the dictionary for additions. Don't go
+  // lower than room for 16 elements.
+  int at_least_room_for = nof;
+  if (at_least_room_for < 16) return this;
+
+  const int kMinCapacityForPretenure = 256;
+  bool pretenure =
+      (at_least_room_for > kMinCapacityForPretenure) &&
+      !GetHeap()->InNewSpace(this);
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        Allocate(at_least_room_for, pretenure ? TENURED : NOT_TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
-  // Rehash the elements.
-  for (int i = 0; i < capacity; i++) {
-    uint32_t from_index = EntryToIndex(i);
-    Object* k = get(from_index);
-    if (IsKey(k)) {
-      uint32_t hash = Shape::HashForObject(key, k);
-      uint32_t insertion_index =
-          EntryToIndex(table->FindInsertionEntry(hash));
-      for (int j = 0; j < Shape::kEntrySize; j++) {
-        table->set(insertion_index + j, get(from_index + j), mode);
-      }
-    }
-  }
-  table->SetNumberOfElements(NumberOfElements());
-  table->SetNumberOfDeletedElements(0);
-  return table;
+
+  return Rehash(HashTable::cast(obj), key);
 }
 
 
@@ -10054,6 +10118,12 @@ template Object* Dictionary<StringDictionaryShape, String*>::DeleteProperty(
 
 template Object* Dictionary<NumberDictionaryShape, uint32_t>::DeleteProperty(
     int, JSObject::DeleteMode);
+
+template MaybeObject* Dictionary<StringDictionaryShape, String*>::Shrink(
+    String*);
+
+template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Shrink(
+    uint32_t);
 
 template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
     FixedArray*);
@@ -10950,6 +11020,12 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
   SetEntry(entry, heap->null_value(), heap->null_value());
   HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
+}
+
+
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::Shrink(Key key) {
+  return HashTable<Shape, Key>::Shrink(key);
 }
 
 
