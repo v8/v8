@@ -134,8 +134,8 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
 HSimulate* HBasicBlock::CreateSimulate(int ast_id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
-  ASSERT(id == AstNode::kNoNumber ||
-         environment->closure()->shared()->VerifyBailoutId(id));
+  ASSERT(ast_id == AstNode::kNoNumber ||
+         environment->closure()->shared()->VerifyBailoutId(ast_id));
 
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
