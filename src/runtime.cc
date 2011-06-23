@@ -3532,7 +3532,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   if (result_array->HasFastElements()) {
     result_elements =
         Handle<FixedArray>(FixedArray::cast(result_array->elements()));
-  } else {
+  }
+  if (result_elements.is_null() || result_elements->length() < 16) {
     result_elements = isolate->factory()->NewFixedArrayWithHoles(16);
   }
   FixedArrayBuilder builder(result_elements);

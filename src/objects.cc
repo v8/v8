@@ -7533,12 +7533,24 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
             { MaybeObject* maybe_obj = EnsureWritableFastElements();
               if (!maybe_obj->ToObject(&obj)) return maybe_obj;
             }
-            int old_length = FastD2I(JSArray::cast(this)->length()->Number());
-            // NOTE: We may be able to optimize this by removing the
-            // last part of the elements backing storage array and
-            // setting the capacity to the new size.
-            for (int i = value; i < old_length; i++) {
-              FixedArray::cast(elements())->set_the_hole(i);
+            FixedArray* fast_elements = FixedArray::cast(elements());
+            if (2 * value <= old_capacity) {
+              // If more than half the elements won't be used, trim the array.
+              if (value == 0) {
+                initialize_elements();
+              } else {
+                fast_elements->set_length(value);
+                Address filler_start = fast_elements->address() +
+                                       FixedArray::OffsetOfElementAt(value);
+                int filler_size = (old_capacity - value) * kPointerSize;
+                GetHeap()->CreateFillerObjectAt(filler_start, filler_size);
+              }
+            } else {
+              // Otherwise, fill the unused tail with holes.
+              int old_length = FastD2I(JSArray::cast(this)->length()->Number());
+              for (int i = value; i < old_length; i++) {
+                fast_elements->set_the_hole(i);
+              }
             }
             JSArray::cast(this)->set_length(Smi::cast(smi_length));
           }
