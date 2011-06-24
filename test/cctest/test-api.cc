@@ -3862,6 +3862,49 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+THREADED_TEST(VoidLiteral) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  ExpectBoolean("undefined == void 0", true);
+  ExpectBoolean("undetectable == void 0", true);
+  ExpectBoolean("null == void 0", true);
+  ExpectBoolean("undefined === void 0", true);
+  ExpectBoolean("undetectable === void 0", false);
+  ExpectBoolean("null === void 0", false);
+
+  ExpectBoolean("void 0 == undefined", true);
+  ExpectBoolean("void 0 == undetectable", true);
+  ExpectBoolean("void 0 == null", true);
+  ExpectBoolean("void 0 === undefined", true);
+  ExpectBoolean("void 0 === undetectable", false);
+  ExpectBoolean("void 0 === null", false);
+
+  ExpectString("(function() {"
+               "  try {"
+               "    return x === void 0;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+  ExpectString("(function() {"
+               "  try {"
+               "    return void 0 === x;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+}
+
 
 THREADED_TEST(ExtensibleOnUndetectable) {
   v8::HandleScope scope;

@@ -5490,6 +5490,29 @@ Representation HGraphBuilder::ToRepresentation(TypeInfo info) {
 }
 
 
+void HGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* compare_expr,
+                                               Expression* expr,
+                                               Handle<String> check) {
+  CHECK_ALIVE(VisitForTypeOf(expr));
+  HValue* expr_value = Pop();
+  HInstruction* instr = new(zone()) HTypeofIs(expr_value, check);
+  instr->set_position(compare_expr->position());
+  ast_context()->ReturnInstruction(instr, compare_expr->id());
+}
+
+
+void HGraphBuilder::HandleLiteralCompareUndefined(
+    CompareOperation* compare_expr, Expression* expr) {
+  CHECK_ALIVE(VisitForValue(expr));
+  HValue* lhs = Pop();
+  HValue* rhs = graph()->GetConstantUndefined();
+  HInstruction* instr =
+      new(zone()) HCompareObjectEq(lhs, rhs);
+  instr->set_position(compare_expr->position());
+  ast_context()->ReturnInstruction(instr, compare_expr->id());
+}
+
+
 void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -5506,18 +5529,16 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return;
   }
 
-  // Check for the pattern: typeof <expression> == <string literal>.
-  UnaryOperation* left_unary = expr->left()->AsUnaryOperation();
-  Literal* right_literal = expr->right()->AsLiteral();
-  if ((expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT) &&
-      left_unary != NULL && left_unary->op() == Token::TYPEOF &&
-      right_literal != NULL && right_literal->handle()->IsString()) {
-    CHECK_ALIVE(VisitForTypeOf(left_unary->expression()));
-    HValue* left = Pop();
-    HInstruction* instr = new(zone()) HTypeofIs(left,
-        Handle<String>::cast(right_literal->handle()));
-    instr->set_position(expr->position());
-    ast_context()->ReturnInstruction(instr, expr->id());
+  // Check for special cases that compare against literals.
+  Expression *sub_expr;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    HandleLiteralCompareTypeof(expr, sub_expr, check);
+    return;
+  }
+
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    HandleLiteralCompareUndefined(expr, sub_expr);
     return;
   }
 

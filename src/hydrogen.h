@@ -881,6 +881,11 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   ZoneMapList* types,
                                   Handle<String> name);
+  void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
+                                  Expression* expr,
+                                  Handle<String> check);
+  void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
+                                     Expression* expr);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* string,
                                            HValue* index);

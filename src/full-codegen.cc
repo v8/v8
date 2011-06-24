@@ -1290,6 +1290,26 @@ int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
 }
 
 
+bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
+                                          Label* if_true,
+                                          Label* if_false,
+                                          Label* fall_through) {
+  Expression *expr;
+  Handle<String> check;
+  if (compare->IsLiteralCompareTypeof(&expr, &check)) {
+    EmitLiteralCompareTypeof(expr, check, if_true, if_false, fall_through);
+    return true;
+  }
+
+  if (compare->IsLiteralCompareUndefined(&expr)) {
+    EmitLiteralCompareUndefined(expr, if_true, if_false, fall_through);
+    return true;
+  }
+
+  return false;
+}
+
+
 #undef __
 
 
