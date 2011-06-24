@@ -2233,7 +2233,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
       Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
   if (has_exception) return Failure::Exception();
 
-  return value_raw;
+  return *value;
 }
 
 
@@ -3065,8 +3065,9 @@ MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
       // In strict mode, attempting to delete a non-configurable property
       // throws an exception.
       HandleScope scope(isolate);
+      Handle<Object> holder(this);
       Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, Handle<Object>(this) };
+      Handle<Object> args[2] = { name, holder };
       Handle<Object> error =
           isolate->factory()->NewTypeError("strict_delete_property",
                                            HandleVector(args, 2));
@@ -8334,8 +8335,8 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       dictionary->UpdateMaxNumberKey(index);
       // If put fails in strict mode, throw an exception.
       if (!dictionary->ValueAtPut(entry, value) && strict_mode == kStrictMode) {
-        Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<Object> holder(this);
+        Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<Object> args[2] = { number, holder };
         Handle<Object> error =
             isolate->factory()->NewTypeError("strict_read_only_property",
