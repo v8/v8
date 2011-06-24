@@ -145,9 +145,8 @@ v8Locale.prototype.createCollator = function(settings) {
  * @param {Object} locale - locale object to pass to formatter.
  * @param {Object} settings - formatting flags:
  *   - skeleton
- *   - dateType
- *   - timeType
- *   - calendar
+ *   - dateStyle
+ *   - timeStyle
  * @private
  * @constructor
  */
@@ -161,25 +160,37 @@ v8Locale.__DateTimeFormat = function(locale, settings) {
     cleanSettings['skeleton'] = settings['skeleton'];
   } else {
     cleanSettings = {};
-    if (settings.hasOwnProperty('dateType')) {
+    if (settings.hasOwnProperty('dateStyle')) {
+      var ds = settings['dateStyle'];
+      if (!/^(short|medium|long|full)$/.test(ds)) ds = 'short';
+      cleanSettings['dateStyle'] = ds;
+    } else if (settings.hasOwnProperty('dateType')) {
+      // Obsolete. New spec requires dateStyle, but we'll keep this around
+      // for current users.
+      // TODO(cira): Remove when all internal users switch to dateStyle.
       var dt = settings['dateType'];
-      if (!/^short|medium|long|full$/.test(dt)) dt = 'short';
-      cleanSettings['dateType'] = dt;
+      if (!/^(short|medium|long|full)$/.test(dt)) dt = 'short';
+      cleanSettings['dateStyle'] = dt;
     }
 
-    if (settings.hasOwnProperty('timeType')) {
+    if (settings.hasOwnProperty('timeStyle')) {
+      var ts = settings['timeStyle'];
+      if (!/^(short|medium|long|full)$/.test(ts)) ts = 'short';
+      cleanSettings['timeStyle'] = ts;
+    } else if (settings.hasOwnProperty('timeType')) {
+      // TODO(cira): Remove when all internal users switch to timeStyle.
       var tt = settings['timeType'];
-      if (!/^short|medium|long|full$/.test(tt)) tt = 'short';
-      cleanSettings['timeType'] = tt;
+      if (!/^(short|medium|long|full)$/.test(tt)) tt = 'short';
+      cleanSettings['timeStyle'] = tt;
     }
   }
 
   // Default is to show short date and time.
   if (!cleanSettings.hasOwnProperty('skeleton') &&
-      !cleanSettings.hasOwnProperty('dateType') &&
-      !cleanSettings.hasOwnProperty('timeType')) {
-    cleanSettings = {'dateType': 'short',
-                     'timeType': 'short'};
+      !cleanSettings.hasOwnProperty('dateStyle') &&
+      !cleanSettings.hasOwnProperty('timeStyle')) {
+    cleanSettings = {'dateStyle': 'short',
+                     'timeStyle': 'short'};
   }
 
   locale = v8Locale.__createLocaleOrDefault(locale);
@@ -249,7 +260,7 @@ v8Locale.__NumberFormat = function(locale, settings) {
     cleanSettings['pattern'] = settings['pattern'];
   } else if (settings.hasOwnProperty('style')) {
     var style = settings['style'];
-    if (!/^decimal|currency|percent|scientific$/.test(style)) {
+    if (!/^(decimal|currency|percent|scientific)$/.test(style)) {
       style = 'decimal';
     }
     cleanSettings['style'] = style;
