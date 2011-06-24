@@ -2560,17 +2560,12 @@ typedef void (*GCCallback)();
 /**
  * Profiler modules.
  *
- * In V8, profiler consists of several modules: CPU profiler, and different
- * kinds of heap profiling. Each can be turned on / off independently.
- * When PROFILER_MODULE_HEAP_SNAPSHOT flag is passed to ResumeProfilerEx,
- * modules are enabled only temporarily for making a snapshot of the heap.
+ * In V8, profiler consists of several modules. Each can be turned on / off
+ * independently.
  */
 enum ProfilerModules {
   PROFILER_MODULE_NONE            = 0,
-  PROFILER_MODULE_CPU             = 1,
-  PROFILER_MODULE_HEAP_STATS      = 1 << 1,
-  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2,
-  PROFILER_MODULE_HEAP_SNAPSHOT   = 1 << 16
+  PROFILER_MODULE_CPU             = 1
 };
 
 

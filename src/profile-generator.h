@@ -638,8 +638,7 @@ class HeapSnapshotsCollection;
 class HeapSnapshot {
  public:
   enum Type {
-    kFull = v8::HeapSnapshot::kFull,
-    kAggregated = v8::HeapSnapshot::kAggregated
+    kFull = v8::HeapSnapshot::kFull
   };
 
   HeapSnapshot(HeapSnapshotsCollection* collection,

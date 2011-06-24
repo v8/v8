@@ -523,11 +523,6 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
     GarbageCollectionEpilogue();
   }
 
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (FLAG_log_gc) HeapProfiler::WriteSample();
-#endif
-
   return next_gc_likely_to_collect_more;
 }
 
@@ -2984,9 +2979,6 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map(map);
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  isolate_->producer_heap_profile()->RecordJSObjectAllocation(result);
-#endif
   return result;
 }
 
@@ -3435,9 +3427,6 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
   }
   // Return the new clone.
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  isolate_->producer_heap_profile()->RecordJSObjectAllocation(clone);
-#endif
   return clone;
 }
 
@@ -5121,11 +5110,6 @@ bool Heap::Setup(bool create_heap_objects) {
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // This should be called only after initial objects have been created.
-  isolate_->producer_heap_profile()->Setup();
-#endif
 
   return true;
 }

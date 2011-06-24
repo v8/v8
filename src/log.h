@@ -401,7 +401,6 @@ class Logger {
 
   int logging_nesting_;
   int cpu_profiler_nesting_;
-  int heap_profiler_nesting_;
 
   Log* log_;
 
