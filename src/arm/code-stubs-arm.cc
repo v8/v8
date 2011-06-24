@@ -3413,12 +3413,24 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee-saved registers (incl. cp and fp), sp, and lr
   __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Save callee-saved vfp registers.
+    __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+  }
+
   // Get address of argv, see stm above.
   // r0: code entry
   // r1: function
   // r2: receiver
   // r3: argc
-  __ ldr(r4, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize));  // argv
+
+  // Setup argv in r4.
+  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
+  if (CpuFeatures::IsSupported(VFP3)) {
+    offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize;
+  }
+  __ ldr(r4, MemOperand(sp, offset_to_argv));
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: code entry
@@ -3543,6 +3555,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ mov(lr, Operand(pc));
   }
 #endif
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Restore callee-saved vfp registers.
+    __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
+  }
+
   __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
 }
 
