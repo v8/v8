@@ -2657,9 +2657,8 @@ void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
   STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
-  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  And(scratch, scratch, Operand(Map::kMaximumBitField2FastElementValue));
-  Branch(fail, hi, scratch, Operand(zero_reg));
+  lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Branch(fail, hi, scratch, Operand(Map::kMaximumBitField2FastElementValue));
 }
 
 
