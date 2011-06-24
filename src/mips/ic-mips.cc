@@ -1006,6 +1006,8 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a2, a1, a3, t0, t1, &notin, &slow);
   __ sw(a0, mapped_location);
+  __ Addu(t2, a3, t1);
+  __ RecordWrite(a3, t2, t5);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&notin);
@@ -1013,6 +1015,8 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, a1, a3, t0, &slow);
   __ sw(a0, unmapped_location);
+  __ Addu(t2, a3, t0);
+  __ RecordWrite(a3, t2, t5);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
