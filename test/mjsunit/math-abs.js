@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256
+// Flags: --max-new-space-size=256 --allow-natives-syntax
 
 function zero() {
   var x = 0.5;
@@ -96,3 +96,16 @@ function test() {
 for (var i = 0; i < 500; i++) {
   test();
 }
+
+// Regression test for optimized version of Math.abs, see:
+// http://codereview.chromium.org/6875002.
+function foo(x) {
+  return Math.abs(x);
+}
+// Get some smi type feedback.
+for(var i = 0; i < 1000; i++) {
+  foo(-i);
+}
+assertEquals(42, foo(-42));
+%OptimizeFunctionOnNextCall(foo)
+assertEquals(42, foo(-42));
