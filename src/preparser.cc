@@ -77,9 +77,14 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_string", NULL);
   case i::Token::IDENTIFIER:
-  case i::Token::FUTURE_RESERVED_WORD:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_identifier", NULL);
+  case i::Token::FUTURE_RESERVED_WORD:
+    return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
+                           "unexpected_reserved", NULL);
+  case i::Token::FUTURE_STRICT_RESERVED_WORD:
+    return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
+                           "unexpected_strict_reserved", NULL);
   default:
     const char* name = i::Token::String(token);
     ReportMessageAt(source_location.beg_pos, source_location.end_pos,
@@ -233,7 +238,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     // Strict mode violation, using either reserved word or eval/arguments
     // as name of strict function.
     const char* type = "strict_function_name";
-    if (identifier.IsFutureReserved()) {
+    if (identifier.IsFutureStrictReserved()) {
       type = "strict_reserved_word";
     }
     ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
@@ -979,7 +984,16 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       break;
     }
 
-    case i::Token::FUTURE_RESERVED_WORD:
+    case i::Token::FUTURE_RESERVED_WORD: {
+      Next();
+      i::Scanner::Location location = scanner_->location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "reserved_word", NULL);
+      *ok = false;
+      return Expression::Default();
+    }
+
+    case i::Token::FUTURE_STRICT_RESERVED_WORD:
       if (strict_mode()) {
         Next();
         i::Scanner::Location location = scanner_->location();
@@ -1078,15 +1092,17 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
     i::Token::Value next = peek();
     switch (next) {
       case i::Token::IDENTIFIER:
-      case i::Token::FUTURE_RESERVED_WORD: {
+      case i::Token::FUTURE_RESERVED_WORD:
+      case i::Token::FUTURE_STRICT_RESERVED_WORD: {
         bool is_getter = false;
         bool is_setter = false;
-        ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
+        ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != i::Token::COLON) {
             i::Token::Value name = Next();
             bool is_keyword = i::Token::IsKeyword(name);
             if (name != i::Token::IDENTIFIER &&
                 name != i::Token::FUTURE_RESERVED_WORD &&
+                name != i::Token::FUTURE_STRICT_RESERVED_WORD &&
                 name != i::Token::NUMBER &&
                 name != i::Token::STRING &&
                 !is_keyword) {
@@ -1312,6 +1328,9 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
   LogSymbol();
   if (scanner_->current_token() == i::Token::FUTURE_RESERVED_WORD) {
     return Identifier::FutureReserved();
+  } else if (scanner_->current_token() ==
+             i::Token::FUTURE_STRICT_RESERVED_WORD) {
+    return Identifier::FutureStrictReserved();
   }
   if (scanner_->is_literal_ascii()) {
     // Detect strict-mode poison words.
@@ -1329,11 +1348,22 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 
 
 PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
-  if (!Check(i::Token::FUTURE_RESERVED_WORD)) {
-    Expect(i::Token::IDENTIFIER, ok);
-    if (!*ok) return Identifier::Default();
+  i::Token::Value next = Next();
+  switch (next) {
+    case i::Token::FUTURE_RESERVED_WORD: {
+      i::Scanner::Location location = scanner_->location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "reserved_word", NULL);
+      *ok = false;
+    }
+      // FALLTHROUGH
+    case i::Token::FUTURE_STRICT_RESERVED_WORD:
+    case i::Token::IDENTIFIER:
+      return GetIdentifierSymbol();
+    default:
+      *ok = false;
+      return Identifier::Default();
   }
-  return GetIdentifierSymbol();
 }
 
 
@@ -1373,6 +1403,8 @@ void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
                                               bool* ok) {
   const char* type = eval_args_type;
   if (identifier.IsFutureReserved()) {
+    type = "reserved_word";
+  } else if (identifier.IsFutureStrictReserved()) {
     type = "strict_reserved_word";
   }
   if (strict_mode()) {
@@ -1395,7 +1427,8 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
     return Identifier::Default();
   }
   if (next == i::Token::IDENTIFIER ||
-      next == i::Token::FUTURE_RESERVED_WORD) {
+      next == i::Token::FUTURE_RESERVED_WORD ||
+      next == i::Token::FUTURE_STRICT_RESERVED_WORD) {
     return GetIdentifierSymbol();
   }
   *ok = false;
@@ -1407,10 +1440,10 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
 
 // This function reads an identifier and determines whether or not it
 // is 'get' or 'set'.
-PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
-                                                           bool* is_set,
-                                                           bool* ok) {
-  Identifier result = ParseIdentifier(ok);
+PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                                               bool* is_set,
+                                                               bool* ok) {
+  Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Identifier::Default();
   if (scanner_->is_literal_ascii() &&
       scanner_->literal_length() == 3) {
@@ -1424,6 +1457,7 @@ PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
 bool PreParser::peek_any_identifier() {
   i::Token::Value next = peek();
   return next == i::Token::IDENTIFIER ||
-         next == i::Token::FUTURE_RESERVED_WORD;
+         next == i::Token::FUTURE_RESERVED_WORD ||
+         next == i::Token::FUTURE_STRICT_RESERVED_WORD;
 }
 } }  // v8::preparser

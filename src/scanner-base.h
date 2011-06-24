@@ -549,14 +549,20 @@ class JavaScriptScanner : public Scanner {
 class KeywordMatcher {
 //  Incrementally recognize keywords.
 //
+//  We distinguish between normal future reserved words and words that are
+//  considered to be future reserved words only in strict mode as required by
+//  ECMA-262 7.6.1.2.
+//
 //  Recognized as keywords:
 //      break, case, catch, const*, continue, debugger, default, delete, do,
 //      else, finally, false, for, function, if, in, instanceof, new, null,
 //      return, switch, this, throw, true, try, typeof, var, void, while, with.
 //
-//  Recognized as Future Reserved Keywords (normal and strict mode):
-//      class, enum, export, extends, implements, import, interface,
-//      let, package, private, private, protected, public, public,
+//  Recognized as Future Reserved Keywords:
+//      class, enum, export, extends, import, super.
+//
+//  Recognized as Future Reserved Keywords (strict mode only):
+//      implements, interface, let, package, private, protected, public,
 //      static, yield.
 //
 //  *: Actually a "future reserved keyword". It's the only one we are

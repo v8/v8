@@ -623,11 +623,12 @@ class Parser {
   Literal* GetLiteralNumber(double value);
 
   Handle<String> ParseIdentifier(bool* ok);
-  Handle<String> ParseIdentifierOrReservedWord(bool* is_reserved, bool* ok);
+  Handle<String> ParseIdentifierOrStrictReservedWord(
+      bool* is_strict_reserved, bool* ok);
   Handle<String> ParseIdentifierName(bool* ok);
-  Handle<String> ParseIdentifierOrGetOrSet(bool* is_get,
-                                           bool* is_set,
-                                           bool* ok);
+  Handle<String> ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                               bool* is_set,
+                                               bool* ok);
 
   // Strict mode validation of LValue expressions
   void CheckStrictModeLValue(Expression* expression,

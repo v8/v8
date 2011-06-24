@@ -1445,10 +1445,11 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int function_token_position = scanner().location().beg_pos;
-  bool is_reserved = false;
-  Handle<String> name = ParseIdentifierOrReservedWord(&is_reserved, CHECK_OK);
+  bool is_strict_reserved = false;
+  Handle<String> name = ParseIdentifierOrStrictReservedWord(
+      &is_strict_reserved, CHECK_OK);
   FunctionLiteral* fun = ParseFunctionLiteral(name,
-                                              is_reserved,
+                                              is_strict_reserved,
                                               function_token_position,
                                               DECLARATION,
                                               CHECK_OK);
@@ -2774,11 +2775,12 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
     Expect(Token::FUNCTION, CHECK_OK);
     int function_token_position = scanner().location().beg_pos;
     Handle<String> name;
-    bool is_reserved_name = false;
+    bool is_strict_reserved_name = false;
     if (peek_any_identifier()) {
-        name = ParseIdentifierOrReservedWord(&is_reserved_name, CHECK_OK);
+      name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
+                                                 CHECK_OK);
     }
-    result = ParseFunctionLiteral(name, is_reserved_name,
+    result = ParseFunctionLiteral(name, is_strict_reserved_name,
                                   function_token_position, NESTED, CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
@@ -2857,6 +2859,9 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
       return ReportMessage("unexpected_token_identifier",
                            Vector<const char*>::empty());
     case Token::FUTURE_RESERVED_WORD:
+      return ReportMessage("unexpected_reserved",
+                           Vector<const char*>::empty());
+    case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessage(top_scope_->is_strict_mode() ?
                                "unexpected_strict_reserved" :
                                "unexpected_token_identifier",
@@ -2917,7 +2922,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       break;
 
     case Token::IDENTIFIER:
-    case Token::FUTURE_RESERVED_WORD: {
+    case Token::FUTURE_STRICT_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
       result = top_scope_->NewUnresolved(name,
@@ -3328,6 +3333,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
   bool is_keyword = Token::IsKeyword(next);
   if (next == Token::IDENTIFIER || next == Token::NUMBER ||
       next == Token::FUTURE_RESERVED_WORD ||
+      next == Token::FUTURE_STRICT_RESERVED_WORD ||
       next == Token::STRING || is_keyword) {
     Handle<String> name;
     if (is_keyword) {
@@ -3382,11 +3388,12 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     switch (next) {
       case Token::FUTURE_RESERVED_WORD:
+      case Token::FUTURE_STRICT_RESERVED_WORD:
       case Token::IDENTIFIER: {
         bool is_getter = false;
         bool is_setter = false;
         Handle<String> id =
-            ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
+            ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if (fni_ != NULL) fni_->PushLiteralName(id);
 
         if ((is_getter || is_setter) && peek() != Token::COLON) {
@@ -3545,7 +3552,7 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
 
 
 FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
-                                              bool name_is_reserved,
+                                              bool name_is_strict_reserved,
                                               int function_token_position,
                                               FunctionLiteralType type,
                                               bool* ok) {
@@ -3589,9 +3596,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
-      bool is_reserved = false;
+      bool is_strict_reserved = false;
       Handle<String> param_name =
-          ParseIdentifierOrReservedWord(&is_reserved, CHECK_OK);
+          ParseIdentifierOrStrictReservedWord(&is_strict_reserved,
+                                              CHECK_OK);
 
       // Store locations for possible future error reports.
       if (!name_loc.IsValid() && IsEvalOrArguments(param_name)) {
@@ -3601,7 +3609,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         has_duplicate_parameters = true;
         dupe_loc = scanner().location();
       }
-      if (!reserved_loc.IsValid() && is_reserved) {
+      if (!reserved_loc.IsValid() && is_strict_reserved) {
         reserved_loc = scanner().location();
       }
 
@@ -3703,7 +3711,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         *ok = false;
         return NULL;
       }
-      if (name_is_reserved) {
+      if (name_is_strict_reserved) {
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -3792,7 +3800,8 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 bool Parser::peek_any_identifier() {
   Token::Value next = peek();
   return next == Token::IDENTIFIER ||
-         next == Token::FUTURE_RESERVED_WORD;
+         next == Token::FUTURE_RESERVED_WORD ||
+         next == Token::FUTURE_STRICT_RESERVED_WORD;
 }
 
 
@@ -3854,22 +3863,27 @@ Literal* Parser::GetLiteralNumber(double value) {
 }
 
 
+// Parses and identifier that is valid for the current scope, in particular it
+// fails on strict mode future reserved keywords in a strict scope.
 Handle<String> Parser::ParseIdentifier(bool* ok) {
-  bool is_reserved;
-  return ParseIdentifierOrReservedWord(&is_reserved, ok);
+  if (top_scope_->is_strict_mode()) {
+    Expect(Token::IDENTIFIER, ok);
+  } else if (!Check(Token::IDENTIFIER)) {
+    Expect(Token::FUTURE_STRICT_RESERVED_WORD, ok);
+  }
+  if (!*ok) return Handle<String>();
+  return GetSymbol(ok);
 }
 
 
-Handle<String> Parser::ParseIdentifierOrReservedWord(bool* is_reserved,
-                                                     bool* ok) {
-  *is_reserved = false;
-  if (top_scope_->is_strict_mode()) {
-    Expect(Token::IDENTIFIER, ok);
-  } else {
-    if (!Check(Token::IDENTIFIER)) {
-      Expect(Token::FUTURE_RESERVED_WORD, ok);
-      *is_reserved = true;
-    }
+// Parses and identifier or a strict mode future reserved word, and indicate
+// whether it is strict mode future reserved.
+Handle<String> Parser::ParseIdentifierOrStrictReservedWord(
+    bool* is_strict_reserved, bool* ok) {
+  *is_strict_reserved = false;
+  if (!Check(Token::IDENTIFIER)) {
+    Expect(Token::FUTURE_STRICT_RESERVED_WORD, ok);
+    *is_strict_reserved = true;
   }
   if (!*ok) return Handle<String>();
   return GetSymbol(ok);
@@ -3879,8 +3893,9 @@ Handle<String> Parser::ParseIdentifierOrReservedWord(bool* is_reserved,
 Handle<String> Parser::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER &&
-          next != Token::FUTURE_RESERVED_WORD &&
-          !Token::IsKeyword(next)) {
+      next != Token::FUTURE_RESERVED_WORD &&
+      next != Token::FUTURE_STRICT_RESERVED_WORD &&
+      !Token::IsKeyword(next)) {
     ReportUnexpectedToken(next);
     *ok = false;
     return Handle<String>();
@@ -3921,12 +3936,12 @@ void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
 }
 
 
-// This function reads an identifier and determines whether or not it
+// This function reads an identifier name and determines whether or not it
 // is 'get' or 'set'.
-Handle<String> Parser::ParseIdentifierOrGetOrSet(bool* is_get,
-                                                 bool* is_set,
-                                                 bool* ok) {
-  Handle<String> result = ParseIdentifier(ok);
+Handle<String> Parser::ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                                     bool* is_set,
+                                                     bool* ok) {
+  Handle<String> result = ParseIdentifierName(ok);
   if (!*ok) return Handle<String>();
   if (scanner().is_literal_ascii() && scanner().literal_length() == 3) {
     const char* token = scanner().literal_ascii_string().start();

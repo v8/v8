@@ -167,6 +167,7 @@ namespace internal {
                                                                         \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */              \
   T(FUTURE_RESERVED_WORD, NULL, 0)                                      \
+  T(FUTURE_STRICT_RESERVED_WORD, NULL, 0)                               \
   K(CONST, "const", 0)                                                  \
                                                                         \
   /* Illegal token - not able to scan. */                               \
