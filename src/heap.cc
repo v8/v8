@@ -2634,12 +2634,13 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
 
 
 MaybeObject* Heap::AllocateSubString(String* buffer,
-                                int start,
-                                int end,
-                                PretenureFlag pretenure) {
+                                     int start,
+                                     int end,
+                                     PretenureFlag pretenure) {
   int length = end - start;
-
-  if (length == 1) {
+  if (length == 0) {
+    return empty_string();
+  } else if (length == 1) {
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
   } else if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
