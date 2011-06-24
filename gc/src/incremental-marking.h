@@ -137,12 +137,12 @@ class IncrementalMarking {
     return steps_took_;
   }
 
-  inline int delta_steps_count() {
-    return delta_steps_count_;
+  inline int steps_count_since_last_gc() {
+    return steps_count_since_last_gc_;
   }
 
-  inline double delta_steps_took() {
-    return delta_steps_took_;
+  inline double steps_took_since_last_gc() {
+    return steps_took_since_last_gc_;
   }
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
@@ -163,8 +163,8 @@ class IncrementalMarking {
   void ResetStepCounters() {
     steps_count_ = 0;
     steps_took_ = 0;
-    delta_steps_count_ = 0;
-    delta_steps_took_ = 0;
+    steps_count_since_last_gc_ = 0;
+    steps_took_since_last_gc_ = 0;
     allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
 
@@ -198,8 +198,8 @@ class IncrementalMarking {
 
   int steps_count_;
   double steps_took_;
-  int delta_steps_count_;
-  double delta_steps_took_;
+  int steps_count_since_last_gc_;
+  double steps_took_since_last_gc_;
   bool should_hurry_;
   int allocation_marking_factor_;
   intptr_t allocated_;

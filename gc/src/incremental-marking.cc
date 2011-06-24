@@ -41,8 +41,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       marking_deque_memory_(NULL),
       steps_count_(0),
       steps_took_(0),
-      delta_steps_count_(0),
-      delta_steps_took_(0),
+      steps_count_since_last_gc_(0),
+      steps_took_since_last_gc_(0),
       should_hurry_(false),
       allocation_marking_factor_(0),
       allocated_(0) {
@@ -419,8 +419,8 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   }
   marking_deque_.set_top(new_top);
 
-  delta_steps_took_ = 0;
-  delta_steps_count_ = 0;
+  steps_took_since_last_gc_ = 0;
+  steps_count_since_last_gc_ = 0;
 }
 
 
@@ -553,7 +553,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   allocated_ = 0;
 
   steps_count_++;
-  delta_steps_count_++;
+  steps_count_since_last_gc_++;
 
   if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
     allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
@@ -567,7 +567,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
     double end = OS::TimeCurrentMillis();
     double delta = (end - start);
     steps_took_ += delta;
-    delta_steps_took_ += delta;
+    steps_took_since_last_gc_ += delta;
   }
 }
 
