@@ -5699,7 +5699,7 @@ class SeqAsciiString: public SeqString {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential ASCII string.
-  static const int kMaxSize = 512 * MB;
+  static const int kMaxSize = 512 * MB - 1;
   // Maximal length of a single sequential ASCII string.
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize);
@@ -5753,7 +5753,7 @@ class SeqTwoByteString: public SeqString {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential two-byte string.
-  static const int kMaxSize = 512 * MB;
+  static const int kMaxSize = 512 * MB - 1;
   // Maximal length of a single sequential two-byte string.
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);

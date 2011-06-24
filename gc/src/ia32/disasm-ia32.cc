@@ -55,6 +55,7 @@ struct ByteMnemonic {
 
 
 static ByteMnemonic two_operands_instr[] = {
+  {0x01, "add", OPER_REG_OP_ORDER},
   {0x03, "add", REG_OPER_OP_ORDER},
   {0x09, "or", OPER_REG_OP_ORDER},
   {0x0B, "or", REG_OPER_OP_ORDER},

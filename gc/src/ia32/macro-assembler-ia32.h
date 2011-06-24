@@ -137,13 +137,6 @@ class MacroAssembler: public Assembler {
                       Label* object_is_white_and_not_data,
                       Label::Distance distance);
 
-  // Detects conservatively whether an object is data-only, ie it does need to
-  // be scanned by the garbage collector.
-  void JumpIfDataObject(Register value,
-                        Register scratch,
-                        Label* not_data_object,
-                        Label::Distance not_data_object_distance);
-
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.

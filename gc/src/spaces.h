@@ -118,7 +118,7 @@ class MemoryAllocator;
 class AllocationInfo;
 class Space;
 class FreeList;
-
+class MemoryChunk;
 
 // TODO(gc): Check that this all gets inlined and register allocated on
 // all platforms.
@@ -222,24 +222,7 @@ class Bitmap {
     return MarkBit(cell, mask, data_only);
   }
 
-  INLINE(void ClearRange(uint32_t start, uint32_t size)) {
-    const uint32_t end = start + size;
-    const uint32_t start_cell = start >> kBitsPerCellLog2;
-    const uint32_t end_cell = end >> kBitsPerCellLog2;
-    ASSERT((start & kBitIndexMask) == 0);
-    ASSERT((end & kBitIndexMask) == 0);
-
-    ASSERT(static_cast<int>(start_cell) < CellsCount());
-    ASSERT(static_cast<int>(end_cell) <= CellsCount());
-
-    for (uint32_t cell = start_cell; cell < end_cell; cell++) {
-      cells()[cell] = 0;
-    }
-  }
-
-  INLINE(void Clear()) {
-    for (int i = 0; i < CellsCount(); i++) cells()[i] = 0;
-  }
+  static inline void Clear(MemoryChunk* chunk);
 
   static void PrintWord(uint32_t word, uint32_t himask = 0) {
     for (uint32_t mask = 1; mask != 0; mask <<= 1) {
@@ -425,12 +408,28 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
+  // Manage live byte count (count of bytes known to be live,
+  // because they are marked black).
+  void ResetLiveBytes() {
+    live_byte_count_ = 0;
+  }
+  void IncrementLiveBytes(int by) {
+    live_byte_count_ += by;
+  }
+  int LiveBytes() { return live_byte_count_; }
+  static void IncrementLiveBytes(Address address, int by) {
+    MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
+  }
+
   static const intptr_t kAlignment = (1 << kPageSizeBits);
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  static const size_t kHeaderSize = kPointerSize + kPointerSize + kPointerSize +
-    kPointerSize + kPointerSize + kPointerSize + kPointerSize + kPointerSize;
+  static const intptr_t kLiveBytesOffset =
+      kPointerSize + kPointerSize + kPointerSize + kPointerSize +
+      kPointerSize + kPointerSize + kIntSize;
+
+  static const size_t kHeaderSize = kLiveBytesOffset + kIntSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -508,6 +507,8 @@ class MemoryChunk {
   // Used by the store buffer to keep track of which pages to mark scan-on-
   // scavenge.
   int store_buffer_counter_;
+  // Count of bytes marked black on page.
+  int live_byte_count_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -1434,13 +1435,13 @@ class PagedSpace : public Space {
     if (FLAG_trace_fragmentation) {
       PrintF("%p: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
              reinterpret_cast<void*>(p),
-             sizes[0],
+             static_cast<int>(sizes[0]),
              static_cast<double>(sizes[0] * 100) / Page::kObjectAreaSize,
-             sizes[1],
+             static_cast<int>(sizes[1]),
              static_cast<double>(sizes[1] * 100) / Page::kObjectAreaSize,
-             sizes[2],
+             static_cast<int>(sizes[2]),
              static_cast<double>(sizes[2] * 100) / Page::kObjectAreaSize,
-             sizes[3],
+             static_cast<int>(sizes[3]),
              static_cast<double>(sizes[3] * 100) / Page::kObjectAreaSize,
              (ratio > 15) ? "[fragmented]" : "");
     }

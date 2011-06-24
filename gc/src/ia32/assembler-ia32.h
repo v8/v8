@@ -721,6 +721,7 @@ class Assembler : public AssemblerBase {
   void adc(Register dst, const Operand& src);
 
   void add(Register dst, const Operand& src);
+  void add(const Operand& dst, Register src);
   void add(const Operand& dst, const Immediate& x);
 
   void and_(Register dst, int32_t imm32);

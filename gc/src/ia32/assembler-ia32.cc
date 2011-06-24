@@ -707,6 +707,13 @@ void Assembler::add(Register dst, const Operand& src) {
 }
 
 
+void Assembler::add(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x01);
+  emit_operand(src, dst);
+}
+
+
 void Assembler::add(const Operand& dst, const Immediate& x) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   EnsureSpace ensure_space(this);

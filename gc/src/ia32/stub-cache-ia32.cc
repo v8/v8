@@ -1545,6 +1545,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Increment element's and array's sizes.
       __ add(FieldOperand(ebx, FixedArray::kLengthOffset),
              Immediate(Smi::FromInt(kAllocationDelta)));
+
+      // NOTE: This only happen in new-space, where we don't
+      // care about the black-byte-count on pages. Otherwise we should
+      // update that too if the object is black.
+
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
       __ ret((argc + 1) * kPointerSize);

@@ -2331,35 +2331,12 @@ void MacroAssembler::HasColor(Register object,
 }
 
 
-// Detect some, but not all, common pointer-free objects.  This is used by the
-// incremental write barrier which doesn't care about oddballs (they are always
-// marked black immediately so this code is not hit).
-void MacroAssembler::JumpIfDataObject(
-    Register value,
-    Register scratch,
-    Label* not_data_object,
-    Label::Distance not_data_object_distance) {
-  Label is_data_object;
-  mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
-  cmp(scratch, FACTORY->heap_number_map());
-  j(equal, &is_data_object, Label::kNear);
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
-  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object containing
-  // no GC pointers.
-  test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
-         kIsConsStringMask | kIsNotStringMask);
-  j(not_zero, not_data_object, not_data_object_distance);
-  bind(&is_data_object);
-}
-
-
 void MacroAssembler::GetMarkBits(Register addr_reg,
                                  Register bitmap_reg,
                                  Register mask_reg) {
-  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, ecx));
-  mov(bitmap_reg, Operand(addr_reg));
-  and_(bitmap_reg, ~Page::kPageAlignmentMask);
+  ASSERT(!AreAliased(addr_reg, mask_reg, bitmap_reg, ecx));
+  mov(bitmap_reg, Immediate(~Page::kPageAlignmentMask));
+  and_(Operand(bitmap_reg), addr_reg);
   mov(ecx, Operand(addr_reg));
   int shift =
       Bitmap::kBitsPerCellLog2 + kPointerSizeLog2 - Bitmap::kBytesPerCellLog2;
@@ -2412,11 +2389,70 @@ void MacroAssembler::EnsureNotWhite(
   }
 
   // Value is white.  We check whether it is data that doesn't need scanning.
-  JumpIfDataObject(value, ecx, value_is_white_and_not_data, distance);
+  // Currently only checks for HeapNumber and non-cons strings.
+  Register map = ecx;  // Holds map while checking type.
+  Register length = ecx;  // Holds length of object after checking type.
+  Label not_heap_number;
+  Label is_data_object;
 
+  // Check for heap-number
+  mov(map, FieldOperand(value, HeapObject::kMapOffset));
+  cmp(map, FACTORY->heap_number_map());
+  j(not_equal, &not_heap_number, Label::kNear);
+  mov(length, Immediate(HeapNumber::kSize));
+  jmp(&is_data_object, Label::kNear);
+
+  bind(&not_heap_number);
+  // Check for strings.
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  Register instance_type = ecx;
+  movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  test_b(Operand(instance_type), kIsConsStringMask | kIsNotStringMask);
+  j(not_zero, value_is_white_and_not_data);
+  // It's a non-cons string.
+  // If it's external, the length is just ExternalString::kSize.
+  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
+  Label not_external;
+  // External strings are the only ones with the kExternalStringTag bit
+  // set.
+  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  test_b(Operand(instance_type), kExternalStringTag);
+  j(zero, &not_external, Label::kNear);
+  mov(length, Immediate(ExternalString::kSize));
+  jmp(&is_data_object, Label::kNear);
+
+  bind(&not_external);
+  // Sequential string, either ASCII or UC16.
+  ASSERT(kAsciiStringTag == 0x04);
+  and_(Operand(length), Immediate(kStringEncodingMask));
+  xor_(Operand(length), Immediate(kStringEncodingMask));
+  add(Operand(length), Immediate(0x04));
+  // Value now either 4 (if ASCII) or 8 (if UC16), i.e., char-size shifted
+  // by 2. If we multiply the string length as smi by this, it still
+  // won't overflow a 32-bit value.
+  ASSERT_EQ(SeqAsciiString::kMaxSize, SeqTwoByteString::kMaxSize);
+  ASSERT(SeqAsciiString::kMaxSize <=
+         static_cast<int>(0xffffffffu >> (2 + kSmiTagSize)));
+  imul(length, FieldOperand(value, String::kLengthOffset));
+  shr(length, 2 + kSmiTagSize);
+  add(Operand(length),
+      Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
+  and_(Operand(length),
+       Immediate(~kObjectAlignmentMask));
+
+  bind(&is_data_object);
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.
   or_(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
+
+  and_(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
+  add(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset),
+      length);
+
   bind(&done);
 }
 

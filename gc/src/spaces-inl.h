@@ -37,6 +37,16 @@ namespace internal {
 
 
 // -----------------------------------------------------------------------------
+// Bitmap
+
+void Bitmap::Clear(MemoryChunk* chunk) {
+  Bitmap* bitmap = chunk->markbits();
+  for (int i = 0; i < bitmap->CellsCount(); i++) bitmap->cells()[i] = 0;
+  chunk->ResetLiveBytes();
+}
+
+
+// -----------------------------------------------------------------------------
 // PageIterator
 
 
@@ -154,11 +164,8 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  MemoryChunk::Initialize(heap,
-                          reinterpret_cast<Address>(chunk),
-                          kPageSize,
-                          executable,
-                          owner);
+  ASSERT(chunk->size() == static_cast<size_t>(kPageSize));
+  ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(Page::kObjectAreaSize);
   owner->Free(page->ObjectAreaStart(),
               page->ObjectAreaEnd() - page->ObjectAreaStart());
@@ -334,9 +341,14 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
   ASSERT(string->IsSeqString());
   ASSERT(string->address() + StringType::SizeFor(string->length()) ==
          allocation_info_.top);
+  Address old_top = allocation_info_.top;
   allocation_info_.top =
       string->address() + StringType::SizeFor(length);
   string->set_length(length);
+  if (Marking::IsBlack(Marking::MarkBitFrom(string))) {
+    int delta = static_cast<int>(old_top - allocation_info_.top);
+    MemoryChunk::IncrementLiveBytes(string->address(), -delta);
+  }
 }
 
 

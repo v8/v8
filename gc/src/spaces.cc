@@ -436,8 +436,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->size_ = size;
   chunk->flags_ = 0;
   chunk->set_owner(owner);
-  chunk->markbits()->Clear();
+  Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
+
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
@@ -804,6 +805,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     HeapObjectIterator it(page, NULL);
     Address end_of_previous_object = page->ObjectAreaStart();
     Address top = page->ObjectAreaEnd();
+    int black_size = 0;
     for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
       ASSERT(end_of_previous_object <= object->address());
 
@@ -822,10 +824,14 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
+      if (Marking::IsBlack(Marking::MarkBitFrom(object))) {
+        black_size += size;
+      }
 
       ASSERT(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
+    CHECK_LE(black_size, page->LiveBytes());
   }
 }
 #endif
@@ -1010,8 +1016,7 @@ void NewSpace::ResetAllocationInfo() {
   // Clear all mark-bits in the to-space.
   NewSpacePageIterator it(&to_space_);
   while (it.has_next()) {
-    NewSpacePage* page = it.next();
-    page->markbits()->Clear();
+    Bitmap::Clear(it.next());
   }
 }
 
@@ -1203,7 +1208,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
                                                       page_address,
                                                       this);
     new_page->InsertAfter(last_page);
-    new_page->markbits()->Clear();
+    Bitmap::Clear(new_page);
     // Duplicate the flags that was set on the old page.
     new_page->SetFlags(last_page->GetFlags(),
                        NewSpacePage::kCopyOnFlipFlagsMask);
@@ -1254,6 +1259,7 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
       page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
       page->SetFlag(MemoryChunk::IN_TO_SPACE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+      page->ResetLiveBytes();
     } else {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
@@ -1329,6 +1335,8 @@ void SemiSpace::Verify() {
         CHECK(!page->IsFlagSet(
             MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
       }
+      // TODO(gc): Check that the live_bytes_count_ field matches the
+      // black marking on the page (if we make it match in new-space).
     }
     CHECK(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
     CHECK(page->prev_page()->next_page() == page);
@@ -2374,6 +2382,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
+      MemoryChunk::IncrementLiveBytes(object->address(), -object->Size());
       previous = current;
       current = current->next_page();
     } else {

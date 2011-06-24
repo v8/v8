@@ -285,8 +285,7 @@ static void ClearMarkbits(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
-    Page* p = it.next();
-    p->markbits()->Clear();
+    Bitmap::Clear(it.next());
   }
 }
 
@@ -295,8 +294,7 @@ static void ClearMarkbits(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
-    NewSpacePage* p = it.next();
-    p->markbits()->Clear();
+    Bitmap::Clear(it.next());
   }
 }
 
@@ -312,8 +310,14 @@ static void ClearMarkbits(Heap* heap) {
 }
 
 
-void Marking::TransferMark(Address old_start, Address new_start) {
-  if (old_start == new_start) return;
+bool Marking::TransferMark(Address old_start, Address new_start) {
+  // This is only used when resizing an object.
+  ASSERT(MemoryChunk::FromAddress(old_start) ==
+         MemoryChunk::FromAddress(new_start));
+  // If the mark doesn't move, we don't check the color of the object.
+  // It doesn't matter whether the object is black, since it hasn't changed
+  // size, so the adjustment to the live data count will be zero anyway.
+  if (old_start == new_start) return false;
 
   MarkBit new_mark_bit = MarkBitFrom(new_start);
 
@@ -325,6 +329,7 @@ void Marking::TransferMark(Address old_start, Address new_start) {
     if (Marking::IsBlack(old_mark_bit)) {
       Marking::MarkBlack(new_mark_bit);
       old_mark_bit.Clear();
+      return true;
     } else if (Marking::IsGrey(old_mark_bit)) {
       old_mark_bit.Next().Clear();
       heap_->incremental_marking()->WhiteToGreyAndPush(
@@ -340,17 +345,14 @@ void Marking::TransferMark(Address old_start, Address new_start) {
     ObjectColor new_color = Color(new_mark_bit);
     ASSERT(new_color == old_color);
 #endif
-  } else {
-    if (heap_->InNewSpace(old_start)) {
-      return;
-    } else {
-      MarkBit old_mark_bit = MarkBitFrom(old_start);
-      if (!old_mark_bit.Get()) {
-        return;
-      }
-    }
-    new_mark_bit.Set();
+    return false;
   }
+  MarkBit old_mark_bit = MarkBitFrom(old_start);
+  if (!old_mark_bit.Get()) {
+    return false;
+  }
+  new_mark_bit.Set();
+  return true;
 }
 
 
@@ -1380,7 +1382,11 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   // transitions in ClearNonLiveTransitions.
   FixedArray* prototype_transitions = map->prototype_transitions();
   MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
-  if (!mark.Get()) mark.Set();
+  if (!mark.Get()) {
+    mark.Set();
+    MemoryChunk::IncrementLiveBytes(prototype_transitions->address(),
+                                    prototype_transitions->Size());
+  }
 
   Object** raw_descriptor_array_slot =
       HeapObject::RawField(map, Map::kInstanceDescriptorsOrBitField3Offset);
@@ -2218,9 +2224,9 @@ void MarkCompactCollector::EvacuateNewSpace() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
-
       int size = object->Size();
       survivors_size += size;
+      MemoryChunk::IncrementLiveBytes(object->address(), -size);
 
       // Aggressively promote young survivors to the old space.
       if (TryPromoteObject(object, size)) {

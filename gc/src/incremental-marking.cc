@@ -88,7 +88,10 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
       HeapObject* heap_object = HeapObject::cast(obj);
       MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
       if (mark_bit.data_only()) {
-        incremental_marking_->MarkBlackOrKeepGrey(mark_bit);
+        if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
+          MemoryChunk::IncrementLiveBytes(heap_object->address(),
+                                          heap_object->Size());
+        }
       } else if (Marking::IsWhite(mark_bit)) {
         incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
       }
@@ -124,7 +127,10 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     HeapObject* heap_object = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (mark_bit.data_only()) {
-      incremental_marking_->MarkBlackOrKeepGrey(mark_bit);
+      if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
+          MemoryChunk::IncrementLiveBytes(heap_object->address(),
+                                          heap_object->Size());
+      }
     } else {
       if (Marking::IsWhite(mark_bit)) {
         incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
@@ -205,7 +211,7 @@ void IncrementalMarking::ClearMarkbits(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    p->markbits()->Clear();
+    Bitmap::Clear(p);
     SetOldSpacePageFlags(p, true);
   }
 }
@@ -215,7 +221,7 @@ void IncrementalMarking::ClearMarkbits(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
   while (it.has_next()) {
     NewSpacePage* p = it.next();
-    p->markbits()->Clear();
+    Bitmap::Clear(p);
     SetNewSpacePageFlags(p, true);
   }
 }
@@ -380,7 +386,7 @@ void IncrementalMarking::PrepareForScavenge() {
   NewSpacePageIterator it(heap_->new_space()->FromSpaceStart(),
                           heap_->new_space()->FromSpaceEnd());
   while (it.has_next()) {
-    it.next()->markbits()->Clear();
+    Bitmap::Clear(it.next());
   }
 }
 
@@ -443,7 +449,9 @@ void IncrementalMarking::Hurry() {
       if (obj->map() != filler_map) {
         obj->Iterate(&marking_visitor);
         MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        ASSERT(!Marking::IsBlack(mark_bit));
         Marking::MarkBlack(mark_bit);
+        MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
       }
     }
     state_ = COMPLETE;
@@ -544,7 +552,9 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         // TODO(gc) switch to static visitor instead of normal visitor.
         obj->IterateBody(map->instance_type(), size, &marking_visitor);
         MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
+        ASSERT(!Marking::IsBlack(obj_mark_bit));
         Marking::MarkBlack(obj_mark_bit);
+        MemoryChunk::IncrementLiveBytes(obj->address(), size);
       }
     }
     if (marking_deque_.IsEmpty()) MarkingComplete();

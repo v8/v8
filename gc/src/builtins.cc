@@ -363,8 +363,11 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
   // Maintain marking consistency for HeapObjectIterator and
   // IncrementalMarking.
-  heap->marking()->TransferMark(elms->address(),
-                                elms->address() + to_trim * kPointerSize);
+  int size_delta = to_trim * kPointerSize;
+  if (heap->marking()->TransferMark(elms->address(),
+                                    elms->address() + size_delta)) {
+    MemoryChunk::IncrementLiveBytes(elms->address(), -size_delta);
+  }
 
   return FixedArray::cast(HeapObject::FromAddress(
       elms->address() + to_trim * kPointerSize));

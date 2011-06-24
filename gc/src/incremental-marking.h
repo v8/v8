@@ -121,12 +121,13 @@ class IncrementalMarking {
   inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit);
 
   // Does white->black or grey->grey
-  inline void MarkBlackOrKeepGrey(MarkBit mark_bit) {
+  inline bool MarkBlackOrKeepGrey(MarkBit mark_bit) {
     ASSERT(!Marking::IsImpossible(mark_bit));
-    if (mark_bit.Get()) return;
+    if (mark_bit.Get()) return false;
     mark_bit.Set();
     ASSERT(!Marking::IsWhite(mark_bit));
     ASSERT(!Marking::IsImpossible(mark_bit));
+    return true;
   }
 
   inline int steps_count() {

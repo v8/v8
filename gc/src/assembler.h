@@ -90,7 +90,10 @@ class Label BASE_EMBEDDED {
     Unuse();
     UnuseNear();
   }
-  INLINE(~Label())                { ASSERT(!is_linked()); }
+  INLINE(~Label()) {
+    ASSERT(!is_linked());
+    ASSERT(!is_near_linked());
+  }
 
   INLINE(void Unuse())            { pos_ = 0; }
   INLINE(void UnuseNear())        { near_link_pos_ = 0; }

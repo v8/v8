@@ -119,7 +119,8 @@ class Marking {
     BlackToGrey(MarkBitFrom(obj));
   }
 
-  void TransferMark(Address old_start, Address new_start);
+  // Returns true if the the object whose mark is transferred is marked black.
+  bool TransferMark(Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {
@@ -152,13 +153,23 @@ class Marking {
   }
 #endif
 
-  INLINE(static void TransferColor(HeapObject* from,
+  // Returns true if the transferred color is black.
+  INLINE(static bool TransferColor(HeapObject* from,
                                    HeapObject* to)) {
     MarkBit from_mark_bit = MarkBitFrom(from);
     MarkBit to_mark_bit = MarkBitFrom(to);
-    if (from_mark_bit.Get()) to_mark_bit.Set();
-    if (from_mark_bit.Next().Get()) to_mark_bit.Next().Set();
+    bool is_black = false;
+    if (from_mark_bit.Get()) {
+      to_mark_bit.Set();
+      is_black = true;  // Looks black so far.
+    }
+    if (from_mark_bit.Next().Get()) {
+      to_mark_bit.Next().Set();
+      is_black = false;  // Was actually gray.
+    }
     ASSERT(Color(from) == Color(to));
+    ASSERT(is_black == (Color(to) == BLACK_OBJECT));
+    return is_black;
   }
 
  private:
