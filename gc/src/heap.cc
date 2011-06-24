@@ -5618,6 +5618,8 @@ GCTracer::GCTracer(Heap* heap)
 
   steps_count_ = heap_->incremental_marking()->steps_count();
   steps_took_ = heap_->incremental_marking()->steps_took();
+  delta_steps_count_ = heap_->incremental_marking()->delta_steps_count();
+  delta_steps_took_ = heap_->incremental_marking()->delta_steps_took();
 }
 
 
@@ -5654,9 +5656,15 @@ GCTracer::~GCTracer() {
     if (external_time > 0) PrintF("%d / ", external_time);
     PrintF("%d ms", time);
     if (steps_count_ > 0) {
-      PrintF(" (+ %d ms in %d steps)",
-             static_cast<int>(steps_took_),
-             steps_count_);
+      if (collector_ == SCAVENGER) {
+        PrintF(" (+ %d ms in %d steps since last GC)",
+               static_cast<int>(delta_steps_took_),
+               delta_steps_count_);
+      } else {
+        PrintF(" (+ %d ms in %d steps since start of marking)",
+               static_cast<int>(steps_took_),
+               steps_count_);
+      }
     }
     PrintF(".\n");
   } else {
@@ -5691,8 +5699,14 @@ GCTracer::~GCTracer() {
 
     PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
     PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);
-    PrintF("stepscount=%d ", steps_count_);
-    PrintF("stepstook=%d ", static_cast<int>(steps_took_));
+
+    if (collector_ == SCAVENGER) {
+      PrintF("stepscount=%d ", delta_steps_count_);
+      PrintF("stepstook=%d ", static_cast<int>(delta_steps_took_));
+    } else {
+      PrintF("stepscount=%d ", steps_count_);
+      PrintF("stepstook=%d ", static_cast<int>(steps_took_));
+    }
 
     PrintF("\n");
   }

@@ -2152,8 +2152,10 @@ class GCTracer BASE_EMBEDDED {
 
   // Incremental marking steps counters.
   int steps_count_;
-
   double steps_took_;
+
+  int delta_steps_count_;
+  double delta_steps_took_;
 
   Heap* heap_;
 };
