@@ -329,6 +329,7 @@ class Operand BASE_EMBEDDED {
 class MemOperand : public Operand {
  public:
   explicit MemOperand(Register rn, int32_t offset = 0);
+  int32_t offset() const { return offset_; }
 
  private:
   int32_t offset_;
