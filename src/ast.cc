@@ -337,6 +337,59 @@ bool BinaryOperation::ResultOverwriteAllowed() {
 }
 
 
+bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
+                                              Handle<String>* check) {
+  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
+
+  UnaryOperation* left_unary = left_->AsUnaryOperation();
+  UnaryOperation* right_unary = right_->AsUnaryOperation();
+  Literal* left_literal = left_->AsLiteral();
+  Literal* right_literal = right_->AsLiteral();
+
+  // Check for the pattern: typeof <expression> == <string literal>.
+  if (left_unary != NULL && left_unary->op() == Token::TYPEOF &&
+      right_literal != NULL && right_literal->handle()->IsString()) {
+    *expr = left_unary->expression();
+    *check = Handle<String>::cast(right_literal->handle());
+    return true;
+  }
+
+  // Check for the pattern: <string literal> == typeof <expression>.
+  if (right_unary != NULL && right_unary->op() == Token::TYPEOF &&
+      left_literal != NULL && left_literal->handle()->IsString()) {
+    *expr = right_unary->expression();
+    *check = Handle<String>::cast(left_literal->handle());
+    return true;
+  }
+
+  return false;
+}
+
+
+bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
+  if (op_ != Token::EQ_STRICT) return false;
+
+  UnaryOperation* left_unary = left_->AsUnaryOperation();
+  UnaryOperation* right_unary = right_->AsUnaryOperation();
+
+  // Check for the pattern: <expression> === void <literal>.
+  if (right_unary != NULL && right_unary->op() == Token::VOID &&
+      right_unary->expression()->AsLiteral() != NULL) {
+    *expr = left_;
+    return true;
+  }
+
+  // Check for the pattern: void <literal> === <expression>.
+  if (left_unary != NULL && left_unary->op() == Token::VOID &&
+      left_unary->expression()->AsLiteral() != NULL) {
+    *expr = right_;
+    return true;
+  }
+
+  return false;
+}
+
+
 // ----------------------------------------------------------------------------
 // Inlining support
 

@@ -109,7 +109,7 @@ class JsonParser BASE_EMBEDDED {
   Handle<String> ScanJsonString();
   // Slow version for unicode support, uses the first ascii_count characters,
   // as first part of a ConsString
-  Handle<String> SlowScanJsonString();
+  Handle<String> SlowScanJsonString(int beg_pos);
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -156,15 +156,9 @@ class JsonParser BASE_EMBEDDED {
   int source_length_;
   Handle<SeqAsciiString> seq_source_;
 
-  // begin and end position of scanned string or number
-  int beg_pos_;
-  int end_pos_;
-
   Isolate* isolate_;
   uc32 c0_;
   int position_;
-
-  double number_;
 };
 
 template <bool seq_ascii>
@@ -353,7 +347,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
   bool negative = false;
-  beg_pos_ = position_;
+  int beg_pos = position_;
   if (c0_ == '-') {
     Advance();
     negative = true;
@@ -373,9 +367,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
       Advance();
     } while (c0_ >= '0' && c0_ <= '9');
     if (c0_ != '.' && c0_ != 'e' && c0_ != 'E' && digits < 10) {
-      number_ = (negative ? -i : i);
       SkipWhitespace();
-      return isolate()->factory()->NewNumber(number_);
+      return Handle<Smi>(Smi::FromInt((negative ? -i : i)), isolate());
     }
   }
   if (c0_ == '.') {
@@ -393,35 +386,36 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
       Advance();
     } while (c0_ >= '0' && c0_ <= '9');
   }
-  int length = position_ - beg_pos_;
+  int length = position_ - beg_pos;
+  double number;
   if (seq_ascii) {
-    Vector<const char> chars(seq_source_->GetChars() +  beg_pos_, length);
-    number_ = StringToDouble(isolate()->unicode_cache(),
+    Vector<const char> chars(seq_source_->GetChars() +  beg_pos, length);
+    number = StringToDouble(isolate()->unicode_cache(),
                              chars,
                              NO_FLAGS,  // Hex, octal or trailing junk.
                              OS::nan_value());
   } else {
     Vector<char> buffer = Vector<char>::New(length);
-    String::WriteToFlat(*source_, buffer.start(), beg_pos_, position_);
+    String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
     Vector<const char> result =
         Vector<const char>(reinterpret_cast<const char*>(buffer.start()),
         length);
-    number_ = StringToDouble(isolate()->unicode_cache(),
+    number = StringToDouble(isolate()->unicode_cache(),
                              result,
                              NO_FLAGS,  // Hex, octal or trailing junk.
                              0.0);
     buffer.Dispose();
   }
   SkipWhitespace();
-  return isolate()->factory()->NewNumber(number_);
+  return isolate()->factory()->NewNumber(number);
 }
 
 template <bool seq_ascii>
-Handle<String> JsonParser<seq_ascii>::SlowScanJsonString() {
+Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(int beg_pos) {
   // The currently scanned ascii characters.
-  Handle<String> ascii(isolate()->factory()->NewSubString(source_,
-                                                          beg_pos_,
-                                                          position_));
+  Handle<String> ascii(isolate()->factory()->NewProperSubString(source_,
+                                                                beg_pos,
+                                                                position_));
   Handle<String> two_byte =
       isolate()->factory()->NewRawTwoByteString(kInitialSpecialStringSize,
                                                 NOT_TENURED);
@@ -518,7 +512,7 @@ template <bool is_symbol>
 Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
-  beg_pos_ = position_;
+  int beg_pos = position_;
   // Fast case for ascii only without escape characters.
   while (c0_ != '"') {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
@@ -526,19 +520,21 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     if (c0_ != '\\' && (seq_ascii || c0_ < kMaxAsciiCharCode)) {
       Advance();
     } else {
-      return this->SlowScanJsonString();
+      return this->SlowScanJsonString(beg_pos);
     }
   }
   ASSERT_EQ('"', c0_);
-  end_pos_ = position_;
+  int end_pos = position_;
   // Advance past the last '"'.
   AdvanceSkipWhitespace();
   if (seq_ascii && is_symbol) {
     return isolate()->factory()->LookupAsciiSymbol(seq_source_,
-                                                   beg_pos_,
-                                                   end_pos_ - beg_pos_);
+                                                   beg_pos,
+                                                   end_pos - beg_pos);
   } else {
-    return isolate()->factory()->NewSubString(source_, beg_pos_, end_pos_);
+    return isolate()->factory()->NewProperSubString(source_,
+                                                    beg_pos,
+                                                    end_pos);
   }
 }
 

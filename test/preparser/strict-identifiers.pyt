@@ -164,6 +164,20 @@ non_strict_use = Template("nonstrict-$id", """
   x = {get $id() {}, set $id(value) {}};
 """)
 
+identifier_name_source = """
+  var x = {$id: 42};
+  x = {get $id() {}, set $id(value) {}};
+  x.$id = 42;
+  function foo() { "use strict;" }
+  x = {$id: 42};
+  x = {get $id() {}, set $id(value) {}};
+  x.$id = 42;
+"""
+
+identifier_name = Template("identifier_name-$id", identifier_name_source)
+identifier_name_strict = StrictTemplate("identifier_name_strict-$id",
+                                        identifier_name_source)
+
 # ----------------------------------------------------------------------
 # Run tests
 
@@ -189,8 +203,12 @@ for id in ["eval", "arguments"]:
 # Reserved words just throw the same exception in all cases
 # (with "const" being special, as usual).
 for reserved_word in reserved_words + strict_reserved_words:
-  message = "strict_reserved_word"
-  if (reserved_word == "const"): message = "unexpected_token"
+  if (reserved_word in strict_reserved_words):
+    message = "strict_reserved_word"
+  elif (reserved_word == "const"):
+    message = "unexpected_token"
+  else:
+    message = "reserved_word"
   arg_name_own({"id":reserved_word}, message)
   arg_name_nested({"id":reserved_word}, message)
   setter_arg({"id": reserved_word}, message)
@@ -205,5 +223,11 @@ for reserved_word in reserved_words + strict_reserved_words:
   postfix_var({"id":reserved_word, "op":"++", "opname":"inc"}, message)
   postfix_var({"id":reserved_word, "op":"--", "opname":"dec"}, message)
   read_var({"id": reserved_word}, message)
+  identifier_name({"id": reserved_word}, None);
+  identifier_name_strict({"id": reserved_word}, None);
 
 
+# Future reserved words in strict mode behave like normal identifiers
+# in a non strict context.
+for reserved_word in strict_reserved_words:
+  non_strict_use({"id": id}, None)

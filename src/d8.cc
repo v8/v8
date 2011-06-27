@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -489,7 +489,23 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 void Shell::InstallUtilityScript() {
   Locker lock;
   HandleScope scope;
+  // If we use the utility context, we have to set the security tokens so that
+  // utility, evaluation and debug context can all access each other.
+  utility_context_->SetSecurityToken(Undefined());
+  evaluation_context_->SetSecurityToken(Undefined());
   Context::Scope utility_scope(utility_context_);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Install the debugger object in the utility scope
+  i::Debug* debug = i::Isolate::Current()->debug();
+  debug->Load();
+  i::Handle<i::JSObject> js_debug
+      = i::Handle<i::JSObject>(debug->debug_context()->global());
+  utility_context_->Global()->Set(String::New("$debug"),
+                                  Utils::ToLocal(js_debug));
+  debug->debug_context()->set_security_token(HEAP->undefined_value());
+#endif
+
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
   i::Vector<const char> shell_source =
@@ -513,6 +529,7 @@ void Shell::InstallUtilityScript() {
          i::SharedFunctionInfo::cast(*compiled_script)->script()));
   script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
 }
+
 
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 class BZip2Decompressor : public v8::StartupDataDecompressor {
@@ -585,7 +602,8 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   return global_template;
 }
 
-void Shell::Initialize() {
+
+void Shell::Initialize(bool test_shell) {
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   BZip2Decompressor startup_data_decompressor;
   int bz2_result = startup_data_decompressor.Decompress();
@@ -605,22 +623,23 @@ void Shell::Initialize() {
     V8::SetAddHistogramSampleFunction(AddHistogramSample);
   }
 
-  // Initialize the global objects
+  if (test_shell) return;
+
+  Locker lock;
   HandleScope scope;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
-
   utility_context_ = Context::New(NULL, global_template);
-  utility_context_->SetSecurityToken(Undefined());
-  Context::Scope utility_scope(utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Install the debugger object in the utility scope
-  i::Debug* debug = i::Isolate::Current()->debug();
-  debug->Load();
-  i::Handle<i::JSObject> js_debug
-      = i::Handle<i::JSObject>(debug->debug_context()->global());
-  utility_context_->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(js_debug));
+  // Start the debugger agent if requested.
+  if (i::FLAG_debugger_agent) {
+    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
+  }
+
+  // Start the in-process debugger if requested.
+  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
+    v8::Debug::SetDebugEventListener(HandleDebugEvent);
+  }
 #endif
 }
 
@@ -635,9 +654,8 @@ void Shell::RenewEvaluationContext() {
     evaluation_context_.Dispose();
   }
   evaluation_context_ = Context::New(NULL, global_template);
-  evaluation_context_->SetSecurityToken(Undefined());
+  Context::Scope utility_scope(evaluation_context_);
 
-  Context::Scope utility_scope(utility_context_);
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
       FACTORY->NewFixedArray(js_args.argc());
@@ -650,24 +668,6 @@ void Shell::RenewEvaluationContext() {
       FACTORY->NewJSArrayWithElements(arguments_array);
   evaluation_context_->Global()->Set(String::New("arguments"),
                                      Utils::ToLocal(arguments_jsarray));
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  i::Debug* debug = i::Isolate::Current()->debug();
-  debug->Load();
-
-  // Set the security token of the debug context to allow access.
-  debug->debug_context()->set_security_token(HEAP->undefined_value());
-
-  // Start the debugger agent if requested.
-  if (i::FLAG_debugger_agent) {
-    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
-  }
-
-  // Start the in-process debugger if requested.
-  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener(HandleDebugEvent);
-  }
-#endif
 }
 
 
@@ -753,6 +753,7 @@ void Shell::RunShell() {
   if (i::FLAG_debugger) {
     printf("JavaScript debugger enabled\n");
   }
+
   editor->Open();
   while (true) {
     Locker locker;
@@ -800,7 +801,6 @@ void ShellThread::Run() {
     }
 
     Persistent<Context> thread_context = Context::New(NULL, global_template);
-    thread_context->SetSecurityToken(Undefined());
     Context::Scope context_scope(thread_context);
 
     while ((ptr != NULL) && (*ptr != '\0')) {
@@ -826,7 +826,7 @@ void ShellThread::Run() {
   }
 }
 
-int Shell::RunMain(int argc, char* argv[]) {
+int Shell::RunMain(int argc, char* argv[], bool* executed) {
   // Default use preemption if threads are created.
   bool use_preemption = true;
 
@@ -871,6 +871,7 @@ int Shell::RunMain(int argc, char* argv[]) {
         v8::HandleScope handle_scope;
         v8::Handle<v8::String> file_name = v8::String::New("unnamed");
         v8::Handle<v8::String> source = v8::String::New(argv[++i]);
+        (*executed) = true;
         if (!ExecuteString(source, file_name, false, true)) {
           OnExit();
           return 1;
@@ -884,11 +885,13 @@ int Shell::RunMain(int argc, char* argv[]) {
                             i::Vector<const char>(files, size));
         thread->Start();
         threads.Add(thread);
+        (*executed) = true;
       } else {
         // Use all other arguments as names of files to load and run.
         HandleScope handle_scope;
         Handle<String> file_name = v8::String::New(str);
         Handle<String> source = ReadFile(str);
+        (*executed) = true;
         if (source.IsEmpty()) {
           printf("Error reading '%s'\n", str);
           return 1;
@@ -922,7 +925,9 @@ int Shell::Main(int argc, char* argv[]) {
   // optimization in the last run.
   bool FLAG_stress_opt = false;
   bool FLAG_stress_deopt = false;
-  bool run_shell = (argc == 1);
+  bool FLAG_interactive_shell = false;
+  bool FLAG_test_shell = false;
+  bool script_executed = false;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
@@ -936,14 +941,17 @@ int Shell::Main(int argc, char* argv[]) {
       FLAG_stress_opt = false;
       FLAG_stress_deopt = false;
     } else if (strcmp(argv[i], "--shell") == 0) {
-      run_shell = true;
+      FLAG_interactive_shell = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--test") == 0) {
+      FLAG_test_shell = true;
       argv[i] = NULL;
     }
   }
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-  Initialize();
+  Initialize(FLAG_test_shell);
 
   int result = 0;
   if (FLAG_stress_opt || FLAG_stress_deopt) {
@@ -954,22 +962,26 @@ int Shell::Main(int argc, char* argv[]) {
     for (int i = 0; i < stress_runs && result == 0; i++) {
       printf("============ Stress %d/%d ============\n", i + 1, stress_runs);
       v8::Testing::PrepareStressRun(i);
-      result = RunMain(argc, argv);
+      result = RunMain(argc, argv, &script_executed);
     }
     printf("======== Full Deoptimization =======\n");
     v8::Testing::DeoptimizeAll();
   } else {
-    result = RunMain(argc, argv);
+    result = RunMain(argc, argv, &script_executed);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (i::FLAG_remote_debugger) {
+  // Run remote debugger if requested, but never on --test
+  if (i::FLAG_remote_debugger && !FLAG_test_shell) {
+    InstallUtilityScript();
     RunRemoteDebugger(i::FLAG_debugger_port);
     return 0;
   }
 #endif
 
-  if (run_shell) {
+  // Run interactive shell if explicitly requested or if no script has been
+  // executed, but never on --test
+  if ((FLAG_interactive_shell || !script_executed) && !FLAG_test_shell) {
     InstallUtilityScript();
     RunShell();
   }

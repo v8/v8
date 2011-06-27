@@ -218,7 +218,9 @@ inline Heap* _inline_get_heap_();
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
-  V(use_strict, "use strict")
+  V(use_strict, "use strict")                                            \
+  V(dot_symbol, ".")                                                     \
+  V(anonymous_function_symbol, "(anonymous function)")
 
 // Forward declarations.
 class GCTracer;

@@ -52,6 +52,8 @@
         'i18n-utils.h',
         'language-matcher.cc',
         'language-matcher.h',
+        'number-format.cc',
+        'number-format.h',
         '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
       ],
       'include_dirs': [
@@ -76,7 +78,7 @@
       'type': 'none',
       'toolsets': ['host'],
       'variables': {
-        'library_files': [
+        'js_files': [
           'i18n.js'
         ],
       },
@@ -85,7 +87,7 @@
           'action_name': 'js2c_i18n',
           'inputs': [
             'i18n-js2c.py',
-            '<@(library_files)',
+            '<@(js_files)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
@@ -94,7 +96,7 @@
             'python',
             'i18n-js2c.py',
             '<@(_outputs)',
-            '<@(library_files)'
+            '<@(js_files)'
           ],
         },
       ],

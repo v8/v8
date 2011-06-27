@@ -708,24 +708,6 @@ TEST(IsLoggingPreserved) {
   CHECK(LOGGER->is_logging());
   LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
   CHECK(LOGGER->is_logging());
-
-  CHECK(LOGGER->is_logging());
-  LOGGER->ResumeProfiler(
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(LOGGER->is_logging());
-  LOGGER->PauseProfiler(
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(LOGGER->is_logging());
-
-  CHECK(LOGGER->is_logging());
-  LOGGER->ResumeProfiler(
-      v8::PROFILER_MODULE_CPU |
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(LOGGER->is_logging());
-  LOGGER->PauseProfiler(
-      v8::PROFILER_MODULE_CPU |
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(LOGGER->is_logging());
 }
 
 

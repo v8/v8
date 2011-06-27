@@ -131,16 +131,16 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
 }
 
 
-HSimulate* HBasicBlock::CreateSimulate(int id) {
+HSimulate* HBasicBlock::CreateSimulate(int ast_id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
-  ASSERT(id == AstNode::kNoNumber ||
-         environment->closure()->shared()->VerifyBailoutId(id));
+  ASSERT(ast_id == AstNode::kNoNumber ||
+         environment->closure()->shared()->VerifyBailoutId(ast_id));
 
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  HSimulate* instr = new(zone()) HSimulate(id, pop_count);
+  HSimulate* instr = new(zone()) HSimulate(ast_id, pop_count);
   for (int i = push_count - 1; i >= 0; --i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
   }
@@ -163,14 +163,13 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 }
 
 
-void HBasicBlock::Goto(HBasicBlock* block, bool include_stack_check) {
+void HBasicBlock::Goto(HBasicBlock* block) {
   if (block->IsInlineReturnTarget()) {
     AddInstruction(new(zone()) HLeaveInlined);
     last_environment_ = last_environment()->outer();
   }
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(block);
-  instr->set_include_stack_check(include_stack_check);
   Finish(instr);
 }
 
@@ -194,7 +193,7 @@ void HBasicBlock::SetInitialEnvironment(HEnvironment* env) {
 }
 
 
-void HBasicBlock::SetJoinId(int id) {
+void HBasicBlock::SetJoinId(int ast_id) {
   int length = predecessors_.length();
   ASSERT(length > 0);
   for (int i = 0; i < length; i++) {
@@ -204,8 +203,8 @@ void HBasicBlock::SetJoinId(int id) {
     // We only need to verify the ID once.
     ASSERT(i != 0 ||
            predecessor->last_environment()->closure()->shared()
-               ->VerifyBailoutId(id));
-    simulate->set_ast_id(id);
+               ->VerifyBailoutId(ast_id));
+    simulate->set_ast_id(ast_id);
   }
 }
 
@@ -576,7 +575,7 @@ HBasicBlock* HGraphBuilder::CreateLoop(IterationStatement* statement,
                                        HBasicBlock* body_exit,
                                        HBasicBlock* loop_successor,
                                        HBasicBlock* break_block) {
-  if (body_exit != NULL) body_exit->Goto(loop_entry, true);
+  if (body_exit != NULL) body_exit->Goto(loop_entry);
   loop_entry->PostProcessLoopHeader(statement);
   if (break_block != NULL) {
     if (loop_successor != NULL) loop_successor->Goto(break_block);
@@ -1234,8 +1233,6 @@ class HStackCheckEliminator BASE_EMBEDDED {
   void Process();
 
  private:
-  void RemoveStackCheck(HBasicBlock* block);
-
   HGraph* graph_;
 };
 
@@ -1254,7 +1251,7 @@ void HStackCheckEliminator::Process() {
         HInstruction* instr = dominator->first();
         while (instr != NULL) {
           if (instr->IsCall()) {
-            RemoveStackCheck(back_edge);
+            block->loop_information()->stack_check()->Eliminate();
             break;
           }
           instr = instr->next();
@@ -1267,18 +1264,6 @@ void HStackCheckEliminator::Process() {
         dominator = dominator->dominator();
       }
     }
-  }
-}
-
-
-void HStackCheckEliminator::RemoveStackCheck(HBasicBlock* block) {
-  HInstruction* instr = block->first();
-  while (instr != NULL) {
-    if (instr->IsGoto()) {
-      HGoto::cast(instr)->set_include_stack_check(false);
-      return;
-    }
-    instr = instr->next();
   }
 }
 
@@ -2136,8 +2121,8 @@ void TestContext::BuildBranch(HValue* value) {
   HTest* test = new(zone()) HTest(value, empty_true, empty_false);
   builder->current_block()->Finish(test);
 
-  empty_true->Goto(if_true(), false);
-  empty_false->Goto(if_false(), false);
+  empty_true->Goto(if_true());
+  empty_false->Goto(if_false());
   builder->set_current_block(NULL);
 }
 
@@ -2229,7 +2214,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     }
     SetupScope(scope);
     VisitDeclarations(scope->declarations());
-    AddInstruction(new(zone()) HStackCheck());
+    AddInstruction(new(zone()) HStackCheck(HStackCheck::kFunctionEntry));
 
     // Add an edge to the body entry.  This is warty: the graph's start
     // environment will be used by the Lithium translation as the initial
@@ -2328,9 +2313,9 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddSimulate(int id) {
+void HGraphBuilder::AddSimulate(int ast_id) {
   ASSERT(current_block() != NULL);
-  current_block()->AddSimulate(id);
+  current_block()->AddSimulate(ast_id);
 }
 
 
@@ -2567,7 +2552,7 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
                       test->if_false());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return(), false);
+      current_block()->Goto(function_return());
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
@@ -2758,6 +2743,19 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
 }
 
 
+void HGraphBuilder::VisitLoopBody(Statement* body,
+                                  HBasicBlock* loop_entry,
+                                  BreakAndContinueInfo* break_info) {
+  BreakAndContinueScope push(break_info, this);
+  HStackCheck* stack_check =
+      new(zone()) HStackCheck(HStackCheck::kBackwardsBranch);
+  AddInstruction(stack_check);
+  ASSERT(loop_entry->IsLoopHeader());
+  loop_entry->loop_information()->set_stack_check(stack_check);
+  CHECK_BAILOUT(Visit(body));
+}
+
+
 void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -2765,13 +2763,11 @@ void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry, false);
+  current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
 
   BreakAndContinueInfo break_info(stmt);
-  { BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(Visit(stmt->body()));
-  }
+  CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
   HBasicBlock* loop_successor = NULL;
@@ -2809,7 +2805,7 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry, false);
+  current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
 
   // If the condition is constant true, do not generate a branch.
@@ -2832,7 +2828,7 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(Visit(stmt->body()));
+    CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -2855,7 +2851,7 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
   ASSERT(current_block() != NULL);
   PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
-  current_block()->Goto(loop_entry, false);
+  current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
 
   HBasicBlock* loop_successor = NULL;
@@ -2877,7 +2873,7 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(Visit(stmt->body()));
+    CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -4486,7 +4482,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
       ASSERT(function_return() != NULL);
       ASSERT(call_context()->IsEffect() || call_context()->IsValue());
       if (call_context()->IsEffect()) {
-        current_block()->Goto(function_return(), false);
+        current_block()->Goto(function_return());
       } else {
         current_block()->AddLeaveInlined(undefined, function_return());
       }
@@ -4501,8 +4497,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
       HTest* test = new(zone()) HTest(undefined, empty_true, empty_false);
       current_block()->Finish(test);
 
-      empty_true->Goto(inlined_test_context()->if_true(), false);
-      empty_false->Goto(inlined_test_context()->if_false(), false);
+      empty_true->Goto(inlined_test_context()->if_true());
+      empty_false->Goto(inlined_test_context()->if_false());
     }
   }
 
@@ -4519,12 +4515,12 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (if_true->HasPredecessor()) {
       if_true->SetJoinId(expr->id());
       HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-      if_true->Goto(true_target, false);
+      if_true->Goto(true_target);
     }
     if (if_false->HasPredecessor()) {
       if_false->SetJoinId(expr->id());
       HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-      if_false->Goto(false_target, false);
+      if_false->Goto(false_target);
     }
     set_current_block(NULL);
 
@@ -5490,6 +5486,29 @@ Representation HGraphBuilder::ToRepresentation(TypeInfo info) {
 }
 
 
+void HGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* compare_expr,
+                                               Expression* expr,
+                                               Handle<String> check) {
+  CHECK_ALIVE(VisitForTypeOf(expr));
+  HValue* expr_value = Pop();
+  HInstruction* instr = new(zone()) HTypeofIs(expr_value, check);
+  instr->set_position(compare_expr->position());
+  ast_context()->ReturnInstruction(instr, compare_expr->id());
+}
+
+
+void HGraphBuilder::HandleLiteralCompareUndefined(
+    CompareOperation* compare_expr, Expression* expr) {
+  CHECK_ALIVE(VisitForValue(expr));
+  HValue* lhs = Pop();
+  HValue* rhs = graph()->GetConstantUndefined();
+  HInstruction* instr =
+      new(zone()) HCompareObjectEq(lhs, rhs);
+  instr->set_position(compare_expr->position());
+  ast_context()->ReturnInstruction(instr, compare_expr->id());
+}
+
+
 void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -5506,18 +5525,16 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return;
   }
 
-  // Check for the pattern: typeof <expression> == <string literal>.
-  UnaryOperation* left_unary = expr->left()->AsUnaryOperation();
-  Literal* right_literal = expr->right()->AsLiteral();
-  if ((expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT) &&
-      left_unary != NULL && left_unary->op() == Token::TYPEOF &&
-      right_literal != NULL && right_literal->handle()->IsString()) {
-    CHECK_ALIVE(VisitForTypeOf(left_unary->expression()));
-    HValue* left = Pop();
-    HInstruction* instr = new(zone()) HTypeofIs(left,
-        Handle<String>::cast(right_literal->handle()));
-    instr->set_position(expr->position());
-    ast_context()->ReturnInstruction(instr, expr->id());
+  // Check for special cases that compare against literals.
+  Expression *sub_expr;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    HandleLiteralCompareTypeof(expr, sub_expr, check);
+    return;
+  }
+
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    HandleLiteralCompareUndefined(expr, sub_expr);
     return;
   }
 

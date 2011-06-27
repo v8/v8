@@ -474,7 +474,6 @@ DEFINE_bool(log_handles, false, "Log global handle events.")
 DEFINE_bool(log_snapshot_positions, false,
             "log positions of (de)serialized objects in the snapshot.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
-DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
 DEFINE_bool(prof_auto, true,

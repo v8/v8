@@ -1473,6 +1473,10 @@ class CompareOperation: public Expression {
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
   bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
 
+  // Match special cases.
+  bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
+  bool IsLiteralCompareUndefined(Expression** expr);
+
  private:
   Token::Value op_;
   Expression* left_;

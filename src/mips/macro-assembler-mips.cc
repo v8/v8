@@ -837,11 +837,11 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs) {
 
 void MacroAssembler::Trunc_uw_d(FPURegister fd, Register rs) {
   ASSERT(!fd.is(f22));
-  ASSERT(!rs.is(t6));
+  ASSERT(!rs.is(t8));
 
   // Load 2^31 into f22.
-  Or(t6, zero_reg, 0x80000000);
-  Cvt_d_uw(f22, t6);
+  Or(t8, zero_reg, 0x80000000);
+  Cvt_d_uw(f22, t8);
 
   // Test if f22 > fd.
   c(OLT, D, fd, f22);
@@ -856,7 +856,7 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd, Register rs) {
   sub_d(f22, fd, f22);
   trunc_w_d(f22, f22);
   mfc1(rs, f22);
-  or_(rs, rs, t6);
+  or_(rs, rs, t8);
 
   Label done;
   Branch(&done);
@@ -2563,8 +2563,8 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Label* gc_required) {
-  LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-  AllocateHeapNumber(result, scratch1, scratch2, t6, gc_required);
+  LoadRoot(t8, Heap::kHeapNumberMapRootIndex);
+  AllocateHeapNumber(result, scratch1, scratch2, t8, gc_required);
   sdc1(value, FieldMemOperand(result, HeapNumber::kValueOffset));
 }
 
@@ -2657,9 +2657,8 @@ void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
   STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
-  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  And(scratch, scratch, Operand(Map::kMaximumBitField2FastElementValue));
-  Branch(fail, hi, scratch, Operand(zero_reg));
+  lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Branch(fail, hi, scratch, Operand(Map::kMaximumBitField2FastElementValue));
 }
 
 
@@ -3249,23 +3248,18 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst,
   ASSERT(!overflow_dst.is(right));
   ASSERT(!left.is(right));
 
-  // TODO(kalmard) There must be a way to optimize dst == left and dst == right
-  // cases.
-
   if (dst.is(left)) {
-    addu(overflow_dst, left, right);
-    xor_(dst, overflow_dst, left);
-    xor_(scratch, overflow_dst, right);
-    and_(scratch, scratch, dst);
-    mov(dst, overflow_dst);
-    mov(overflow_dst, scratch);
+    mov(scratch, left);  // Preserve left.
+    addu(dst, left, right);  // Left is overwritten.
+    xor_(scratch, dst, scratch);  // Original left.
+    xor_(overflow_dst, dst, right);
+    and_(overflow_dst, overflow_dst, scratch);
   } else if (dst.is(right)) {
-    addu(overflow_dst, left, right);
-    xor_(dst, overflow_dst, right);
-    xor_(scratch, overflow_dst, left);
-    and_(scratch, scratch, dst);
-    mov(dst, overflow_dst);
-    mov(overflow_dst, scratch);
+    mov(scratch, right);  // Preserve right.
+    addu(dst, left, right);  // Right is overwritten.
+    xor_(scratch, dst, scratch);  // Original right.
+    xor_(overflow_dst, dst, left);
+    and_(overflow_dst, overflow_dst, scratch);
   } else {
     addu(dst, left, right);
     xor_(overflow_dst, dst, left);
@@ -3289,23 +3283,18 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst,
   ASSERT(!scratch.is(left));
   ASSERT(!scratch.is(right));
 
-  // TODO(kalmard) There must be a way to optimize dst == left and dst == right
-  // cases.
-
   if (dst.is(left)) {
-    subu(overflow_dst, left, right);
-    xor_(scratch, overflow_dst, left);
-    xor_(dst, left, right);
-    and_(scratch, scratch, dst);
-    mov(dst, overflow_dst);
-    mov(overflow_dst, scratch);
+    mov(scratch, left);  // Preserve left.
+    subu(dst, left, right);  // Left is overwritten.
+    xor_(overflow_dst, dst, scratch);  // scratch is original left.
+    xor_(scratch, scratch, right);  // scratch is original left.
+    and_(overflow_dst, scratch, overflow_dst);
   } else if (dst.is(right)) {
-    subu(overflow_dst, left, right);
-    xor_(dst, left, right);
-    xor_(scratch, overflow_dst, left);
-    and_(scratch, scratch, dst);
-    mov(dst, overflow_dst);
-    mov(overflow_dst, scratch);
+    mov(scratch, right);  // Preserve right.
+    subu(dst, left, right);  // Right is overwritten.
+    xor_(overflow_dst, dst, left);
+    xor_(scratch, left, scratch);  // Original right.
+    and_(overflow_dst, scratch, overflow_dst);
   } else {
     subu(dst, left, right);
     xor_(overflow_dst, dst, left);

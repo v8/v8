@@ -213,11 +213,12 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   //
   // The encoding is as a signed value, with parameters and receiver using
   // the negative indices and locals the non-negative ones.
-  const int parameter_limit = (LUnallocated::kMaxFixedIndices / 2);
-  const int locals_limit = parameter_limit - 1;
+  const int parameter_limit = -LUnallocated::kMinFixedIndex;
+  const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info->scope();
   if ((scope->num_parameters() + 1) > parameter_limit ||
-      scope->num_stack_slots() > locals_limit) {
+      (info->osr_ast_id() != AstNode::kNoNumber &&
+       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     info->AbortOptimization();
     Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization(*closure);

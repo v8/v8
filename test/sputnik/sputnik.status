@@ -90,19 +90,13 @@ S7.8.4_A4.3_T5: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 
 # We allow some keywords to be used as identifiers.
-S7.5.3_A1.5: FAIL_OK
-S7.5.3_A1.9: FAIL_OK
-S7.5.3_A1.10: FAIL_OK
-S7.5.3_A1.11: FAIL_OK
 S7.5.3_A1.15: FAIL_OK
-S7.5.3_A1.16: FAIL_OK
 S7.5.3_A1.18: FAIL_OK
 S7.5.3_A1.21: FAIL_OK
 S7.5.3_A1.22: FAIL_OK
 S7.5.3_A1.23: FAIL_OK
 S7.5.3_A1.24: FAIL_OK
 S7.5.3_A1.26: FAIL_OK
-S7.5.3_A1.27: FAIL_OK
 
 # This checks for non-262 behavior
 S12.6.4_A14_T1: PASS || FAIL_OK

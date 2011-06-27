@@ -894,24 +894,15 @@ class HDeoptimize: public HControlInstruction {
 
 class HGoto: public HTemplateControlInstruction<1, 0> {
  public:
-  explicit HGoto(HBasicBlock* target)
-      : include_stack_check_(false) {
+  explicit HGoto(HBasicBlock* target) {
         SetSuccessorAt(0, target);
       }
-
-  void set_include_stack_check(bool include_stack_check) {
-    include_stack_check_ = include_stack_check;
-  }
-  bool include_stack_check() const { return include_stack_check_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Goto)
-
- private:
-  bool include_stack_check_;
 };
 
 
@@ -1256,13 +1247,32 @@ class HSimulate: public HInstruction {
 
 class HStackCheck: public HTemplateInstruction<0> {
  public:
-  HStackCheck() { }
+  enum Type {
+    kFunctionEntry,
+    kBackwardsBranch
+  };
+
+  explicit HStackCheck(Type type) : type_(type) { }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
+  void Eliminate() {
+    // The stack check eliminator might try to eliminate the same stack
+    // check instruction multiple times.
+    if (IsLinked()) {
+      DeleteFromGraph();
+    }
+  }
+
+  bool is_function_entry() { return type_ == kFunctionEntry; }
+  bool is_backwards_branch() { return type_ == kBackwardsBranch; }
+
   DECLARE_CONCRETE_INSTRUCTION(StackCheck)
+
+ private:
+  Type type_;
 };
 
 

@@ -1445,10 +1445,6 @@ Isolate::Isolate()
   debugger_ = NULL;
 #endif
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  producer_heap_profile_ = NULL;
-#endif
-
   handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
@@ -1536,11 +1532,6 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  delete producer_heap_profile_;
-  producer_heap_profile_ = NULL;
-#endif
 
   delete unicode_cache_;
   unicode_cache_ = NULL;
@@ -1656,11 +1647,6 @@ bool Isolate::PreInit() {
   ast_sentinels_ = new AstSentinels();
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  producer_heap_profile_ = new ProducerHeapProfile();
-  producer_heap_profile_->isolate_ = this;
-#endif
 
   state_ = PREINITIALIZED;
   return true;

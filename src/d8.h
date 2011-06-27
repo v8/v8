@@ -129,12 +129,12 @@ class Shell: public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
   static Handle<String> ReadFile(const char* name);
-  static void Initialize();
+  static void Initialize(bool test_shell);
   static void RenewEvaluationContext();
   static void InstallUtilityScript();
   static void RunShell();
   static int RunScript(char* filename);
-  static int RunMain(int argc, char* argv[]);
+  static int RunMain(int argc, char* argv[], bool* executed);
   static int Main(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate();
   static Handle<Array> GetCompletions(Handle<String> text,
@@ -201,8 +201,6 @@ class Shell: public i::AllStatic {
   static Handle<Value> RemoveDirectory(const Arguments& args);
 
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
-
-  static Handle<Context> utility_context() { return utility_context_; }
 
   static const char* kHistoryFileName;
   static const char* kPrompt;

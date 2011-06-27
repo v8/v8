@@ -32,6 +32,7 @@
 #include "src/extensions/experimental/datetime-format.h"
 #include "src/extensions/experimental/i18n-locale.h"
 #include "src/extensions/experimental/i18n-natives.h"
+#include "src/extensions/experimental/number-format.h"
 
 namespace v8 {
 namespace internal {
@@ -52,6 +53,8 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(Collator::JSCollator);
   } else if (name->Equals(v8::String::New("NativeJSDateTimeFormat"))) {
     return v8::FunctionTemplate::New(DateTimeFormat::JSDateTimeFormat);
+  } else if (name->Equals(v8::String::New("NativeJSNumberFormat"))) {
+    return v8::FunctionTemplate::New(NumberFormat::JSNumberFormat);
   }
 
   return v8::Handle<v8::FunctionTemplate>();

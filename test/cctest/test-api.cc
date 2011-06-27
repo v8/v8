@@ -3862,6 +3862,49 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+THREADED_TEST(VoidLiteral) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  ExpectBoolean("undefined == void 0", true);
+  ExpectBoolean("undetectable == void 0", true);
+  ExpectBoolean("null == void 0", true);
+  ExpectBoolean("undefined === void 0", true);
+  ExpectBoolean("undetectable === void 0", false);
+  ExpectBoolean("null === void 0", false);
+
+  ExpectBoolean("void 0 == undefined", true);
+  ExpectBoolean("void 0 == undetectable", true);
+  ExpectBoolean("void 0 == null", true);
+  ExpectBoolean("void 0 === undefined", true);
+  ExpectBoolean("void 0 === undetectable", false);
+  ExpectBoolean("void 0 === null", false);
+
+  ExpectString("(function() {"
+               "  try {"
+               "    return x === void 0;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+  ExpectString("(function() {"
+               "  try {"
+               "    return void 0 === x;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+}
+
 
 THREADED_TEST(ExtensibleOnUndetectable) {
   v8::HandleScope scope;
@@ -6839,6 +6882,56 @@ THREADED_TEST(SetPrototype) {
   Local<Value> proto2 = o2->GetPrototype();
   CHECK(proto2->IsObject());
   CHECK_EQ(proto2.As<v8::Object>(), o3);
+}
+
+
+THREADED_TEST(SetPrototypeProperties) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->SetPrototypeAttributes(v8::DontDelete);
+  context->Global()->Set(v8_str("func1"), t1->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t2->SetPrototypeAttributes(v8::DontEnum);
+  context->Global()->Set(v8_str("func2"), t2->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
+  t3->SetPrototypeAttributes(v8::ReadOnly);
+  context->Global()->Set(v8_str("func3"), t3->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func3, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New();
+  t4->SetPrototypeAttributes(v8::ReadOnly | v8::DontEnum | v8::DontDelete);
+  context->Global()->Set(v8_str("func4"), t4->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func4, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
 }
 
 

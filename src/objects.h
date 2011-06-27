@@ -2590,6 +2590,12 @@ class HashTable: public FixedArray {
     return (last + number) & (size - 1);
   }
 
+  // Rehashes this hash-table into the new table.
+  MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);
+
+  // Attempt to shrink hash table after removal of key.
+  MUST_USE_RESULT MaybeObject* Shrink(Key key);
+
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 };
@@ -2753,6 +2759,9 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Delete a property from the dictionary.
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
+
+  // Attempt to shrink the dictionary after deletion of key.
+  MUST_USE_RESULT MaybeObject* Shrink(Key key);
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
@@ -6786,6 +6795,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
+  DECL_ACCESSORS(prototype_attributes, Smi)
 
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
@@ -6825,7 +6835,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kPrototypeAttributesOffset = kFlagOffset + kPointerSize;
+  static const int kSize = kPrototypeAttributesOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.

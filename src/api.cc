@@ -884,6 +884,7 @@ static void InitializeFunctionTemplate(
       i::Handle<i::FunctionTemplateInfo> info) {
   info->set_tag(i::Smi::FromInt(Consts::FUNCTION_TEMPLATE));
   info->set_flag(0);
+  info->set_prototype_attributes(i::Smi::FromInt(v8::None));
 }
 
 
@@ -1103,6 +1104,17 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
   }
   ENTER_V8(isolate);
   Utils::OpenHandle(this)->set_hidden_prototype(value);
+}
+
+
+void FunctionTemplate::SetPrototypeAttributes(int attributes) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetPrototypeAttributes()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_prototype_attributes(
+      i::Smi::FromInt(attributes));
 }
 
 
@@ -4843,22 +4855,7 @@ bool V8::IsProfilerPaused() {
 void V8::ResumeProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
-  if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
-    // Snapshot mode: resume modules, perform GC, then pause only
-    // those modules which haven't been started prior to making a
-    // snapshot.
-
-    // Make a GC prior to taking a snapshot.
-    isolate->heap()->CollectAllGarbage(false);
-    // Reset snapshot flag and CPU module flags.
-    flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
-    const int current_flags = isolate->logger()->GetActiveProfilerModules();
-    isolate->logger()->ResumeProfiler(flags, tag);
-    isolate->heap()->CollectAllGarbage(false);
-    isolate->logger()->PauseProfiler(~current_flags & flags, tag);
-  } else {
-    isolate->logger()->ResumeProfiler(flags, tag);
-  }
+  isolate->logger()->ResumeProfiler(flags, tag);
 #endif
 }
 
@@ -5708,20 +5705,7 @@ uint64_t HeapGraphNode::GetId() const {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetId");
-  ASSERT(ToInternal(this)->snapshot()->type() != i::HeapSnapshot::kAggregated);
   return ToInternal(this)->id();
-#else
-  return 0;
-#endif
-}
-
-
-int HeapGraphNode::GetInstancesCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapGraphNode::GetInstancesCount");
-  ASSERT(ToInternal(this)->snapshot()->type() == i::HeapSnapshot::kAggregated);
-  return static_cast<int>(ToInternal(this)->id());
 #else
   return 0;
 #endif
@@ -5974,9 +5958,6 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   switch (type) {
     case HeapSnapshot::kFull:
       internal_type = i::HeapSnapshot::kFull;
-      break;
-    case HeapSnapshot::kAggregated:
-      internal_type = i::HeapSnapshot::kAggregated;
       break;
     default:
       UNREACHABLE();

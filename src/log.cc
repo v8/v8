@@ -149,10 +149,6 @@ class Profiler: public Thread {
 void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
   ASSERT(isolate->IsInitialized());
 
-  sample->tos = NULL;
-  sample->frames_count = 0;
-  sample->has_external_callback = false;
-
   // Avoid collecting traces while doing GC.
   if (sample->state == GC) return;
 
@@ -400,8 +396,10 @@ class Logger::NameMap {
 
   void Remove(Address code_address) {
     HashMap::Entry* entry = FindEntry(code_address);
-    if (entry != NULL) DeleteArray(static_cast<const char*>(entry->value));
-    RemoveEntry(entry);
+    if (entry != NULL) {
+      DeleteArray(static_cast<char*>(entry->value));
+      RemoveEntry(entry);
+    }
   }
 
   void Move(Address from, Address to) {
@@ -523,7 +521,6 @@ Logger::Logger()
     log_events_(NULL),
     logging_nesting_(0),
     cpu_profiler_nesting_(0),
-    heap_profiler_nesting_(0),
     log_(new Log(this)),
     name_buffer_(new NameBuffer),
     address_to_name_map_(NULL),
@@ -1288,19 +1285,6 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 }
 
 
-void Logger::HeapSampleStats(const char* space, const char* kind,
-                             intptr_t capacity, intptr_t used) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
-  msg.Append("heap-sample-stats,\"%s\",\"%s\","
-                 "%" V8_PTR_PREFIX "d,%" V8_PTR_PREFIX "d\n",
-             space, kind, capacity, used);
-  msg.WriteToLogFile();
-#endif
-}
-
-
 void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
@@ -1316,72 +1300,6 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
   if (!log_->IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg(this);
   msg.Append("heap-sample-item,%s,%d,%d\n", type, number, bytes);
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::HeapSampleJSConstructorEvent(const char* constructor,
-                                          int number, int bytes) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
-  msg.Append("heap-js-cons-item,%s,%d,%d\n", constructor, number, bytes);
-  msg.WriteToLogFile();
-#endif
-}
-
-// Event starts with comma, so we don't have it in the format string.
-static const char kEventText[] = "heap-js-ret-item,%s";
-// We take placeholder strings into account, but it's OK to be conservative.
-static const int kEventTextLen = sizeof(kEventText)/sizeof(kEventText[0]);
-
-void Logger::HeapSampleJSRetainersEvent(
-    const char* constructor, const char* event) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  const int cons_len = StrLength(constructor);
-  const int event_len = StrLength(event);
-  int pos = 0;
-  // Retainer lists can be long. We may need to split them into multiple events.
-  do {
-    LogMessageBuilder msg(this);
-    msg.Append(kEventText, constructor);
-    int to_write = event_len - pos;
-    if (to_write > Log::kMessageBufferSize - (cons_len + kEventTextLen)) {
-      int cut_pos = pos + Log::kMessageBufferSize - (cons_len + kEventTextLen);
-      ASSERT(cut_pos < event_len);
-      while (cut_pos > pos && event[cut_pos] != ',') --cut_pos;
-      if (event[cut_pos] != ',') {
-        // Crash in debug mode, skip in release mode.
-        ASSERT(false);
-        return;
-      }
-      // Append a piece of event that fits, without trailing comma.
-      msg.AppendStringPart(event + pos, cut_pos - pos);
-      // Start next piece with comma.
-      pos = cut_pos;
-    } else {
-      msg.Append("%s", event + pos);
-      pos += event_len;
-    }
-    msg.Append('\n');
-    msg.WriteToLogFile();
-  } while (pos < event_len);
-#endif
-}
-
-
-void Logger::HeapSampleJSProducerEvent(const char* constructor,
-                                       Address* stack) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  LogMessageBuilder msg(this);
-  msg.Append("heap-js-prod-item,%s", constructor);
-  while (*stack != NULL) {
-    msg.Append(",0x%" V8PRIxPTR, *stack++);
-  }
-  msg.Append("\n");
   msg.WriteToLogFile();
 #endif
 }
@@ -1449,9 +1367,6 @@ int Logger::GetActiveProfilerModules() {
   if (profiler_ != NULL && !profiler_->paused()) {
     result |= PROFILER_MODULE_CPU;
   }
-  if (FLAG_log_gc) {
-    result |= PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS;
-  }
   return result;
 }
 
@@ -1470,13 +1385,6 @@ void Logger::PauseProfiler(int flags, int tag) {
         // Must be the same message as Log::kDynamicBufferSeal.
         LOG(ISOLATE, UncheckedStringEvent("profiler", "pause"));
       }
-      --logging_nesting_;
-    }
-  }
-  if (flags &
-      (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    if (--heap_profiler_nesting_ == 0) {
-      FLAG_log_gc = false;
       --logging_nesting_;
     }
   }
@@ -1505,13 +1413,6 @@ void Logger::ResumeProfiler(int flags, int tag) {
         }
       }
       profiler_->resume();
-    }
-  }
-  if (flags &
-      (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
-    if (heap_profiler_nesting_++ == 0) {
-      ++logging_nesting_;
-      FLAG_log_gc = true;
     }
   }
 }

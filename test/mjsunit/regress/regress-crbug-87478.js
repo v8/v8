@@ -25,45 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
-#define V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
-
-#include "include/v8.h"
-
-#include "unicode/uversion.h"
-
-namespace U_ICU_NAMESPACE {
-class UnicodeString;
+// Check that arguments access ICs correctly handle non-JSObject
+// receivers.
+function f(array) { return array[0]; }
+function args(a) { return arguments; }
+// Put the keyed load in f into the keyed-load-arguments state.
+for (var i = 0; i < 10; i++) {
+  f(args(1));
 }
-
-namespace v8 {
-namespace internal {
-
-class I18NUtils {
- public:
-  // Safe string copy. Null terminates the destination. Copies at most
-  // (length - 1) bytes.
-  // We can't use snprintf since it's not supported on all relevant platforms.
-  // We can't use OS::SNPrintF, it's only for internal code.
-  static void StrNCopy(char* dest, int length, const char* src);
-
-  // Extract a string setting named in |settings| and set it to |result|.
-  // Return true if it's specified. Otherwise, return false.
-  static bool ExtractStringSetting(const v8::Handle<v8::Object>& settings,
-                                   const char* setting,
-                                   icu::UnicodeString* result);
-
-  // Converts ASCII array into UChar array.
-  // Target is always \0 terminated.
-  static void AsciiToUChar(const char* source,
-                           int32_t source_length,
-                           UChar* target,
-                           int32_t target_length);
-
- private:
-  I18NUtils() {}
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
+f('123');

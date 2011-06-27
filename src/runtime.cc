@@ -2274,24 +2274,24 @@ class ReplacementStringBuilder {
 
     Handle<String> joined_string;
     if (is_ascii_) {
-      joined_string = NewRawAsciiString(character_count_);
+      Handle<SeqAsciiString> seq = NewRawAsciiString(character_count_);
       AssertNoAllocation no_alloc;
-      SeqAsciiString* seq = SeqAsciiString::cast(*joined_string);
       char* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
                                 *array_builder_.array(),
                                 array_builder_.length());
+      joined_string = Handle<String>::cast(seq);
     } else {
       // Non-ASCII.
-      joined_string = NewRawTwoByteString(character_count_);
+      Handle<SeqTwoByteString> seq = NewRawTwoByteString(character_count_);
       AssertNoAllocation no_alloc;
-      SeqTwoByteString* seq = SeqTwoByteString::cast(*joined_string);
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
                                 *array_builder_.array(),
                                 array_builder_.length());
+      joined_string = Handle<String>::cast(seq);
     }
     return joined_string;
   }
@@ -2309,15 +2309,13 @@ class ReplacementStringBuilder {
   }
 
  private:
-  Handle<String> NewRawAsciiString(int size) {
-    CALL_HEAP_FUNCTION(heap_->isolate(),
-                       heap_->AllocateRawAsciiString(size), String);
+  Handle<SeqAsciiString> NewRawAsciiString(int length) {
+    return heap_->isolate()->factory()->NewRawAsciiString(length);
   }
 
 
-  Handle<String> NewRawTwoByteString(int size) {
-    CALL_HEAP_FUNCTION(heap_->isolate(),
-                       heap_->AllocateRawTwoByteString(size), String);
+  Handle<SeqTwoByteString> NewRawTwoByteString(int length) {
+    return heap_->isolate()->factory()->NewRawTwoByteString(length);
   }
 
 
@@ -3146,9 +3144,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 
   ZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
+  int start;
+  int end;
   do {
-    int start;
-    int end;
     {
       AssertNoAllocation no_alloc;
       FixedArray* elements = FixedArray::cast(regexp_info->elements());
@@ -3157,20 +3155,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
     }
     offsets.Add(start);
     offsets.Add(end);
-    int index = start < end ? end : end + 1;
-    if (index > length) break;
-    match = RegExpImpl::Exec(regexp, subject, index, regexp_info);
+    if (start == end) if (++end > length) break;
+    match = RegExpImpl::Exec(regexp, subject, end, regexp_info);
     if (match.is_null()) {
       return Failure::Exception();
     }
   } while (!match->IsNull());
   int matches = offsets.length() / 2;
   Handle<FixedArray> elements = isolate->factory()->NewFixedArray(matches);
-  for (int i = 0; i < matches ; i++) {
+  Handle<String> substring = isolate->factory()->
+    NewSubString(subject, offsets.at(0), offsets.at(1));
+  elements->set(0, *substring);
+  for (int i = 1; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    Handle<String> match = isolate->factory()->NewSubString(subject, from, to);
-    elements->set(i, *match);
+    Handle<String> substring = isolate->factory()->
+        NewProperSubString(subject, from, to);
+    elements->set(i, *substring);
   }
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3320,6 +3321,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   OffsetsVector registers(required_registers);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
+  bool first = true;
 
   for (;;) {  // Break on failure, return on exception.
     RegExpImpl::IrregexpResult result =
@@ -3337,9 +3339,15 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
       }
       match_end = register_vector[1];
       HandleScope loop_scope(isolate);
-      builder->Add(*isolate->factory()->NewSubString(subject,
-                                                     match_start,
-                                                     match_end));
+      if (!first) {
+        builder->Add(*isolate->factory()->NewProperSubString(subject,
+                                                             match_start,
+                                                             match_end));
+      } else {
+        builder->Add(*isolate->factory()->NewSubString(subject,
+                                                       match_start,
+                                                       match_end));
+      }
       if (match_start != match_end) {
         pos = match_end;
       } else {
@@ -3352,6 +3360,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
       ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
       return result;
     }
+    first = false;
   }
 
   if (match_start >= 0) {
@@ -3403,7 +3412,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     // at the end, so we have two vectors that we swap between.
     OffsetsVector registers2(required_registers);
     Vector<int> prev_register_vector(registers2.vector(), registers2.length());
-
+    bool first = true;
     do {
       int match_start = register_vector[0];
       builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
@@ -3421,18 +3430,30 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         // subject, i.e., 3 + capture count in total.
         Handle<FixedArray> elements =
             isolate->factory()->NewFixedArray(3 + capture_count);
-        Handle<String> match = isolate->factory()->NewSubString(subject,
-                                                                match_start,
-                                                                match_end);
+        Handle<String> match;
+        if (!first) {
+          match = isolate->factory()->NewProperSubString(subject,
+                                                         match_start,
+                                                         match_end);
+        } else {
+          match = isolate->factory()->NewSubString(subject,
+                                                   match_start,
+                                                   match_end);
+        }
         elements->set(0, *match);
         for (int i = 1; i <= capture_count; i++) {
           int start = register_vector[i * 2];
           if (start >= 0) {
             int end = register_vector[i * 2 + 1];
             ASSERT(start <= end);
-            Handle<String> substring = isolate->factory()->NewSubString(subject,
-                                                                        start,
-                                                                        end);
+            Handle<String> substring;
+            if (!first) {
+              substring = isolate->factory()->NewProperSubString(subject,
+                                                                 start,
+                                                                 end);
+            } else {
+              substring = isolate->factory()->NewSubString(subject, start, end);
+            }
             elements->set(i, *substring);
           } else {
             ASSERT(register_vector[i * 2 + 1] < 0);
@@ -3462,6 +3483,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
                                             subject,
                                             pos,
                                             register_vector);
+      first = false;
     } while (result == RegExpImpl::RE_SUCCESS);
 
     if (result != RegExpImpl::RE_EXCEPTION) {
@@ -3508,7 +3530,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   if (result_array->HasFastElements()) {
     result_elements =
         Handle<FixedArray>(FixedArray::cast(result_array->elements()));
-  } else {
+  }
+  if (result_elements.is_null() || result_elements->length() < 16) {
     result_elements = isolate->factory()->NewFixedArrayWithHoles(16);
   }
   FixedArrayBuilder builder(result_elements);
@@ -5830,7 +5853,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
     HandleScope local_loop_handle;
     int part_end = indices.at(i);
     Handle<String> substring =
-        isolate->factory()->NewSubString(subject, part_start, part_end);
+        isolate->factory()->NewProperSubString(subject, part_start, part_end);
     elements->set(i, *substring);
     part_start = part_end + pattern_length;
   }

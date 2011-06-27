@@ -473,8 +473,13 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   Heap* heap = masm->isolate()->heap();
   Factory* factory = masm->isolate()->factory();
 
-  // Check that the receiver isn't a smi.
+  // Check that the receiver is a JSObject. Because of the elements
+  // map check later, we do not need to check for interceptors or
+  // whether it requires access checks.
   __ JumpIfSmi(object, slow_case);
+  // Check that the object is some kind of JSObject.
+  __ CmpObjectType(object, FIRST_JS_RECEIVER_TYPE, scratch1);
+  __ j(below, slow_case);
 
   // Check that the key is a positive smi.
   __ test(key, Immediate(0x8000001));

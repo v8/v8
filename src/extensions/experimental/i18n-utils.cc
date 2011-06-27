@@ -65,4 +65,23 @@ bool I18NUtils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
   return false;
 }
 
+// static
+void I18NUtils::AsciiToUChar(const char* source,
+                             int32_t source_length,
+                             UChar* target,
+                             int32_t target_length) {
+  int32_t length =
+      source_length < target_length ? source_length : target_length;
+
+  if (length <= 0) {
+    return;
+  }
+
+  for (int32_t i = 0; i < length - 1; ++i) {
+    target[i] = static_cast<UChar>(source[i]);
+  }
+
+  target[length - 1] = 0x0u;
+}
+
 } }  // namespace v8::internal

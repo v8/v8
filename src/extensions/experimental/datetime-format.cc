@@ -293,34 +293,34 @@ static icu::DateFormat* CreateDateTimeFormat(
     }
   }
 
-  // Extract date type and time type from settings.
-  icu::UnicodeString date_type;
-  icu::DateFormat::EStyle date_style = icu::DateFormat::kNone;
-  if (I18NUtils::ExtractStringSetting(settings, "dateType", &date_type)) {
-    date_style = GetDateTimeStyle(date_type);
+  // Extract date style and time style from settings.
+  icu::UnicodeString date_style;
+  icu::DateFormat::EStyle icu_date_style = icu::DateFormat::kNone;
+  if (I18NUtils::ExtractStringSetting(settings, "dateStyle", &date_style)) {
+    icu_date_style = GetDateTimeStyle(date_style);
   }
 
-  icu::UnicodeString time_type;
-  icu::DateFormat::EStyle time_style = icu::DateFormat::kNone;
-  if (I18NUtils::ExtractStringSetting(settings, "timeType", &time_type)) {
-    time_style = GetDateTimeStyle(time_type);
+  icu::UnicodeString time_style;
+  icu::DateFormat::EStyle icu_time_style = icu::DateFormat::kNone;
+  if (I18NUtils::ExtractStringSetting(settings, "timeStyle", &time_style)) {
+    icu_time_style = GetDateTimeStyle(time_style);
   }
 
-  // Try all combinations of date/time types.
-  if (date_style == icu::DateFormat::kNone &&
-      time_style == icu::DateFormat::kNone) {
+  // Try all combinations of date/time styles.
+  if (icu_date_style == icu::DateFormat::kNone &&
+      icu_time_style == icu::DateFormat::kNone) {
     // Return default short date, short
     return icu::DateFormat::createDateTimeInstance(
         icu::DateFormat::kShort, icu::DateFormat::kShort, icu_locale);
-  } else if (date_style != icu::DateFormat::kNone &&
-             time_style != icu::DateFormat::kNone) {
+  } else if (icu_date_style != icu::DateFormat::kNone &&
+             icu_time_style != icu::DateFormat::kNone) {
     return icu::DateFormat::createDateTimeInstance(
-        date_style, time_style, icu_locale);
-  } else if (date_style != icu::DateFormat::kNone) {
-    return icu::DateFormat::createDateInstance(date_style, icu_locale);
+        icu_date_style, icu_time_style, icu_locale);
+  } else if (icu_date_style != icu::DateFormat::kNone) {
+    return icu::DateFormat::createDateInstance(icu_date_style, icu_locale);
   } else {
-    // time_style != icu::DateFormat::kNone
-    return icu::DateFormat::createTimeInstance(time_style, icu_locale);
+    // icu_time_style != icu::DateFormat::kNone
+    return icu::DateFormat::createTimeInstance(icu_time_style, icu_locale);
   }
 }
 

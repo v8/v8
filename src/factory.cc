@@ -179,21 +179,21 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Handle<String> Factory::NewRawAsciiString(int length,
-                                          PretenureFlag pretenure) {
+Handle<SeqAsciiString> Factory::NewRawAsciiString(int length,
+                                                  PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawAsciiString(length, pretenure),
-      String);
+      SeqAsciiString);
 }
 
 
-Handle<String> Factory::NewRawTwoByteString(int length,
-                                            PretenureFlag pretenure) {
+Handle<SeqTwoByteString> Factory::NewRawTwoByteString(int length,
+                                                      PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
-      String);
+      SeqTwoByteString);
 }
 
 
@@ -210,6 +210,16 @@ Handle<String> Factory::NewSubString(Handle<String> str,
                                      int end) {
   CALL_HEAP_FUNCTION(isolate(),
                      str->SubString(begin, end),
+                     String);
+}
+
+
+Handle<String> Factory::NewProperSubString(Handle<String> str,
+                                           int begin,
+                                           int end) {
+  ASSERT(begin > 0 || end < str->length());
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateSubString(*str, begin, end),
                      String);
 }
 

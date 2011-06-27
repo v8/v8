@@ -148,6 +148,7 @@ function FormatMessage(message) {
       unexpected_token_number:      ["Unexpected number"],
       unexpected_token_string:      ["Unexpected string"],
       unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_reserved:          ["Unexpected reserved word"],
       unexpected_strict_reserved:   ["Unexpected strict mode reserved word"],
       unexpected_eos:               ["Unexpected end of input"],
       malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],

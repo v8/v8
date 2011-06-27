@@ -1,3 +1,13 @@
+2011-06-27: Version 3.4.7
+
+        Fixed 64-bit build on FreeBSD.
+
+        Added API to set the property attributes for the prototype
+        property on functions created from FunctionTemplates.
+
+        Bugfixes and performance work.
+
+
 2011-06-22: Version 3.4.6
 
         Lowered limit on code space for systems with low memory supply.

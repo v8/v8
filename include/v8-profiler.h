@@ -269,16 +269,9 @@ class V8EXPORT HeapGraphNode {
 
   /**
    * Returns node id. For the same heap object, the id remains the same
-   * across all snapshots. Not applicable to aggregated heap snapshots
-   * as they only contain aggregated instances.
+   * across all snapshots.
    */
   uint64_t GetId() const;
-
-  /**
-   * Returns the number of instances. Only applicable to aggregated
-   * heap snapshots.
-   */
-  int GetInstancesCount() const;
 
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
@@ -323,9 +316,7 @@ class V8EXPORT HeapGraphNode {
 class V8EXPORT HeapSnapshot {
  public:
   enum Type {
-    kFull = 0,       // Heap snapshot with all instances and references.
-    kAggregated = 1  // Snapshot doesn't contain individual heap entries,
-                     // instead they are grouped by constructor name.
+    kFull = 0  // Heap snapshot with all instances and references.
   };
   enum SerializationFormat {
     kJSON = 0  // See format description near 'Serialize' method.
