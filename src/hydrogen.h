@@ -120,7 +120,7 @@ class HBasicBlock: public ZoneObject {
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
-  void Goto(HBasicBlock* block, bool include_stack_check = false);
+  void Goto(HBasicBlock* block);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
@@ -185,7 +185,10 @@ class HBasicBlock: public ZoneObject {
 class HLoopInformation: public ZoneObject {
  public:
   explicit HLoopInformation(HBasicBlock* loop_header)
-      : back_edges_(4), loop_header_(loop_header), blocks_(8) {
+      : back_edges_(4),
+        loop_header_(loop_header),
+        blocks_(8),
+        stack_check_(NULL) {
     blocks_.Add(loop_header);
   }
   virtual ~HLoopInformation() {}
@@ -196,12 +199,18 @@ class HLoopInformation: public ZoneObject {
   HBasicBlock* GetLastBackEdge() const;
   void RegisterBackEdge(HBasicBlock* block);
 
+  HStackCheck* stack_check() const { return stack_check_; }
+  void set_stack_check(HStackCheck* stack_check) {
+    stack_check_ = stack_check;
+  }
+
  private:
   void AddBlock(HBasicBlock* block);
 
   ZoneList<HBasicBlock*> back_edges_;
   HBasicBlock* loop_header_;
   ZoneList<HBasicBlock*> blocks_;
+  HStackCheck* stack_check_;
 };
 
 
@@ -771,6 +780,9 @@ class HGraphBuilder: public AstVisitor {
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
   bool HasOsrEntryAt(IterationStatement* statement);
+  void VisitLoopBody(Statement* body,
+                     HBasicBlock* loop_entry,
+                     BreakAndContinueInfo* break_info);
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
