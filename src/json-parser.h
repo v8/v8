@@ -413,7 +413,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
 template <bool seq_ascii>
 Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(int beg_pos) {
   // The currently scanned ascii characters.
-  Handle<String> ascii(isolate()->factory()->NewStrictSubString(source_,
+  Handle<String> ascii(isolate()->factory()->NewProperSubString(source_,
                                                                 beg_pos,
                                                                 position_));
   Handle<String> two_byte =
@@ -532,7 +532,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                                    beg_pos,
                                                    end_pos - beg_pos);
   } else {
-    return isolate()->factory()->NewStrictSubString(source_,
+    return isolate()->factory()->NewProperSubString(source_,
                                                     beg_pos,
                                                     end_pos);
   }

@@ -117,10 +117,10 @@ class Factory {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  Handle<String> NewRawAsciiString(
+  Handle<SeqAsciiString> NewRawAsciiString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  Handle<String> NewRawTwoByteString(
+  Handle<SeqTwoByteString> NewRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -133,8 +133,8 @@ class Factory {
                               int begin,
                               int end);
 
-  // Create a new string object which holds a strict substring of a string.
-  Handle<String> NewStrictSubString(Handle<String> str,
+  // Create a new string object which holds a proper substring of a string.
+  Handle<String> NewProperSubString(Handle<String> str,
                                     int begin,
                                     int end);
 

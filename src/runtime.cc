@@ -2274,24 +2274,24 @@ class ReplacementStringBuilder {
 
     Handle<String> joined_string;
     if (is_ascii_) {
-      joined_string = NewRawAsciiString(character_count_);
+      Handle<SeqAsciiString> seq = NewRawAsciiString(character_count_);
       AssertNoAllocation no_alloc;
-      SeqAsciiString* seq = SeqAsciiString::cast(*joined_string);
       char* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
                                 *array_builder_.array(),
                                 array_builder_.length());
+      joined_string = Handle<String>::cast(seq);
     } else {
       // Non-ASCII.
-      joined_string = NewRawTwoByteString(character_count_);
+      Handle<SeqTwoByteString> seq = NewRawTwoByteString(character_count_);
       AssertNoAllocation no_alloc;
-      SeqTwoByteString* seq = SeqTwoByteString::cast(*joined_string);
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
                                 *array_builder_.array(),
                                 array_builder_.length());
+      joined_string = Handle<String>::cast(seq);
     }
     return joined_string;
   }
@@ -2309,15 +2309,13 @@ class ReplacementStringBuilder {
   }
 
  private:
-  Handle<String> NewRawAsciiString(int size) {
-    CALL_HEAP_FUNCTION(heap_->isolate(),
-                       heap_->AllocateRawAsciiString(size), String);
+  Handle<SeqAsciiString> NewRawAsciiString(int length) {
+    return heap_->isolate()->factory()->NewRawAsciiString(length);
   }
 
 
-  Handle<String> NewRawTwoByteString(int size) {
-    CALL_HEAP_FUNCTION(heap_->isolate(),
-                       heap_->AllocateRawTwoByteString(size), String);
+  Handle<SeqTwoByteString> NewRawTwoByteString(int length) {
+    return heap_->isolate()->factory()->NewRawTwoByteString(length);
   }
 
 
@@ -3172,7 +3170,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
     Handle<String> substring = isolate->factory()->
-        NewStrictSubString(subject, from, to);
+        NewProperSubString(subject, from, to);
     elements->set(i, *substring);
   }
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
@@ -3342,7 +3340,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
       match_end = register_vector[1];
       HandleScope loop_scope(isolate);
       if (!first) {
-        builder->Add(*isolate->factory()->NewStrictSubString(subject,
+        builder->Add(*isolate->factory()->NewProperSubString(subject,
                                                              match_start,
                                                              match_end));
       } else {
@@ -3434,7 +3432,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
             isolate->factory()->NewFixedArray(3 + capture_count);
         Handle<String> match;
         if (!first) {
-          match = isolate->factory()->NewStrictSubString(subject,
+          match = isolate->factory()->NewProperSubString(subject,
                                                          match_start,
                                                          match_end);
         } else {
@@ -3450,7 +3448,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
             ASSERT(start <= end);
             Handle<String> substring;
             if (!first) {
-              substring = isolate->factory()->NewStrictSubString(subject,
+              substring = isolate->factory()->NewProperSubString(subject,
                                                                  start,
                                                                  end);
             } else {
@@ -5855,7 +5853,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
     HandleScope local_loop_handle;
     int part_end = indices.at(i);
     Handle<String> substring =
-        isolate->factory()->NewStrictSubString(subject, part_start, part_end);
+        isolate->factory()->NewProperSubString(subject, part_start, part_end);
     elements->set(i, *substring);
     part_start = part_end + pattern_length;
   }
