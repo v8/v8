@@ -816,8 +816,9 @@ class HGraphBuilder: public AstVisitor {
                        HBasicBlock* false_block);
 
   // Visit an argument subexpression and emit a push to the outgoing
-  // arguments.
-  void VisitArgument(Expression* expr);
+  // arguments.  Returns the hydrogen value that was pushed.
+  HValue* VisitArgument(Expression* expr);
+
   void VisitArgumentList(ZoneList<Expression*>* arguments);
 
   // Visit a list of expressions from left to right, each in a value context.

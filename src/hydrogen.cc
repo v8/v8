@@ -2179,9 +2179,12 @@ void HGraphBuilder::VisitForControl(Expression* expr,
 }
 
 
-void HGraphBuilder::VisitArgument(Expression* expr) {
-  CHECK_ALIVE(VisitForValue(expr));
-  Push(AddInstruction(new(zone()) HPushArgument(Pop())));
+HValue* HGraphBuilder::VisitArgument(Expression* expr) {
+  VisitForValue(expr);
+  if (HasStackOverflow() || current_block() == NULL) return NULL;
+  HValue* value = Pop();
+  Push(AddInstruction(new(zone()) HPushArgument(value)));
+  return value;
 }
 
 
@@ -4691,7 +4694,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
   if (prop != NULL) {
     if (!prop->key()->IsPropertyName()) {
       // Keyed function call.
-      CHECK_ALIVE(VisitForValue(prop->obj()));
+      CHECK_ALIVE(VisitArgument(prop->obj()));
 
       CHECK_ALIVE(VisitForValue(prop->key()));
       // Push receiver and key like the non-optimized code generator expects it.
@@ -4700,13 +4703,12 @@ void HGraphBuilder::VisitCall(Call* expr) {
       Push(key);
       Push(receiver);
 
-      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
       HValue* context = environment()->LookupContext();
-      call = PreProcessCall(
-          new(zone()) HCallKeyed(context, key, argument_count));
+      call = new(zone()) HCallKeyed(context, key, argument_count);
       call->set_position(expr->position());
-      Drop(1);  // Key.
+      Drop(argument_count + 1);  // 1 is the key.
       ast_context()->ReturnInstruction(call, expr->id());
       return;
     }
@@ -4766,11 +4768,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
     Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
     bool global_call = (var != NULL) && var->is_global() && !var->is_this();
 
-    if (!global_call) {
-      ++argument_count;
-      CHECK_ALIVE(VisitForValue(expr->expression()));
-    }
-
     if (global_call) {
       bool known_global_function = false;
       // If there is a global property cell for the name at compile time and
@@ -4810,22 +4807,29 @@ void HGraphBuilder::VisitCall(Call* expr) {
                                                            argument_count));
       } else {
         HValue* context = environment()->LookupContext();
-        PushAndAdd(new(zone()) HGlobalObject(context));
-        CHECK_ALIVE(VisitExpressions(expr->arguments()));
+        HGlobalObject* receiver = new(zone()) HGlobalObject(context);
+        AddInstruction(receiver);
+        PushAndAdd(new(zone()) HPushArgument(receiver));
+        CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
-        call = PreProcessCall(new(zone()) HCallGlobal(context,
-                                                      var->name(),
-                                                      argument_count));
+        call = new(zone()) HCallGlobal(context, var->name(), argument_count);
+        Drop(argument_count);
       }
 
     } else {
+      CHECK_ALIVE(VisitArgument(expr->expression()));
       HValue* context = environment()->LookupContext();
       HGlobalObject* global_object = new(zone()) HGlobalObject(context);
+      HGlobalReceiver* receiver = new(zone()) HGlobalReceiver(global_object);
       AddInstruction(global_object);
-      PushAndAdd(new(zone()) HGlobalReceiver(global_object));
-      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      AddInstruction(receiver);
+      PushAndAdd(new(zone()) HPushArgument(receiver));
+      CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
-      call = PreProcessCall(new(zone()) HCallFunction(context, argument_count));
+      // The function to call is treated as an argument to the call function
+      // stub.
+      call = new(zone()) HCallFunction(context, argument_count + 1);
+      Drop(argument_count + 1);
     }
   }
 
@@ -4840,18 +4844,18 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
   ASSERT(current_block()->HasPredecessor());
   // The constructor function is also used as the receiver argument to the
   // JS construct call builtin.
-  CHECK_ALIVE(VisitForValue(expr->expression()));
-  CHECK_ALIVE(VisitExpressions(expr->arguments()));
+  HValue* constructor = NULL;
+  CHECK_ALIVE(constructor = VisitArgument(expr->expression()));
+  CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
   HValue* context = environment()->LookupContext();
 
   // The constructor is both an operand to the instruction and an argument
   // to the construct call.
   int arg_count = expr->arguments()->length() + 1;  // Plus constructor.
-  HValue* constructor = environment()->ExpressionStackAt(arg_count - 1);
   HCallNew* call = new(zone()) HCallNew(context, constructor, arg_count);
   call->set_position(expr->position());
-  PreProcessCall(call);
+  Drop(arg_count);
   ast_context()->ReturnInstruction(call, expr->id());
 }
 
