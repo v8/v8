@@ -1098,7 +1098,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     ASSERT(compare->value()->representation().IsTagged());
     LOperand* temp1 = TempRegister();
     LOperand* temp2 = TempRegister();
-    return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
+    return new LIsObjectAndBranch(UseRegister(compare->value()),
                                   temp1,
                                   temp2);
   } else if (v->IsCompareObjectEq()) {
