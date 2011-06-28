@@ -151,8 +151,9 @@ class MacroAssembler: public Assembler {
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
 
-  // ---------------------------------------------------------------------------
-  // GC Support
+// ---------------------------------------------------------------------------
+// GC Support
+
 
   enum RememberedSetFinalAction {
     kReturnAtEnd,

@@ -567,7 +567,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
 
   if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
     allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
-    allocation_marking_factor_ *= 1.3;
+    allocation_marking_factor_ =
+        static_cast<int>(allocation_marking_factor_ * 1.3);
     if (FLAG_trace_gc) {
       PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
     }

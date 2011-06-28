@@ -50,6 +50,24 @@ int CompilerIntrinsics::CountTrailingZeros(uint32_t value) {
 int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
   return __builtin_clz(value);
 }
+
+#elif defined(_MSC_VER)
+
+#pragma intrinsic(_BitScanForward)
+#pragma intrinsic(_BitScanReverse)
+
+int CompilerIntrinsics::CountTrailingZeros(uint32_t value) {
+  unsigned long result;
+  _BitScanForward(&result, static_cast<long>(value));
+  return static_cast<int>(result);
+}
+
+int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
+  unsigned long result;
+  _BitScanReverse(&result, static_cast<long>(value));
+  return 31 - static_cast<int>(result);
+}
+
 #else
 #error Unsupported compiler
 #endif

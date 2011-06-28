@@ -4564,9 +4564,9 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(intptr_t max_semispace_size,
-                         intptr_t max_old_gen_size,
-                         intptr_t max_executable_size) {
+bool Heap::ConfigureHeap(int max_semispace_size,
+                         int max_old_gen_size,
+                         int max_executable_size) {
   if (HasBeenSetup()) return false;
 
   if (max_semispace_size > 0) {

@@ -379,11 +379,11 @@ class MemoryChunk {
   };
 
   void SetFlag(int flag) {
-    flags_ |= (1 << flag);
+    flags_ |= static_cast<uintptr_t>(1) << flag;
   }
 
   void ClearFlag(int flag) {
-    flags_ &= ~(1 << flag);
+    flags_ &= ~(static_cast<uintptr_t>(1) << flag);
   }
 
   void SetFlagTo(int flag, bool value) {
@@ -395,7 +395,7 @@ class MemoryChunk {
   }
 
   bool IsFlagSet(int flag) {
-    return (flags_ & (1 << flag)) != 0;
+    return (flags_ & (static_cast<uintptr_t>(1) << flag)) != 0;
   }
 
   // Set or clear multiple flags at a time. The flags in the mask
@@ -421,7 +421,8 @@ class MemoryChunk {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
   }
 
-  static const intptr_t kAlignment = (1 << kPageSizeBits);
+  static const intptr_t kAlignment =
+      (static_cast<uintptr_t>(1) << kPageSizeBits);
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 

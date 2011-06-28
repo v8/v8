@@ -1434,7 +1434,7 @@ bool VirtualMemory::IsReserved() {
 
 
 VirtualMemory::VirtualMemory(size_t size) {
-  address_ = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+  address_ = ReserveRegion(size);
   size_ = size;
 }
 
@@ -1447,20 +1447,45 @@ VirtualMemory::~VirtualMemory() {
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
-    return false;
+  if (CommitRegion(address, size, is_executable)) {
+    UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
+    return true;
   }
-
-  UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
-  return true;
+  return false;
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   ASSERT(IsReserved());
-  return VirtualFree(address, size, MEM_DECOMMIT) != false;
+  return UncommitRegion(address, size);
 }
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+}
+
+
+bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
+    return false;
+  }
+
+  UpdateAllocatedSpaceLimits(base, static_cast<int>(size));
+  return true;
+}
+
+
+bool VirtualMemory::UncommitRegion(void* base, size_t size) {
+  return VirtualFree(base, size, MEM_DECOMMIT) != false;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+  return VirtualFree(base, size, MEM_DECOMMIT) != false;
+}
+
 
 
 // ----------------------------------------------------------------------------
