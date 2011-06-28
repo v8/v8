@@ -201,6 +201,8 @@ static const int kImm16Shift = 0;
 static const int kImm16Bits  = 16;
 static const int kImm26Shift = 0;
 static const int kImm26Bits  = 26;
+static const int kImm28Shift = 0;
+static const int kImm28Bits  = 28;
 
 static const int kFsShift       = 11;
 static const int kFsBits        = 5;
@@ -220,6 +222,7 @@ static const int kFBtrueBits    = 1;
 static const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
 static const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
 static const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
+static const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
 static const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
 static const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
 static const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;

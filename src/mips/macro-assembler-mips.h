@@ -1105,6 +1105,26 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                            Register scratch,
                            int num_arguments);
 
+  void BranchShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(int16_t offset, Condition cond, Register rs,
+                   const Operand& rt,
+                   BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(Label* L, Condition cond, Register rs,
+                   const Operand& rt,
+                   BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(int16_t offset, Condition cond, Register rs,
+                          const Operand& rt,
+                          BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(Label* L, Condition cond, Register rs,
+                          const Operand& rt,
+                          BranchDelaySlot bdslot = PROTECT);
+  void J(Label* L, BranchDelaySlot bdslot);
+  void Jr(Label* L, BranchDelaySlot bdslot);
+  void Jalr(Label* L, BranchDelaySlot bdslot);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode,
             BranchDelaySlot bd = PROTECT);
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
@@ -1144,6 +1164,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
+  bool UseAbsoluteCodePointers();
 
   bool generating_stub_;
   bool allow_stub_calls_;
