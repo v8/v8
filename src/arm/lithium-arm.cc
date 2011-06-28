@@ -1096,7 +1096,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       LOperand* temp = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
+      return new LIsObjectAndBranch(UseRegister(compare->value()), temp);
     } else if (v->IsCompareJSObjectEq()) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
