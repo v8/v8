@@ -2562,17 +2562,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // cannot be allowed to destroy the context in esi).
     mov(dst, cp);
   }
-
-  // We should not have found a 'with' context by walking the context chain
-  // (i.e., the static scope chain and runtime context chain do not agree).
-  // A variable occurring in such a scope should have slot type LOOKUP and
-  // not CONTEXT.
-  if (emit_debug_code()) {
-    ldr(ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    cmp(dst, ip);
-    Check(eq, "Yo dawg, I heard you liked function contexts "
-              "so I put function contexts in all your contexts");
-  }
 }
 
 

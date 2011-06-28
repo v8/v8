@@ -130,13 +130,6 @@ enum ContextLookupFlags {
 //                statically allocated context slots. The names are needed
 //                for dynamic lookups in the presence of 'with' or 'eval'.
 //
-// [ fcontext  ]  A pointer to the innermost enclosing function context.
-//                It is the same for all contexts *allocated* inside a
-//                function, and the function context's fcontext points
-//                to itself. It is only needed for fast access of the
-//                function context (used for declarations, and static
-//                context slot access).
-//
 // [ previous  ]  A pointer to the previous context. It is NULL for
 //                function contexts, and non-NULL for 'with' contexts.
 //                Used to implement the 'with' statement.
@@ -158,16 +151,6 @@ enum ContextLookupFlags {
 // (via static context addresses) or through 'eval' (dynamic context lookups).
 // Finally, the global context contains additional slots for fast access to
 // global properties.
-//
-// We may be able to simplify the implementation:
-//
-// - We may be able to get rid of 'fcontext': We can always use the fact that
-//   previous == NULL for function contexts and so we can search for them. They
-//   are only needed when doing dynamic declarations, and the context chains
-//   tend to be very very short (depth of nesting of 'with' statements). At
-//   the moment we also use it in generated code for context slot accesses -
-//   and there we don't want a loop because of code bloat - but we may not
-//   need it there after all (see comment in codegen_*.cc).
 
 class Context: public FixedArray {
  public:
@@ -181,7 +164,6 @@ class Context: public FixedArray {
   enum {
     // These slots are in all contexts.
     CLOSURE_INDEX,
-    FCONTEXT_INDEX,
     PREVIOUS_INDEX,
     // The extension slot is used for either the global object (in global
     // contexts), eval extension object (function contexts), subject of with
@@ -264,9 +246,6 @@ class Context: public FixedArray {
   JSFunction* closure() { return JSFunction::cast(get(CLOSURE_INDEX)); }
   void set_closure(JSFunction* closure) { set(CLOSURE_INDEX, closure); }
 
-  Context* fcontext() { return Context::cast(get(FCONTEXT_INDEX)); }
-  void set_fcontext(Context* context) { set(FCONTEXT_INDEX, context); }
-
   Context* previous() {
     Object* result = unchecked_previous();
     ASSERT(IsBootstrappingOrContext(result));
@@ -277,6 +256,10 @@ class Context: public FixedArray {
   bool has_extension() { return extension() != NULL; }
   Object* extension() { return get(EXTENSION_INDEX); }
   void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+
+  // Get the context where var declarations will be hoisted to, which
+  // may be the context itself.
+  Context* declaration_context();
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);

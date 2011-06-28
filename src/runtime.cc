@@ -1236,9 +1236,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
   RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3], isolate);
 
-  // Declarations are always done in the function context.
-  context = Handle<Context>(context->fcontext());
-  ASSERT(context->IsFunctionContext() || context->IsGlobalContext());
+  // Declarations are always done in a function or global context.
+  context = Handle<Context>(context->declaration_context());
 
   int index;
   PropertyAttributes attributes;
@@ -1525,8 +1524,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   CONVERT_ARG_CHECKED(Context, context, 1);
   Handle<String> name(String::cast(args[2]));
 
-  // Initializations are always done in the function context.
-  context = Handle<Context>(context->fcontext());
+  // Initializations are always done in a function or global context.
+  context = Handle<Context>(context->declaration_context());
 
   int index;
   PropertyAttributes attributes;
@@ -1547,14 +1546,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   // In that case, the initialization behaves like a normal assignment
   // to property 'x'.
   if (index >= 0) {
-    // Property was found in a context.
     if (holder->IsContext()) {
-      // The holder cannot be the function context.  If it is, there
-      // should have been a const redeclaration error when declaring
-      // the const property.
-      ASSERT(!holder.is_identical_to(context));
-      if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(holder)->set(index, *value);
+      // Property was found in a context.  Perform the assignment if we
+      // found some non-constant or an uninitialized constant.
+      Handle<Context> context = Handle<Context>::cast(holder);
+      if ((attributes & READ_ONLY) == 0 || context->get(index)->IsTheHole()) {
+        context->set(index, *value);
       }
     } else {
       // The holder is an arguments object.
@@ -9986,9 +9983,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
   ScopeInfo<> info(*scope_info);
 
-  // Get the nearest enclosing function context.
-  Handle<Context> context(Context::cast(it.frame()->context())->fcontext());
-
   // Get the locals names and values into a temporary array.
   //
   // TODO(1240907): Hide compiler-introduced stack variables
@@ -9996,11 +9990,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // confusing.
   Handle<FixedArray> locals =
       isolate->factory()->NewFixedArray(info.NumberOfLocals() * 2);
-
-  // Fill in the names of the locals.
-  for (int i = 0; i < info.NumberOfLocals(); i++) {
-    locals->set(i * 2, *info.LocalName(i));
-  }
 
   // Fill in the values of the locals.
   if (is_optimized_frame) {
@@ -10010,15 +9999,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // TODO(1140): We should be able to get the correct values
     // for locals in optimized frames.
     for (int i = 0; i < info.NumberOfLocals(); i++) {
+      locals->set(i * 2, *info.LocalName(i));
       locals->set(i * 2 + 1, isolate->heap()->undefined_value());
     }
   } else {
-    for (int i = 0; i < info.number_of_stack_slots(); i++) {
-      // Get the value from the stack.
+    int i = 0;
+    for (; i < info.number_of_stack_slots(); ++i) {
+      // Use the value from the stack.
+      locals->set(i * 2, *info.LocalName(i));
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
     }
-    for (int i = info.number_of_stack_slots(); i < info.NumberOfLocals(); i++) {
+    // Get the context containing declarations.
+    Handle<Context> context(
+        Context::cast(it.frame()->context())->declaration_context());
+    for (; i < info.NumberOfLocals(); ++i) {
       Handle<String> name = info.LocalName(i);
+      locals->set(i * 2, *name);
       locals->set(i * 2 + 1,
                   context->get(scope_info->ContextSlotIndex(*name, NULL)));
     }
@@ -10239,7 +10235,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
 
   // Third fill all context locals.
   Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->fcontext());
+  Handle<Context> function_context(frame_context->declaration_context());
   if (!CopyContextLocalsToScopeObject(isolate,
                                       serialized_scope_info, scope_info,
                                       function_context, local_scope)) {
@@ -11121,7 +11117,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   context->set_extension(*local_scope);
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->fcontext());
+  Handle<Context> function_context(frame_context->declaration_context());
   context = CopyWithContextChain(isolate, frame_context, context);
 
   if (additional_context->IsJSObject()) {

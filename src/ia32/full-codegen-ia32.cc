@@ -687,10 +687,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // context.
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
-          // Check that we're not inside a 'with'.
-          __ mov(ebx, ContextOperand(esi, Context::FCONTEXT_INDEX));
-          __ cmp(ebx, Operand(esi));
-          __ Check(equal, "Unexpected declaration in current context.");
+          // Check that we're not inside a with or catch context.
+          __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
+          __ cmp(ebx, isolate()->factory()->with_context_map());
+          __ Check(not_equal, "Declaration in with context.");
+          __ cmp(ebx, isolate()->factory()->catch_context_map());
+          __ Check(not_equal, "Declaration in catch context.");
         }
         if (mode == Variable::CONST) {
           __ mov(ContextOperand(esi, slot->index()),
@@ -1818,17 +1820,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ j(not_equal, &skip);
         __ mov(Operand(ebp, SlotOffset(slot)), eax);
         break;
-      case Slot::CONTEXT: {
-        __ mov(ecx, ContextOperand(esi, Context::FCONTEXT_INDEX));
-        __ mov(edx, ContextOperand(ecx, slot->index()));
-        __ cmp(edx, isolate()->factory()->the_hole_value());
-        __ j(not_equal, &skip);
-        __ mov(ContextOperand(ecx, slot->index()), eax);
-        int offset = Context::SlotOffset(slot->index());
-        __ mov(edx, eax);  // Preserve the stored value in eax.
-        __ RecordWrite(ecx, offset, edx, ebx);
-        break;
-      }
+      case Slot::CONTEXT:
       case Slot::LOOKUP:
         __ push(eax);
         __ push(esi);
