@@ -1796,13 +1796,13 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
-                                 Register temp2,
                                  Label* is_not_object,
                                  Label* is_object) {
+  Register temp2 = scratch0();
   __ JumpIfSmi(input, is_not_object);
 
-  __ LoadRoot(temp1, Heap::kNullValueRootIndex);
-  __ cmp(input, temp1);
+  __ LoadRoot(temp2, Heap::kNullValueRootIndex);
+  __ cmp(input, temp2);
   __ b(eq, is_object);
 
   // Load map.
@@ -1824,10 +1824,9 @@ Condition LCodeGen::EmitIsObject(Register input,
 void LCodeGen::DoIsObject(LIsObject* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register temp = scratch0();
   Label is_false, is_true, done;
 
-  Condition true_cond = EmitIsObject(reg, result, temp, &is_false, &is_true);
+  Condition true_cond = EmitIsObject(reg, result, &is_false, &is_true);
   __ b(true_cond, &is_true);
 
   __ bind(&is_false);
@@ -1852,7 +1851,7 @@ void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
   Condition true_cond =
-      EmitIsObject(reg, temp1, temp2, false_label, true_label);
+      EmitIsObject(reg, temp1, false_label, true_label);
 
   EmitBranch(true_block, false_block, true_cond);
 }

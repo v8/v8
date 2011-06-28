@@ -705,7 +705,7 @@ class LIsNullAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LIsObject: public LTemplateInstruction<1, 1, 1> {
+class LIsObject: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LIsObject(LOperand* value) {
     inputs_[0] = value;
@@ -715,7 +715,7 @@ class LIsObject: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LIsObjectAndBranch: public LControlInstruction<1, 2> {
+class LIsObjectAndBranch: public LControlInstruction<1, 1> {
  public:
   LIsObjectAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;

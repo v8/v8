@@ -1098,7 +1098,7 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     HIsObject* compare = HIsObject::cast(v);
     ASSERT(compare->value()->representation().IsTagged());
     LOperand* temp = TempRegister();
-    return new LIsObjectAndBranch(UseRegister(compare->value()), temp);
+    return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()), temp);
   } else if (v->IsCompareObjectEq()) {
     HCompareObjectEq* compare = HCompareObjectEq::cast(v);
     return new LCmpObjectEqAndBranch(UseRegisterAtStart(compare->left()),
