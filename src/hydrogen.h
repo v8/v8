@@ -329,8 +329,6 @@ Zone* HBasicBlock::zone() { return graph_->zone(); }
 
 class HEnvironment: public ZoneObject {
  public:
-  enum CompilationPhase { HYDROGEN, LITHIUM };
-
   HEnvironment(HEnvironment* outer,
                Scope* scope,
                Handle<JSFunction> closure);
@@ -417,12 +415,9 @@ class HEnvironment: public ZoneObject {
 
   // Create an "inlined version" of this environment, where the original
   // environment is the outer environment but the top expression stack
-  // elements are moved to an inner environment as parameters. If
-  // is_speculative, the argument values are expected to be PushArgument
-  // instructions, otherwise they are the actual values.
+  // elements are moved to an inner environment as parameters.
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
-                                CompilationPhase compilation_phase,
                                 HConstant* undefined,
                                 CallKind call_kind) const;
 

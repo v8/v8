@@ -4449,7 +4449,6 @@ bool HGraphBuilder::TryInline(Call* expr) {
   HEnvironment* inner_env =
       environment()->CopyForInlining(target,
                                      function,
-                                     HEnvironment::HYDROGEN,
                                      undefined,
                                      call_kind);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
@@ -6212,7 +6211,6 @@ HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
 HEnvironment* HEnvironment::CopyForInlining(
     Handle<JSFunction> target,
     FunctionLiteral* function,
-    CompilationPhase compilation_phase,
     HConstant* undefined,
     CallKind call_kind) const {
   // Outer environment is a copy of this one without the arguments.
@@ -6224,17 +6222,9 @@ HEnvironment* HEnvironment::CopyForInlining(
   HEnvironment* inner =
       new(zone) HEnvironment(outer, function->scope(), target);
   // Get the argument values from the original environment.
-  if (compilation_phase == HYDROGEN) {
-    for (int i = 0; i <= arity; ++i) {  // Include receiver.
-      HValue* push = ExpressionStackAt(arity - i);
-      inner->SetValueAt(i, push);
-    }
-  } else {
-    ASSERT(compilation_phase == LITHIUM);
-    for (int i = 0; i <= arity; ++i) {  // Include receiver.
-      HValue* push = ExpressionStackAt(arity - i);
-      inner->SetValueAt(i, push);
-    }
+  for (int i = 0; i <= arity; ++i) {  // Include receiver.
+    HValue* push = ExpressionStackAt(arity - i);
+    inner->SetValueAt(i, push);
   }
   // If the function we are inlining is a strict mode function or a
   // builtin function, pass undefined as the receiver for function
