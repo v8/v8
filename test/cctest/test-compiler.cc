@@ -367,6 +367,9 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
   disasm::Disassembler d(name_converter);
 
   if (f->code()->kind() == Code::FUNCTION) {
+#ifdef DEBUG
+    f->code()->PrintLn();
+#endif
     Address pc = f->code()->instruction_start();
     int decode_size =
         Min(f->code()->instruction_size(),
@@ -375,6 +378,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
     while (pc < end) {
+      PrintF("%08x\n", reinterpret_cast<intptr_t>(pc));
       pc += d.InstructionDecode(decode_buffer, pc);
       CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
       CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
