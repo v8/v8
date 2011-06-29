@@ -33,6 +33,7 @@
 #include "hashmap.h"
 #include "lithium-allocator.h"
 #include "parser.h"
+#include "scopeinfo.h"
 #include "scopes.h"
 #include "stub-cache.h"
 
@@ -4429,6 +4430,13 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (!FullCodeGenerator::MakeCode(&target_info)) {
       TraceInline(target, caller, "could not generate deoptimization info");
       return false;
+    }
+    if (target_shared->scope_info() == SerializedScopeInfo::Empty()) {
+      // The scope info might not have been set if a lazily compiled
+      // function is inlined before being called for the first time.
+      Handle<SerializedScopeInfo> target_scope_info =
+          SerializedScopeInfo::Create(target_info.scope());
+      target_shared->set_scope_info(*target_scope_info);
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
     Compiler::RecordFunctionCompilation(Logger::FUNCTION_TAG,

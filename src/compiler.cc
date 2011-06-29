@@ -618,6 +618,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
       if (info->IsOptimizing()) {
+        ASSERT(shared->scope_info() != SerializedScopeInfo::Empty());
         function->ReplaceCode(*code);
       } else {
         // Update the shared function info with the compiled code and the

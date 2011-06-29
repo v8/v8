@@ -7192,6 +7192,9 @@ void Code::Disassemble(const char* name, FILE* out) {
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
     }
+    if (is_call_stub() || is_keyed_call_stub()) {
+      PrintF(out, "argc = %d\n", arguments_count());
+    }
   }
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF(out, "name = %s\n", name);

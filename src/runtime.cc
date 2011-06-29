@@ -9938,7 +9938,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameCount) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
   }
-  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) n++;
+
+  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) {
+    n += it.frame()->GetInlineCount();
+  }
   return Smi::FromInt(n);
 }
 
@@ -9951,7 +9954,7 @@ static const int kFrameDetailsLocalCountIndex = 4;
 static const int kFrameDetailsSourcePositionIndex = 5;
 static const int kFrameDetailsConstructCallIndex = 6;
 static const int kFrameDetailsAtReturnIndex = 7;
-static const int kFrameDetailsDebuggerFrameIndex = 8;
+static const int kFrameDetailsFlagsIndex = 8;
 static const int kFrameDetailsFirstDynamicIndex = 9;
 
 // Return an array with frame details
@@ -9967,7 +9970,7 @@ static const int kFrameDetailsFirstDynamicIndex = 9;
 // 5: Source position
 // 6: Constructor call
 // 7: Is at return
-// 8: Debugger frame
+// 8: Flags
 // Arguments name, value
 // Locals name, value
 // Return value if any
@@ -9990,16 +9993,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // If there are no JavaScript stack frames return undefined.
     return heap->undefined_value();
   }
+
+  int deoptimized_frame_index = -1;  // Frame index in optimized frame.
+  DeoptimizedFrameInfo* deoptimized_frame = NULL;
+
   int count = 0;
   JavaScriptFrameIterator it(isolate, id);
   for (; !it.done(); it.Advance()) {
-    if (count == index) break;
-    count++;
+    if (index < count + it.frame()->GetInlineCount()) break;
+    count += it.frame()->GetInlineCount();
   }
   if (it.done()) return heap->undefined_value();
 
-  bool is_optimized_frame =
-      it.frame()->LookupCode()->kind() == Code::OPTIMIZED_FUNCTION;
+  if (it.frame()->is_optimized()) {
+    deoptimized_frame_index =
+        it.frame()->GetInlineCount() - (index - count) - 1;
+    deoptimized_frame = Deoptimizer::DebuggerInspectableFrame(
+        it.frame(),
+        deoptimized_frame_index,
+        isolate);
+  }
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -10022,6 +10035,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
+  ASSERT(*scope_info != SerializedScopeInfo::Empty());
   ScopeInfo<> info(*scope_info);
 
   // Get the locals names and values into a temporary array.
@@ -10033,38 +10047,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       isolate->factory()->NewFixedArray(info.NumberOfLocals() * 2);
 
   // Fill in the values of the locals.
-  if (is_optimized_frame) {
-    // If we are inspecting an optimized frame use undefined as the
-    // value for all locals.
-    //
-    // TODO(1140): We should be able to get the correct values
-    // for locals in optimized frames.
-    for (int i = 0; i < info.NumberOfLocals(); i++) {
-      locals->set(i * 2, *info.LocalName(i));
-      locals->set(i * 2 + 1, isolate->heap()->undefined_value());
-    }
-  } else {
-    int i = 0;
-    for (; i < info.number_of_stack_slots(); ++i) {
-      // Use the value from the stack.
-      locals->set(i * 2, *info.LocalName(i));
+  int i = 0;
+  for (; i < info.number_of_stack_slots(); ++i) {
+    // Use the value from the stack.
+    locals->set(i * 2, *info.LocalName(i));
+    if (it.frame()->is_optimized()) {
+      // Get the value from the deoptimized frame.
+      locals->set(i * 2 + 1,
+                  deoptimized_frame->GetExpression(i));
+    } else {
+      // Get the value from the stack.
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
     }
-    // Get the context containing declarations.
-    Handle<Context> context(
-        Context::cast(it.frame()->context())->declaration_context());
-    for (; i < info.NumberOfLocals(); ++i) {
-      Handle<String> name = info.LocalName(i);
-      locals->set(i * 2, *name);
-      locals->set(i * 2 + 1,
-                  context->get(scope_info->ContextSlotIndex(*name, NULL)));
-    }
+  }
+  // Get the context containing declarations.
+  Handle<Context> context(
+      Context::cast(it.frame()->context())->declaration_context());
+  for (; i < info.NumberOfLocals(); ++i) {
+    Handle<String> name = info.LocalName(i);
+    locals->set(i * 2, *name);
+    locals->set(i * 2 + 1,
+                context->get(scope_info->ContextSlotIndex(*name, NULL)));
   }
 
   // Check whether this frame is positioned at return. If not top
   // frame or if the frame is optimized it cannot be at a return.
   bool at_return = false;
-  if (!is_optimized_frame && index == 0) {
+  if (!it.frame()->is_optimized() && index == 0) {
     at_return = isolate->debug()->IsBreakAtReturn(it.frame());
   }
 
@@ -10145,10 +10154,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Add the at return information.
   details->set(kFrameDetailsAtReturnIndex, heap->ToBoolean(at_return));
 
-  // Add information on whether this frame is invoked in the debugger context.
-  details->set(kFrameDetailsDebuggerFrameIndex,
-               heap->ToBoolean(*save->context() ==
-                   *isolate->debug()->debug_context()));
+  // Add flags to indicate information on whether this frame is
+  //   bit 0: invoked in the debugger context.
+  //   bit 1: optimized frame.
+  //   bit 2: inlined in optimized frame
+  int flags = 0;
+  if (*save->context() == *isolate->debug()->debug_context()) {
+    flags |= 1 << 0;
+  }
+  if (it.frame()->is_optimized()) {
+    flags |= 1 << 1;
+    if (deoptimized_frame_index > 0) {
+      flags |= 1 << 2;
+    }
+  }
+  details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
 
   // Fill the dynamic part.
   int details_index = kFrameDetailsFirstDynamicIndex;
@@ -10167,7 +10187,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     //
     // TODO(3141533): We should be able to get the actual parameter
     // value for optimized frames.
-    if (!is_optimized_frame &&
+    if (!it.frame()->is_optimized() &&
         (i < it.frame()->ComputeParametersCount())) {
       details->set(details_index++, it.frame()->GetParameter(i));
     } else {
@@ -10202,6 +10222,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
         isolate->factory()->ToObject(receiver, calling_frames_global_context);
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
+
+  // Get rid of the calculated deoptimized frame if any.
+  if (deoptimized_frame != NULL) {
+    Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame,
+                                                isolate);
+  }
 
   ASSERT_EQ(details_size, details_index);
   return *isolate->factory()->NewJSArrayWithElements(details);
