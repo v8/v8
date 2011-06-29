@@ -541,13 +541,6 @@ class FullCodeGenerator: public AstVisitor {
                   RelocInfo::Mode mode,
                   unsigned ast_id);
 
-  // Calling an IC stub with a patch site. Passing NULL for patch_site
-  // or non NULL patch_site which is not activated indicates no inlined smi code
-  // and emits a nop after the IC call.
-  void EmitCallIC(Handle<Code> ic,
-                  JumpPatchSite* patch_site,
-                  unsigned ast_id);
-
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
   void StoreToFrameField(int frame_offset, Register value);

@@ -101,15 +101,17 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitPatchInfo() {
-    int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
-    Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
-    __ andi(at, reg, delta_to_patch_site % kImm16Mask);
+    if (patch_site_.is_bound()) {
+      int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
+      Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
+      __ andi(at, reg, delta_to_patch_site % kImm16Mask);
 #ifdef DEBUG
-    info_emitted_ = true;
+      info_emitted_ = true;
 #endif
+    } else {
+      __ nop();  // Signals no inlined code.
+    }
   }
-
-  bool is_bound() const { return patch_site_.is_bound(); }
 
  private:
   MacroAssembler* masm_;
@@ -865,7 +867,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Record position before stub call for type feedback.
     SetSourcePosition(clause->position());
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
-    EmitCallIC(ic, &patch_site, clause->CompareId());
+    EmitCallIC(ic, RelocInfo::CODE_TARGET, clause->CompareId());
+    patch_site.EmitPatchInfo();
 
     __ Branch(&next_test, ne, v0, Operand(zero_reg));
     __ Drop(1);  // Switch value is no longer needed.
@@ -1693,7 +1696,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   __ bind(&stub_call);
   BinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site, expr->id());
+  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  patch_site.EmitPatchInfo();
   __ jmp(&done);
 
   __ bind(&smi_case);
@@ -1774,7 +1778,9 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   __ mov(a0, result_register());
   __ pop(a1);
   BinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), NULL, expr->id());
+  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
+  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  patch_site.EmitPatchInfo();
   context()->Plug(v0);
 }
 
@@ -3882,7 +3888,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   BinaryOpStub stub(Token::ADD, NO_OVERWRITE);
-  EmitCallIC(stub.GetCode(), &patch_site, expr->CountId());
+  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->CountId());
+  patch_site.EmitPatchInfo();
   __ bind(&done);
 
   // Store the value returned in v0.
@@ -4153,7 +4160,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       // Record position and call the compare IC.
       SetSourcePosition(expr->position());
       Handle<Code> ic = CompareIC::GetUninitialized(op);
-      EmitCallIC(ic, &patch_site, expr->id());
+      EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+      patch_site.EmitPatchInfo();
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       Split(cc, v0, Operand(zero_reg), if_true, if_false, fall_through);
     }
@@ -4217,61 +4225,11 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic,
                                    unsigned ast_id) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
-  Counters* counters = isolate()->counters();
-  switch (ic->kind()) {
-    case Code::LOAD_IC:
-      __ IncrementCounter(counters->named_load_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(counters->keyed_load_full(), 1, a1, a2);
-      break;
-    case Code::STORE_IC:
-      __ IncrementCounter(counters->named_store_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_STORE_IC:
-      __ IncrementCounter(counters->keyed_store_full(), 1, a1, a2);
-    default:
-      break;
-  }
   if (ast_id == kNoASTId || mode == RelocInfo::CODE_TARGET_CONTEXT) {
     __ Call(ic, mode);
   } else {
     ASSERT(mode == RelocInfo::CODE_TARGET);
-    mode = RelocInfo::CODE_TARGET_WITH_ID;
-    __ CallWithAstId(ic, mode, ast_id);
-  }
-}
-
-
-void FullCodeGenerator::EmitCallIC(Handle<Code> ic,
-                                   JumpPatchSite* patch_site,
-                                   unsigned ast_id) {
-  Counters* counters = isolate()->counters();
-  switch (ic->kind()) {
-    case Code::LOAD_IC:
-      __ IncrementCounter(counters->named_load_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(counters->keyed_load_full(), 1, a1, a2);
-      break;
-    case Code::STORE_IC:
-      __ IncrementCounter(counters->named_store_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_STORE_IC:
-      __ IncrementCounter(counters->keyed_store_full(), 1, a1, a2);
-    default:
-      break;
-  }
-
-  if (ast_id == kNoASTId) {
-    __ Call(ic, RelocInfo::CODE_TARGET);
-  } else {
     __ CallWithAstId(ic, RelocInfo::CODE_TARGET_WITH_ID, ast_id);
-  }
-  if (patch_site != NULL && patch_site->is_bound()) {
-    patch_site->EmitPatchInfo();
-  } else {
-    __ nop();  // Signals no inlined code.
   }
 }
 
