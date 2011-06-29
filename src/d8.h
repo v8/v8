@@ -128,7 +128,6 @@ class Shell: public i::AllStatic {
                                size_t buckets);
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
-  static Handle<Value> CounterGetValue(const Arguments& args);
   static Handle<String> ReadFile(const char* name);
   static void Initialize(bool test_shell);
   static void RenewEvaluationContext();

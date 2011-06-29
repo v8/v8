@@ -599,33 +599,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
 
-  Handle<ObjectTemplate> counter_templ = ObjectTemplate::New();
-  counter_templ->Set(String::New("get"),
-                     FunctionTemplate::New(CounterGetValue));
-  global_template->Set(String::New("counter"), counter_templ);
-
   return global_template;
-}
-
-
-Handle<Value> Shell::CounterGetValue(const Arguments& args){
-  if (args.Length() != 1) {
-    return ThrowException(String::New("get() takes one argument"));
-  }
-  if (args[0]->IsString()) {
-    String::AsciiValue name(args[0]);
-    Counter* counter = counter_map_->Lookup(*name);
-    if (!counter) {
-      String::AsciiValue prefixed(String::Concat(String::New("c:"),
-                                                 String::New(*name)));
-      counter = counter_map_->Lookup(*prefixed);
-      if (!counter) {
-        return ThrowException(String::New("invalid counter name"));
-      }
-    }
-    return Handle<Integer>::Cast(Integer::New(counter->count()));
-  }
-  return ThrowException(String::New("counter name must be a string"));
 }
 
 
