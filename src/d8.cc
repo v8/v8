@@ -223,14 +223,36 @@ Handle<Value> Shell::Load(const Arguments& args) {
 
 Handle<Value> Shell::CreateExternalArray(const Arguments& args,
                                          ExternalArrayType type,
-                                         int element_size) {
+                                         size_t element_size) {
+  ASSERT(element_size == 1 || element_size == 2 || element_size == 4 ||
+         element_size == 8);
   if (args.Length() != 1) {
     return ThrowException(
         String::New("Array constructor needs one parameter."));
   }
-  int length = args[0]->Int32Value();
-  void* data = malloc(length * element_size);
-  memset(data, 0, length * element_size);
+  size_t length = 0;
+  if (args[0]->IsUint32()) {
+    length = args[0]->Uint32Value();
+  } else if (args[0]->IsNumber()) {
+    double raw_length = args[0]->NumberValue();
+    if (raw_length < 0) {
+      return ThrowException(String::New("Array length must not be negative."));
+    }
+    if (raw_length > v8::internal::ExternalArray::kMaxLength) {
+      return ThrowException(
+          String::New("Array length exceeds maximum length."));
+    }
+    length = static_cast<size_t>(raw_length);
+  } else {
+    return ThrowException(String::New("Array length must be a number."));
+  }
+  if (length > static_cast<size_t>(internal::ExternalArray::kMaxLength)) {
+    return ThrowException(String::New("Array length exceeds maximum length."));
+  }
+  void* data = calloc(length, element_size);
+  if (data == NULL) {
+    return ThrowException(String::New("Memory allocation failed."));
+  }
   Handle<Object> array = Object::New();
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);

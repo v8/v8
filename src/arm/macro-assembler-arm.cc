@@ -309,9 +309,9 @@ void MacroAssembler::Move(Register dst, Handle<Object> value) {
 }
 
 
-void MacroAssembler::Move(Register dst, Register src) {
+void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   if (!dst.is(src)) {
-    mov(dst, src);
+    mov(dst, src, LeaveCC, cond);
   }
 }
 
@@ -753,6 +753,23 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
   // Compare and load FPSCR.
   vcmp(src1, src2, cond);
   vmrs(fpscr_flags, cond);
+}
+
+void MacroAssembler::Vmov(const DwVfpRegister dst,
+                          const double imm,
+                          const Condition cond) {
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  static const DoubleRepresentation minus_zero(-0.0);
+  static const DoubleRepresentation zero(0.0);
+  DoubleRepresentation value(imm);
+  // Handle special values first.
+  if (value.bits == zero.bits) {
+    vmov(dst, kDoubleRegZero, cond);
+  } else if (value.bits == minus_zero.bits) {
+    vneg(dst, kDoubleRegZero, cond);
+  } else {
+    vmov(dst, imm, cond);
+  }
 }
 
 
@@ -2562,17 +2579,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // cannot be allowed to destroy the context in esi).
     mov(dst, cp);
   }
-
-  // We should not have found a 'with' context by walking the context chain
-  // (i.e., the static scope chain and runtime context chain do not agree).
-  // A variable occurring in such a scope should have slot type LOOKUP and
-  // not CONTEXT.
-  if (emit_debug_code()) {
-    ldr(ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    cmp(dst, ip);
-    Check(eq, "Yo dawg, I heard you liked function contexts "
-              "so I put function contexts in all your contexts");
-  }
 }
 
 
@@ -3112,7 +3118,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   Label done;
   Label in_bounds;
 
-  vmov(temp_double_reg, 0.0);
+  Vmov(temp_double_reg, 0.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(gt, &above_zero);
 
@@ -3122,7 +3128,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  vmov(temp_double_reg, 255.0);
+  Vmov(temp_double_reg, 255.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(le, &in_bounds);
   mov(result_reg, Operand(255));
@@ -3130,7 +3136,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // In 0-255 range, round and truncate.
   bind(&in_bounds);
-  vmov(temp_double_reg, 0.5);
+  Vmov(temp_double_reg, 0.5);
   vadd(temp_double_reg, input_reg, temp_double_reg);
   vcvt_u32_f64(s0, temp_double_reg);
   vmov(result_reg, s0);

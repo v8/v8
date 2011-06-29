@@ -822,7 +822,7 @@ LInstruction* LChunkBuilder::DoBit(Token::Value op,
 
     LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
     LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
-    return DefineSameAsFirst(new LBitI(op, left, right));
+    return DefineAsRegister(new LBitI(op, left, right));
   } else {
     ASSERT(instr->representation().IsTagged());
     ASSERT(instr->left()->representation().IsTagged());
@@ -861,7 +861,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     right = chunk_->DefineConstantOperand(constant);
     constant_value = constant->Integer32Value() & 0x1f;
   } else {
-    right = UseRegister(right_value);
+    right = UseRegisterAtStart(right_value);
   }
 
   // Shift operations can only deoptimize if we do a logical shift
@@ -878,7 +878,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
   }
 
   LInstruction* result =
-      DefineSameAsFirst(new LShiftI(op, left, right, does_deopt));
+      DefineAsRegister(new LShiftI(op, left, right, does_deopt));
   return does_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -892,7 +892,7 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterAtStart(instr->right());
   LArithmeticD* result = new LArithmeticD(op, left, right);
-  return DefineSameAsFirst(result);
+  return DefineAsRegister(result);
 }
 
 
@@ -1233,15 +1233,15 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
     switch (op) {
       case kMathAbs:
-        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       case kMathFloor:
         return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       case kMathSqrt:
-        return DefineSameAsFirst(result);
+        return DefineAsRegister(result);
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathPowHalf:
-        return DefineSameAsFirst(result);
+        return DefineAsRegister(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1319,7 +1319,7 @@ LInstruction* LChunkBuilder::DoBitAnd(HBitAnd* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
-  return DefineSameAsFirst(new LBitNotI(UseRegisterAtStart(instr->value())));
+  return DefineAsRegister(new LBitNotI(UseRegisterAtStart(instr->value())));
 }
 
 
@@ -1364,15 +1364,20 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
       mod = new LModI(value, UseOrConstant(instr->right()));
     } else {
       LOperand* dividend = UseRegister(instr->left());
-      LOperand* divisor = UseRegisterAtStart(instr->right());
+      LOperand* divisor = UseRegister(instr->right());
       mod = new LModI(dividend,
                       divisor,
                       TempRegister(),
-                      FixedTemp(d1),
-                      FixedTemp(d2));
+                      FixedTemp(d10),
+                      FixedTemp(d11));
     }
 
-    return AssignEnvironment(DefineSameAsFirst(mod));
+    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+        instr->CheckFlag(HValue::kCanBeDivByZero)) {
+      return AssignEnvironment(DefineAsRegister(mod));
+    } else {
+      return DefineAsRegister(mod);
+    }
   } else if (instr->representation().IsTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
@@ -1392,15 +1397,18 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
+    LOperand* left;
     LOperand* right = UseOrConstant(instr->MostConstantOperand());
     LOperand* temp = NULL;
     if (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
         (instr->CheckFlag(HValue::kCanOverflow) ||
         !right->IsConstantOperand())) {
+      left = UseRegister(instr->LeastConstantOperand());
       temp = TempRegister();
+    } else {
+      left = UseRegisterAtStart(instr->LeastConstantOperand());
     }
-    return AssignEnvironment(DefineSameAsFirst(new LMulI(left, right, temp)));
+    return AssignEnvironment(DefineAsRegister(new LMulI(left, right, temp)));
 
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
@@ -1418,7 +1426,7 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new LSubI(left, right);
-    LInstruction* result = DefineSameAsFirst(sub);
+    LInstruction* result = DefineAsRegister(sub);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }
@@ -1438,7 +1446,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
     LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
     LAddI* add = new LAddI(left, right);
-    LInstruction* result = DefineSameAsFirst(add);
+    LInstruction* result = DefineAsRegister(add);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
     }
@@ -1604,7 +1612,7 @@ LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
   LValueOf* result = new LValueOf(object, TempRegister());
-  return AssignEnvironment(DefineSameAsFirst(result));
+  return AssignEnvironment(DefineAsRegister(result));
 }
 
 
@@ -1659,7 +1667,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
                                                       : NULL;
-        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(d3)
+        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(d11)
                                                       : NULL;
         res = DefineSameAsFirst(new LTaggedToI(value, temp1, temp2, temp3));
         res = AssignEnvironment(res);
@@ -1753,14 +1761,14 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   Representation input_rep = value->representation();
   LOperand* reg = UseRegister(value);
   if (input_rep.IsDouble()) {
-    return DefineAsRegister(new LClampDToUint8(reg, FixedTemp(d1)));
+    return DefineAsRegister(new LClampDToUint8(reg, FixedTemp(d11)));
   } else if (input_rep.IsInteger32()) {
     return DefineAsRegister(new LClampIToUint8(reg));
   } else {
     ASSERT(input_rep.IsTagged());
     // Register allocator doesn't (yet) support allocation of double
     // temps. Reserve d1 explicitly.
-    LClampTToUint8* result = new LClampTToUint8(reg, FixedTemp(d1));
+    LClampTToUint8* result = new LClampTToUint8(reg, FixedTemp(d11));
     return AssignEnvironment(DefineAsRegister(result));
   }
 }
@@ -1784,7 +1792,7 @@ LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
     ASSERT(input_rep.IsTagged());
     LOperand* temp1 = TempRegister();
     LOperand* temp2 = TempRegister();
-    LOperand* temp3 = FixedTemp(d3);
+    LOperand* temp3 = FixedTemp(d11);
     LTaggedToI* res = new LTaggedToI(reg, temp1, temp2, temp3);
     return AssignEnvironment(DefineSameAsFirst(res));
   }
@@ -1922,7 +1930,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterAtStart(instr->key());
   LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
-  return AssignEnvironment(DefineSameAsFirst(result));
+  return AssignEnvironment(DefineAsRegister(result));
 }
 
 
@@ -2217,7 +2225,6 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner = outer->CopyForInlining(instr->closure(),
                                                instr->function(),
-                                               HEnvironment::LITHIUM,
                                                undefined,
                                                instr->call_kind());
   current_block_->UpdateEnvironment(inner);

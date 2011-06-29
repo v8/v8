@@ -3932,7 +3932,6 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(function_context_map());
   context->set_closure(function);
-  context->set_fcontext(context);
   context->set_previous(function->context());
   context->set_extension(NULL);
   context->set_global(function->context()->global());
@@ -3940,7 +3939,8 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
 }
 
 
-MaybeObject* Heap::AllocateCatchContext(Context* previous,
+MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
+                                        Context* previous,
                                         String* name,
                                         Object* thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
@@ -3951,8 +3951,7 @@ MaybeObject* Heap::AllocateCatchContext(Context* previous,
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(catch_context_map());
-  context->set_closure(previous->closure());
-  context->set_fcontext(previous->fcontext());
+  context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(name);
   context->set_global(previous->global());
@@ -3961,7 +3960,8 @@ MaybeObject* Heap::AllocateCatchContext(Context* previous,
 }
 
 
-MaybeObject* Heap::AllocateWithContext(Context* previous,
+MaybeObject* Heap::AllocateWithContext(JSFunction* function,
+                                       Context* previous,
                                        JSObject* extension) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
@@ -3969,8 +3969,7 @@ MaybeObject* Heap::AllocateWithContext(Context* previous,
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(with_context_map());
-  context->set_closure(previous->closure());
-  context->set_fcontext(previous->fcontext());
+  context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(extension);
   context->set_global(previous->global());

@@ -956,7 +956,8 @@ void FullCodeGenerator::VisitEnterWithContextStatement(
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
-  __ CallRuntime(Runtime::kPushWithContext, 1);
+  PushFunctionArgumentForContextAllocation();
+  __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
@@ -1107,7 +1108,8 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     __ Push(stmt->name());
     __ push(result_register());
-    __ CallRuntime(Runtime::kPushCatchContext, 2);
+    PushFunctionArgumentForContextAllocation();
+    __ CallRuntime(Runtime::kPushCatchContext, 3);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }

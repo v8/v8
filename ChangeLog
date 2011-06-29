@@ -1,3 +1,11 @@
+2011-06-29: Version 3.4.8
+
+        Ensure 16-byte stack alignment on Solaris (issue 1505).
+
+        Fix "illegal access" when calling parseInt with a radix 
+        that is not a smi. (issue 1246).
+
+
 2011-06-27: Version 3.4.7
 
         Fixed 64-bit build on FreeBSD.

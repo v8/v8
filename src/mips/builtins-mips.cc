@@ -344,7 +344,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // Handle construction of an empty array of a certain size. Bail out if size
   // is too large to actually allocate an elements array.
   ASSERT(kSmiTag == 0);
-  __ Branch(call_generic_code, ge, a2,
+  __ Branch(call_generic_code, Ugreater_equal, a2,
             Operand(JSObject::kInitialMaxFastElementArray << kSmiTagSize));
 
   // a0: argc

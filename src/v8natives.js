@@ -106,7 +106,7 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
-    if (IS_UNDEFINED(radix)) radix = 0;
+    radix = radix | 0;
   } else {
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36)))

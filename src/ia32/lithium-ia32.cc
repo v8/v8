@@ -1096,11 +1096,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   } else if (v->IsIsObject()) {
     HIsObject* compare = HIsObject::cast(v);
     ASSERT(compare->value()->representation().IsTagged());
-    LOperand* temp1 = TempRegister();
-    LOperand* temp2 = TempRegister();
-    return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                  temp1,
-                                  temp2);
+    LOperand* temp = TempRegister();
+    return new LIsObjectAndBranch(UseRegister(compare->value()), temp);
   } else if (v->IsCompareObjectEq()) {
     HCompareObjectEq* compare = HCompareObjectEq::cast(v);
     return new LCmpObjectEqAndBranch(UseRegisterAtStart(compare->left()),
@@ -1546,7 +1543,7 @@ LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegister(instr->value());
 
-  return DefineAsRegister(new LIsObject(value, TempRegister()));
+  return DefineAsRegister(new LIsObject(value));
 }
 
 
@@ -2267,7 +2264,6 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner = outer->CopyForInlining(instr->closure(),
                                                instr->function(),
-                                               HEnvironment::LITHIUM,
                                                undefined,
                                                instr->call_kind());
   current_block_->UpdateEnvironment(inner);

@@ -2762,9 +2762,16 @@ class HHasCachedArrayIndex: public HUnaryPredicate {
 };
 
 
-class HGetCachedArrayIndex: public HUnaryPredicate {
+class HGetCachedArrayIndex: public HUnaryOperation {
  public:
-  explicit HGetCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
+  explicit HGetCachedArrayIndex(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex)
 

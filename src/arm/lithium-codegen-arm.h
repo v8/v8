@@ -148,7 +148,7 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk_->graph(); }
 
   Register scratch0() { return r9; }
-  DwVfpRegister double_scratch0() { return d0; }
+  DwVfpRegister double_scratch0() { return d15; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -280,7 +280,6 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
                          Register temp1,
-                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 

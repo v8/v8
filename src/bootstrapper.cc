@@ -814,7 +814,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   // --- G l o b a l   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   global_context()->set_closure(*empty_function);
-  global_context()->set_fcontext(*global_context());
   global_context()->set_previous(NULL);
   // Set extension and global object.
   global_context()->set_extension(*inner_global);

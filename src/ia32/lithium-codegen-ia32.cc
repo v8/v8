@@ -1637,13 +1637,8 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 
 Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
-                                 Register temp2,
                                  Label* is_not_object,
                                  Label* is_object) {
-  ASSERT(!input.is(temp1));
-  ASSERT(!input.is(temp2));
-  ASSERT(!temp1.is(temp2));
-
   __ JumpIfSmi(input, is_not_object);
 
   __ cmp(input, isolate()->factory()->null_value());
@@ -1651,14 +1646,14 @@ Condition LCodeGen::EmitIsObject(Register input,
 
   __ mov(temp1, FieldOperand(input, HeapObject::kMapOffset));
   // Undetectable objects behave like undefined.
-  __ movzx_b(temp2, FieldOperand(temp1, Map::kBitFieldOffset));
-  __ test(temp2, Immediate(1 << Map::kIsUndetectable));
+  __ test_b(FieldOperand(temp1, Map::kBitFieldOffset),
+            1 << Map::kIsUndetectable);
   __ j(not_zero, is_not_object);
 
-  __ movzx_b(temp2, FieldOperand(temp1, Map::kInstanceTypeOffset));
-  __ cmp(temp2, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+  __ movzx_b(temp1, FieldOperand(temp1, Map::kInstanceTypeOffset));
+  __ cmp(temp1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
   __ j(below, is_not_object);
-  __ cmp(temp2, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+  __ cmp(temp1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
   return below_equal;
 }
 
@@ -1666,10 +1661,9 @@ Condition LCodeGen::EmitIsObject(Register input,
 void LCodeGen::DoIsObject(LIsObject* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register temp = ToRegister(instr->TempAt(0));
   Label is_false, is_true, done;
 
-  Condition true_cond = EmitIsObject(reg, result, temp, &is_false, &is_true);
+  Condition true_cond = EmitIsObject(reg, result, &is_false, &is_true);
   __ j(true_cond, &is_true);
 
   __ bind(&is_false);
@@ -1686,14 +1680,13 @@ void LCodeGen::DoIsObject(LIsObject* instr) {
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
-  Register temp2 = ToRegister(instr->TempAt(1));
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   Label* true_label = chunk_->GetAssemblyLabel(true_block);
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-  Condition true_cond = EmitIsObject(reg, temp, temp2, false_label, true_label);
+  Condition true_cond = EmitIsObject(reg, temp, false_label, true_label);
 
   EmitBranch(true_block, false_block, true_cond);
 }

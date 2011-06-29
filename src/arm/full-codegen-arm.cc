@@ -713,10 +713,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // context.
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
-          // Check that we're not inside a 'with'.
-          __ ldr(r1, ContextOperand(cp, Context::FCONTEXT_INDEX));
-          __ cmp(r1, cp);
-          __ Check(eq, "Unexpected declaration in current context.");
+          // Check that we're not inside a with or catch context.
+          __ ldr(r1, FieldMemOperand(cp, HeapObject::kMapOffset));
+          __ CompareRoot(r1, Heap::kWithContextMapRootIndex);
+          __ Check(ne, "Declaration in with context.");
+          __ CompareRoot(r1, Heap::kCatchContextMapRootIndex);
+          __ Check(ne, "Declaration in catch context.");
         }
         if (mode == Variable::CONST) {
           __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -1867,18 +1869,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ b(ne, &skip);
         __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
-      case Slot::CONTEXT: {
-        __ ldr(r1, ContextOperand(cp, Context::FCONTEXT_INDEX));
-        __ ldr(r2, ContextOperand(r1, slot->index()));
-        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-        __ cmp(r2, ip);
-        __ b(ne, &skip);
-        __ str(r0, ContextOperand(r1, slot->index()));
-        int offset = Context::SlotOffset(slot->index());
-        __ mov(r3, r0);  // Preserve the stored value in r0.
-        __ RecordWrite(r1, Operand(offset), r3, r2);
-        break;
-      }
+      case Slot::CONTEXT:
       case Slot::LOOKUP:
         __ push(r0);
         __ mov(r0, Operand(slot->var()->name()));
@@ -3751,7 +3742,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   // accumulator register r0.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
-  EmitCallIC(stub.GetCode(), NULL, expr->id());
+  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   context()->Plug(r0);
 }
 
@@ -4268,6 +4259,26 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
   __ ldr(dst, ContextOperand(cp, context_index));
+}
+
+
+void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
+  if (scope()->is_global_scope()) {
+    // Contexts nested in the global context have a canonical empty function
+    // as their closure, not the anonymous closure containing the global
+    // code.  Pass a smi sentinel and let the runtime look up the empty
+    // function.
+    __ mov(ip, Operand(Smi::FromInt(0)));
+  } else if (scope()->is_eval_scope()) {
+    // Contexts created by a call to eval have the same closure as the
+    // context calling eval, not the anonymous closure containing the eval
+    // code.  Fetch it from the context.
+    __ ldr(ip, ContextOperand(cp, Context::CLOSURE_INDEX));
+  } else {
+    ASSERT(scope()->is_function_scope());
+    __ ldr(ip, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+  __ push(ip);
 }
 
 

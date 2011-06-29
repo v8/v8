@@ -481,6 +481,9 @@ class Assembler : public AssemblerBase {
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
   void bind(Label* L);  // Binds an unbound label L to current code position.
+  // Determines if Label is bound and near enough so that branch instruction
+  // can be used to reach it, instead of jump instruction.
+  bool is_near(Label* L);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -491,6 +494,7 @@ class Assembler : public AssemblerBase {
     ASSERT((o & 3) == 0);   // Assert the offset is aligned.
     return o >> 2;
   }
+  uint32_t jump_address(Label* L);
 
   // Puts a labels target address at the given position.
   // The high 8 bits are set to zero.
@@ -795,6 +799,25 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
   };
 
+  // Class for postponing the assembly buffer growth. Typically used for
+  // sequences of instructions that must be emitted as a unit, before
+  // buffer growth (and relocation) can occur.
+  // This blocking scope is not nestable.
+  class BlockGrowBufferScope {
+   public:
+    explicit BlockGrowBufferScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockGrowBuffer();
+    }
+    ~BlockGrowBufferScope() {
+      assem_->EndBlockGrowBuffer();
+    }
+
+    private:
+     Assembler* assem_;
+
+     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
+  };
+
   // Debugging.
 
   // Mark address of the ExitJSFrame code.
@@ -810,6 +833,8 @@ class Assembler : public AssemblerBase {
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
+
+  static int RelocateInternalReference(byte* pc, intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -847,6 +872,11 @@ class Assembler : public AssemblerBase {
   static bool IsBeq(Instr instr);
   static bool IsBne(Instr instr);
 
+  static bool IsJump(Instr instr);
+  static bool IsJ(Instr instr);
+  static bool IsLui(Instr instr);
+  static bool IsOri(Instr instr);
+
   static bool IsNop(Instr instr, unsigned int type);
   static bool IsPop(Instr instr);
   static bool IsPush(Instr instr);
@@ -868,6 +898,8 @@ class Assembler : public AssemblerBase {
   static uint32_t GetSa(Instr instr);
   static uint32_t GetSaField(Instr instr);
   static uint32_t GetOpcodeField(Instr instr);
+  static uint32_t GetFunction(Instr instr);
+  static uint32_t GetFunctionField(Instr instr);
   static uint32_t GetImmediate16(Instr instr);
   static uint32_t GetLabelConst(Instr instr);
 
@@ -883,7 +915,7 @@ class Assembler : public AssemblerBase {
 
   static bool IsAndImmediate(Instr instr);
 
-  void CheckTrampolinePool(bool force_emit = false);
+  void CheckTrampolinePool();
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -916,6 +948,7 @@ class Assembler : public AssemblerBase {
   void StartBlockTrampolinePool() {
     trampoline_pool_blocked_nesting_++;
   }
+
   void EndBlockTrampolinePool() {
     trampoline_pool_blocked_nesting_--;
   }
@@ -926,6 +959,25 @@ class Assembler : public AssemblerBase {
 
   bool has_exception() const {
     return internal_trampoline_exception_;
+  }
+
+  bool is_trampoline_emitted() const {
+    return trampoline_emitted_;
+  }
+
+  // Temporarily block automatic assembly buffer growth.
+  void StartBlockGrowBuffer() {
+    ASSERT(!block_buffer_growth_);
+    block_buffer_growth_ = true;
+  }
+
+  void EndBlockGrowBuffer() {
+    ASSERT(block_buffer_growth_);
+    block_buffer_growth_ = false;
+  }
+
+  bool is_buffer_growth_blocked() const {
+    return block_buffer_growth_;
   }
 
  private:
@@ -963,6 +1015,9 @@ class Assembler : public AssemblerBase {
 
   // Keep track of the last emitted pool to guarantee a maximal distance.
   int last_trampoline_pool_end_;  // pc offset of the end of the last pool.
+
+  // Automatic growth of the assembly buffer may be blocked for some sequences.
+  bool block_buffer_growth_;  // Block growth when true.
 
   // Relocation information generation.
   // Each relocation is encoded as a variable size value.
@@ -1044,7 +1099,6 @@ class Assembler : public AssemblerBase {
   // Labels.
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void link_to(Label* L, Label* appendix);
   void next(Label* L);
 
   // One trampoline consists of:
@@ -1057,13 +1111,17 @@ class Assembler : public AssemblerBase {
   // label_count *  kInstrSize.
   class Trampoline {
    public:
-    Trampoline(int start, int slot_count, int label_count) {
+    Trampoline() {
+      start_ = 0;
+      next_slot_ = 0;
+      free_slot_count_ = 0;
+      end_ = 0;
+    }
+    Trampoline(int start, int slot_count) {
       start_ = start;
       next_slot_ = start;
       free_slot_count_ = slot_count;
-      next_label_ = start + slot_count * 2 * kInstrSize;
-      free_label_count_ = label_count;
-      end_ = next_label_ + (label_count - 1) * kInstrSize;
+      end_ = start + slot_count * kTrampolineSlotsSize;
     }
     int start() {
       return start_;
@@ -1082,41 +1140,30 @@ class Assembler : public AssemblerBase {
       } else {
         trampoline_slot = next_slot_;
         free_slot_count_--;
-        next_slot_ += 2*kInstrSize;
+        next_slot_ += kTrampolineSlotsSize;
       }
       return trampoline_slot;
     }
-    int take_label() {
-      int label_pos = next_label_;
-      ASSERT(free_label_count_ > 0);
-      free_label_count_--;
-      next_label_ += kInstrSize;
-      return label_pos;
-    }
-
    private:
     int start_;
     int end_;
     int next_slot_;
     int free_slot_count_;
-    int next_label_;
-    int free_label_count_;
   };
 
-  int32_t get_label_entry(int32_t pos, bool next_pool = true);
-  int32_t get_trampoline_entry(int32_t pos, bool next_pool = true);
-
-  static const int kSlotsPerTrampoline = 2304;
-  static const int kLabelsPerTrampoline = 8;
-  static const int kTrampolineInst =
-      2 * kSlotsPerTrampoline + kLabelsPerTrampoline;
-  static const int kTrampolineSize = kTrampolineInst * kInstrSize;
+  int32_t get_trampoline_entry(int32_t pos);
+  int unbound_labels_count_;
+  // If trampoline is emitted, generated code is becoming large. As this is
+  // already a slow case which can possibly break our code generation for the
+  // extreme case, we use this information to trigger different mode of
+  // branch instruction generation, where we use jump instructions rather
+  // than regular branch instructions.
+  bool trampoline_emitted_;
+  static const int kTrampolineSlotsSize = 4 * kInstrSize;
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
-  static const int kMaxDistBetweenPools =
-      kMaxBranchOffset - 2 * kTrampolineSize;
   static const int kInvalidSlotPos = -1;
 
-  List<Trampoline> trampolines_;
+  Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
   friend class RegExpMacroAssemblerMIPS;
