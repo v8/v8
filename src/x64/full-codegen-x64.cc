@@ -3674,7 +3674,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   // accumulator register rax.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
-  EmitCallIC(stub.GetCode(), NULL, expr->id());
+  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   context()->Plug(rax);
 }
 
