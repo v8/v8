@@ -378,7 +378,8 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
     while (pc < end) {
-      PrintF("%08x\n", reinterpret_cast<intptr_t>(pc));
+      PrintF("%08x\n",
+             static_cast<unsigned int>(reinterpret_cast<intptr_t>(pc)));
       pc += d.InstructionDecode(decode_buffer, pc);
       CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
       CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
