@@ -217,7 +217,7 @@ class Shell: public i::AllStatic {
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Handle<Value> CreateExternalArray(const Arguments& args,
                                            ExternalArrayType type,
-                                           int element_size);
+                                           size_t element_size);
   static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
 
