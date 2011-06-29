@@ -4924,9 +4924,6 @@ class JSFunction: public JSObject {
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
 
-  // Compute a hash code for the source code of this function.
-  uint32_t SourceHash();
-
   // Check whether or not this function is inlineable.
   bool IsInlineable();
 

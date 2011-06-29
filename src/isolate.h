@@ -978,8 +978,6 @@ class Isolate {
   }
 #endif
 
-  void ResetEagerOptimizingData();
-
   void SetData(void* data) { embedder_data_ = data; }
   void* GetData() { return embedder_data_; }
 

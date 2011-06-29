@@ -7821,7 +7821,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     }
   }
 
-  isolate->compilation_cache()->MarkForLazyOptimizing(function);
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());
   } else {
