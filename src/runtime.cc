@@ -11148,7 +11148,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
 
   if (additional_context->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
-    context = isolate->factory()->NewWithContext(go_between, context, extension);
+    context =
+        isolate->factory()->NewWithContext(go_between, context, extension);
   }
 
   // Wrap the evaluation statement in a new function compiled in the newly
