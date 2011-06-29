@@ -8049,7 +8049,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
   JSObject* extension_object;
   if (args[0]->IsJSObject()) {
     extension_object = JSObject::cast(args[0]);
@@ -8070,9 +8070,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
     }
   }
 
+  JSFunction* function;
+  if (args[1]->IsSmi()) {
+    // A smi sentinel indicates a context nested inside global code rather
+    // than some function.  There is a canonical empty function that can be
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
+  } else {
+    function = JSFunction::cast(args[1]);
+  }
+
   Context* context;
   MaybeObject* maybe_context =
-      isolate->heap()->AllocateWithContext(isolate->context(),
+      isolate->heap()->AllocateWithContext(function,
+                                           isolate->context(),
                                            extension_object);
   if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
@@ -8082,12 +8093,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   String* name = String::cast(args[0]);
   Object* thrown_object = args[1];
+  JSFunction* function;
+  if (args[2]->IsSmi()) {
+    // A smi sentinel indicates a context nested inside global code rather
+    // than some function.  There is a canonical empty function that can be
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
+  } else {
+    function = JSFunction::cast(args[2]);
+  }
   Context* context;
   MaybeObject* maybe_context =
-      isolate->heap()->AllocateCatchContext(isolate->context(),
+      isolate->heap()->AllocateCatchContext(function,
+                                            isolate->context(),
                                             name,
                                             thrown_object);
   if (!maybe_context->To(&context)) return maybe_context;
@@ -10967,6 +10988,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 // Creates a copy of the with context chain. The copy of the context chain is
 // is linked to the function context supplied.
 static Handle<Context> CopyWithContextChain(Isolate* isolate,
+                                            Handle<JSFunction> function,
                                             Handle<Context> current,
                                             Handle<Context> base) {
   // At the end of the chain. Return the base context to link to.
@@ -10977,17 +10999,21 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
   // Recursively copy the with and catch contexts.
   HandleScope scope(isolate);
   Handle<Context> previous(current->previous());
-  Handle<Context> new_previous = CopyWithContextChain(isolate, previous, base);
+  Handle<Context> new_previous =
+      CopyWithContextChain(isolate, function, previous, base);
   Handle<Context> new_current;
   if (current->IsCatchContext()) {
     Handle<String> name(String::cast(current->extension()));
     Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX));
     new_current =
-        isolate->factory()->NewCatchContext(new_previous, name, thrown_object);
+        isolate->factory()->NewCatchContext(function,
+                                            new_previous,
+                                            name,
+                                            thrown_object);
   } else {
     Handle<JSObject> extension(JSObject::cast(current->extension()));
     new_current =
-        isolate->factory()->NewWithContext(new_previous, extension);
+        isolate->factory()->NewWithContext(function, new_previous, extension);
   }
   return scope.CloseAndEscape(new_current);
 }
@@ -11118,11 +11144,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->declaration_context());
-  context = CopyWithContextChain(isolate, frame_context, context);
+  context = CopyWithContextChain(isolate, go_between, frame_context, context);
 
   if (additional_context->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
-    context = isolate->factory()->NewWithContext(context, extension);
+    context = isolate->factory()->NewWithContext(go_between, context, extension);
   }
 
   // Wrap the evaluation statement in a new function compiled in the newly

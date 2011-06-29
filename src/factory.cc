@@ -251,29 +251,34 @@ Handle<Context> Factory::NewGlobalContext() {
 
 
 Handle<Context> Factory::NewFunctionContext(int length,
-                                            Handle<JSFunction> closure) {
+                                            Handle<JSFunction> function) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateFunctionContext(length, *closure),
+      isolate()->heap()->AllocateFunctionContext(length, *function),
       Context);
 }
 
 
-Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
+Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
+                                         Handle<Context> previous,
                                          Handle<String> name,
                                          Handle<Object> thrown_object) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateCatchContext(*previous, *name, *thrown_object),
+      isolate()->heap()->AllocateCatchContext(*function,
+                                              *previous,
+                                              *name,
+                                              *thrown_object),
       Context);
 }
 
 
-Handle<Context> Factory::NewWithContext(Handle<Context> previous,
+Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
+                                        Handle<Context> previous,
                                         Handle<JSObject> extension) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateWithContext(*previous, *extension),
+      isolate()->heap()->AllocateWithContext(*function, *previous, *extension),
       Context);
 }
 

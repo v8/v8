@@ -4211,6 +4211,25 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 }
 
 
+void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
+  if (scope()->is_global_scope()) {
+    // Contexts nested in the global context have a canonical empty function
+    // as their closure, not the anonymous closure containing the global
+    // code.  Pass a smi sentinel and let the runtime look up the empty
+    // function.
+    __ push(Immediate(Smi::FromInt(0)));
+  } else if (scope()->is_eval_scope()) {
+    // Contexts created by a call to eval have the same closure as the
+    // context calling eval, not the anonymous closure containing the eval
+    // code.  Fetch it from the context.
+    __ push(ContextOperand(esi, Context::CLOSURE_INDEX));
+  } else {
+    ASSERT(scope()->is_function_scope());
+    __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 

@@ -556,6 +556,10 @@ class FullCodeGenerator: public AstVisitor {
   // in v8::internal::Context.
   void LoadContextField(Register dst, int context_index);
 
+  // Push the function argument for the runtime functions PushWithContext
+  // and PushCatchContext.
+  void PushFunctionArgumentForContextAllocation();
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)

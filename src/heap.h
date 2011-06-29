@@ -647,14 +647,16 @@ class Heap {
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
-                                                       JSFunction* closure);
+                                                       JSFunction* function);
 
   // Allocate a catch context.
-  MUST_USE_RESULT MaybeObject* AllocateCatchContext(Context* previous,
+  MUST_USE_RESULT MaybeObject* AllocateCatchContext(JSFunction* function,
+                                                    Context* previous,
                                                     String* name,
                                                     Object* thrown_object);
   // Allocate a 'with' context.
-  MUST_USE_RESULT MaybeObject* AllocateWithContext(Context* previous,
+  MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
+                                                   Context* previous,
                                                    JSObject* extension);
 
   // Allocates a new utility object in the old generation.

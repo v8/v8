@@ -298,8 +298,8 @@ namespace internal {
   \
   /* Contexts */ \
   F(NewFunctionContext, 1, 1) \
-  F(PushWithContext, 1, 1) \
-  F(PushCatchContext, 2, 1) \
+  F(PushWithContext, 2, 1) \
+  F(PushCatchContext, 3, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
