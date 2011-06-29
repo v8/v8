@@ -519,12 +519,6 @@ class RuntimeState {
   StringInputBuffer* string_locale_compare_buf2() {
     return &string_locale_compare_buf2_;
   }
-  int* smi_lexicographic_compare_x_elms() {
-    return smi_lexicographic_compare_x_elms_;
-  }
-  int* smi_lexicographic_compare_y_elms() {
-    return smi_lexicographic_compare_y_elms_;
-  }
 
  private:
   RuntimeState() {}
@@ -536,8 +530,6 @@ class RuntimeState {
   StringInputBuffer string_input_buffer_compare_bufy_;
   StringInputBuffer string_locale_compare_buf1_;
   StringInputBuffer string_locale_compare_buf2_;
-  int smi_lexicographic_compare_x_elms_[10];
-  int smi_lexicographic_compare_y_elms_[10];
 
   friend class Isolate;
   friend class Runtime;
