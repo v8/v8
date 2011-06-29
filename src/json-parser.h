@@ -55,7 +55,7 @@ class JsonParser BASE_EMBEDDED {
 
   inline void Advance() {
     position_++;
-    if (position_ > source_length_) {
+    if (position_ >= source_length_) {
       c0_ = kEndOfString;
     } else if (seq_ascii) {
       c0_ = seq_source_->SeqAsciiStringGet(position_);
@@ -107,9 +107,11 @@ class JsonParser BASE_EMBEDDED {
   }
   template <bool is_symbol>
   Handle<String> ScanJsonString();
-  // Slow version for unicode support, uses the first ascii_count characters,
-  // as first part of a ConsString
-  Handle<String> SlowScanJsonString(int beg_pos);
+  // Creates a new string and copies prefix[start..end] into the beginning
+  // of it. Then scans the rest of the string, adding characters after the
+  // prefix. Called by ScanJsonString when reaching a '\' or non-ASCII char.
+  template <typename StringType, typename SinkChar>
+  Handle<String> SlowScanJsonString(Handle<String> prefix, int start, int end);
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -148,7 +150,7 @@ class JsonParser BASE_EMBEDDED {
 
   inline Isolate* isolate() { return isolate_; }
 
-  static const int kInitialSpecialStringSize = 1024;
+  static const int kInitialSpecialStringLength = 1024;
 
 
  private:
@@ -165,9 +167,9 @@ template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source) {
   isolate_ = source->map()->isolate();
   source_ = Handle<String>(source->TryFlattenGetString());
-  source_length_ = source_->length() - 1;
+  source_length_ = source_->length();
 
-  // Optimized fast case where we only have ascii characters.
+  // Optimized fast case where we only have ASCII characters.
   if (seq_ascii) {
     seq_source_ = Handle<SeqAsciiString>::cast(source_);
   }
@@ -410,62 +412,93 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
   return isolate()->factory()->NewNumber(number);
 }
 
-template <bool seq_ascii>
-Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(int beg_pos) {
-  // The currently scanned ascii characters.
-  Handle<String> ascii(isolate()->factory()->NewProperSubString(source_,
-                                                                beg_pos,
-                                                                position_));
-  Handle<String> two_byte =
-      isolate()->factory()->NewRawTwoByteString(kInitialSpecialStringSize,
-                                                NOT_TENURED);
-  Handle<SeqTwoByteString> seq_two_byte =
-      Handle<SeqTwoByteString>::cast(two_byte);
 
-  int allocation_count = 1;
-  int count = 0;
+template <typename StringType>
+inline void SeqStringSet(Handle<StringType> seq_str, int i, uc32 c);
+
+template <>
+inline void SeqStringSet(Handle<SeqTwoByteString> seq_str, int i, uc32 c) {
+  seq_str->SeqTwoByteStringSet(i, c);
+}
+
+template <>
+inline void SeqStringSet(Handle<SeqAsciiString> seq_str, int i, uc32 c) {
+  seq_str->SeqAsciiStringSet(i, c);
+}
+
+template <typename StringType>
+inline Handle<StringType> NewRawString(Factory* factory, int length);
+
+template <>
+inline Handle<SeqTwoByteString> NewRawString(Factory* factory, int length) {
+  return factory->NewRawTwoByteString(length, NOT_TENURED);
+}
+
+template <>
+inline Handle<SeqAsciiString> NewRawString(Factory* factory, int length) {
+  return factory->NewRawAsciiString(length, NOT_TENURED);
+}
+
+
+// Scans the rest of a JSON string starting from position_ and writes
+// prefix[start..end] along with the scanned characters into a
+// sequential string of type StringType.
+template <bool seq_ascii>
+template <typename StringType, typename SinkChar>
+Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
+    Handle<String> prefix, int start, int end) {
+  int count = end - start;
+  int max_length = count + source_length_ - position_;
+  int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
+  Handle<StringType> seq_str = NewRawString<StringType>(isolate()->factory(),
+                                                        length);
+  // Copy prefix into seq_str.
+  SinkChar* dest = seq_str->GetChars();
+  String::WriteToFlat(*prefix, dest, start, end);
 
   while (c0_ != '"') {
-    // Create new seq string
-    if (count >= kInitialSpecialStringSize * allocation_count) {
-      allocation_count = allocation_count * 2;
-      int new_size = allocation_count * kInitialSpecialStringSize;
-      Handle<String> new_two_byte =
-          isolate()->factory()->NewRawTwoByteString(new_size,
-                                                    NOT_TENURED);
-      uc16* char_start =
-          Handle<SeqTwoByteString>::cast(new_two_byte)->GetChars();
-      String::WriteToFlat(*seq_two_byte, char_start, 0, count);
-      seq_two_byte = Handle<SeqTwoByteString>::cast(new_two_byte);
+    if (count >= length) {
+      // We need to create a longer sequential string for the result.
+      return SlowScanJsonString<StringType, SinkChar>(seq_str, 0, count);
     }
-
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
-      seq_two_byte->SeqTwoByteStringSet(count++, c0_);
-      Advance();
+      // If the sink can contain UC16 characters, or source_ contains only
+      // ASCII characters, there's no need to test whether we can store the
+      // character. Otherwise check whether the UC16 source character can fit
+      // in the ASCII sink.
+      if (sizeof(SinkChar) == kUC16Size ||
+          seq_ascii ||
+          c0_ <= kMaxAsciiCharCode) {
+        SeqStringSet(seq_str, count++, c0_);
+        Advance();
+      } else {
+        // StringType is SeqAsciiString and we just read a non-ASCII char.
+        return SlowScanJsonString<SeqTwoByteString, uc16>(seq_str, 0, count);
+      }
     } else {
-      Advance();
+      Advance();  // Advance past the \.
       switch (c0_) {
         case '"':
         case '\\':
         case '/':
-          seq_two_byte->SeqTwoByteStringSet(count++, c0_);
+          SeqStringSet(seq_str, count++, c0_);
           break;
         case 'b':
-          seq_two_byte->SeqTwoByteStringSet(count++, '\x08');
+          SeqStringSet(seq_str, count++, '\x08');
           break;
         case 'f':
-          seq_two_byte->SeqTwoByteStringSet(count++, '\x0c');
+          SeqStringSet(seq_str, count++, '\x0c');
           break;
         case 'n':
-          seq_two_byte->SeqTwoByteStringSet(count++, '\x0a');
+          SeqStringSet(seq_str, count++, '\x0a');
           break;
         case 'r':
-          seq_two_byte->SeqTwoByteStringSet(count++, '\x0d');
+          SeqStringSet(seq_str, count++, '\x0d');
           break;
         case 't':
-          seq_two_byte->SeqTwoByteStringSet(count++, '\x09');
+          SeqStringSet(seq_str, count++, '\x09');
           break;
         case 'u': {
           uc32 value = 0;
@@ -477,8 +510,17 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(int beg_pos) {
             }
             value = value * 16 + digit;
           }
-          seq_two_byte->SeqTwoByteStringSet(count++, value);
-          break;
+          if (sizeof(SinkChar) == kUC16Size || value <= kMaxAsciiCharCode) {
+            SeqStringSet(seq_str, count++, value);
+            break;
+          } else {
+            // StringType is SeqAsciiString and we just read a non-ASCII char.
+            position_ -= 6;  // Rewind position_ to \ in \uxxxx.
+            Advance();
+            return SlowScanJsonString<SeqTwoByteString, uc16>(seq_str,
+                                                              0,
+                                                              count);
+          }
         }
         default:
           return Handle<String>::null();
@@ -486,56 +528,69 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(int beg_pos) {
       Advance();
     }
   }
-  // Advance past the last '"'.
-  ASSERT_EQ('"', c0_);
-  AdvanceSkipWhitespace();
-
-  // Shrink the the string to our length.
-  if (isolate()->heap()->InNewSpace(*seq_two_byte)) {
+  // Shrink seq_string length to count.
+  if (isolate()->heap()->InNewSpace(*seq_str)) {
     isolate()->heap()->new_space()->
-        template ShrinkStringAtAllocationBoundary<SeqTwoByteString>(
-            *seq_two_byte, count);
+        template ShrinkStringAtAllocationBoundary<StringType>(
+            *seq_str, count);
   } else {
-    int string_size = SeqTwoByteString::SizeFor(count);
-    int allocated_string_size =
-        SeqTwoByteString::SizeFor(kInitialSpecialStringSize * allocation_count);
+    int string_size = StringType::SizeFor(count);
+    int allocated_string_size = StringType::SizeFor(length);
     int delta = allocated_string_size - string_size;
-    Address start_filler_object = seq_two_byte->address() + string_size;
-    seq_two_byte->set_length(count);
+    Address start_filler_object = seq_str->address() + string_size;
+    seq_str->set_length(count);
     isolate()->heap()->CreateFillerObjectAt(start_filler_object, delta);
   }
-  return isolate()->factory()->NewConsString(ascii, seq_two_byte);
+  ASSERT_EQ('"', c0_);
+  // Advance past the last '"'.
+  AdvanceSkipWhitespace();
+  return seq_str;
 }
+
 
 template <bool seq_ascii>
 template <bool is_symbol>
 Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
+  if (c0_ == '"') {
+    AdvanceSkipWhitespace();
+    return Handle<String>(isolate()->heap()->empty_string());
+  }
   int beg_pos = position_;
-  // Fast case for ascii only without escape characters.
-  while (c0_ != '"') {
+  // Fast case for ASCII only without escape characters.
+  do {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
-    if (c0_ != '\\' && (seq_ascii || c0_ < kMaxAsciiCharCode)) {
-      Advance();
+    if (c0_ != '\\') {
+      if (seq_ascii || c0_ <= kMaxAsciiCharCode) {
+        Advance();
+      } else {
+        return SlowScanJsonString<SeqTwoByteString, uc16>(source_,
+                                                          beg_pos,
+                                                          position_);
+      }
     } else {
-      return this->SlowScanJsonString(beg_pos);
+      return SlowScanJsonString<SeqAsciiString, char>(source_,
+                                                      beg_pos,
+                                                      position_);
     }
+  } while (c0_ != '"');
+  int length = position_ - beg_pos;
+  Handle<String> result;
+  if (seq_ascii && is_symbol) {
+    result = isolate()->factory()->LookupAsciiSymbol(seq_source_,
+                                                     beg_pos,
+                                                     length);
+  } else {
+    result = isolate()->factory()->NewRawAsciiString(length);
+    char* dest = SeqAsciiString::cast(*result)->GetChars();
+    String::WriteToFlat(*source_, dest, beg_pos, position_);
   }
   ASSERT_EQ('"', c0_);
-  int end_pos = position_;
   // Advance past the last '"'.
   AdvanceSkipWhitespace();
-  if (seq_ascii && is_symbol) {
-    return isolate()->factory()->LookupAsciiSymbol(seq_source_,
-                                                   beg_pos,
-                                                   end_pos - beg_pos);
-  } else {
-    return isolate()->factory()->NewProperSubString(source_,
-                                                    beg_pos,
-                                                    end_pos);
-  }
+  return result;
 }
 
 } }  // namespace v8::internal
