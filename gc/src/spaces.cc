@@ -1222,18 +1222,21 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   ASSERT((new_capacity & Page::kPageAlignmentMask) == 0);
   ASSERT(new_capacity >= initial_capacity_);
   ASSERT(new_capacity < capacity_);
-  Address end = start_ + maximum_capacity_;
-  Address start = end - new_capacity;
+  // Semispaces grow backwards from the end of their allocated capacity,
+  // so we find the before and after start addresses relative to the
+  // end of the space.
+  Address space_end = start_ + maximum_capacity_;
+  Address old_start = space_end - capacity_;
   size_t delta = capacity_ - new_capacity;
   ASSERT(IsAligned(delta, OS::AllocateAlignment()));
-  if (!heap()->isolate()->memory_allocator()->UncommitBlock(start, delta)) {
+  if (!heap()->isolate()->memory_allocator()->UncommitBlock(old_start, delta)) {
     return false;
   }
   capacity_ = new_capacity;
 
   int pages_after = capacity_ / Page::kPageSize;
   NewSpacePage* new_last_page =
-      NewSpacePage::FromAddress(end - pages_after * Page::kPageSize);
+      NewSpacePage::FromAddress(space_end - pages_after * Page::kPageSize);
   new_last_page->set_next_page(anchor());
   anchor()->set_prev_page(new_last_page);
   ASSERT(current_page_ == first_page());
