@@ -1433,7 +1433,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
 LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
   LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
+  LOperand* right = UseAtStart(instr->right());
   return new LCmpObjectEqAndBranch(left, right);
 }
 
@@ -1540,7 +1540,7 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   return AssignEnvironment(new LBoundsCheck(UseRegisterAtStart(instr->index()),
-                                            Use(instr->length())));
+                                            UseAtStart(instr->length())));
 }
 
 
@@ -1633,7 +1633,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new LCheckNonSmi(value));
 }
 
@@ -1654,13 +1654,13 @@ LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new LCheckSmi(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new LCheckFunction(value));
 }
 

@@ -1496,7 +1496,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 
 void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
+  Operand right = ToOperand(instr->InputAt(1));
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
@@ -3684,14 +3684,14 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  __ test(ToOperand(input), Immediate(kSmiTagMask));
   DeoptimizeIf(not_zero, instr->environment());
 }
 
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  __ test(ToOperand(input), Immediate(kSmiTagMask));
   DeoptimizeIf(zero, instr->environment());
 }
 
@@ -3743,8 +3743,8 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   ASSERT(instr->InputAt(0)->IsRegister());
-  Register reg = ToRegister(instr->InputAt(0));
-  __ cmp(reg, instr->hydrogen()->target());
+  Operand operand = ToOperand(instr->InputAt(0));
+  __ cmp(operand, instr->hydrogen()->target());
   DeoptimizeIf(not_equal, instr->environment());
 }
 
