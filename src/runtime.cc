@@ -3918,8 +3918,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       if (proto->IsNull()) return *obj_value;
       js_object = Handle<JSObject>::cast(proto);
     }
-    NormalizeElements(js_object);
-    Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+    Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
@@ -3981,8 +3980,7 @@ static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
                                               Handle<Object> value,
                                               PropertyAttributes attr) {
   // Normalize the elements to enable attributes on the property.
-  NormalizeElements(js_object);
-  Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+  Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
   PropertyDetails details = PropertyDetails(attr, NORMAL);
