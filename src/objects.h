@@ -3946,6 +3946,10 @@ class Map: public HeapObject {
         kind <= JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
   }
 
+  inline bool has_dictionary_elements() {
+    return elements_kind() == JSObject::DICTIONARY_ELEMENTS;
+  }
+
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);

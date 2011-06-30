@@ -3917,8 +3917,6 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
       todo_external_array = true;
     }
   }
-  // We can't treat dictionary elements here (need to deopt instead).
-  type_todo[JSObject::DICTIONARY_ELEMENTS] = false;
   // Support for FAST_DOUBLE_ELEMENTS isn't implemented yet, so we deopt.
   type_todo[JSObject::FAST_DOUBLE_ELEMENTS] = false;
 
@@ -3936,9 +3934,12 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   for (JSObject::ElementsKind elements_kind = JSObject::FAST_ELEMENTS;
        elements_kind <= JSObject::LAST_ELEMENTS_KIND;
        elements_kind = JSObject::ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_ELEMENTS in the first run of the loop, we
-    // need to add some code that's executed for all other cases.
-    if (elements_kind == 1 && todo_external_array) {
+    // After having handled FAST_ELEMENTS and DICTIONARY_ELEMENTS, we
+    // need to add some code that's executed for all external array cases.
+    STATIC_ASSERT(JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
+                  JSObject::LAST_ELEMENTS_KIND);
+    if (elements_kind == JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
+        && todo_external_array) {
       elements = AddInstruction(new(zone()) HLoadElements(object));
       // We need to forcibly prevent some ElementsKind-dependent instructions
       // from being hoisted out of any loops they might occur in, because
@@ -4006,6 +4007,12 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         } else {
           access = AddInstruction(
               new(zone()) HLoadKeyedFastElement(elements, checked_key));
+        }
+      } else if (elements_kind == JSObject::DICTIONARY_ELEMENTS) {
+        if (is_store) {
+          access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
+        } else {
+          access = AddInstruction(BuildLoadKeyedGeneric(object, key));
         }
       } else {  // External array elements.
         access = AddInstruction(BuildExternalArrayElementAccess(

@@ -1745,7 +1745,8 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              Code* generic_stub) {
   Code* result = NULL;
   if (receiver->HasFastElements() ||
-      receiver->HasExternalArrayElements()) {
+      receiver->HasExternalArrayElements() ||
+      receiver->HasDictionaryElements()) {
     MaybeObject* maybe_stub =
         isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
             receiver, is_store, strict_mode);
