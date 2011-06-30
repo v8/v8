@@ -1168,7 +1168,7 @@ class Assembler : public AssemblerBase {
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
   void call(Handle<Code> target,
-            RelocInfo::Mode rmode,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             unsigned ast_id = kNoASTId);
 
   // Calls directly to the given address using a relative offset.

@@ -835,7 +835,7 @@ class Assembler : public AssemblerBase {
   void call(const Operand& adr);
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code,
-            RelocInfo::Mode rmode,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             unsigned ast_id = kNoASTId);
 
   // Jumps
