@@ -557,8 +557,8 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
     Address slot = d.slot_address();
     if (top <= slot && slot < top + size) {
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
-      int expression_index =
-          info->expression_count_ - (slot - top) / kPointerSize - 1;
+      int expression_index = static_cast<int>(
+          info->expression_count_ - (slot - top) / kPointerSize - 1);
       if (FLAG_trace_deopt) {
         PrintF("Materializing a new heap number %p [%e] in slot %p"
                "for expression stack index %d\n",
@@ -1128,8 +1128,8 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
 
 unsigned FrameDescription::GetExpressionCount(Deoptimizer* deoptimizer) {
   ASSERT_EQ(Code::FUNCTION, kind_);
-  return (GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction()))
-      / kPointerSize;
+  intptr_t size = GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
+  return static_cast<unsigned>(size / kPointerSize);
 }
 
 
