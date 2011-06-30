@@ -78,6 +78,11 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 }
 
 
+void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
+  UNIMPLEMENTED();
+}
+
+
 void Deoptimizer::EntryGenerator::Generate() {
   UNIMPLEMENTED();
 }
