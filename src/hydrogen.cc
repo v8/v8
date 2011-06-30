@@ -6068,6 +6068,11 @@ void HGraphBuilder::GenerateFastAsciiArrayJoin(CallRuntime* call) {
 }
 
 
+void HGraphBuilder::GenerateIsNativeOrStrictMode(CallRuntime* call) {
+  return Bailout("inlined runtime function: IsNativeOrStrictMode");
+}
+
+
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE
 

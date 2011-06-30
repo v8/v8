@@ -34,11 +34,6 @@ def FAIL_OK = FAIL, OKAY
 S15.3.4.5_A1: FAIL
 S15.3.4.5_A2: FAIL
 
-# String replace and array sort leaks the global object to strict mode
-# callbacks.
-S15.5.4.11_A12: FAIL
-S15.4.4.11_A8: FAIL
-
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
