@@ -3925,7 +3925,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     Handle<NumberDictionary> extended_dictionary =
         NumberDictionarySet(dictionary, index, obj_value, details);
     if (*extended_dictionary != *dictionary) {
-      js_object->set_elements(*extended_dictionary);
+      if (js_object->GetElementsKind() ==
+          JSObject::NON_STRICT_ARGUMENTS_ELEMENTS) {
+        FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
+      } else {
+        js_object->set_elements(*extended_dictionary);
+      }
     }
     return *obj_value;
   }
