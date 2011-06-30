@@ -956,7 +956,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // If we did not find a property, check if we need to throw an exception.
   if (!lookup.IsProperty()) {
-    if (FLAG_strict || IsContextual(object)) {
+    if (IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
     LOG(isolate(), SuspectReadEvent(*name, *object));
@@ -1230,10 +1230,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
     LookupForRead(*object, *name, &lookup);
 
     // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsProperty()) {
-      if (FLAG_strict || IsContextual(object)) {
-        return ReferenceError("not_defined", name);
-      }
+    if (!lookup.IsProperty() && IsContextual(object)) {
+      return ReferenceError("not_defined", name);
     }
 
     if (FLAG_use_ic) {
