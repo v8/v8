@@ -267,12 +267,12 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     header->flags = flags_;
     header->reserved1 = 0;
     header->reserved2 = 0;
-    memset(header->sectname, 0, 16);
-    memset(header->segname, 0, 16);
-    ASSERT(strlen(name_) < 16);
-    ASSERT(strlen(segment_) < 16);
-    strcpy(header->sectname, name_);
-    strcpy(header->segname, segment_);
+    memset(header->sectname, 0, sizeof(header->sectname));
+    memset(header->segname, 0, sizeof(header->segname));
+    ASSERT(strlen(name_) < sizeof(header->sectname));
+    ASSERT(strlen(segment_) < sizeof(header->segname));
+    strncpy(header->sectname, name_, sizeof(header->sectname));
+    strncpy(header->segname, segment_, sizeof(header->segname));
   }
 
  private:
@@ -295,7 +295,7 @@ struct ELFSectionHeader {
   uintptr_t alignment;
   uintptr_t entry_size;
 };
-  
+
 
 #if defined(__ELF)
 class ELFSection : public DebugSectionBase<ELFSectionHeader> {
