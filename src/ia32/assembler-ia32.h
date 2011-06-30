@@ -990,7 +990,9 @@ class Assembler : public AssemblerBase {
   void Print();
 
   // Check the code size generated from label to here.
-  int SizeOfCodeGeneratedSince(Label* l) { return pc_offset() - l->pos(); }
+  int SizeOfCodeGeneratedSince(Label* label) {
+    return pc_offset() - label->pos();
+  }
 
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();

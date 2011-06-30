@@ -392,11 +392,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mov(scratch1, Operand(r0));
     ConvertToDoubleStub stub1(r3, r2, scratch1, scratch2);
     __ push(lr);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
     // Write Smi from r1 to r1 and r0 in double format.
     __ mov(scratch1, Operand(r1));
     ConvertToDoubleStub stub2(r1, r0, scratch1, scratch2);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(lr);
   }
 }
@@ -473,7 +473,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ mov(scratch1, Operand(object));
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(lr);
-    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub.GetCode());
     __ pop(lr);
   }
 
@@ -1058,7 +1058,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // Convert lhs to a double in r2, r3.
     __ mov(r7, Operand(lhs));
     ConvertToDoubleStub stub1(r3, r2, r7, r6);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
     // Load rhs to a double in r0, r1.
     __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
     __ pop(lr);
@@ -1100,7 +1100,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // Convert rhs to a double in r0, r1.
     __ mov(r7, Operand(rhs));
     ConvertToDoubleStub stub2(r1, r0, r7, r6);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(lr);
   }
   // Fall through to both_loaded_as_doubles.

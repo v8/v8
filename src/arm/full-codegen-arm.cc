@@ -4200,12 +4200,7 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic,
                                    unsigned ast_id) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
-  if (ast_id == kNoASTId || mode == RelocInfo::CODE_TARGET_CONTEXT) {
-    __ Call(ic, mode);
-  } else {
-    ASSERT(mode == RelocInfo::CODE_TARGET);
-    __ CallWithAstId(ic, RelocInfo::CODE_TARGET_WITH_ID, ast_id);
-  }
+  __ Call(ic, mode, ast_id);
 }
 
 
