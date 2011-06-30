@@ -411,7 +411,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         String::cast(script->name())));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
-                   info->code()));
+                   info->code(),
+                   info));
   } else {
     PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
@@ -420,7 +421,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         *info->code(),
         *result,
         isolate->heap()->empty_string()));
-    GDBJIT(AddCode(Handle<String>(), script, info->code()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
   }
 
   // Hint to the runtime system used when allocating space for initial
@@ -784,7 +785,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 
   GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
-                 Handle<Code>(info->code())));
+                 Handle<Code>(info->code()),
+                 info));
 }
 
 } }  // namespace v8::internal
