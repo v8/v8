@@ -436,7 +436,7 @@ class Parser {
                        const char* message,
                        Vector<Handle<String> > args);
 
- protected:
+ private:
   // Limit on number of function parameters is chosen arbitrarily.
   // Code::Flags uses only the low 17 bits of num-parameters to
   // construct a hashable id, so if more than 2^17 are allowed, this
@@ -470,6 +470,8 @@ class Parser {
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
+  Scope* DeclarationScope();
+
   // Check if the given string is 'eval' or 'arguments'.
   bool IsEvalOrArguments(Handle<String> string);
 
@@ -484,7 +486,9 @@ class Parser {
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(bool* ok);
-  Block* ParseVariableDeclarations(bool accept_IN, Expression** var, bool* ok);
+  Block* ParseVariableDeclarations(bool accept_IN,
+                                   Handle<String>* out,
+                                   bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
                                                 bool* ok);
   IfStatement* ParseIfStatement(ZoneStringList* labels, bool* ok);

@@ -256,11 +256,16 @@ void Scope::Initialize(bool inside_with) {
   // instead load them directly from the stack. Currently, the only
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
-  Variable* var =
-      variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
-                         false, Variable::THIS);
-  var->set_rewrite(new Slot(var, Slot::PARAMETER, -1));
-  receiver_ = var;
+  if (is_catch_scope()) {
+    ASSERT(outer_scope() != NULL);
+    receiver_ = outer_scope()->receiver();
+  } else {
+    Variable* var =
+        variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
+                           false, Variable::THIS);
+    var->set_rewrite(new Slot(var, Slot::PARAMETER, -1));
+    receiver_ = var;
+  }
 
   if (is_function_scope()) {
     // Declare 'arguments' variable which exists in all functions.
@@ -514,6 +519,7 @@ static const char* Header(Scope::Type type) {
     case Scope::EVAL_SCOPE: return "eval";
     case Scope::FUNCTION_SCOPE: return "function";
     case Scope::GLOBAL_SCOPE: return "global";
+    case Scope::CATCH_SCOPE: return "catch";
   }
   UNREACHABLE();
   return NULL;
@@ -864,8 +870,10 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
       (var->is_accessed_from_inner_scope() ||
-       scope_calls_eval_ || inner_scope_calls_eval_ ||
-       scope_contains_with_)) {
+       scope_calls_eval_ ||
+       inner_scope_calls_eval_ ||
+       scope_contains_with_ ||
+       is_catch_scope())) {
     var->set_is_used(true);
   }
   // Global variables do not need to be allocated.
@@ -874,16 +882,20 @@ bool Scope::MustAllocate(Variable* var) {
 
 
 bool Scope::MustAllocateInContext(Variable* var) {
-  // If var is accessed from an inner scope, or if there is a
-  // possibility that it might be accessed from the current or an inner
-  // scope (through an eval() call), it must be allocated in the
-  // context.  Exception: temporary variables are not allocated in the
+  // If var is accessed from an inner scope, or if there is a possibility
+  // that it might be accessed from the current or an inner scope (through
+  // an eval() call or a runtime with lookup), it must be allocated in the
   // context.
-  return
-    var->mode() != Variable::TEMPORARY &&
-    (var->is_accessed_from_inner_scope() ||
-     scope_calls_eval_ || inner_scope_calls_eval_ ||
-     scope_contains_with_ || var->is_global());
+  //
+  // Exceptions: temporary variables are never allocated in a context;
+  // catch-bound variables are always allocated in a context.
+  if (var->mode() == Variable::TEMPORARY) return false;
+  if (is_catch_scope()) return true;
+  return var->is_accessed_from_inner_scope() ||
+      scope_calls_eval_ ||
+      inner_scope_calls_eval_ ||
+      scope_contains_with_ ||
+      var->is_global();
 }
 
 

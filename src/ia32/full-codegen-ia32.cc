@@ -123,6 +123,7 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
+  scope_ = info->scope();
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -142,7 +143,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ test(ecx, Operand(ecx));
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
-    int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+    int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
@@ -154,7 +155,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   __ push(edi);  // Callee's JS Function.
 
   { Comment cmnt(masm_, "[ Allocate locals");
-    int locals_count = scope()->num_stack_slots();
+    int locals_count = info->scope()->num_stack_slots();
     if (locals_count == 1) {
       __ push(Immediate(isolate()->factory()->undefined_value()));
     } else if (locals_count > 1) {
@@ -168,7 +169,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
     // Argument to NewContext is the function, which is still in edi.
@@ -185,7 +186,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
 
     // Copy parameters into context if necessary.
-    int num_parameters = scope()->num_parameters();
+    int num_parameters = info->scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
       Slot* slot = scope()->parameter(i)->AsSlot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
@@ -215,11 +216,12 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     }
     // Receiver is just before the parameters on the caller's stack.
-    int offset = scope()->num_parameters() * kPointerSize;
+    int num_parameters = info->scope()->num_parameters();
+    int offset = num_parameters * kPointerSize;
     __ lea(edx,
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
-    __ SafePush(Immediate(Smi::FromInt(scope()->num_parameters())));
+    __ SafePush(Immediate(Smi::FromInt(num_parameters)));
     // Arguments to ArgumentsAccessStub and/or New...:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
@@ -344,7 +346,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ mov(esp, ebp);
     __ pop(ebp);
 
-    int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+    int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, ecx);
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Check that the size of the code used for returning is large enough
@@ -2061,7 +2063,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   }
 
   // Push the receiver of the enclosing function.
-  __ push(Operand(ebp, (2 + scope()->num_parameters()) * kPointerSize));
+  __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
 
   // Push the strict mode flag.
   __ push(Immediate(Smi::FromInt(strict_mode_flag())));
@@ -2604,7 +2606,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   // parameter count in eax.
   VisitForAccumulatorValue(args->at(0));
   __ mov(edx, eax);
-  __ SafeSet(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
+  __ SafeSet(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(eax);
@@ -2616,7 +2618,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ SafeSet(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
+  __ SafeSet(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -4212,7 +4214,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // code.  Fetch it from the context.
     __ push(ContextOperand(esi, Context::CLOSURE_INDEX));
   } else {
-    ASSERT(scope()->is_function_scope());
+    ASSERT(scope()->is_function_scope() || scope()->is_catch_scope());
     __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   }
 }
@@ -4224,12 +4226,12 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 void FullCodeGenerator::EnterFinallyBlock() {
   // Cook return address on top of stack (smi encoded Code* delta)
   ASSERT(!result_register().is(edx));
-  __ mov(edx, Operand(esp, 0));
+  __ pop(edx);
   __ sub(Operand(edx), Immediate(masm_->CodeObject()));
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   ASSERT_EQ(0, kSmiTag);
-  __ add(edx, Operand(edx));  // Convert to smi.
-  __ mov(Operand(esp, 0), edx);
+  __ SmiTag(edx);
+  __ push(edx);
   // Store result register while executing finally block.
   __ push(result_register());
 }
@@ -4237,15 +4239,12 @@ void FullCodeGenerator::EnterFinallyBlock() {
 
 void FullCodeGenerator::ExitFinallyBlock() {
   ASSERT(!result_register().is(edx));
-  // Restore result register from stack.
   __ pop(result_register());
   // Uncook return address.
-  __ mov(edx, Operand(esp, 0));
-  __ sar(edx, 1);  // Convert smi to int.
+  __ pop(edx);
+  __ SmiUntag(edx);
   __ add(Operand(edx), Immediate(masm_->CodeObject()));
-  __ mov(Operand(esp, 0), edx);
-  // And return.
-  __ ret(0);
+  __ jmp(Operand(edx));
 }
 
 

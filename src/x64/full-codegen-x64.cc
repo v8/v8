@@ -123,6 +123,7 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
+  scope_ = info->scope();
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -142,7 +143,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ testq(rcx, rcx);
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
-    int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+    int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movq(Operand(rsp, receiver_offset), kScratchRegister);
     __ bind(&ok);
@@ -154,7 +155,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   __ push(rdi);  // Callee's JS Function.
 
   { Comment cmnt(masm_, "[ Allocate locals");
-    int locals_count = scope()->num_stack_slots();
+    int locals_count = info->scope()->num_stack_slots();
     if (locals_count == 1) {
       __ PushRoot(Heap::kUndefinedValueRootIndex);
     } else if (locals_count > 1) {
@@ -168,7 +169,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
     // Argument to NewContext is the function, which is still in rdi.
@@ -185,7 +186,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
 
     // Copy any necessary parameters into the context.
-    int num_parameters = scope()->num_parameters();
+    int num_parameters = info->scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
       Slot* slot = scope()->parameter(i)->AsSlot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
@@ -217,11 +218,12 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     }
     // The receiver is just before the parameters on the caller's stack.
-    int offset = scope()->num_parameters() * kPointerSize;
+    int num_parameters = info->scope()->num_parameters();
+    int offset = num_parameters * kPointerSize;
     __ lea(rdx,
            Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(rdx);
-    __ Push(Smi::FromInt(scope()->num_parameters()));
+    __ Push(Smi::FromInt(num_parameters));
     // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
@@ -334,7 +336,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ movq(rsp, rbp);
     __ pop(rbp);
 
-    int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+    int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, rcx);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2025,7 +2027,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   }
 
   // Push the receiver of the enclosing function and do runtime call.
-  __ push(Operand(rbp, (2 + scope()->num_parameters()) * kPointerSize));
+  __ push(Operand(rbp, (2 + info_->scope()->num_parameters()) * kPointerSize));
 
   // Push the strict mode flag.
   __ Push(Smi::FromInt(strict_mode_flag()));
@@ -2567,7 +2569,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   // parameter count in rax.
   VisitForAccumulatorValue(args->at(0));
   __ movq(rdx, rax);
-  __ Move(rax, Smi::FromInt(scope()->num_parameters()));
+  __ Move(rax, Smi::FromInt(info_->scope()->num_parameters()));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(rax);
@@ -2579,7 +2581,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ Move(rax, Smi::FromInt(scope()->num_parameters()));
+  __ Move(rax, Smi::FromInt(info_->scope()->num_parameters()));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
@@ -4190,7 +4192,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // code.  Fetch it from the context.
     __ push(ContextOperand(rsi, Context::CLOSURE_INDEX));
   } else {
-    ASSERT(scope()->is_function_scope());
+    ASSERT(scope()->is_function_scope() || scope()->is_catch_scope());
     __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   }
 }
@@ -4204,11 +4206,11 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(rdx));
   ASSERT(!result_register().is(rcx));
   // Cook return address on top of stack (smi encoded Code* delta)
-  __ movq(rdx, Operand(rsp, 0));
+  __ pop(rdx);
   __ Move(rcx, masm_->CodeObject());
   __ subq(rdx, rcx);
   __ Integer32ToSmi(rdx, rdx);
-  __ movq(Operand(rsp, 0), rdx);
+  __ push(rdx);
   // Store result register while executing finally block.
   __ push(result_register());
 }
@@ -4217,16 +4219,13 @@ void FullCodeGenerator::EnterFinallyBlock() {
 void FullCodeGenerator::ExitFinallyBlock() {
   ASSERT(!result_register().is(rdx));
   ASSERT(!result_register().is(rcx));
-  // Restore result register from stack.
   __ pop(result_register());
   // Uncook return address.
-  __ movq(rdx, Operand(rsp, 0));
+  __ pop(rdx);
   __ SmiToInteger32(rdx, rdx);
   __ Move(rcx, masm_->CodeObject());
   __ addq(rdx, rcx);
-  __ movq(Operand(rsp, 0), rdx);
-  // And return.
-  __ ret(0);
+  __ jmp(rdx);
 }
 
 

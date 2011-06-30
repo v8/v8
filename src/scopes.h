@@ -90,9 +90,10 @@ class Scope: public ZoneObject {
   // Construction
 
   enum Type {
-    EVAL_SCOPE,     // the top-level scope for an 'eval' source
-    FUNCTION_SCOPE,  // the top-level scope for a function
-    GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
+    EVAL_SCOPE,      // The top-level scope for an eval source.
+    FUNCTION_SCOPE,  // The top-level scope for a function.
+    GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+    CATCH_SCOPE      // The scope introduced by catch.
   };
 
   Scope(Scope* outer_scope, Type type);
@@ -202,6 +203,7 @@ class Scope: public ZoneObject {
   bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
+  bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
   bool is_strict_mode() const { return strict_mode_; }
   bool is_strict_mode_eval_scope() const {
     return is_eval_scope() && is_strict_mode();
@@ -225,13 +227,8 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Accessors.
 
-  // A new variable proxy corresponding to the (function) receiver.
-  VariableProxy* receiver() const {
-    VariableProxy* proxy =
-        new VariableProxy(FACTORY->this_symbol(), true, false);
-    proxy->BindTo(receiver_);
-    return proxy;
-  }
+  // The variable corresponding the 'this' value.
+  Variable* receiver() { return receiver_; }
 
   // The variable holding the function literal for named function
   // literals, or NULL.

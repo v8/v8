@@ -10057,14 +10057,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
     }
   }
-  // Get the context containing declarations.
-  Handle<Context> context(
-      Context::cast(it.frame()->context())->declaration_context());
-  for (; i < info.NumberOfLocals(); ++i) {
-    Handle<String> name = info.LocalName(i);
-    locals->set(i * 2, *name);
-    locals->set(i * 2 + 1,
-                context->get(scope_info->ContextSlotIndex(*name, NULL)));
+  if (i < info.NumberOfLocals()) {
+    // Get the context containing declarations.
+    Handle<Context> context(
+        Context::cast(it.frame()->context())->declaration_context());
+    for (; i < info.NumberOfLocals(); ++i) {
+      Handle<String> name = info.LocalName(i);
+      locals->set(i * 2, *name);
+      locals->set(i * 2 + 1,
+                  context->get(scope_info->ContextSlotIndex(*name, NULL)));
+    }
   }
 
   // Check whether this frame is positioned at return. If not top
@@ -10286,7 +10288,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
   }
 
   // Second fill all stack locals.
-  for (int i = 0; i < scope_info.number_of_stack_slots(); i++) {
+  for (int i = 0; i < scope_info.number_of_stack_slots(); ++i) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(local_scope,
@@ -10297,37 +10299,40 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
         Handle<JSObject>());
   }
 
-  // Third fill all context locals.
-  Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->declaration_context());
-  if (!CopyContextLocalsToScopeObject(isolate,
-                                      serialized_scope_info, scope_info,
-                                      function_context, local_scope)) {
-    return Handle<JSObject>();
-  }
+  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
+    // Third fill all context locals.
+    Handle<Context> frame_context(Context::cast(frame->context()));
+    Handle<Context> function_context(frame_context->declaration_context());
+    if (!CopyContextLocalsToScopeObject(isolate,
+                                        serialized_scope_info, scope_info,
+                                        function_context, local_scope)) {
+      return Handle<JSObject>();
+    }
 
-  // Finally copy any properties from the function context extension. This will
-  // be variables introduced by eval.
-  if (function_context->closure() == *function) {
-    if (function_context->has_extension() &&
-        !function_context->IsGlobalContext()) {
-      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-      Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
-      for (int i = 0; i < keys->length(); i++) {
-        // Names of variables introduced by eval are strings.
-        ASSERT(keys->get(i)->IsString());
-        Handle<String> key(String::cast(keys->get(i)));
-        RETURN_IF_EMPTY_HANDLE_VALUE(
-            isolate,
-            SetProperty(local_scope,
-                        key,
-                        GetProperty(ext, key),
-                        NONE,
-                        kNonStrictMode),
-            Handle<JSObject>());
+    // Finally copy any properties from the function context extension.
+    // These will be variables introduced by eval.
+    if (function_context->closure() == *function) {
+      if (function_context->has_extension() &&
+          !function_context->IsGlobalContext()) {
+        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+        Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
+        for (int i = 0; i < keys->length(); i++) {
+          // Names of variables introduced by eval are strings.
+          ASSERT(keys->get(i)->IsString());
+          Handle<String> key(String::cast(keys->get(i)));
+          RETURN_IF_EMPTY_HANDLE_VALUE(
+              isolate,
+              SetProperty(local_scope,
+                          key,
+                          GetProperty(ext, key),
+                          NONE,
+                          kNonStrictMode),
+              Handle<JSObject>());
+        }
       }
     }
   }
+
   return local_scope;
 }
 
