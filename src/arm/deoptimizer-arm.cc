@@ -550,7 +550,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
 
   // Fill the frame content from the actual data on the frame.
-  for (intptr_t i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
+  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
     input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
   }
 }

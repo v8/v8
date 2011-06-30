@@ -316,7 +316,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   USE(height_in_bytes);
 
   unsigned fixed_size = ComputeFixedSize(function_);
-  unsigned input_frame_size = static_cast<unsigned>(input_->GetFrameSize());
+  unsigned input_frame_size = input_->GetFrameSize();
   ASSERT(fixed_size + height_in_bytes == input_frame_size);
 
   unsigned stack_slot_size = optimized_code_->stack_slots() * kPointerSize;
@@ -451,7 +451,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by JavaScriptFrameConstants.
   unsigned fixed_frame_size = ComputeFixedSize(function);
-  unsigned input_frame_size = static_cast<unsigned>(input_->GetFrameSize());
+  unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -616,7 +616,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
 
   // Fill the frame content from the actual data on the frame.
-  for (intptr_t i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
+  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
     input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
   }
 }

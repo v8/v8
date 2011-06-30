@@ -340,7 +340,10 @@ class FrameDescription {
     free(description);
   }
 
-  intptr_t GetFrameSize() const { return frame_size_; }
+  uint32_t GetFrameSize() const {
+    ASSERT(static_cast<uint32_t>(frame_size_) == frame_size_);
+    return static_cast<uint32_t>(frame_size_);
+  }
 
   JSFunction* GetFunction() const { return function_; }
 
@@ -434,6 +437,9 @@ class FrameDescription {
  private:
   static const uint32_t kZapUint32 = 0xbeeddead;
 
+  // Frame_size_ must hold a uint32_t value.  It is only a uintptr_t to
+  // keep the variable-size array frame_content_ of type intptr_t at
+  // the end of the structure aligned.
   uintptr_t frame_size_;  // Number of bytes.
   JSFunction* function_;
   intptr_t registers_[Register::kNumRegisters];

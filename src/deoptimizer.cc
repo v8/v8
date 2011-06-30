@@ -161,7 +161,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Get the "simulated" top and size for the requested frame.
   Address top =
       reinterpret_cast<Address>(deoptimizer->output_[frame_index]->GetTop());
-  intptr_t size =
+  unsigned size =
       deoptimizer->output_[frame_index]->GetFrameSize() / kPointerSize;
 
   // Done with the GC-unsafe frame descriptions. This re-enables allocation.
@@ -1114,13 +1114,13 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
   if (slot_index >= 0) {
     // Local or spill slots. Skip the fixed part of the frame
     // including all arguments.
-    unsigned base = static_cast<unsigned>(
-        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction()));
+    unsigned base =
+        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
     return base - ((slot_index + 1) * kPointerSize);
   } else {
     // Incoming parameter.
-    unsigned base = static_cast<unsigned>(GetFrameSize() -
-        deoptimizer->ComputeIncomingArgumentSize(GetFunction()));
+    unsigned base = GetFrameSize() -
+        deoptimizer->ComputeIncomingArgumentSize(GetFunction());
     return base - ((slot_index + 1) * kPointerSize);
   }
 }
@@ -1128,8 +1128,8 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
 
 unsigned FrameDescription::GetExpressionCount(Deoptimizer* deoptimizer) {
   ASSERT_EQ(Code::FUNCTION, kind_);
-  intptr_t size = GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
-  return static_cast<unsigned>(size / kPointerSize);
+  unsigned size = GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
+  return size / kPointerSize;
 }
 
 
