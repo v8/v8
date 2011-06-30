@@ -400,6 +400,9 @@ DTOA_EXTRA_FLAGS = {
 CCTEST_EXTRA_FLAGS = {
   'all': {
     'CPPPATH': [join(root_dir, 'src')],
+    'library:shared': {
+      'CPPDEFINES': ['USING_V8_SHARED']
+    },
   },
   'gcc': {
     'all': {
@@ -436,9 +439,6 @@ CCTEST_EXTRA_FLAGS = {
       'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
       'LIBS': ['winmm', 'ws2_32']
     },
-    'library:shared': {
-      'CPPDEFINES': ['USING_V8_SHARED']
-    },
     'arch:ia32': {
       'CPPDEFINES': ['V8_TARGET_ARCH_IA32']
     },
@@ -453,6 +453,9 @@ CCTEST_EXTRA_FLAGS = {
 SAMPLE_FLAGS = {
   'all': {
     'CPPPATH': [join(abspath('.'), 'include')],
+    'library:shared': {
+      'CPPDEFINES': ['USING_V8_SHARED']
+    },
   },
   'gcc': {
     'all': {
@@ -572,9 +575,6 @@ SAMPLE_FLAGS = {
     'verbose:on': {
       'LINKFLAGS': ['/VERBOSE']
     },
-    'library:shared': {
-      'CPPDEFINES': ['USING_V8_SHARED']
-    },
     'prof:on': {
       'LINKFLAGS': ['/MAP']
     },
@@ -625,7 +625,10 @@ SAMPLE_FLAGS = {
 
 PREPARSER_FLAGS = {
   'all': {
-    'CPPPATH': [join(abspath('.'), 'include'), join(abspath('.'), 'src')]
+    'CPPPATH': [join(abspath('.'), 'include'), join(abspath('.'), 'src')],
+    'library:shared': {
+      'CPPDEFINES': ['USING_V8_SHARED']
+    },
   },
   'gcc': {
     'all': {
@@ -726,9 +729,6 @@ PREPARSER_FLAGS = {
     },
     'verbose:on': {
       'LINKFLAGS': ['/VERBOSE']
-    },
-    'library:shared': {
-      'CPPDEFINES': ['USING_V8_SHARED']
     },
     'prof:on': {
       'LINKFLAGS': ['/MAP']
