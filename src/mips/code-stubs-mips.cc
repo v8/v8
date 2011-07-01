@@ -1846,19 +1846,13 @@ void UnaryOpStub::Generate(MacroAssembler* masm) {
 
 void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Argument is in a0 and v0 at this point, so we can overwrite a0.
-  // Push this stub's key. Although the operation and the type info are
-  // encoded into the key, the encoding is opaque, so push them too.
-  __ li(a2, Operand(Smi::FromInt(MinorKey())));
-  __ li(a1, Operand(Smi::FromInt(op_)));
+  __ li(a2, Operand(Smi::FromInt(op_)));
+  __ li(a1, Operand(Smi::FromInt(mode_)));
   __ li(a0, Operand(Smi::FromInt(operand_type_)));
-
   __ Push(v0, a2, a1, a0);
 
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kUnaryOp_Patch),
-                        masm->isolate()),
-      4,
-      1);
+      ExternalReference(IC_Utility(IC::kUnaryOp_Patch), masm->isolate()), 4, 1);
 }
 
 

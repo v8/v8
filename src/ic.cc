@@ -2332,15 +2332,15 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
 
   HandleScope scope(isolate);
   Handle<Object> operand = args.at<Object>(0);
-  int key = args.smi_at(1);
-  Token::Value op = static_cast<Token::Value>(args.smi_at(2));
+  Token::Value op = static_cast<Token::Value>(args.smi_at(1));
+  UnaryOverwriteMode mode = static_cast<UnaryOverwriteMode>(args.smi_at(2));
   UnaryOpIC::TypeInfo previous_type =
       static_cast<UnaryOpIC::TypeInfo>(args.smi_at(3));
 
   UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
   type = UnaryOpIC::ComputeNewType(type, previous_type);
 
-  UnaryOpStub stub(key, type);
+  UnaryOpStub stub(op, mode, type);
   Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
