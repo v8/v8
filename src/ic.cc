@@ -1097,16 +1097,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-String* KeyedLoadIC::GetStubNameForCache(IC::State ic_state) {
-  if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
-  } else {
-    ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedLoadElementPolymorphic_symbol();
-  }
-}
-
-
 MaybeObject* KeyedLoadIC::GetFastElementStubWithoutMapCheck(
     bool is_js_array) {
   return KeyedLoadFastElementStub().TryGetCode();
@@ -1634,18 +1624,14 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
                                   StrictModeFlag strict_mode,
                                   Code* generic_stub) {
   State ic_state = target()->ic_state();
-  Code* monomorphic_stub;
-  // Always compute the MONOMORPHIC stub, even if the MEGAMORPHIC stub ends up
-  // being used. This is necessary because the megamorphic stub needs to have
-  // access to more information than what is stored in the receiver map in some
-  // cases (external arrays need the array type from the MONOMORPHIC stub).
-  MaybeObject* maybe_stub = ComputeMonomorphicStub(receiver,
-                                                   is_store,
-                                                   strict_mode,
-                                                   generic_stub);
-  if (!maybe_stub->To(&monomorphic_stub)) return maybe_stub;
-
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+    Code* monomorphic_stub;
+    MaybeObject* maybe_stub = ComputeMonomorphicStub(receiver,
+                                                     is_store,
+                                                     strict_mode,
+                                                     generic_stub);
+    if (!maybe_stub->To(&monomorphic_stub)) return maybe_stub;
+
     return monomorphic_stub;
   }
   ASSERT(target() != generic_stub);
@@ -1696,9 +1682,9 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
   }
   // Build the MEGAMORPHIC stub.
   Code* stub;
-  maybe_stub = ConstructMegamorphicStub(&target_receiver_maps,
-                                        &handler_ics,
-                                        strict_mode);
+  MaybeObject* maybe_stub = ConstructMegamorphicStub(&target_receiver_maps,
+                                                     &handler_ics,
+                                                     strict_mode);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   MaybeObject* maybe_update = cache->Update(&target_receiver_maps, flags, stub);
   if (maybe_update->IsFailure()) return maybe_update;
@@ -1714,22 +1700,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     ASSERT(string_stub() != NULL);
     return string_stub();
   } else if (receiver_map->has_external_array_elements()) {
-    // Determine the array type from the default MONOMORPHIC already generated
-    // stub. There is no other way to determine the type of the external array
-    // directly from the receiver type.
-    Code::Kind kind = this->kind();
-    Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
-                                                      NORMAL,
-                                                      strict_mode);
-    String* monomorphic_name = GetStubNameForCache(MONOMORPHIC);
-    Object* maybe_default_stub = receiver_map->FindInCodeCache(monomorphic_name,
-                                                               flags);
-    if (maybe_default_stub->IsUndefined()) {
-      return generic_stub;
-    }
-    Code* default_stub = Code::cast(maybe_default_stub);
-    Map* first_map = default_stub->FindFirstMap();
-    return GetExternalArrayStubWithoutMapCheck(first_map->elements_kind());
+    return GetExternalArrayStubWithoutMapCheck(receiver_map->elements_kind());
   } else if (receiver_map->has_fast_elements()) {
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     return GetFastElementStubWithoutMapCheck(is_js_array);
@@ -1755,16 +1726,6 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
     result = generic_stub;
   }
   return result;
-}
-
-
-String* KeyedStoreIC::GetStubNameForCache(IC::State ic_state) {
-  if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
-  } else {
-    ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedStoreElementPolymorphic_symbol();
-  }
 }
 
 
