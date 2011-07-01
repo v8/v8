@@ -1816,6 +1816,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
         stub = non_strict_arguments_stub();
       } else if (!force_generic) {
         if (key->IsSmi() && (target() != non_strict_arguments_stub())) {
+          HandleScope scope(isolate());
           MaybeObject* maybe_stub = ComputeStub(receiver,
                                                 true,
                                                 strict_mode,
