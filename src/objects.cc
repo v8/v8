@@ -3031,11 +3031,33 @@ MaybeObject* JSObject::DeleteFastElement(uint32_t index) {
     if (!maybe->ToObject(&writable)) return maybe;
     backing_store = FixedArray::cast(writable);
   }
-  int length = IsJSArray()
+  uint32_t length = static_cast<uint32_t>(
+      IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : backing_store->length();
-  if (index < static_cast<uint32_t>(length)) {
+      : backing_store->length());
+  if (index < length) {
     backing_store->set_the_hole(index);
+    // If an old space backing store is larger than a certain size and
+    // has too few used values, normalize it.
+    // To avoid doing the check on every delete we require at least
+    // one adjacent hole to the value being deleted.
+    Object* hole = heap->the_hole_value();
+    const int kMinLengthForSparsenessCheck = 64;
+    if (backing_store->length() >= kMinLengthForSparsenessCheck &&
+        !heap->InNewSpace(backing_store) &&
+        ((index > 0 && backing_store->get(index - 1) == hole) ||
+         (index + 1 < length && backing_store->get(index + 1) == hole))) {
+      int num_used = 0;
+      for (int i = 0; i < backing_store->length(); ++i) {
+        if (backing_store->get(i) != hole) ++num_used;
+        // Bail out early if more than 1/4 is used.
+        if (4 * num_used > backing_store->length()) break;
+      }
+      if (4 * num_used <= backing_store->length()) {
+        MaybeObject* result = NormalizeElements();
+        if (result->IsFailure()) return result;
+      }
+    }
   }
   return heap->true_value();
 }
