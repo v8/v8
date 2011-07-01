@@ -12124,22 +12124,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  CONVERT_CHECKED(Smi, smi_tag, args[1]);
-  v8::V8::ResumeProfilerEx(smi_modules->value(), smi_tag->value());
+  v8::V8::ResumeProfiler();
   return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  CONVERT_CHECKED(Smi, smi_tag, args[1]);
-  v8::V8::PauseProfilerEx(smi_modules->value(), smi_tag->value());
+  v8::V8::PauseProfiler();
   return isolate->heap()->undefined_value();
 }
 

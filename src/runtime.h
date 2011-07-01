@@ -413,8 +413,8 @@ namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F) \
-  F(ProfilerResume, 2, 1) \
-  F(ProfilerPause, 2, 1)
+  F(ProfilerResume, 0, 1) \
+  F(ProfilerPause, 0, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F)
 #endif
