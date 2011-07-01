@@ -475,6 +475,9 @@ SAMPLE_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:solaris': {
+      # On Solaris, to get isinf, INFINITY, fpclassify and other macros one
+      # needs to define __C99FEATURES__.
+      'CPPDEFINES': ['__C99FEATURES__'],
       'LIBPATH' :     ['/usr/local/lib'],
       'LIBS':         ['m', 'pthread', 'socket', 'nsl', 'rt'],
       'LINKFLAGS':    ['-mt']
