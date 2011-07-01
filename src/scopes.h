@@ -364,6 +364,10 @@ class Scope: public ZoneObject {
   bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
+  // True if it doesn't need scope resolution (e.g., if the scope was
+  // constructed based on a serialized scope info or a catch context).
+  bool already_resolved_;
+
   // Computed as variables are declared.
   int num_var_or_const_;
 
@@ -373,7 +377,7 @@ class Scope: public ZoneObject {
 
   // Serialized scopes support.
   Handle<SerializedScopeInfo> scope_info_;
-  bool resolved() { return !scope_info_.is_null(); }
+  bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -409,7 +413,11 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
+  // Construct a function scope based on the scope info.
   Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info);
+
+  // Construct a catch scope with a binding for the name.
+  Scope(Scope* inner_scope, Handle<String> catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {

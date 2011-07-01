@@ -119,9 +119,9 @@ Scope::Scope(Type type)
     temps_(0),
     params_(0),
     unresolved_(0),
-    decls_(0) {
+    decls_(0),
+    already_resolved_(false) {
   SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
-  ASSERT(!resolved());
 }
 
 
@@ -131,14 +131,14 @@ Scope::Scope(Scope* outer_scope, Type type)
     temps_(4),
     params_(4),
     unresolved_(16),
-    decls_(4) {
+    decls_(4),
+    already_resolved_(false) {
   SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
   // In that case, the ASSERT below needs to be adjusted.
   ASSERT((type == GLOBAL_SCOPE || type == EVAL_SCOPE) == (outer_scope == NULL));
   ASSERT(!HasIllegalRedeclaration());
-  ASSERT(!resolved());
 }
 
 
@@ -148,15 +148,34 @@ Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
     temps_(4),
     params_(4),
     unresolved_(16),
-    decls_(4) {
+    decls_(4),
+    already_resolved_(true) {
   ASSERT(!scope_info.is_null());
   SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
-  ASSERT(resolved());
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
-
   AddInnerScope(inner_scope);
+}
+
+
+Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
+    : inner_scopes_(1),
+      variables_(),
+      temps_(0),
+      params_(0),
+      unresolved_(0),
+      decls_(0),
+      already_resolved_(true) {
+  SetDefaults(CATCH_SCOPE, NULL, Handle<SerializedScopeInfo>::null());
+  AddInnerScope(inner_scope);
+  ++num_var_or_const_;
+  Variable* variable = variables_.Declare(this,
+                                          catch_variable_name,
+                                          Variable::VAR,
+                                          true,  // Valid left-hand side.
+                                          Variable::NORMAL);
+  AllocateHeapSlot(variable);
 }
 
 
@@ -190,30 +209,43 @@ void Scope::SetDefaults(Type type,
 
 Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
                                     Scope* global_scope) {
+  // Reconstruct the outer scope chain from a closure's context chain.
   ASSERT(!info->closure().is_null());
-  // If we have a serialized scope info, reuse it.
+  Context* context = info->closure()->context();
+  Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
-  Scope* scope = NULL;
-
-  SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
-  if (scope_info != SerializedScopeInfo::Empty()) {
-    JSFunction* current = *info->closure();
-    do {
-      current = current->context()->closure();
-      Handle<SerializedScopeInfo> scope_info(current->shared()->scope_info());
-      if (*scope_info != SerializedScopeInfo::Empty()) {
-        scope = new Scope(scope, scope_info);
-        if (innermost_scope == NULL) innermost_scope = scope;
-      } else {
-        ASSERT(current->context()->IsGlobalContext());
+  bool contains_with = false;
+  while (!context->IsGlobalContext()) {
+    if (context->IsWithContext()) {
+      // All the inner scopes are inside a with.
+      contains_with = true;
+      for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
+        s->scope_inside_with_ = true;
       }
-    } while (!current->context()->IsGlobalContext());
+    } else {
+      if (context->IsFunctionContext()) {
+        SerializedScopeInfo* scope_info =
+            context->closure()->shared()->scope_info();
+        current_scope =
+            new Scope(current_scope, Handle<SerializedScopeInfo>(scope_info));
+      } else {
+        ASSERT(context->IsCatchContext());
+        String* name = String::cast(context->extension());
+        current_scope = new Scope(current_scope, Handle<String>(name));
+      }
+      if (contains_with) current_scope->RecordWithStatement();
+      if (innermost_scope == NULL) innermost_scope = current_scope;
+    }
+
+    // Forget about a with when we move to a context for a different function.
+    if (context->previous()->closure() != context->closure()) {
+      contains_with = false;
+    }
+    context = context->previous();
   }
 
-  global_scope->AddInnerScope(scope);
-  if (innermost_scope == NULL) innermost_scope = global_scope;
-
-  return innermost_scope;
+  global_scope->AddInnerScope(current_scope);
+  return (innermost_scope == NULL) ? global_scope : innermost_scope;
 }
 
 
@@ -238,7 +270,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
 
 void Scope::Initialize(bool inside_with) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
   if (outer_scope_ != NULL) {
@@ -279,11 +311,10 @@ void Scope::Initialize(bool inside_with) {
 
 Variable* Scope::LocalLookup(Handle<String> name) {
   Variable* result = variables_.Lookup(name);
-  if (result != NULL || !resolved()) {
+  if (result != NULL || scope_info_.is_null()) {
     return result;
   }
-  // If the scope is resolved, we can find a variable in serialized scope
-  // info.
+  // If we have a serialized scope info, we might find the variable there.
   //
   // We should never lookup 'arguments' in this scope as it is implicitly
   // present in every scope.
@@ -331,7 +362,7 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name) {
 
 
 void Scope::DeclareParameter(Handle<String> name) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var =
       variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
@@ -340,7 +371,7 @@ void Scope::DeclareParameter(Handle<String> name) {
 
 
 Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
@@ -363,7 +394,7 @@ VariableProxy* Scope::NewUnresolved(Handle<String> name,
   // Note that we must not share the unresolved variables with
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   VariableProxy* proxy = new VariableProxy(name, false, inside_with, position);
   unresolved_.Add(proxy);
   return proxy;
@@ -383,7 +414,7 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 
 
 Variable* Scope::NewTemporary(Handle<String> name) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   Variable* var =
       new Variable(this, name, Variable::TEMPORARY, true, Variable::NORMAL);
   temps_.Add(var);
@@ -1022,7 +1053,7 @@ void Scope::AllocateVariablesRecursively() {
 
   // If scope is already resolved, we still need to allocate
   // variables in inner scopes which might not had been resolved yet.
-  if (resolved()) return;
+  if (already_resolved()) return;
   // The number of slots required for variables.
   num_stack_slots_ = 0;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
