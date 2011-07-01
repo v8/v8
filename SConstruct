@@ -89,7 +89,7 @@ LIBRARY_FLAGS = {
   'gcc': {
     'all': {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
     },
     'visibility:hidden': {
       # Use visibility=default to disable this.
@@ -230,7 +230,7 @@ LIBRARY_FLAGS = {
   'msvc': {
     'all': {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
+      'CXXFLAGS':     ['/GR-', '/Gy'],
       'CPPDEFINES':   ['WIN32'],
       'LINKFLAGS':    ['/INCREMENTAL:NO', '/NXCOMPAT', '/IGNORE:4221'],
       'CCPDBFLAGS':   ['/Zi']
@@ -408,7 +408,7 @@ CCTEST_EXTRA_FLAGS = {
     'all': {
       'LIBPATH':      [abspath('.')],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
@@ -461,7 +461,7 @@ SAMPLE_FLAGS = {
     'all': {
       'LIBPATH':      ['.'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
@@ -637,7 +637,7 @@ PREPARSER_FLAGS = {
     'all': {
       'LIBPATH':      ['.'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:win32': {
@@ -785,7 +785,7 @@ D8_FLAGS = {
   'gcc': {
     'all': {
       'CCFLAGS': ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS': ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS': ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS': ['$CCFLAGS'],
     },
     'console:readline': {
