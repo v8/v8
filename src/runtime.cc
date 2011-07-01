@@ -12505,6 +12505,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IS_VAR) {
 }
 
 
+#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)        \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_Has##Name) {     \
+    CONVERT_CHECKED(JSObject, obj, args[0]);              \
+    return isolate->heap()->ToBoolean(obj->Has##Name());  \
+  }
+
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalPixelElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalByteElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedByteElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalShortElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedShortElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalIntElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedIntElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
+
+#undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
