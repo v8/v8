@@ -5745,6 +5745,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
 }
 
 
+void FindAsciiStringIndices(Vector<const char> subject,
+                            char pattern,
+                            ZoneList<int>* indices,
+                            unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject using memchr.
+  // Stop after finding at most limit values.
+  const char* subject_start = reinterpret_cast<const char*>(subject.start());
+  const char* subject_end = subject_start + subject.length();
+  const char* pos = subject_start;
+  while (limit > 0) {
+    pos = reinterpret_cast<const char*>(
+        memchr(pos, pattern, subject_end - pos));
+    if (pos == NULL) return;
+    indices->Add(pos - subject_start);
+    pos++;
+    limit--;
+  }
+}
+
+
 template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate,
                        Vector<const SubjectChar> subject,
@@ -5752,37 +5773,20 @@ void FindStringIndices(Isolate* isolate,
                        ZoneList<int>* indices,
                        unsigned int limit) {
   ASSERT(limit > 0);
-  // Collect indices of pattern in subject, and the end-of-string index.
+  // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
   int pattern_length = pattern.length();
   int index = 0;
-  if (sizeof(SubjectChar) == kCharSize &&
-      sizeof(PatternChar) == kCharSize &&
-      pattern_length == 1) {
-    // ASCII subject with one char ASCII pattern allows direct use of memchr.
-    char pattern_first_char = pattern[0];
-    const char* subject_start = reinterpret_cast<const char*>(subject.start());
-    const char* subject_end = subject_start + subject.length();
-    const char* pos = subject_start;
-    while (limit > 0) {
-      pos = reinterpret_cast<const char*>(
-          memchr(pos, pattern_first_char, subject_end - pos));
-      if (pos == NULL) return;
-      indices->Add(pos - subject_start);
-      pos++;
-      limit--;
-    }
-  } else {
-    StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
-    while (limit > 0) {
-      index = search.Search(subject, index);
-      if (index < 0) return;
-      indices->Add(index);
-      index += pattern_length;
-      limit--;
-    }
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  while (limit > 0) {
+    index = search.Search(subject, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index += pattern_length;
+    limit--;
   }
 }
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   ASSERT(args.length() == 3);
@@ -5816,11 +5820,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
     if (subject->IsAsciiRepresentation()) {
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern->ToAsciiVector(),
-                          &indices,
-                          limit);
+        Vector<const char> pattern_vector = pattern->ToAsciiVector();
+        if (pattern_vector.length() == 1) {
+          FindAsciiStringIndices(subject_vector,
+                                 pattern_vector[0],
+                                 &indices,
+                                 limit);
+        } else {
+          FindStringIndices(isolate,
+                            subject_vector,
+                            pattern_vector,
+                            &indices,
+                            limit);
+        }
       } else {
         FindStringIndices(isolate,
                           subject_vector,
