@@ -632,7 +632,9 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
         }
       }
     }
-    (*callback_)(heap_, NULL, kStoreBufferScanningPageEvent);
+    if (callback_ != NULL) {
+      (*callback_)(heap_, NULL, kStoreBufferScanningPageEvent);
+    }
   }
 }
 

@@ -208,7 +208,7 @@ class StoreBufferRebuildScope {
         stored_callback_(store_buffer->callback_) {
     store_buffer_->store_buffer_rebuilding_enabled_ = true;
     store_buffer_->callback_ = callback;
-    (*callback)(heap, NULL, kStoreBufferScanningPageEvent);
+    (*callback)(heap, NULL, kStoreBufferStartScanningPagesEvent);
   }
 
   ~StoreBufferRebuildScope() {
