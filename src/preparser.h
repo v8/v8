@@ -31,8 +31,6 @@
 namespace v8 {
 namespace preparser {
 
-typedef uint8_t byte;
-
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
 // See preparse-data-format.h for the data format.
@@ -47,51 +45,6 @@ typedef uint8_t byte;
 // it is used) are generally omitted.
 
 namespace i = v8::internal;
-
-class DuplicateFinder {
- public:
-  DuplicateFinder()
-      : backing_store_(16),
-        map_(new i::HashMap(&Match)) { }
-  ~DuplicateFinder() {
-    delete map_;
-  }
-
-  int AddAsciiSymbol(i::Vector<const char> key, int value);
-  int AddUC16Symbol(i::Vector<const uint16_t> key, int value);
-  // Add a a number literal by converting it (if necessary)
-  // to the string that ToString(ToNumber(literal)) would generate.
-  // and then adding that string with AddAsciiSymbol.
-  // This string is the actual value used as key in an object literal,
-  // and the one that must be different from the other keys.
-  int AddNumber(i::Vector<const char> key, int value);
-
- private:
-  int AddSymbol(i::Vector<const byte> key, bool is_ascii, int value);
-  // Backs up the key and its length in the backing store.
-  // The backup is stored with a base 127 encoding of the
-  // length (plus a bit saying whether the string is ASCII),
-  // followed by the bytes of the key.
-  byte* BackupKey(i::Vector<const byte> key, bool is_ascii);
-
-  // Compare two encoded keys (both pointing into the backing store)
-  // for having the same base-127 encoded lengths and ASCII-ness,
-  // and then having the same 'length' bytes following.
-  static bool Match(void* first, void* second);
-  // Creates a hash from a sequence of bytes.
-  static uint32_t Hash(i::Vector<const byte> key, bool is_ascii);
-  // Checks whether a string containing a JS number is its canonical
-  // form.
-  static bool IsNumberCanonical(i::Vector<const char> key);
-
-  static const int kBufferSize = 100;
-  // Buffer used for string->number->canonical string conversions.
-  char number_buffer_[kBufferSize];
-  // Backing store used to store strings used as hashmap keys.
-  i::SequenceCollector<unsigned char> backing_store_;
-  i::HashMap* map_;
-};
-
 
 class PreParser {
  public:
@@ -114,22 +67,6 @@ class PreParser {
   }
 
  private:
-  // Used to detect duplicates in object literals.
-  enum PropertyType {
-    kNone = 0,
-    // Bit patterns representing different object literal property types.
-    kGetterProperty = 1,
-    kSetterProperty = 2,
-    kValueProperty = 7,
-    // Helper constants.
-    kValueFlag = 4
-  };
-
-  void CheckDuplicate(DuplicateFinder* finder,
-                      i::Token::Value property,
-                      int type,
-                      bool* ok);
-
   // These types form an algebra over syntactic categories that is just
   // rich enough to let us recognize and propagate the constructs that
   // are either being counted in the preparser data, or is important
@@ -427,11 +364,6 @@ class PreParser {
 
   // Report syntax error
   void ReportUnexpectedToken(i::Token::Value token);
-  void ReportMessageAt(i::Scanner::Location location,
-                       const char* type,
-                       const char* name_opt) {
-    log_->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
-  }
   void ReportMessageAt(int start_pos,
                        int end_pos,
                        const char* type,

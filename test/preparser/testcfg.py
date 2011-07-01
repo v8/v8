@@ -98,6 +98,7 @@ class PreparserTestConfiguration(test.TestConfiguration):
   def ParsePythonTestTemplates(self, result, filename,
                                executable, current_path, mode):
     pathname = join(self.root, filename + ".pyt")
+    source = open(pathname).read();
     def Test(name, source, expectation):
       throws = None
       if (expectation is not None):
@@ -117,7 +118,8 @@ class PreparserTestConfiguration(test.TestConfiguration):
           testsource = testsource.replace("$"+key, replacement[key]);
         Test(testname, testsource, expectation)
       return MkTest
-    execfile(pathname, {"Test": Test, "Template": Template})
+    eval(compile(source, pathname, "exec"),
+         {"Test": Test, "Template": Template}, {})
 
   def ListTests(self, current_path, path, mode, variant_flags):
     executable = join('obj', 'preparser', mode, 'preparser')
@@ -141,9 +143,9 @@ class PreparserTestConfiguration(test.TestConfiguration):
     filenames.sort()
     for file in filenames:
       # Each file as a python source file to be executed in a specially
-      # created environment (defining the Template and Test functions)
+      # perparsed environment (defining the Template and Test functions)
       self.ParsePythonTestTemplates(result, file,
-                                      executable, current_path, mode)
+                                    executable, current_path, mode)
     return result
 
   def GetTestStatus(self, sections, defs):
