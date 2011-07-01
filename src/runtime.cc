@@ -5754,18 +5754,35 @@ void FindStringIndices(Isolate* isolate,
   ASSERT(limit > 0);
   // Collect indices of pattern in subject, and the end-of-string index.
   // Stop after finding at most limit values.
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
   int pattern_length = pattern.length();
   int index = 0;
-  while (limit > 0) {
-    index = search.Search(subject, index);
-    if (index < 0) return;
-    indices->Add(index);
-    index += pattern_length;
-    limit--;
+  if (sizeof(SubjectChar) == kCharSize &&
+      sizeof(PatternChar) == kCharSize &&
+      pattern_length == 1) {
+    // ASCII subject with one char ASCII pattern allows direct use of memchr.
+    char pattern_first_char = pattern[0];
+    const char* subject_start = reinterpret_cast<const char*>(subject.start());
+    const char* subject_end = subject_start + subject.length();
+    const char* pos = subject_start;
+    while (limit > 0) {
+      pos = reinterpret_cast<const char*>(
+          memchr(pos, pattern_first_char, subject_end - pos));
+      if (pos == NULL) return;
+      indices->Add(pos - subject_start);
+      pos++;
+      limit--;
+    }
+  } else {
+    StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+    while (limit > 0) {
+      index = search.Search(subject, index);
+      if (index < 0) return;
+      indices->Add(index);
+      index += pattern_length;
+      limit--;
+    }
   }
 }
-
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   ASSERT(args.length() == 3);
