@@ -904,7 +904,8 @@ class HGraphBuilder: public AstVisitor {
   void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
                                      Expression* expr);
 
-  HStringCharCodeAt* BuildStringCharCodeAt(HValue* string,
+  HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
+                                           HValue* string,
                                            HValue* index);
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,

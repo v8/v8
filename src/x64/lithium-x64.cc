@@ -831,11 +831,11 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
   }
 
   ASSERT(instr->representation().IsInteger32());
-  ASSERT(instr->OperandAt(0)->representation().IsInteger32());
-  ASSERT(instr->OperandAt(1)->representation().IsInteger32());
-  LOperand* left = UseRegisterAtStart(instr->OperandAt(0));
+  ASSERT(instr->left()->representation().IsInteger32());
+  ASSERT(instr->right()->representation().IsInteger32());
+  LOperand* left = UseRegisterAtStart(instr->left());
 
-  HValue* right_value = instr->OperandAt(1);
+  HValue* right_value = instr->right();
   LOperand* right = NULL;
   int constant_value = 0;
   if (right_value->IsConstant()) {
@@ -1059,7 +1059,7 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstanceOfKnownGlobal* result =
-      new LInstanceOfKnownGlobal(UseFixed(instr->value(), rax),
+      new LInstanceOfKnownGlobal(UseFixed(instr->left(), rax),
                                  FixedTemp(rdi));
   return MarkAsCall(DefineFixed(result, rax), instr);
 }

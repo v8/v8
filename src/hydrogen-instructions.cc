@@ -1268,13 +1268,15 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* object,
+HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
+                                                       HValue* object,
                                                        ZoneMapList* types,
                                                        Handle<String> name)
-    : HUnaryOperation(object),
-      types_(Min(types->length(), kMaxLoadPolymorphism)),
+    : types_(Min(types->length(), kMaxLoadPolymorphism)),
       name_(name),
       need_generic_(false) {
+  SetOperandAt(0, context);
+  SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetFlag(kDependsOnMaps);
   for (int i = 0;
