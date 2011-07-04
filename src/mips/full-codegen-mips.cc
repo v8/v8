@@ -139,6 +139,7 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
+  scope_ = info->scope();
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -156,13 +157,13 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ Branch(&ok, eq, t1, Operand(zero_reg));
-    int receiver_offset = scope()->num_parameters() * kPointerSize;
+    int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
   }
 
-  int locals_count = scope()->num_stack_slots();
+  int locals_count = info->scope()->num_stack_slots();
 
   __ Push(ra, fp, cp, a1);
   if (locals_count > 0) {
@@ -182,7 +183,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
     // Argument to NewContext is the function, which is in a1.
@@ -198,7 +199,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // passed to us.  It's saved in the stack and kept live in cp.
     __ sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Copy any necessary parameters into the context.
-    int num_parameters = scope()->num_parameters();
+    int num_parameters = info->scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
       Slot* slot = scope()->parameter(i)->AsSlot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
@@ -230,10 +231,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       __ mov(a3, a1);
     }
     // Receiver is just before the parameters on the caller's stack.
-    int offset = scope()->num_parameters() * kPointerSize;
+    int num_parameters = info->scope()->num_parameters();
+    int offset = num_parameters * kPointerSize;
     __ Addu(a2, fp,
            Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ li(a1, Operand(Smi::FromInt(scope()->num_parameters())));
+    __ li(a1, Operand(Smi::FromInt(num_parameters)));
     __ Push(a3, a2, a1);
 
     // Arguments to ArgumentsAccessStub:
@@ -350,7 +352,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     { Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
-      int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
+      int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
@@ -2139,7 +2141,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   __ push(a1);
 
   // Push the receiver of the enclosing function and do runtime call.
-  __ lw(a1, MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
+  int receiver_offset = 2 + info_->scope()->num_parameters();
+  __ lw(a1, MemOperand(fp, receiver_offset * kPointerSize));
   __ push(a1);
   // Push the strict mode flag.
   __ li(a1, Operand(Smi::FromInt(strict_mode_flag())));
@@ -2685,7 +2688,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   // parameter count in a0.
   VisitForAccumulatorValue(args->at(0));
   __ mov(a1, v0);
-  __ li(a0, Operand(Smi::FromInt(scope()->num_parameters())));
+  __ li(a0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(v0);
@@ -2697,7 +2700,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ li(v0, Operand(Smi::FromInt(scope()->num_parameters())));
+  __ li(v0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ lw(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -4271,7 +4274,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // code.  Fetch it from the context.
     __ lw(at, ContextOperand(cp, Context::CLOSURE_INDEX));
   } else {
-    ASSERT(scope()->is_function_scope());
+    ASSERT(scope()->is_function_scope() || scope()->is_catch_scope());
     __ lw(at, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   }
   __ push(at);
