@@ -5759,7 +5759,7 @@ void FindAsciiStringIndices(Vector<const char> subject,
     pos = reinterpret_cast<const char*>(
         memchr(pos, pattern, subject_end - pos));
     if (pos == NULL) return;
-    indices->Add(pos - subject_start);
+    indices->Add(static_cast<int>(pos - subject_start));
     pos++;
     limit--;
   }
