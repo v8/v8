@@ -992,7 +992,6 @@ void Decoder::DecodeType3(Instruction* instr) {
             Format(instr, "bfi'cond 'rd, 'rm, 'f");
           }
         } else {
-          PrintF("%08x\n", instr->InstructionBits());
           UNREACHABLE();
         }
       } else {
