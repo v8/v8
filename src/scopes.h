@@ -290,6 +290,10 @@ class Scope: public ZoneObject {
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
+  // Find the first function, global, or eval scope.  This is the scope
+  // where var declarations will be hoisted to in the implementation.
+  Scope* DeclarationScope();
+
   // ---------------------------------------------------------------------------
   // Strict mode support.
   bool IsDeclared(Handle<String> name) {

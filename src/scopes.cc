@@ -544,6 +544,15 @@ int Scope::ContextChainLength(Scope* scope) {
 }
 
 
+Scope* Scope::DeclarationScope() {
+  Scope* scope = this;
+  while (scope->is_catch_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope;
+}
+
+
 #ifdef DEBUG
 static const char* Header(Scope::Type type) {
   switch (type) {

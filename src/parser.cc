@@ -412,14 +412,6 @@ Scope* Parser::NewScope(Scope* parent, Scope::Type type, bool inside_with) {
 }
 
 
-Scope* Parser::DeclarationScope() {
-  Scope* scope = top_scope_;
-  while (scope->is_catch_scope()) {
-    scope = scope->outer_scope();
-  }
-  return scope;
-}
-
 // ----------------------------------------------------------------------------
 // Target is a support class to facilitate manipulation of the
 // Parser's target_stack_ (the stack of potential 'break' and
@@ -1310,7 +1302,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the calling function context.
   // Similarly, strict mode eval scope does not leak variable declarations to
   // the caller's scope so we declare all locals, too.
-  Scope* declaration_scope = DeclarationScope();
+  Scope* declaration_scope = top_scope_->DeclarationScope();
   if (declaration_scope->is_function_scope() ||
       declaration_scope->is_strict_mode_eval_scope()) {
     // Declare the variable in the function scope.
@@ -1421,7 +1413,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // isn't lazily compiled. The extension structures are only
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
-  DeclarationScope()->ForceEagerCompilation();
+  top_scope_->DeclarationScope()->ForceEagerCompilation();
 
   // Compute the function template for the native function.
   v8::Handle<v8::FunctionTemplate> fun_template =
@@ -1525,7 +1517,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
 
   Variable::Mode mode = Variable::VAR;
   bool is_const = false;
-  Scope* declaration_scope = DeclarationScope();
+  Scope* declaration_scope = top_scope_->DeclarationScope();
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
@@ -1915,7 +1907,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // function. See ECMA-262, section 12.9, page 67.
   //
   // To be consistent with KJS we report the syntax error at runtime.
-  Scope* declaration_scope = DeclarationScope();
+  Scope* declaration_scope = top_scope_->DeclarationScope();
   if (declaration_scope->is_global_scope() ||
       declaration_scope->is_eval_scope()) {
     Handle<String> type = isolate()->factory()->illegal_return_symbol();
@@ -1944,7 +1936,7 @@ Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
     with_nesting_level_++;
-    DeclarationScope()->RecordWithStatement();
+    top_scope_->DeclarationScope()->RecordWithStatement();
     stat = ParseStatement(labels, CHECK_OK);
     with_nesting_level_--;
   }
@@ -3802,7 +3794,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
-    DeclarationScope()->ForceEagerCompilation();
+    top_scope_->DeclarationScope()->ForceEagerCompilation();
   }
 
   const Runtime::Function* function = Runtime::FunctionForSymbol(name);

@@ -470,8 +470,6 @@ class Parser {
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
-  Scope* DeclarationScope();
-
   // Check if the given string is 'eval' or 'arguments'.
   bool IsEvalOrArguments(Handle<String> string);
 
