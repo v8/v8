@@ -332,8 +332,8 @@ class HashMap;
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
-  V(uint32_t, random_seed, 4)                                                  \
-  V(uint32_t, private_random_seed, 4)                                          \
+  V(uint32_t, random_seed, 2)                                                  \
+  V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
 typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;

@@ -101,7 +101,7 @@ void V8::TearDown() {
 
 
 static void seed_random(uint32_t* state) {
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 2; ++i) {
     state[i] = FLAG_random_seed;
     while (state[i] == 0) {
       state[i] = random();
@@ -119,10 +119,8 @@ static uint32_t random_base(uint32_t* state) {
   // Mix the bits.  Never replaces state[i] with 0 if it is nonzero.
   state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16);
   state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
-  state[2] = 23208 * (state[2] & 0xFFFF) + (state[2] >> 16);
-  state[3] = 27753 * (state[3] & 0xFFFF) + (state[3] >> 16);
 
-  return ((state[2] ^ state[3]) << 16) + ((state[0] ^ state[1]) & 0xFFFF);
+  return (state[0] << 14) + (state[1] & 0x3FFFF);
 }
 
 
