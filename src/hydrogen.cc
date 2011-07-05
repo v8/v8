@@ -2789,17 +2789,18 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
 }
 
 
-void HGraphBuilder::VisitLoopBody(Statement* body,
+void HGraphBuilder::VisitLoopBody(IterationStatement* stmt,
                                   HBasicBlock* loop_entry,
                                   BreakAndContinueInfo* break_info) {
   BreakAndContinueScope push(break_info, this);
+  AddSimulate(stmt->StackCheckId());
   HValue* context = environment()->LookupContext();
   HStackCheck* stack_check =
     new(zone()) HStackCheck(context, HStackCheck::kBackwardsBranch);
   AddInstruction(stack_check);
   ASSERT(loop_entry->IsLoopHeader());
   loop_entry->loop_information()->set_stack_check(stack_check);
-  CHECK_BAILOUT(Visit(body));
+  CHECK_BAILOUT(Visit(stmt->body()));
 }
 
 
@@ -2814,7 +2815,7 @@ void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   set_current_block(loop_entry);
 
   BreakAndContinueInfo break_info(stmt);
-  CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
+  CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
   HBasicBlock* loop_successor = NULL;
@@ -2875,7 +2876,7 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -2920,7 +2921,7 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt->body(), loop_entry, &break_info));
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());

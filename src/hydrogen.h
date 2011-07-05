@@ -788,7 +788,7 @@ class HGraphBuilder: public AstVisitor {
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
   bool HasOsrEntryAt(IterationStatement* statement);
-  void VisitLoopBody(Statement* body,
+  void VisitLoopBody(IterationStatement* stmt,
                      HBasicBlock* loop_entry,
                      BreakAndContinueInfo* break_info);
 

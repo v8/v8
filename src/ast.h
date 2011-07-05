@@ -383,6 +383,7 @@ class IterationStatement: public BreakableStatement {
   // Bailout support.
   int OsrEntryId() const { return osr_entry_id_; }
   virtual int ContinueId() const = 0;
+  virtual int StackCheckId() const = 0;
 
   // Code generation
   Label* continue_target()  { return &continue_target_; }
@@ -421,6 +422,7 @@ class DoWhileStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return continue_id_; }
+  virtual int StackCheckId() const { return back_edge_id_; }
   int BackEdgeId() const { return back_edge_id_; }
 
   virtual bool IsInlineable() const;
@@ -455,6 +457,7 @@ class WhileStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return EntryId(); }
+  virtual int StackCheckId() const { return body_id_; }
   int BodyId() const { return body_id_; }
 
  private:
@@ -494,6 +497,7 @@ class ForStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return continue_id_; }
+  virtual int StackCheckId() const { return body_id_; }
   int BodyId() const { return body_id_; }
 
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
@@ -532,6 +536,7 @@ class ForInStatement: public IterationStatement {
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
   virtual int ContinueId() const { return EntryId(); }
+  virtual int StackCheckId() const { return EntryId(); }
 
  private:
   Expression* each_;

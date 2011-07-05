@@ -649,6 +649,7 @@ int last_source_column = -1;
 
 // Debug event handler which counts the break points which have been hit.
 int break_point_hit_count = 0;
+int break_point_hit_count_deoptimize = 0;
 static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                          v8::Handle<v8::Object> exec_state,
                                          v8::Handle<v8::Object> event_data,
@@ -724,6 +725,12 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
         v8::Handle<v8::String> script_data(result->ToString());
         script_data->WriteAscii(last_script_data_hit);
       }
+    }
+
+    // Perform a full deoptimization when the specified number of
+    // breaks have been hit.
+    if (break_point_hit_count == break_point_hit_count_deoptimize) {
+      i::Deoptimizer::DeoptimizeAll();
     }
   } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
     const int argc = 1;
@@ -983,11 +990,29 @@ static void DebugEventBreakMax(v8::DebugEvent event,
       // Count the number of breaks.
       break_point_hit_count++;
 
+      // Collect the JavsScript stack height if the function frame_count is
+      // compiled.
+      if (!frame_count.IsEmpty()) {
+        static const int kArgc = 1;
+        v8::Handle<v8::Value> argv[kArgc] = { exec_state };
+        // Using exec_state as receiver is just to have a receiver.
+        v8::Handle<v8::Value> result =
+            frame_count->Call(exec_state, kArgc, argv);
+        last_js_stack_height = result->Int32Value();
+      }
+
       // Set the break flag again to come back here as soon as possible.
       v8::Debug::DebugBreak();
+
     } else if (terminate_after_max_break_point_hit) {
       // Terminate execution after the last break if requested.
       v8::V8::TerminateExecution();
+    }
+
+    // Perform a full deoptimization when the specified number of
+    // breaks have been hit.
+    if (break_point_hit_count == break_point_hit_count_deoptimize) {
+      i::Deoptimizer::DeoptimizeAll();
     }
   }
 }
@@ -7195,29 +7220,38 @@ static void TestDebugBreakInLoop(const char* loop_head,
                                  const char** loop_bodies,
                                  const char* loop_tail) {
   // Receive 100 breaks for each test and then terminate JavaScript execution.
-  static int count = 0;
+  static const int kBreaksPerTest = 100;
 
-  for (int i = 0; loop_bodies[i] != NULL; i++) {
-    count++;
-    max_break_point_hit_count = count * 100;
-    terminate_after_max_break_point_hit = true;
+  for (int i = 0; i < 1 && loop_bodies[i] != NULL; i++) {
+    // Perform a lazy deoptimization after various numbers of breaks
+    // have been hit.
+    for (int j = 0; j < 10; j++) {
+      break_point_hit_count_deoptimize = j;
+      if (j == 10) {
+        break_point_hit_count_deoptimize = kBreaksPerTest;
+      }
 
-    EmbeddedVector<char, 1024> buffer;
-    OS::SNPrintF(buffer,
-                 "function f() {%s%s%s}",
-                 loop_head, loop_bodies[i], loop_tail);
+      break_point_hit_count = 0;
+      max_break_point_hit_count = kBreaksPerTest;
+      terminate_after_max_break_point_hit = true;
 
-    // Function with infinite loop.
-    CompileRun(buffer.start());
+      EmbeddedVector<char, 1024> buffer;
+      OS::SNPrintF(buffer,
+                   "function f() {%s%s%s}",
+                   loop_head, loop_bodies[i], loop_tail);
 
-    // Set the debug break to enter the debugger as soon as possible.
-    v8::Debug::DebugBreak();
+      // Function with infinite loop.
+      CompileRun(buffer.start());
 
-    // Call function with infinite loop.
-    CompileRun("f();");
-    CHECK_EQ(count * 100, break_point_hit_count);
+      // Set the debug break to enter the debugger as soon as possible.
+      v8::Debug::DebugBreak();
 
-    CHECK(!v8::V8::IsExecutionTerminating());
+      // Call function with infinite loop.
+      CompileRun("f();");
+      CHECK_EQ(kBreaksPerTest, break_point_hit_count);
+
+      CHECK(!v8::V8::IsExecutionTerminating());
+    }
   }
 }
 
@@ -7228,6 +7262,9 @@ TEST(DebugBreakLoop) {
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventBreakMax);
+
+  // Create a function for getting the frame count when hitting the break.
+  frame_count = CompileFunction(&env, frame_count_source, "frame_count");
 
   CompileRun("var a = 1;");
   CompileRun("function g() { }");
