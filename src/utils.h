@@ -822,6 +822,69 @@ class EmbeddedContainer<ElementType, 0> {
 };
 
 
+// Helper class for building result strings in a character buffer. The
+// purpose of the class is to use safe operations that checks the
+// buffer bounds on all operations in debug mode.
+// This simple base class does not allow formatted output.
+class SimpleStringBuilder {
+ public:
+  // Create a string builder with a buffer of the given size. The
+  // buffer is allocated through NewArray<char> and must be
+  // deallocated by the caller of Finalize().
+  explicit SimpleStringBuilder(int size);
+
+  SimpleStringBuilder(char* buffer, int size)
+      : buffer_(buffer, size), position_(0) { }
+
+  ~SimpleStringBuilder() { if (!is_finalized()) Finalize(); }
+
+  int size() const { return buffer_.length(); }
+
+  // Get the current position in the builder.
+  int position() const {
+    ASSERT(!is_finalized());
+    return position_;
+  }
+
+  // Reset the position.
+  void Reset() { position_ = 0; }
+
+  // Add a single character to the builder. It is not allowed to add
+  // 0-characters; use the Finalize() method to terminate the string
+  // instead.
+  void AddCharacter(char c) {
+    ASSERT(c != '\0');
+    ASSERT(!is_finalized() && position_ < buffer_.length());
+    buffer_[position_++] = c;
+  }
+
+  // Add an entire string to the builder. Uses strlen() internally to
+  // compute the length of the input string.
+  void AddString(const char* s);
+
+  // Add the first 'n' characters of the given string 's' to the
+  // builder. The input string must have enough characters.
+  void AddSubstring(const char* s, int n);
+
+  // Add character padding to the builder. If count is non-positive,
+  // nothing is added to the builder.
+  void AddPadding(char c, int count);
+
+  // Add the decimal representation of the value.
+  void AddDecimalInteger(int value);
+
+  // Finalize the string by 0-terminating it and returning the buffer.
+  char* Finalize();
+
+ protected:
+  Vector<char> buffer_;
+  int position_;
+
+  bool is_finalized() const { return position_ < 0; }
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

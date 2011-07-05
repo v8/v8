@@ -38,6 +38,8 @@
 #include "preparse-data.h"
 #include "preparser.h"
 
+#include "conversions-inl.h"
+
 namespace v8 {
 namespace preparser {
 

@@ -25,35 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "diy-fp.h"
+#ifndef V8_V8CONVERSIONS_H_
+#define V8_V8CONVERSIONS_H_
+
+#include "conversions.h"
 
 namespace v8 {
 namespace internal {
 
-void DiyFp::Multiply(const DiyFp& other) {
-  // Simply "emulates" a 128 bit multiplication.
-  // However: the resulting number only contains 64 bits. The least
-  // significant 64 bits are only used for rounding the most significant 64
-  // bits.
-  const uint64_t kM32 = 0xFFFFFFFFu;
-  uint64_t a = f_ >> 32;
-  uint64_t b = f_ & kM32;
-  uint64_t c = other.f_ >> 32;
-  uint64_t d = other.f_ & kM32;
-  uint64_t ac = a * c;
-  uint64_t bc = b * c;
-  uint64_t ad = a * d;
-  uint64_t bd = b * d;
-  uint64_t tmp = (bd >> 32) + (ad & kM32) + (bc & kM32);
-  // By adding 1U << 31 to tmp we round the final result.
-  // Halfway cases will be round up.
-  tmp += 1U << 31;
-  uint64_t result_f = ac + (ad >> 32) + (bc >> 32) + (tmp >> 32);
-  e_ += other.e_ + 64;
-  f_ = result_f;
+// Convert from Number object to C integer.
+static inline int32_t NumberToInt32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToInt32(number->Number());
 }
 
+
+static inline uint32_t NumberToUint32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToUint32(number->Number());
+}
+
+
+// Converts a string into a double value according to ECMA-262 9.3.1
+double StringToDouble(UnicodeCache* unicode_cache,
+                      String* str,
+                      int flags,
+                      double empty_string_val = 0);
+
+// Converts a string into an integer.
+double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
+
 } }  // namespace v8::internal
+
+#endif  // V8_V8CONVERSIONS_H_
