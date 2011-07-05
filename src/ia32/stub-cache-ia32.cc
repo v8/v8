@@ -459,7 +459,7 @@ static MaybeObject* GenerateFastApiCall(MacroAssembler* masm,
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace, ebx);
+  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
 
   __ mov(ApiParameterOperand(1), eax);  // v8::Arguments::implicit_args_.
   __ add(Operand(eax), Immediate(argc * kPointerSize));
@@ -1082,7 +1082,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   const int kStackSpace = 5;
   const int kApiArgc = 2;
 
-  __ PrepareCallApiFunction(kApiArgc, eax);
+  __ PrepareCallApiFunction(kApiArgc);
   __ mov(ApiParameterOperand(0), ebx);  // name.
   __ add(Operand(ebx), Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.

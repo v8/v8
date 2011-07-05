@@ -1412,32 +1412,30 @@ Operand ApiParameterOperand(int index) {
 }
 
 
-void MacroAssembler::PrepareCallApiFunction(int argc, Register scratch) {
+void MacroAssembler::PrepareCallApiFunction(int argc) {
   if (kReturnHandlesDirectly) {
     EnterApiExitFrame(argc);
     // When handles are returned directly we don't have to allocate extra
     // space for and pass an out parameter.
+    if (emit_debug_code()) {
+      mov(esi, Immediate(BitCast<int32_t>(kZapValue)));
+    }
   } else {
     // We allocate two additional slots: return value and pointer to it.
     EnterApiExitFrame(argc + 2);
 
     // The argument slots are filled as follows:
     //
-    //   n + 1: output cell
+    //   n + 1: output slot
     //   n: arg n
     //   ...
     //   1: arg1
-    //   0: pointer to the output cell
-    //
-    // Note that this is one more "argument" than the function expects
-    // so the out cell will have to be popped explicitly after returning
-    // from the function. The out cell contains Handle.
+    //   0: pointer to the output slot
 
-    // pointer to out cell.
-    lea(scratch, Operand(esp, (argc + 1) * kPointerSize));
-    mov(Operand(esp, 0 * kPointerSize), scratch);  // output.
+    lea(esi, Operand(esp, (argc + 1) * kPointerSize));
+    mov(Operand(esp, 0 * kPointerSize), esi);
     if (emit_debug_code()) {
-      mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
+      mov(Operand(esi, 0), Immediate(0));
     }
   }
 }
@@ -1461,9 +1459,9 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   call(function->address(), RelocInfo::RUNTIME_ENTRY);
 
   if (!kReturnHandlesDirectly) {
-    // The returned value is a pointer to the handle holding the result.
-    // Dereference this to get to the location.
-    mov(eax, Operand(eax, 0));
+    // PrepareCallApiFunction saved pointer to the output slot into
+    // callee-save register esi.
+    mov(eax, Operand(esi, 0));
   }
 
   Label empty_handle;

@@ -558,10 +558,10 @@ class MacroAssembler: public Assembler {
 
   // Prepares stack to put arguments (aligns and so on). Reserves
   // space for return value if needed (assumes the return value is a handle).
-  // Uses callee-saved esi to restore stack state after call. Arguments must be
-  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc. Saves
-  // context (esi).
-  void PrepareCallApiFunction(int argc, Register scratch);
+  // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
+  // etc. Saves context (esi). If space was reserved for return value then
+  // stores the pointer to the reserved slot into esi.
+  void PrepareCallApiFunction(int argc);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
