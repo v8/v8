@@ -279,6 +279,7 @@ bool LCodeGen::GenerateDeferredCode() {
     int code_generated =
         masm_->InstructionsGeneratedSince(&last_jump) * Assembler::kInstrSize;
     ASSERT(Deoptimizer::patch_size() <= code_generated);
+    USE(code_generated);
   }
 
   // Force constant pool emission at the end of the deferred code to make
