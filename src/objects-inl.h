@@ -3850,6 +3850,12 @@ JSRegExp::Type JSRegExp::TypeTag() {
 }
 
 
+JSRegExp::Type JSRegExp::TypeTagUnchecked() {
+  Smi* smi = Smi::cast(DataAtUnchecked(kTagIndex));
+  return static_cast<JSRegExp::Type>(smi->value());
+}
+
+
 int JSRegExp::CaptureCount() {
   switch (TypeTag()) {
     case ATOM:
@@ -3885,10 +3891,28 @@ Object* JSRegExp::DataAt(int index) {
 }
 
 
+Object* JSRegExp::DataAtUnchecked(int index) {
+  FixedArray* fa = reinterpret_cast<FixedArray*>(data());
+  int offset = FixedArray::kHeaderSize + index * kPointerSize;
+  return READ_FIELD(fa, offset);
+}
+
+
 void JSRegExp::SetDataAt(int index, Object* value) {
   ASSERT(TypeTag() != NOT_COMPILED);
   ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
   FixedArray::cast(data())->set(index, value);
+}
+
+
+void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
+  ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
+  FixedArray* fa = reinterpret_cast<FixedArray*>(data());
+  if (value->IsSmi()) {
+    fa->set_unchecked(index, Smi::cast(value));
+  } else {
+    fa->set_unchecked(heap, index, value, SKIP_WRITE_BARRIER);
+  }
 }
 
 

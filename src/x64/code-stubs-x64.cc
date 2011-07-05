@@ -2449,9 +2449,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&check_code);
   // Check that the irregexp code has been generated for the actual string
   // encoding. If it has, the field contains a code object otherwise it contains
-  // the hole.
-  __ CmpObjectType(r11, CODE_TYPE, kScratchRegister);
-  __ j(not_equal, &runtime);
+  // smi (code flushing support)
+  __ JumpIfSmi(r11, &runtime);
 
   // rdi: subject string
   // rcx: encoding of subject string (1 if ascii, 0 if two_byte);

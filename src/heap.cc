@@ -97,6 +97,7 @@ Heap::Heap()
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
       survived_since_last_expansion_(0),
+      sweep_generation_(0),
       always_allocate_scope_depth_(0),
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
@@ -742,7 +743,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR) {
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
-
+    sweep_generation_++;
     bool high_survival_rate_during_scavenges = IsHighSurvivalRate() &&
         IsStableOrIncreasingSurvivalTrend();
 
@@ -1304,6 +1305,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
+
+    table_.Register(kVisitJSRegExp,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                    Visit);
 
     table_.Register(kVisitJSFunction,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::

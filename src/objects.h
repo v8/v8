@@ -5292,8 +5292,10 @@ class JSMessageObject: public JSObject {
 // If it is an atom regexp
 // - a reference to a literal string to search for
 // If it is an irregexp regexp:
-// - a reference to code for ASCII inputs (bytecode or compiled).
-// - a reference to code for UC16 inputs (bytecode or compiled).
+// - a reference to code for ASCII inputs (bytecode or compiled), or a smi
+// used for tracking the last usage (used for code flushing).
+// - a reference to code for UC16 inputs (bytecode or compiled), or a smi
+// used for tracking the last usage (used for code flushing)..
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
 class JSRegExp: public JSObject {
@@ -5326,11 +5328,25 @@ class JSRegExp: public JSObject {
   inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
+
+  // Used during GC when flushing code or setting age.
+  inline Object* DataAtUnchecked(int index);
+  inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
+  inline Type TypeTagUnchecked();
+
   static int code_index(bool is_ascii) {
     if (is_ascii) {
       return kIrregexpASCIICodeIndex;
     } else {
       return kIrregexpUC16CodeIndex;
+    }
+  }
+
+  static int saved_code_index(bool is_ascii) {
+    if (is_ascii) {
+      return kIrregexpASCIICodeSavedIndex;
+    } else {
+      return kIrregexpUC16CodeSavedIndex;
     }
   }
 
@@ -5364,11 +5380,19 @@ class JSRegExp: public JSObject {
   // fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
+
+  // Saved instance of Irregexp compiled code or bytecode for ASCII that
+  // is a potential candidate for flushing.
+  static const int kIrregexpASCIICodeSavedIndex = kDataIndex + 2;
+  // Saved instance of Irregexp compiled code or bytecode for UC16 that is
+  // a potential candidate for flushing.
+  static const int kIrregexpUC16CodeSavedIndex = kDataIndex + 3;
+
   // Maximal number of registers used by either ASCII or UC16.
   // Only used to check that there is enough stack space
-  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
   // Number of captures in the compiled regexp.
-  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
 
   static const int kIrregexpDataSize = kIrregexpCaptureCountIndex + 1;
 
@@ -5389,6 +5413,18 @@ class JSRegExp: public JSObject {
   static const int kMultilineFieldIndex = 3;
   static const int kLastIndexFieldIndex = 4;
   static const int kInObjectFieldCount = 5;
+
+  // The uninitialized value for a regexp code object.
+  static const int kUninitializedValue = -1;
+
+  // The compilation error value for the regexp code object. The real error
+  // object is in the saved code field.
+  static const int kCompilationErrorValue = -2;
+
+  // When we store the sweep generation at which we moved the code from the
+  // code index to the saved code index we mask it of to be in the [0:255]
+  // range.
+  static const int kCodeAgeMask = 0xff;
 };
 
 

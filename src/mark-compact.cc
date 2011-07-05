@@ -424,6 +424,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.Register(kVisitJSFunction,
                     &VisitJSFunctionAndFlushCode);
 
+    table_.Register(kVisitJSRegExp,
+                    &VisitRegExpAndFlushCode);
+
     table_.Register(kVisitPropertyCell,
                     &FixedBodyVisitor<StaticMarkingVisitor,
                                       JSGlobalPropertyCell::BodyDescriptor,
@@ -564,6 +567,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // flushed.
   static const int kCodeAgeThreshold = 5;
 
+  static const int kRegExpCodeThreshold = 5;
+
   inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
     Object* undefined = heap->raw_unchecked_undefined_value();
     return (info->script() != undefined) &&
@@ -700,6 +705,68 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
 
+  static void UpdateRegExpCodeAgeAndFlush(Heap* heap,
+                                          JSRegExp* re,
+                                          bool is_ascii) {
+    // Make sure that the fixed array is in fact initialized on the RegExp.
+    // We could potentially trigger a GC when initializing the RegExp.
+    if (SafeMap(re->data())->instance_type() != FIXED_ARRAY_TYPE) return;
+
+    // Make sure this is a RegExp that actually contains code.
+    if (re->TypeTagUnchecked() != JSRegExp::IRREGEXP) return;
+
+    Object* code = re->DataAtUnchecked(JSRegExp::code_index(is_ascii));
+    if (!code->IsSmi() && SafeMap(code)->instance_type() == CODE_TYPE) {
+      // Save a copy that can be reinstated if we need the code again.
+      re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                             code,
+                             heap);
+      // Set a number in the 0-255 range to guarantee no smi overflow.
+      re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                             Smi::FromInt(heap->sweep_generation() & 0xff),
+                             heap);
+    } else if (code->IsSmi()) {
+      int value = Smi::cast(code)->value();
+      // The regexp has not been compiled yet or there was a compilation error.
+      if (value == JSRegExp::kUninitializedValue ||
+          value == JSRegExp::kCompilationErrorValue) {
+        return;
+      }
+
+      // Check if we should flush now.
+      if (value == ((heap->sweep_generation() - kRegExpCodeThreshold) & 0xff)) {
+        re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
+        re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
+      }
+    }
+  }
+
+
+  // Works by setting the current sweep_generation (as a smi) in the
+  // code object place in the data array of the RegExp and keeps a copy
+  // around that can be reinstated if we reuse the RegExp before flushing.
+  // If we did not use the code for kRegExpCodeThreshold mark sweep GCs
+  // we flush the code.
+  static void VisitRegExpAndFlushCode(Map* map, HeapObject* object) {
+    Heap* heap = map->heap();
+    MarkCompactCollector* collector = heap->mark_compact_collector();
+    if (!collector->is_code_flushing_enabled()) {
+      VisitJSRegExpFields(map, object);
+      return;
+    }
+    JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
+    // Flush code or set age on both ascii and two byte code.
+    UpdateRegExpCodeAgeAndFlush(heap, re, true);
+    UpdateRegExpCodeAgeAndFlush(heap, re, false);
+    // Visit the fields of the RegExp, including the updated FixedArray.
+    VisitJSRegExpFields(map, object);
+  }
+
+
   static void VisitSharedFunctionInfoAndFlushCode(Map* map,
                                                   HeapObject* object) {
     MarkCompactCollector* collector = map->heap()->mark_compact_collector();
@@ -828,6 +895,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                   SLOT_ADDR(object, JSFunction::kNonWeakFieldsEndOffset));
 
     // Don't visit the next function list field as it is a weak reference.
+  }
+
+  static inline void VisitJSRegExpFields(Map* map,
+                                         HeapObject* object) {
+    int last_property_offset =
+        JSRegExp::kSize + kPointerSize * map->inobject_properties();
+    VisitPointers(map->heap(),
+                  SLOT_ADDR(object, JSRegExp::kPropertiesOffset),
+                  SLOT_ADDR(object, last_property_offset));
   }
 
 
