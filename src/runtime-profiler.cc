@@ -323,9 +323,26 @@ bool RuntimeProfiler::WaitForSomeIsolateToEnterJS() {
 }
 
 
-void RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown() {
+void RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(Thread* thread) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  semaphore_->Signal();
+  // Do a fake increment. If the profiler is waiting on the semaphore,
+  // the returned state is 0, which can be left as an initial state in
+  // case profiling is restarted later. If the profiler is not
+  // waiting, the increment will prevent it from waiting, but has to
+  // be undone after the profiler is stopped.
+  Atomic32 new_state = NoBarrier_AtomicIncrement(&state_, 1);
+  ASSERT(new_state >= 0);
+  if (new_state == 0) {
+    // The profiler thread is waiting. Wake it up. It must check for
+    // stop conditions before attempting to wait again.
+    semaphore_->Signal();
+  }
+  thread->Join();
+  // The profiler thread is now stopped. Undo the increment in case it
+  // was not waiting.
+  if (new_state != 0) {
+    NoBarrier_AtomicIncrement(&state_, -1);
+  }
 #endif
 }
 

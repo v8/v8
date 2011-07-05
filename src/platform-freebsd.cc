@@ -684,8 +684,7 @@ class SignalSender : public Thread {
     ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
-      instance_->Join();
+      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
       delete instance_;
       instance_ = NULL;
 
