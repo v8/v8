@@ -142,3 +142,8 @@ regress/regress-create-exception: SKIP
 regress/regress-3218915: SKIP
 regress/regress-3247124: SKIP
 
+
+[ $isolates ]
+# d8-os writes temporary files that might interfer with each other when running
+# in multible threads. Skip this if running with isolates testing.
+d8-os: SKIP

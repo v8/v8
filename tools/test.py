@@ -1442,7 +1442,8 @@ def Main():
         'system': utils.GuessOS(),
         'arch': options.arch,
         'simulator': options.simulator,
-        'crankshaft': options.crankshaft
+        'crankshaft': options.crankshaft,
+        'isolates': options.isolates
       }
       test_list = root.ListTests([], path, context, mode, [])
       unclassified_tests += test_list
