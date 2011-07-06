@@ -275,34 +275,25 @@ bool LCodeGen::GenerateJumpTable() {
 
 bool LCodeGen::GenerateDeferredCode() {
   ASSERT(is_generating());
-  Label last_jump;
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
       __ bind(code->entry());
       code->Generate();
-#ifdef DEBUG
-      if (i == (deferred_.length() - 1)) {
-        __ bind(&last_jump);
-      }
-#endif
       __ jmp(code->exit());
     }
 
-    // Reserve some space to ensure that the last piece of deferred code
-    // have room for lazy bailout.
-    int padding =
-        Deoptimizer::patch_size() - masm_->SizeOfCodeGeneratedSince(&last_jump);
-    if (padding > 0) {
-      while (padding > 9) {
+    // Pad code to ensure that the last piece of deferred code have
+    // room for lazy bailout.
+    while ((masm()->pc_offset() - LastSafepointEnd())
+           < Deoptimizer::patch_size()) {
+      int padding = masm()->pc_offset() - LastSafepointEnd();
+      if (padding > 9) {
         __ nop(9);
-        padding -= 9;
+      } else {
+        __ nop(padding);
       }
-      __ nop(padding);
     }
-
-    ASSERT(Deoptimizer::patch_size() <=
-           masm_->SizeOfCodeGeneratedSince(&last_jump));
   }
 
   // Deferred code is the last part of the instruction sequence. Mark
