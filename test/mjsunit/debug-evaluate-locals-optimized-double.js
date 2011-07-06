@@ -51,6 +51,17 @@ function listener(event, exec_state, event_data, data) {
                        frame.localValue(1).value());
         }
 
+        // Check the frame function.
+        switch (i) {
+          case 0: assertEquals(h, frame.func().value()); break;
+          case 1: assertEquals(g3, frame.func().value()); break;
+          case 2: assertEquals(g2, frame.func().value()); break;
+          case 3: assertEquals(g1, frame.func().value()); break;
+          case 4: assertEquals(f, frame.func().value()); break;
+          case 5: break;
+          default: assertUnreachable();
+        }
+
         // When function f is optimized (2 means YES, see runtime.cc) we
         // expect an optimized frame for f with g1, g2 and g3 inlined.
         if (%GetOptimizationStatus(f) == 2) {

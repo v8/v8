@@ -10165,7 +10165,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
   // Add the function (same as in function frame).
-  details->set(kFrameDetailsFunctionIndex, it.frame()->function());
+  if (it.frame()->is_optimized()) {
+    // Get the function from the deoptimized frame.
+    details->set(kFrameDetailsFunctionIndex, deoptimized_frame->GetFunction());
+  } else {
+    // Get the function from the stack.
+    details->set(kFrameDetailsFunctionIndex, it.frame()->function());
+  }
 
   // Add the arguments count.
   details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(argument_count));

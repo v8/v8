@@ -665,6 +665,11 @@ class DeoptimizedFrameInfo : public Malloced {
   // Return the height of the expression stack.
   int expression_count() { return expression_count_; }
 
+  // Get the frame function.
+  JSFunction* GetFunction() {
+    return function_;
+  }
+
   // Get an expression from the expression stack.
   Object* GetExpression(int index) {
     ASSERT(0 <= index && index < expression_count());
@@ -672,12 +677,18 @@ class DeoptimizedFrameInfo : public Malloced {
   }
 
  private:
+  // Set the frame function.
+  void SetFunction(JSFunction* function) {
+    function_ = function;
+  }
+
   // Set an expression on the expression stack.
   void SetExpression(int index, Object* obj) {
     ASSERT(0 <= index && index < expression_count());
     expression_stack_[index] = obj;
   }
 
+  JSFunction* function_;
   int expression_count_;
   Object** expression_stack_;
 
