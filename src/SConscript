@@ -232,8 +232,13 @@ PREPARSER_SOURCES = {
   'all': Split("""
     allocation.cc
     bignum.cc
+    bignum-dtoa.cc
     cached-powers.cc
     conversions.cc
+    diy-fp.cc
+    dtoa.cc
+    fast-dtoa.cc
+    fixed-dtoa.cc
     hashmap.cc
     preparse-data.cc
     preparser.cc
