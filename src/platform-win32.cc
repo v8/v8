@@ -44,11 +44,6 @@
 namespace v8 {
 namespace internal {
 
-intptr_t OS::MaxVirtualMemory() {
-  return 0;
-}
-
-
 // Test for finite value - usually defined in math.h
 int isfinite(double x) {
   return _finite(x);
@@ -196,6 +191,11 @@ int random() {
 
 namespace v8 {
 namespace internal {
+
+intptr_t OS::MaxVirtualMemory() {
+  return 0;
+}
+
 
 double ceiling(double x) {
   return ceil(x);
