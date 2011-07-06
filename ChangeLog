@@ -1,3 +1,22 @@
+2011-07-06: Version 3.4.10
+
+        Fixed debugger not breaking on certain "if" statements (issue 1523).
+
+        Fixed assertion failure in runtime profiler when running on IA32
+        without snapshot (issue 1522).
+
+        Fixed ABI for API calls on IA32 (for clang compatibility).
+
+        Introduced code flushing of RegExp code to free memory used by
+        RegExps sooner.
+
+        Fixed linux-tick-processor built wrong version of v8 (issue 1532).
+
+        Fixed assertion failure in v8::TryCache::StackTrace (issue 1529).
+
+        Performance improvements on all platforms.
+
+
 2011-07-04: Version 3.4.9
 
         Added support for debugger inspection of locals in optimized frames
