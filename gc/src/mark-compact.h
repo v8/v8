@@ -276,7 +276,7 @@ class SlotsBuffer {
 
   void Clear();
   void Add(ObjectSlot slot);
-  void Iterate(ObjectVisitor* visitor);
+  void Update();
   void Report();
 
  private:
@@ -343,6 +343,8 @@ class MarkCompactCollector {
 
   // Performs a global garbage collection.
   void CollectGarbage();
+
+  bool StartCompaction();
 
   // During a full GC, there is a stack-allocated GCTracer that is used for
   // bookkeeping information.  Return a pointer to that tracer.
@@ -426,6 +428,10 @@ class MarkCompactCollector {
   // Global flag that forces sweeping to be precise, so we can traverse the
   // heap.
   bool sweep_precisely_;
+
+  // True if we are collecting slots to perform evacuation from evacuation
+  // candidates.
+  bool compacting_;
 
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).

@@ -351,6 +351,12 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       RUNTIME_ENTRY,
       6,
       "StoreBuffer::StoreBufferOverflow");
+  Add(ExternalReference::
+          incremental_evacuation_record_write_function(isolate).address(),
+      RUNTIME_ENTRY,
+      7,
+      "IncrementalMarking::RecordWrite");
+
 
 
   // Miscellaneous

@@ -252,8 +252,10 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
-  // TODO(gc) ISOLATES MERGE
-  HEAP->incremental_marking()->RecordWrite(unoptimized_code, replacement_code);
+
+  // TODO(gc) we are not compacting code space.
+  unoptimized_code->GetHeap()->incremental_marking()->RecordWrite(
+      unoptimized_code, NULL, replacement_code);
 }
 
 

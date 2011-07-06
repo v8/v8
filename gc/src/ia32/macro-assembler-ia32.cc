@@ -77,44 +77,6 @@ void MacroAssembler::InNewSpace(
 }
 
 
-void MacroAssembler::IncrementalMarkingRecordWriteHelper(
-    Register object,
-    Register value,
-    Register address) {
-  ASSERT(!object.is(address));
-  ASSERT(!value.is(address));
-  ASSERT(!value.is(object));
-
-  bool preserve[Register::kNumRegisters];
-
-  for (int i = 0; i < Register::kNumRegisters; i++) preserve[i] = false;
-
-  preserve[eax.code()] = true;
-  preserve[ecx.code()] = true;
-  preserve[edx.code()] = true;
-  preserve[object.code()] = true;
-  preserve[value.code()] = true;
-  preserve[address.code()] = true;
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    if (preserve[i]) push(Register::from_code(i));
-  }
-
-  // TODO(gc) we are assuming that xmm registers are not modified by
-  // the C function we are calling.
-  PrepareCallCFunction(2, address);
-  mov(Operand(esp, 0 * kPointerSize), object);
-  mov(Operand(esp, 1 * kPointerSize), value);
-  CallCFunction(
-      ExternalReference::incremental_marking_record_write_function(isolate()),
-      2);
-
-  for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-    if (preserve[i]) pop(Register::from_code(i));
-  }
-}
-
-
 void MacroAssembler::RememberedSetHelper(
     Register addr,
     Register scratch,
@@ -314,13 +276,13 @@ void MacroAssembler::RecordWrite(Register object,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersToHereAreInterestingMask,
                 zero,
                 &done,
                 Label::kNear);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersFromHereAreInterestingMask,
                 zero,
                 &done,
                 Label::kNear);
@@ -2270,7 +2232,7 @@ CodePatcher::~CodePatcher() {
 void MacroAssembler::CheckPageFlag(
     Register object,
     Register scratch,
-    MemoryChunk::MemoryChunkFlags flag,
+    int mask,
     Condition cc,
     Label* condition_met,
     Label::Distance condition_met_distance) {
@@ -2281,11 +2243,11 @@ void MacroAssembler::CheckPageFlag(
     mov(scratch, Immediate(~Page::kPageAlignmentMask));
     and_(scratch, Operand(object));
   }
-  if (flag < kBitsPerByte) {
+  if (mask < (1 << kBitsPerByte)) {
     test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
-           static_cast<uint8_t>(1u << flag));
+           static_cast<uint8_t>(mask));
   } else {
-    test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+    test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

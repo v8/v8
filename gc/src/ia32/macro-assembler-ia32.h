@@ -68,11 +68,6 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // GC Support
-
-  void IncrementalMarkingRecordWriteHelper(Register object,
-                                           Register value,
-                                           Register address);
-
   enum RememberedSetFinalAction {
     kReturnAtEnd,
     kFallThroughAtEnd
@@ -88,7 +83,7 @@ class MacroAssembler: public Assembler {
 
   void CheckPageFlag(Register object,
                      Register scratch,
-                     MemoryChunk::MemoryChunkFlags flag,
+                     int mask,
                      Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);

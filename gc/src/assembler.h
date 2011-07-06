@@ -564,6 +564,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference incremental_marking_record_write_function(
       Isolate* isolate);
+  static ExternalReference incremental_evacuation_record_write_function(
+      Isolate* isolate);
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);

@@ -110,7 +110,11 @@ class IncrementalMarking {
                                   Object* value,
                                   Isolate* isolate);
 
-  inline void RecordWrite(HeapObject* obj, Object* value);
+  static void RecordWriteForEvacuationFromCode(HeapObject* obj,
+                                               Object** slot,
+                                               Isolate* isolate);
+
+  inline void RecordWrite(HeapObject* obj, Object** slot, Object* value);
   inline void RecordWriteOf(HeapObject* value);
   inline void RecordWrites(HeapObject* obj);
 
@@ -193,6 +197,7 @@ class IncrementalMarking {
   Heap* heap_;
 
   State state_;
+  bool is_compacting_;
 
   VirtualMemory* marking_deque_memory_;
   MarkingDeque marking_deque_;

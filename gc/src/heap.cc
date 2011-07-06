@@ -4306,13 +4306,23 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
     // the store buffer.  These pages are scanned to find pointers that point
     // to the new space.  In that case we may hit newly promoted objects and
     // fix the pointers before the promotion queue gets to them.  Thus the 'if'.
-    if (Heap::InFromSpace(object)) {
-      callback(reinterpret_cast<HeapObject**>(slot), HeapObject::cast(object));
-      if (InNewSpace(*slot)) {
-        ASSERT(Heap::InToSpace(*slot));
-        ASSERT((*slot)->IsHeapObject());
-        store_buffer_.EnterDirectlyIntoStoreBuffer(
-            reinterpret_cast<Address>(slot));
+    if (object->IsHeapObject()) {
+      if (Heap::InFromSpace(object)) {
+        callback(reinterpret_cast<HeapObject**>(slot),
+                 HeapObject::cast(object));
+        Object* new_object = *slot;
+        if (InNewSpace(new_object)) {
+          ASSERT(Heap::InToSpace(new_object));
+          ASSERT(new_object->IsHeapObject());
+          store_buffer_.EnterDirectlyIntoStoreBuffer(
+              reinterpret_cast<Address>(slot));
+        }
+        ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_object));
+      } else if (MarkCompactCollector::IsOnEvacuationCandidate(object)) {
+        // We are not collecting slots on new space objects during mutation
+        // thus we have to scan for pointers to evacuation candidates when we
+        // promote objects.
+        mark_compact_collector()->RecordSlot(slot, slot, object);
       }
     }
     slot_address += kPointerSize;

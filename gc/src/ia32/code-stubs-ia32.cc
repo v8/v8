@@ -6235,18 +6235,15 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
 // we keep the GC informed.  The word in the object where the value has been
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  Label skip_non_incremental_part;
+  Label skip_to_incremental_noncompacting;
+  Label skip_to_incremental_compacting;
 
-  // The first instruction is generated as a label so as to get the offset
-  // fixed up correctly by the bind(Label*) call.  We patch it back and forth
-  // between a 2-byte compare instruction (a nop in this position) and the real
-  // branch when we start and stop incremental heap marking.
-  __ jmp(&skip_non_incremental_part, Label::kNear);
-  if (!masm->isolate()->heap()->incremental_marking()->IsMarking()) {
-    ASSERT(masm->byte_at(masm->pc_offset() - 2) ==
-           kSkipNonIncrementalPartInstruction);
-    masm->set_byte_at(masm->pc_offset() - 2, kTwoByteNopInstruction);
-  }
+  // The first two instructions are generated with labels so as to get the
+  // offset fixed up correctly by the bind(Label*) call.  We patch it back and
+  // forth between a 2-byte compare instruction (a nop in this position) and the
+  // real branch when we start and stop incremental heap marking.
+  __ jmp(&skip_to_incremental_noncompacting, Label::kNear);
+  __ jmp(&skip_to_incremental_compacting, Label::kFar);
 
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
     __ RememberedSetHelper(
@@ -6255,12 +6252,25 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
     __ ret(0);
   }
 
-  __ bind(&skip_non_incremental_part);
-  GenerateIncremental(masm);
+  __ bind(&skip_to_incremental_noncompacting);
+  GenerateIncremental(masm, INCREMENTAL);
+
+  __ bind(&skip_to_incremental_compacting);
+  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+
+  if (!masm->isolate()->heap()->incremental_marking()->IsMarking()) {
+    ASSERT(masm->byte_at(0) == kTwoByteJumpInstruction);
+    masm->set_byte_at(0, kTwoByteNopInstruction);
+  }
+
+  if (!masm->isolate()->heap()->incremental_marking()->IsMarking()) {
+    ASSERT(masm->byte_at(2) == kFiveByteJumpInstruction);
+    masm->set_byte_at(2, kFiveByteNopInstruction);
+  }
 }
 
 
-void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   regs_.Save(masm);
 
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
@@ -6273,15 +6283,17 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
 
     __ CheckPageFlag(regs_.object(),
                      regs_.scratch0(),
-                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     1 << MemoryChunk::SCAN_ON_SCAVENGE,
                      not_zero,
                      &dont_need_remembered_set);
 
     // First notify the incremental marker if necessary, then update the
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker);
-    InformIncrementalMarker(masm);
+        masm,
+        kUpdateRememberedSetOnNoNeedToInformIncrementalMarker,
+        mode);
+    InformIncrementalMarker(masm, mode);
     regs_.Restore(masm);
     __ RememberedSetHelper(
         address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
@@ -6290,36 +6302,55 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
   }
 
   CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker);
-  InformIncrementalMarker(masm);
+      masm,
+      kReturnOnNoNeedToInformIncrementalMarker,
+      mode);
+  InformIncrementalMarker(masm, mode);
   regs_.Restore(masm);
   __ ret(0);
 }
 
 
-void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
+void RecordWriteStub::InformIncrementalMarker(
+    MacroAssembler* masm,
+    RecordWriteStub::Mode mode) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
   __ mov(Operand(esp, 0 * kPointerSize), regs_.object());
-  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
-  __ mov(Operand(esp, 1 * kPointerSize), regs_.scratch0());  // Value.
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ mov(Operand(esp, 1 * kPointerSize), regs_.address());  // Slot.
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+    __ mov(Operand(esp, 1 * kPointerSize), regs_.scratch0());  // Value.
+  }
   __ mov(Operand(esp, 2 * kPointerSize),
          Immediate(ExternalReference::isolate_address()));
+
   // TODO(gc): Create a fast version of this C function that does not duplicate
   // the checks done in the stub.
-  __ CallCFunction(
-      ExternalReference::incremental_marking_record_write_function(
-          masm->isolate()),
-      argument_count);
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ CallCFunction(
+        ExternalReference::incremental_evacuation_record_write_function(
+            masm->isolate()),
+        argument_count);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ CallCFunction(
+        ExternalReference::incremental_marking_record_write_function(
+            masm->isolate()),
+        argument_count);
+  }
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
 }
 
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
-    RecordWriteStub::OnNoNeedToInformIncrementalMarker on_no_need) {
-  Label object_is_black, need_incremental;
+    RecordWriteStub::OnNoNeedToInformIncrementalMarker on_no_need,
+    RecordWriteStub::Mode mode) {
+  Label object_is_black, need_incremental, need_incremental_pop_object;
 
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
@@ -6342,16 +6373,38 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Get the value from the slot.
   __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
 
+  if (mode == INCREMENTAL_COMPACTION) {
+    Label ensure_not_white;
+
+    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateMask,
+                     zero,
+                     &ensure_not_white,
+                     Label::kNear);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateOrNewSpaceMask,
+                     not_zero,
+                     &ensure_not_white,
+                     Label::kNear);
+
+    __ jmp(&need_incremental);
+
+    __ bind(&ensure_not_white);
+  }
+
   // We need an extra register for this, so we push the object register
   // temporarily.
   __ push(regs_.object());
   __ EnsureNotWhite(regs_.scratch0(),  // The value.
                     regs_.scratch1(),  // Scratch.
                     regs_.object(),  // Scratch.
-                    &need_incremental,
+                    &need_incremental_pop_object,
                     Label::kNear);
-
   __ pop(regs_.object());
+
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
     __ RememberedSetHelper(
@@ -6360,8 +6413,10 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     __ ret(0);
   }
 
-  __ bind(&need_incremental);
+  __ bind(&need_incremental_pop_object);
   __ pop(regs_.object());
+
+  __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
 }

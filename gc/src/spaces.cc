@@ -1628,7 +1628,6 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   // If the block is too small (eg, one or two words), to hold both a size
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
-  // TODO(gc) ISOLATES MERGE cleanup HEAP macro usage
   if (size_in_bytes > FreeSpace::kHeaderSize) {
     set_map(heap->raw_unchecked_free_space_map());
     // Can't use FreeSpace::cast because it fails during deserialization.
@@ -1749,6 +1748,75 @@ int FreeList::Free(Address start, int size_in_bytes) {
 }
 
 
+FreeListNode* FreeList::PickNodeFromList(FreeListNode** list, int* node_size) {
+  FreeListNode* node = *list;
+
+  if (node == NULL) return NULL;
+
+  while (node != NULL &&
+         Page::FromAddress(node->address())->IsEvacuationCandidate()) {
+    available_ -= node->Size();
+    node = node->next();
+  }
+
+  if (node != NULL) {
+    *node_size = node->Size();
+    *list = node->next();
+  } else {
+    *list = NULL;
+  }
+
+  return node;
+}
+
+
+FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
+  FreeListNode* node = NULL;
+
+  if (size_in_bytes <= kSmallAllocationMax) {
+    node = PickNodeFromList(&small_list_, node_size);
+    if (node != NULL) return node;
+  }
+
+  if (size_in_bytes <= kMediumAllocationMax) {
+    node = PickNodeFromList(&medium_list_, node_size);
+    if (node != NULL) return node;
+  }
+
+  if (size_in_bytes <= kLargeAllocationMax) {
+    node = PickNodeFromList(&large_list_, node_size);
+    if (node != NULL) return node;
+  }
+
+  for (FreeListNode** cur = &huge_list_;
+       *cur != NULL;
+       cur = (*cur)->next_address()) {
+    FreeListNode* cur_node = *cur;
+    while (cur_node != NULL &&
+           Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
+      available_ -= reinterpret_cast<FreeSpace*>(cur_node)->Size();
+      cur_node = cur_node->next();
+    }
+
+    *cur = cur_node;
+    if (cur_node == NULL) break;
+
+    ASSERT((*cur)->map() == HEAP->raw_unchecked_free_space_map());
+    FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
+    int size = cur_as_free_space->Size();
+    if (size >= size_in_bytes) {
+      // Large enough node found.  Unlink it from the list.
+      node = *cur;
+      *node_size = size;
+      *cur = node->next();
+      break;
+    }
+  }
+
+  return node;
+}
+
+
 // Allocation on the old space free list.  If it succeeds then a new linear
 // allocation space has been set up with the top and limit of the space.  If
 // the allocation fails then NULL is returned, and the caller can perform a GC
@@ -1760,51 +1828,23 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // Don't free list allocate if there is linear space available.
   ASSERT(owner_->limit() - owner_->top() < size_in_bytes);
 
-  FreeListNode* new_node = NULL;
   int new_node_size = 0;
-
-  if (size_in_bytes <= kSmallAllocationMax && small_list_ != NULL) {
-    new_node = small_list_;
-    new_node_size = new_node->Size();
-    small_list_ = new_node->next();
-  } else if (size_in_bytes <= kMediumAllocationMax && medium_list_ != NULL) {
-    new_node = medium_list_;
-    new_node_size = new_node->Size();
-    medium_list_ = new_node->next();
-  } else if (size_in_bytes <= kLargeAllocationMax && large_list_ != NULL) {
-    new_node = large_list_;
-    new_node_size = new_node->Size();
-    large_list_ = new_node->next();
-  } else {
-    for (FreeListNode** cur = &huge_list_;
-         *cur != NULL;
-         cur = (*cur)->next_address()) {
-      ASSERT((*cur)->map() == HEAP->raw_unchecked_free_space_map());
-      FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
-      int size = cur_as_free_space->Size();
-      if (size >= size_in_bytes) {
-        // Large enough node found.  Unlink it from the list.
-        new_node = *cur;
-        new_node_size = size;
-        *cur = new_node->next();
-        break;
-      }
-    }
-    if (new_node == NULL) return NULL;
-  }
+  FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
+  if (new_node == NULL) return NULL;
 
   available_ -= new_node_size;
   ASSERT(IsVeryLong() || available_ == SumFreeLists());
 
+  int bytes_left = new_node_size - size_in_bytes;
+  ASSERT(bytes_left >= 0);
+
   int old_linear_size = owner_->limit() - owner_->top();
+
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
   owner_->Free(owner_->top(), old_linear_size);
-  // TODO(gc) ISOLATES MERGE
-  HEAP->incremental_marking()->Step(size_in_bytes - old_linear_size);
-
-  ASSERT(new_node_size - size_in_bytes >= 0);  // New linear size.
+  owner_->heap()->incremental_marking()->Step(size_in_bytes - old_linear_size);
 
   const int kThreshold = IncrementalMarking::kAllocatedThreshold;
 
@@ -1812,8 +1852,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // a little of this again immediately - see below.
   owner_->Allocate(new_node_size);
 
-  if (new_node_size - size_in_bytes > kThreshold &&
-      HEAP->incremental_marking()->IsMarkingIncomplete() &&
+  if (bytes_left > kThreshold &&
+      owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
       FLAG_incremental_marking_steps) {
     int linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
     // We don't want to give too large linear areas to the allocator while
@@ -1823,11 +1863,15 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
                  new_node_size - size_in_bytes - linear_size);
     owner_->SetTop(new_node->address() + size_in_bytes,
                    new_node->address() + size_in_bytes + linear_size);
-  } else {
+  } else if (bytes_left > 0) {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
     owner_->SetTop(new_node->address() + size_in_bytes,
                    new_node->address() + new_node_size);
+  } else {
+    // TODO(gc) Try not freeing linear allocation region when bytes_left
+    // are zero.
+    owner_->SetTop(NULL, NULL);
   }
 
   return new_node;
@@ -1906,18 +1950,6 @@ intptr_t FreeList::SumFreeLists() {
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-void OldSpace::PrepareForMarkCompact() {
-  // Call prepare of the super class.
-  PagedSpace::PrepareForMarkCompact();
-
-  // Stop lazy sweeping for this space.
-  first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
-
-  // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
-}
-
-
 bool NewSpace::ReserveSpace(int bytes) {
   // We can't reliably unpack a partial snapshot that needs more new space
   // space than the minimum NewSpace size.
@@ -1936,6 +1968,19 @@ void PagedSpace::PrepareForMarkCompact() {
   int old_linear_size = limit() - top();
   Free(top(), old_linear_size);
   SetTop(NULL, NULL);
+
+  // Stop lazy sweeping for the space.
+  first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
+
+  // Clear the free list before a full GC---it will be rebuilt afterward.
+  free_list_.Reset();
+
+  // Clear EVACUATED flag from all pages.
+  PageIterator it(this);
+  while (it.has_next()) {
+    Page* page = it.next();
+    page->ClearFlag(MemoryChunk::EVACUATED);
+  }
 }
 
 
@@ -1977,7 +2022,10 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   Page* p = first_unswept_page_;
   do {
     Page* next_page = p->next_page();
-    freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
+    // Evacuation candidates were swept by evacuator.
+    if (!p->IsEvacuationCandidate() && !p->WasEvacuated()) {
+      freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
+    }
     p = next_page;
   } while (p != last && freed_bytes < bytes_to_sweep);
 
@@ -1992,6 +2040,16 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   heap()->FreeQueuedChunks();
 
   return IsSweepingComplete();
+}
+
+
+void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
+  if (allocation_info_.top >= allocation_info_.limit) return;
+
+  if (Page::FromAddress(allocation_info_.top)->IsEvacuationCandidate()) {
+      allocation_info_.top = NULL;
+      allocation_info_.limit = NULL;
+  }
 }
 
 

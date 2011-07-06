@@ -865,12 +865,12 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
-#define WRITE_BARRIER(heap, object, offset, value) \
-  heap->incremental_marking()->RecordWrite(object, value); \
-  if (HEAP->InNewSpace(value)) { \
-    heap->RecordWrite(object->address(), offset); \
+#define WRITE_BARRIER(heap, object, offset, value)                      \
+  heap->incremental_marking()->RecordWrite(                             \
+      object, HeapObject::RawField(object, offset), value);             \
+  if (heap->InNewSpace(value)) {                                        \
+    heap->RecordWrite(object->address(), offset);                       \
   }
-// TODO(gc) !!!
 
 #ifndef V8_TARGET_ARCH_MIPS
   #define READ_DOUBLE_FIELD(p, offset) \
@@ -1118,7 +1118,10 @@ Map* HeapObject::map() {
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
   if (value != NULL) {
-    value->GetHeap()->incremental_marking()->RecordWrite(this, value);
+    // We are passing NULL as a slot because maps can never be on evacuation
+    // candidate.
+    // TODO(gc) Maps are compacted by a separate (non-evacuation) algorithm.
+    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
   }
 }
 
@@ -1252,8 +1255,8 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
   ASSERT(!val->IsJSGlobalPropertyCell());
   WRITE_FIELD(this, kValueOffset, val);
-  // TODO(gc) ISOLATES MERGE cell should heap accessor.
-  GetHeap()->incremental_marking()->RecordWrite(this, val);
+  GetHeap()->incremental_marking()->RecordWrite(
+      this, HeapObject::RawField(this, kValueOffset), val);
 }
 
 
@@ -1494,7 +1497,10 @@ void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
-  array->GetHeap()->incremental_marking()->RecordWrite(array, value);
+  array->GetHeap()->incremental_marking()->RecordWrite(
+      array,
+      HeapObject::RawField(array, kHeaderSize + index * kPointerSize),
+      value);
 }
 
 
@@ -2906,10 +2912,10 @@ ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
-ACCESSORS_GCSAFE(JSFunction,
-                 next_function_link,
-                 Object,
-                 kNextFunctionLinkOffset)
+ACCESSORS(JSFunction,
+          next_function_link,
+          Object,
+          kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
@@ -3332,7 +3338,10 @@ void JSFunction::set_code(Code* value) {
   ASSERT(!HEAP->InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
-  GetHeap()->incremental_marking()->RecordWrite(this, value);
+  GetHeap()->incremental_marking()->RecordWrite(
+      this,
+      HeapObject::RawField(this, kCodeEntryOffset),
+      value);
 }
 
 

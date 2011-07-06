@@ -375,8 +375,23 @@ class MemoryChunk {
     NEW_SPACE_BELOW_AGE_MARK,
     CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
+    EVACUATED,
     NUM_MEMORY_CHUNK_FLAGS
   };
+
+
+  static const int kPointersToHereAreInterestingMask =
+      1 << POINTERS_TO_HERE_ARE_INTERESTING;
+
+  static const int kPointersFromHereAreInterestingMask =
+      1 << POINTERS_FROM_HERE_ARE_INTERESTING;
+
+  static const int kEvacuationCandidateMask =
+      1 << EVACUATION_CANDIDATE;
+
+  static const int kEvacuationCandidateOrNewSpaceMask =
+      (1 << EVACUATION_CANDIDATE) | (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
+
 
   void SetFlag(int flag) {
     flags_ |= static_cast<uintptr_t>(1) << flag;
@@ -611,15 +626,18 @@ class Page : public MemoryChunk {
   bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
 
   bool IsEvacuationCandidateOrNewSpace() {
-    intptr_t mask = (1 << EVACUATION_CANDIDATE) |
-        (1 << IN_FROM_SPACE) |
-        (1 << IN_TO_SPACE);
-    return (flags_ & mask) != 0;
+    return (flags_ & kEvacuationCandidateOrNewSpaceMask) != 0;
   }
 
   void MarkEvacuationCandidate() { SetFlag(EVACUATION_CANDIDATE); }
 
   void ClearEvacuationCandidate() { ClearFlag(EVACUATION_CANDIDATE); }
+
+  bool WasEvacuated() { return IsFlagSet(EVACUATED); }
+
+  void MarkEvacuated() { SetFlag(EVACUATED); }
+
+  void ClearEvacuated() { ClearFlag(EVACUATED); }
 
   friend class MemoryAllocator;
 };
@@ -1037,6 +1055,9 @@ class PageIterator BASE_EMBEDDED {
 // space.
 class AllocationInfo {
  public:
+  AllocationInfo() : top(NULL), limit(NULL) {
+  }
+
   Address top;  // Current allocation top.
   Address limit;  // Current allocation limit.
 
@@ -1229,6 +1250,10 @@ class FreeList BASE_EMBEDDED {
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
+
+  FreeListNode* PickNodeFromList(FreeListNode** list, int* node_size);
+
+  FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
 
   PagedSpace* owner_;
   Heap* heap_;
@@ -1425,7 +1450,6 @@ class PagedSpace : public Space {
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
-
   bool IsFragmented(Page* p) {
     intptr_t sizes[4];
     free_list_.CountFreeListItems(p, sizes);
@@ -1449,6 +1473,8 @@ class PagedSpace : public Space {
 
     return ratio > 15;
   }
+
+  void EvictEvacuationCandidatesFromFreeLists();
 
  protected:
   // Maximum capacity of this space.
@@ -2181,10 +2207,6 @@ class OldSpace : public PagedSpace {
   virtual Address PageAllocationLimit(Page* page) {
     return page->ObjectAreaEnd();
   }
-
-  // Prepare for full garbage collection.  Resets the relocation pointer and
-  // clears the free list.
-  virtual void PrepareForMarkCompact();
 
  public:
   TRACK_MEMORY("OldSpace")

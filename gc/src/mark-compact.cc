@@ -57,6 +57,8 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
 #ifdef DEBUG
       state_(IDLE),
 #endif
+      sweep_precisely_(false),
+      compacting_(false),
       tracer_(NULL),
 #ifdef DEBUG
       live_young_objects_size_(0),
@@ -154,7 +156,6 @@ class VerifyEvacuationVisitor: public ObjectVisitor {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (MarkCompactCollector::IsOnEvacuationCandidate(object)) {
-          HEAP->TracePathToObject(source_);
           CHECK(false);
         }
       }
@@ -222,6 +223,28 @@ static void VerifyEvacuation(Heap* heap) {
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   p->MarkEvacuationCandidate();
   evacuation_candidates_.Add(p);
+}
+
+
+bool MarkCompactCollector::StartCompaction() {
+  // Don't start compaction if we are in the middle of incremental
+  // marking cycle. We did not collect any slots.
+  if (!compacting_ && !heap_->incremental_marking()->IsMarking()) {
+    ASSERT(evacuation_candidates_.length() == 0);
+
+    // TODO(gc) Shrink slots buffer when we receive low memory notification.
+    slots_buffer_.Clear();
+
+    CollectEvacuationCandidates(heap()->old_pointer_space());
+    CollectEvacuationCandidates(heap()->old_data_space());
+
+    heap()->old_pointer_space()->EvictEvacuationCandidatesFromFreeLists();
+    heap()->old_data_space()->EvictEvacuationCandidatesFromFreeLists();
+
+    compacting_ = evacuation_candidates_.length() > 0;
+  }
+
+  return compacting_;
 }
 
 
@@ -372,18 +395,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 }
 
 
-static void ClearEvacuationCandidates(PagedSpace* space) {
-  ASSERT(space->identity() == OLD_POINTER_SPACE ||
-         space->identity() == OLD_DATA_SPACE);
-
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
-    p->ClearEvacuationCandidate();
-  }
-}
-
-
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // TODO(gc) re-enable code flushing.
   FLAG_flush_code = false;
@@ -412,18 +423,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 #endif
 
-  if (!FLAG_never_compact) {
-    slots_buffer_.Clear();
-    evacuation_candidates_.Rewind(0);
-
-    if (!heap()->incremental_marking()->IsMarking()) {
-      CollectEvacuationCandidates(heap()->old_pointer_space());
-      CollectEvacuationCandidates(heap()->old_data_space());
-    } else {
-      ClearEvacuationCandidates(heap()->old_pointer_space());
-      ClearEvacuationCandidates(heap()->old_data_space());
-    }
-  }
+  if (!FLAG_never_compact) StartCompaction();
 
   PagedSpaces spaces;
   for (PagedSpace* space = spaces.next();
@@ -2268,6 +2268,8 @@ void MarkCompactCollector::EvacuateNewSpace() {
 void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   AlwaysAllocateScope always_allocate;
 
+  ASSERT(p->IsEvacuationCandidate() && !p->WasEvacuated());
+
   PagedSpace* space = static_cast<PagedSpace*>(p->owner());
 
   MarkBit::CellType* cells = p->markbits()->cells();
@@ -2320,6 +2322,21 @@ void MarkCompactCollector::EvacuatePages() {
 }
 
 
+class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
+ public:
+  virtual Object* RetainAs(Object* object) {
+    if (object->IsHeapObject()) {
+      HeapObject* heap_object = HeapObject::cast(object);
+      MapWord map_word = heap_object->map_word();
+      if (map_word.IsForwardingAddress()) {
+        return map_word.ToForwardingAddress();
+      }
+    }
+    return object;
+  }
+};
+
+
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   EvacuateNewSpace();
   EvacuatePages();
@@ -2349,7 +2366,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                                   &Heap::ScavengeStoreBufferCallback);
     heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
-  slots_buffer_.Iterate(&updating_visitor);
+  slots_buffer_.Update();
 
   // Update pointers from cells.
   HeapObjectIterator cell_iterator(heap_->cell_space());
@@ -2376,6 +2393,9 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // Update JSFunction pointers from the runtime profiler.
   heap_->isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
 
+  EvacuationWeakObjectRetainer evacuation_object_retainer;
+  heap()->ProcessWeakReferences(&evacuation_object_retainer);
+
 #ifdef DEBUG
   if (FLAG_verify_heap) {
     VerifyEvacuation(heap_);
@@ -2383,16 +2403,19 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 #endif
 
   int npages = evacuation_candidates_.length();
+  ASSERT(compacting_ == (npages > 0));
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
+    ASSERT(p->IsEvacuationCandidate() && !p->WasEvacuated());
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     space->Free(p->ObjectAreaStart(), Page::kObjectAreaSize);
     p->set_scan_on_scavenge(false);
-
-    // We are not clearing evacuation candidate flag here
-    // because it is required to notify lazy sweeper to skip
-    // these pages.
+    p->ClearEvacuationCandidate();
+    p->SetFlag(MemoryChunk::EVACUATED);
+    p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
   }
+  evacuation_candidates_.Rewind(0);
+  compacting_ = false;
 }
 
 
@@ -2720,8 +2743,7 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 // memory that can be ignored when scanning.  Dead objects other than free
 // spaces will not contain the free space map.
 int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
-  // We might start advancing sweeper before evacuation happened.
-  if (p->IsEvacuationCandidate()) return 0;
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasEvacuated());
 
   int freed_bytes = 0;
 
@@ -2809,6 +2831,7 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
 // over it.  Map space is swept precisely, because it is not compacted.
 static void SweepPrecisely(PagedSpace* space,
                            Page* p) {
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasEvacuated());
   MarkBit::CellType* cells = p->markbits()->cells();
 
   p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
@@ -3064,19 +3087,34 @@ void SlotsBuffer::Add(Object** slot) {
 }
 
 
-void SlotsBuffer::Iterate(ObjectVisitor* visitor) {
+static inline void UpdateSlot(Object** slot) {
+  Object* obj = *slot;
+  if (!obj->IsHeapObject()) return;
+
+  HeapObject* heap_obj = HeapObject::cast(obj);
+
+  MapWord map_word = heap_obj->map_word();
+  if (map_word.IsForwardingAddress()) {
+    ASSERT(MarkCompactCollector::IsOnEvacuationCandidate(*slot));
+    *slot = map_word.ToForwardingAddress();
+    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
+  }
+}
+
+
+void SlotsBuffer::Update() {
   if (buffer_idx_ < 0) return;
 
   for (int buffer_index = 0; buffer_index < buffer_idx_; ++buffer_index) {
     ObjectSlot* buffer = buffers_[buffer_index];
     for (int slot_idx = 0; slot_idx < kBufferSize; ++slot_idx) {
-      visitor->VisitPointer(buffer[slot_idx]);
+      UpdateSlot(buffer[slot_idx]);
     }
   }
 
   ObjectSlot* last_buffer = buffers_[buffer_idx_];
   for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
-    visitor->VisitPointer(last_buffer[slot_idx]);
+    UpdateSlot(last_buffer[slot_idx]);
   }
 }
 

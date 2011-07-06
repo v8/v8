@@ -93,8 +93,10 @@ void RelocInfo::set_target_address(Address target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (code != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
+
+    // TODO(gc) We are not compacting code space.
     code->GetHeap()->incremental_marking()->RecordWrite(
-        code, HeapObject::cast(target_code));
+        code, NULL, HeapObject::cast(target_code));
   }
 }
 
@@ -123,7 +125,7 @@ void RelocInfo::set_target_object(Object* target, Code* code) {
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL && target->IsHeapObject()) {
     code->GetHeap()->incremental_marking()->RecordWrite(
-        code, HeapObject::cast(target));
+        code, &Memory::Object_at(pc_), HeapObject::cast(target));
   }
 }
 
@@ -157,7 +159,9 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL) {
-    code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
+    // TODO(gc) We are not compacting cell space.
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, NULL, cell);
   }
 }
 

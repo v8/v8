@@ -544,22 +544,56 @@ class RecordWriteStub: public CodeStub {
               value) {  // One scratch reg.
   }
 
-  static const byte kTwoByteNopInstruction = 0x3c;          // Cmpb al, #imm8.
-  static const byte kSkipNonIncrementalPartInstruction = 0xeb;  // Jmp #imm8.
+  enum Mode {
+    STORE_BUFFER_ONLY,
+    INCREMENTAL,
+    INCREMENTAL_COMPACTION
+  };
 
-  static byte GetInstruction(bool enable) {
-    // Can't use ternary operator here, because gcc makes an undefined
-    // reference to a static const int.
-    if (enable) {
-      return kSkipNonIncrementalPartInstruction;
-    } else {
-      return kTwoByteNopInstruction;
+  static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.
+  static const byte kTwoByteJumpInstruction = 0xeb;  // Jmp #imm8.
+
+  static const byte kFiveByteNopInstruction = 0x3d;  // Cmpl eax, #imm32.
+  static const byte kFiveByteJumpInstruction = 0xe9;  // Jmp #imm32.
+
+  static Mode GetMode(Code* stub) {
+    byte first_instruction = stub->instruction_start()[0];
+    byte second_instruction = stub->instruction_start()[2];
+
+    if (first_instruction == kTwoByteJumpInstruction) {
+      return INCREMENTAL;
     }
+
+    ASSERT(first_instruction == kTwoByteNopInstruction);
+
+    if (second_instruction == kFiveByteJumpInstruction) {
+      return INCREMENTAL_COMPACTION;
+    }
+
+    ASSERT(second_instruction == kFiveByteNopInstruction);
+
+    return STORE_BUFFER_ONLY;
   }
 
-  static void Patch(Code* stub, bool enable) {
-    ASSERT(*stub->instruction_start() == GetInstruction(!enable));
-    *stub->instruction_start() = GetInstruction(enable);
+  static void Patch(Code* stub, Mode mode) {
+    switch (mode) {
+      case STORE_BUFFER_ONLY:
+        ASSERT(GetMode(stub) == INCREMENTAL ||
+               GetMode(stub) == INCREMENTAL_COMPACTION);
+        stub->instruction_start()[0] = kTwoByteNopInstruction;
+        stub->instruction_start()[2] = kFiveByteNopInstruction;
+        break;
+      case INCREMENTAL:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        stub->instruction_start()[0] = kTwoByteJumpInstruction;
+        break;
+      case INCREMENTAL_COMPACTION:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        stub->instruction_start()[0] = kTwoByteNopInstruction;
+        stub->instruction_start()[2] = kFiveByteJumpInstruction;
+        break;
+    }
+    ASSERT(GetMode(stub) == mode);
   }
 
  private:
@@ -708,14 +742,15 @@ class RecordWriteStub: public CodeStub {
   enum OnNoNeedToInformIncrementalMarker {
     kReturnOnNoNeedToInformIncrementalMarker,
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
-  };
-
+  }
+;
   void Generate(MacroAssembler* masm);
-  void GenerateIncremental(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
-      OnNoNeedToInformIncrementalMarker on_no_need);
-  void InformIncrementalMarker(MacroAssembler* masm);
+      OnNoNeedToInformIncrementalMarker on_no_need,
+      Mode mode);
+  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
 
   Major MajorKey() { return RecordWrite; }
 

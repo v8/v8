@@ -57,7 +57,20 @@ void IncrementalMarking::TearDown() {
 void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
                                              Object* value,
                                              Isolate* isolate) {
-  isolate->heap()->incremental_marking()->RecordWrite(obj, value);
+  ASSERT(obj->IsHeapObject());
+
+  IncrementalMarking* marking = isolate->heap()->incremental_marking();
+  ASSERT(!marking->is_compacting_);
+  marking->RecordWrite(obj, NULL, value);
+}
+
+
+void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
+                                                          Object** slot,
+                                                          Isolate* isolate) {
+  IncrementalMarking* marking = isolate->heap()->incremental_marking();
+  ASSERT(marking->is_compacting_);
+  marking->RecordWrite(obj, slot, *slot);
 }
 
 
@@ -70,22 +83,24 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
   }
 
   void VisitPointer(Object** p) {
-    MarkObjectByPointer(p);
+    MarkObjectByPointer(p, p);
   }
 
   void VisitPointers(Object** start, Object** end) {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(start, p);
   }
 
  private:
   // Mark object pointed to by p.
-  INLINE(void MarkObjectByPointer(Object** p)) {
+  INLINE(void MarkObjectByPointer(Object** anchor, Object** p)) {
     Object* obj = *p;
     // Since we can be sure that the object is not tagged as a failure we can
     // inline a slightly more efficient tag check here than IsHeapObject() would
     // produce.
     if (obj->NonFailureIsHeapObject()) {
       HeapObject* heap_object = HeapObject::cast(obj);
+
+      heap_->mark_compact_collector()->RecordSlot(anchor, p, obj);
       MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
       if (mark_bit.data_only()) {
         if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
@@ -285,14 +300,14 @@ bool IncrementalMarking::WorthActivating() {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-  // TODO(gc) ISOLATES MERGE
   return FLAG_incremental_marking &&
       heap_->PromotedSpaceSize() > kActivationThreshold;
 }
 
 
-static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
-  NumberDictionary* stubs = HEAP->code_stubs();
+static void PatchIncrementalMarkingRecordWriteStubs(
+    Heap* heap, RecordWriteStub::Mode mode) {
+  NumberDictionary* stubs = heap->code_stubs();
 
   int capacity = stubs->Capacity();
   for (int i = 0; i < capacity; i++) {
@@ -304,7 +319,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
           CodeStub::RecordWrite) {
         Object* e = stubs->ValueAt(i);
         if (e->IsCode()) {
-          RecordWriteStub::Patch(Code::cast(e), enable);
+          RecordWriteStub::Patch(Code::cast(e), mode);
         }
       }
     }
@@ -351,9 +366,15 @@ void IncrementalMarking::StartMarking() {
     PrintF("[IncrementalMarking] Start marking\n");
   }
 
+  is_compacting_ = !FLAG_never_compact &&
+      heap_->mark_compact_collector()->StartCompaction();
+
   state_ = MARKING;
 
-  PatchIncrementalMarkingRecordWriteStubs(true);
+  RecordWriteStub::Mode mode = is_compacting_ ?
+      RecordWriteStub::INCREMENTAL_COMPACTION : RecordWriteStub::INCREMENTAL;
+
+  PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
   EnsureMarkingDequeIsCommitted();
 
@@ -404,6 +425,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
   while (current != limit) {
     HeapObject* obj = array[current];
+    ASSERT(obj->IsHeapObject());
     current = ((current + 1) & mask);
     if (heap_->InNewSpace(obj)) {
       MapWord map_word = obj->map_word();
@@ -473,21 +495,25 @@ void IncrementalMarking::Abort() {
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   if (IsMarking()) {
-    PatchIncrementalMarkingRecordWriteStubs(false);
+    PatchIncrementalMarkingRecordWriteStubs(heap_,
+                                            RecordWriteStub::STORE_BUFFER_ONLY);
     DeactivateIncrementalWriteBarrier();
   }
   heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
   state_ = STOPPED;
+  is_compacting_ = false;
 }
 
 
 void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
+  is_compacting_ = false;
   heap_->new_space()->LowerInlineAllocationLimit(0);
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
-  PatchIncrementalMarkingRecordWriteStubs(false);
+  PatchIncrementalMarkingRecordWriteStubs(heap_,
+                                          RecordWriteStub::STORE_BUFFER_ONLY);
   DeactivateIncrementalWriteBarrier();
   ASSERT(marking_deque_.IsEmpty());
   heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
@@ -505,8 +531,7 @@ void IncrementalMarking::MarkingComplete() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
-  // TODO(gc) ISOLATES
-  ISOLATE->stack_guard()->RequestGC();
+  heap_->isolate()->stack_guard()->RequestGC();
 }
 
 
