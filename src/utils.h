@@ -496,6 +496,9 @@ class Collector {
  public:
   explicit Collector(int initial_capacity = kMinCapacity)
       : index_(0), size_(0) {
+    if (initial_capacity < kMinCapacity) {
+      initial_capacity = kMinCapacity;
+    }
     current_chunk_ = Vector<T>::New(initial_capacity);
   }
 
@@ -597,21 +600,13 @@ class Collector {
   // Creates a new current chunk, and stores the old chunk in the chunks_ list.
   void Grow(int min_capacity) {
     ASSERT(growth_factor > 1);
-    int new_capacity;
-    int current_length = current_chunk_.length();
-    if (current_length < kMinCapacity) {
-      // The collector started out as empty.
-      new_capacity = min_capacity * growth_factor;
-      if (new_capacity < kMinCapacity) new_capacity = kMinCapacity;
-    } else {
-      int growth = current_length * (growth_factor - 1);
-      if (growth > max_growth) {
-        growth = max_growth;
-      }
-      new_capacity = current_length + growth;
-      if (new_capacity < min_capacity) {
-        new_capacity = min_capacity + growth;
-      }
+    int growth = current_chunk_.length() * (growth_factor - 1);
+    if (growth > max_growth) {
+      growth = max_growth;
+    }
+    int new_capacity = current_chunk_.length() + growth;
+    if (new_capacity < min_capacity) {
+      new_capacity = min_capacity + growth;
     }
     Vector<T> new_chunk = Vector<T>::New(new_capacity);
     int new_index = PrepareGrow(new_chunk);

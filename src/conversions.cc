@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
-#include <math.h>
 #include <limits.h>
 
 #include "conversions-inl.h"
@@ -391,7 +390,7 @@ char* DoubleToRadixCString(double value, int radix) {
   int integer_pos = kBufferSize - 2;
   do {
     integer_buffer[integer_pos--] =
-        chars[static_cast<int>(fmod(integer_part, radix))];
+        chars[static_cast<int>(modulo(integer_part, radix))];
     integer_part /= radix;
   } while (integer_part >= 1.0);
   // Sanity check.
@@ -431,4 +430,24 @@ char* DoubleToRadixCString(double value, int radix) {
   return builder.Finalize();
 }
 
+
+static Mutex* dtoa_lock_one = OS::CreateMutex();
+static Mutex* dtoa_lock_zero = OS::CreateMutex();
+
+
 } }  // namespace v8::internal
+
+
+extern "C" {
+void ACQUIRE_DTOA_LOCK(int n) {
+  ASSERT(n == 0 || n == 1);
+  (n == 0 ? v8::internal::dtoa_lock_zero : v8::internal::dtoa_lock_one)->Lock();
+}
+
+
+void FREE_DTOA_LOCK(int n) {
+  ASSERT(n == 0 || n == 1);
+  (n == 0 ? v8::internal::dtoa_lock_zero : v8::internal::dtoa_lock_one)->
+      Unlock();
+}
+}

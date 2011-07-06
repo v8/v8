@@ -349,8 +349,6 @@ class Scanner {
     return next_.literal_chars->length();
   }
 
-  UnicodeCache* unicode_cache() { return unicode_cache_; }
-
   static const int kCharacterLookaheadBufferSize = 1;
 
  protected:
