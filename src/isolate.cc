@@ -1731,10 +1731,10 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
+  InitializeThreadLocal();
+
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.Setup(create_heap_objects);
-
-  InitializeThreadLocal();
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {

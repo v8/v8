@@ -46,7 +46,7 @@ bool Locker::active_ = false;
 // current thread will be guaranteed to have the lock for a given isolate.
 Locker::Locker(v8::Isolate* isolate)
   : has_lock_(false),
-    top_level_(false),
+    top_level_(true),
     isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
   if (isolate_ == NULL) {
     isolate_ = i::Isolate::GetDefaultIsolateForLocking();

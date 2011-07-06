@@ -84,10 +84,9 @@ class RuntimeProfiler {
   static bool IsSomeIsolateInJS();
   static bool WaitForSomeIsolateToEnterJS();
 
-  // When shutting down we join the profiler thread. Doing so while
-  // it's waiting on a semaphore will cause a deadlock, so we have to
-  // wake it up first.
-  static void WakeUpRuntimeProfilerThreadBeforeShutdown();
+  // Stops the runtime profiler thread when profiling support is being
+  // turned off.
+  static void StopRuntimeProfilerThreadBeforeShutdown(Thread* thread);
 
   void UpdateSamplesAfterScavenge();
   void RemoveDeadSamples();

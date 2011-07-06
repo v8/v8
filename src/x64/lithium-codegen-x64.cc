@@ -275,11 +275,25 @@ bool LCodeGen::GenerateJumpTable() {
 
 bool LCodeGen::GenerateDeferredCode() {
   ASSERT(is_generating());
-  for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
-    LDeferredCode* code = deferred_[i];
-    __ bind(code->entry());
-    code->Generate();
-    __ jmp(code->exit());
+  if (deferred_.length() > 0) {
+    for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
+      LDeferredCode* code = deferred_[i];
+      __ bind(code->entry());
+      code->Generate();
+      __ jmp(code->exit());
+    }
+
+    // Pad code to ensure that the last piece of deferred code have
+    // room for lazy bailout.
+    while ((masm()->pc_offset() - LastSafepointEnd())
+           < Deoptimizer::patch_size()) {
+      int padding = masm()->pc_offset() - LastSafepointEnd();
+      if (padding > 9) {
+        __ nop(9);
+      } else {
+        __ nop(padding);
+      }
+    }
   }
 
   // Deferred code is the last part of the instruction sequence. Mark
@@ -3987,8 +4001,16 @@ void LCodeGen::DoIn(LIn* instr) {
 
 
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
-  PushSafepointRegistersScope scope(this);
-  CallRuntimeFromDeferred(Runtime::kStackGuard, 0, instr);
+  {
+    PushSafepointRegistersScope scope(this);
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+    RegisterLazyDeoptimization(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
+  }
+
+  // The gap code includes the restoring of the safepoint registers.
+  int pc = masm()->pc_offset();
+  safepoints_.SetPcAfterGap(pc);
 }
 
 

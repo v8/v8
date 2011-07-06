@@ -295,7 +295,32 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 #else  // V8_INTERPRETED_REGEXP (RegExp native code)
   if (compiled_code->IsCode()) return true;
 #endif
+  // We could potentially have marked this as flushable, but have kept
+  // a saved version if we did not flush it yet.
+  Object* saved_code = re->DataAt(JSRegExp::saved_code_index(is_ascii));
+  if (saved_code->IsCode()) {
+    // Reinstate the code in the original place.
+    re->SetDataAt(JSRegExp::code_index(is_ascii), saved_code);
+    ASSERT(compiled_code->IsSmi());
+    return true;
+  }
   return CompileIrregexp(re, is_ascii);
+}
+
+
+static bool CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
+                                            bool is_ascii,
+                                            Handle<String> error_message,
+                                            Isolate* isolate) {
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(2);
+  elements->set(0, re->Pattern());
+  elements->set(1, *error_message);
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> regexp_err =
+      factory->NewSyntaxError("malformed_regexp", array);
+  isolate->Throw(*regexp_err);
+  return false;
 }
 
 
@@ -304,14 +329,28 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   Isolate* isolate = re->GetIsolate();
   ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
+  // If we had a compilation error the last time this is saved at the
+  // saved code index.
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
-  if (entry->IsJSObject()) {
-    // If it's a JSObject, a previous compilation failed and threw this object.
-    // Re-throw the object without trying again.
-    isolate->Throw(entry);
+  // When arriving here entry can only be a smi, either representing an
+  // uncompiled regexp, a previous compilation error, or code that has
+  // been flushed.
+  ASSERT(entry->IsSmi());
+  int entry_value = Smi::cast(entry)->value();
+  ASSERT(entry_value == JSRegExp::kUninitializedValue ||
+         entry_value == JSRegExp::kCompilationErrorValue ||
+         (entry_value < JSRegExp::kCodeAgeMask && entry_value >= 0));
+
+  if (entry_value == JSRegExp::kCompilationErrorValue) {
+    // A previous compilation failed and threw an error which we store in
+    // the saved code index (we store the error message, not the actual
+    // error). Recreate the error object and throw it.
+    Object* error_string = re->DataAt(JSRegExp::saved_code_index(is_ascii));
+    ASSERT(error_string->IsString());
+    Handle<String> error_message(String::cast(error_string));
+    CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }
-  ASSERT(entry->IsTheHole());
 
   JSRegExp::Flags flags = re->GetFlags();
 
@@ -340,17 +379,9 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Factory* factory = isolate->factory();
-    Handle<FixedArray> elements = factory->NewFixedArray(2);
-    elements->set(0, *pattern);
     Handle<String> error_message =
-        factory->NewStringFromUtf8(CStrVector(result.error_message));
-    elements->set(1, *error_message);
-    Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-    Handle<Object> regexp_err =
-        factory->NewSyntaxError("malformed_regexp", array);
-    isolate->Throw(*regexp_err);
-    re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
+        isolate->factory()->NewStringFromUtf8(CStrVector(result.error_message));
+    CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }
 

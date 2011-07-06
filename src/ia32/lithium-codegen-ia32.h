@@ -166,11 +166,6 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateRelocPadding();
   bool GenerateSafepointTable();
 
-  enum ContextMode {
-    RESTORE_CONTEXT,
-    CONTEXT_ADJUSTED
-  };
-
   enum SafepointMode {
     RECORD_SIMPLE_SAFEPOINT,
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
@@ -178,31 +173,28 @@ class LCodeGen BASE_EMBEDDED {
 
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
-                LInstruction* instr,
-                ContextMode context_mode);
+                LInstruction* instr);
 
   void CallCodeGeneric(Handle<Code> code,
                        RelocInfo::Mode mode,
                        LInstruction* instr,
-                       ContextMode context_mode,
                        SafepointMode safepoint_mode);
 
   void CallRuntime(const Runtime::Function* fun,
                    int argc,
-                   LInstruction* instr,
-                   ContextMode context_mode);
+                   LInstruction* instr);
 
   void CallRuntime(Runtime::FunctionId id,
                    int argc,
-                   LInstruction* instr,
-                   ContextMode context_mode) {
+                   LInstruction* instr) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, argc, instr, context_mode);
+    CallRuntime(function, argc, instr);
   }
 
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
 
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
@@ -256,6 +248,9 @@ class LCodeGen BASE_EMBEDDED {
                                     int arguments,
                                     int deoptimization_index);
   void RecordPosition(int position);
+  int LastSafepointEnd() {
+    return static_cast<int>(safepoints_.GetPcAfterGap());
+  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);

@@ -2585,4 +2585,3 @@ void LiveObjectList::VerifyNotInFromSpace() {
 } }  // namespace v8::internal
 
 #endif  // LIVE_OBJECT_LIST
-

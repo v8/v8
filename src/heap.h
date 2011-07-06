@@ -1256,6 +1256,11 @@ class Heap {
     return &external_string_table_;
   }
 
+  // Returns the current sweep generation.
+  int sweep_generation() {
+    return sweep_generation_;
+  }
+
   inline Isolate* isolate();
   bool is_safe_to_read_maps() { return is_safe_to_read_maps_; }
 
@@ -1284,6 +1289,9 @@ class Heap {
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
   int survived_since_last_expansion_;
+
+  // For keeping track on when to flush RegExp code.
+  int sweep_generation_;
 
   int always_allocate_scope_depth_;
   int linear_allocation_scope_depth_;

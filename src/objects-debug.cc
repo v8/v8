@@ -466,14 +466,22 @@ void JSRegExp::JSRegExpVerify() {
 
       FixedArray* arr = FixedArray::cast(data());
       Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
-      // TheHole : Not compiled yet.
+      // Smi : Not compiled yet (-1) or code prepared for flushing.
       // JSObject: Compilation error.
       // Code/ByteArray: Compiled code.
-      ASSERT(ascii_data->IsTheHole() || ascii_data->IsJSObject() ||
-          (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
+      ASSERT(ascii_data->IsSmi() ||
+             (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
       Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
-      ASSERT(uc16_data->IsTheHole() || uc16_data->IsJSObject() ||
-          (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
+      ASSERT(uc16_data->IsSmi() ||
+             (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
+
+      Object* ascii_saved = arr->get(JSRegExp::kIrregexpASCIICodeSavedIndex);
+      ASSERT(ascii_saved->IsSmi() || ascii_saved->IsString() ||
+             ascii_saved->IsCode());
+      Object* uc16_saved = arr->get(JSRegExp::kIrregexpUC16CodeSavedIndex);
+      ASSERT(uc16_saved->IsSmi() || uc16_saved->IsString() ||
+             uc16_saved->IsCode());
+
       ASSERT(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
       ASSERT(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());
       break;

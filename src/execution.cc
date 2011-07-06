@@ -452,8 +452,9 @@ char* StackGuard::RestoreStackGuard(char* from) {
 
 
 void StackGuard::FreeThreadResources() {
-  Isolate::CurrentPerIsolateThreadData()->set_stack_limit(
-      thread_local_.real_climit_);
+  Isolate::PerIsolateThreadData* per_thread =
+      isolate_->FindOrAllocatePerThreadDataForThisThread();
+  per_thread->set_stack_limit(thread_local_.real_climit_);
 }
 
 
@@ -502,7 +503,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   uintptr_t stored_limit = per_thread->stack_limit();
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != 0) {
-    StackGuard::SetStackLimit(stored_limit);
+    SetStackLimit(stored_limit);
   }
 }
 

@@ -276,7 +276,7 @@ function StringReplace(search, replace) {
 // the result.
 function ExpandReplacement(string, subject, matchInfo, builder) {
   var length = string.length;
-  var builder_elements = builder.elements; 
+  var builder_elements = builder.elements;
   var next = %StringIndexOf(string, '$', 0);
   if (next < 0) {
     if (length > 0) builder_elements.push(string);

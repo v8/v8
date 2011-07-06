@@ -25,35 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "diy-fp.h"
+// See: http://code.google.com/p/v8/issues/detail?id=1523
 
-namespace v8 {
-namespace internal {
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
 
-void DiyFp::Multiply(const DiyFp& other) {
-  // Simply "emulates" a 128 bit multiplication.
-  // However: the resulting number only contains 64 bits. The least
-  // significant 64 bits are only used for rounding the most significant 64
-  // bits.
-  const uint64_t kM32 = 0xFFFFFFFFu;
-  uint64_t a = f_ >> 32;
-  uint64_t b = f_ & kM32;
-  uint64_t c = other.f_ >> 32;
-  uint64_t d = other.f_ & kM32;
-  uint64_t ac = a * c;
-  uint64_t bc = b * c;
-  uint64_t ad = a * d;
-  uint64_t bd = b * d;
-  uint64_t tmp = (bd >> 32) + (ad & kM32) + (bc & kM32);
-  // By adding 1U << 31 to tmp we round the final result.
-  // Halfway cases will be round up.
-  tmp += 1U << 31;
-  uint64_t result_f = ac + (ad >> 32) + (bc >> 32) + (tmp >> 32);
-  e_ += other.e_ + 64;
-  f_ = result_f;
+Debug = debug.Debug
+
+var listenerCalled = false;
+var result = -1;
+
+function listener(event, exec_state, event_data, data) {
+  listenerCalled = true;
+};
+
+// Add the debug event listener.
+Debug.setListener(listener);
+
+function test_and(x) {
+  if (x && (bar === this.baz))
+    return 0;
+  return 1;
 }
 
-} }  // namespace v8::internal
+function test_or(x) {
+  if (x || (bar === this.baz))
+    return 0;
+  return 1;
+}
+
+// Set a break points and call each function to invoke the debug event listener.
+Debug.setBreakPoint(test_and, 0, 0);
+Debug.setBreakPoint(test_or, 0, 0);
+
+listenerCalled = false;
+result = test_and(false);
+assertEquals(1, result);
+assertTrue(listenerCalled);
+
+listenerCalled = false;
+result = test_or(true);
+assertEquals(0, result);
+assertTrue(listenerCalled);

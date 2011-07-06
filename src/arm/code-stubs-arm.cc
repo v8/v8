@@ -4413,9 +4413,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check that the irregexp code has been generated for the actual string
   // encoding. If it has, the field contains a code object otherwise it contains
-  // the hole.
-  __ CompareObjectType(r7, r0, r0, CODE_TYPE);
-  __ b(ne, &runtime);
+  // a smi (code flushing support).
+  __ JumpIfSmi(r7, &runtime);
 
   // r3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // r7: code

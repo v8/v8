@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "char-predicates-inl.h"
-#include "conversions.h"
+#include "v8conversions.h"
 #include "messages.h"
 #include "spaces-inl.h"
 #include "token.h"
