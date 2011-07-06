@@ -57,14 +57,14 @@ int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
 #pragma intrinsic(_BitScanReverse)
 
 int CompilerIntrinsics::CountTrailingZeros(uint32_t value) {
-  unsigned long result;
-  _BitScanForward(&result, static_cast<long>(value));
+  unsigned long result;  //NOLINT
+  _BitScanForward(&result, static_cast<long>(value));  //NOLINT
   return static_cast<int>(result);
 }
 
 int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
-  unsigned long result;
-  _BitScanReverse(&result, static_cast<long>(value));
+  unsigned long result;  //NOLINT
+  _BitScanReverse(&result, static_cast<long>(value));  //NOLINT
   return 31 - static_cast<int>(result);
 }
 
