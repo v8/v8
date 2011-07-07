@@ -149,6 +149,78 @@ TestSet(Proxy.create({
 
 
 
+// Property definition (Object.defineProperty).
+
+var key
+var desc
+function TestDefine(handler) {
+  var o = Proxy.create(handler)
+  assertEquals(o, Object.defineProperty(o, "a", {value: 44}))
+  assertEquals("a", key)
+  assertEquals(1, Object.getOwnPropertyNames(desc).length)
+  assertEquals(44, desc.value)
+
+  assertEquals(o, Object.defineProperty(o, "b", {value: 45, writable: false}))
+  assertEquals("b", key)
+  assertEquals(2, Object.getOwnPropertyNames(desc).length)
+  assertEquals(45, desc.value)
+  assertEquals(false, desc.writable)
+
+  assertEquals(o, Object.defineProperty(o, "c", {value: 46, enumerable: false}))
+  assertEquals("c", key)
+  assertEquals(2, Object.getOwnPropertyNames(desc).length)
+  assertEquals(46, desc.value)
+  assertEquals(false, desc.enumerable)
+
+  var attributes = {configurable: true, mine: 66, minetoo: 23}
+  assertEquals(o, Object.defineProperty(o, "d", attributes))
+  assertEquals("d", key)
+  // Modifying the attributes object after the fact should have no effect.
+  attributes.configurable = false
+  attributes.mine = 77
+  delete attributes.minetoo
+  assertEquals(3, Object.getOwnPropertyNames(desc).length)
+  assertEquals(true, desc.configurable)
+  assertEquals(66, desc.mine)
+  assertEquals(23, desc.minetoo)
+
+  assertEquals(o, Object.defineProperty(o, "e", {get: function(){ return 5 }}))
+  assertEquals("e", key)
+  assertEquals(1, Object.getOwnPropertyNames(desc).length)
+  assertEquals(5, desc.get())
+
+  assertEquals(o, Object.defineProperty(o, "zzz", {}))
+  assertEquals("zzz", key)
+  assertEquals(0, Object.getOwnPropertyNames(desc).length)
+
+// This test requires [s in proxy] to be implemented first.
+//  var d = Proxy.create({
+//    get: function(r, k) { return (k === "value") ? 77 : void 0 },
+//    getOwnPropertyNames: function() { return ["value"] }
+//  })
+//  assertEquals(1, Object.getOwnPropertyNames(d).length)
+//  assertEquals(77, d.value)
+//  assertEquals(o, Object.defineProperty(o, "p", d))
+//  assertEquals("p", key)
+//  assertEquals(1, Object.getOwnPropertyNames(desc).length)
+//  assertEquals(77, desc.value)
+}
+
+TestDefine({
+  defineProperty: function(k, d) { key = k; desc = d; return true }
+})
+TestDefine({
+  defineProperty: function(k, d) { return this.defineProperty2(k, d) },
+  defineProperty2: function(k, d) { key = k; desc = d; return true }
+})
+TestDefine(Proxy.create({
+  get: function(pr, pk) {
+    return function(k, d) { key = k; desc = d; return true }
+  }
+}))
+
+
+
 // Comparison.
 
 function TestComparison(eq) {

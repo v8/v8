@@ -628,11 +628,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Object* obj = args[0];
-  obj = obj->GetPrototype();
-  while (obj->IsJSObject() &&
-         JSObject::cast(obj)->map()->is_hidden_prototype()) {
+  do {
     obj = obj->GetPrototype();
-  }
+  } while (obj->IsJSObject() &&
+           JSObject::cast(obj)->map()->is_hidden_prototype());
   return obj;
 }
 
