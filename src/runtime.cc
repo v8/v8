@@ -10150,8 +10150,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
   int argument_count = info.number_of_parameters();
-  if (argument_count < it.frame()->ComputeParametersCount()) {
-    argument_count = it.frame()->ComputeParametersCount();
+  if (it.frame()->is_optimized()) {
+    ASSERT_EQ(argument_count, deoptimized_frame->parameters_count());
+  } else {
+    if (argument_count < it.frame()->ComputeParametersCount()) {
+      argument_count = it.frame()->ComputeParametersCount();
+    }
   }
 
   // Calculate the size of the result.
@@ -10220,16 +10224,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       details->set(details_index++, heap->undefined_value());
     }
 
-    // Parameter value. If we are inspecting an optimized frame, use
-    // undefined as the value.
-    //
-    // TODO(3141533): We should be able to get the actual parameter
-    // value for optimized frames.
-    if (!it.frame()->is_optimized() &&
-        (i < it.frame()->ComputeParametersCount())) {
-      details->set(details_index++, it.frame()->GetParameter(i));
+    // Parameter value.
+    if (it.frame()->is_optimized()) {
+      // Get the value from the deoptimized frame.
+      details->set(details_index++, deoptimized_frame->GetParameter(i));
     } else {
-      details->set(details_index++, heap->undefined_value());
+      if (i < it.frame()->ComputeParametersCount()) {
+        // Get the value from the stack.
+        details->set(details_index++, it.frame()->GetParameter(i));
+      } else {
+        details->set(details_index++, heap->undefined_value());
+      }
     }
   }
 

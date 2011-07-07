@@ -161,8 +161,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Get the "simulated" top and size for the requested frame.
   Address top =
       reinterpret_cast<Address>(deoptimizer->output_[frame_index]->GetTop());
-  unsigned size =
-      deoptimizer->output_[frame_index]->GetFrameSize() / kPointerSize;
+  unsigned size = deoptimizer->output_[frame_index]->GetFrameSize();
 
   // Done with the GC-unsafe frame descriptions. This re-enables allocation.
   deoptimizer->DeleteFrameDescriptions();
@@ -557,17 +556,27 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
     Address slot = d.slot_address();
     if (top <= slot && slot < top + size) {
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
-      int expression_index = static_cast<int>(
+      // Calculate the index with the botton of the expression stack
+      // at index 0, and the fixed part (including incoming arguments)
+      // at negative indexes.
+      int index = static_cast<int>(
           info->expression_count_ - (slot - top) / kPointerSize - 1);
       if (FLAG_trace_deopt) {
         PrintF("Materializing a new heap number %p [%e] in slot %p"
-               "for expression stack index %d\n",
+               "for stack index %d\n",
                reinterpret_cast<void*>(*num),
                d.value(),
                d.slot_address(),
-               expression_index);
+               index);
       }
-      info->SetExpression(expression_index, *num);
+      if (index >=0) {
+        info->SetExpression(index, *num);
+      } else {
+        // Calculate parameter index subtracting one for the receiver.
+        int parameter_index =
+            index + size / kPointerSize - info->expression_count_ - 1;
+        info->SetParameter(parameter_index, *num);
+      }
     }
   }
 }
@@ -1126,6 +1135,22 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
 }
 
 
+int FrameDescription::ComputeParametersCount() {
+  return function_->shared()->formal_parameter_count();
+}
+
+
+Object* FrameDescription::GetParameter(Deoptimizer* deoptimizer, int index) {
+  ASSERT_EQ(Code::FUNCTION, kind_);
+  ASSERT(index >= 0);
+  ASSERT(index < ComputeParametersCount());
+  // The slot indexes for incoming arguments are negative.
+  unsigned offset = GetOffsetFromSlotIndex(deoptimizer,
+                                           index - ComputeParametersCount());
+  return reinterpret_cast<Object*>(*GetFrameSlotPointer(offset));
+}
+
+
 unsigned FrameDescription::GetExpressionCount(Deoptimizer* deoptimizer) {
   ASSERT_EQ(Code::FUNCTION, kind_);
   unsigned size = GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
@@ -1417,6 +1442,11 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(
   FrameDescription* output_frame = deoptimizer->output_[frame_index];
   SetFunction(output_frame->GetFunction());
   expression_count_ = output_frame->GetExpressionCount(deoptimizer);
+  parameters_count_ = output_frame->ComputeParametersCount();
+  parameters_ = new Object*[expression_count_];
+  for (int i = 0; i < parameters_count_; i++) {
+    SetParameter(i, output_frame->GetParameter(deoptimizer, i));
+  }
   expression_stack_ = new Object*[expression_count_];
   for (int i = 0; i < expression_count_; i++) {
     SetExpression(i, output_frame->GetExpression(deoptimizer, i));
@@ -1430,6 +1460,7 @@ DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointer(reinterpret_cast<Object**>(&function_));
+  v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
