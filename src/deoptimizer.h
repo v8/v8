@@ -194,7 +194,7 @@ class Deoptimizer : public Malloced {
   void MaterializeHeapNumbers();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   void MaterializeHeapNumbersForDebuggerInspectableFrame(
-      Address top, intptr_t size, DeoptimizedFrameInfo* info);
+      Address top, uint32_t size, DeoptimizedFrameInfo* info);
 #endif
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);

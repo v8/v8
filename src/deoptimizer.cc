@@ -161,7 +161,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Get the "simulated" top and size for the requested frame.
   Address top =
       reinterpret_cast<Address>(deoptimizer->output_[frame_index]->GetTop());
-  unsigned size = deoptimizer->output_[frame_index]->GetFrameSize();
+  uint32_t size = deoptimizer->output_[frame_index]->GetFrameSize();
 
   // Done with the GC-unsafe frame descriptions. This re-enables allocation.
   deoptimizer->DeleteFrameDescriptions();
@@ -546,7 +546,7 @@ void Deoptimizer::MaterializeHeapNumbers() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
-    Address top, intptr_t size, DeoptimizedFrameInfo* info) {
+    Address top, uint32_t size, DeoptimizedFrameInfo* info) {
   ASSERT_EQ(DEBUGGER, bailout_type_);
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
     HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
@@ -574,7 +574,9 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
       } else {
         // Calculate parameter index subtracting one for the receiver.
         int parameter_index =
-            index + size / kPointerSize - info->expression_count_ - 1;
+            index +
+            static_cast<int>(size) / kPointerSize -
+            info->expression_count_ - 1;
         info->SetParameter(parameter_index, *num);
       }
     }
