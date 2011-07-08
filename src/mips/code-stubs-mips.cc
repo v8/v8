@@ -4592,10 +4592,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movz(t9, t0, a0);  // If UC16 (a0 is 0), replace t9 w/kDataUC16CodeOffset.
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it
-  // contains the hole.
-  __ GetObjectType(t9, a0, a0);
-  __ Branch(&runtime, ne, a0, Operand(CODE_TYPE));
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // a smi (code flushing support).
+  __ JumpIfSmi(t9, &runtime);
 
   // a3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // t9: code
