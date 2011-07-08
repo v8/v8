@@ -29,8 +29,10 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
+var listenerComplete = false;
+var exception = false;
+
+var testingConstructCall = false;
 
 
 function listener(event, exec_state, event_data, data) {
@@ -65,6 +67,9 @@ function listener(event, exec_state, event_data, data) {
           case 5: break;
           default: assertUnreachable();
         }
+
+        // Check for construct call.
+        assertEquals(testingConstructCall && i == 4, frame.isConstructCall());
 
         // When function f is optimized (2 means YES, see runtime.cc) we
         // expect an optimized frame for f with g1, g2 and g3 inlined.
@@ -127,7 +132,10 @@ function f(x, y) {
   g1(a, b);
 };
 
+// Test calling f normally and as a constructor.
 f(11, 12);
+testingConstructCall = true;
+new f(11, 12);
 
 // Make sure that the debug event listener vas invoked.
 assertFalse(exception, "exception in listener " + exception)

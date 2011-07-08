@@ -10059,8 +10059,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   int position =
       it.frame()->LookupCode()->SourcePosition(it.frame()->pc());
 
-  // Check for constructor frame.
-  bool constructor = it.frame()->IsConstructor();
+  // Check for constructor frame. Inlined frames cannot be construct calls.
+  bool inlined_frame =
+      it.frame()->is_optimized() && deoptimized_frame_index != 0;
+  bool constructor = !inlined_frame && it.frame()->IsConstructor();
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
