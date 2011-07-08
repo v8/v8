@@ -56,6 +56,11 @@ function testPolymorphicLoads() {
     init_sparse_array(sparse_object_array);
     init_sparse_array(sparse_js_array);
 
+    assertEquals(1, load(object_array, 1));
+    assertEquals(1, load(js_array, 1));
+    assertEquals(1, load(sparse_object_array, 1));
+    assertEquals(1, load(sparse_js_array, 1));
+
     return load;
   }
 
@@ -68,16 +73,6 @@ function testPolymorphicLoads() {
   init_array(js_array);
   init_sparse_array(sparse_object_array);
   init_sparse_array(sparse_js_array);
-
-  // load() should now use polymorphic element loads.
-  load = make_polymorphic_load_function();
-  assertEquals(1, load(object_array, 1));
-  load = make_polymorphic_load_function();
-  assertEquals(1, load(js_array, 1));
-  load = make_polymorphic_load_function();
-  assertEquals(1, load(sparse_object_array, 1));
-  load = make_polymorphic_load_function();
-  assertEquals(1, load(sparse_js_array, 1));
 
   load = make_polymorphic_load_function();
   assertEquals(undefined, load(js_array, new Object()));
