@@ -78,7 +78,7 @@ class UnaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
@@ -175,7 +175,7 @@ class BinaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
@@ -370,12 +370,6 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "WriteInt32ToHeapNumberStub"; }
-
-#ifdef DEBUG
-  void Print() { PrintF("WriteInt32ToHeapNumberStub\n"); }
-#endif
 };
 
 
@@ -402,8 +396,6 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "NumberToStringStub"; }
 };
 
 
@@ -421,8 +413,6 @@ class RegExpCEntryStub: public CodeStub {
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
-
-  const char* GetName() { return "RegExpCEntryStub"; }
 };
 
 
@@ -443,8 +433,6 @@ class DirectCEntryStub: public CodeStub {
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
-
-  const char* GetName() { return "DirectCEntryStub"; }
 };
 
 
@@ -626,13 +614,6 @@ class StringDictionaryLookupStub: public CodeStub {
   static const int kElementsStartOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
-
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("StringDictionaryLookupStub\n");
-  }
-#endif
 
   Major MajorKey() { return StringDictionaryNegativeLookup; }
 

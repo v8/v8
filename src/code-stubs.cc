@@ -170,7 +170,7 @@ MaybeObject* CodeStub::TryGetCode() {
 const char* CodeStub::MajorName(CodeStub::Major major_key,
                                 bool allow_unknown_keys) {
   switch (major_key) {
-#define DEF_CASE(name) case name: return #name;
+#define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     default:
