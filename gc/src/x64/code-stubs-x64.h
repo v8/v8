@@ -598,6 +598,7 @@ class RecordWriteStub: public CodeStub {
         break;
     }
     ASSERT(GetMode(stub) == mode);
+    CPU::FlushICache(stub->instruction_start(), 7);
   }
 
  private:

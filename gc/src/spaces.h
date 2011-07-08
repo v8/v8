@@ -291,6 +291,8 @@ class Bitmap {
 };
 
 
+class SlotsBuffer;
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accomodate
@@ -375,7 +377,8 @@ class MemoryChunk {
     NEW_SPACE_BELOW_AGE_MARK,
     CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
-    EVACUATED,
+    RESCAN_ON_EVACUATION,
+    WAS_SWEPT,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -389,8 +392,11 @@ class MemoryChunk {
   static const int kEvacuationCandidateMask =
       1 << EVACUATION_CANDIDATE;
 
-  static const int kEvacuationCandidateOrNewSpaceMask =
-      (1 << EVACUATION_CANDIDATE) | (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
+  static const int kSkipEvacuationSlotsRecordingMask =
+      (1 << EVACUATION_CANDIDATE) |
+      (1 << RESCAN_ON_EVACUATION) |
+      (1 << IN_FROM_SPACE) |
+      (1 << IN_TO_SPACE);
 
 
   void SetFlag(int flag) {
@@ -445,7 +451,9 @@ class MemoryChunk {
       kPointerSize + kPointerSize + kPointerSize + kPointerSize +
       kPointerSize + kPointerSize + kIntSize;
 
-  static const size_t kHeaderSize = kLiveBytesOffset + kIntSize;
+  static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
+
+  static const size_t kHeaderSize = kSlotsBufferOffset + kPointerSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -510,6 +518,31 @@ class MemoryChunk {
 
   static const int kFlagsOffset = kPointerSize * 3;
 
+  bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
+
+  bool ShouldSkipEvacuationSlotRecording() {
+    return (flags_ & kSkipEvacuationSlotsRecordingMask) != 0;
+  }
+
+  inline SlotsBuffer* slots_buffer() {
+    return slots_buffer_;
+  }
+
+  inline SlotsBuffer** slots_buffer_address() {
+    return &slots_buffer_;
+  }
+
+  void MarkEvacuationCandidate() {
+    ASSERT(slots_buffer_ == NULL);
+    SetFlag(EVACUATION_CANDIDATE);
+  }
+
+  void ClearEvacuationCandidate() {
+    ASSERT(slots_buffer_ == NULL);
+    ClearFlag(EVACUATION_CANDIDATE);
+  }
+
+
  protected:
   MemoryChunk* next_chunk_;
   MemoryChunk* prev_chunk_;
@@ -525,6 +558,7 @@ class MemoryChunk {
   int store_buffer_counter_;
   // Count of bytes marked black on page.
   int live_byte_count_;
+  SlotsBuffer* slots_buffer_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -623,21 +657,11 @@ class Page : public MemoryChunk {
 
   void InitializeAsAnchor(PagedSpace* owner);
 
-  bool IsEvacuationCandidate() { return IsFlagSet(EVACUATION_CANDIDATE); }
+  bool WasSwept() { return IsFlagSet(WAS_SWEPT); }
 
-  bool IsEvacuationCandidateOrNewSpace() {
-    return (flags_ & kEvacuationCandidateOrNewSpaceMask) != 0;
-  }
+  void MarkSwept() { SetFlag(WAS_SWEPT); }
 
-  void MarkEvacuationCandidate() { SetFlag(EVACUATION_CANDIDATE); }
-
-  void ClearEvacuationCandidate() { ClearFlag(EVACUATION_CANDIDATE); }
-
-  bool WasEvacuated() { return IsFlagSet(EVACUATED); }
-
-  void MarkEvacuated() { SetFlag(EVACUATED); }
-
-  void ClearEvacuated() { ClearFlag(EVACUATED); }
+  void ClearSwept() { ClearFlag(WAS_SWEPT); }
 
   friend class MemoryAllocator;
 };
@@ -1925,7 +1949,8 @@ class NewSpace : public Space {
   explicit NewSpace(Heap* heap)
     : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
       to_space_(heap, kToSpace),
-      from_space_(heap, kFromSpace) {}
+      from_space_(heap, kFromSpace),
+      inline_allocation_limit_step_(0) {}
 
   // Sets up the new space using the given chunk.
   bool Setup(int max_semispace_size);

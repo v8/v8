@@ -6386,7 +6386,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
     __ CheckPageFlag(regs_.object(),
                      regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kEvacuationCandidateOrNewSpaceMask,
+                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
                      not_zero,
                      &ensure_not_white,
                      Label::kNear);

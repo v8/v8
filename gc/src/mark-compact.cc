@@ -60,6 +60,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       sweep_precisely_(false),
       compacting_(false),
       tracer_(NULL),
+      migration_slots_buffer_(NULL),
 #ifdef DEBUG
       live_young_objects_size_(0),
       live_old_pointer_objects_size_(0),
@@ -232,9 +233,6 @@ bool MarkCompactCollector::StartCompaction() {
   if (!compacting_ && !heap_->incremental_marking()->IsMarking()) {
     ASSERT(evacuation_candidates_.length() == 0);
 
-    // TODO(gc) Shrink slots buffer when we receive low memory notification.
-    slots_buffer_.Clear();
-
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
@@ -384,6 +382,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
          space->identity() == OLD_DATA_SPACE);
 
   PageIterator it(space);
+  if (it.has_next()) it.next();  // Never compact the first page.
   while (it.has_next()) {
     Page* p = it.next();
     if (space->IsFragmented(p)) {
@@ -2063,7 +2062,10 @@ void MarkCompactCollector::MigrateObject(Address dst,
         heap_->store_buffer()->Mark(dst_slot);
       } else if (value->IsHeapObject() &&
                  MarkCompactCollector::IsOnEvacuationCandidate(value)) {
-        slots_buffer_.Add(reinterpret_cast<Object**>(dst_slot));
+        SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                           &migration_slots_buffer_,
+                           reinterpret_cast<Object**>(dst_slot),
+                           SlotsBuffer::IGNORE_OVERFLOW);
       }
 
       src_slot += kPointerSize;
@@ -2268,7 +2270,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
 void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   AlwaysAllocateScope always_allocate;
 
-  ASSERT(p->IsEvacuationCandidate() && !p->WasEvacuated());
+  ASSERT(p->IsEvacuationCandidate() && !p->WasSwept());
 
   PagedSpace* space = static_cast<PagedSpace*>(p->owner());
 
@@ -2317,7 +2319,11 @@ void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
-    EvacuateLiveObjectsFromPage(p);
+    ASSERT(p->IsEvacuationCandidate() ||
+           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    if (p->IsEvacuationCandidate()) {
+      EvacuateLiveObjectsFromPage(p);
+    }
   }
 }
 
@@ -2335,6 +2341,86 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
     return object;
   }
 };
+
+
+static inline void UpdateSlot(Object** slot) {
+  Object* obj = *slot;
+  if (!obj->IsHeapObject()) return;
+
+  HeapObject* heap_obj = HeapObject::cast(obj);
+
+  MapWord map_word = heap_obj->map_word();
+  if (map_word.IsForwardingAddress()) {
+    ASSERT(MarkCompactCollector::IsOnEvacuationCandidate(*slot));
+    *slot = map_word.ToForwardingAddress();
+    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
+  }
+}
+
+
+static inline void UpdateSlotsInRange(Object** start, Object** end) {
+  for (Object** slot = start;
+       slot < end;
+       slot++) {
+    Object* obj = *slot;
+    if (obj->IsHeapObject() &&
+        MarkCompactCollector::IsOnEvacuationCandidate(obj)) {
+      MapWord map_word = HeapObject::cast(obj)->map_word();
+      if (map_word.IsForwardingAddress()) {
+        *slot = map_word.ToForwardingAddress();
+        ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
+      }
+    }
+  }
+}
+
+
+static void UpdateSlotsOnPage(Page* p, ObjectVisitor* visitor) {
+  // TODO(gc) this is basically clone of SweepPrecisely
+  PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+  MarkBit::CellType* cells = p->markbits()->cells();
+
+  p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
+  p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+  p->MarkSwept();
+
+  int last_cell_index =
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+
+  int cell_index = Page::kFirstUsedCell;
+  Address free_start = p->ObjectAreaStart();
+  ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
+  Address object_address = p->ObjectAreaStart();
+  int offsets[16];
+
+  for (cell_index = Page::kFirstUsedCell;
+       cell_index < last_cell_index;
+       cell_index++, object_address += 32 * kPointerSize) {
+    ASSERT((unsigned)cell_index ==
+        Bitmap::IndexToCell(
+            Bitmap::CellAlignIndex(
+                p->AddressToMarkbitIndex(object_address))));
+    int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
+    int live_index = 0;
+    for ( ; live_objects != 0; live_objects--) {
+      Address free_end = object_address + offsets[live_index++] * kPointerSize;
+      if (free_end != free_start) {
+        space->Free(free_start, free_end - free_start);
+      }
+      HeapObject* live_object = HeapObject::FromAddress(free_end);
+      ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
+      int size = live_object->Size();
+      UpdateSlotsInRange(HeapObject::RawField(live_object, kPointerSize),
+                         HeapObject::RawField(live_object, size));
+      free_start = free_end + size;
+    }
+  }
+  if (free_start != p->ObjectAreaEnd()) {
+    space->Free(free_start, p->ObjectAreaEnd() - free_start);
+  }
+}
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
@@ -2366,7 +2452,30 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                                   &Heap::ScavengeStoreBufferCallback);
     heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
-  slots_buffer_.Update();
+
+  SlotsBuffer::UpdateSlotsRecordedIn(migration_slots_buffer_);
+  if (FLAG_trace_fragmentation) {
+    PrintF("  migration slots buffer: %d\n",
+           SlotsBuffer::SizeOfChain(migration_slots_buffer_));
+  }
+
+  int npages = evacuation_candidates_.length();
+  for (int i = 0; i < npages; i++) {
+    Page* p = evacuation_candidates_[i];
+    ASSERT(p->IsEvacuationCandidate() ||
+           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+
+    if (p->IsEvacuationCandidate()) {
+      SlotsBuffer::UpdateSlotsRecordedIn(p->slots_buffer());
+      if (FLAG_trace_fragmentation) {
+        PrintF("  page %p slots buffer: %d\n",
+               reinterpret_cast<void*>(p),
+               SlotsBuffer::SizeOfChain(p->slots_buffer()));
+      }
+    } else {
+      UpdateSlotsOnPage(p, &updating_visitor);
+    }
+  }
 
   // Update pointers from cells.
   HeapObjectIterator cell_iterator(heap_->cell_space());
@@ -2402,16 +2511,17 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   }
 #endif
 
-  int npages = evacuation_candidates_.length();
-  ASSERT(compacting_ == (npages > 0));
+  slots_buffer_allocator_.DeallocateChain(&migration_slots_buffer_);
+  ASSERT(migration_slots_buffer_ == NULL);
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
-    ASSERT(p->IsEvacuationCandidate() && !p->WasEvacuated());
+    if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     space->Free(p->ObjectAreaStart(), Page::kObjectAreaSize);
     p->set_scan_on_scavenge(false);
+    slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ClearEvacuationCandidate();
-    p->SetFlag(MemoryChunk::EVACUATED);
+    p->MarkSwept();
     p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
   }
   evacuation_candidates_.Rewind(0);
@@ -2743,7 +2853,7 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 // memory that can be ignored when scanning.  Dead objects other than free
 // spaces will not contain the free space map.
 int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
-  ASSERT(!p->IsEvacuationCandidate() && !p->WasEvacuated());
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
 
   int freed_bytes = 0;
 
@@ -2831,7 +2941,7 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
 // over it.  Map space is swept precisely, because it is not compacted.
 static void SweepPrecisely(PagedSpace* space,
                            Page* p) {
-  ASSERT(!p->IsEvacuationCandidate() && !p->WasEvacuated());
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
   MarkBit::CellType* cells = p->markbits()->cells();
 
   p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
@@ -2889,6 +2999,11 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
 
     if (p->IsEvacuationCandidate()) {
       ASSERT(evacuation_candidates_.length() > 0);
+      continue;
+    }
+
+    if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+      // Will be processed in EvacuateNewSpaceAndCandidates.
       continue;
     }
 
@@ -3052,74 +3167,32 @@ void MarkCompactCollector::Initialize() {
 }
 
 
-SlotsBuffer::SlotsBuffer()
-    : buffers_(0),
-      buffer_(NULL),
-      idx_(kBufferSize),
-      buffer_idx_(-1) {
-}
-
-
-SlotsBuffer::~SlotsBuffer() {
-  for (int buffer_index = 0; buffer_index < buffers_.length(); ++buffer_index) {
-    delete buffers_[buffer_index];
-  }
-}
-
-
-void SlotsBuffer::Clear() {
-  idx_ = kBufferSize;
-  buffer_idx_ = -1;
-}
-
-
-void SlotsBuffer::Add(Object** slot) {
-  if (idx_ == kBufferSize) {
-    idx_ = 0;
-    buffer_idx_++;
-    if (buffer_idx_ == buffers_.length()) {
-      buffers_.Add(new ObjectSlot[kBufferSize]);
-    }
-    buffer_ = buffers_[buffer_idx_];
-  }
-
-  buffer_[idx_++] = slot;
-}
-
-
-static inline void UpdateSlot(Object** slot) {
-  Object* obj = *slot;
-  if (!obj->IsHeapObject()) return;
-
-  HeapObject* heap_obj = HeapObject::cast(obj);
-
-  MapWord map_word = heap_obj->map_word();
-  if (map_word.IsForwardingAddress()) {
-    ASSERT(MarkCompactCollector::IsOnEvacuationCandidate(*slot));
-    *slot = map_word.ToForwardingAddress();
-    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
-  }
-}
-
-
-void SlotsBuffer::Update() {
-  if (buffer_idx_ < 0) return;
-
-  for (int buffer_index = 0; buffer_index < buffer_idx_; ++buffer_index) {
-    ObjectSlot* buffer = buffers_[buffer_index];
-    for (int slot_idx = 0; slot_idx < kBufferSize; ++slot_idx) {
-      UpdateSlot(buffer[slot_idx]);
-    }
-  }
-
-  ObjectSlot* last_buffer = buffers_[buffer_idx_];
+void SlotsBuffer::UpdateSlots() {
   for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
-    UpdateSlot(last_buffer[slot_idx]);
+    UpdateSlot(slots_[slot_idx]);
   }
 }
 
 
-void SlotsBuffer::Report() {
+SlotsBuffer* SlotsBufferAllocator::AllocateBuffer(SlotsBuffer* next_buffer) {
+  // TODO(gc) Consider maintaining local cache of buffers.
+  return new SlotsBuffer(next_buffer);
+}
+
+
+void SlotsBufferAllocator::DeallocateBuffer(SlotsBuffer* buffer) {
+  delete buffer;
+}
+
+
+void SlotsBufferAllocator::DeallocateChain(SlotsBuffer** buffer_address) {
+  SlotsBuffer* buffer = *buffer_address;
+  while (buffer != NULL) {
+    SlotsBuffer* next_buffer = buffer->next();
+    DeallocateBuffer(buffer);
+    buffer = next_buffer;
+  }
+  *buffer_address = NULL;
 }
 
 

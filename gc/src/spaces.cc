@@ -436,6 +436,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->size_ = size;
   chunk->flags_ = 0;
   chunk->set_owner(owner);
+  chunk->slots_buffer_ = NULL;
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
 
@@ -1979,7 +1980,7 @@ void PagedSpace::PrepareForMarkCompact() {
   PageIterator it(this);
   while (it.has_next()) {
     Page* page = it.next();
-    page->ClearFlag(MemoryChunk::EVACUATED);
+    page->ClearSwept();
   }
 }
 
@@ -2023,7 +2024,9 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   do {
     Page* next_page = p->next_page();
     // Evacuation candidates were swept by evacuator.
-    if (!p->IsEvacuationCandidate() && !p->WasEvacuated()) {
+    if (!p->IsEvacuationCandidate() &&
+        !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) &&
+        !p->WasSwept()) {
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;

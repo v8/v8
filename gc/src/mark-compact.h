@@ -267,26 +267,87 @@ class MarkingDeque {
 };
 
 
+class SlotsBufferAllocator {
+ public:
+  SlotsBuffer* AllocateBuffer(SlotsBuffer* next_buffer);
+  void DeallocateBuffer(SlotsBuffer* buffer);
+
+  void DeallocateChain(SlotsBuffer** buffer_address);
+};
+
+
 class SlotsBuffer {
  public:
   typedef Object** ObjectSlot;
 
-  SlotsBuffer();
-  ~SlotsBuffer();
+  SlotsBuffer(SlotsBuffer* next_buffer)
+      : idx_(0), chain_length_(1), next_(next_buffer) {
+    if (next_ != NULL) {
+      chain_length_ = next_->chain_length_ + 1;
+    }
+  }
 
-  void Clear();
-  void Add(ObjectSlot slot);
-  void Update();
-  void Report();
+  ~SlotsBuffer() {
+  }
+
+  void Add(ObjectSlot slot) {
+    ASSERT(0 <= idx_ && idx_ < kNumberOfElements);
+    slots_[idx_++] = slot;
+  }
+
+  void UpdateSlots();
+
+  SlotsBuffer* next() { return next_; }
+
+  static int SizeOfChain(SlotsBuffer* buffer) {
+    if (buffer == NULL) return 0;
+    return buffer->idx_ + (buffer->chain_length_ - 1) * kNumberOfElements;
+  }
+
+  inline bool IsFull() {
+    return idx_ == kNumberOfElements;
+  }
+
+  static void UpdateSlotsRecordedIn(SlotsBuffer* buffer) {
+    while (buffer != NULL) {
+      buffer->UpdateSlots();
+      buffer = buffer->next();
+    }
+  }
+
+  enum AdditionMode {
+    FAIL_ON_OVERFLOW,
+    IGNORE_OVERFLOW
+  };
+
+  static bool AddTo(SlotsBufferAllocator* allocator,
+                    SlotsBuffer** buffer_address,
+                    ObjectSlot slot,
+                    AdditionMode mode) {
+    SlotsBuffer* buffer = *buffer_address;
+    if (buffer == NULL || buffer->IsFull()) {
+      if (mode == FAIL_ON_OVERFLOW &&
+          buffer != NULL &&
+          buffer->chain_length_ >= kChainLengthThreshold) {
+        allocator->DeallocateChain(buffer_address);
+        return false;
+      }
+      buffer = allocator->AllocateBuffer(buffer);
+      *buffer_address = buffer;
+    }
+    buffer->Add(slot);
+    return true;
+  }
+
+  static const int kNumberOfElements = 1021;
 
  private:
-  static const int kBufferSize = 1024;
+  static const int kChainLengthThreshold = 6;
 
-  List<ObjectSlot*> buffers_;
-  ObjectSlot* buffer_;
-
-  int idx_;
-  int buffer_idx_;
+  intptr_t idx_;
+  intptr_t chain_length_;
+  SlotsBuffer* next_;
+  ObjectSlot slots_[kNumberOfElements];
 };
 
 
@@ -382,9 +443,9 @@ class MarkCompactCollector {
   // Return a number of reclaimed bytes.
   static int SweepConservatively(PagedSpace* space, Page* p);
 
-  INLINE(static bool IsOnEvacuationCandidateOrInNewSpace(Object** anchor)) {
+  INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
     return Page::FromAddress(reinterpret_cast<Address>(anchor))->
-        IsEvacuationCandidateOrNewSpace();
+        ShouldSkipEvacuationSlotRecording();
   }
 
   INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
@@ -393,9 +454,31 @@ class MarkCompactCollector {
   }
 
   INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object)) {
-    if (IsOnEvacuationCandidate(object) &&
-        !IsOnEvacuationCandidateOrInNewSpace(anchor_slot)) {
-      slots_buffer_.Add(slot);
+    Page* object_page = Page::FromAddress(reinterpret_cast<Address>(object));
+    if (object_page->IsEvacuationCandidate() &&
+        !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
+      if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                              object_page->slots_buffer_address(),
+                              slot,
+                              SlotsBuffer::FAIL_ON_OVERFLOW)) {
+        if (FLAG_trace_fragmentation) {
+          PrintF("Page %p is too popular. Disabling evacuation.\n",
+                 reinterpret_cast<void*>(object_page));
+        }
+        // TODO(gc) If all evacuation candidates are too popular we
+        // should stop slots recording entirely.
+        object_page->ClearEvacuationCandidate();
+
+        // We were not collecting slots on this page that point
+        // to other evacuation candidates thus we have to
+        // rescan the page after evacuation to discover and update all
+        // pointers to evacuated objects.
+        if (object_page->owner()->identity() == OLD_DATA_SPACE) {
+          evacuation_candidates_.RemoveElement(object_page);
+        } else {
+          object_page->SetFlag(Page::RESCAN_ON_EVACUATION);
+        }
+      }
     }
   }
 
@@ -437,7 +520,9 @@ class MarkCompactCollector {
   // collection (NULL before and after).
   GCTracer* tracer_;
 
-  SlotsBuffer slots_buffer_;
+  SlotsBufferAllocator slots_buffer_allocator_;
+
+  SlotsBuffer* migration_slots_buffer_;
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();
