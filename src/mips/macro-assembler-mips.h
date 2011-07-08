@@ -299,6 +299,16 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                               Register scratch,
                               Label* miss);
 
+
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register result,
+                                Register reg0,
+                                Register reg1,
+                                Register reg2);
+
+
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
   }
