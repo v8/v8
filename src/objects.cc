@@ -3068,7 +3068,9 @@ MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
   FixedArray* backing_store = FixedArray::cast(elements());
-  if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
+  bool is_arguments =
+      (GetElementsKind() == JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+  if (is_arguments) {
     backing_store = FixedArray::cast(backing_store->get(1));
   }
   NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
@@ -3081,7 +3083,11 @@ MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
       if (!maybe_elements->To(&new_elements)) {
         return maybe_elements;
       }
-      set_elements(new_elements);
+      if (is_arguments) {
+        FixedArray::cast(elements())->set(1, new_elements);
+      } else {
+        set_elements(new_elements);
+      }
     }
     if (mode == STRICT_DELETION && result == heap->false_value()) {
       // In strict mode, attempting to delete a non-configurable property
@@ -9428,7 +9434,7 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
     }
     ASSERT(storage->length() >= index);
   } else {
-    property_dictionary()->CopyKeysTo(storage);
+    property_dictionary()->CopyKeysTo(storage, StringDictionary::UNSORTED);
   }
 }
 
@@ -9505,32 +9511,48 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       break;
     case DICTIONARY_ELEMENTS: {
       if (storage != NULL) {
-        element_dictionary()->CopyKeysTo(storage, filter);
+        element_dictionary()->CopyKeysTo(storage,
+                                         filter,
+                                         NumberDictionary::SORTED);
       }
       counter += element_dictionary()->NumberOfElementsFilterAttributes(filter);
       break;
     }
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
-      int length = parameter_map->length();
-      for (int i = 2; i < length; ++i) {
-        if (!parameter_map->get(i)->IsTheHole()) {
-          if (storage != NULL) storage->set(i - 2, Smi::FromInt(i - 2));
-          ++counter;
-        }
-      }
+      int mapped_length = parameter_map->length() - 2;
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       if (arguments->IsDictionary()) {
+        // Copy the keys from arguments first, because Dictionary::CopyKeysTo
+        // will insert in storage starting at index 0.
         NumberDictionary* dictionary = NumberDictionary::cast(arguments);
-        if (storage != NULL) dictionary->CopyKeysTo(storage, filter);
+        if (storage != NULL) {
+          dictionary->CopyKeysTo(storage, filter, NumberDictionary::UNSORTED);
+        }
         counter += dictionary->NumberOfElementsFilterAttributes(filter);
-      } else {
-        int length = arguments->length();
-        for (int i = 0; i < length; ++i) {
-          if (!arguments->get(i)->IsTheHole()) {
-            if (storage != NULL) storage->set(i, Smi::FromInt(i));
+        for (int i = 0; i < mapped_length; ++i) {
+          if (!parameter_map->get(i + 2)->IsTheHole()) {
+            if (storage != NULL) storage->set(counter, Smi::FromInt(i));
             ++counter;
           }
+        }
+        if (storage != NULL) storage->SortPairs(storage, counter);
+
+      } else {
+        int backing_length = arguments->length();
+        int i = 0;
+        for (; i < mapped_length; ++i) {
+          if (!parameter_map->get(i + 2)->IsTheHole()) {
+            if (storage != NULL) storage->set(counter, Smi::FromInt(i));
+            ++counter;
+          } else if (i < backing_length && !arguments->get(i)->IsTheHole()) {
+            if (storage != NULL) storage->set(counter, Smi::FromInt(i));
+            ++counter;
+          }
+        }
+        for (; i < backing_length; ++i) {
+          if (storage != NULL) storage->set(counter, Smi::FromInt(i));
+          ++counter;
         }
       }
       break;
@@ -10132,7 +10154,9 @@ template Object* Dictionary<StringDictionaryShape, String*>::SlowReverseLookup(
     Object*);
 
 template void Dictionary<NumberDictionaryShape, uint32_t>::CopyKeysTo(
-    FixedArray*, PropertyAttributes);
+    FixedArray*,
+    PropertyAttributes,
+    Dictionary<NumberDictionaryShape, uint32_t>::SortMode);
 
 template Object* Dictionary<StringDictionaryShape, String*>::DeleteProperty(
     int, JSObject::DeleteMode);
@@ -10147,7 +10171,8 @@ template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Shrink(
     uint32_t);
 
 template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
-    FixedArray*);
+    FixedArray*,
+    Dictionary<StringDictionaryShape, String*>::SortMode);
 
 template int
 Dictionary<StringDictionaryShape, String*>::NumberOfElementsFilterAttributes(
@@ -11199,8 +11224,10 @@ int Dictionary<Shape, Key>::NumberOfEnumElements() {
 
 
 template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage,
-                                        PropertyAttributes filter) {
+void Dictionary<Shape, Key>::CopyKeysTo(
+    FixedArray* storage,
+    PropertyAttributes filter,
+    Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfEnumElements());
   int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
@@ -11213,7 +11240,9 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage,
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
-  storage->SortPairs(storage, index);
+  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
+    storage->SortPairs(storage, index);
+  }
   ASSERT(storage->length() >= index);
 }
 
@@ -11239,7 +11268,9 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
 
 
 template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
+void Dictionary<Shape, Key>::CopyKeysTo(
+    FixedArray* storage,
+    Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(NONE)));
   int capacity = HashTable<Shape, Key>::Capacity();
@@ -11251,6 +11282,9 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
       if (details.IsDeleted()) continue;
       storage->set(index++, k);
     }
+  }
+  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
+    storage->SortPairs(storage, index);
   }
   ASSERT(storage->length() >= index);
 }
