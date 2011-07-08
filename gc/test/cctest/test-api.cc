@@ -408,7 +408,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK_EQ(0, TestResource::dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
 

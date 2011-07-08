@@ -460,8 +460,14 @@ class RecordWriteStub: public CodeStub {
               value) {  // One scratch reg.
   }
 
-  static void Patch(Code* stub, bool enable) {
-    ASSERT(!enable);
+  enum Mode {
+    STORE_BUFFER_ONLY,
+    INCREMENTAL,
+    INCREMENTAL_COMPACTION
+  };
+
+  static void Patch(Code* stub, Mode mode) {
+    ASSERT(mode == STORE_BUFFER_ONLY);
   }
 
  private:

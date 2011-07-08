@@ -79,8 +79,9 @@ void RelocInfo::set_target_address(Address target, Code* code) {
   Assembler::set_target_address_at(pc_, target);
   if (code != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
+    // TODO(gc) We do not compact code pages.
     code->GetHeap()->incremental_marking()->RecordWrite(
-        code, HeapObject::cast(target_code));
+        code, NULL, HeapObject::cast(target_code));
   }
 }
 
@@ -107,8 +108,11 @@ void RelocInfo::set_target_object(Object* target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
   if (code != NULL && target->IsHeapObject()) {
+    // It is safe to record this slot as a simple in object slot
+    // because it resides outside of code stream and updating it
+    // does not require code cache flushing.
     code->GetHeap()->incremental_marking()->RecordWrite(
-        code, HeapObject::cast(target));
+        code, target_object_address(), HeapObject::cast(target));
   }
 }
 
@@ -141,7 +145,8 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (code != NULL) {
-    code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, &Memory::Object_at(pc_), cell);
   }
 }
 

@@ -244,8 +244,9 @@ void RelocInfo::set_target_address(Address target, Code* code) {
     Assembler::set_target_address_at(pc_, target);
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     if (code != NULL) {
+      // TODO(gc) We do not compact code pages.
       code->GetHeap()->incremental_marking()->RecordWrite(
-          code, HeapObject::cast(target_code));
+          code, NULL, HeapObject::cast(target_code));
     }
   } else {
     Memory::Address_at(pc_) = target;
@@ -284,11 +285,11 @@ Address* RelocInfo::target_reference_address() {
 
 void RelocInfo::set_target_object(Object* target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  *reinterpret_cast<Object**>(pc_) = target;
+  Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL && target->IsHeapObject()) {
     code->GetHeap()->incremental_marking()->RecordWrite(
-        code, HeapObject::cast(target));
+        code, &Memory::Object_at(pc_), HeapObject::cast(target));
   }
 }
 
@@ -316,7 +317,8 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL) {
-    code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, &Memory::Object_at(pc_), cell);
   }
 }
 

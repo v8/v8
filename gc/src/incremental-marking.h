@@ -160,6 +160,8 @@ class IncrementalMarking {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
+  bool IsCompacting() { return IsMarking() && is_compacting_; }
+
  private:
   void set_should_hurry(bool val) {
     should_hurry_ = val;
