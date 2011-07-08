@@ -4201,7 +4201,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(a0, &miss_force_generic);
+  __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ lw(elements_reg,
