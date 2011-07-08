@@ -280,7 +280,7 @@ class SlotsBuffer {
  public:
   typedef Object** ObjectSlot;
 
-  SlotsBuffer(SlotsBuffer* next_buffer)
+  explicit SlotsBuffer(SlotsBuffer* next_buffer)
       : idx_(0), chain_length_(1), next_(next_buffer) {
     if (next_ != NULL) {
       chain_length_ = next_->chain_length_ + 1;
