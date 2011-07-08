@@ -11227,7 +11227,7 @@ template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     PropertyAttributes filter,
-    Dictionary<Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfEnumElements());
   int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
@@ -11270,7 +11270,7 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
-    Dictionary<Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(NONE)));
   int capacity = HashTable<Shape, Key>::Capacity();
