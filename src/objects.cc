@@ -3745,6 +3745,8 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
         }
       }
       if (!map_done) continue;
+    } else {
+      map_or_index_field = NULL;
     }
     // That was the regular transitions, now for the prototype transitions.
     FixedArray* prototype_transitions =
