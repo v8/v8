@@ -1445,7 +1445,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(
   SetFunction(output_frame->GetFunction());
   expression_count_ = output_frame->GetExpressionCount(deoptimizer);
   parameters_count_ = output_frame->ComputeParametersCount();
-  parameters_ = new Object*[expression_count_];
+  parameters_ = new Object*[parameters_count_];
   for (int i = 0; i < parameters_count_; i++) {
     SetParameter(i, output_frame->GetParameter(deoptimizer, i));
   }
@@ -1457,7 +1457,8 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(
 
 
 DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
-  delete expression_stack_;
+  delete[] expression_stack_;
+  delete[] parameters_;
 }
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
