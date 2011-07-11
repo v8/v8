@@ -37,7 +37,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -131,10 +130,7 @@ int OS::GetLastError() {
 //
 
 FILE* OS::FOpen(const char* path, const char* mode) {
-  struct stat file_stat;
-  if (stat(path, &file_stat) == 0 && (file_stat.st_mode & S_IFREG))
-    return fopen(path, mode);
-  return NULL;
+  return fopen(path, mode);
 }
 
 
