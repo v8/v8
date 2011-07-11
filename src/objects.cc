@@ -3381,23 +3381,22 @@ MaybeObject* JSObject::PreventExtensions() {
   }
 
   // If there are fast elements we normalize.
-  if (HasFastElements()) {
-    MaybeObject* result = NormalizeElements();
-    if (result->IsFailure()) return result;
+  NumberDictionary* dictionary = NULL;
+  { MaybeObject* maybe = NormalizeElements();
+    if (!maybe->To<NumberDictionary>(&dictionary)) return maybe;
   }
-  // TODO(kmillikin): Handle arguments object with dictionary elements.
-  ASSERT(HasDictionaryElements());
+  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
   // Make sure that we never go back to fast case.
-  element_dictionary()->set_requires_slow_elements();
+  dictionary->set_requires_slow_elements();
 
   // Do a map transition, other objects with this map may still
   // be extensible.
-  Object* new_map;
-  { MaybeObject* maybe_new_map = map()->CopyDropTransitions();
-    if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+  Map* new_map;
+  { MaybeObject* maybe = map()->CopyDropTransitions();
+    if (!maybe->To<Map>(&new_map)) return maybe;
   }
-  Map::cast(new_map)->set_is_extensible(false);
-  set_map(Map::cast(new_map));
+  new_map->set_is_extensible(false);
+  set_map(new_map);
   ASSERT(!map()->is_extensible());
   return new_map;
 }
