@@ -25,58 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function fnGlobalObject() { return (function() { return this; })(); }
+// Flags: --expose-gc
 
-var ES5Harness = (function() {
-  var currentTest = {};
-  var $this = this;
+// Verify that JSObject::PreventExtensions works for arguments objects.
 
-  function Test262Error(id, path, description, codeString,
-                        preconditionString, result, error) {
-    this.id = id;
-    this.path = path;
-    this.description = description;
-    this.result = result;
-    this.error = error;
-    this.code = codeString;
-    this.pre = preconditionString;
-  }
-
-  Test262Error.prototype.toString = function() {
-    return this.result + " " + this.error;
-  }
-
-  function registerTest(test) {
-    if (!(test.precondition && !test.precondition())) {
-      var error;
-      try {
-        var res = test.test.call($this);
-      } catch(e) {
-        res = 'fail';
-        error = e;
-      }
-      var retVal = /^s/i.test(test.id)
-          ? (res === true || typeof res == 'undefined' ? 'pass' : 'fail')
-          : (res === true ? 'pass' : 'fail');
-
-      if (retVal != 'pass') {
-         var precondition = (test.precondition !== undefined)
-             ? test.precondition.toString()
-             : '';
-
-         throw new Test262Error(
-            test.id,
-            test.path,
-            test.description,
-            test.test.toString(),
-            precondition,
-            retVal,
-            error);
-      }
+try {
+    function make_watcher(name) { }
+    var o, p;
+    function f(flag) {
+        if (flag) {
+            o = arguments;
+        } else {
+            p = arguments;
+            o.watch(0, (arguments-1901)('o'));
+            p.watch(0, make_watcher('p'));
+            p.unwatch(0);
+            o.unwatch(0);
+            p[0] = 4;
+            assertEq(flag, 4);
+        }
     }
-  }
+    f(true);
+    f(false);
+    reportCompare(true, true);
+} catch(exc1) { }
 
-  return {
-    registerTest: registerTest
-  }
-})();
+try {
+    function __noSuchMethod__() {
+       if (anonymous == "1")
+           return NaN;
+       return __construct__;
+    }
+    f.p = function() { };
+    Object.freeze(p);
+    new new freeze().p;
+    reportCompare(0, 0, "ok");
+} catch(exc2) { }
+
+gc();

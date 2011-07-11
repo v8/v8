@@ -305,12 +305,6 @@ class ConvertToDoubleStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "ConvertToDoubleStub"; }
-
-#ifdef DEBUG
-  void Print() { PrintF("ConvertToDoubleStub\n"); }
-#endif
 };
 
 
@@ -396,11 +390,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mov(scratch1, a0);
     ConvertToDoubleStub stub1(a3, a2, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
     // Write Smi from a1 to a1 and a0 in double format.
     __ mov(scratch1, a1);
     ConvertToDoubleStub stub2(a1, a0, scratch1, scratch2);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
   }
 }
@@ -482,7 +476,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ mov(scratch1, object);
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub.GetCode());
     __ pop(ra);
   }
 
@@ -1107,7 +1101,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, rhs);
     ConvertToDoubleStub stub1(a1, a0, t6, t5);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
 
     __ pop(ra);
   }
@@ -1142,7 +1136,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, lhs);
     ConvertToDoubleStub stub2(a3, a2, t6, t5);
     __ push(ra);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
     // Load rhs to a double in a1, a0.
     if (rhs.is(a0)) {
@@ -4592,10 +4586,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movz(t9, t0, a0);  // If UC16 (a0 is 0), replace t9 w/kDataUC16CodeOffset.
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it
-  // contains the hole.
-  __ GetObjectType(t9, a0, a0);
-  __ Branch(&runtime, ne, a0, Operand(CODE_TYPE));
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // a smi (code flushing support).
+  __ JumpIfSmi(t9, &runtime);
 
   // a3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // t9: code

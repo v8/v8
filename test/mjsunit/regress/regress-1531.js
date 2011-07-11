@@ -25,58 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function fnGlobalObject() { return (function() { return this; })(); }
+// Regression test for computing elements keys of arguments object.  Should
+// not crash or assert.
+function test(x) {
+  arguments[10] = 0;
+  var arr = [];
+  for (var p in arguments) arr.push(p);
+  return arr;
+}
+assertEquals(["0", "10"], test(0));
 
-var ES5Harness = (function() {
-  var currentTest = {};
-  var $this = this;
+// Regression test for lookup after delete of a dictionary-mode arguments
+// backing store.  Should not crash or assert.
+function test1(x, y, z) {
+  // Put into dictionary mode.
+  arguments.__defineGetter__("5", function () { return 0; });
+  // Delete a property from the dictionary.
+  delete arguments[5];
+  // Look up a property in the dictionary.
+  return arguments[2];
+}
 
-  function Test262Error(id, path, description, codeString,
-                        preconditionString, result, error) {
-    this.id = id;
-    this.path = path;
-    this.description = description;
-    this.result = result;
-    this.error = error;
-    this.code = codeString;
-    this.pre = preconditionString;
-  }
-
-  Test262Error.prototype.toString = function() {
-    return this.result + " " + this.error;
-  }
-
-  function registerTest(test) {
-    if (!(test.precondition && !test.precondition())) {
-      var error;
-      try {
-        var res = test.test.call($this);
-      } catch(e) {
-        res = 'fail';
-        error = e;
-      }
-      var retVal = /^s/i.test(test.id)
-          ? (res === true || typeof res == 'undefined' ? 'pass' : 'fail')
-          : (res === true ? 'pass' : 'fail');
-
-      if (retVal != 'pass') {
-         var precondition = (test.precondition !== undefined)
-             ? test.precondition.toString()
-             : '';
-
-         throw new Test262Error(
-            test.id,
-            test.path,
-            test.description,
-            test.test.toString(),
-            precondition,
-            retVal,
-            error);
-      }
-    }
-  }
-
-  return {
-    registerTest: registerTest
-  }
-})();
+assertEquals(void 0, test1(0));

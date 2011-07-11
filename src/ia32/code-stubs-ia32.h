@@ -80,7 +80,7 @@ class UnaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
@@ -186,7 +186,7 @@ class BinaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
@@ -415,14 +415,6 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "NumberToStringStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("NumberToStringStub\n");
-  }
-#endif
 };
 
 
@@ -465,13 +457,6 @@ class StringDictionaryLookupStub: public CodeStub {
   static const int kElementsStartOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
-
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("StringDictionaryLookupStub\n");
-  }
-#endif
 
   Major MajorKey() { return StringDictionaryNegativeLookup; }
 

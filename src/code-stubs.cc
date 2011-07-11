@@ -170,7 +170,7 @@ MaybeObject* CodeStub::TryGetCode() {
 const char* CodeStub::MajorName(CodeStub::Major major_key,
                                 bool allow_unknown_keys) {
   switch (major_key) {
-#define DEF_CASE(name) case name: return #name;
+#define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     default:
@@ -244,23 +244,61 @@ const char* InstanceofStub::GetName() {
 }
 
 
-void KeyedLoadFastElementStub::Generate(MacroAssembler* masm) {
-  KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
+void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
+  switch (elements_kind_) {
+    case JSObject::FAST_ELEMENTS:
+      KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
+      break;
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, elements_kind_);
+      break;
+    case JSObject::DICTIONARY_ELEMENTS:
+      KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
+      break;
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNREACHABLE();
+      break;
+  }
 }
 
 
-void KeyedStoreFastElementStub::Generate(MacroAssembler* masm) {
-  KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
-}
-
-
-void KeyedLoadExternalArrayStub::Generate(MacroAssembler* masm) {
-  KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, elements_kind_);
-}
-
-
-void KeyedStoreExternalArrayStub::Generate(MacroAssembler* masm) {
-  KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
+void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
+  switch (elements_kind_) {
+    case JSObject::FAST_ELEMENTS:
+      KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
+      break;
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
+      break;
+    case JSObject::DICTIONARY_ELEMENTS:
+      KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
+      break;
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNREACHABLE();
+      break;
+  }
 }
 
 
