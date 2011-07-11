@@ -968,8 +968,6 @@ void SourceGroup::WaitForThread() {
 
 
 bool Shell::SetOptions(int argc, char* argv[]) {
-  Locker lock;
-
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
