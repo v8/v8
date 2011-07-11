@@ -939,25 +939,6 @@ void OS::Free(void* address, const size_t size) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  // TODO(1240712): VirtualProtect has a return value which is ignored here.
-  DWORD old_protect;
-  VirtualProtect(address, size, PAGE_READONLY, &old_protect);
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  // TODO(1240712): VirtualProtect has a return value which is ignored here.
-  DWORD new_protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  DWORD old_protect;
-  VirtualProtect(address, size, new_protect, &old_protect);
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   ::Sleep(milliseconds);
 }

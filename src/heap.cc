@@ -5213,28 +5213,6 @@ void Heap::Shrink() {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void Heap::Protect() {
-  if (HasBeenSetup()) {
-    AllSpaces spaces;
-    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
-      space->Protect();
-  }
-}
-
-
-void Heap::Unprotect() {
-  if (HasBeenSetup()) {
-    AllSpaces spaces;
-    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
-      space->Unprotect();
-  }
-}
-
-#endif
-
-
 void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   ASSERT(callback != NULL);
   GCPrologueCallbackPair pair(callback, gc_type);

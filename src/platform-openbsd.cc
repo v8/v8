@@ -179,20 +179,6 @@ void OS::Free(void* buf, const size_t length) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  UNIMPLEMENTED();
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  UNIMPLEMENTED();
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   unsigned int ms = static_cast<unsigned int>(milliseconds);
   usleep(1000 * ms);

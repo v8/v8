@@ -192,23 +192,6 @@ void OS::Free(void* address, const size_t size) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  mprotect(address, size, PROT_READ);
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  mprotect(address, size, prot);
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   useconds_t ms = static_cast<useconds_t>(milliseconds);
   usleep(1000 * ms);

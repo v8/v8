@@ -206,12 +206,6 @@ class OS {
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect a block of memory by marking it read-only/writable.
-  static void Protect(void* address, size_t size);
-  static void Unprotect(void* address, size_t size, bool is_executable);
-#endif
-
   // Returns an indication of whether a pointer is in a space that
   // has been allocated by Allocate().  This method may conservatively
   // always return false, but giving more accurate information may

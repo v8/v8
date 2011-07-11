@@ -868,30 +868,6 @@ void PagedSpace::TearDown() {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void PagedSpace::Protect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->ProtectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-
-void PagedSpace::Unprotect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->UnprotectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-#endif
-
-
 void PagedSpace::MarkAllPagesClean() {
   PageIterator it(this, PageIterator::ALL_PAGES);
   while (it.has_next()) {
@@ -1256,24 +1232,6 @@ void NewSpace::TearDown() {
   to_space_.TearDown();
   from_space_.TearDown();
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void NewSpace::Protect() {
-  heap()->isolate()->memory_allocator()->Protect(ToSpaceLow(), Capacity());
-  heap()->isolate()->memory_allocator()->Protect(FromSpaceLow(), Capacity());
-}
-
-
-void NewSpace::Unprotect() {
-  heap()->isolate()->memory_allocator()->Unprotect(ToSpaceLow(), Capacity(),
-                                                   to_space_.executable());
-  heap()->isolate()->memory_allocator()->Unprotect(FromSpaceLow(), Capacity(),
-                                                   from_space_.executable());
-}
-
-#endif
 
 
 void NewSpace::Flip() {
@@ -2807,31 +2765,6 @@ void LargeObjectSpace::TearDown() {
   page_count_ = 0;
   objects_size_ = 0;
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void LargeObjectSpace::Protect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    heap()->isolate()->memory_allocator()->Protect(chunk->address(),
-                                                   chunk->size());
-    chunk = chunk->next();
-  }
-}
-
-
-void LargeObjectSpace::Unprotect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    bool is_code = chunk->GetObject()->IsCode();
-    heap()->isolate()->memory_allocator()->Unprotect(chunk->address(),
-        chunk->size(), is_code ? EXECUTABLE : NOT_EXECUTABLE);
-    chunk = chunk->next();
-  }
-}
-
-#endif
 
 
 MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,

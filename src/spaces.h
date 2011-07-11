@@ -380,12 +380,6 @@ class Space : public Malloced {
   // (e.g. see LargeObjectSpace).
   virtual intptr_t SizeOfObjects() { return Size(); }
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect() = 0;
-  virtual void Unprotect() = 0;
-#endif
-
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
@@ -640,17 +634,6 @@ class MemoryAllocator {
                                   Page** first_page,
                                   Page** last_page,
                                   Page** last_page_in_use);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect a block of memory by marking it read-only/writable.
-  inline void Protect(Address start, size_t size);
-  inline void Unprotect(Address start, size_t size,
-                        Executability executable);
-
-  // Protect/unprotect a chunk given a page in the chunk.
-  inline void ProtectChunkFromPage(Page* page);
-  inline void UnprotectChunkFromPage(Page* page);
-#endif
 
 #ifdef DEBUG
   // Reports statistic info of the space.
@@ -1157,12 +1140,6 @@ class PagedSpace : public Space {
   // Ensures that the capacity is at least 'capacity'. Returns false on failure.
   bool EnsureCapacity(int capacity);
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  void Protect();
-  void Unprotect();
-#endif
-
 #ifdef DEBUG
   // Print meta info and objects in this space.
   virtual void Print();
@@ -1391,12 +1368,6 @@ class SemiSpace : public Space {
   bool is_committed() { return committed_; }
   bool Commit();
   bool Uncommit();
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect() {}
-  virtual void Unprotect() {}
-#endif
 
 #ifdef DEBUG
   virtual void Print();
@@ -1627,12 +1598,6 @@ class NewSpace : public Space {
   // allocated in new space.
   template <typename StringType>
   inline void ShrinkStringAtAllocationBoundary(String* string, int len);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect();
-  virtual void Unprotect();
-#endif
 
 #ifdef DEBUG
   // Verify the active semispace.
@@ -2295,12 +2260,6 @@ class LargeObjectSpace : public Space {
   // called after ReserveSpace has been called on the paged spaces, since they
   // may use some memory, leaving less for large objects.
   virtual bool ReserveSpace(int bytes);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  void Protect();
-  void Unprotect();
-#endif
 
 #ifdef DEBUG
   virtual void Verify();

@@ -491,19 +491,6 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 
 //
-// Heap protection flags
-// Using heap protection requires ENABLE_LOGGING_AND_PROFILING as well.
-//
-#ifdef ENABLE_HEAP_PROTECTION
-#undef FLAG
-#define FLAG FLAG_FULL
-
-DEFINE_bool(protect_heap, false,
-            "Protect/unprotect V8's heap when leaving/entring the VM.")
-
-#endif
-
-//
 // Disassembler only flags
 //
 #undef FLAG

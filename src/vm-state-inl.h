@@ -69,19 +69,6 @@ VMState::VMState(Isolate* isolate, StateTag tag)
 #endif
 
   isolate_->SetCurrentVMState(tag);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  if (FLAG_protect_heap) {
-    if (tag == EXTERNAL) {
-      // We are leaving V8.
-      ASSERT(previous_tag_ != EXTERNAL);
-      isolate_->heap()->Protect();
-    } else if (previous_tag_ = EXTERNAL) {
-      // We are entering V8.
-      isolate_->heap()->Unprotect();
-    }
-  }
-#endif
 }
 
 
@@ -96,24 +83,7 @@ VMState::~VMState() {
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
-#ifdef ENABLE_HEAP_PROTECTION
-  StateTag tag = isolate_->current_vm_state();
-#endif
-
   isolate_->SetCurrentVMState(previous_tag_);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  if (FLAG_protect_heap) {
-    if (tag == EXTERNAL) {
-      // We are reentering V8.
-      ASSERT(previous_tag_ != EXTERNAL);
-      isolate_->heap()->Unprotect();
-    } else if (previous_tag_ == EXTERNAL) {
-      // We are leaving V8.
-      isolate_->heap()->Protect();
-    }
-  }
-#endif  // ENABLE_HEAP_PROTECTION
 }
 
 #endif  // ENABLE_VMSTATE_TRACKING
