@@ -1813,13 +1813,9 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
        pt = pt->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty()) {
-      if (result->IsReadOnly()) {
-        result->NotFound();
-        return;
-      }
-      if (result->type() == CALLBACKS) {
-        return;
-      }
+      if (result->type() == CALLBACKS && !result->IsReadOnly()) return;
+      // Found non-callback or read-only callback, stop looking.
+      break;
     }
   }
   result->NotFound();
