@@ -390,11 +390,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mov(scratch1, a0);
     ConvertToDoubleStub stub1(a3, a2, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
     // Write Smi from a1 to a1 and a0 in double format.
     __ mov(scratch1, a1);
     ConvertToDoubleStub stub2(a1, a0, scratch1, scratch2);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
   }
 }
@@ -476,7 +476,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ mov(scratch1, object);
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub.GetCode());
     __ pop(ra);
   }
 
@@ -1101,7 +1101,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, rhs);
     ConvertToDoubleStub stub1(a1, a0, t6, t5);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
 
     __ pop(ra);
   }
@@ -1136,7 +1136,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, lhs);
     ConvertToDoubleStub stub2(a3, a2, t6, t5);
     __ push(ra);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
     // Load rhs to a double in a1, a0.
     if (rhs.is(a0)) {
