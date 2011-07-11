@@ -741,7 +741,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // IDs for bailouts from optimized code.
       ASSERT(prop->obj()->AsVariableProxy() != NULL);
       { AccumulatorValueContext for_object(this);
-        EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        EmitVariableLoad(prop->obj()->AsVariableProxy());
       }
       __ push(rax);
       VisitForAccumulatorValue(function);
@@ -1071,7 +1071,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
 
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
-  EmitVariableLoad(expr->var());
+  EmitVariableLoad(expr);
 }
 
 
@@ -1222,7 +1222,11 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
 }
 
 
-void FullCodeGenerator::EmitVariableLoad(Variable* var) {
+void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
+  // Record position before possible IC call.
+  SetSourcePosition(proxy->position());
+  Variable* var = proxy->var();
+
   // Three cases: non-this global variables, lookup slots, and all other
   // types of slots.
   Slot* slot = var->AsSlot();
@@ -1548,7 +1552,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
-          EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          EmitVariableLoad(expr->target()->AsVariableProxy());
           PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
@@ -3746,7 +3750,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
     AccumulatorValueContext context(this);
-    EmitVariableLoad(expr->expression()->AsVariableProxy()->var());
+    EmitVariableLoad(expr->expression()->AsVariableProxy());
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
