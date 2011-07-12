@@ -747,6 +747,17 @@ class RecordWriteStub: public CodeStub {
         SaveFPRegsModeBits::encode(save_fp_regs_mode_);
   }
 
+  bool MustBeInStubCache() {
+    // All stubs must be registered in the stub cache
+    // otherwise IncrementalMarker would not be able to find
+    // and patch it.
+    return true;
+  }
+
+  void Activate(Code* code) {
+    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+  }
+
   class ObjectBits: public BitField<int, 0, 4> {};
   class ValueBits: public BitField<int, 4, 4> {};
   class AddressBits: public BitField<int, 8, 4> {};

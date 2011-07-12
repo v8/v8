@@ -305,6 +305,22 @@ bool IncrementalMarking::WorthActivating() {
 }
 
 
+void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
+  ASSERT(RecordWriteStub::GetMode(stub) ==
+         RecordWriteStub::STORE_BUFFER_ONLY);
+
+  if (!IsMarking()) {
+    // Initially stub is generated in STORE_BUFFER_ONLY mode thus
+    // we don't need to do anything if incremental marking is
+    // not active.
+  } else if (IsCompacting()) {
+    RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL_COMPACTION);
+  } else {
+    RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL);
+  }
+}
+
+
 static void PatchIncrementalMarkingRecordWriteStubs(
     Heap* heap, RecordWriteStub::Mode mode) {
   NumberDictionary* stubs = heap->code_stubs();

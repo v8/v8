@@ -168,6 +168,14 @@ class CodeStub BASE_EMBEDDED {
   // Finish the code object after it has been generated.
   virtual void FinishCode(Code* code) { }
 
+  // Returns true if TryGetCode should fail if it failed
+  // to register newly generated stub in the stub cache.
+  virtual bool MustBeInStubCache() { return false; }
+
+  // Activate newly generated stub. Is called after
+  // registering stub in the stub cache.
+  virtual void Activate(Code* code) { }
+
   // Returns information for computing the number key.
   virtual Major MajorKey() = 0;
   virtual int MinorKey() = 0;

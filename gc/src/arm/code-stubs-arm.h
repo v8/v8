@@ -466,6 +466,10 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL_COMPACTION
   };
 
+  static Mode GetMode(Code* stub) {
+    return STORE_BUFFER_ONLY;
+  }
+
   static void Patch(Code* stub, Mode mode) {
     ASSERT(mode == STORE_BUFFER_ONLY);
   }
@@ -559,6 +563,17 @@ class RecordWriteStub: public CodeStub {
         AddressBits::encode(address_.code()) |
         RememberedSetActionBits::encode(remembered_set_action_) |
         SaveFPRegsModeBits::encode(save_fp_regs_mode_);
+  }
+
+  bool MustBeInStubCache() {
+    // All stubs must be registered in the stub cache
+    // otherwise IncrementalMarker would not be able to find
+    // and patch it.
+    return true;
+  }
+
+  void Activate(Code* code) {
+    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 
   class ObjectBits: public BitField<int, 0, 4> {};

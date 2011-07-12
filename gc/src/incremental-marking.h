@@ -162,6 +162,8 @@ class IncrementalMarking {
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
+  void ActivateGeneratedStub(Code* stub);
+
  private:
   void set_should_hurry(bool val) {
     should_hurry_ = val;
