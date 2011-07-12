@@ -1356,10 +1356,4 @@ inline void Context::mark_out_of_memory() {
 
 } }  // namespace v8::internal
 
-// TODO(isolates): Get rid of these -inl.h includes and place them only where
-//                 they're needed.
-#include "allocation-inl.h"
-#include "zone-inl.h"
-#include "frames-inl.h"
-
 #endif  // V8_ISOLATE_H_

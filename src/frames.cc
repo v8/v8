@@ -36,6 +36,8 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 
+#include "allocation-inl.h"
+
 namespace v8 {
 namespace internal {
 
