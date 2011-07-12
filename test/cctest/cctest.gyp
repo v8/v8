@@ -56,6 +56,7 @@
         'test-debug.cc',
         'test-decls.cc',
         'test-deoptimization.cc',
+        'test-dictionary.cc',
         'test-diy-fp.cc',
         'test-double.cc',
         'test-dtoa.cc',
