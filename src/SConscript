@@ -231,15 +231,11 @@ SOURCES = {
 PREPARSER_SOURCES = {
   'all': Split("""
     allocation.cc
-    bignum.cc
-    cached-powers.cc
-    conversions.cc
     hashmap.cc
     preparse-data.cc
     preparser.cc
     preparser-api.cc
     scanner-base.cc
-    strtod.cc
     token.cc
     unicode.cc
     utils.cc
