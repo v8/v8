@@ -159,7 +159,7 @@ void HandleDebugEvent(DebugEvent event,
 
 
 void RunRemoteDebugger(int port) {
-  RemoteDebugger debugger(i::Isolate::Current(), port);
+  RemoteDebugger debugger(port);
   debugger.Run();
 }
 
@@ -186,11 +186,11 @@ void RemoteDebugger::Run() {
   }
 
   // Start the receiver thread.
-  ReceiverThread receiver(isolate_, this);
+  ReceiverThread receiver(this);
   receiver.Start();
 
   // Start the keyboard thread.
-  KeyboardThread keyboard(isolate_, this);
+  KeyboardThread keyboard(this);
   keyboard.Start();
   PrintPrompt();
 
@@ -272,6 +272,7 @@ RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
 
 
 void RemoteDebugger::HandleMessageReceived(char* message) {
+  Locker lock;
   HandleScope scope;
 
   // Print the event details.
@@ -300,6 +301,7 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
 
 
 void RemoteDebugger::HandleKeyboardCommand(char* command) {
+  Locker lock;
   HandleScope scope;
 
   // Convert the debugger command to a JSON debugger request.

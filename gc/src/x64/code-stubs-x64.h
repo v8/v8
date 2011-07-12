@@ -59,18 +59,6 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
-};
-
-
 class StoreBufferOverflowStub: public CodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
@@ -95,18 +83,11 @@ enum GenericBinaryFlags {
 
 class UnaryOpStub: public CodeStub {
  public:
-  UnaryOpStub(Token::Value op, UnaryOverwriteMode mode)
+  UnaryOpStub(Token::Value op,
+              UnaryOverwriteMode mode,
+              UnaryOpIC::TypeInfo operand_type = UnaryOpIC::UNINITIALIZED)
       : op_(op),
         mode_(mode),
-        operand_type_(UnaryOpIC::UNINITIALIZED),
-        name_(NULL) {
-  }
-
-  UnaryOpStub(
-      int key,
-      UnaryOpIC::TypeInfo operand_type)
-      : op_(OpBits::decode(key)),
-        mode_(ModeBits::decode(key)),
         operand_type_(operand_type),
         name_(NULL) {
   }
@@ -120,12 +101,11 @@ class UnaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("UnaryOpStub %d (op %s), "
-           "(mode %d, runtime_type_info %s)\n",
+    PrintF("UnaryOpStub %d (op %s), (mode %d, runtime_type_info %s)\n",
            MinorKey(),
            Token::String(op_),
            static_cast<int>(mode_),
@@ -221,7 +201,7 @@ class BinaryOpStub: public CodeStub {
 
   char* name_;
 
-  const char* GetName();
+  virtual const char* GetName();
 
 #ifdef DEBUG
   void Print() {
@@ -452,14 +432,6 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "NumberToStringStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("NumberToStringStub\n");
-  }
-#endif
 };
 
 
@@ -502,13 +474,6 @@ class StringDictionaryLookupStub: public CodeStub {
   static const int kElementsStartOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
-
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("StringDictionaryLookupStub\n");
-  }
-#endif
 
   Major MajorKey() { return StringDictionaryNegativeLookup; }
 

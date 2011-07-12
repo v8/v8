@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -62,27 +62,27 @@ TempIterator::TempIterator(LInstruction* instr)
     : instr_(instr),
       limit_(instr->TempCount()),
       current_(0) {
-  current_ = AdvanceToNext(0);
+  SkipUninteresting();
 }
 
 
-bool TempIterator::HasNext() { return current_ < limit_; }
+bool TempIterator::Done() { return current_ >= limit_; }
 
 
-LOperand* TempIterator::Next() {
-  ASSERT(HasNext());
+LOperand* TempIterator::Current() {
+  ASSERT(!Done());
   return instr_->TempAt(current_);
 }
 
 
-int TempIterator::AdvanceToNext(int start) {
-  while (start < limit_ && instr_->TempAt(start) == NULL) start++;
-  return start;
+void TempIterator::SkipUninteresting() {
+  while (current_ < limit_ && instr_->TempAt(current_) == NULL) ++current_;
 }
 
 
 void TempIterator::Advance() {
-  current_ = AdvanceToNext(current_ + 1);
+  ++current_;
+  SkipUninteresting();
 }
 
 
@@ -90,27 +90,29 @@ InputIterator::InputIterator(LInstruction* instr)
     : instr_(instr),
       limit_(instr->InputCount()),
       current_(0) {
-  current_ = AdvanceToNext(0);
+  SkipUninteresting();
 }
 
 
-bool InputIterator::HasNext() { return current_ < limit_; }
+bool InputIterator::Done() { return current_ >= limit_; }
 
 
-LOperand* InputIterator::Next() {
-  ASSERT(HasNext());
+LOperand* InputIterator::Current() {
+  ASSERT(!Done());
   return instr_->InputAt(current_);
 }
 
 
 void InputIterator::Advance() {
-  current_ = AdvanceToNext(current_ + 1);
+  ++current_;
+  SkipUninteresting();
 }
 
 
-int InputIterator::AdvanceToNext(int start) {
-  while (start < limit_ && instr_->InputAt(start)->IsConstantOperand()) start++;
-  return start;
+void InputIterator::SkipUninteresting() {
+  while (current_ < limit_ && instr_->InputAt(current_)->IsConstantOperand()) {
+    ++current_;
+  }
 }
 
 
@@ -118,23 +120,23 @@ UseIterator::UseIterator(LInstruction* instr)
     : input_iterator_(instr), env_iterator_(instr->environment()) { }
 
 
-bool UseIterator::HasNext() {
-  return input_iterator_.HasNext() || env_iterator_.HasNext();
+bool UseIterator::Done() {
+  return input_iterator_.Done() && env_iterator_.Done();
 }
 
 
-LOperand* UseIterator::Next() {
-  ASSERT(HasNext());
-  return input_iterator_.HasNext()
-      ? input_iterator_.Next()
-      : env_iterator_.Next();
+LOperand* UseIterator::Current() {
+  ASSERT(!Done());
+  return input_iterator_.Done()
+      ? env_iterator_.Current()
+      : input_iterator_.Current();
 }
 
 
 void UseIterator::Advance() {
-  input_iterator_.HasNext()
-      ? input_iterator_.Advance()
-      : env_iterator_.Advance();
+  input_iterator_.Done()
+      ? env_iterator_.Advance()
+      : input_iterator_.Advance();
 }
 
 } }  // namespace v8::internal

@@ -25,12 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When 'eval' is overridden with a non-function object we should
-// check whether the object is callable.
+// Deleting a mapped arguments property and adding it via
+// Object.defineProperty should not crash.
 
-function test() {
-  eval = /foo/;
-  assertEquals(["foo"], eval("foobar"));
+function testcase() {
+  return (function (a, b, c) {
+      delete arguments[0];
+      Object.defineProperty(arguments, "0", {
+              value: 10,
+              writable: false,
+              enumerable: false,
+              configurable: false
+            });
+      assertEquals(10, arguments[0]);
+    }(0, 1, 2));
 }
 
-test();
+testcase();

@@ -429,7 +429,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -3039,8 +3039,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
@@ -3085,8 +3084,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   result = script_define->Run();
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
-  CHECK_EQ(*exception_value,
-           "TypeError: Cannot redefine property: defineProperty");
+  CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
 }
 
 
@@ -3204,8 +3202,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
   {
     v8::TryCatch try_catch;
@@ -3213,8 +3210,7 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
         "{get: function() { return 'func'; }})");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value(try_catch.Exception());
-    CHECK_EQ(*exception_value,
-            "TypeError: Cannot redefine property: defineProperty");
+    CHECK_EQ(*exception_value, "TypeError: Cannot redefine property: x");
   }
 }
 
@@ -3866,6 +3862,49 @@ THREADED_TEST(UndetectableObject) {
 }
 
 
+THREADED_TEST(VoidLiteral) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(0, v8::Handle<Value>());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+
+  Local<v8::Object> obj = desc->GetFunction()->NewInstance();
+  env->Global()->Set(v8_str("undetectable"), obj);
+
+  ExpectBoolean("undefined == void 0", true);
+  ExpectBoolean("undetectable == void 0", true);
+  ExpectBoolean("null == void 0", true);
+  ExpectBoolean("undefined === void 0", true);
+  ExpectBoolean("undetectable === void 0", false);
+  ExpectBoolean("null === void 0", false);
+
+  ExpectBoolean("void 0 == undefined", true);
+  ExpectBoolean("void 0 == undetectable", true);
+  ExpectBoolean("void 0 == null", true);
+  ExpectBoolean("void 0 === undefined", true);
+  ExpectBoolean("void 0 === undetectable", false);
+  ExpectBoolean("void 0 === null", false);
+
+  ExpectString("(function() {"
+               "  try {"
+               "    return x === void 0;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+  ExpectString("(function() {"
+               "  try {"
+               "    return void 0 === x;"
+               "  } catch(e) {"
+               "    return e.toString();"
+               "  }"
+               "})()",
+               "ReferenceError: x is not defined");
+}
+
 
 THREADED_TEST(ExtensibleOnUndetectable) {
   v8::HandleScope scope;
@@ -4158,6 +4197,69 @@ THREADED_TEST(NativeCallInExtensions) {
   Context::Scope lock(context);
   v8::Handle<Value> result = Script::Compile(v8_str(kNativeCallTest))->Run();
   CHECK_EQ(result, v8::Integer::New(3));
+}
+
+
+class NativeFunctionExtension : public Extension {
+ public:
+  NativeFunctionExtension(const char* name,
+                          const char* source,
+                          v8::InvocationCallback fun = &Echo)
+      : Extension(name, source),
+        function_(fun) { }
+
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name) {
+    return v8::FunctionTemplate::New(function_);
+  }
+
+  static v8::Handle<v8::Value> Echo(const v8::Arguments& args) {
+    if (args.Length() >= 1) return (args[0]);
+    return v8::Undefined();
+  }
+ private:
+  v8::InvocationCallback function_;
+};
+
+
+THREADED_TEST(NativeFunctionDeclaration) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedecl";
+  v8::RegisterExtension(new NativeFunctionExtension(name,
+                                                    "native function foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str("foo(42);"))->Run();
+  CHECK_EQ(result, v8::Integer::New(42));
+}
+
+
+THREADED_TEST(NativeFunctionDeclarationError) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedeclerr";
+  // Syntax error in extension code.
+  v8::RegisterExtension(new NativeFunctionExtension(name,
+                                                    "native\nfunction foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  ASSERT(context.IsEmpty());
+}
+
+THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
+  v8::HandleScope handle_scope;
+  const char* name = "nativedeclerresc";
+  // Syntax error in extension code - escape code in "native" means that
+  // it's not treated as a keyword.
+  v8::RegisterExtension(new NativeFunctionExtension(
+      name,
+      "nativ\\u0065 function foo();"));
+  const char* extension_names[] = { name };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  ASSERT(context.IsEmpty());
 }
 
 
@@ -6664,7 +6766,7 @@ THREADED_TEST(ShadowObject) {
   context->Global()->Set(v8_str("__proto__"), o);
 
   Local<Value> value =
-      Script::Compile(v8_str("propertyIsEnumerable(0)"))->Run();
+      Script::Compile(v8_str("this.propertyIsEnumerable(0)"))->Run();
   CHECK(value->IsBoolean());
   CHECK(!value->BooleanValue());
 
@@ -6780,6 +6882,56 @@ THREADED_TEST(SetPrototype) {
   Local<Value> proto2 = o2->GetPrototype();
   CHECK(proto2->IsObject());
   CHECK_EQ(proto2.As<v8::Object>(), o3);
+}
+
+
+THREADED_TEST(SetPrototypeProperties) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->SetPrototypeAttributes(v8::DontDelete);
+  context->Global()->Set(v8_str("func1"), t1->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t2->SetPrototypeAttributes(v8::DontEnum);
+  context->Global()->Set(v8_str("func2"), t2->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
+      "  return (descriptor['writable'] == true) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
+  t3->SetPrototypeAttributes(v8::ReadOnly);
+  context->Global()->Set(v8_str("func3"), t3->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func3, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == true) &&"
+      "         (descriptor['configurable'] == true);"
+      "})()")->BooleanValue());
+
+  Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New();
+  t4->SetPrototypeAttributes(v8::ReadOnly | v8::DontEnum | v8::DontDelete);
+  context->Global()->Set(v8_str("func4"), t4->GetFunction());
+  CHECK(CompileRun(
+      "(function() {"
+      "  descriptor = Object.getOwnPropertyDescriptor(func4, 'prototype');"
+      "  return (descriptor['writable'] == false) &&"
+      "         (descriptor['enumerable'] == false) &&"
+      "         (descriptor['configurable'] == false);"
+      "})()")->BooleanValue());
 }
 
 
@@ -9342,8 +9494,7 @@ void ApiTestFuzzer::Setup(PartOfTest part) {
   int end = (count * (part + 1) / (LAST_PART + 1)) - 1;
   active_tests_ = tests_being_run_ = end - start + 1;
   for (int i = 0; i < tests_being_run_; i++) {
-    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(
-        i::Isolate::Current(), i + start);
+    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(i + start);
   }
   for (int i = 0; i < active_tests_; i++) {
     RegisterThreadedTest::nth(i)->fuzzer_->Start();
@@ -9915,6 +10066,19 @@ void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
 }
 
 
+void CheckOwnProperties(v8::Handle<v8::Value> val,
+                        int elmc,
+                        const char* elmv[]) {
+  v8::Handle<v8::Object> obj = val.As<v8::Object>();
+  v8::Handle<v8::Array> props = obj->GetOwnPropertyNames();
+  CHECK_EQ(elmc, props->Length());
+  for (int i = 0; i < elmc; i++) {
+    v8::String::Utf8Value elm(props->Get(v8::Integer::New(i)));
+    CHECK_EQ(elmv[i], *elm);
+  }
+}
+
+
 THREADED_TEST(PropertyEnumeration) {
   v8::HandleScope scope;
   LocalContext context;
@@ -9932,15 +10096,21 @@ THREADED_TEST(PropertyEnumeration) {
   int elmc0 = 0;
   const char** elmv0 = NULL;
   CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+  CheckOwnProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
   int elmc1 = 2;
   const char* elmv1[] = {"a", "b"};
   CheckProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
+  CheckOwnProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
   int elmc2 = 3;
   const char* elmv2[] = {"0", "1", "2"};
   CheckProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
+  CheckOwnProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
   int elmc3 = 4;
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
+  int elmc4 = 2;
+  const char* elmv4[] = {"w", "z"};
+  CheckOwnProperties(elms->Get(v8::Integer::New(3)), elmc4, elmv4);
 }
 
 THREADED_TEST(PropertyEnumeration2) {
@@ -10460,7 +10630,7 @@ class RegExpInterruptTest {
     gc_during_regexp_ = 0;
     regexp_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(i::Isolate::Current(), this);
+    GCThread gc_thread(this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -10473,14 +10643,15 @@ class RegExpInterruptTest {
     CHECK(regexp_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 5;
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(i::Isolate* isolate, RegExpInterruptTest* test)
-        : Thread(isolate, "GCThread"), test_(test) {}
+    explicit GCThread(RegExpInterruptTest* test)
+        : Thread("GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10582,7 +10753,7 @@ class ApplyInterruptTest {
     gc_during_apply_ = 0;
     apply_success_ = false;
     gc_success_ = false;
-    GCThread gc_thread(i::Isolate::Current(), this);
+    GCThread gc_thread(this);
     gc_thread.Start();
     v8::Locker::StartPreemption(1);
 
@@ -10595,14 +10766,15 @@ class ApplyInterruptTest {
     CHECK(apply_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 2;
 
   class GCThread : public i::Thread {
    public:
-    explicit GCThread(i::Isolate* isolate, ApplyInterruptTest* test)
-        : Thread(isolate, "GCThread"), test_(test) {}
+    explicit GCThread(ApplyInterruptTest* test)
+        : Thread("GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10876,7 +11048,7 @@ class RegExpStringModificationTest {
         NONE,
         i::kNonStrictMode)->ToObjectChecked();
 
-    MorphThread morph_thread(i::Isolate::Current(), this);
+    MorphThread morph_thread(this);
     morph_thread.Start();
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
@@ -10888,17 +11060,16 @@ class RegExpStringModificationTest {
     CHECK(regexp_success_);
     CHECK(morph_success_);
   }
- private:
 
+ private:
   // Number of string modifications required.
   static const int kRequiredModifications = 5;
   static const int kMaxModifications = 100;
 
   class MorphThread : public i::Thread {
    public:
-    explicit MorphThread(i::Isolate* isolate,
-                         RegExpStringModificationTest* test)
-        : Thread(isolate, "MorphThread"), test_(test) {}
+    explicit MorphThread(RegExpStringModificationTest* test)
+        : Thread("MorphThread"), test_(test) {}
     virtual void Run() {
       test_->MorphString();
     }
@@ -13720,8 +13891,8 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 
 class IsolateThread : public v8::internal::Thread {
  public:
-  explicit IsolateThread(v8::Isolate* isolate, int fib_limit)
-      : Thread(NULL, "IsolateThread"),
+  IsolateThread(v8::Isolate* isolate, int fib_limit)
+      : Thread("IsolateThread"),
         isolate_(isolate),
         fib_limit_(fib_limit),
         result_(0) { }
@@ -13801,7 +13972,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
   };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
-      : Thread(NULL, "InitDefaultIsolateThread"),
+      : Thread("InitDefaultIsolateThread"),
         testCase_(testCase),
         result_(false) { }
 
@@ -14041,48 +14212,6 @@ TEST(DontDeleteCellLoadICAPI) {
                "  }"
                "})()",
                "ReferenceError: cell is not defined");
-}
-
-
-TEST(GlobalLoadICGC) {
-  const char* function_code =
-      "function readCell() { while (true) { return cell; } }";
-
-  // Check inline load code for a don't delete cell is cleared during
-  // GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("var cell = \"value\";");
-    ExpectBoolean("delete cell", false);
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
-
-  // Check inline load code for a deletable cell is cleared during GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("cell = \"value\";");
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
 }
 
 
@@ -14512,4 +14641,51 @@ THREADED_TEST(CallAPIFunctionOnNonObject) {
   context->Global()->Set(v8_str("f"), function);
   TryCatch try_catch;
   CompileRun("f.call(2)");
+}
+
+
+// Regression test for issue 1470.
+THREADED_TEST(ReadOnlyIndexedProperties) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+  obj->Set(v8_str("1"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("1"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("1")));
+  obj->Set(v8_num(2), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_num(2), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_num(2)));
+
+  // Test non-smi case.
+  obj->Set(v8_str("2000000000"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->Set(v8_str("2000000000"), v8_str("foobar"));
+  CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("2000000000")));
+}
+
+
+THREADED_TEST(Regress1516) {
+  v8::HandleScope scope;
+
+  LocalContext context;
+  { v8::HandleScope temp_scope;
+    CompileRun("({'a': 0})");
+  }
+
+  int elements;
+  { i::MapCache* map_cache =
+        i::MapCache::cast(i::Isolate::Current()->context()->map_cache());
+    elements = map_cache->NumberOfElements();
+    CHECK_LE(1, elements);
+  }
+
+  i::Isolate::Current()->heap()->CollectAllGarbage(true);
+  { i::Object* raw_map_cache = i::Isolate::Current()->context()->map_cache();
+    if (raw_map_cache != i::Isolate::Current()->heap()->undefined_value()) {
+      i::MapCache* map_cache = i::MapCache::cast(raw_map_cache);
+      CHECK_GT(elements, map_cache->NumberOfElements());
+    }
+  }
 }

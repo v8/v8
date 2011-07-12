@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "i18n-utils.h"
+#include "src/extensions/experimental/i18n-utils.h"
 
 #include <string.h>
+
+#include "unicode/unistr.h"
 
 namespace v8 {
 namespace internal {
@@ -38,6 +40,48 @@ void I18NUtils::StrNCopy(char* dest, int length, const char* src) {
 
   strncpy(dest, src, length);
   dest[length - 1] = '\0';
+}
+
+// static
+bool I18NUtils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
+                                     const char* setting,
+                                     icu::UnicodeString* result) {
+  if (!setting || !result) return false;
+
+  v8::HandleScope handle_scope;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> value = settings->Get(v8::String::New(setting));
+  if (try_catch.HasCaught()) {
+    return false;
+  }
+  // No need to check if |value| is empty because it's taken care of
+  // by TryCatch above.
+  if (!value->IsUndefined() && !value->IsNull() && value->IsString()) {
+    v8::String::Utf8Value utf8_value(value);
+    if (*utf8_value == NULL) return false;
+    result->setTo(icu::UnicodeString::fromUTF8(*utf8_value));
+    return true;
+  }
+  return false;
+}
+
+// static
+void I18NUtils::AsciiToUChar(const char* source,
+                             int32_t source_length,
+                             UChar* target,
+                             int32_t target_length) {
+  int32_t length =
+      source_length < target_length ? source_length : target_length;
+
+  if (length <= 0) {
+    return;
+  }
+
+  for (int32_t i = 0; i < length - 1; ++i) {
+    target[i] = static_cast<UChar>(source[i]);
+  }
+
+  target[length - 1] = 0x0u;
 }
 
 } }  // namespace v8::internal

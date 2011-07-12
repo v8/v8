@@ -46,9 +46,8 @@ static const int kTickSamplesBufferChunkSize = 64*KB;
 static const int kTickSamplesBufferChunksCount = 16;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
-                                                 ProfileGenerator* generator)
-    : Thread(isolate, "v8:ProfEvntProc"),
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
+    : Thread("v8:ProfEvntProc"),
       generator_(generator),
       running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),
@@ -182,20 +181,16 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 
 
 void ProfilerEventsProcessor::AddCurrentStack() {
-  TickSampleEventRecord record;
+  TickSampleEventRecord record(enqueue_order_);
   TickSample* sample = &record.sample;
   Isolate* isolate = Isolate::Current();
   sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
-  sample->tos = NULL;
-  sample->has_external_callback = false;
-  sample->frames_count = 0;
   for (StackTraceFrameIterator it(isolate);
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
        it.Advance()) {
     sample->stack[sample->frames_count++] = it.frame()->pc();
   }
-  record.order = enqueue_order_;
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -507,7 +502,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     saved_logging_nesting_ = isolate->logger()->logging_nesting_;
     isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(isolate, generator_);
+    processor_ = new ProfilerEventsProcessor(generator_);
     NoBarrier_Store(&is_profiling_, true);
     processor_->Start();
     // Enumerate stuff we already have in the heap.

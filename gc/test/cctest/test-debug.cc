@@ -649,6 +649,7 @@ int last_source_column = -1;
 
 // Debug event handler which counts the break points which have been hit.
 int break_point_hit_count = 0;
+int break_point_hit_count_deoptimize = 0;
 static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                          v8::Handle<v8::Object> exec_state,
                                          v8::Handle<v8::Object> event_data,
@@ -724,6 +725,12 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
         v8::Handle<v8::String> script_data(result->ToString());
         script_data->WriteAscii(last_script_data_hit);
       }
+    }
+
+    // Perform a full deoptimization when the specified number of
+    // breaks have been hit.
+    if (break_point_hit_count == break_point_hit_count_deoptimize) {
+      i::Deoptimizer::DeoptimizeAll();
     }
   } else if (event == v8::AfterCompile && !compiled_script_data.IsEmpty()) {
     const int argc = 1;
@@ -983,11 +990,29 @@ static void DebugEventBreakMax(v8::DebugEvent event,
       // Count the number of breaks.
       break_point_hit_count++;
 
+      // Collect the JavsScript stack height if the function frame_count is
+      // compiled.
+      if (!frame_count.IsEmpty()) {
+        static const int kArgc = 1;
+        v8::Handle<v8::Value> argv[kArgc] = { exec_state };
+        // Using exec_state as receiver is just to have a receiver.
+        v8::Handle<v8::Value> result =
+            frame_count->Call(exec_state, kArgc, argv);
+        last_js_stack_height = result->Int32Value();
+      }
+
       // Set the break flag again to come back here as soon as possible.
       v8::Debug::DebugBreak();
+
     } else if (terminate_after_max_break_point_hit) {
       // Terminate execution after the last break if requested.
       v8::V8::TerminateExecution();
+    }
+
+    // Perform a full deoptimization when the specified number of
+    // breaks have been hit.
+    if (break_point_hit_count == break_point_hit_count_deoptimize) {
+      i::Deoptimizer::DeoptimizeAll();
     }
   }
 }
@@ -4728,8 +4753,8 @@ Barriers message_queue_barriers;
 // placing JSON debugger commands in the queue.
 class MessageQueueDebuggerThread : public v8::internal::Thread {
  public:
-  explicit MessageQueueDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "MessageQueueDebuggerThread") { }
+  MessageQueueDebuggerThread()
+      : Thread("MessageQueueDebuggerThread") { }
   void Run();
 };
 
@@ -4832,8 +4857,7 @@ void MessageQueueDebuggerThread::Run() {
 
 // This thread runs the v8 engine.
 TEST(MessageQueues) {
-  MessageQueueDebuggerThread message_queue_debugger_thread(
-      i::Isolate::Current());
+  MessageQueueDebuggerThread message_queue_debugger_thread;
 
   // Create a V8 environment
   v8::HandleScope scope;
@@ -4980,15 +5004,13 @@ Barriers threaded_debugging_barriers;
 
 class V8Thread : public v8::internal::Thread {
  public:
-  explicit V8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "V8Thread") { }
+  V8Thread() : Thread("V8Thread") { }
   void Run();
 };
 
 class DebuggerThread : public v8::internal::Thread {
  public:
-  explicit DebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "DebuggerThread") { }
+  DebuggerThread() : Thread("DebuggerThread") { }
   void Run();
 };
 
@@ -5032,6 +5054,7 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
+  v8::V8::Initialize();
   v8::HandleScope scope;
   DebugLocalContext env;
   v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
@@ -5065,8 +5088,8 @@ void DebuggerThread::Run() {
 
 
 TEST(ThreadedDebugging) {
-  DebuggerThread debugger_thread(i::Isolate::Current());
-  V8Thread v8_thread(i::Isolate::Current());
+  DebuggerThread debugger_thread;
+  V8Thread v8_thread;
 
   // Create a V8 environment
   threaded_debugging_barriers.Initialize();
@@ -5087,16 +5110,14 @@ TEST(ThreadedDebugging) {
 
 class BreakpointsV8Thread : public v8::internal::Thread {
  public:
-  explicit BreakpointsV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "BreakpointsV8Thread") { }
+  BreakpointsV8Thread() : Thread("BreakpointsV8Thread") { }
   void Run();
 };
 
 class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
-  explicit BreakpointsDebuggerThread(v8::internal::Isolate* isolate,
-                                     bool global_evaluate)
-      : Thread(isolate, "BreakpointsDebuggerThread"),
+  explicit BreakpointsDebuggerThread(bool global_evaluate)
+      : Thread("BreakpointsDebuggerThread"),
         global_evaluate_(global_evaluate) {}
   void Run();
 
@@ -5146,6 +5167,7 @@ void BreakpointsV8Thread::Run() {
   const char* source_2 = "cat(17);\n"
     "cat(19);\n";
 
+  v8::V8::Initialize();
   v8::HandleScope scope;
   DebugLocalContext env;
   v8::Debug::SetMessageHandler2(&BreakpointsMessageHandler);
@@ -5273,9 +5295,8 @@ void BreakpointsDebuggerThread::Run() {
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   i::FLAG_debugger_auto_break = true;
 
-  BreakpointsDebuggerThread breakpoints_debugger_thread(i::Isolate::Current(),
-      global_evaluate);
-  BreakpointsV8Thread breakpoints_v8_thread(i::Isolate::Current());
+  BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
+  BreakpointsV8Thread breakpoints_v8_thread;
 
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
@@ -5657,15 +5678,13 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 
 class HostDispatchV8Thread : public v8::internal::Thread {
  public:
-  explicit HostDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "HostDispatchV8Thread") { }
+  HostDispatchV8Thread() : Thread("HostDispatchV8Thread") { }
   void Run();
 };
 
 class HostDispatchDebuggerThread : public v8::internal::Thread {
  public:
-  explicit HostDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "HostDispatchDebuggerThread") { }
+  HostDispatchDebuggerThread() : Thread("HostDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5695,6 +5714,7 @@ void HostDispatchV8Thread::Run() {
     "\n";
   const char* source_2 = "cat(17);\n";
 
+  v8::V8::Initialize();
   v8::HandleScope scope;
   DebugLocalContext env;
 
@@ -5737,9 +5757,8 @@ void HostDispatchDebuggerThread::Run() {
 
 
 TEST(DebuggerHostDispatch) {
-  HostDispatchDebuggerThread host_dispatch_debugger_thread(
-      i::Isolate::Current());
-  HostDispatchV8Thread host_dispatch_v8_thread(i::Isolate::Current());
+  HostDispatchDebuggerThread host_dispatch_debugger_thread;
+  HostDispatchV8Thread host_dispatch_v8_thread;
   i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
@@ -5763,15 +5782,14 @@ TEST(DebuggerHostDispatch) {
 
 class DebugMessageDispatchV8Thread : public v8::internal::Thread {
  public:
-  explicit DebugMessageDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "DebugMessageDispatchV8Thread") { }
+  DebugMessageDispatchV8Thread() : Thread("DebugMessageDispatchV8Thread") { }
   void Run();
 };
 
 class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
  public:
-  explicit DebugMessageDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate, "DebugMessageDispatchDebuggerThread") { }
+  DebugMessageDispatchDebuggerThread()
+      : Thread("DebugMessageDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5784,6 +5802,7 @@ static void DebugMessageHandler() {
 
 
 void DebugMessageDispatchV8Thread::Run() {
+  v8::V8::Initialize();
   v8::HandleScope scope;
   DebugLocalContext env;
 
@@ -5805,10 +5824,8 @@ void DebugMessageDispatchDebuggerThread::Run() {
 
 
 TEST(DebuggerDebugMessageDispatch) {
-  DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread(
-      i::Isolate::Current());
-  DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread(
-      i::Isolate::Current());
+  DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
+  DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
 
   i::FLAG_debugger_auto_break = true;
 
@@ -5847,7 +5864,6 @@ TEST(DebuggerAgent) {
   // Test starting and stopping the agent without any client connection.
   debugger->StartAgent("test", kPort1);
   debugger->StopAgent();
-
   // Test starting the agent, connecting a client and shutting down the agent
   // with the client connected.
   ok = debugger->StartAgent("test", kPort2);
@@ -5855,6 +5871,12 @@ TEST(DebuggerAgent) {
   debugger->WaitForAgent();
   i::Socket* client = i::OS::CreateSocket();
   ok = client->Connect("localhost", port2_str);
+  CHECK(ok);
+  // It is important to wait for a message from the agent. Otherwise,
+  // we can close the server socket during "accept" syscall, making it failing
+  // (at least on Linux), and the test will work incorrectly.
+  char buf;
+  ok = client->Receive(&buf, 1) == 1;
   CHECK(ok);
   debugger->StopAgent();
   delete client;
@@ -5873,8 +5895,8 @@ TEST(DebuggerAgent) {
 
 class DebuggerAgentProtocolServerThread : public i::Thread {
  public:
-  explicit DebuggerAgentProtocolServerThread(i::Isolate* isolate, int port)
-      : Thread(isolate, "DebuggerAgentProtocolServerThread"),
+  explicit DebuggerAgentProtocolServerThread(int port)
+      : Thread("DebuggerAgentProtocolServerThread"),
         port_(port),
         server_(NULL),
         client_(NULL),
@@ -5939,7 +5961,7 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
 
   // Create a socket server to receive a debugger agent message.
   DebuggerAgentProtocolServerThread* server =
-      new DebuggerAgentProtocolServerThread(i::Isolate::Current(), kPort);
+      new DebuggerAgentProtocolServerThread(kPort);
   server->Start();
   server->WaitForListening();
 
@@ -7198,29 +7220,38 @@ static void TestDebugBreakInLoop(const char* loop_head,
                                  const char** loop_bodies,
                                  const char* loop_tail) {
   // Receive 100 breaks for each test and then terminate JavaScript execution.
-  static int count = 0;
+  static const int kBreaksPerTest = 100;
 
-  for (int i = 0; loop_bodies[i] != NULL; i++) {
-    count++;
-    max_break_point_hit_count = count * 100;
-    terminate_after_max_break_point_hit = true;
+  for (int i = 0; i < 1 && loop_bodies[i] != NULL; i++) {
+    // Perform a lazy deoptimization after various numbers of breaks
+    // have been hit.
+    for (int j = 0; j < 10; j++) {
+      break_point_hit_count_deoptimize = j;
+      if (j == 10) {
+        break_point_hit_count_deoptimize = kBreaksPerTest;
+      }
 
-    EmbeddedVector<char, 1024> buffer;
-    OS::SNPrintF(buffer,
-                 "function f() {%s%s%s}",
-                 loop_head, loop_bodies[i], loop_tail);
+      break_point_hit_count = 0;
+      max_break_point_hit_count = kBreaksPerTest;
+      terminate_after_max_break_point_hit = true;
 
-    // Function with infinite loop.
-    CompileRun(buffer.start());
+      EmbeddedVector<char, 1024> buffer;
+      OS::SNPrintF(buffer,
+                   "function f() {%s%s%s}",
+                   loop_head, loop_bodies[i], loop_tail);
 
-    // Set the debug break to enter the debugger as soon as possible.
-    v8::Debug::DebugBreak();
+      // Function with infinite loop.
+      CompileRun(buffer.start());
 
-    // Call function with infinite loop.
-    CompileRun("f();");
-    CHECK_EQ(count * 100, break_point_hit_count);
+      // Set the debug break to enter the debugger as soon as possible.
+      v8::Debug::DebugBreak();
 
-    CHECK(!v8::V8::IsExecutionTerminating());
+      // Call function with infinite loop.
+      CompileRun("f();");
+      CHECK_EQ(kBreaksPerTest, break_point_hit_count);
+
+      CHECK(!v8::V8::IsExecutionTerminating());
+    }
   }
 }
 
@@ -7231,6 +7262,9 @@ TEST(DebugBreakLoop) {
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventBreakMax);
+
+  // Create a function for getting the frame count when hitting the break.
+  frame_count = CompileFunction(&env, frame_count_source, "frame_count");
 
   CompileRun("var a = 1;");
   CompileRun("function g() { }");

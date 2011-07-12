@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,6 +30,9 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
+##############################################################################
+# Fails.
+regress/regress-1119: FAIL
 
 ##############################################################################
 # Too slow in debug mode with --stress-opt
@@ -139,3 +142,8 @@ regress/regress-create-exception: SKIP
 regress/regress-3218915: SKIP
 regress/regress-3247124: SKIP
 
+
+[ $isolates ]
+# d8-os writes temporary files that might interfer with each other when running
+# in multible threads. Skip this if running with isolates testing.
+d8-os: SKIP

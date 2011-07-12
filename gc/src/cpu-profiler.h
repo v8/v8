@@ -106,10 +106,14 @@ class SharedFunctionInfoMoveEventRecord : public CodeEventRecord {
 };
 
 
-class TickSampleEventRecord BASE_EMBEDDED {
+class TickSampleEventRecord {
  public:
-  TickSampleEventRecord()
-      : filler(1) {
+  // The parameterless constructor is used when we dequeue data from
+  // the ticks buffer.
+  TickSampleEventRecord() { }
+  explicit TickSampleEventRecord(unsigned order)
+      : filler(1),
+        order(order) {
     ASSERT(filler != SamplingCircularQueue::kClear);
   }
 
@@ -125,8 +129,6 @@ class TickSampleEventRecord BASE_EMBEDDED {
   static TickSampleEventRecord* cast(void* value) {
     return reinterpret_cast<TickSampleEventRecord*>(value);
   }
-
-  INLINE(static TickSampleEventRecord* init(void* value));
 };
 
 
@@ -134,8 +136,7 @@ class TickSampleEventRecord BASE_EMBEDDED {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  ProfilerEventsProcessor(Isolate* isolate,
-                          ProfileGenerator* generator);
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.

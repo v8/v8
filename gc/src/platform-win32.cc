@@ -138,16 +138,39 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 }
 
 
+#define _TRUNCATE 0
+#define STRUNCATE 80
+
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
+  ASSERT(count == _TRUNCATE);
   return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
-#define _TRUNCATE 0
 
 
-int strncpy_s(char* strDest, size_t numberOfElements,
-              const char* strSource, size_t count) {
-  strncpy(strDest, strSource, count);
+int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
+  CHECK(source != NULL);
+  CHECK(dest != NULL);
+  CHECK_GT(dest_size, 0);
+
+  if (count == _TRUNCATE) {
+    while (dest_size > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+    }
+    if (dest_size == 0) {
+      *(dest - 1) = 0;
+      return STRUNCATE;
+    }
+  } else {
+    while (dest_size > 0 && count > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+      --count;
+    }
+  }
+  CHECK_GT(dest_size, 0);
+  *dest = 0;
   return 0;
 }
 
@@ -168,6 +191,11 @@ int random() {
 
 namespace v8 {
 namespace internal {
+
+intptr_t OS::MaxVirtualMemory() {
+  return 0;
+}
+
 
 double ceiling(double x) {
   return ceil(x);
@@ -407,13 +435,11 @@ void Time::TzSet() {
   }
 
   // Make standard and DST timezone names.
-  OS::SNPrintF(Vector<char>(std_tz_name_, kTzNameSize),
-               "%S",
-               tzinfo_.StandardName);
+  WideCharToMultiByte(CP_UTF8, 0, tzinfo_.StandardName, -1,
+                      std_tz_name_, kTzNameSize, NULL, NULL);
   std_tz_name_[kTzNameSize - 1] = '\0';
-  OS::SNPrintF(Vector<char>(dst_tz_name_, kTzNameSize),
-               "%S",
-               tzinfo_.DaylightName);
+  WideCharToMultiByte(CP_UTF8, 0, tzinfo_.DaylightName, -1,
+                      dst_tz_name_, kTzNameSize, NULL, NULL);
   dst_tz_name_[kTzNameSize - 1] = '\0';
 
   // If OS returned empty string or resource id (like "@tzres.dll,-211")
@@ -1500,10 +1526,6 @@ static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
 // convention.
 static unsigned int __stdcall ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  // This is also initialized by the last parameter to _beginthreadex() but we
-  // don't know which thread will run first (the original thread or the new
-  // one) so we initialize it here too.
-  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return 0;
 }
@@ -1519,17 +1541,15 @@ class Thread::PlatformData : public Malloced {
 // Initialize a Win32 thread object. The thread has an invalid thread
 // handle until it is started.
 
-Thread::Thread(Isolate* isolate, const Options& options)
-    : isolate_(isolate),
-      stack_size_(options.stack_size) {
+Thread::Thread(const Options& options)
+    : stack_size_(options.stack_size) {
   data_ = new PlatformData(kNoThread);
   set_name(options.name);
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
-    : isolate_(isolate),
-      stack_size_(0) {
+Thread::Thread(const char* name)
+    : stack_size_(0) {
   data_ = new PlatformData(kNoThread);
   set_name(name);
 }
@@ -1610,7 +1630,6 @@ void Thread::YieldCPU() {
 
 class Win32Mutex : public Mutex {
  public:
-
   Win32Mutex() { InitializeCriticalSection(&cs_); }
 
   virtual ~Win32Mutex() { DeleteCriticalSection(&cs_); }
@@ -1899,7 +1918,7 @@ class Sampler::PlatformData : public Malloced {
 class SamplerThread : public Thread {
  public:
   explicit SamplerThread(int interval)
-      : Thread(NULL, "SamplerThread"),
+      : Thread("SamplerThread"),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
@@ -1917,8 +1936,7 @@ class SamplerThread : public Thread {
     ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
-      instance_->Join();
+      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
       delete instance_;
       instance_ = NULL;
     }

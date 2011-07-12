@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -67,6 +67,7 @@ namespace internal {
   F(SpecialArrayFunctions, 1, 1) \
   F(GetGlobalReceiver, 0, 1) \
   \
+  F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
   \
@@ -81,18 +82,20 @@ namespace internal {
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
+  F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
+  F(RunningInSimulator, 0, 1) \
   F(OptimizeFunctionOnNextCall, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
-  F(SetES5Flag, 1, 1) \
+  F(SetNativeFlag, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -114,6 +117,7 @@ namespace internal {
   F(URIUnescape, 1, 1) \
   F(QuoteJSONString, 1, 1) \
   F(QuoteJSONStringComma, 1, 1) \
+  F(QuoteJSONStringArray, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -208,6 +212,7 @@ namespace internal {
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionGetName, 1, 1) \
   F(FunctionSetName, 2, 1) \
+  F(FunctionSetBound, 1, 1) \
   F(FunctionRemovePrototype, 1, 1) \
   F(FunctionGetSourceCode, 1, 1) \
   F(FunctionGetScript, 1, 1) \
@@ -277,9 +282,8 @@ namespace internal {
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
-  \
-  /* Catch context extension objects */ \
-  F(CreateCatchExtensionObject, 2, 1) \
+  F(IsJSProxy, 1, 1) \
+  F(GetHandler, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -293,9 +297,9 @@ namespace internal {
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 1, 1) \
-  F(PushContext, 1, 1) \
-  F(PushCatchContext, 1, 1) \
+  F(NewFunctionContext, 1, 1) \
+  F(PushWithContext, 2, 1) \
+  F(PushCatchContext, 3, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
@@ -330,7 +334,23 @@ namespace internal {
   F(MessageGetScript, 1, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
-  F(IS_VAR, 1, 1)
+  F(IS_VAR, 1, 1) \
+  \
+  /* expose boolean functions from objects-inl.h */ \
+  F(HasFastElements, 1, 1) \
+  F(HasFastDoubleElements, 1, 1) \
+  F(HasDictionaryElements, 1, 1) \
+  F(HasExternalPixelElements, 1, 1) \
+  F(HasExternalArrayElements, 1, 1) \
+  F(HasExternalByteElements, 1, 1) \
+  F(HasExternalUnsignedByteElements, 1, 1) \
+  F(HasExternalShortElements, 1, 1) \
+  F(HasExternalUnsignedShortElements, 1, 1) \
+  F(HasExternalIntElements, 1, 1) \
+  F(HasExternalUnsignedIntElements, 1, 1) \
+  F(HasExternalFloatElements, 1, 1) \
+  F(HasExternalDoubleElements, 1, 1)
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
@@ -409,8 +429,8 @@ namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F) \
-  F(ProfilerResume, 2, 1) \
-  F(ProfilerPause, 2, 1)
+  F(ProfilerResume, 0, 1) \
+  F(ProfilerPause, 0, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F)
 #endif
@@ -466,7 +486,8 @@ namespace internal {
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
-  F(FastAsciiArrayJoin, 2, 1)
+  F(FastAsciiArrayJoin, 2, 1)                                                \
+  F(IsNativeOrStrictMode, 1, 1)
 
 
 // ----------------------------------------------------------------------------
@@ -494,7 +515,6 @@ namespace internal {
 
 class RuntimeState {
  public:
-
   StaticResource<StringInputBuffer>* string_input_buffer() {
     return &string_input_buffer_;
   }
@@ -516,12 +536,6 @@ class RuntimeState {
   StringInputBuffer* string_locale_compare_buf2() {
     return &string_locale_compare_buf2_;
   }
-  int* smi_lexicographic_compare_x_elms() {
-    return smi_lexicographic_compare_x_elms_;
-  }
-  int* smi_lexicographic_compare_y_elms() {
-    return smi_lexicographic_compare_y_elms_;
-  }
 
  private:
   RuntimeState() {}
@@ -533,8 +547,6 @@ class RuntimeState {
   StringInputBuffer string_input_buffer_compare_bufy_;
   StringInputBuffer string_locale_compare_buf1_;
   StringInputBuffer string_locale_compare_buf2_;
-  int smi_lexicographic_compare_x_elms_[10];
-  int smi_lexicographic_compare_y_elms_[10];
 
   friend class Isolate;
   friend class Runtime;

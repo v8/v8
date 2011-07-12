@@ -64,7 +64,7 @@ class KangarooThread : public v8::internal::Thread {
  public:
   KangarooThread(v8::Isolate* isolate,
                  v8::Handle<v8::Context> context, int value)
-      : Thread(NULL, "KangarooThread"),
+      : Thread("KangarooThread"),
         isolate_(isolate), context_(context), value_(value) {
   }
 
@@ -150,7 +150,7 @@ class JoinableThread {
   class ThreadWithSemaphore : public i::Thread {
    public:
     explicit ThreadWithSemaphore(JoinableThread* joinable_thread)
-      : Thread(NULL, joinable_thread->name_),
+      : Thread(joinable_thread->name_),
         joinable_thread_(joinable_thread) {
     }
 
@@ -314,7 +314,11 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   v8::Isolate* isolate1 = v8::Isolate::New();
   v8::Isolate* isolate2 = v8::Isolate::New();
   i::List<JoinableThread*> threads(kNThreads);
@@ -383,7 +387,11 @@ class LockerUnlockerThread : public JoinableThread {
 
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   i::List<JoinableThread*> threads(kNThreads);
   v8::Isolate* isolate = v8::Isolate::New();
   for (int i = 0; i < kNThreads; i++) {
@@ -431,7 +439,11 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   i::List<JoinableThread*> threads(kNThreads);
   v8::Isolate* isolate = v8::Isolate::New();
   for (int i = 0; i < kNThreads; i++) {
@@ -606,4 +618,24 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
     threads.Add(new LockUnlockLockDefaultIsolateThread(context));
   }
   StartJoinAndDeleteThreads(threads);
+}
+
+
+TEST(Regress1433) {
+  for (int i = 0; i < 10; i++) {
+    v8::Isolate* isolate = v8::Isolate::New();
+    {
+      v8::Locker lock(isolate);
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope;
+      v8::Persistent<Context> context = v8::Context::New();
+      v8::Context::Scope context_scope(context);
+      v8::Handle<String> source = v8::String::New("1+1");
+      v8::Handle<Script> script = v8::Script::Compile(source);
+      v8::Handle<Value> result = script->Run();
+      v8::String::AsciiValue ascii(result);
+      context.Dispose();
+    }
+    isolate->Dispose();
+  }
 }

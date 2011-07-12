@@ -168,8 +168,9 @@ class BootstrapperActive BASE_EMBEDDED {
 class NativesExternalStringResource
     : public v8::String::ExternalAsciiStringResource {
  public:
-  explicit NativesExternalStringResource(Bootstrapper* bootstrapper,
-                                         const char* source);
+  NativesExternalStringResource(Bootstrapper* bootstrapper,
+                                const char* source,
+                                size_t length);
 
   const char* data() const {
     return data_;

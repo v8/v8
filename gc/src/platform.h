@@ -288,6 +288,10 @@ class OS {
   // positions indicated by the members of the CpuFeature enum from globals.h
   static uint64_t CpuFeaturesImpliedByPlatform();
 
+  // Maximum size of the virtual memory.  0 means there is no artificial
+  // limit.
+  static intptr_t MaxVirtualMemory();
+
   // Returns the double constant NAN
   static double nan_value();
 
@@ -393,9 +397,9 @@ class Thread {
     int stack_size;
   };
 
-  // Create new thread (with a value for storing in the TLS isolate field).
-  Thread(Isolate* isolate, const Options& options);
-  Thread(Isolate* isolate, const char* name);
+  // Create new thread.
+  explicit Thread(const Options& options);
+  explicit Thread(const char* name);
   virtual ~Thread();
 
   // Start new thread by calling the Run() method in the new thread.
@@ -442,7 +446,6 @@ class Thread {
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
 
-  Isolate* isolate() const { return isolate_; }
 
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
@@ -456,7 +459,6 @@ class Thread {
 
   PlatformData* data_;
 
-  Isolate* isolate_;
   char name_[kMaxThreadNameLength];
   int stack_size_;
 

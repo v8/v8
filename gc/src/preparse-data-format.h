@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -37,7 +37,7 @@ struct PreparseDataConstants {
  public:
   // Layout and constants of the preparse data exchange format.
   static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 6;
+  static const unsigned kCurrentVersion = 7;
 
   static const int kMagicOffset = 0;
   static const int kVersionOffset = 1;

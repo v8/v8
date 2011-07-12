@@ -283,7 +283,7 @@ static void VerifyMarkbitsAreClean(PagedSpace* space) {
 }
 
 static void VerifyMarkbitsAreClean(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
+  NewSpacePageIterator it(space->bottom(), space->top());
 
   while (it.has_next()) {
     NewSpacePage* p = it.next();
@@ -421,6 +421,10 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     compacting_collection_ = false;
   }
 #endif
+
+  if (heap()->incremental_marking()->IsMarking() && PreciseSweepingRequired()) {
+    heap()->incremental_marking()->Abort();
+  }
 
   if (!FLAG_never_compact) StartCompaction();
 
@@ -674,6 +678,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitGlobalContext, &VisitGlobalContext);
 
+    table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
+
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
     table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
@@ -695,6 +701,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitJSFunction,
                     &VisitJSFunctionAndFlushCode);
+
+    table_.Register(kVisitJSRegExp,
+                    &VisitRegExpAndFlushCode);
 
     table_.Register(kVisitPropertyCell,
                     &FixedBodyVisitor<StaticMarkingVisitor,
@@ -850,6 +859,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // flushed.
   static const int kCodeAgeThreshold = 5;
 
+  static const int kRegExpCodeThreshold = 5;
+
   inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
     Object* undefined = heap->undefined_value();
     return (info->script() != undefined) &&
@@ -952,6 +963,70 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     FixedBodyVisitor<StaticMarkingVisitor,
                      SharedFunctionInfo::BodyDescriptor,
                      void>::Visit(map, object);
+  }
+
+
+  static void UpdateRegExpCodeAgeAndFlush(Heap* heap,
+                                          JSRegExp* re,
+                                          bool is_ascii) {
+    // Make sure that the fixed array is in fact initialized on the RegExp.
+    // We could potentially trigger a GC when initializing the RegExp.
+    if (HeapObject::cast(re->data())->map()->instance_type() !=
+            FIXED_ARRAY_TYPE) return;
+
+    // Make sure this is a RegExp that actually contains code.
+    if (re->TypeTagUnchecked() != JSRegExp::IRREGEXP) return;
+
+    Object* code = re->DataAtUnchecked(JSRegExp::code_index(is_ascii));
+    if (!code->IsSmi() &&
+        HeapObject::cast(code)->map()->instance_type() == CODE_TYPE) {
+      // Save a copy that can be reinstated if we need the code again.
+      re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                             code,
+                             heap);
+      // Set a number in the 0-255 range to guarantee no smi overflow.
+      re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                             Smi::FromInt(heap->sweep_generation() & 0xff),
+                             heap);
+    } else if (code->IsSmi()) {
+      int value = Smi::cast(code)->value();
+      // The regexp has not been compiled yet or there was a compilation error.
+      if (value == JSRegExp::kUninitializedValue ||
+          value == JSRegExp::kCompilationErrorValue) {
+        return;
+      }
+
+      // Check if we should flush now.
+      if (value == ((heap->sweep_generation() - kRegExpCodeThreshold) & 0xff)) {
+        re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
+        re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
+                               Smi::FromInt(JSRegExp::kUninitializedValue),
+                               heap);
+      }
+    }
+  }
+
+
+  // Works by setting the current sweep_generation (as a smi) in the
+  // code object place in the data array of the RegExp and keeps a copy
+  // around that can be reinstated if we reuse the RegExp before flushing.
+  // If we did not use the code for kRegExpCodeThreshold mark sweep GCs
+  // we flush the code.
+  static void VisitRegExpAndFlushCode(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    MarkCompactCollector* collector = heap->mark_compact_collector();
+    if (!collector->is_code_flushing_enabled()) {
+      VisitJSRegExpFields(map, object);
+      return;
+    }
+    JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
+    // Flush code or set age on both ascii and two byte code.
+    UpdateRegExpCodeAgeAndFlush(heap, re, true);
+    UpdateRegExpCodeAgeAndFlush(heap, re, false);
+    // Visit the fields of the RegExp, including the updated FixedArray.
+    VisitJSRegExpFields(map, object);
   }
 
 
@@ -1114,6 +1189,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
         next_function, next_function, *next_function);
   }
 
+  static inline void VisitJSRegExpFields(Map* map,
+                                         HeapObject* object) {
+    int last_property_offset =
+        JSRegExp::kSize + kPointerSize * map->inobject_properties();
+    VisitPointers(map->GetHeap(),
+                  SLOT_ADDR(object, JSRegExp::kPropertiesOffset),
+                  SLOT_ADDR(object, last_property_offset));
+  }
+
 
   static void VisitSharedFunctionInfoFields(Heap* heap,
                                             HeapObject* object,
@@ -1151,18 +1235,6 @@ class MarkingVisitor : public ObjectVisitor {
 
   void VisitPointers(Object** start, Object** end) {
     StaticMarkingVisitor::VisitPointers(heap_, start, end);
-  }
-
-  void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitCodeTarget(heap, rinfo);
-  }
-
-  void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitGlobalPropertyCell(heap, rinfo);
-  }
-
-  void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitDebugTarget(heap, rinfo);
   }
 
  private:
@@ -1329,6 +1401,7 @@ class SymbolTableCleaner : public ObjectVisitor {
   int PointersRemoved() {
     return pointers_removed_;
   }
+
  private:
   Heap* heap_;
   int pointers_removed_;
@@ -1360,11 +1433,9 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
 
     // When map collection is enabled we have to mark through map's transitions
     // in a special way to make transition links weak.
-    // Only maps with instance types between FIRST_JS_OBJECT_TYPE and
-    // JS_FUNCTION_TYPE can have transitions.
-    if (FLAG_collect_maps &&
-        map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-        map->instance_type() <= JS_FUNCTION_TYPE) {
+    // Only maps for subclasses of JSReceiver can have transitions.
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    if (FLAG_collect_maps && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
       MarkMapContents(map);
     } else {
       marking_deque_.PushBlack(map);
@@ -1460,8 +1531,8 @@ void MarkCompactCollector::CreateBackPointers() {
        next_object != NULL; next_object = iterator.Next()) {
     if (next_object->IsMap()) {  // Could also be FreeSpace object on free list.
       Map* map = Map::cast(next_object);
-      if (map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-          map->instance_type() <= JS_FUNCTION_TYPE) {
+      STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+      if (map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
         map->CreateBackPointers();
       } else {
         ASSERT(map->instance_descriptors() == heap()->empty_descriptor_array());
@@ -1855,6 +1926,12 @@ void MarkCompactCollector::MarkLiveObjects() {
 
 
 void MarkCompactCollector::AfterMarking() {
+  // Object literal map caches reference symbols (cache keys) and maps
+  // (cache values). At this point still useful maps have already been
+  // marked. Mark the keys for the alive values before we process the
+  // symbol table.
+  ProcessMapCaches();
+
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
@@ -1880,6 +1957,57 @@ void MarkCompactCollector::AfterMarking() {
 
   // Clean up dead objects from the runtime profiler.
   heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
+}
+
+
+void MarkCompactCollector::ProcessMapCaches() {
+  Object* raw_context = heap()->global_contexts_list_;
+  while (raw_context != heap()->undefined_value()) {
+    Context* context = reinterpret_cast<Context*>(raw_context);
+    if (IsMarked(context)) {
+      HeapObject* raw_map_cache =
+          HeapObject::cast(context->get(Context::MAP_CACHE_INDEX));
+      // A map cache may be reachable from the stack. In this case
+      // it's already transitively marked and it's too late to clean
+      // up its parts.
+      if (!IsMarked(raw_map_cache) &&
+          raw_map_cache != heap()->undefined_value()) {
+        MapCache* map_cache = reinterpret_cast<MapCache*>(raw_map_cache);
+        int existing_elements = map_cache->NumberOfElements();
+        int used_elements = 0;
+        for (int i = MapCache::kElementsStartIndex;
+             i < map_cache->length();
+             i += MapCache::kEntrySize) {
+          Object* raw_key = map_cache->get(i);
+          if (raw_key == heap()->undefined_value() ||
+              raw_key == heap()->null_value()) continue;
+          STATIC_ASSERT(MapCache::kEntrySize == 2);
+          Object* raw_map = map_cache->get(i + 1);
+          if (raw_map->IsHeapObject() && IsMarked(raw_map)) {
+            ++used_elements;
+          } else {
+            // Delete useless entries with unmarked maps.
+            ASSERT(raw_map->IsMap());
+            map_cache->set_null_unchecked(heap(), i);
+            map_cache->set_null_unchecked(heap(), i + 1);
+          }
+        }
+        if (used_elements == 0) {
+          context->set(Context::MAP_CACHE_INDEX, heap()->undefined_value());
+        } else {
+          // Note: we don't actually shrink the cache here to avoid
+          // extra complexity during GC. We rely on subsequent cache
+          // usages (EnsureCapacity) to do this.
+          map_cache->ElementsRemoved(existing_elements - used_elements);
+          MarkBit map_cache_markbit = Marking::MarkBitFrom(map_cache);
+          MarkObject(map_cache, map_cache_markbit);
+        }
+      }
+    }
+    // Move to next element in the list.
+    raw_context = context->get(Context::NEXT_CONTEXT_LINK);
+  }
+  ProcessMarkingDeque();
 }
 
 
@@ -1929,8 +2057,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     ASSERT(map->IsMap());
     // Only JSObject and subtypes have map transitions and back pointers.
-    if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
-    if (map->instance_type() > JS_FUNCTION_TYPE) continue;
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    if (map->instance_type() < FIRST_JS_RECEIVER_TYPE) continue;
 
     if (map_mark.Get() &&
         map->attached_to_shared_function_info()) {
@@ -1941,39 +2069,41 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     }
 
     // Clear dead prototype transitions.
+    int number_of_transitions = map->NumberOfProtoTransitions();
     FixedArray* prototype_transitions = map->prototype_transitions();
-    if (prototype_transitions->length() > 0) {
-      int finger = Smi::cast(prototype_transitions->get(0))->value();
-      int new_finger = 1;
-      for (int i = 1; i < finger; i += 2) {
-        HeapObject* prototype = HeapObject::cast(prototype_transitions->get(i));
-        Map* cached_map = Map::cast(prototype_transitions->get(i + 1));
-        MarkBit prototype_mark = Marking::MarkBitFrom(prototype);
-        MarkBit cached_map_mark = Marking::MarkBitFrom(cached_map);
-        if (prototype_mark.Get() && cached_map_mark.Get()) {
-          if (new_finger != i) {
-            prototype_transitions->set_unchecked(heap_,
-                                                 new_finger,
-                                                 prototype,
-                                                 UPDATE_WRITE_BARRIER);
-            prototype_transitions->set_unchecked(heap_,
-                                                 new_finger + 1,
-                                                 cached_map,
-                                                 SKIP_WRITE_BARRIER);
-          }
 
-          Object** prototype_slot =
-              prototype_transitions->data_start() + new_finger;
-          RecordSlot(prototype_slot, prototype_slot, prototype);
-          new_finger += 2;
+    int new_number_of_transitions = 0;
+    const int header = Map::kProtoTransitionHeaderSize;
+    const int proto_offset =
+        header + Map::kProtoTransitionPrototypeOffset;
+    const int map_offset = header + Map::kProtoTransitionMapOffset;
+    const int step = Map::kProtoTransitionElementsPerEntry;
+    for (int i = 0; i < number_of_transitions; i++) {
+      Object* prototype = prototype_transitions->get(proto_offset + i * step);
+      Object* cached_map = prototype_transitions->get(map_offset + i * step);
+      if (IsMarked(prototype) && IsMarked(cached_map)) {
+        if (new_number_of_transitions != i) {
+          prototype_transitions->set_unchecked(
+              heap_,
+              proto_offset + new_number_of_transitions * step,
+              prototype,
+              UPDATE_WRITE_BARRIER);
+          prototype_transitions->set_unchecked(
+              heap_,
+              map_offset + new_number_of_transitions * step,
+              cached_map,
+              SKIP_WRITE_BARRIER);
         }
+        new_number_of_transitions++;
       }
 
       // Fill slots that became free with undefined value.
       Object* undefined = heap()->undefined_value();
-      for (int i = new_finger; i < finger; i++) {
+      for (int i = new_number_of_transitions * step;
+           i < number_of_transitions * step;
+           i++) {
         prototype_transitions->set_unchecked(heap_,
-                                             i,
+                                             header + i,
                                              undefined,
                                              SKIP_WRITE_BARRIER);
 
@@ -1983,7 +2113,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
             prototype_transitions->data_start() + i;
         RecordSlot(undefined_slot, undefined_slot, undefined);
       }
-      prototype_transitions->set_unchecked(0, Smi::FromInt(new_finger));
+      map->SetNumberOfProtoTransitions(new_number_of_transitions);
     }
 
     // Follow the chain of back pointers to find the prototype.

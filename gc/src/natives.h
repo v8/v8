@@ -36,7 +36,7 @@ typedef bool (*NativeSourceCallback)(Vector<const char> name,
                                      int index);
 
 enum NativeType {
-  CORE, EXPERIMENTAL, D8, I18N
+  CORE, EXPERIMENTAL, D8
 };
 
 template <NativeType type>
@@ -52,8 +52,11 @@ class NativesCollection {
   // non-debugger scripts have an index in the interval [GetDebuggerCount(),
   // GetNativesCount()).
   static int GetIndex(const char* name);
-  static Vector<const char> GetScriptSource(int index);
+  static int GetRawScriptsSize();
+  static Vector<const char> GetRawScriptSource(int index);
   static Vector<const char> GetScriptName(int index);
+  static Vector<const byte> GetScriptsSource();
+  static void SetRawScriptsSource(Vector<const char> raw_source);
 };
 
 typedef NativesCollection<CORE> Natives;

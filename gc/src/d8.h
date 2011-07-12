@@ -32,10 +32,6 @@
 #include "v8.h"
 #include "hashmap.h"
 
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-#error Using compressed startup data is not supported for D8
-#endif
-
 namespace v8 {
 
 
@@ -108,10 +104,92 @@ class CounterMap {
     i::HashMap* map_;
     i::HashMap::Entry* entry_;
   };
+
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
   i::HashMap hash_map_;
+};
+
+
+class SourceGroup {
+ public:
+  SourceGroup()
+      : next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        thread_(NULL),
+        argv_(NULL),
+        begin_offset_(0),
+        end_offset_(0) { }
+
+  void Begin(char** argv, int offset) {
+    argv_ = const_cast<const char**>(argv);
+    begin_offset_ = offset;
+  }
+
+  void End(int offset) { end_offset_ = offset; }
+
+  void Execute();
+
+  void StartExecuteInThread();
+  void WaitForThread();
+
+ private:
+  class IsolateThread : public i::Thread {
+   public:
+    explicit IsolateThread(SourceGroup* group)
+        : i::Thread(GetThreadOptions()), group_(group) {}
+
+    virtual void Run() {
+      group_->ExecuteInThread();
+    }
+
+   private:
+    SourceGroup* group_;
+  };
+
+  static i::Thread::Options GetThreadOptions();
+  void ExecuteInThread();
+
+  i::Semaphore* next_semaphore_;
+  i::Semaphore* done_semaphore_;
+  i::Thread* thread_;
+
+  void ExitShell(int exit_code);
+  Handle<String> ReadFile(const char* name);
+
+  const char** argv_;
+  int begin_offset_;
+  int end_offset_;
+};
+
+
+class ShellOptions {
+ public:
+  ShellOptions()
+     : script_executed(false),
+       last_run(true),
+       stress_opt(false),
+       stress_deopt(false),
+       interactive_shell(false),
+       test_shell(false),
+       use_preemption(true),
+       preemption_interval(10),
+       num_isolates(1),
+       isolate_sources(NULL),
+       parallel_files(NULL) { }
+
+  bool script_executed;
+  bool last_run;
+  bool stress_opt;
+  bool stress_deopt;
+  bool interactive_shell;
+  bool test_shell;
+  bool use_preemption;
+  int preemption_interval;
+  int num_isolates;
+  SourceGroup* isolate_sources;
+  i::List< i::Vector<const char> >* parallel_files;
 };
 
 
@@ -123,7 +201,6 @@ class Shell: public i::AllStatic {
                             bool report_exceptions);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(TryCatch* try_catch);
-  static void Initialize();
   static void OnExit();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
@@ -133,8 +210,15 @@ class Shell: public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
   static Handle<String> ReadFile(const char* name);
+  static void Initialize();
+  static Persistent<Context> CreateEvaluationContext();
+  static void InstallUtilityScript();
   static void RunShell();
+  static bool SetOptions(int argc, char* argv[]);
+  static int RunScript(char* filename);
+  static int RunMain(int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
+  static Handle<ObjectTemplate> CreateGlobalTemplate();
   static Handle<Array> GetCompletions(Handle<String> text,
                                       Handle<String> full);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -154,6 +238,15 @@ class Shell: public i::AllStatic {
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadLine(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
+  static Handle<Value> Int8Array(const Arguments& args);
+  static Handle<Value> Uint8Array(const Arguments& args);
+  static Handle<Value> Int16Array(const Arguments& args);
+  static Handle<Value> Uint16Array(const Arguments& args);
+  static Handle<Value> Int32Array(const Arguments& args);
+  static Handle<Value> Uint32Array(const Arguments& args);
+  static Handle<Value> Float32Array(const Arguments& args);
+  static Handle<Value> Float64Array(const Arguments& args);
+  static Handle<Value> PixelArray(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -191,10 +284,11 @@ class Shell: public i::AllStatic {
 
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
-  static Handle<Context> utility_context() { return utility_context_; }
-
   static const char* kHistoryFileName;
   static const char* kPrompt;
+
+  static ShellOptions options;
+
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;
@@ -204,7 +298,12 @@ class Shell: public i::AllStatic {
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
+  static i::Mutex* context_mutex_;
   static Counter* GetCounter(const char* name, bool is_histogram);
+  static Handle<Value> CreateExternalArray(const Arguments& args,
+                                           ExternalArrayType type,
+                                           size_t element_size);
+  static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
 
 

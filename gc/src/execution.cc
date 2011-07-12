@@ -210,23 +210,6 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a function.
 
-  // Regular expressions can be called as functions in both Firefox
-  // and Safari so we allow it too.
-  if (object->IsJSRegExp()) {
-    Handle<String> exec = factory->exec_symbol();
-    // TODO(lrn): Bug 617.  We should use the default function here, not the
-    // one on the RegExp object.
-    Object* exec_function;
-    { MaybeObject* maybe_exec_function = object->GetProperty(*exec);
-      // This can lose an exception, but the alternative is to put a failure
-      // object in a handle, which is not GC safe.
-      if (!maybe_exec_function->ToObject(&exec_function)) {
-        return factory->undefined_value();
-      }
-    }
-    return Handle<Object>(exec_function);
-  }
-
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
   if (object->IsHeapObject() &&
@@ -485,8 +468,9 @@ char* StackGuard::RestoreStackGuard(char* from) {
 
 
 void StackGuard::FreeThreadResources() {
-  Isolate::CurrentPerIsolateThreadData()->set_stack_limit(
-      thread_local_.real_climit_);
+  Isolate::PerIsolateThreadData* per_thread =
+      isolate_->FindOrAllocatePerThreadDataForThisThread();
+  per_thread->set_stack_limit(thread_local_.real_climit_);
 }
 
 
@@ -535,7 +519,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   uintptr_t stored_limit = per_thread->stack_limit();
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != 0) {
-    StackGuard::SetStackLimit(stored_limit);
+    SetStackLimit(stored_limit);
   }
 }
 

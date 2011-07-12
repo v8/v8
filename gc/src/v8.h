@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,13 +35,10 @@
 #if defined(GOOGLE3)
 // Google3 special flag handling.
 #if defined(DEBUG) && defined(NDEBUG)
-// If both are defined in Google3, then we are building an optimized v8 with
-// assertions enabled.
+// V8 only uses DEBUG and whenever it is set we are building a debug
+// version of V8. We do not use NDEBUG and simply undef it here for
+// consistency.
 #undef NDEBUG
-#elif !defined(DEBUG) && !defined(NDEBUG)
-// If neither is defined in Google3, then we are building a debug v8. Mark it
-// as such.
-#define DEBUG
 #endif
 #endif  // defined(GOOGLE3)
 

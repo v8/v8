@@ -165,7 +165,6 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
  */
 template <class T> class Handle {
  public:
-
   /**
    * Creates an empty handle.
    */
@@ -312,7 +311,6 @@ template <class T> class Local : public Handle<T> {
  */
 template <class T> class Persistent : public Handle<T> {
  public:
-
   /**
    * Creates an empty persistent handle that doesn't point to any
    * storage cell.
@@ -586,7 +584,6 @@ class ScriptOrigin {
  */
 class V8EXPORT Script {
  public:
-
   /**
    * Compiles the specified script (context-independent).
    *
@@ -858,7 +855,6 @@ class V8EXPORT StackFrame {
  */
 class Value : public Data {
  public:
-
   /**
    * Returns true if this value is the undefined value.  See ECMA-262
    * 4.3.10.
@@ -990,7 +986,6 @@ class Boolean : public Primitive {
  */
 class String : public Primitive {
  public:
-
   /**
    * Returns the number of characters in this string.
    */
@@ -1470,6 +1465,13 @@ class Object : public Value {
   V8EXPORT Local<Array> GetPropertyNames();
 
   /**
+   * This function has the same functionality as GetPropertyNames but
+   * the returned array doesn't contain the names of properties from
+   * prototype objects.
+   */
+  V8EXPORT Local<Array> GetOwnPropertyNames();
+
+  /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
@@ -1640,6 +1642,7 @@ class Object : public Value {
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
+
  private:
   V8EXPORT Object();
   V8EXPORT static void CheckCast(Value* obj);
@@ -2141,6 +2144,13 @@ class V8EXPORT FunctionTemplate : public Template {
   void SetHiddenPrototype(bool value);
 
   /**
+   * Sets the property attributes of the 'prototype' property of functions
+   * created from this FunctionTemplate. Can be any combination of ReadOnly,
+   * DontEnum and DontDelete.
+   */
+  void SetPrototypeAttributes(int attributes);
+
+  /**
    * Returns true if the given object is an instance of this function
    * template.
    */
@@ -2548,23 +2558,6 @@ typedef void (*GCCallback)();
 
 
 /**
- * Profiler modules.
- *
- * In V8, profiler consists of several modules: CPU profiler, and different
- * kinds of heap profiling. Each can be turned on / off independently.
- * When PROFILER_MODULE_HEAP_SNAPSHOT flag is passed to ResumeProfilerEx,
- * modules are enabled only temporarily for making a snapshot of the heap.
- */
-enum ProfilerModules {
-  PROFILER_MODULE_NONE            = 0,
-  PROFILER_MODULE_CPU             = 1,
-  PROFILER_MODULE_HEAP_STATS      = 1 << 1,
-  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2,
-  PROFILER_MODULE_HEAP_SNAPSHOT   = 1 << 16
-};
-
-
-/**
  * Collection of V8 heap information.
  *
  * Instances of this class can be passed to v8::V8::HeapStatistics to
@@ -2682,7 +2675,6 @@ class V8EXPORT Isolate {
   void* GetData();
 
  private:
-
   Isolate();
   Isolate(const Isolate&);
   ~Isolate();
@@ -2702,6 +2694,31 @@ class StartupData {
   const char* data;
   int compressed_size;
   int raw_size;
+};
+
+
+/**
+ * A helper class for driving V8 startup data decompression.  It is based on
+ * "CompressedStartupData" API functions from the V8 class.  It isn't mandatory
+ * for an embedder to use this class, instead, API functions can be used
+ * directly.
+ *
+ * For an example of the class usage, see the "shell.cc" sample application.
+ */
+class V8EXPORT StartupDataDecompressor {  // NOLINT
+ public:
+  StartupDataDecompressor();
+  virtual ~StartupDataDecompressor();
+  int Decompress();
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) = 0;
+
+ private:
+  char** raw_data;
 };
 
 /**
@@ -2753,6 +2770,10 @@ class V8EXPORT V8 {
    *   v8::V8::SetDecompressedStartupData(compressed_data);
    *   ... now V8 can be initialized
    *   ... make sure the decompressed data stays valid until V8 shutdown
+   *
+   * A helper class StartupDataDecompressor is provided. It implements
+   * the protocol of the interaction described above, and can be used in
+   * most cases instead of calling these API functions directly.
    */
   static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
   static int GetCompressedStartupDataCount();
@@ -2963,40 +2984,6 @@ class V8EXPORT V8 {
   static bool IsProfilerPaused();
 
   /**
-   * Resumes specified profiler modules. Can be called several times to
-   * mark the opening of a profiler events block with the given tag.
-   *
-   * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
-   * See ProfilerModules enum.
-   *
-   * \param flags Flags specifying profiler modules.
-   * \param tag Profile tag.
-   */
-  static void ResumeProfilerEx(int flags, int tag = 0);
-
-  /**
-   * Pauses specified profiler modules. Each call to "PauseProfilerEx" closes
-   * a block of profiler events opened by a call to "ResumeProfilerEx" with the
-   * same tag value. There is no need for blocks to be properly nested.
-   * The profiler is paused when the last opened block is closed.
-   *
-   * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
-   * See ProfilerModules enum.
-   *
-   * \param flags Flags specifying profiler modules.
-   * \param tag Profile tag.
-   */
-  static void PauseProfilerEx(int flags, int tag = 0);
-
-  /**
-   * Returns active (resumed) profiler modules.
-   * See ProfilerModules enum.
-   *
-   * \returns active profiler modules.
-   */
-  static int GetActiveProfilerModules();
-
-  /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to
    * retrieve previously written messages. This can be used for retrieving
    * profiler log data in the application. This function is thread-safe.
@@ -3074,8 +3061,10 @@ class V8EXPORT V8 {
    * because of a call to TerminateExecution.  In that case there are
    * still JavaScript frames on the stack and the termination
    * exception is still active.
+   *
+   * \param isolate The isolate in which to check.
    */
-  static bool IsExecutionTerminating();
+  static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
    * Releases any resources used by v8 and stops any utility threads
@@ -3144,7 +3133,6 @@ class V8EXPORT V8 {
  */
 class V8EXPORT TryCatch {
  public:
-
   /**
    * Creates a new try/catch block and registers it with v8.
    */
@@ -3236,6 +3224,7 @@ class V8EXPORT TryCatch {
   void SetCaptureMessage(bool value);
 
  private:
+  v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;
   void* message_;
@@ -3690,7 +3679,6 @@ template <> struct InternalConstants<8> {
  */
 class Internals {
  public:
-
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
@@ -3703,7 +3691,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa3;
+  static const int kJSObjectType = 0xa4;
   static const int kFirstNonstringType = 0x80;
   static const int kForeignType = 0x85;
 

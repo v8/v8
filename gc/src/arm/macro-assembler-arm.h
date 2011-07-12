@@ -98,19 +98,19 @@ class MacroAssembler: public Assembler {
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
-  void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Handle<Code> code,
+               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+               unsigned ast_id = kNoASTId,
+               Condition cond = al);
   void Call(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            Condition cond = al);
-  void CallWithAstId(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            unsigned ast_id,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+            unsigned ast_id = kNoASTId,
             Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -151,11 +151,9 @@ class MacroAssembler: public Assembler {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
-  void Move(Register dst, Register src);
+  void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  // Jumps to the label at the index given by the Smi in "index".
-  void SmiJumpTable(Register index, Vector<Label*> targets);
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index,
@@ -285,6 +283,9 @@ class MacroAssembler: public Assembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
+  // Push a handle.
+  void Push(Handle<Object> handle);
+
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
     ASSERT(!src1.is(src2));
@@ -404,6 +405,10 @@ class MacroAssembler: public Assembler {
                               const Register fpscr_flags,
                               const Condition cond = al);
 
+  void Vmov(const DwVfpRegister dst,
+            const double imm,
+            const Condition cond = al);
+
 
   // ---------------------------------------------------------------------------
   // Activation frames
@@ -449,27 +454,28 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper(),
-                  CallKind call_kind = CALL_AS_METHOD);
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  CallKind call_kind = CALL_AS_METHOD);
+                  CallKind call_kind);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallKind call_kind);
 
   void IsObjectJSObjectType(Register heap_object,
                             Register map,
@@ -519,6 +525,16 @@ class MacroAssembler: public Assembler {
   void CheckAccessGlobalProxy(Register holder_reg,
                               Register scratch,
                               Label* miss);
+
+
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register result,
+                                Register t0,
+                                Register t1,
+                                Register t2);
+
 
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
@@ -668,6 +684,12 @@ class MacroAssembler: public Assembler {
                            Register type_reg,
                            InstanceType type);
 
+
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Register scratch,
+                         Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
@@ -1117,10 +1139,6 @@ class MacroAssembler: public Assembler {
                            int num_double_arguments);
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(intptr_t target,
-            RelocInfo::Mode rmode,
-            Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
@@ -1129,8 +1147,8 @@ class MacroAssembler: public Assembler {
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

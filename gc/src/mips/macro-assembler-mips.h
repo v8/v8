@@ -99,44 +99,11 @@ class MacroAssembler: public Assembler {
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
-// Arguments macros.
+  // Arguments macros.
 #define COND_TYPED_ARGS Condition cond, Register r1, const Operand& r2
 #define COND_ARGS cond, r1, r2
 
-// Prototypes.
-
-// Prototypes for functions with no target (eg Ret()).
-#define DECLARE_NOTARGET_PROTOTYPE(Name) \
-  void Name(BranchDelaySlot bd = PROTECT); \
-  void Name(COND_TYPED_ARGS, BranchDelaySlot bd = PROTECT); \
-  inline void Name(BranchDelaySlot bd, COND_TYPED_ARGS) { \
-    Name(COND_ARGS, bd); \
-  }
-
-// Prototypes for functions with a target.
-
-// Cases when relocation may be needed.
-#define DECLARE_RELOC_PROTOTYPE(Name, target_type) \
-  void Name(target_type target, \
-            RelocInfo::Mode rmode, \
-            BranchDelaySlot bd = PROTECT); \
-  inline void Name(BranchDelaySlot bd, \
-                   target_type target, \
-                   RelocInfo::Mode rmode) { \
-    Name(target, rmode, bd); \
-  } \
-  void Name(target_type target, \
-            RelocInfo::Mode rmode, \
-            COND_TYPED_ARGS, \
-            BranchDelaySlot bd = PROTECT); \
-  inline void Name(BranchDelaySlot bd, \
-                   target_type target, \
-                   RelocInfo::Mode rmode, \
-                   COND_TYPED_ARGS) { \
-    Name(target, rmode, COND_ARGS, bd); \
-  }
-
-// Cases when relocation is not needed.
+  // Cases when relocation is not needed.
 #define DECLARE_NORELOC_PROTOTYPE(Name, target_type) \
   void Name(target_type target, BranchDelaySlot bd = PROTECT); \
   inline void Name(BranchDelaySlot bd, target_type target) { \
@@ -151,44 +118,44 @@ class MacroAssembler: public Assembler {
     Name(target, COND_ARGS, bd); \
   }
 
-// Target prototypes.
-
-#define DECLARE_JUMP_CALL_PROTOTYPES(Name) \
-  DECLARE_NORELOC_PROTOTYPE(Name, Register) \
-  DECLARE_NORELOC_PROTOTYPE(Name, const Operand&) \
-  DECLARE_RELOC_PROTOTYPE(Name, byte*) \
-  DECLARE_RELOC_PROTOTYPE(Name, Handle<Code>)
-
 #define DECLARE_BRANCH_PROTOTYPES(Name) \
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
   DECLARE_NORELOC_PROTOTYPE(Name, int16_t)
 
+  DECLARE_BRANCH_PROTOTYPES(Branch)
+  DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
 
-DECLARE_JUMP_CALL_PROTOTYPES(Jump)
-DECLARE_JUMP_CALL_PROTOTYPES(Call)
-
-DECLARE_BRANCH_PROTOTYPES(Branch)
-DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
-
-DECLARE_NOTARGET_PROTOTYPE(Ret)
-
+#undef DECLARE_BRANCH_PROTOTYPES
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
-#undef DECLARE_NOTARGET_PROTOTYPE
-#undef DECLARE_NORELOC_PROTOTYPE
-#undef DECLARE_RELOC_PROTOTYPE
-#undef DECLARE_JUMP_CALL_PROTOTYPES
-#undef DECLARE_BRANCH_PROTOTYPES
 
-  void CallWithAstId(Handle<Code> code,
-                     RelocInfo::Mode rmode,
-                     unsigned ast_id,
-                     Condition cond = al,
-                     Register r1 = zero_reg,
-                     const Operand& r2 = Operand(zero_reg));
 
-  int CallSize(Register reg);
-  int CallSize(Handle<Code> code, RelocInfo::Mode rmode);
+  // Jump, Call, and Ret pseudo instructions implementing inter-working.
+#define COND_ARGS Condition cond = al, Register rs = zero_reg, \
+  const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
+
+  void Jump(Register target, COND_ARGS);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
+  int CallSize(Register target, COND_ARGS);
+  void Call(Register target, COND_ARGS);
+  int CallSize(Address target, RelocInfo::Mode rmode, COND_ARGS);
+  void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
+  int CallSize(Handle<Code> code,
+               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+               unsigned ast_id = kNoASTId,
+               COND_ARGS);
+  void Call(Handle<Code> code,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+            unsigned ast_id = kNoASTId,
+            COND_ARGS);
+  void Ret(COND_ARGS);
+  inline void Ret(BranchDelaySlot bd) {
+    Ret(al, zero_reg, Operand(zero_reg), bd);
+  }
+
+#undef COND_ARGS
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -298,6 +265,16 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void CheckAccessGlobalProxy(Register holder_reg,
                               Register scratch,
                               Label* miss);
+
+
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register result,
+                                Register reg0,
+                                Register reg1,
+                                Register reg2);
+
 
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
@@ -459,9 +436,6 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     li(dst, Operand(value), gen2instr);
   }
 
-  // Exception-generating instructions and debugging support.
-  void stop(const char* msg);
-
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.
@@ -473,6 +447,9 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     Addu(sp, sp, Operand(-kPointerSize));
     sw(src, MemOperand(sp, 0));
   }
+
+  // Push a handle.
+  void Push(Handle<Object> handle);
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -576,6 +553,16 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                                    Register input_low,
                                    Register scratch);
 
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer and all other registers clobbered.
+  void EmitECMATruncate(Register result,
+                        FPURegister double_input,
+                        FPURegister single_scratch,
+                        Register scratch,
+                        Register scratch2,
+                        Register scratch3);
+
   // -------------------------------------------------------------------------
   // Activation frames.
 
@@ -624,27 +611,28 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper(),
-                  CallKind call_kind = CALL_AS_METHOD);
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  CallKind call_kind = CALL_AS_METHOD);
+                  CallKind call_kind);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallKind call_kind);
 
 
   void IsObjectJSObjectType(Register heap_object,
@@ -714,6 +702,12 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
+
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Register scratch,
+                         Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
@@ -1088,16 +1082,25 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                            Register scratch,
                            int num_arguments);
 
-  void Jump(intptr_t target, RelocInfo::Mode rmode,
-            BranchDelaySlot bd = PROTECT);
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
-            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg),
-            BranchDelaySlot bd = PROTECT);
-  void Call(intptr_t target, RelocInfo::Mode rmode,
-            BranchDelaySlot bd = PROTECT);
-  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = cc_always,
-            Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg),
-            BranchDelaySlot bd = PROTECT);
+  void BranchShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(int16_t offset, Condition cond, Register rs,
+                   const Operand& rt,
+                   BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  void BranchShort(Label* L, Condition cond, Register rs,
+                   const Operand& rt,
+                   BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(int16_t offset, Condition cond, Register rs,
+                          const Operand& rt,
+                          BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(Label* L, Condition cond, Register rs,
+                          const Operand& rt,
+                          BranchDelaySlot bdslot = PROTECT);
+  void J(Label* L, BranchDelaySlot bdslot);
+  void Jr(Label* L, BranchDelaySlot bdslot);
+  void Jalr(Label* L, BranchDelaySlot bdslot);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
@@ -1106,8 +1109,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.
@@ -1127,6 +1130,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
+  bool UseAbsoluteCodePointers();
 
   bool generating_stub_;
   bool allow_stub_calls_;

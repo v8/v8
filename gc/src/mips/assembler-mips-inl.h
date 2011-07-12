@@ -83,8 +83,12 @@ bool Operand::is_reg() const {
 // RelocInfo.
 
 void RelocInfo::apply(intptr_t delta) {
-  // On MIPS we do not use pc relative addressing, so we don't need to patch the
-  // code here.
+  if (IsInternalReference(rmode_)) {
+    // Absolute code pointer inside code object moves with the code object.
+    byte* p = reinterpret_cast<byte*>(pc_);
+    int count = Assembler::RelocateInternalReference(p, delta);
+    CPU::FlushICache(p, count * sizeof(uint32_t));
+  }
 }
 
 
@@ -300,7 +304,9 @@ void Assembler::CheckTrampolinePoolQuick() {
 
 
 void Assembler::emit(Instr x) {
-  CheckBuffer();
+  if (!is_buffer_growth_blocked()) {
+    CheckBuffer();
+  }
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
   CheckTrampolinePoolQuick();

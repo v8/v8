@@ -510,31 +510,31 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address().address(),
       UNCLASSIFIED,
-      37,
+      38,
       "isolate");
   Add(ExternalReference::address_of_minus_zero().address(),
       UNCLASSIFIED,
-      38,
+      39,
       "LDoubleConstant::minus_zero");
   Add(ExternalReference::address_of_negative_infinity().address(),
       UNCLASSIFIED,
-      39,
+      40,
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
       UNCLASSIFIED,
-      40,
+      41,
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function(isolate).address(),
       UNCLASSIFIED,
-      41,
+      42,
       "power_double_int_function");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       UNCLASSIFIED,
-      42,
+      43,
       "store_buffer_top");
   Add(ExternalReference::arguments_marker_location(isolate).address(),
       UNCLASSIFIED,
-      43,
+      44,
       "Factory::arguments_marker().location()");
 }
 
@@ -1047,10 +1047,11 @@ void Deserializer::ReadChunk(Object** current,
 
       case kNativesStringResource: {
         int index = source_->Get();
-        Vector<const char> source_vector = Natives::GetScriptSource(index);
+        Vector<const char> source_vector = Natives::GetRawScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(
-                isolate->bootstrapper(), source_vector.start());
+            new NativesExternalStringResource(isolate->bootstrapper(),
+                                              source_vector.start(),
+                                              source_vector.length());
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }

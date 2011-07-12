@@ -119,9 +119,9 @@ Scope::Scope(Type type)
     temps_(0),
     params_(0),
     unresolved_(0),
-    decls_(0) {
+    decls_(0),
+    already_resolved_(false) {
   SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
-  ASSERT(!resolved());
 }
 
 
@@ -131,14 +131,14 @@ Scope::Scope(Scope* outer_scope, Type type)
     temps_(4),
     params_(4),
     unresolved_(16),
-    decls_(4) {
+    decls_(4),
+    already_resolved_(false) {
   SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
   // In that case, the ASSERT below needs to be adjusted.
   ASSERT((type == GLOBAL_SCOPE || type == EVAL_SCOPE) == (outer_scope == NULL));
   ASSERT(!HasIllegalRedeclaration());
-  ASSERT(!resolved());
 }
 
 
@@ -148,36 +148,34 @@ Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
     temps_(4),
     params_(4),
     unresolved_(16),
-    decls_(4) {
+    decls_(4),
+    already_resolved_(true) {
   ASSERT(!scope_info.is_null());
   SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
-  ASSERT(resolved());
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
-
   AddInnerScope(inner_scope);
+}
 
-  // This scope's arguments shadow (if present) is context-allocated if an inner
-  // scope accesses this one's parameters.  Allocate the arguments_shadow_
-  // variable if necessary.
-  Isolate* isolate = Isolate::Current();
-  Variable::Mode mode;
-  int arguments_shadow_index =
-      scope_info_->ContextSlotIndex(
-          isolate->heap()->arguments_shadow_symbol(), &mode);
-  if (arguments_shadow_index >= 0) {
-    ASSERT(mode == Variable::INTERNAL);
-    arguments_shadow_ = new Variable(
-        this,
-        isolate->factory()->arguments_shadow_symbol(),
-        Variable::INTERNAL,
-        true,
-        Variable::ARGUMENTS);
-    arguments_shadow_->set_rewrite(
-        new Slot(arguments_shadow_, Slot::CONTEXT, arguments_shadow_index));
-    arguments_shadow_->set_is_used(true);
-  }
+
+Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
+    : inner_scopes_(1),
+      variables_(),
+      temps_(0),
+      params_(0),
+      unresolved_(0),
+      decls_(0),
+      already_resolved_(true) {
+  SetDefaults(CATCH_SCOPE, NULL, Handle<SerializedScopeInfo>::null());
+  AddInnerScope(inner_scope);
+  ++num_var_or_const_;
+  Variable* variable = variables_.Declare(this,
+                                          catch_variable_name,
+                                          Variable::VAR,
+                                          true,  // Valid left-hand side.
+                                          Variable::NORMAL);
+  AllocateHeapSlot(variable);
 }
 
 
@@ -191,7 +189,6 @@ void Scope::SetDefaults(Type type,
   receiver_ = NULL;
   function_ = NULL;
   arguments_ = NULL;
-  arguments_shadow_ = NULL;
   illegal_redecl_ = NULL;
   scope_inside_with_ = false;
   scope_contains_with_ = false;
@@ -212,30 +209,43 @@ void Scope::SetDefaults(Type type,
 
 Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
                                     Scope* global_scope) {
+  // Reconstruct the outer scope chain from a closure's context chain.
   ASSERT(!info->closure().is_null());
-  // If we have a serialized scope info, reuse it.
+  Context* context = info->closure()->context();
+  Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
-  Scope* scope = NULL;
-
-  SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
-  if (scope_info != SerializedScopeInfo::Empty()) {
-    JSFunction* current = *info->closure();
-    do {
-      current = current->context()->closure();
-      Handle<SerializedScopeInfo> scope_info(current->shared()->scope_info());
-      if (*scope_info != SerializedScopeInfo::Empty()) {
-        scope = new Scope(scope, scope_info);
-        if (innermost_scope == NULL) innermost_scope = scope;
-      } else {
-        ASSERT(current->context()->IsGlobalContext());
+  bool contains_with = false;
+  while (!context->IsGlobalContext()) {
+    if (context->IsWithContext()) {
+      // All the inner scopes are inside a with.
+      contains_with = true;
+      for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
+        s->scope_inside_with_ = true;
       }
-    } while (!current->context()->IsGlobalContext());
+    } else {
+      if (context->IsFunctionContext()) {
+        SerializedScopeInfo* scope_info =
+            context->closure()->shared()->scope_info();
+        current_scope =
+            new Scope(current_scope, Handle<SerializedScopeInfo>(scope_info));
+      } else {
+        ASSERT(context->IsCatchContext());
+        String* name = String::cast(context->extension());
+        current_scope = new Scope(current_scope, Handle<String>(name));
+      }
+      if (contains_with) current_scope->RecordWithStatement();
+      if (innermost_scope == NULL) innermost_scope = current_scope;
+    }
+
+    // Forget about a with when we move to a context for a different function.
+    if (context->previous()->closure() != context->closure()) {
+      contains_with = false;
+    }
+    context = context->previous();
   }
 
-  global_scope->AddInnerScope(scope);
-  if (innermost_scope == NULL) innermost_scope = global_scope;
-
-  return innermost_scope;
+  global_scope->AddInnerScope(current_scope);
+  return (innermost_scope == NULL) ? global_scope : innermost_scope;
 }
 
 
@@ -260,7 +270,7 @@ bool Scope::Analyze(CompilationInfo* info) {
 
 
 void Scope::Initialize(bool inside_with) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
   if (outer_scope_ != NULL) {
@@ -278,11 +288,16 @@ void Scope::Initialize(bool inside_with) {
   // instead load them directly from the stack. Currently, the only
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
-  Variable* var =
-      variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
-                         false, Variable::THIS);
-  var->set_rewrite(new Slot(var, Slot::PARAMETER, -1));
-  receiver_ = var;
+  if (is_catch_scope()) {
+    ASSERT(outer_scope() != NULL);
+    receiver_ = outer_scope()->receiver();
+  } else {
+    Variable* var =
+        variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
+                           false, Variable::THIS);
+    var->set_rewrite(new Slot(var, Slot::PARAMETER, -1));
+    receiver_ = var;
+  }
 
   if (is_function_scope()) {
     // Declare 'arguments' variable which exists in all functions.
@@ -296,55 +311,35 @@ void Scope::Initialize(bool inside_with) {
 
 Variable* Scope::LocalLookup(Handle<String> name) {
   Variable* result = variables_.Lookup(name);
-  if (result != NULL || !resolved()) {
+  if (result != NULL || scope_info_.is_null()) {
     return result;
   }
-  // If the scope is resolved, we can find a variable in serialized scope info.
-
-  // We should never lookup 'arguments' in this scope
-  // as it is implicitly present in any scope.
+  // If we have a serialized scope info, we might find the variable there.
+  //
+  // We should never lookup 'arguments' in this scope as it is implicitly
+  // present in every scope.
   ASSERT(*name != *FACTORY->arguments_symbol());
-
-  // Assert that there is no local slot with the given name.
+  // There should be no local slot with the given name.
   ASSERT(scope_info_->StackSlotIndex(*name) < 0);
 
   // Check context slot lookup.
   Variable::Mode mode;
   int index = scope_info_->ContextSlotIndex(*name, &mode);
-  if (index >= 0) {
-    Variable* var =
-        variables_.Declare(this, name, mode, true, Variable::NORMAL);
-    var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
-    return var;
+  if (index < 0) {
+    // Check parameters.
+    mode = Variable::VAR;
+    index = scope_info_->ParameterIndex(*name);
+    if (index < 0) {
+      // Check the function name.
+      index = scope_info_->FunctionContextSlotIndex(*name);
+      if (index < 0) return NULL;
+    }
   }
 
-  index = scope_info_->ParameterIndex(*name);
-  if (index >= 0) {
-    // ".arguments" must be present in context slots.
-    ASSERT(arguments_shadow_ != NULL);
-    Variable* var =
-        variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
-    Property* rewrite =
-        new Property(new VariableProxy(arguments_shadow_),
-                     new Literal(Handle<Object>(Smi::FromInt(index))),
-                     RelocInfo::kNoPosition,
-                     Property::SYNTHETIC);
-    rewrite->set_is_arguments_access(true);
-    var->set_rewrite(rewrite);
-    return var;
-  }
-
-  index = scope_info_->FunctionContextSlotIndex(*name);
-  if (index >= 0) {
-    // Check that there is no local slot with the given name.
-    ASSERT(scope_info_->StackSlotIndex(*name) < 0);
-    Variable* var =
-        variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
-    var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
-    return var;
-  }
-
-  return NULL;
+  Variable* var =
+      variables_.Declare(this, name, mode, true, Variable::NORMAL);
+  var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
+  return var;
 }
 
 
@@ -366,17 +361,22 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name) {
 }
 
 
-Variable* Scope::DeclareLocal(Handle<String> name,
-                              Variable::Mode mode,
-                              LocalType type) {
-  // DYNAMIC variables are introduces during variable allocation,
-  // INTERNAL variables are allocated explicitly, and TEMPORARY
-  // variables are allocated via NewTemporary().
-  ASSERT(!resolved());
+void Scope::DeclareParameter(Handle<String> name) {
+  ASSERT(!already_resolved());
+  ASSERT(is_function_scope());
+  Variable* var =
+      variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+  params_.Add(var);
+}
+
+
+Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
+  ASSERT(!already_resolved());
+  // This function handles VAR and CONST modes.  DYNAMIC variables are
+  // introduces during variable allocation, INTERNAL variables are allocated
+  // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   ASSERT(mode == Variable::VAR || mode == Variable::CONST);
-  if (type == VAR_OR_CONST) {
-    num_var_or_const_++;
-  }
+  ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }
 
@@ -388,20 +388,13 @@ Variable* Scope::DeclareGlobal(Handle<String> name) {
 }
 
 
-void Scope::AddParameter(Variable* var) {
-  ASSERT(is_function_scope());
-  ASSERT(LocalLookup(var->name()) == var);
-  params_.Add(var);
-}
-
-
 VariableProxy* Scope::NewUnresolved(Handle<String> name,
                                     bool inside_with,
                                     int position) {
   // Note that we must not share the unresolved variables with
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   VariableProxy* proxy = new VariableProxy(name, false, inside_with, position);
   unresolved_.Add(proxy);
   return proxy;
@@ -421,7 +414,7 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 
 
 Variable* Scope::NewTemporary(Handle<String> name) {
-  ASSERT(!resolved());
+  ASSERT(!already_resolved());
   Variable* var =
       new Variable(this, name, Variable::TEMPORARY, true, Variable::NORMAL);
   temps_.Add(var);
@@ -551,12 +544,22 @@ int Scope::ContextChainLength(Scope* scope) {
 }
 
 
+Scope* Scope::DeclarationScope() {
+  Scope* scope = this;
+  while (scope->is_catch_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope;
+}
+
+
 #ifdef DEBUG
 static const char* Header(Scope::Type type) {
   switch (type) {
     case Scope::EVAL_SCOPE: return "eval";
     case Scope::FUNCTION_SCOPE: return "function";
     case Scope::GLOBAL_SCOPE: return "global";
+    case Scope::CATCH_SCOPE: return "catch";
   }
   UNREACHABLE();
   return NULL;
@@ -907,8 +910,10 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
       (var->is_accessed_from_inner_scope() ||
-       scope_calls_eval_ || inner_scope_calls_eval_ ||
-       scope_contains_with_)) {
+       scope_calls_eval_ ||
+       inner_scope_calls_eval_ ||
+       scope_contains_with_ ||
+       is_catch_scope())) {
     var->set_is_used(true);
   }
   // Global variables do not need to be allocated.
@@ -917,16 +922,20 @@ bool Scope::MustAllocate(Variable* var) {
 
 
 bool Scope::MustAllocateInContext(Variable* var) {
-  // If var is accessed from an inner scope, or if there is a
-  // possibility that it might be accessed from the current or an inner
-  // scope (through an eval() call), it must be allocated in the
-  // context.  Exception: temporary variables are not allocated in the
+  // If var is accessed from an inner scope, or if there is a possibility
+  // that it might be accessed from the current or an inner scope (through
+  // an eval() call or a runtime with lookup), it must be allocated in the
   // context.
-  return
-    var->mode() != Variable::TEMPORARY &&
-    (var->is_accessed_from_inner_scope() ||
-     scope_calls_eval_ || inner_scope_calls_eval_ ||
-     scope_contains_with_ || var->is_global());
+  //
+  // Exceptions: temporary variables are never allocated in a context;
+  // catch-bound variables are always allocated in a context.
+  if (var->mode() == Variable::TEMPORARY) return false;
+  if (is_catch_scope()) return true;
+  return var->is_accessed_from_inner_scope() ||
+      scope_calls_eval_ ||
+      inner_scope_calls_eval_ ||
+      scope_contains_with_ ||
+      var->is_global();
 }
 
 
@@ -954,36 +963,17 @@ void Scope::AllocateParameterLocals() {
   Variable* arguments = LocalLookup(FACTORY->arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
 
-  // Parameters are rewritten to arguments[i] if 'arguments' is used in
-  // a non-strict mode function. Strict mode code doesn't alias arguments.
-  bool rewrite_parameters = false;
+  bool uses_nonstrict_arguments = false;
 
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called
-    // 'arguments', we must be conservative and access all parameters via
-    // the arguments object: The i'th parameter is rewritten into
-    // '.arguments[i]' (*). If we have a parameter named 'arguments', a
-    // (new) value is always assigned to it via the function
-    // invocation. Then 'arguments' denotes that specific parameter value
-    // and cannot be used to access the parameters, which is why we don't
-    // need to rewrite in that case.
-    //
-    // (*) Instead of having a parameter called 'arguments', we may have an
-    // assignment to 'arguments' in the function body, at some arbitrary
-    // point in time (possibly through an 'eval()' call!). After that
-    // assignment any re-write of parameters would be invalid (was bug
-    // 881452). Thus, we introduce a shadow '.arguments'
-    // variable which also points to the arguments object. For rewrites we
-    // use '.arguments' which remains valid even if we assign to
-    // 'arguments'. To summarize: If we need to rewrite, we allocate an
-    // 'arguments' object dynamically upon function invocation. The compiler
-    // introduces 2 local variables 'arguments' and '.arguments', both of
-    // which originally point to the arguments object that was
-    // allocated. All parameters are rewritten into property accesses via
-    // the '.arguments' variable. Thus, any changes to properties of
-    // 'arguments' are reflected in the variables and vice versa. If the
-    // 'arguments' variable is changed, '.arguments' still points to the
-    // correct arguments object and the rewrites still work.
+    // 'arguments', we must be conservative and allocate all parameters to
+    // the context assuming they will be captured by the arguments object.
+    // If we have a parameter named 'arguments', a (new) value is always
+    // assigned to it via the function invocation. Then 'arguments' denotes
+    // that specific parameter value and cannot be used to access the
+    // parameters, which is why we don't need to allocate an arguments
+    // object in that case.
 
     // We are using 'arguments'. Tell the code generator that is needs to
     // allocate the arguments object by setting 'arguments_'.
@@ -992,75 +982,31 @@ void Scope::AllocateParameterLocals() {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    rewrite_parameters = !is_strict_mode();
+    uses_nonstrict_arguments = !is_strict_mode();
   }
 
-  if (rewrite_parameters) {
-    // We also need the '.arguments' shadow variable. Declare it and create
-    // and bind the corresponding proxy. It's ok to declare it only now
-    // because it's a local variable that is allocated after the parameters
-    // have been allocated.
-    //
-    // Note: This is "almost" at temporary variable but we cannot use
-    // NewTemporary() because the mode needs to be INTERNAL since this
-    // variable may be allocated in the heap-allocated context (temporaries
-    // are never allocated in the context).
-    arguments_shadow_ = new Variable(this,
-                                     FACTORY->arguments_shadow_symbol(),
-                                     Variable::INTERNAL,
-                                     true,
-                                     Variable::ARGUMENTS);
-    arguments_shadow_->set_is_used(true);
-    temps_.Add(arguments_shadow_);
-
-    // Allocate the parameters by rewriting them into '.arguments[i]' accesses.
-    for (int i = 0; i < params_.length(); i++) {
-      Variable* var = params_[i];
-      ASSERT(var->scope() == this);
-      if (MustAllocate(var)) {
-        if (MustAllocateInContext(var)) {
-          // It is ok to set this only now, because arguments is a local
-          // variable that is allocated after the parameters have been
-          // allocated.
-          arguments_shadow_->MarkAsAccessedFromInnerScope();
-        }
-        Property* rewrite =
-            new Property(new VariableProxy(arguments_shadow_),
-                         new Literal(Handle<Object>(Smi::FromInt(i))),
-                         RelocInfo::kNoPosition,
-                         Property::SYNTHETIC);
-        rewrite->set_is_arguments_access(true);
-        var->set_rewrite(rewrite);
-      }
+  // The same parameter may occur multiple times in the parameters_ list.
+  // If it does, and if it is not copied into the context object, it must
+  // receive the highest parameter index for that parameter; thus iteration
+  // order is relevant!
+  for (int i = params_.length() - 1; i >= 0; --i) {
+    Variable* var = params_[i];
+    ASSERT(var->scope() == this);
+    if (uses_nonstrict_arguments) {
+      // Give the parameter a use from an inner scope, to force allocation
+      // to the context.
+      var->MarkAsAccessedFromInnerScope();
     }
 
-  } else {
-    // The arguments object is not used, so we can access parameters directly.
-    // The same parameter may occur multiple times in the parameters_ list.
-    // If it does, and if it is not copied into the context object, it must
-    // receive the highest parameter index for that parameter; thus iteration
-    // order is relevant!
-    for (int i = 0; i < params_.length(); i++) {
-      Variable* var = params_[i];
-      ASSERT(var->scope() == this);
-      if (MustAllocate(var)) {
-        if (MustAllocateInContext(var)) {
-          ASSERT(var->rewrite() == NULL ||
-                 (var->AsSlot() != NULL &&
-                  var->AsSlot()->type() == Slot::CONTEXT));
-          if (var->rewrite() == NULL) {
-            // Only set the heap allocation if the parameter has not
-            // been allocated yet.
-            AllocateHeapSlot(var);
-          }
-        } else {
-          ASSERT(var->rewrite() == NULL ||
-                 (var->AsSlot() != NULL &&
-                  var->AsSlot()->type() == Slot::PARAMETER));
-          // Set the parameter index always, even if the parameter
-          // was seen before! (We need to access the actual parameter
-          // supplied for the last occurrence of a multiply declared
-          // parameter.)
+    if (MustAllocate(var)) {
+      if (MustAllocateInContext(var)) {
+        ASSERT(var->rewrite() == NULL || var->IsContextSlot());
+        if (var->rewrite() == NULL) {
+          AllocateHeapSlot(var);
+        }
+      } else {
+        ASSERT(var->rewrite() == NULL || var->IsParameter());
+        if (var->rewrite() == NULL) {
           var->set_rewrite(new Slot(var, Slot::PARAMETER, i));
         }
       }
@@ -1072,8 +1018,9 @@ void Scope::AllocateParameterLocals() {
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
   ASSERT(var->rewrite() == NULL ||
-         (!var->IsVariable(FACTORY->result_symbol())) ||
-         (var->AsSlot() == NULL || var->AsSlot()->type() != Slot::LOCAL));
+         !var->IsVariable(FACTORY->result_symbol()) ||
+         var->AsSlot() == NULL ||
+         var->AsSlot()->type() != Slot::LOCAL);
   if (var->rewrite() == NULL && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
@@ -1115,7 +1062,7 @@ void Scope::AllocateVariablesRecursively() {
 
   // If scope is already resolved, we still need to allocate
   // variables in inner scopes which might not had been resolved yet.
-  if (resolved()) return;
+  if (already_resolved()) return;
   // The number of slots required for variables.
   num_stack_slots_ = 0;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;

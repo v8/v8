@@ -53,6 +53,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitByteArray,
     kVisitFreeSpace,
     kVisitFixedArray,
+    kVisitFixedDoubleArray,
     kVisitGlobalContext,
 
     // For data objects, JS objects and structs along with generic visitor which
@@ -105,6 +106,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitPropertyCell,
     kVisitSharedFunctionInfo,
     kVisitJSFunction,
+    kVisitJSRegExp,
 
     kVisitorIdCount,
     kMinObjectSizeInWords = 2
@@ -285,9 +287,18 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }
 
+  static inline int VisitFixedDoubleArray(Map* map, HeapObject* object) {
+    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
+    return FixedDoubleArray::SizeFor(length);
+  }
+
   static inline int VisitSeqAsciiString(Map* map, HeapObject* object) {
     return SeqAsciiString::cast(object)->
         SeqAsciiStringSize(map->instance_type());
+  }
+
+  static inline int VisitJSRegExp(Map* map, HeapObject* object) {
+    return JSObjectVisitor::Visit(map, object);
   }
 
   static inline int VisitSeqTwoByteString(Map* map, HeapObject* object) {

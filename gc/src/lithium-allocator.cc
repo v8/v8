@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -303,6 +303,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // we need to split use positons in a special way.
   bool split_at_start = false;
 
+  if (current->start().Value() == position.Value()) {
+    // When splitting at start we need to locate the previous use interval.
+    current = first_interval_;
+  }
+
   while (current != NULL) {
     if (current->Contains(position)) {
       current->SplitAt(position);
@@ -351,6 +356,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
     first_pos_ = NULL;
   }
   result->first_pos_ = use_after;
+
+  // Discard cached iteration state. It might be pointing
+  // to the use that no longer belongs to this live range.
+  last_processed_use_ = NULL;
+  current_interval_ = NULL;
 
   // Link the new live range in the chain before any of the other
   // ranges linked from the range before the split.
@@ -565,10 +575,10 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
   BitVector* live_out = new BitVector(next_virtual_register_);
 
   // Process all successor blocks.
-  HBasicBlock* successor = block->end()->FirstSuccessor();
-  while (successor != NULL) {
+  for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
+    HBasicBlock* successor = it.Current();
     BitVector* live_in = live_in_sets_[successor->block_id()];
     if (live_in != NULL) live_out->Union(*live_in);
 
@@ -582,11 +592,6 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
         live_out->Add(phi->OperandAt(index)->id());
       }
     }
-
-    // Check if we are done with second successor.
-    if (successor == block->end()->SecondSuccessor()) break;
-
-    successor = block->end()->SecondSuccessor();
   }
 
   return live_out;
@@ -790,8 +795,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
                                         int gap_index) {
   // Handle fixed temporaries.
   if (first != NULL) {
-    for (TempIterator it(first); it.HasNext(); it.Advance()) {
-      LUnallocated* temp = LUnallocated::cast(it.Next());
+    for (TempIterator it(first); !it.Done(); it.Advance()) {
+      LUnallocated* temp = LUnallocated::cast(it.Current());
       if (temp->HasFixedPolicy()) {
         AllocateFixed(temp, gap_index - 1, false);
       }
@@ -832,8 +837,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
 
   // Handle fixed input operands of second instruction.
   if (second != NULL) {
-    for (UseIterator it(second); it.HasNext(); it.Advance()) {
-      LUnallocated* cur_input = LUnallocated::cast(it.Next());
+    for (UseIterator it(second); !it.Done(); it.Advance()) {
+      LUnallocated* cur_input = LUnallocated::cast(it.Current());
       if (cur_input->HasFixedPolicy()) {
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         bool is_tagged = HasTaggedValue(cur_input->VirtualRegister());
@@ -968,8 +973,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        for (UseIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* input = it.Next();
+        for (UseIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* input = it.Current();
 
           LifetimePosition use_pos;
           if (input->IsUnallocated() &&
@@ -983,8 +988,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           if (input->IsUnallocated()) live->Add(input->VirtualRegister());
         }
 
-        for (TempIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* temp = it.Next();
+        for (TempIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* temp = it.Current();
           if (instr->IsMarkedAsCall()) {
             if (temp->IsRegister()) continue;
             if (temp->IsUnallocated()) {
@@ -1019,7 +1024,7 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
         operand = chunk_->DefineConstantOperand(constant);
       } else {
         ASSERT(!op->EmitAtUses());
-        LUnallocated* unalloc = new LUnallocated(LUnallocated::NONE);
+        LUnallocated* unalloc = new LUnallocated(LUnallocated::ANY);
         unalloc->set_virtual_register(op->id());
         operand = unalloc;
       }

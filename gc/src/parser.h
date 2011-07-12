@@ -72,22 +72,14 @@ class FunctionEntry BASE_EMBEDDED {
   FunctionEntry() : backing_(Vector<unsigned>::empty()) { }
 
   int start_pos() { return backing_[kStartPosOffset]; }
-  void set_start_pos(int value) { backing_[kStartPosOffset] = value; }
-
   int end_pos() { return backing_[kEndPosOffset]; }
-  void set_end_pos(int value) { backing_[kEndPosOffset] = value; }
-
   int literal_count() { return backing_[kLiteralCountOffset]; }
-  void set_literal_count(int value) { backing_[kLiteralCountOffset] = value; }
-
   int property_count() { return backing_[kPropertyCountOffset]; }
-  void set_property_count(int value) {
-    backing_[kPropertyCountOffset] = value;
-  }
+  bool strict_mode() { return backing_[kStrictModeOffset] != 0; }
 
   bool is_valid() { return backing_.length() > 0; }
 
-  static const int kSize = 4;
+  static const int kSize = 5;
 
  private:
   Vector<unsigned> backing_;
@@ -95,6 +87,7 @@ class FunctionEntry BASE_EMBEDDED {
   static const int kEndPosOffset = 1;
   static const int kLiteralCountOffset = 2;
   static const int kPropertyCountOffset = 3;
+  static const int kStrictModeOffset = 4;
 };
 
 
@@ -443,7 +436,7 @@ class Parser {
                        const char* message,
                        Vector<Handle<String> > args);
 
- protected:
+ private:
   // Limit on number of function parameters is chosen arbitrarily.
   // Code::Flags uses only the low 17 bits of num-parameters to
   // construct a hashable id, so if more than 2^17 are allowed, this
@@ -473,7 +466,7 @@ class Parser {
   void ReportMessage(const char* message, Vector<const char*> args);
 
   bool inside_with() const { return with_nesting_level_ > 0; }
-  V8JavaScriptScanner& scanner()  { return scanner_; }
+  JavaScriptScanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
@@ -491,17 +484,16 @@ class Parser {
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(bool* ok);
-  Block* ParseVariableDeclarations(bool accept_IN, Expression** var, bool* ok);
+  Block* ParseVariableDeclarations(bool accept_IN,
+                                   Handle<String>* out,
+                                   bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
                                                 bool* ok);
   IfStatement* ParseIfStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseContinueStatement(bool* ok);
   Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Block* WithHelper(Expression* obj,
-                    ZoneStringList* labels,
-                    bool is_catch_block,
-                    bool* ok);
+  Block* WithHelper(Expression* obj, ZoneStringList* labels, bool* ok);
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
@@ -633,11 +625,12 @@ class Parser {
   Literal* GetLiteralNumber(double value);
 
   Handle<String> ParseIdentifier(bool* ok);
-  Handle<String> ParseIdentifierOrReservedWord(bool* is_reserved, bool* ok);
+  Handle<String> ParseIdentifierOrStrictReservedWord(
+      bool* is_strict_reserved, bool* ok);
   Handle<String> ParseIdentifierName(bool* ok);
-  Handle<String> ParseIdentifierOrGetOrSet(bool* is_get,
-                                           bool* is_set,
-                                           bool* ok);
+  Handle<String> ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                               bool* is_set,
+                                               bool* ok);
 
   // Strict mode validation of LValue expressions
   void CheckStrictModeLValue(Expression* expression,
@@ -705,7 +698,7 @@ class Parser {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  V8JavaScriptScanner scanner_;
+  JavaScriptScanner scanner_;
 
   Scope* top_scope_;
   int with_nesting_level_;

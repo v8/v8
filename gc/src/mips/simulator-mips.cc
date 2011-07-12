@@ -126,16 +126,29 @@ static void InitializeCoverage() {
 
 
 void MipsDebugger::Stop(Instruction* instr) {
-  UNIMPLEMENTED_MIPS();
-  char* str = reinterpret_cast<char*>(instr->InstructionBits());
-  if (strlen(str) > 0) {
+  // Get the stop code.
+  uint32_t code = instr->Bits(25, 6);
+  // Retrieve the encoded address, which comes just after this stop.
+  char** msg_address =
+    reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
+  char* msg = *msg_address;
+  ASSERT(msg != NULL);
+
+  // Update this stop description.
+  if (!watched_stops[code].desc) {
+    watched_stops[code].desc = msg;
+  }
+
+  if (strlen(msg) > 0) {
     if (coverage_log != NULL) {
       fprintf(coverage_log, "%s\n", str);
       fflush(coverage_log);
     }
-    instr->SetInstructionBits(0x0);  // Overwrite with nop.
+    // Overwrite the instruction and address with nops.
+    instr->SetInstructionBits(kNopInstr);
+    reinterpret_cast<Instr*>(msg_address)->SetInstructionBits(kNopInstr);
   }
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstructionSize);
 }
 
 
@@ -147,9 +160,17 @@ static void InitializeCoverage() {}
 
 
 void MipsDebugger::Stop(Instruction* instr) {
-  const char* str = reinterpret_cast<char*>(instr->InstructionBits());
-  PrintF("Simulator hit %s\n", str);
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
+  // Get the stop code.
+  uint32_t code = instr->Bits(25, 6);
+  // Retrieve the encoded address, which comes just after this stop.
+  char* msg = *reinterpret_cast<char**>(sim_->get_pc() +
+      Instruction::kInstrSize);
+  // Update this stop description.
+  if (!sim_->watched_stops[code].desc) {
+    sim_->watched_stops[code].desc = msg;
+  }
+  PrintF("Simulator hit %s (%u)\n", msg, code);
+  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
 }
 #endif  // GENERATED_CODE_COVERAGE
@@ -585,8 +606,67 @@ void MipsDebugger::Debug() {
         }
       } else if (strcmp(cmd, "flags") == 0) {
         PrintF("No flags on MIPS !\n");
-      } else if (strcmp(cmd, "unstop") == 0) {
-          PrintF("Unstop command not implemented on MIPS.");
+      } else if (strcmp(cmd, "stop") == 0) {
+        int32_t value;
+        intptr_t stop_pc = sim_->get_pc() -
+            2 * Instruction::kInstrSize;
+        Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
+        Instruction* msg_address =
+          reinterpret_cast<Instruction*>(stop_pc +
+              Instruction::kInstrSize);
+        if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
+          // Remove the current stop.
+          if (sim_->IsStopInstruction(stop_instr)) {
+            stop_instr->SetInstructionBits(kNopInstr);
+            msg_address->SetInstructionBits(kNopInstr);
+          } else {
+            PrintF("Not at debugger stop.\n");
+          }
+        } else if (argc == 3) {
+          // Print information about all/the specified breakpoint(s).
+          if (strcmp(arg1, "info") == 0) {
+            if (strcmp(arg2, "all") == 0) {
+              PrintF("Stop information:\n");
+              for (uint32_t i = kMaxWatchpointCode + 1;
+                   i <= kMaxStopCode;
+                   i++) {
+                sim_->PrintStopInfo(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->PrintStopInfo(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          } else if (strcmp(arg1, "enable") == 0) {
+            // Enable all/the specified breakpoint(s).
+            if (strcmp(arg2, "all") == 0) {
+              for (uint32_t i = kMaxWatchpointCode + 1;
+                   i <= kMaxStopCode;
+                   i++) {
+                sim_->EnableStop(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->EnableStop(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          } else if (strcmp(arg1, "disable") == 0) {
+            // Disable all/the specified breakpoint(s).
+            if (strcmp(arg2, "all") == 0) {
+              for (uint32_t i = kMaxWatchpointCode + 1;
+                   i <= kMaxStopCode;
+                   i++) {
+                sim_->DisableStop(i);
+              }
+            } else if (GetValue(arg2, &value)) {
+              sim_->DisableStop(value);
+            } else {
+              PrintF("Unrecognized argument.\n");
+            }
+          }
+        } else {
+          PrintF("Wrong usage. Use help command for more information.\n");
+        }
       } else if ((strcmp(cmd, "stat") == 0) || (strcmp(cmd, "st") == 0)) {
         // Print registers and disassemble.
         PrintAllRegs();
@@ -652,9 +732,26 @@ void MipsDebugger::Debug() {
         PrintF("  set a break point on the address\n");
         PrintF("del\n");
         PrintF("  delete the breakpoint\n");
-        PrintF("unstop\n");
-        PrintF("  ignore the stop instruction at the current location");
-        PrintF(" from now on\n");
+        PrintF("stop feature:\n");
+        PrintF("  Description:\n");
+        PrintF("    Stops are debug instructions inserted by\n");
+        PrintF("    the Assembler::stop() function.\n");
+        PrintF("    When hitting a stop, the Simulator will\n");
+        PrintF("    stop and and give control to the Debugger.\n");
+        PrintF("    All stop codes are watched:\n");
+        PrintF("    - They can be enabled / disabled: the Simulator\n");
+        PrintF("       will / won't stop when hitting them.\n");
+        PrintF("    - The Simulator keeps track of how many times they \n");
+        PrintF("      are met. (See the info command.) Going over a\n");
+        PrintF("      disabled stop still increases its counter. \n");
+        PrintF("  Commands:\n");
+        PrintF("    stop info all/<code> : print infos about number <code>\n");
+        PrintF("      or all stop(s).\n");
+        PrintF("    stop enable/disable all/<code> : enables / disables\n");
+        PrintF("      all or number <code> stop(s)\n");
+        PrintF("    stop unstop\n");
+        PrintF("      ignore the stop instruction at the current location\n");
+        PrintF("      from now on\n");
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }
@@ -1062,15 +1159,30 @@ bool Simulator::test_fcsr_bit(uint32_t cc) {
 // Sets the rounding error codes in FCSR based on the result of the rounding.
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round_error(double original, double rounded) {
-  if (!isfinite(original) ||
-      rounded > LONG_MAX ||
-      rounded < LONG_MIN) {
-    set_fcsr_bit(6, true);  // Invalid operation.
-    return true;
-  } else if (original != static_cast<double>(rounded)) {
-    set_fcsr_bit(2, true);  // Inexact.
+  bool ret = false;
+
+  if (!isfinite(original) || !isfinite(rounded)) {
+    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    ret = true;
   }
-  return false;
+
+  if (original != rounded) {
+    set_fcsr_bit(kFCSRInexactFlagBit, true);
+  }
+
+  if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
+    set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    ret = true;
+  }
+
+  if (rounded > INT_MAX || rounded < INT_MIN) {
+    set_fcsr_bit(kFCSROverflowFlagBit, true);
+    // The reference is not really clear but it seems this is required:
+    set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    ret = true;
+  }
+
+  return ret;
 }
 
 
@@ -1288,7 +1400,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
   // the break_ instruction, or several variants of traps. All
   // Are "SPECIAL" class opcode, and are distinuished by function.
   int32_t func = instr->FunctionFieldRaw();
-  int32_t code = (func == BREAK) ? instr->Bits(25, 6) : -1;
+  uint32_t code = (func == BREAK) ? instr->Bits(25, 6) : -1;
 
   // We first check if we met a call_rt_redirected.
   if (instr->InstructionBits() == rtCallRedirInstr) {
@@ -1372,7 +1484,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_CALL:
             GetFpArgs(&dval0);
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(target), dval1);
+                FUNCTION_ADDR(target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             GetFpArgs(&dval0, &ival);
@@ -1440,18 +1552,110 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
     set_register(ra, saved_ra);
     set_pc(get_register(ra));
 
-  } else if (func == BREAK && code >= 0 && code < 32) {
-    // First 32 break_ codes interpreted as debug-markers/watchpoints.
-    MipsDebugger dbg(this);
-    ++break_count_;
-    PrintF("\n---- break %d marker: %3d  (instr count: %8d) ----------"
-           "----------------------------------",
-           code, break_count_, icount_);
-    dbg.PrintAllRegs();  // Print registers and continue running.
+  } else if (func == BREAK && code <= kMaxStopCode) {
+    if (IsWatchpoint(code)) {
+      PrintWatchpoint(code);
+    } else {
+      IncreaseStopCounter(code);
+      HandleStop(code, instr);
+    }
   } else {
     // All remaining break_ codes, and all traps are handled here.
     MipsDebugger dbg(this);
     dbg.Debug();
+  }
+}
+
+
+// Stop helper functions.
+bool Simulator::IsWatchpoint(uint32_t code) {
+  return (code <= kMaxWatchpointCode);
+}
+
+
+void Simulator::PrintWatchpoint(uint32_t code) {
+  MipsDebugger dbg(this);
+  ++break_count_;
+  PrintF("\n---- break %d marker: %3d  (instr count: %8d) ----------"
+         "----------------------------------",
+         code, break_count_, icount_);
+  dbg.PrintAllRegs();  // Print registers and continue running.
+}
+
+
+void Simulator::HandleStop(uint32_t code, Instruction* instr) {
+  // Stop if it is enabled, otherwise go on jumping over the stop
+  // and the message address.
+  if (IsEnabledStop(code)) {
+    MipsDebugger dbg(this);
+    dbg.Stop(instr);
+  } else {
+    set_pc(get_pc() + 2 * Instruction::kInstrSize);
+  }
+}
+
+
+bool Simulator::IsStopInstruction(Instruction* instr) {
+  int32_t func = instr->FunctionFieldRaw();
+  uint32_t code = static_cast<uint32_t>(instr->Bits(25, 6));
+  return (func == BREAK) && code > kMaxWatchpointCode && code <= kMaxStopCode;
+}
+
+
+bool Simulator::IsEnabledStop(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  ASSERT(code > kMaxWatchpointCode);
+  return !(watched_stops[code].count & kStopDisabledBit);
+}
+
+
+void Simulator::EnableStop(uint32_t code) {
+  if (!IsEnabledStop(code)) {
+    watched_stops[code].count &= ~kStopDisabledBit;
+  }
+}
+
+
+void Simulator::DisableStop(uint32_t code) {
+  if (IsEnabledStop(code)) {
+    watched_stops[code].count |= kStopDisabledBit;
+  }
+}
+
+
+void Simulator::IncreaseStopCounter(uint32_t code) {
+  ASSERT(code <= kMaxStopCode);
+  if ((watched_stops[code].count & ~(1 << 31)) == 0x7fffffff) {
+    PrintF("Stop counter for code %i has overflowed.\n"
+           "Enabling this code and reseting the counter to 0.\n", code);
+    watched_stops[code].count = 0;
+    EnableStop(code);
+  } else {
+    watched_stops[code].count++;
+  }
+}
+
+
+// Print a stop status.
+void Simulator::PrintStopInfo(uint32_t code) {
+  if (code <= kMaxWatchpointCode) {
+    PrintF("That is a watchpoint, not a stop.\n");
+    return;
+  } else if (code > kMaxStopCode) {
+    PrintF("Code too large, only %u stops can be used\n", kMaxStopCode + 1);
+    return;
+  }
+  const char* state = IsEnabledStop(code) ? "Enabled" : "Disabled";
+  int32_t count = watched_stops[code].count & ~kStopDisabledBit;
+  // Don't print the state of unused breakpoints.
+  if (count != 0) {
+    if (watched_stops[code].desc) {
+      PrintF("stop %i - 0x%x: \t%s, \tcounter = %i, \t%s\n",
+             code, code, state, count, watched_stops[code].desc);
+    } else {
+      PrintF("stop %i - 0x%x: \t%s, \tcounter = %i\n",
+             code, code, state, count);
+    }
   }
 }
 
@@ -1865,9 +2069,10 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               break;
             case TRUNC_W_D:  // Truncate double to word (round towards 0).
               {
-                int32_t result = static_cast<int32_t>(fs);
+                double rounded = trunc(fs);
+                int32_t result = static_cast<int32_t>(rounded);
                 set_fpu_register(fd_reg, result);
-                if (set_fcsr_round_error(fs, static_cast<double>(result))) {
+                if (set_fcsr_round_error(fs, rounded)) {
                   set_fpu_register(fd_reg, kFPUInvalidResult);
                 }
               }
@@ -1895,16 +2100,20 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
             case CVT_S_D:  // Convert double to float (single).
               set_fpu_register_float(fd_reg, static_cast<float>(fs));
               break;
-            case CVT_L_D:  // Mips32r2: Truncate double to 64-bit long-word.
-              i64 = static_cast<int64_t>(fs);
+            case CVT_L_D: {  // Mips32r2: Truncate double to 64-bit long-word.
+              double rounded = trunc(fs);
+              i64 = static_cast<int64_t>(rounded);
               set_fpu_register(fd_reg, i64 & 0xffffffff);
               set_fpu_register(fd_reg + 1, i64 >> 32);
               break;
-            case TRUNC_L_D:  // Mips32r2 instruction.
-              i64 = static_cast<int64_t>(fs);
+            }
+            case TRUNC_L_D: {  // Mips32r2 instruction.
+              double rounded = trunc(fs);
+              i64 = static_cast<int64_t>(rounded);
               set_fpu_register(fd_reg, i64 & 0xffffffff);
               set_fpu_register(fd_reg + 1, i64 >> 32);
               break;
+            }
             case ROUND_L_D: {  // Mips32r2 instruction.
               double rounded = fs > 0 ? floor(fs + 0.5) : ceil(fs - 0.5);
               i64 = static_cast<int64_t>(rounded);

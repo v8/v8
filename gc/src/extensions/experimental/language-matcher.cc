@@ -28,13 +28,14 @@
 // TODO(cira): Remove LanguageMatcher from v8 when ICU implements
 // language matching API.
 
-#include "language-matcher.h"
+#include "src/extensions/experimental/language-matcher.h"
 
-#include "i18n-utils.h"
+#include <string.h>
+
+#include "src/extensions/experimental/i18n-utils.h"
 #include "unicode/datefmt.h"  // For getAvailableLocales
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
-#include "utils.h"
 
 namespace v8 {
 namespace internal {

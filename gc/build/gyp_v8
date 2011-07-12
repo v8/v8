@@ -38,8 +38,12 @@ import sys
 script_dir = os.path.dirname(__file__)
 v8_root = os.path.normpath(os.path.join(script_dir, os.pardir))
 
+sys.path.insert(0, os.path.join(v8_root, 'tools'))
+import utils
+
 sys.path.insert(0, os.path.join(v8_root, 'build', 'gyp', 'pylib'))
 import gyp
+
 
 def apply_gyp_environment(file_path=None):
   """
@@ -67,6 +71,7 @@ def apply_gyp_environment(file_path=None):
         )
       else:
         os.environ[var] = val
+
 
 def additional_include_files(args=[]):
   """
@@ -96,6 +101,14 @@ def additional_include_files(args=[]):
     AddInclude(supplement)
 
   return result
+
+
+def run_gyp(args):
+  rc = gyp.main(args)
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+
 
 if __name__ == '__main__':
   args = sys.argv[1:]
@@ -141,5 +154,20 @@ if __name__ == '__main__':
   print 'Updating projects from gyp files...'
   sys.stdout.flush()
 
-  # Off we go...
-  sys.exit(gyp.main(args))
+  # Generate for the architectures supported on the given platform.
+  gyp_args = list(args)
+  gyp_args.append('-Dtarget_arch=ia32')
+  if utils.GuessOS() == 'linux':
+    gyp_args.append('-S-ia32')
+  run_gyp(gyp_args)
+
+  if utils.GuessOS() == 'linux':
+    gyp_args = list(args)
+    gyp_args.append('-Dtarget_arch=x64')
+    gyp_args.append('-S-x64')
+    run_gyp(gyp_args)
+
+    gyp_args = list(args)
+    gyp_args.append('-I' + v8_root + '/build/armu.gypi')
+    gyp_args.append('-S-armu')
+    run_gyp(gyp_args)

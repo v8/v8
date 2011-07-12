@@ -25,13 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "i18n-locale.h"
+#include "src/extensions/experimental/i18n-locale.h"
 
-#include "i18n-utils.h"
-#include "language-matcher.h"
+#include "src/extensions/experimental/i18n-utils.h"
+#include "src/extensions/experimental/language-matcher.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
-#include "utils.h"
 
 namespace v8 {
 namespace internal {

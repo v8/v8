@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When a property of the arguments array is deleted, it
-// must be "disconnected" from the corresponding parameter.
-// Re-introducing the property does not connect to the parameter.
-
-function f(x) {
-  delete arguments[0];
-  arguments[0] = 100;
-  return x;
+function foo(x) {
+  var a = arguments;
+  function bar(i) {
+    assertEquals(i, ++a[0]);
+    assertEquals(i, x);
+  };
+  bar(1);
+  bar(2);
+  bar(3);
+  return bar;
 }
+var baz = foo(0);
+baz(4);
+baz(5);
+baz(6);
 
-assertEquals(10, f(10));
+// Test writing a non-smi.
+function foo2(x) {
+  var a = arguments;
+  function bar2(i) {
+    assertEquals(i, ++a[0]);
+    assertEquals(i, x);
+  };
+  bar2(1.5);
+  bar2(2.5);
+  bar2(3.5);
+  return bar2;
+}
+var baz2 = foo2(0.5);
+baz2(4.5);
+baz2(5.5);
+baz2(6.5);

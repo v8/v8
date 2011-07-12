@@ -93,15 +93,23 @@ class PreParser {
     static Identifier FutureReserved()  {
       return Identifier(kFutureReservedIdentifier);
     }
+    static Identifier FutureStrictReserved()  {
+      return Identifier(kFutureStrictReservedIdentifier);
+    }
     bool IsEval() { return type_ == kEvalIdentifier; }
     bool IsArguments() { return type_ == kArgumentsIdentifier; }
     bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
     bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
+    bool IsFutureStrictReserved() {
+      return type_ == kFutureStrictReservedIdentifier;
+    }
     bool IsValidStrictVariable() { return type_ == kUnknownIdentifier; }
+
    private:
     enum Type {
       kUnknownIdentifier,
       kFutureReservedIdentifier,
+      kFutureStrictReservedIdentifier,
       kEvalIdentifier,
       kArgumentsIdentifier
     };
@@ -372,7 +380,6 @@ class PreParser {
   SourceElements ParseSourceElements(int end_token, bool* ok);
   Statement ParseStatement(bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseNativeDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(bool* ok);
   Statement ParseVariableDeclarations(bool accept_IN, int* num_decl, bool* ok);
@@ -411,7 +418,9 @@ class PreParser {
 
   Identifier ParseIdentifier(bool* ok);
   Identifier ParseIdentifierName(bool* ok);
-  Identifier ParseIdentifierOrGetOrSet(bool* is_get, bool* is_set, bool* ok);
+  Identifier ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                           bool* is_set,
+                                           bool* ok);
 
   // Logs the currently parsed literal as a symbol in the preparser data.
   void LogSymbol();

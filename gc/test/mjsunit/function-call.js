@@ -155,6 +155,7 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
   // Sanity check that all functions are correct
   assertEquals(typeof(should_throw_on_null_and_undefined[i]), "function");
 
+  var exception = false;
   try {
     // We call all functions with no parameters, which means that essential
     // parameters will have the undefined value.
@@ -163,68 +164,84 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
     // undefined value is an invalid argument value, it mustn't change
     // the result of the test.
     should_throw_on_null_and_undefined[i].call(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue("called_on_null_or_undefined" == e.type ||
                "null_to_object" == e.type);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     should_throw_on_null_and_undefined[i].call(undefined);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue("called_on_null_or_undefined" == e.type ||
                "null_to_object" == e.type);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     should_throw_on_null_and_undefined[i].apply(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue("called_on_null_or_undefined" == e.type ||
                "null_to_object" == e.type);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     should_throw_on_null_and_undefined[i].apply(undefined);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue("called_on_null_or_undefined" == e.type ||
                "null_to_object" == e.type);
   }
+  assertTrue(exception);
 }
 
 // Test that all natives that are non generic throw on null and undefined.
 for (var i = 0; i < non_generic.length; i++) {
   // Sanity check that all functions are correct
   assertEquals(typeof(non_generic[i]), "function");
+
+  exception = false;
   try {
     non_generic[i].call(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue(e instanceof TypeError);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     non_generic[i].call(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue(e instanceof TypeError);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     non_generic[i].apply(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue(e instanceof TypeError);
   }
+  assertTrue(exception);
 
+  exception = false;
   try {
     non_generic[i].apply(null);
-    assertUnreachable();
   } catch (e) {
+    exception = true;
     assertTrue(e instanceof TypeError);
   }
+  assertTrue(exception);
 }
 
 
@@ -233,47 +250,55 @@ for (var i = 0; i < non_generic.length; i++) {
 var array = [1,2,3,4,5];
 for (var j = 0; j < mapping_functions.length; j++) {
   for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
+    exception = false;
     try {
       mapping_functions[j].call(array,
                                 should_throw_on_null_and_undefined[i],
                                 null);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue("called_on_null_or_undefined" == e.type ||
                  "null_to_object" == e.type);
     }
+    assertTrue(exception);
 
+    exception = false;
     try {
       mapping_functions[j].call(array,
                                 should_throw_on_null_and_undefined[i],
                                 undefined);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue("called_on_null_or_undefined" == e.type ||
                  "null_to_object" == e.type);
     }
+    assertTrue(exception);
   }
 }
 
 for (var j = 0; j < mapping_functions.length; j++) {
   for (var i = 0; i < non_generic.length; i++) {
+    exception = false;
     try {
       mapping_functions[j].call(array,
                                 non_generic[i],
                                 null);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue(e instanceof TypeError);
     }
+    assertTrue(exception);
 
+    exception = false;
     try {
       mapping_functions[j].call(array,
                                 non_generic[i],
                                 undefined);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue(e instanceof TypeError);
     }
+    assertTrue(exception);
   }
 }
 
@@ -281,39 +306,47 @@ for (var j = 0; j < mapping_functions.length; j++) {
 // Reduce functions do a call with null as this argument.
 for (var j = 0; j < reducing_functions.length; j++) {
   for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
+    exception = false;
     try {
       reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue("called_on_null_or_undefined" == e.type ||
                  "null_to_object" == e.type);
     }
+    assertTrue(exception);
 
+    exception = false;
     try {
       reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue("called_on_null_or_undefined" == e.type ||
                  "null_to_object" == e.type);
     }
+    assertTrue(exception);
   }
 }
 
 for (var j = 0; j < reducing_functions.length; j++) {
   for (var i = 0; i < non_generic.length; i++) {
+    exception = false;
     try {
       reducing_functions[j].call(array, non_generic[i]);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue(e instanceof TypeError);
     }
+    assertTrue(exception);
 
+    exception = false;
     try {
       reducing_functions[j].call(array, non_generic[i]);
-      assertUnreachable();
     } catch (e) {
+      exception = true;
       assertTrue(e instanceof TypeError);
     }
+    assertTrue(exception);
   }
 }
 

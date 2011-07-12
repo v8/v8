@@ -359,6 +359,15 @@ void JSObject::PrintElements(FILE* out) {
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* p = FixedArray::cast(elements());
+      for (int i = 2; i < p->length(); i++) {
+        PrintF(out, "   %d: ", i);
+        p->get(i)->ShortPrint(out);
+        PrintF(out, "\n");
+      }
+      break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -478,6 +487,13 @@ void CodeCache::CodeCachePrint(FILE* out) {
   default_cache()->ShortPrint(out);
   PrintF(out, "\n - normal_type_cache: ");
   normal_type_cache()->ShortPrint(out);
+}
+
+
+void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "PolymorphicCodeCache");
+  PrintF(out, "\n - cache: ");
+  cache()->ShortPrint(out);
 }
 
 

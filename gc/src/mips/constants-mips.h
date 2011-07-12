@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -93,13 +93,27 @@ static const int kInvalidFPUControlRegister = -1;
 static const uint32_t kFPUInvalidResult = (uint32_t) (1 << 31) - 1;
 
 // FCSR constants.
-static const uint32_t kFCSRFlagMask = (1 << 6) - 1;
-static const uint32_t kFCSRFlagShift = 2;
-static const uint32_t kFCSRInexactFlagBit = 1 << 0;
-static const uint32_t kFCSRUnderflowFlagBit = 1 << 1;
-static const uint32_t kFCSROverflowFlagBit = 1 << 2;
-static const uint32_t kFCSRDivideByZeroFlagBit = 1 << 3;
-static const uint32_t kFCSRInvalidOpFlagBit = 1 << 4;
+static const uint32_t kFCSRInexactFlagBit = 2;
+static const uint32_t kFCSRUnderflowFlagBit = 3;
+static const uint32_t kFCSROverflowFlagBit = 4;
+static const uint32_t kFCSRDivideByZeroFlagBit = 5;
+static const uint32_t kFCSRInvalidOpFlagBit = 6;
+
+static const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
+static const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
+static const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
+static const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
+static const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
+
+static const uint32_t kFCSRFlagMask =
+    kFCSRInexactFlagMask |
+    kFCSRUnderflowFlagMask |
+    kFCSROverflowFlagMask |
+    kFCSRDivideByZeroFlagMask |
+    kFCSRInvalidOpFlagMask;
+
+static const uint32_t kFCSRExceptionFlagMask =
+    kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
 // Helper functions for converting between register numbers and names.
 class Registers {
@@ -119,7 +133,6 @@ class Registers {
   static const int32_t kMinValue = 0x80000000;
 
  private:
-
   static const char* names_[kNumSimuRegisters];
   static const RegisterAlias aliases_[];
 };
@@ -139,7 +152,6 @@ class FPURegisters {
   };
 
  private:
-
   static const char* names_[kNumFPURegisters];
   static const RegisterAlias aliases_[];
 };
@@ -157,6 +169,18 @@ enum SoftwareInterruptCodes {
   // Transition to C code.
   call_rt_redirected = 0xfffff
 };
+
+// On MIPS Simulator breakpoints can have different codes:
+// - Breaks between 0 and kMaxWatchpointCode are treated as simple watchpoints,
+//   the simulator will run through them and print the registers.
+// - Breaks between kMaxWatchpointCode and kMaxStopCode are treated as stop()
+//   instructions (see Assembler::stop()).
+// - Breaks larger than kMaxStopCode are simple breaks, dropping you into the
+//   debugger.
+static const uint32_t kMaxWatchpointCode = 31;
+static const uint32_t kMaxStopCode = 127;
+STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+
 
 // ----- Fields offset and length.
 static const int kOpcodeShift   = 26;
@@ -177,6 +201,8 @@ static const int kImm16Shift = 0;
 static const int kImm16Bits  = 16;
 static const int kImm26Shift = 0;
 static const int kImm26Bits  = 26;
+static const int kImm28Shift = 0;
+static const int kImm28Bits  = 28;
 
 static const int kFsShift       = 11;
 static const int kFsBits        = 5;
@@ -196,6 +222,7 @@ static const int kFBtrueBits    = 1;
 static const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
 static const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
 static const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
+static const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
 static const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
 static const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
 static const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
@@ -736,4 +763,3 @@ static const int kDoubleAlignmentMask = kDoubleAlignment - 1;
 } }   // namespace v8::internal
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_
-

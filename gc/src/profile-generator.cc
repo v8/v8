@@ -1096,7 +1096,7 @@ class RetainedSizeCalculator {
       : retained_size_(0) {
   }
 
-  int reained_size() const { return retained_size_; }
+  int retained_size() const { return retained_size_; }
 
   void Apply(HeapEntry** entry_ptr) {
     if ((*entry_ptr)->painted_reachable()) {
@@ -1137,7 +1137,7 @@ void HeapEntry::CalculateExactRetainedSize() {
 
   RetainedSizeCalculator ret_size_calc;
   snapshot()->IterateEntries(&ret_size_calc);
-  retained_size_ = ret_size_calc.reained_size();
+  retained_size_ = ret_size_calc.retained_size();
   ASSERT((retained_size_ & kExactRetainedSizeTag) == 0);
   retained_size_ |= kExactRetainedSizeTag;
 }
@@ -1602,6 +1602,28 @@ void HeapObjectsSet::Insert(Object* obj) {
 }
 
 
+const char* HeapObjectsSet::GetTag(Object* obj) {
+  HeapObject* object = HeapObject::cast(obj);
+  HashMap::Entry* cache_entry =
+      entries_.Lookup(object, HeapEntriesMap::Hash(object), false);
+  if (cache_entry != NULL
+      && cache_entry->value != HeapEntriesMap::kHeapEntryPlaceholder) {
+    return reinterpret_cast<const char*>(cache_entry->value);
+  } else {
+    return NULL;
+  }
+}
+
+
+void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
+  if (!obj->IsHeapObject()) return;
+  HeapObject* object = HeapObject::cast(obj);
+  HashMap::Entry* cache_entry =
+      entries_.Lookup(object, HeapEntriesMap::Hash(object), true);
+  cache_entry->value = const_cast<char*>(tag);
+}
+
+
 HeapObject *const V8HeapExplorer::kInternalRootObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kInternalRootObjectId));
@@ -1613,7 +1635,8 @@ HeapObject *const V8HeapExplorer::kGcRootsObject =
 V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
     SnapshottingProgressReportingInterface* progress)
-    : snapshot_(snapshot),
+    : heap_(Isolate::Current()->heap()),
+      snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
       filler_(NULL) {
@@ -1639,6 +1662,18 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
     return snapshot_->AddRootEntry(children_count);
   } else if (object == kGcRootsObject) {
     return snapshot_->AddGcRootsEntry(children_count, retainers_count);
+  } else if (object->IsJSGlobalObject()) {
+    const char* tag = objects_tags_.GetTag(object);
+    const char* name = collection_->names()->GetName(
+        GetConstructorNameForHeapProfile(JSObject::cast(object)));
+    if (tag != NULL) {
+      name = collection_->names()->GetFormatted("%s / %s", name, tag);
+    }
+    return AddEntry(object,
+                    HeapEntry::kObject,
+                    name,
+                    children_count,
+                    retainers_count);
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -1691,10 +1726,14 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
                         : "",
                     children_count,
                     retainers_count);
-  } else if (object->IsFixedArray() || object->IsByteArray()) {
+  } else if (object->IsFixedArray() ||
+             object->IsFixedDoubleArray() ||
+             object->IsByteArray() ||
+             object->IsExternalArray()) {
+    const char* tag = objects_tags_.GetTag(object);
     return AddEntry(object,
                     HeapEntry::kArray,
-                    "",
+                    tag != NULL ? tag : "",
                     children_count,
                     retainers_count);
   } else if (object->IsHeapNumber()) {
@@ -1779,6 +1818,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
     ASSERT(Memory::Object_at(field)->IsHeapObject());
     *field |= kFailureTag;
   }
+
  private:
   bool CheckVisitedAndUnmark(Object** field) {
     if ((*field)->IsFailure()) {
@@ -1800,15 +1840,13 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
   HeapEntry* entry = GetEntry(obj);
   if (entry == NULL) return;  // No interest in this object.
 
+  bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
     // We need to reference JS global objects from snapshot's root.
     // We use JSGlobalProxy because this is what embedder (e.g. browser)
     // uses for the global object.
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
     SetRootShortcutReference(proxy->map()->prototype());
-    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
-    IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(&refs_extractor);
   } else if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
     ExtractClosureReferences(js_obj, entry);
@@ -1816,7 +1854,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractElementReferences(js_obj, entry);
     ExtractInternalReferences(js_obj, entry);
     SetPropertyReference(
-        obj, entry, HEAP->Proto_symbol(), js_obj->GetPrototype());
+        obj, entry, heap_->Proto_symbol(), js_obj->GetPrototype());
     if (obj->IsJSFunction()) {
       JSFunction* js_fun = JSFunction::cast(js_obj);
       Object* proto_or_map = js_fun->prototype_or_initial_map();
@@ -1824,39 +1862,49 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
         if (!proto_or_map->IsMap()) {
           SetPropertyReference(
               obj, entry,
-              HEAP->prototype_symbol(), proto_or_map,
+              heap_->prototype_symbol(), proto_or_map,
               JSFunction::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(
               obj, entry,
-              HEAP->prototype_symbol(), js_fun->prototype());
+              heap_->prototype_symbol(), js_fun->prototype());
         }
       }
       SetInternalReference(js_fun, entry,
                            "shared", js_fun->shared(),
                            JSFunction::kSharedFunctionInfoOffset);
+      TagObject(js_fun->unchecked_context(), "(context)");
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
+      TagObject(js_fun->literals(), "(function literals)");
       SetInternalReference(js_fun, entry,
                            "literals", js_fun->literals(),
                            JSFunction::kLiteralsOffset);
     }
+    TagObject(js_obj->properties(), "(object properties)");
     SetInternalReference(obj, entry,
                          "properties", js_obj->properties(),
                          JSObject::kPropertiesOffset);
+    TagObject(js_obj->elements(), "(object elements)");
     SetInternalReference(obj, entry,
                          "elements", js_obj->elements(),
                          JSObject::kElementsOffset);
-    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
-    IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(&refs_extractor);
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
       ConsString* cs = ConsString::cast(obj);
       SetInternalReference(obj, entry, 1, cs->first());
       SetInternalReference(obj, entry, 2, cs->second());
     }
+    extract_indexed_refs = false;
+  } else if (obj->IsGlobalContext()) {
+    Context* context = Context::cast(obj);
+    TagObject(context->jsfunction_result_caches(),
+              "(context func. result caches)");
+    TagObject(context->normalized_map_cache(), "(context norm. map cache)");
+    TagObject(context->runtime_context(), "(runtime context)");
+    TagObject(context->map_cache(), "(context map cache)");
+    TagObject(context->data(), "(context data)");
   } else if (obj->IsMap()) {
     Map* map = Map::cast(obj);
     SetInternalReference(obj, entry,
@@ -1865,16 +1913,22 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
                          "constructor", map->constructor(),
                          Map::kConstructorOffset);
     if (!map->instance_descriptors()->IsEmpty()) {
+      TagObject(map->instance_descriptors(), "(map descriptors)");
       SetInternalReference(obj, entry,
                            "descriptors", map->instance_descriptors(),
                            Map::kInstanceDescriptorsOrBitField3Offset);
     }
+    if (map->prototype_transitions() != heap_->empty_fixed_array()) {
+      TagObject(map->prototype_transitions(), "(prototype transitions)");
+      SetInternalReference(obj,
+                           entry,
+                           "prototype_transitions",
+                           map->prototype_transitions(),
+                           Map::kPrototypeTransitionsOffset);
+    }
     SetInternalReference(obj, entry,
                          "code_cache", map->code_cache(),
                          Map::kCodeCacheOffset);
-    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
-    IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(&refs_extractor);
   } else if (obj->IsSharedFunctionInfo()) {
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
     SetInternalReference(obj, entry,
@@ -1883,16 +1937,61 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "code", shared->unchecked_code(),
                          SharedFunctionInfo::kCodeOffset);
+    TagObject(shared->scope_info(), "(function scope info)");
+    SetInternalReference(obj, entry,
+                         "scope_info", shared->scope_info(),
+                         SharedFunctionInfo::kScopeInfoOffset);
     SetInternalReference(obj, entry,
                          "instance_class_name", shared->instance_class_name(),
                          SharedFunctionInfo::kInstanceClassNameOffset);
     SetInternalReference(obj, entry,
                          "script", shared->script(),
                          SharedFunctionInfo::kScriptOffset);
-    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
-    IndexedReferencesExtractor refs_extractor(this, obj, entry);
-    obj->Iterate(&refs_extractor);
-  } else {
+  } else if (obj->IsScript()) {
+    Script* script = Script::cast(obj);
+    SetInternalReference(obj, entry,
+                         "source", script->source(),
+                         Script::kSourceOffset);
+    SetInternalReference(obj, entry,
+                         "name", script->name(),
+                         Script::kNameOffset);
+    SetInternalReference(obj, entry,
+                         "data", script->data(),
+                         Script::kDataOffset);
+    SetInternalReference(obj, entry,
+                         "context_data", script->context_data(),
+                         Script::kContextOffset);
+    TagObject(script->line_ends(), "(script line ends)");
+    SetInternalReference(obj, entry,
+                         "line_ends", script->line_ends(),
+                         Script::kLineEndsOffset);
+  } else if (obj->IsDescriptorArray()) {
+    DescriptorArray* desc_array = DescriptorArray::cast(obj);
+    if (desc_array->length() > DescriptorArray::kContentArrayIndex) {
+      Object* content_array =
+          desc_array->get(DescriptorArray::kContentArrayIndex);
+      TagObject(content_array, "(map descriptor content)");
+      SetInternalReference(obj, entry,
+                           "content", content_array,
+                           FixedArray::OffsetOfElementAt(
+                               DescriptorArray::kContentArrayIndex));
+    }
+  } else if (obj->IsCodeCache()) {
+    CodeCache* code_cache = CodeCache::cast(obj);
+    TagObject(code_cache->default_cache(), "(default code cache)");
+    SetInternalReference(obj, entry,
+                         "default_cache", code_cache->default_cache(),
+                         CodeCache::kDefaultCacheOffset);
+    TagObject(code_cache->normal_type_cache(), "(code type cache)");
+    SetInternalReference(obj, entry,
+                         "type_cache", code_cache->normal_type_cache(),
+                         CodeCache::kNormalTypeCacheOffset);
+  } else if (obj->IsCode()) {
+    Code* code = Code::cast(obj);
+    TagObject(code->unchecked_relocation_info(), "(code relocation info)");
+    TagObject(code->unchecked_deoptimization_data(), "(code deopt data)");
+  }
+  if (extract_indexed_refs) {
     SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
     obj->Iterate(&refs_extractor);
@@ -2035,6 +2134,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     SnapshotFillerInterface* filler) {
   filler_ = filler;
   bool interrupted = false;
+
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject* obj = iterator->Next();
        obj != NULL;
@@ -2050,7 +2150,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   }
   SetRootGcRootsReference();
   RootsReferencesExtractor extractor(this);
-  HEAP->IterateRoots(&extractor, VISIT_ALL);
+  heap_->IterateRoots(&extractor, VISIT_ALL);
   filler_ = NULL;
   return progress_->ProgressReport(false);
 }
@@ -2202,6 +2302,76 @@ void V8HeapExplorer::SetGcRootsReference(Object* child_obj) {
         kGcRootsObject, snapshot_->gc_roots(),
         child_obj, child_entry);
   }
+}
+
+
+void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
+  if (obj->IsHeapObject() &&
+      !obj->IsOddball() &&
+      obj != heap_->raw_unchecked_empty_byte_array() &&
+      obj != heap_->raw_unchecked_empty_fixed_array() &&
+      obj != heap_->raw_unchecked_empty_fixed_double_array() &&
+      obj != heap_->raw_unchecked_empty_descriptor_array()) {
+    objects_tags_.SetTag(obj, tag);
+  }
+}
+
+
+class GlobalObjectsEnumerator : public ObjectVisitor {
+ public:
+  virtual void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; p++) {
+      if ((*p)->IsGlobalContext()) {
+        Context* context = Context::cast(*p);
+        JSObject* proxy = context->global_proxy();
+        if (proxy->IsJSGlobalProxy()) {
+          Object* global = proxy->map()->prototype();
+          if (global->IsJSGlobalObject()) {
+            objects_.Add(Handle<JSGlobalObject>(JSGlobalObject::cast(global)));
+          }
+        }
+      }
+    }
+  }
+  int count() { return objects_.length(); }
+  Handle<JSGlobalObject>& at(int i) { return objects_[i]; }
+
+ private:
+  List<Handle<JSGlobalObject> > objects_;
+};
+
+
+// Modifies heap. Must not be run during heap traversal.
+void V8HeapExplorer::TagGlobalObjects() {
+  Isolate* isolate = Isolate::Current();
+  GlobalObjectsEnumerator enumerator;
+  isolate->global_handles()->IterateAllRoots(&enumerator);
+  Handle<String> document_string =
+      isolate->factory()->NewStringFromAscii(CStrVector("document"));
+  Handle<String> url_string =
+      isolate->factory()->NewStringFromAscii(CStrVector("URL"));
+  const char** urls = NewArray<const char*>(enumerator.count());
+  for (int i = 0, l = enumerator.count(); i < l; ++i) {
+    urls[i] = NULL;
+    Handle<JSGlobalObject> global_obj = enumerator.at(i);
+    Object* obj_document;
+    if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
+       obj_document->IsJSObject()) {
+      JSObject* document = JSObject::cast(obj_document);
+      Object* obj_url;
+      if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
+          obj_url->IsString()) {
+        urls[i] = collection_->names()->GetName(String::cast(obj_url));
+      }
+    }
+  }
+
+  AssertNoAllocation no_allocation;
+  for (int i = 0, l = enumerator.count(); i < l; ++i) {
+    objects_tags_.SetTag(*enumerator.at(i), urls[i]);
+  }
+
+  DeleteArray(urls);
 }
 
 
@@ -2447,6 +2617,7 @@ class SnapshotCounter : public SnapshotFillerInterface {
                                   HeapEntry*) {
     entries_->CountReference(parent_ptr, child_ptr);
   }
+
  private:
   HeapEntriesMap* entries_;
 };
@@ -2518,6 +2689,7 @@ class SnapshotFiller : public SnapshotFillerInterface {
                               child_entry,
                               retainer_index);
   }
+
  private:
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
@@ -2526,9 +2698,20 @@ class SnapshotFiller : public SnapshotFillerInterface {
 
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
+  v8_heap_explorer_.TagGlobalObjects();
+
+  // TODO(gc) Profiler assumes that any object that is in the heap after
+  // full GC is reachable from the root when computing dominators.
+  // This is not true for weakly reachable objects.
+  // As a temporary solution we call GC twice.
+  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+
+  // Iterator creation should follow TagGlobalObjects as it can allocate.
   HeapIterator set_progress_heap_iterator;
   HeapIterator count_entries_heap_iterator;
   HeapIterator fill_references_heap_iterator;
+
   AssertNoAllocation no_alloc;
 
   SetProgressTotal(&set_progress_heap_iterator,

@@ -34,6 +34,16 @@
 namespace v8 {
 namespace internal {
 
+Context* Context::declaration_context() {
+  Context* current = this;
+  while (!current->IsFunctionContext() && !current->IsGlobalContext()) {
+    current = current->previous();
+    ASSERT(current->closure() == closure());
+  }
+  return current;
+}
+
+
 JSBuiltinsObject* Context::builtins() {
   GlobalObject* object = global();
   if (object->IsJSGlobalObject()) {
@@ -74,8 +84,10 @@ void Context::set_global_proxy(JSObject* object) {
 }
 
 
-Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
-                               int* index_, PropertyAttributes* attributes) {
+Handle<Object> Context::Lookup(Handle<String> name,
+                               ContextLookupFlags flags,
+                               int* index_,
+                               PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -96,40 +108,52 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       PrintF("\n");
     }
 
-    // check extension/with object
+    // Check extension/with/global object.
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
-                                                    isolate);
-      // Context extension objects needs to behave as if they have no
-      // prototype.  So even if we want to follow prototype chains, we
-      // need to only do a local lookup for context extension objects.
-      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-          extension->IsJSContextExtensionObject()) {
-        *attributes = extension->GetLocalPropertyAttribute(*name);
-      } else {
-        *attributes = extension->GetPropertyAttribute(*name);
-      }
-      if (*attributes != ABSENT) {
-        // property found
-        if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n",
-                 reinterpret_cast<void*>(*extension));
+      if (context->IsCatchContext()) {
+        // Catch contexts have the variable name in the extension slot.
+        if (name->Equals(String::cast(context->extension()))) {
+          if (FLAG_trace_contexts) {
+            PrintF("=> found in catch context\n");
+          }
+          *index_ = Context::THROWN_OBJECT_INDEX;
+          *attributes = NONE;
+          return context;
         }
-        return extension;
+      } else {
+        // Global, function, and with contexts may have an object in the
+        // extension slot.
+        Handle<JSObject> extension(JSObject::cast(context->extension()),
+                                   isolate);
+        // Context extension objects needs to behave as if they have no
+        // prototype.  So even if we want to follow prototype chains, we
+        // need to only do a local lookup for context extension objects.
+        if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+            extension->IsJSContextExtensionObject()) {
+          *attributes = extension->GetLocalPropertyAttribute(*name);
+        } else {
+          *attributes = extension->GetPropertyAttribute(*name);
+        }
+        if (*attributes != ABSENT) {
+          // property found
+          if (FLAG_trace_contexts) {
+            PrintF("=> found property in context object %p\n",
+                   reinterpret_cast<void*>(*extension));
+          }
+          return extension;
+        }
       }
     }
 
-    if (context->is_function_context()) {
-      // we have context-local slots
-
-      // check non-parameter locals in context
+    // Only functions can have locals, parameters, and a function name.
+    if (context->IsFunctionContext()) {
+      // We may have context-local slots.  Check locals in the context.
       Handle<SerializedScopeInfo> scope_info(
           context->closure()->shared()->scope_info(), isolate);
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
       if (index >= 0) {
-        // slot found
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
                  index, mode);
@@ -142,39 +166,28 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         // declared variables that were introduced through declaration nodes)
         // must not appear here.
         switch (mode) {
-          case Variable::INTERNAL:  // fall through
-          case Variable::VAR: *attributes = NONE; break;
-          case Variable::CONST: *attributes = READ_ONLY; break;
-          case Variable::DYNAMIC: UNREACHABLE(); break;
-          case Variable::DYNAMIC_GLOBAL: UNREACHABLE(); break;
-          case Variable::DYNAMIC_LOCAL: UNREACHABLE(); break;
-          case Variable::TEMPORARY: UNREACHABLE(); break;
+          case Variable::INTERNAL:  // Fall through.
+          case Variable::VAR:
+            *attributes = NONE;
+            break;
+          case Variable::CONST:
+            *attributes = READ_ONLY;
+            break;
+          case Variable::DYNAMIC:
+          case Variable::DYNAMIC_GLOBAL:
+          case Variable::DYNAMIC_LOCAL:
+          case Variable::TEMPORARY:
+            UNREACHABLE();
+            break;
         }
         return context;
       }
 
-      // check parameter locals in context
-      int param_index = scope_info->ParameterIndex(*name);
-      if (param_index >= 0) {
-        // slot found.
-        int index = scope_info->ContextSlotIndex(
-            isolate->heap()->arguments_shadow_symbol(), NULL);
-        ASSERT(index >= 0);  // arguments must exist and be in the heap context
-        Handle<JSObject> arguments(JSObject::cast(context->get(index)),
-                                   isolate);
-        if (FLAG_trace_contexts) {
-          PrintF("=> found parameter %d in arguments object\n", param_index);
-        }
-        *index_ = param_index;
-        *attributes = NONE;
-        return arguments;
-      }
-
-      // check intermediate context (holding only the function name variable)
+      // Check the slot corresponding to the intermediate context holding
+      // only the function name variable.
       if (follow_context_chain) {
         int index = scope_info->FunctionContextSlotIndex(*name);
         if (index >= 0) {
-          // slot found
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
                    index);
@@ -186,18 +199,14 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
     }
 
-    // proceed with enclosing context
+    // Proceed with the previous context.
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
-    } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
     } else {
       context = Handle<Context>(context->previous(), isolate);
     }
   } while (follow_context_chain);
 
-  // slot not found
   if (FLAG_trace_contexts) {
     PrintF("=> no property/slot found\n");
   }
@@ -212,11 +221,12 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // before the global context and check that there are no context
   // extension objects (conservative check for with statements).
   while (!context->IsGlobalContext()) {
-    // Check if the context is a potentially a with context.
+    // Check if the context is a catch or with context, or has introduced
+    // bindings by calling non-strict eval.
     if (context->has_extension()) return false;
 
     // Not a with context so it must be a function context.
-    ASSERT(context->is_function_context());
+    ASSERT(context->IsFunctionContext());
 
     // Check non-parameter locals.
     Handle<SerializedScopeInfo> scope_info(
@@ -233,7 +243,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     // Check context only holding the function name variable.
     index = scope_info->FunctionContextSlotIndex(*name);
     if (index >= 0) return false;
-    context = Context::cast(context->closure()->context());
+    context = context->previous();
   }
 
   // No local or potential with statement found so the variable is
@@ -244,21 +254,24 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 
 void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
                                    bool* outer_scope_calls_non_strict_eval) {
+  // Skip up the context chain checking all the function contexts to see
+  // whether they call eval.
   Context* context = this;
-  while (true) {
-    Handle<SerializedScopeInfo> scope_info(
-        context->closure()->shared()->scope_info());
-    if (scope_info->CallsEval()) {
-      *outer_scope_calls_eval = true;
-      if (!scope_info->IsStrictMode()) {
-        // No need to go further since the answers will not change
-        // from here.
-        *outer_scope_calls_non_strict_eval = true;
-        return;
+  while (!context->IsGlobalContext()) {
+    if (context->IsFunctionContext()) {
+      Handle<SerializedScopeInfo> scope_info(
+          context->closure()->shared()->scope_info());
+      if (scope_info->CallsEval()) {
+        *outer_scope_calls_eval = true;
+        if (!scope_info->IsStrictMode()) {
+          // No need to go further since the answers will not change from
+          // here.
+          *outer_scope_calls_non_strict_eval = true;
+          return;
+        }
       }
     }
-    if (context->IsGlobalContext()) break;
-    context = Context::cast(context->closure()->context());
+    context = context->previous();
   }
 }
 

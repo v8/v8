@@ -1,3 +1,206 @@
+2011-07-11: Version 3.4.11
+
+        Fixed MinGW32 build.
+
+        Fixed a GC bug with RegExp code flushing.
+
+        Implemented Object.defineProperty for proxies.
+
+        Fixed a bug in for/in iteration of arguments objects (issue 1531).
+
+        Added debugger support for inspecting optimized frames (issue 1140).
+
+        Allowed JSObject::PreventExtensions to work for arguments objects.
+
+        Bugfixes and performance work.
+
+
+2011-07-06: Version 3.4.10
+
+        Fixed debugger not breaking on certain "if" statements (issue 1523).
+
+        Fixed assertion failure in runtime profiler when running on IA32
+        without snapshot (issue 1522).
+
+        Fixed ABI for API calls on IA32 (for clang compatibility).
+
+        Introduced code flushing of RegExp code to free memory used by
+        RegExps sooner.
+
+        Fixed linux-tick-processor built wrong version of v8 (issue 1532).
+
+        Fixed assertion failure in v8::TryCache::StackTrace (issue 1529).
+
+        Performance improvements on all platforms.
+
+
+2011-07-04: Version 3.4.9
+
+        Added support for debugger inspection of locals in optimized frames
+        (issue 1140).
+
+        Fixed SConstruct to pass correct defines to samples/preparser when
+        building with library=shared.
+
+        Made date parser handle ES5 Date Time Strings correctly (issue 1498).
+
+        Fixed a bug in Object.defineProperty on the arguments object.
+
+        Performance improvements on all platforms.
+
+
+2011-06-29: Version 3.4.8
+
+        Ensure 16-byte stack alignment on Solaris (issue 1505).
+
+        Fix "illegal access" when calling parseInt with a radix
+        that is not a smi. (issue 1246).
+
+
+2011-06-27: Version 3.4.7
+
+        Fixed 64-bit build on FreeBSD.
+
+        Added API to set the property attributes for the prototype
+        property on functions created from FunctionTemplates.
+
+        Bugfixes and performance work.
+
+
+2011-06-22: Version 3.4.6
+
+        Lowered limit on code space for systems with low memory supply.
+
+        Allowed compiling v8_shell with the 'host' toolset (issue 82437).
+
+        Extended setBreakpoint API to accept partial script name (issue 1418).
+
+        Made multi-line comments not count when deciding whether the '-->'
+        comment starter is first on a line. This matches Safari.
+
+        Made handling of non-array recievers in Array length setter correct
+        (issue 1491).
+
+        Added ability to heap profiler to iterate over snapshot's node
+        (issue 1481).
+
+
+2011-06-20: Version 3.4.5
+
+        Fixed issues 794, 1097, 1215(partial), 1417, 1435, 1472, 1473,
+        1476, and 1477.
+
+        Improved code generation for !0 and !1.
+
+        Reduced memory usage for regular expressions with nested qualifiers.
+        (issue 1472)
+
+        Fixed V8 to count line terminators in multi-line comments.
+        (Chromium issue 86431)
+
+        Fixed disassembler=on option for release-mode builds. (issue 1473)
+
+        Performance improvements on all platforms.
+
+
+2011-06-15: Version 3.4.4
+
+        Added snapshot compression support and --stress-opt flag to d8.
+
+        Improved performance of try/catch.
+
+        Several GYP-related changes: Added support for building Xcode project
+        files. Make the ARM simulator build with GYP again. Generate Makefiles
+        for all architectures on Linux.
+
+        Fixed Array.prototype.{reduce,reduceRight} to pass undefined as the
+        receiver for strict mode callbacks. (issue 1436)
+
+        Fixed a bug where an array load was incorrectly hoisted by GVN.
+
+        Handle 'undefined' correctly when === has been specialized for doubles.
+        (issue 1434)
+
+        Corrected the limit of local variables in an optimized function from 64
+        to 63.
+
+        Correctly set ReadOnly flag on indexed properties when using the API Set
+        method. (issue 1470)
+
+        Give the correct error message when Object.isExtensible is called on a
+        non-object. (issue 1452)
+
+        Added GetOwnPropertyNames method for Object in the API. Patch by Peter
+        Varga.
+
+        Do not redefine properties unneccesarily in seal and freeze. (issue
+        1447)
+
+        IsExecutionTerminating has an Isolate parameter now.
+
+        Distinguish keyed loads with a symbol key from fast elements loads,
+        avoiding some useless deoptimizations. (issue 1471)
+
+
+2011-06-08: Version 3.4.3
+
+        Clear the global thread table when an isolate is disposed
+        (issue 1433).
+
+        Converted time zone name to UTF8 on Windows (issue 1290).
+
+        Limited the number of arguments in a function call to 32766
+        (issue 1413).
+
+        Compress sources of JS libraries in addition to the snapshot.
+
+        Fixed a bug in Lithium environment iteration.
+
+        Performance improvements on all platforms.
+
+
+2011-06-06: Version 3.4.2
+
+        More work on ES-Harmony proxies.  Still hidden behind a flag.
+
+        Fixed some crash bugs and improved performance.
+
+        Fixed building with gdb debugging support.
+
+        Do not install SIGPROF handler until it is needed.
+
+        Added DateTimeFormat to i18n API.
+
+        Fixed compilation on OpenBSD.
+
+        Take the ulimit into account when sizing the heap.  OpenBSD users
+        may still have to increase the default ulimit to run heavy pages in
+        the browser.
+
+
+2011-06-01: Version 3.4.1
+
+        Fixed JSON stringify issue with arrays.
+
+        Changed calls to JS builtins to be passed undefined when called with
+        implicit receiver.
+
+        Implemented the set trap for Harmony proxies. Proxies still need to
+        be enabled with the --harmony-proxies flag.
+
+
+2011-05-30: Version 3.4.0
+
+        Changed calls to undefined property setters to not throw (issue 1355).
+
+        Made RegExp objects not callable.
+
+        Fixed issues on special case large JSON strings in new json parser
+        (issues http://crbug.com/83877 and http://crbug.com/84186).
+
+        Performance improvements on all platforms.
+
+
 2011-05-25: Version 3.3.10
 
         Fixed calls of strict mode function with an implicit receiver.
@@ -2837,3 +3040,6 @@
 
         Initial export.
 
+# Local Variables:
+# mode:text
+# End:

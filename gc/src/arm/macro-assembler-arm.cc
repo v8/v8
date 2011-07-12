@@ -91,7 +91,7 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Jump(byte* target, RelocInfo::Mode rmode,
+void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
@@ -118,10 +118,8 @@ int MacroAssembler::CallSize(Register target, Condition cond) {
 void MacroAssembler::Call(Register target, Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
 #if USE_BLX
   blx(target, cond);
 #else
@@ -129,34 +127,29 @@ void MacroAssembler::Call(Register target, Condition cond) {
   mov(lr, Operand(pc), LeaveCC, cond);
   mov(pc, Operand(target), LeaveCC, cond);
 #endif
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, cond), post_position);
-#endif
+  ASSERT_EQ(CallSize(target, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
 int MacroAssembler::CallSize(
-    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+    Address target, RelocInfo::Mode rmode, Condition cond) {
   int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
-  if (!Operand(target, rmode).is_single_instruction(mov_instr)) {
+  intptr_t immediate = reinterpret_cast<intptr_t>(target);
+  if (!Operand(immediate, rmode).is_single_instruction(mov_instr)) {
     size += kInstrSize;
   }
   return size;
 }
 
 
-void MacroAssembler::Call(intptr_t target,
+void MacroAssembler::Call(Address target,
                           RelocInfo::Mode rmode,
                           Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
 #if USE_BLX
   // On ARMv5 and after the recommended call sequence is:
   //  ldr ip, [pc, #...]
@@ -168,7 +161,7 @@ void MacroAssembler::Call(intptr_t target,
   // we have to do it explicitly.
   positions_recorder()->WriteRecordedPositions();
 
-  mov(ip, Operand(target, rmode));
+  mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
@@ -176,82 +169,36 @@ void MacroAssembler::Call(intptr_t target,
   // Set lr for return at current pc + 8.
   mov(lr, Operand(pc), LeaveCC, cond);
   // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-  mov(pc, Operand(target, rmode), LeaveCC, cond);
+  mov(pc, Operand(reinterpret_cast<int32_t>(target), rmode), LeaveCC, cond);
   ASSERT(kCallTargetAddressOffset == kInstrSize);
 #endif
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
-#endif
+  ASSERT_EQ(CallSize(target, rmode, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
-int MacroAssembler::CallSize(
-    byte* target, RelocInfo::Mode rmode, Condition cond) {
-  return CallSize(reinterpret_cast<intptr_t>(target), rmode);
-}
-
-
-void MacroAssembler::Call(
-    byte* target, RelocInfo::Mode rmode, Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
-  ASSERT(!RelocInfo::IsCodeTarget(rmode));
-  Call(reinterpret_cast<intptr_t>(target), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
-#endif
-}
-
-
-int MacroAssembler::CallSize(
-    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
-  return CallSize(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-}
-
-
-void MacroAssembler::CallWithAstId(Handle<Code> code,
-                                   RelocInfo::Mode rmode,
-                                   unsigned ast_id,
-                                   Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
-  ASSERT(rmode == RelocInfo::CODE_TARGET_WITH_ID);
-  ASSERT(ast_id != kNoASTId);
-  ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-  ast_id_for_reloc_info_ = ast_id;
-  // 'code' is always generated ARM code, never THUMB code
-  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
-#endif
+int MacroAssembler::CallSize(Handle<Code> code,
+                             RelocInfo::Mode rmode,
+                             unsigned ast_id,
+                             Condition cond) {
+  return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
 
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
+                          unsigned ast_id,
                           Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    ASSERT(ast_id_for_reloc_info_ == kNoASTId);
+    ast_id_for_reloc_info_ = ast_id;
+    rmode = RelocInfo::CODE_TARGET_WITH_ID;
+  }
   // 'code' is always generated ARM code, never THUMB code
-  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
-#endif
+  Call(reinterpret_cast<Address>(code.location()), rmode, cond);
+  ASSERT_EQ(CallSize(code, rmode, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
@@ -298,14 +245,20 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+void MacroAssembler::Push(Handle<Object> handle) {
+  mov(ip, Operand(handle));
+  push(ip);
+}
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
 }
 
 
-void MacroAssembler::Move(Register dst, Register src) {
+void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   if (!dst.is(src)) {
-    mov(dst, src);
+    mov(dst, src, LeaveCC, cond);
   }
 }
 
@@ -330,7 +283,8 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
              !src2.must_use_constant_pool() &&
              CpuFeatures::IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
-    ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
+    ubfx(dst, src1, 0,
+        WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
 
   } else {
     and_(dst, src1, src2, LeaveCC, cond);
@@ -434,20 +388,6 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
     bind(&done);
   } else {
     usat(dst, satpos, src, cond);
-  }
-}
-
-
-void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
-  // Empty the const pool.
-  CheckConstPool(true, true);
-  add(pc, pc, Operand(index,
-                      LSL,
-                      Instruction::kInstrSizeLog2 - kSmiTagSize));
-  BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * kInstrSize);
-  nop();  // Jump table alignment.
-  for (int i = 0; i < targets.length(); i++) {
-    b(targets[i]);
   }
 }
 
@@ -699,19 +639,36 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
 
+  // V8 does not use this addressing mode, so the fallback code
+  // below doesn't support it yet.
+  ASSERT((src.am() != PreIndex) && (src.am() != NegPreIndex));
+
   // Generate two ldr instructions if ldrd is not available.
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     ldrd(dst1, dst2, src, cond);
   } else {
-    MemOperand src2(src);
-    src2.set_offset(src2.offset() + 4);
-    if (dst1.is(src.rn())) {
-      ldr(dst2, src2, cond);
-      ldr(dst1, src, cond);
-    } else {
-      ldr(dst1, src, cond);
-      ldr(dst2, src2, cond);
+    if ((src.am() == Offset) || (src.am() == NegOffset)) {
+      MemOperand src2(src);
+      src2.set_offset(src2.offset() + 4);
+      if (dst1.is(src.rn())) {
+        ldr(dst2, src2, cond);
+        ldr(dst1, src, cond);
+      } else {
+        ldr(dst1, src, cond);
+        ldr(dst2, src2, cond);
+      }
+    } else {  // PostIndex or NegPostIndex.
+      ASSERT((src.am() == PostIndex) || (src.am() == NegPostIndex));
+      if (dst1.is(src.rn())) {
+        ldr(dst2, MemOperand(src.rn(), 4, Offset), cond);
+        ldr(dst1, src, cond);
+      } else {
+        MemOperand src2(src);
+        src2.set_offset(src2.offset() - 4);
+        ldr(dst1, MemOperand(src.rn(), 4, PostIndex), cond);
+        ldr(dst2, src2, cond);
+      }
     }
   }
 }
@@ -724,15 +681,26 @@ void MacroAssembler::Strd(Register src1, Register src2,
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
 
+  // V8 does not use this addressing mode, so the fallback code
+  // below doesn't support it yet.
+  ASSERT((dst.am() != PreIndex) && (dst.am() != NegPreIndex));
+
   // Generate two str instructions if strd is not available.
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     strd(src1, src2, dst, cond);
   } else {
     MemOperand dst2(dst);
-    dst2.set_offset(dst2.offset() + 4);
-    str(src1, dst, cond);
-    str(src2, dst2, cond);
+    if ((dst.am() == Offset) || (dst.am() == NegOffset)) {
+      dst2.set_offset(dst2.offset() + 4);
+      str(src1, dst, cond);
+      str(src2, dst2, cond);
+    } else {  // PostIndex or NegPostIndex.
+      ASSERT((dst.am() == PostIndex) || (dst.am() == NegPostIndex));
+      dst2.set_offset(dst2.offset() - 4);
+      str(src1, MemOperand(dst.rn(), 4, PostIndex), cond);
+      str(src2, dst2, cond);
+    }
   }
 }
 
@@ -777,6 +745,23 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
   // Compare and load FPSCR.
   vcmp(src1, src2, cond);
   vmrs(fpscr_flags, cond);
+}
+
+void MacroAssembler::Vmov(const DwVfpRegister dst,
+                          const double imm,
+                          const Condition cond) {
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  static const DoubleRepresentation minus_zero(-0.0);
+  static const DoubleRepresentation zero(0.0);
+  DoubleRepresentation value(imm);
+  // Handle special values first.
+  if (value.bits == zero.bits) {
+    vmov(dst, kDoubleRegZero, cond);
+  } else if (value.bits == minus_zero.bits) {
+    vneg(dst, kDoubleRegZero, cond);
+  } else {
+    vmov(dst, imm, cond);
+  }
 }
 
 
@@ -1001,9 +986,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
-      call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      call_wrapper.BeforeCall(CallSize(adaptor));
       SetCallKind(r5, call_kind);
-      Call(adaptor, RelocInfo::CODE_TARGET);
+      Call(adaptor);
       call_wrapper.AfterCall();
       b(done);
     } else {
@@ -1093,7 +1078,8 @@ void MacroAssembler::InvokeFunction(Register fun,
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
 
   // Get the function and setup the context.
@@ -1108,9 +1094,9 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // code field in the function to allow recompilation to take effect
     // without changing any of the call sites.
     ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-    InvokeCode(r3, expected, actual, flag);
+    InvokeCode(r3, expected, actual, flag, NullCallWrapper(), call_kind);
   } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
   }
 }
 
@@ -1128,9 +1114,9 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  cmp(scratch, Operand(FIRST_JS_OBJECT_TYPE));
+  cmp(scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   b(lt, fail);
-  cmp(scratch, Operand(LAST_JS_OBJECT_TYPE));
+  cmp(scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   b(gt, fail);
 }
 
@@ -1399,6 +1385,100 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   b(ne, miss);
 
   bind(&same_contexts);
+}
+
+
+void MacroAssembler::LoadFromNumberDictionary(Label* miss,
+                                              Register elements,
+                                              Register key,
+                                              Register result,
+                                              Register t0,
+                                              Register t1,
+                                              Register t2) {
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the same as 'key' or 'result'.
+  //            Unchanged on bailout so 'key' or 'result' can be used
+  //            in further computation.
+  //
+  // Scratch registers:
+  //
+  // t0 - holds the untagged key on entry and holds the hash once computed.
+  //
+  // t1 - used to hold the capacity mask of the dictionary
+  //
+  // t2 - used for the index into the dictionary.
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  mvn(t1, Operand(t0));
+  add(t0, t1, Operand(t0, LSL, 15));
+  // hash = hash ^ (hash >> 12);
+  eor(t0, t0, Operand(t0, LSR, 12));
+  // hash = hash + (hash << 2);
+  add(t0, t0, Operand(t0, LSL, 2));
+  // hash = hash ^ (hash >> 4);
+  eor(t0, t0, Operand(t0, LSR, 4));
+  // hash = hash * 2057;
+  mov(t1, Operand(2057));
+  mul(t0, t0, t1);
+  // hash = hash ^ (hash >> 16);
+  eor(t0, t0, Operand(t0, LSR, 16));
+
+  // Compute the capacity mask.
+  ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
+  sub(t1, t1, Operand(1));
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  static const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use t2 for index calculations and keep the hash intact in t0.
+    mov(t2, t0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      add(t2, t2, Operand(NumberDictionary::GetProbeOffset(i)));
+    }
+    and_(t2, t2, Operand(t1));
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    add(t2, t2, Operand(t2, LSL, 1));  // t2 = t2 * 3
+
+    // Check if the key is identical to the name.
+    add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
+    ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    cmp(key, Operand(ip));
+    if (i != kProbes - 1) {
+      b(eq, &done);
+    } else {
+      b(ne, miss);
+    }
+  }
+
+  bind(&done);
+  // Check that the value is a normal property.
+  // t2: elements + (index * kPointerSize)
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+  ldr(t1, FieldMemOperand(t2, kDetailsOffset));
+  tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  b(ne, miss);
+
+  // Get the value at the masked, scaled index and return.
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
+  ldr(result, FieldMemOperand(t2, kValueOffset));
 }
 
 
@@ -1718,6 +1798,16 @@ void MacroAssembler::CompareRoot(Register obj,
   ASSERT(!obj.is(ip));
   LoadRoot(ip, index);
   cmp(obj, ip);
+}
+
+
+void MacroAssembler::CheckFastElements(Register map,
+                                       Register scratch,
+                                       Label* fail) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  b(hi, fail);
 }
 
 
@@ -2414,10 +2504,12 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   GetBuiltinEntry(r2, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(r2));
+    SetCallKind(r5, CALL_AS_METHOD);
     Call(r2);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(r5, CALL_AS_METHOD);
     Jump(r2);
   }
 }
@@ -2563,29 +2655,15 @@ void MacroAssembler::Abort(const char* msg) {
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.
-    ldr(dst, MemOperand(cp, Context::SlotOffset(Context::CLOSURE_INDEX)));
-    // Load the function context (which is the incoming, outer context).
-    ldr(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+    ldr(dst, MemOperand(cp, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     for (int i = 1; i < context_chain_length; i++) {
-      ldr(dst, MemOperand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
-      ldr(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+      ldr(dst, MemOperand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     }
   } else {
     // Slot is in the current function context.  Move it into the
     // destination register in case we store into it (the write barrier
     // cannot be allowed to destroy the context in esi).
     mov(dst, cp);
-  }
-
-  // We should not have found a 'with' context by walking the context chain
-  // (i.e., the static scope chain and runtime context chain do not agree).
-  // A variable occurring in such a scope should have slot type LOOKUP and
-  // not CONTEXT.
-  if (emit_debug_code()) {
-    ldr(ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    cmp(dst, ip);
-    Check(eq, "Yo dawg, I heard you liked function contexts "
-              "so I put function contexts in all your contexts");
   }
 }
 
@@ -2734,8 +2812,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   and_(scratch1, first, Operand(second));
-  tst(scratch1, Operand(kSmiTagMask));
-  b(eq, failure);
+  JumpIfSmi(scratch1, failure);
   JumpIfNonSmisNotBothSequentialAsciiStrings(first,
                                              second,
                                              scratch1,
@@ -3213,7 +3290,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   Label done;
   Label in_bounds;
 
-  vmov(temp_double_reg, 0.0);
+  Vmov(temp_double_reg, 0.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(gt, &above_zero);
 
@@ -3223,7 +3300,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  vmov(temp_double_reg, 255.0);
+  Vmov(temp_double_reg, 255.0);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(le, &in_bounds);
   mov(result_reg, Operand(255));
@@ -3231,7 +3308,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // In 0-255 range, round and truncate.
   bind(&in_bounds);
-  vmov(temp_double_reg, 0.5);
+  Vmov(temp_double_reg, 0.5);
   vadd(temp_double_reg, input_reg, temp_double_reg);
   vcvt_u32_f64(s0, temp_double_reg);
   vmov(result_reg, s0);

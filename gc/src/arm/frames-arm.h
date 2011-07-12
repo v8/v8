@@ -82,6 +82,9 @@ static const RegList kCallerSaved =
 
 static const int kNumCalleeSaved = 7 + kR9Available;
 
+// Double registers d8 to d15 are callee-saved.
+static const int kNumDoubleCalleeSaved = 8;
+
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.

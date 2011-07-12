@@ -819,7 +819,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag, call_wrapper);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper, CALL_AS_METHOD);
 }
 
 
@@ -2628,6 +2628,16 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+void MacroAssembler::CheckFastElements(Register map,
+                                       Label* fail,
+                                       Label::Distance distance) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  cmpb(FieldOperand(map, Map::kBitField2Offset),
+       Immediate(Map::kMaximumBitField2FastElementValue));
+  j(above, fail, distance);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
@@ -2948,7 +2958,8 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -2959,7 +2970,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag, call_wrapper);
+    InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
@@ -2969,7 +2980,8 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                actual,
                RelocInfo::CODE_TARGET,
                flag,
-               call_wrapper);
+               call_wrapper,
+               call_kind);
   }
 }
 
@@ -3259,6 +3271,109 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   j(not_equal, miss);
 
   bind(&same_contexts);
+}
+
+
+void MacroAssembler::LoadFromNumberDictionary(Label* miss,
+                                              Register elements,
+                                              Register key,
+                                              Register r0,
+                                              Register r1,
+                                              Register r2,
+                                              Register result) {
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // Scratch registers:
+  //
+  // r0 - holds the untagged key on entry and holds the hash once computed.
+  //
+  // r1 - used to hold the capacity mask of the dictionary
+  //
+  // r2 - used for the index into the dictionary.
+  //
+  // result - holds the result on exit if the load succeeded.
+  //          Allowed to be the same as 'key' or 'result'.
+  //          Unchanged on bailout so 'key' or 'result' can be used
+  //          in further computation.
+
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  movl(r1, r0);
+  notl(r0);
+  shll(r1, Immediate(15));
+  addl(r0, r1);
+  // hash = hash ^ (hash >> 12);
+  movl(r1, r0);
+  shrl(r1, Immediate(12));
+  xorl(r0, r1);
+  // hash = hash + (hash << 2);
+  leal(r0, Operand(r0, r0, times_4, 0));
+  // hash = hash ^ (hash >> 4);
+  movl(r1, r0);
+  shrl(r1, Immediate(4));
+  xorl(r0, r1);
+  // hash = hash * 2057;
+  imull(r0, r0, Immediate(2057));
+  // hash = hash ^ (hash >> 16);
+  movl(r1, r0);
+  shrl(r1, Immediate(16));
+  xorl(r0, r1);
+
+  // Compute capacity mask.
+  SmiToInteger32(r1,
+                 FieldOperand(elements, NumberDictionary::kCapacityOffset));
+  decl(r1);
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use r2 for index calculations and keep the hash intact in r0.
+    movq(r2, r0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      addl(r2, Immediate(NumberDictionary::GetProbeOffset(i)));
+    }
+    and_(r2, r1);
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
+
+    // Check if the key matches.
+    cmpq(key, FieldOperand(elements,
+                           r2,
+                           times_pointer_size,
+                           NumberDictionary::kElementsStartOffset));
+    if (i != (kProbes - 1)) {
+      j(equal, &done);
+    } else {
+      j(not_equal, miss);
+    }
+  }
+
+  bind(&done);
+  // Check that the value is a normal propety.
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+  ASSERT_EQ(NORMAL, 0);
+  Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
+       Smi::FromInt(PropertyDetails::TypeField::mask()));
+  j(not_zero, miss);
+
+  // Get the value at the masked, scaled index.
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
+  movq(result, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 
 
@@ -3675,15 +3790,10 @@ void MacroAssembler::CopyBytes(Register destination,
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.
-    movq(dst, Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
-    // Load the function context (which is the incoming, outer context).
-    movq(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    movq(dst, Operand(rsi, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     for (int i = 1; i < context_chain_length; i++) {
-      movq(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
-      movq(dst, FieldOperand(dst, JSFunction::kContextOffset));
+      movq(dst, Operand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
     }
-    // The context may be an intermediate context, not a function context.
-    movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   } else {
     // Slot is in the current function context.  Move it into the
     // destination register in case we store into it (the write barrier
@@ -3691,14 +3801,14 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     movq(dst, rsi);
   }
 
-  // We should not have found a 'with' context by walking the context chain
-  // (i.e., the static scope chain and runtime context chain do not agree).
-  // A variable occurring in such a scope should have slot type LOOKUP and
-  // not CONTEXT.
+  // We should not have found a with context by walking the context
+  // chain (i.e., the static scope chain and runtime context chain do
+  // not agree).  A variable occurring in such a scope should have
+  // slot type LOOKUP and not CONTEXT.
   if (emit_debug_code()) {
-    cmpq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    Check(equal, "Yo dawg, I heard you liked function contexts "
-                 "so I put function contexts in all your contexts");
+    CompareRoot(FieldOperand(dst, HeapObject::kMapOffset),
+                Heap::kWithContextMapRootIndex);
+    Check(not_equal, "Variable resolved to with context.");
   }
 }
 

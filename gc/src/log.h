@@ -281,9 +281,9 @@ class Logger {
   // Pause/Resume collection of profiling data.
   // When data collection is paused, CPU Tick events are discarded until
   // data collection is Resumed.
-  void PauseProfiler(int flags, int tag);
-  void ResumeProfiler(int flags, int tag);
-  int GetActiveProfilerModules();
+  void PauseProfiler();
+  void ResumeProfiler();
+  bool IsProfilerPaused();
 
   // If logging is performed into a memory buffer, allows to
   // retrieve previously written messages. See v8.h.
@@ -402,7 +402,6 @@ class Logger {
 
   int logging_nesting_;
   int cpu_profiler_nesting_;
-  int heap_profiler_nesting_;
 
   Log* log_;
 

@@ -76,11 +76,11 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   // Check that the receiver is a valid JS object.
   __ movq(r1, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movb(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
-  __ cmpb(r0, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpb(r0, Immediate(FIRST_SPEC_OBJECT_TYPE));
   __ j(below, miss);
 
   // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
 
   GenerateGlobalInstanceTypeCheck(masm, r0, miss);
 
@@ -222,110 +222,6 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   // Update write barrier. Make sure not to clobber the value.
   __ movq(scratch0, value);
   __ RecordWrite(elements, scratch1, scratch0, kDontSaveFPRegs);
-}
-
-
-static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
-                                         Label* miss,
-                                         Register elements,
-                                         Register key,
-                                         Register r0,
-                                         Register r1,
-                                         Register r2,
-                                         Register result) {
-  // Register use:
-  //
-  // elements - holds the slow-case elements of the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // Scratch registers:
-  //
-  // r0 - holds the untagged key on entry and holds the hash once computed.
-  //
-  // r1 - used to hold the capacity mask of the dictionary
-  //
-  // r2 - used for the index into the dictionary.
-  //
-  // result - holds the result on exit if the load succeeded.
-  //          Allowed to be the same as 'key' or 'result'.
-  //          Unchanged on bailout so 'key' or 'result' can be used
-  //          in further computation.
-
-  Label done;
-
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  __ movl(r1, r0);
-  __ notl(r0);
-  __ shll(r1, Immediate(15));
-  __ addl(r0, r1);
-  // hash = hash ^ (hash >> 12);
-  __ movl(r1, r0);
-  __ shrl(r1, Immediate(12));
-  __ xorl(r0, r1);
-  // hash = hash + (hash << 2);
-  __ leal(r0, Operand(r0, r0, times_4, 0));
-  // hash = hash ^ (hash >> 4);
-  __ movl(r1, r0);
-  __ shrl(r1, Immediate(4));
-  __ xorl(r0, r1);
-  // hash = hash * 2057;
-  __ imull(r0, r0, Immediate(2057));
-  // hash = hash ^ (hash >> 16);
-  __ movl(r1, r0);
-  __ shrl(r1, Immediate(16));
-  __ xorl(r0, r1);
-
-  // Compute capacity mask.
-  __ SmiToInteger32(r1,
-                    FieldOperand(elements, NumberDictionary::kCapacityOffset));
-  __ decl(r1);
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
-    // Use r2 for index calculations and keep the hash intact in r0.
-    __ movq(r2, r0);
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      __ addl(r2, Immediate(NumberDictionary::GetProbeOffset(i)));
-    }
-    __ and_(r2, r1);
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
-    __ lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
-
-    // Check if the key matches.
-    __ cmpq(key, FieldOperand(elements,
-                              r2,
-                              times_pointer_size,
-                              NumberDictionary::kElementsStartOffset));
-    if (i != (kProbes - 1)) {
-      __ j(equal, &done);
-    } else {
-      __ j(not_equal, miss);
-    }
-  }
-
-  __ bind(&done);
-  // Check that the value is a normal propety.
-  const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  ASSERT_EQ(NORMAL, 0);
-  __ Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
-          Smi::FromInt(PropertyDetails::TypeField::mask()));
-  __ j(not_zero, miss);
-
-  // Get the value at the masked, scaled index.
-  const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ movq(result, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 
 
@@ -508,11 +404,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, rdx, rcx, Map::kHasIndexedInterceptor, &slow);
 
-  // Check the "has fast elements" bit in the receiver's map which is
-  // now in rcx.
-  __ testb(FieldOperand(rcx, Map::kBitField2Offset),
-           Immediate(1 << Map::kHasFastElements));
-  __ j(zero, &check_number_dictionary);
+  // Check the receiver's map to see if it has fast elements.
+  __ CheckFastElements(rcx, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm,
                         rdx,
@@ -538,7 +431,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::kHashTableMapRootIndex);
   __ j(not_equal, &slow);
-  GenerateNumberDictionaryLoad(masm, &slow, rcx, rax, rbx, r9, rdi, rax);
+  __ LoadFromNumberDictionary(&slow, rcx, rax, rbx, r9, rdi, rax);
   __ ret(0);
 
   __ bind(&slow);
@@ -730,9 +623,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   __ CmpInstanceType(rbx, JS_ARRAY_TYPE);
   __ j(equal, &array);
-  // Check that the object is some kind of JS object.
-  __ CmpInstanceType(rbx, FIRST_JS_OBJECT_TYPE);
+  // Check that the object is some kind of JSObject.
+  __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
   __ j(below, &slow);
+  __ CmpInstanceType(rbx, JS_PROXY_TYPE);
+  __ j(equal, &slow);
+  __ CmpInstanceType(rbx, JS_FUNCTION_PROXY_TYPE);
+  __ j(equal, &slow);
 
   // Object case: Check key against length in the elements array.
   // rax: value
@@ -895,7 +792,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -1100,7 +998,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ j(not_equal, &slow_load);
   __ SmiToInteger32(rbx, rcx);
   // ebx: untagged index
-  GenerateNumberDictionaryLoad(masm, &slow_load, rax, rcx, rbx, r9, rdi, rdi);
+  __ LoadFromNumberDictionary(&slow_load, rax, rcx, rbx, r9, rdi, rdi);
   __ IncrementCounter(counters->keyed_call_generic_smi_dict(), 1);
   __ jmp(&do_call);
 
@@ -1196,6 +1094,181 @@ void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // -----------------------------------
 
   GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss, Code::kNoExtraICState);
+}
+
+
+static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
+                                             Register object,
+                                             Register key,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Register scratch3,
+                                             Label* unmapped_case,
+                                             Label* slow_case) {
+  Heap* heap = masm->isolate()->heap();
+
+  // Check that the receiver is a JSObject. Because of the elements
+  // map check later, we do not need to check for interceptors or
+  // whether it requires access checks.
+  __ JumpIfSmi(object, slow_case);
+  // Check that the object is some kind of JSObject.
+  __ CmpObjectType(object, FIRST_JS_RECEIVER_TYPE, scratch1);
+  __ j(below, slow_case);
+
+  // Check that the key is a positive smi.
+  Condition check = masm->CheckNonNegativeSmi(key);
+  __ j(NegateCondition(check), slow_case);
+
+  // Load the elements into scratch1 and check its map. If not, jump
+  // to the unmapped lookup with the parameter map in scratch1.
+  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
+  __ movq(scratch1, FieldOperand(object, JSObject::kElementsOffset));
+  __ CheckMap(scratch1, arguments_map, slow_case, DONT_DO_SMI_CHECK);
+
+  // Check if element is in the range of mapped arguments.
+  __ movq(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
+  __ SmiSubConstant(scratch2, scratch2, Smi::FromInt(2));
+  __ cmpq(key, scratch2);
+  __ j(greater_equal, unmapped_case);
+
+  // Load element index and check whether it is the hole.
+  const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
+  __ SmiToInteger64(scratch3, key);
+  __ movq(scratch2, FieldOperand(scratch1,
+                                 scratch3,
+                                 times_pointer_size,
+                                 kHeaderSize));
+  __ CompareRoot(scratch2, Heap::kTheHoleValueRootIndex);
+  __ j(equal, unmapped_case);
+
+  // Load value from context and return it. We can reuse scratch1 because
+  // we do not jump to the unmapped lookup (which requires the parameter
+  // map in scratch1).
+  __ movq(scratch1, FieldOperand(scratch1, FixedArray::kHeaderSize));
+  __ SmiToInteger64(scratch3, scratch2);
+  return FieldOperand(scratch1,
+                      scratch3,
+                      times_pointer_size,
+                      Context::kHeaderSize);
+}
+
+
+static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
+                                               Register key,
+                                               Register parameter_map,
+                                               Register scratch,
+                                               Label* slow_case) {
+  // Element is in arguments backing store, which is referenced by the
+  // second element of the parameter_map. The parameter_map register
+  // must be loaded with the parameter map of the arguments object and is
+  // overwritten.
+  const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
+  Register backing_store = parameter_map;
+  __ movq(backing_store, FieldOperand(parameter_map, kBackingStoreOffset));
+  Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
+  __ CheckMap(backing_store, fixed_array_map, slow_case, DONT_DO_SMI_CHECK);
+  __ movq(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
+  __ cmpq(key, scratch);
+  __ j(greater_equal, slow_case);
+  __ SmiToInteger64(scratch, key);
+  return FieldOperand(backing_store,
+                      scratch,
+                      times_pointer_size,
+                      FixedArray::kHeaderSize);
+}
+
+
+void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  Label slow, notin;
+  Operand mapped_location =
+      GenerateMappedArgumentsLookup(
+          masm, rdx, rax, rbx, rcx, rdi, &notin, &slow);
+  __ movq(rax, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in rbx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, rax, rbx, rcx, &slow);
+  __ CompareRoot(unmapped_location, Heap::kTheHoleValueRootIndex);
+  __ j(equal, &slow);
+  __ movq(rax, unmapped_location);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  Label slow, notin;
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, rdx, rcx, rbx, rdi, r8, &notin, &slow);
+  __ movq(mapped_location, rax);
+  __ lea(r9, mapped_location);
+  __ movq(r8, rax);
+  __ RecordWrite(rbx,
+                 r9,
+                 r8,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 INLINE_SMI_CHECK);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in rbx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, rcx, rbx, rdi, &slow);
+  __ movq(unmapped_location, rax);
+  __ lea(r9, unmapped_location);
+  __ movq(r8, rax);
+  __ RecordWrite(rbx,
+                 r9,
+                 r8,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 INLINE_SMI_CHECK);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm, false);
+}
+
+
+void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
+                                             int argc) {
+  // ----------- S t a t e -------------
+  // rcx                      : function name
+  // rsp[0]                   : return address
+  // rsp[8]                   : argument argc
+  // rsp[16]                  : argument argc - 1
+  // ...
+  // rsp[argc * 8]            : argument 1
+  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // -----------------------------------
+  Label slow, notin;
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, rdx, rcx, rbx, rax, r8, &notin, &slow);
+  __ movq(rdi, mapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow);
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in rbx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, rcx, rbx, rax, &slow);
+  __ CompareRoot(unmapped_location, Heap::kTheHoleValueRootIndex);
+  __ j(equal, &slow);
+  __ movq(rdi, unmapped_location);
+  GenerateFunctionTailCall(masm, argc, &slow);
+  __ bind(&slow);
+  GenerateMiss(masm, argc);
 }
 
 

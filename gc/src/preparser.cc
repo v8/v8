@@ -38,6 +38,8 @@
 #include "preparse-data.h"
 #include "preparser.h"
 
+#include "conversions-inl.h"
+
 namespace v8 {
 namespace preparser {
 
@@ -77,9 +79,14 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_string", NULL);
   case i::Token::IDENTIFIER:
-  case i::Token::FUTURE_RESERVED_WORD:
     return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
                            "unexpected_token_identifier", NULL);
+  case i::Token::FUTURE_RESERVED_WORD:
+    return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
+                           "unexpected_reserved", NULL);
+  case i::Token::FUTURE_STRICT_RESERVED_WORD:
+    return ReportMessageAt(source_location.beg_pos, source_location.end_pos,
+                           "unexpected_strict_reserved", NULL);
   default:
     const char* name = i::Token::String(token);
     ReportMessageAt(source_location.beg_pos, source_location.end_pos,
@@ -209,9 +216,6 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     case i::Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
 
-    case i::Token::NATIVE:
-      return ParseNativeDeclaration(ok);
-
     case i::Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
@@ -236,36 +240,13 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     // Strict mode violation, using either reserved word or eval/arguments
     // as name of strict function.
     const char* type = "strict_function_name";
-    if (identifier.IsFutureReserved()) {
+    if (identifier.IsFutureStrictReserved()) {
       type = "strict_reserved_word";
     }
     ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
     *ok = false;
   }
   return Statement::FunctionDeclaration();
-}
-
-
-// Language extension which is only enabled for source files loaded
-// through the API's extension mechanism.  A native function
-// declaration is resolved by looking up the function through a
-// callback provided by the extension.
-PreParser::Statement PreParser::ParseNativeDeclaration(bool* ok) {
-  Expect(i::Token::NATIVE, CHECK_OK);
-  Expect(i::Token::FUNCTION, CHECK_OK);
-  ParseIdentifier(CHECK_OK);
-  Expect(i::Token::LPAREN, CHECK_OK);
-  bool done = (peek() == i::Token::RPAREN);
-  while (!done) {
-    ParseIdentifier(CHECK_OK);
-    done = (peek() == i::Token::RPAREN);
-    if (!done) {
-      Expect(i::Token::COMMA, CHECK_OK);
-    }
-  }
-  Expect(i::Token::RPAREN, CHECK_OK);
-  Expect(i::Token::SEMICOLON, CHECK_OK);
-  return Statement::Default();
 }
 
 
@@ -362,8 +343,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   //   Identifier ':' Statement
 
   Expression expr = ParseExpression(true, CHECK_OK);
-  if (peek() == i::Token::COLON && expr.IsRawIdentifier()) {
-    if (!strict_mode() || !expr.AsIdentifier().IsFutureReserved()) {
+  if (expr.IsRawIdentifier()) {
+    if (peek() == i::Token::COLON &&
+        (!strict_mode() || !expr.AsIdentifier().IsFutureReserved())) {
       Consume(i::Token::COLON);
       i::Scanner::Location start_location = scanner_->peek_location();
       Statement statement = ParseStatement(CHECK_OK);
@@ -375,6 +357,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
       }
       return Statement::Default();
     }
+    // Preparsing is disabled for extensions (because the extension details
+    // aren't passed to lazily compiled functions), so we don't
+    // accept "native function" in the preparser.
   }
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);
@@ -405,7 +390,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
 
   Expect(i::Token::CONTINUE, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -422,7 +407,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
 
   Expect(i::Token::BREAK, CHECK_OK);
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -448,7 +433,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // This is not handled during preparsing.
 
   i::Token::Value tok = peek();
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       tok != i::Token::SEMICOLON &&
       tok != i::Token::RBRACE &&
       tok != i::Token::EOS) {
@@ -599,7 +584,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
   //   'throw' [no line terminator] Expression ';'
 
   Expect(i::Token::THROW, CHECK_OK);
-  if (scanner_->has_line_terminator_before_next()) {
+  if (scanner_->HasAnyLineTerminatorBeforeNext()) {
     i::JavaScriptScanner::Location pos = scanner_->location();
     ReportMessageAt(pos.beg_pos, pos.end_pos,
                     "newline_after_throw", NULL);
@@ -822,7 +807,7 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
 
   i::Scanner::Location before = scanner_->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner_->has_line_terminator_before_next() &&
+  if (!scanner_->HasAnyLineTerminatorBeforeNext() &&
       i::Token::IsCountOp(peek())) {
     if (strict_mode() && expression.IsIdentifier() &&
         expression.AsIdentifier().IsEvalOrArguments()) {
@@ -1001,7 +986,16 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       break;
     }
 
-    case i::Token::FUTURE_RESERVED_WORD:
+    case i::Token::FUTURE_RESERVED_WORD: {
+      Next();
+      i::Scanner::Location location = scanner_->location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "reserved_word", NULL);
+      *ok = false;
+      return Expression::Default();
+    }
+
+    case i::Token::FUTURE_STRICT_RESERVED_WORD:
       if (strict_mode()) {
         Next();
         i::Scanner::Location location = scanner_->location();
@@ -1100,15 +1094,17 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
     i::Token::Value next = peek();
     switch (next) {
       case i::Token::IDENTIFIER:
-      case i::Token::FUTURE_RESERVED_WORD: {
+      case i::Token::FUTURE_RESERVED_WORD:
+      case i::Token::FUTURE_STRICT_RESERVED_WORD: {
         bool is_getter = false;
         bool is_setter = false;
-        ParseIdentifierOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
+        ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
         if ((is_getter || is_setter) && peek() != i::Token::COLON) {
             i::Token::Value name = Next();
             bool is_keyword = i::Token::IsKeyword(name);
             if (name != i::Token::IDENTIFIER &&
                 name != i::Token::FUTURE_RESERVED_WORD &&
+                name != i::Token::FUTURE_STRICT_RESERVED_WORD &&
                 name != i::Token::NUMBER &&
                 name != i::Token::STRING &&
                 !is_keyword) {
@@ -1256,7 +1252,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
     int end_pos = scanner_->location().end_pos;
     log_->LogFunction(function_block_pos, end_pos,
                       function_scope.materialized_literal_count(),
-                      function_scope.expected_properties());
+                      function_scope.expected_properties(),
+                      strict_mode() ? 1 : 0);
   } else {
     ParseSourceElements(i::Token::RBRACE, CHECK_OK);
     Expect(i::Token::RBRACE, CHECK_OK);
@@ -1295,7 +1292,7 @@ void PreParser::ExpectSemicolon(bool* ok) {
     Next();
     return;
   }
-  if (scanner_->has_line_terminator_before_next() ||
+  if (scanner_->HasAnyLineTerminatorBeforeNext() ||
       tok == i::Token::RBRACE ||
       tok == i::Token::EOS) {
     return;
@@ -1333,6 +1330,9 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
   LogSymbol();
   if (scanner_->current_token() == i::Token::FUTURE_RESERVED_WORD) {
     return Identifier::FutureReserved();
+  } else if (scanner_->current_token() ==
+             i::Token::FUTURE_STRICT_RESERVED_WORD) {
+    return Identifier::FutureStrictReserved();
   }
   if (scanner_->is_literal_ascii()) {
     // Detect strict-mode poison words.
@@ -1350,11 +1350,22 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 
 
 PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
-  if (!Check(i::Token::FUTURE_RESERVED_WORD)) {
-    Expect(i::Token::IDENTIFIER, ok);
-    if (!*ok) return Identifier::Default();
+  i::Token::Value next = Next();
+  switch (next) {
+    case i::Token::FUTURE_RESERVED_WORD: {
+      i::Scanner::Location location = scanner_->location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "reserved_word", NULL);
+      *ok = false;
+    }
+      // FALLTHROUGH
+    case i::Token::FUTURE_STRICT_RESERVED_WORD:
+    case i::Token::IDENTIFIER:
+      return GetIdentifierSymbol();
+    default:
+      *ok = false;
+      return Identifier::Default();
   }
-  return GetIdentifierSymbol();
 }
 
 
@@ -1394,6 +1405,8 @@ void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
                                               bool* ok) {
   const char* type = eval_args_type;
   if (identifier.IsFutureReserved()) {
+    type = "reserved_word";
+  } else if (identifier.IsFutureStrictReserved()) {
     type = "strict_reserved_word";
   }
   if (strict_mode()) {
@@ -1416,7 +1429,8 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
     return Identifier::Default();
   }
   if (next == i::Token::IDENTIFIER ||
-      next == i::Token::FUTURE_RESERVED_WORD) {
+      next == i::Token::FUTURE_RESERVED_WORD ||
+      next == i::Token::FUTURE_STRICT_RESERVED_WORD) {
     return GetIdentifierSymbol();
   }
   *ok = false;
@@ -1428,10 +1442,10 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
 
 // This function reads an identifier and determines whether or not it
 // is 'get' or 'set'.
-PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
-                                                           bool* is_set,
-                                                           bool* ok) {
-  Identifier result = ParseIdentifier(ok);
+PreParser::Identifier PreParser::ParseIdentifierNameOrGetOrSet(bool* is_get,
+                                                               bool* is_set,
+                                                               bool* ok) {
+  Identifier result = ParseIdentifierName(ok);
   if (!*ok) return Identifier::Default();
   if (scanner_->is_literal_ascii() &&
       scanner_->literal_length() == 3) {
@@ -1445,6 +1459,7 @@ PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
 bool PreParser::peek_any_identifier() {
   i::Token::Value next = peek();
   return next == i::Token::IDENTIFIER ||
-         next == i::Token::FUTURE_RESERVED_WORD;
+         next == i::Token::FUTURE_RESERVED_WORD ||
+         next == i::Token::FUTURE_STRICT_RESERVED_WORD;
 }
 } }  // v8::preparser

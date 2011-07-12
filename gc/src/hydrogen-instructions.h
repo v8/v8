@@ -35,6 +35,8 @@
 #include "data-flow.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
+#include "v8conversions.h"
+#include "v8utils.h"
 #include "zone.h"
 
 namespace v8 {
@@ -71,6 +73,7 @@ class LChunkBuilder;
   V(BitXor)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
+  V(Branch)                                    \
   V(CallConstantFunction)                      \
   V(CallFunction)                              \
   V(CallGlobal)                                \
@@ -88,16 +91,18 @@ class LChunkBuilder;
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
   V(ClampToUint8)                              \
-  V(ClassOfTest)                               \
-  V(Compare)                                   \
-  V(CompareJSObjectEq)                         \
+  V(ClassOfTestAndBranch)                      \
+  V(CompareIDAndBranch)                        \
+  V(CompareGeneric)                            \
+  V(CompareObjectEqAndBranch)                  \
   V(CompareMap)                                \
-  V(CompareSymbolEq)                           \
+  V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
+  V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
@@ -107,17 +112,17 @@ class LChunkBuilder;
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
-  V(HasInstanceType)                           \
-  V(HasCachedArrayIndex)                       \
+  V(HasCachedArrayIndexAndBranch)              \
+  V(HasInstanceTypeAndBranch)                  \
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
-  V(IsConstructCall)                           \
-  V(IsNull)                                    \
-  V(IsObject)                                  \
-  V(IsSmi)                                     \
-  V(IsUndetectable)                            \
+  V(IsConstructCallAndBranch)                  \
+  V(IsNullAndBranch)                           \
+  V(IsObjectAndBranch)                         \
+  V(IsSmiAndBranch)                            \
+  V(IsUndetectableAndBranch)                   \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -146,13 +151,14 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
+  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
-  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
+  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
   V(StringAdd)                                 \
@@ -160,13 +166,15 @@ class LChunkBuilder;
   V(StringCharFromCode)                        \
   V(StringLength)                              \
   V(Sub)                                       \
-  V(Test)                                      \
+  V(ThisFunction)                              \
   V(Throw)                                     \
   V(ToFastProperties)                          \
+  V(ToInt32)                                   \
   V(Typeof)                                    \
-  V(TypeofIs)                                  \
+  V(TypeofIsAndBranch)                         \
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
+  V(UseConst)                                  \
   V(ValueOf)
 
 #define GVN_FLAG_LIST(V)                       \
@@ -397,7 +405,7 @@ class HType {
     kBoolean = 0x85,         // 0000 0000 1000 0101
     kNonPrimitive = 0x101,   // 0000 0001 0000 0001
     kJSObject = 0x301,       // 0000 0011 0000 0001
-    kJSArray = 0x701,        // 0000 0111 1000 0001
+    kJSArray = 0x701,        // 0000 0111 0000 0001
     kUninitialized = 0x1fff  // 0001 1111 1111 1111
   };
 
@@ -479,10 +487,15 @@ class HValue: public ZoneObject {
     GVN_FLAG_LIST(DECLARE_DO)
   #undef DECLARE_DO
     kFlexibleRepresentation,
+    // Participate in Global Value Numbering, i.e. elimination of
+    // unnecessary recomputations. If an instruction sets this flag, it must
+    // implement DataEquals(), which will be used to determine if other
+    // occurrences of the instruction are indeed the same.
     kUseGVN,
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
+    kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
     kLastFlag = kTruncatingToInt32
@@ -591,6 +604,7 @@ class HValue: public ZoneObject {
   void SetOperandAt(int index, HValue* value);
 
   void DeleteAndReplaceWith(HValue* other);
+  void ReplaceAllUsesWith(HValue* other);
   bool HasNoUses() const { return use_list_ == NULL; }
   bool HasMultipleUses() const {
     return use_list_ != NULL && use_list_->tail() != NULL;
@@ -680,8 +694,6 @@ class HValue: public ZoneObject {
   // removed list node or NULL.
   HUseListNode* RemoveUse(HValue* value, int index);
 
-  void ReplaceAllUsesWith(HValue* other);
-
   void RegisterUse(int index, HValue* new_value);
 
   HBasicBlock* block_;
@@ -723,10 +735,6 @@ class HInstruction: public HValue {
   virtual void Verify();
 #endif
 
-  // Returns whether this is some kind of deoptimizing check
-  // instruction.
-  virtual bool IsCheckInstruction() const { return false; }
-
   virtual bool IsCall() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
@@ -757,53 +765,6 @@ class HInstruction: public HValue {
 };
 
 
-class HControlInstruction: public HInstruction {
- public:
-  HControlInstruction(HBasicBlock* first, HBasicBlock* second)
-      : first_successor_(first), second_successor_(second) {
-  }
-
-  HBasicBlock* FirstSuccessor() const { return first_successor_; }
-  HBasicBlock* SecondSuccessor() const { return second_successor_; }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
-
- private:
-  HBasicBlock* first_successor_;
-  HBasicBlock* second_successor_;
-};
-
-
-template<int NumElements>
-class HOperandContainer {
- public:
-  HOperandContainer() : elems_() { }
-
-  int length() { return NumElements; }
-  HValue*& operator[](int i) {
-    ASSERT(i < length());
-    return elems_[i];
-  }
-
- private:
-  HValue* elems_[NumElements];
-};
-
-
-template<>
-class HOperandContainer<0> {
- public:
-  int length() { return 0; }
-  HValue*& operator[](int i) {
-    UNREACHABLE();
-    static HValue* t = 0;
-    return t;
-  }
-};
-
-
 template<int V>
 class HTemplateInstruction : public HInstruction {
  public:
@@ -814,23 +775,61 @@ class HTemplateInstruction : public HInstruction {
   void InternalSetOperandAt(int i, HValue* value) { inputs_[i] = value; }
 
  private:
-  HOperandContainer<V> inputs_;
+  EmbeddedContainer<HValue*, V> inputs_;
 };
 
 
-template<int V>
-class HTemplateControlInstruction : public HControlInstruction {
+class HControlInstruction: public HInstruction {
  public:
-  HTemplateControlInstruction<V>(HBasicBlock* first, HBasicBlock* second)
-    : HControlInstruction(first, second) { }
+  virtual HBasicBlock* SuccessorAt(int i) = 0;
+  virtual int SuccessorCount() = 0;
+  virtual void SetSuccessorAt(int i, HBasicBlock* block) = 0;
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  HBasicBlock* FirstSuccessor() {
+    return SuccessorCount() > 0 ? SuccessorAt(0) : NULL;
+  }
+  HBasicBlock* SecondSuccessor() {
+    return SuccessorCount() > 1 ? SuccessorAt(1) : NULL;
+  }
+
+  DECLARE_ABSTRACT_INSTRUCTION(ControlInstruction)
+};
+
+
+class HSuccessorIterator BASE_EMBEDDED {
+ public:
+  explicit HSuccessorIterator(HControlInstruction* instr)
+      : instr_(instr), current_(0) { }
+
+  bool Done() { return current_ >= instr_->SuccessorCount(); }
+  HBasicBlock* Current() { return instr_->SuccessorAt(current_); }
+  void Advance() { current_++; }
+
+ private:
+  HControlInstruction* instr_;
+  int current_;
+};
+
+
+template<int S, int V>
+class HTemplateControlInstruction: public HControlInstruction {
+ public:
+  int SuccessorCount() { return S; }
+  HBasicBlock* SuccessorAt(int i) { return successors_[i]; }
+  void SetSuccessorAt(int i, HBasicBlock* block) { successors_[i] = block; }
+
   int OperandCount() { return V; }
   HValue* OperandAt(int i) { return inputs_[i]; }
+
 
  protected:
   void InternalSetOperandAt(int i, HValue* value) { inputs_[i] = value; }
 
  private:
-  HOperandContainer<V> inputs_;
+  EmbeddedContainer<HBasicBlock*, S> successors_;
+  EmbeddedContainer<HValue*, V> inputs_;
 };
 
 
@@ -844,11 +843,22 @@ class HBlockEntry: public HTemplateInstruction<0> {
 };
 
 
+// We insert soft-deoptimize when we hit code with unknown typefeedback,
+// so that we get a chance of re-optimizing with useful typefeedback.
+// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
+class HSoftDeoptimize: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
 class HDeoptimize: public HControlInstruction {
  public:
-  explicit HDeoptimize(int environment_length)
-      : HControlInstruction(NULL, NULL),
-        values_(environment_length) { }
+  explicit HDeoptimize(int environment_length) : values_(environment_length) { }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -856,6 +866,16 @@ class HDeoptimize: public HControlInstruction {
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) { return values_[index]; }
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual int SuccessorCount() { return 0; }
+  virtual HBasicBlock* SuccessorAt(int i) {
+    UNREACHABLE();
+    return NULL;
+  }
+  virtual void SetSuccessorAt(int i, HBasicBlock* block) {
+    UNREACHABLE();
+  }
 
   void AddEnvironmentValue(HValue* value) {
     values_.Add(NULL);
@@ -879,35 +899,28 @@ class HDeoptimize: public HControlInstruction {
 };
 
 
-class HGoto: public HTemplateControlInstruction<0> {
+class HGoto: public HTemplateControlInstruction<1, 0> {
  public:
-  explicit HGoto(HBasicBlock* target)
-      : HTemplateControlInstruction<0>(target, NULL),
-        include_stack_check_(false) { }
-
-  void set_include_stack_check(bool include_stack_check) {
-    include_stack_check_ = include_stack_check;
-  }
-  bool include_stack_check() const { return include_stack_check_; }
+  explicit HGoto(HBasicBlock* target) {
+        SetSuccessorAt(0, target);
+      }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Goto)
-
- private:
-  bool include_stack_check_;
 };
 
 
-class HUnaryControlInstruction: public HTemplateControlInstruction<1> {
+class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
  public:
-  explicit HUnaryControlInstruction(HValue* value,
-                                    HBasicBlock* true_target,
-                                    HBasicBlock* false_target)
-      : HTemplateControlInstruction<1>(true_target, false_target) {
+  HUnaryControlInstruction(HValue* value,
+                           HBasicBlock* true_target,
+                           HBasicBlock* false_target) {
     SetOperandAt(0, value);
+    SetSuccessorAt(0, true_target);
+    SetSuccessorAt(1, false_target);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -916,18 +929,21 @@ class HUnaryControlInstruction: public HTemplateControlInstruction<1> {
 };
 
 
-class HTest: public HUnaryControlInstruction {
+class HBranch: public HUnaryControlInstruction {
  public:
-  HTest(HValue* value, HBasicBlock* true_target, HBasicBlock* false_target)
+  HBranch(HValue* value, HBasicBlock* true_target, HBasicBlock* false_target)
       : HUnaryControlInstruction(value, true_target, false_target) {
     ASSERT(true_target != NULL && false_target != NULL);
   }
+  explicit HBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) { }
+
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Test)
+  DECLARE_CONCRETE_INSTRUCTION(Branch)
 };
 
 
@@ -959,24 +975,26 @@ class HCompareMap: public HUnaryControlInstruction {
 };
 
 
-class HReturn: public HUnaryControlInstruction {
+class HReturn: public HTemplateControlInstruction<0, 1> {
  public:
-  explicit HReturn(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
+  explicit HReturn(HValue* value) {
+    SetOperandAt(0, value);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
+  HValue* value() { return OperandAt(0); }
+
   DECLARE_CONCRETE_INSTRUCTION(Return)
 };
 
 
-class HAbnormalExit: public HTemplateControlInstruction<0> {
+class HAbnormalExit: public HTemplateControlInstruction<0, 0> {
  public:
-  HAbnormalExit() : HTemplateControlInstruction<0>(NULL, NULL) { }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
@@ -991,14 +1009,24 @@ class HUnaryOperation: public HTemplateInstruction<1> {
     SetOperandAt(0, value);
   }
 
+  static HUnaryOperation* cast(HValue* value) {
+    return reinterpret_cast<HUnaryOperation*>(value);
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return CheckFlag(kTruncatingToInt32);
+  }
+
   HValue* value() { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream);
 };
 
 
-class HThrow: public HUnaryOperation {
+class HThrow: public HTemplateInstruction<2> {
  public:
-  explicit HThrow(HValue* value) : HUnaryOperation(value) {
+  HThrow(HValue* context, HValue* value) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, value);
     SetAllSideEffects();
   }
 
@@ -1006,7 +1034,22 @@ class HThrow: public HUnaryOperation {
     return Representation::Tagged();
   }
 
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
+
   DECLARE_CONCRETE_INSTRUCTION(Throw)
+};
+
+
+class HUseConst: public HUnaryOperation {
+ public:
+  explicit HUseConst(HValue* old_value) : HUnaryOperation(old_value) { }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(UseConst)
 };
 
 
@@ -1034,8 +1077,11 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation from,
           Representation to,
-          bool is_truncating)
-      : HUnaryOperation(value), from_(from) {
+          bool is_truncating,
+          bool deoptimize_on_undefined)
+      : HUnaryOperation(value),
+        from_(from),
+        deoptimize_on_undefined_(deoptimize_on_undefined) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
@@ -1051,11 +1097,10 @@ class HChange: public HUnaryOperation {
 
   Representation from() const { return from_; }
   Representation to() const { return representation(); }
+  bool deoptimize_on_undefined() const { return deoptimize_on_undefined_; }
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
-
-  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1065,12 +1110,13 @@ class HChange: public HUnaryOperation {
   virtual bool DataEquals(HValue* other) {
     if (!other->IsChange()) return false;
     HChange* change = HChange::cast(other);
-    return value() == change->value()
-        && to().Equals(change->to());
+    return to().Equals(change->to())
+        && deoptimize_on_undefined() == change->deoptimize_on_undefined();
   }
 
  private:
   Representation from_;
+  bool deoptimize_on_undefined_;
 };
 
 
@@ -1111,6 +1157,37 @@ class HClampToUint8: public HUnaryOperation {
 
  private:
   Representation input_rep_;
+};
+
+
+class HToInt32: public HUnaryOperation {
+ public:
+  explicit HToInt32(HValue* value)
+      : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return true;
+  }
+
+  virtual HValue* Canonicalize() {
+    if (value()->representation().IsInteger32()) {
+      return value();
+    } else {
+      return this;
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToInt32)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 
@@ -1182,15 +1259,38 @@ class HSimulate: public HInstruction {
 };
 
 
-class HStackCheck: public HTemplateInstruction<0> {
+class HStackCheck: public HTemplateInstruction<1> {
  public:
-  HStackCheck() { }
+  enum Type {
+    kFunctionEntry,
+    kBackwardsBranch
+  };
 
-  virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::None();
+  HStackCheck(HValue* context, Type type) : type_(type) {
+    SetOperandAt(0, context);
   }
 
+  HValue* context() { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  void Eliminate() {
+    // The stack check eliminator might try to eliminate the same stack
+    // check instruction multiple times.
+    if (IsLinked()) {
+      DeleteFromGraph();
+    }
+  }
+
+  bool is_function_entry() { return type_ == kFunctionEntry; }
+  bool is_backwards_branch() { return type_ == kBackwardsBranch; }
+
   DECLARE_CONCRETE_INSTRUCTION(StackCheck)
+
+ private:
+  Type type_;
 };
 
 
@@ -1251,6 +1351,24 @@ class HPushArgument: public HUnaryOperation {
 };
 
 
+class HThisFunction: public HTemplateInstruction<0> {
+ public:
+  HThisFunction() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HContext: public HTemplateInstruction<0> {
  public:
   HContext() {
@@ -1262,7 +1380,7 @@ class HContext: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Context);
+  DECLARE_CONCRETE_INSTRUCTION(Context)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1536,19 +1654,24 @@ class HCallNew: public HBinaryCall {
 };
 
 
-class HCallRuntime: public HCall<0> {
+class HCallRuntime: public HCall<1> {
  public:
-  HCallRuntime(Handle<String> name,
+  HCallRuntime(HValue* context,
+               Handle<String> name,
                const Runtime::Function* c_function,
                int argument_count)
-      : HCall<0>(argument_count), c_function_(c_function), name_(name) { }
+      : HCall<1>(argument_count), c_function_(c_function), name_(name) {
+    SetOperandAt(0, context);
+  }
+
   virtual void PrintDataTo(StringStream* stream);
 
+  HValue* context() { return OperandAt(0); }
   const Runtime::Function* function() const { return c_function_; }
   Handle<String> name() const { return name_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::None();
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime)
@@ -1622,6 +1745,25 @@ class HExternalArrayLength: public HUnaryOperation {
 };
 
 
+class HElementsKind: public HUnaryOperation {
+ public:
+  explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ElementsKind)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HBitNot: public HUnaryOperation {
  public:
   explicit HBitNot(HValue* value) : HUnaryOperation(value) {
@@ -1642,10 +1784,12 @@ class HBitNot: public HUnaryOperation {
 };
 
 
-class HUnaryMathOperation: public HUnaryOperation {
+class HUnaryMathOperation: public HTemplateInstruction<2> {
  public:
-  HUnaryMathOperation(HValue* value, BuiltinFunctionId op)
-      : HUnaryOperation(value), op_(op) {
+  HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
+      : op_(op) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, value);
     switch (op) {
       case kMathFloor:
       case kMathRound:
@@ -1669,6 +1813,9 @@ class HUnaryMathOperation: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
+
   virtual void PrintDataTo(StringStream* stream);
 
   virtual HType CalculateInferredType();
@@ -1676,21 +1823,25 @@ class HUnaryMathOperation: public HUnaryOperation {
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    switch (op_) {
-      case kMathFloor:
-      case kMathRound:
-      case kMathCeil:
-      case kMathSqrt:
-      case kMathPowHalf:
-      case kMathLog:
-      case kMathSin:
-      case kMathCos:
-        return Representation::Double();
-      case kMathAbs:
-        return representation();
-      default:
-        UNREACHABLE();
-        return Representation::None();
+    if (index == 0) {
+      return Representation::Tagged();
+    } else {
+      switch (op_) {
+        case kMathFloor:
+        case kMathRound:
+        case kMathCeil:
+        case kMathSqrt:
+        case kMathPowHalf:
+        case kMathLog:
+        case kMathSin:
+        case kMathCos:
+          return Representation::Double();
+        case kMathAbs:
+          return representation();
+        default:
+          UNREACHABLE();
+          return Representation::None();
+      }
     }
   }
 
@@ -1771,8 +1922,6 @@ class HCheckMap: public HUnaryOperation {
     SetFlag(kDependsOnMaps);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1806,8 +1955,6 @@ class HCheckFunction: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1835,8 +1982,8 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_OBJECT_OR_JS_FUNCTION);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
+    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
   static HCheckInstanceType* NewIsJSArray(HValue* value) {
     return new HCheckInstanceType(value, IS_JS_ARRAY);
@@ -1848,8 +1995,6 @@ class HCheckInstanceType: public HUnaryOperation {
     return new HCheckInstanceType(value, IS_SYMBOL);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1858,14 +2003,7 @@ class HCheckInstanceType: public HUnaryOperation {
   virtual void Verify();
 #endif
 
-  virtual HValue* Canonicalize() {
-    if (!value()->type().IsUninitialized() &&
-        value()->type().IsString() &&
-        check_ == IS_STRING) {
-      return NULL;
-    }
-    return this;
-  }
+  virtual HValue* Canonicalize();
 
   bool is_interval_check() const { return check_ <= LAST_INTERVAL_CHECK; }
   void GetCheckInterval(InstanceType* first, InstanceType* last);
@@ -1884,7 +2022,7 @@ class HCheckInstanceType: public HUnaryOperation {
 
  private:
   enum Check {
-    IS_JS_OBJECT_OR_JS_FUNCTION,
+    IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
     IS_SYMBOL,
@@ -1907,8 +2045,6 @@ class HCheckNonSmi: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1946,8 +2082,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
 #ifdef DEBUG
   virtual void Verify();
@@ -1988,8 +2122,6 @@ class HCheckSmi: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2205,16 +2337,18 @@ class HConstant: public HTemplateInstruction<0> {
 };
 
 
-class HBinaryOperation: public HTemplateInstruction<2> {
+class HBinaryOperation: public HTemplateInstruction<3> {
  public:
-  HBinaryOperation(HValue* left, HValue* right) {
+  HBinaryOperation(HValue* context, HValue* left, HValue* right) {
     ASSERT(left != NULL && right != NULL);
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
+    SetOperandAt(0, context);
+    SetOperandAt(1, left);
+    SetOperandAt(2, right);
   }
 
-  HValue* left() { return OperandAt(0); }
-  HValue* right() { return OperandAt(1); }
+  HValue* context() { return OperandAt(0); }
+  HValue* left() { return OperandAt(1); }
+  HValue* right() { return OperandAt(2); }
 
   // TODO(kasperl): Move these helpers to the IA-32 Lithium
   // instruction sequence builder.
@@ -2330,14 +2464,14 @@ class HAccessArgumentsAt: public HTemplateInstruction<3> {
 };
 
 
-class HBoundsCheck: public HBinaryOperation {
+class HBoundsCheck: public HTemplateInstruction<2> {
  public:
-  HBoundsCheck(HValue* index, HValue* length)
-      : HBinaryOperation(index, length) {
+  HBoundsCheck(HValue* index, HValue* length) {
+    SetOperandAt(0, index);
+    SetOperandAt(1, length);
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();
@@ -2347,8 +2481,8 @@ class HBoundsCheck: public HBinaryOperation {
   virtual void Verify();
 #endif
 
-  HValue* index() { return left(); }
-  HValue* length() { return right(); }
+  HValue* index() { return OperandAt(0); }
+  HValue* length() { return OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
 
@@ -2359,15 +2493,17 @@ class HBoundsCheck: public HBinaryOperation {
 
 class HBitwiseBinaryOperation: public HBinaryOperation {
  public:
-  HBitwiseBinaryOperation(HValue* left, HValue* right)
-      : HBinaryOperation(left, right) {
+  HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
     SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return representation();
+    return index == 0
+        ? Representation::Tagged()
+        : representation();
   }
 
   virtual void RepresentationChanged(Representation to) {
@@ -2387,8 +2523,8 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
 
 class HArithmeticBinaryOperation: public HBinaryOperation {
  public:
-  HArithmeticBinaryOperation(HValue* left, HValue* right)
-      : HBinaryOperation(left, right) {
+  HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
     SetAllSideEffects();
@@ -2403,8 +2539,11 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
 
   virtual HType CalculateInferredType();
   virtual Representation RequiredInputRepresentation(int index) const {
-    return representation();
+    return index == 0
+        ? Representation::Tagged()
+        : representation();
   }
+
   virtual Representation InferredRepresentation() {
     if (left()->representation().Equals(right()->representation())) {
       return left()->representation();
@@ -2414,43 +2553,62 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
 };
 
 
-class HCompare: public HBinaryOperation {
+class HCompareGeneric: public HBinaryOperation {
  public:
-  HCompare(HValue* left, HValue* right, Token::Value token)
-      : HBinaryOperation(left, right), token_(token) {
+  HCompareGeneric(HValue* context,
+                  HValue* left,
+                  HValue* right,
+                  Token::Value token)
+      : HBinaryOperation(context, left, right), token_(token) {
     ASSERT(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
-  void SetInputRepresentation(Representation r);
-
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
-
   virtual Representation RequiredInputRepresentation(int index) const {
-    return input_representation_;
+    return Representation::Tagged();
   }
+
   Representation GetInputRepresentation() const {
-    return input_representation_;
+    return Representation::Tagged();
   }
+
   Token::Value token() const { return token_; }
   virtual void PrintDataTo(StringStream* stream);
 
   virtual HType CalculateInferredType();
 
-  virtual intptr_t Hashcode() {
-    return HValue::Hashcode() * 7 + token_;
+  DECLARE_CONCRETE_INSTRUCTION(CompareGeneric)
+
+ private:
+  Token::Value token_;
+};
+
+
+class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
+ public:
+  HCompareIDAndBranch(HValue* left, HValue* right, Token::Value token)
+      : token_(token) {
+    ASSERT(Token::IsCompareOp(token));
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Compare)
+  HValue* left() { return OperandAt(0); }
+  HValue* right() { return OperandAt(1); }
+  Token::Value token() const { return token_; }
 
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HCompare* comp = HCompare::cast(other);
-    return token_ == comp->token();
+  void SetInputRepresentation(Representation r);
+  Representation GetInputRepresentation() const {
+    return input_representation_;
   }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return input_representation_;
+  }
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
 
  private:
   Representation input_representation_;
@@ -2458,164 +2616,123 @@ class HCompare: public HBinaryOperation {
 };
 
 
-class HCompareJSObjectEq: public HBinaryOperation {
+class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
-  HCompareJSObjectEq(HValue* left, HValue* right)
-      : HBinaryOperation(left, right) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+  HCompareObjectEqAndBranch(HValue* left, HValue* right) {
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
   }
 
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
+  HValue* left() { return OperandAt(0); }
+  HValue* right() { return OperandAt(1); }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
-  virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(CompareJSObjectEq)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  DECLARE_CONCRETE_INSTRUCTION(CompareObjectEqAndBranch)
 };
 
 
-class HCompareSymbolEq: public HBinaryOperation {
+class HCompareConstantEqAndBranch: public HUnaryControlInstruction {
  public:
-  HCompareSymbolEq(HValue* left, HValue* right, Token::Value op)
-      : HBinaryOperation(left, right), op_(op) {
-    ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+  HCompareConstantEqAndBranch(HValue* left, int right, Token::Value op)
+      : HUnaryControlInstruction(left, NULL, NULL), op_(op), right_(right) {
+    ASSERT(op == Token::EQ_STRICT);
   }
 
   Token::Value op() const { return op_; }
-
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
+  HValue* left() { return value(); }
+  int right() const { return right_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Tagged();
+    return Representation::Integer32();
   }
 
-  virtual HType CalculateInferredType() { return HType::Boolean(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CompareSymbolEq);
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    return op_ == HCompareSymbolEq::cast(other)->op_;
-  }
+  DECLARE_CONCRETE_INSTRUCTION(CompareConstantEqAndBranch);
 
  private:
   const Token::Value op_;
+  const int right_;
 };
 
 
-class HUnaryPredicate: public HUnaryOperation {
+class HIsNullAndBranch: public HUnaryControlInstruction {
  public:
-  explicit HUnaryPredicate(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
+  HIsNullAndBranch(HValue* value, bool is_strict)
+      : HUnaryControlInstruction(value, NULL, NULL), is_strict_(is_strict) { }
 
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
-  }
+  bool is_strict() const { return is_strict_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
-  virtual HType CalculateInferredType();
-};
 
-
-class HIsNull: public HUnaryPredicate {
- public:
-  HIsNull(HValue* value, bool is_strict)
-      : HUnaryPredicate(value), is_strict_(is_strict) { }
-
-  bool is_strict() const { return is_strict_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsNull)
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HIsNull* b = HIsNull::cast(other);
-    return is_strict_ == b->is_strict();
-  }
+  DECLARE_CONCRETE_INSTRUCTION(IsNullAndBranch)
 
  private:
   bool is_strict_;
 };
 
 
-class HIsObject: public HUnaryPredicate {
+class HIsObjectAndBranch: public HUnaryControlInstruction {
  public:
-  explicit HIsObject(HValue* value) : HUnaryPredicate(value) { }
+  explicit HIsObjectAndBranch(HValue* value)
+    : HUnaryControlInstruction(value, NULL, NULL) { }
 
-  DECLARE_CONCRETE_INSTRUCTION(IsObject)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HIsSmi: public HUnaryPredicate {
- public:
-  explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsSmi)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HIsUndetectable: public HUnaryPredicate {
- public:
-  explicit HIsUndetectable(HValue* value) : HUnaryPredicate(value) { }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HIsConstructCall: public HTemplateInstruction<0> {
- public:
-  HIsConstructCall() {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
 
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
+  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
+};
+
+
+class HIsSmiAndBranch: public HUnaryControlInstruction {
+ public:
+  explicit HIsSmiAndBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch)
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
 
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsUndetectableAndBranch: public HUnaryControlInstruction {
+ public:
+  explicit HIsUndetectableAndBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) { }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch)
+};
+
+
+class HIsConstructCallAndBranch: public HTemplateControlInstruction<2, 0> {
+ public:
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch)
 };
 
 
-class HHasInstanceType: public HUnaryPredicate {
+class HHasInstanceTypeAndBranch: public HUnaryControlInstruction {
  public:
-  HHasInstanceType(HValue* value, InstanceType type)
-      : HUnaryPredicate(value), from_(type), to_(type) { }
-  HHasInstanceType(HValue* value, InstanceType from, InstanceType to)
-      : HUnaryPredicate(value), from_(from), to_(to) {
+  HHasInstanceTypeAndBranch(HValue* value, InstanceType type)
+      : HUnaryControlInstruction(value, NULL, NULL), from_(type), to_(type) { }
+  HHasInstanceTypeAndBranch(HValue* value, InstanceType from, InstanceType to)
+      : HUnaryControlInstruction(value, NULL, NULL), from_(from), to_(to) {
     ASSERT(to == LAST_TYPE);  // Others not implemented yet in backend.
   }
 
@@ -2624,13 +2741,11 @@ class HHasInstanceType: public HUnaryPredicate {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  DECLARE_CONCRETE_INSTRUCTION(HasInstanceType)
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HHasInstanceType* b = HHasInstanceType::cast(other);
-    return (from_ == b->from()) && (to_ == b->to());
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
+
+  DECLARE_CONCRETE_INSTRUCTION(HasInstanceTypeAndBranch)
 
  private:
   InstanceType from_;
@@ -2638,20 +2753,29 @@ class HHasInstanceType: public HUnaryPredicate {
 };
 
 
-class HHasCachedArrayIndex: public HUnaryPredicate {
+class HHasCachedArrayIndexAndBranch: public HUnaryControlInstruction {
  public:
-  explicit HHasCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
+  explicit HHasCachedArrayIndexAndBranch(HValue* value)
+      : HUnaryControlInstruction(value, NULL, NULL) { }
 
-  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex)
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
 
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndexAndBranch)
 };
 
 
-class HGetCachedArrayIndex: public HUnaryPredicate {
+class HGetCachedArrayIndex: public HUnaryOperation {
  public:
-  explicit HGetCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
+  explicit HGetCachedArrayIndex(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex)
 
@@ -2660,42 +2784,40 @@ class HGetCachedArrayIndex: public HUnaryPredicate {
 };
 
 
-class HClassOfTest: public HUnaryPredicate {
+class HClassOfTestAndBranch: public HUnaryControlInstruction {
  public:
-  HClassOfTest(HValue* value, Handle<String> class_name)
-      : HUnaryPredicate(value), class_name_(class_name) { }
+  HClassOfTestAndBranch(HValue* value, Handle<String> class_name)
+      : HUnaryControlInstruction(value, NULL, NULL),
+        class_name_(class_name) { }
 
-  DECLARE_CONCRETE_INSTRUCTION(ClassOfTest)
+  DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch)
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
 
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<String> class_name() const { return class_name_; }
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HClassOfTest* b = HClassOfTest::cast(other);
-    return class_name_.is_identical_to(b->class_name_);
-  }
 
  private:
   Handle<String> class_name_;
 };
 
 
-class HTypeofIs: public HUnaryPredicate {
+class HTypeofIsAndBranch: public HUnaryControlInstruction {
  public:
-  HTypeofIs(HValue* value, Handle<String> type_literal)
-      : HUnaryPredicate(value), type_literal_(type_literal) { }
+  HTypeofIsAndBranch(HValue* value, Handle<String> type_literal)
+      : HUnaryControlInstruction(value, NULL, NULL),
+        type_literal_(type_literal) { }
 
   Handle<String> type_literal() { return type_literal_; }
   virtual void PrintDataTo(StringStream* stream);
 
-  DECLARE_CONCRETE_INSTRUCTION(TypeofIs)
+  DECLARE_CONCRETE_INSTRUCTION(TypeofIsAndBranch)
 
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HTypeofIs* b = HTypeofIs::cast(other);
-    return type_literal_.is_identical_to(b->type_literal_);
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
 
  private:
@@ -2703,27 +2825,19 @@ class HTypeofIs: public HUnaryPredicate {
 };
 
 
-class HInstanceOf: public HTemplateInstruction<3> {
+class HInstanceOf: public HBinaryOperation {
  public:
-  HInstanceOf(HValue* context, HValue* left, HValue* right) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, left);
-    SetOperandAt(2, right);
+  HInstanceOf(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  HValue* right() { return OperandAt(2); }
-
-  virtual bool EmitAtUses() {
-    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType();
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -2731,19 +2845,27 @@ class HInstanceOf: public HTemplateInstruction<3> {
 };
 
 
-class HInstanceOfKnownGlobal: public HUnaryOperation {
+class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
  public:
-  HInstanceOfKnownGlobal(HValue* left, Handle<JSFunction> right)
-      : HUnaryOperation(left), function_(right) {
+  HInstanceOfKnownGlobal(HValue* context,
+                         HValue* left,
+                         Handle<JSFunction> right)
+      : function_(right) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, left);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
+  HValue* context() { return OperandAt(0); }
+  HValue* left() { return OperandAt(1); }
   Handle<JSFunction> function() { return function_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal)
 
@@ -2752,16 +2874,22 @@ class HInstanceOfKnownGlobal: public HUnaryOperation {
 };
 
 
-class HPower: public HBinaryOperation {
+class HPower: public HTemplateInstruction<2> {
  public:
-  HPower(HValue* left, HValue* right)
-      : HBinaryOperation(left, right) {
+  HPower(HValue* left, HValue* right) {
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
     set_representation(Representation::Double());
     SetFlag(kUseGVN);
   }
 
+  HValue* left() { return OperandAt(0); }
+  HValue* right() { return OperandAt(1); }
+
   virtual Representation RequiredInputRepresentation(int index) const {
-    return (index == 1) ? Representation::None() : Representation::Double();
+    return index == 0
+      ? Representation::Double()
+      : Representation::None();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Power)
@@ -2773,7 +2901,8 @@ class HPower: public HBinaryOperation {
 
 class HAdd: public HArithmeticBinaryOperation {
  public:
-  HAdd(HValue* left, HValue* right) : HArithmeticBinaryOperation(left, right) {
+  HAdd(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanOverflow);
   }
 
@@ -2798,7 +2927,8 @@ class HAdd: public HArithmeticBinaryOperation {
 
 class HSub: public HArithmeticBinaryOperation {
  public:
-  HSub(HValue* left, HValue* right) : HArithmeticBinaryOperation(left, right) {
+  HSub(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanOverflow);
   }
 
@@ -2815,7 +2945,8 @@ class HSub: public HArithmeticBinaryOperation {
 
 class HMul: public HArithmeticBinaryOperation {
  public:
-  HMul(HValue* left, HValue* right) : HArithmeticBinaryOperation(left, right) {
+  HMul(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanOverflow);
   }
 
@@ -2837,7 +2968,8 @@ class HMul: public HArithmeticBinaryOperation {
 
 class HMod: public HArithmeticBinaryOperation {
  public:
-  HMod(HValue* left, HValue* right) : HArithmeticBinaryOperation(left, right) {
+  HMod(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
   }
 
@@ -2864,7 +2996,8 @@ class HMod: public HArithmeticBinaryOperation {
 
 class HDiv: public HArithmeticBinaryOperation {
  public:
-  HDiv(HValue* left, HValue* right) : HArithmeticBinaryOperation(left, right) {
+  HDiv(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
@@ -2882,8 +3015,8 @@ class HDiv: public HArithmeticBinaryOperation {
 
 class HBitAnd: public HBitwiseBinaryOperation {
  public:
-  HBitAnd(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HBitAnd(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual bool IsCommutative() const { return true; }
   virtual HType CalculateInferredType();
@@ -2899,8 +3032,8 @@ class HBitAnd: public HBitwiseBinaryOperation {
 
 class HBitXor: public HBitwiseBinaryOperation {
  public:
-  HBitXor(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HBitXor(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual bool IsCommutative() const { return true; }
   virtual HType CalculateInferredType();
@@ -2914,8 +3047,8 @@ class HBitXor: public HBitwiseBinaryOperation {
 
 class HBitOr: public HBitwiseBinaryOperation {
  public:
-  HBitOr(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HBitOr(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual bool IsCommutative() const { return true; }
   virtual HType CalculateInferredType();
@@ -2931,8 +3064,8 @@ class HBitOr: public HBitwiseBinaryOperation {
 
 class HShl: public HBitwiseBinaryOperation {
  public:
-  HShl(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HShl(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
   virtual HType CalculateInferredType();
@@ -2946,8 +3079,8 @@ class HShl: public HBitwiseBinaryOperation {
 
 class HShr: public HBitwiseBinaryOperation {
  public:
-  HShr(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HShr(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual HType CalculateInferredType();
 
@@ -2960,8 +3093,8 @@ class HShr: public HBitwiseBinaryOperation {
 
 class HSar: public HBitwiseBinaryOperation {
  public:
-  HSar(HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(left, right) { }
+  HSar(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
   virtual HType CalculateInferredType();
@@ -3095,15 +3228,16 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
 };
 
 
-class HLoadGlobalGeneric: public HBinaryOperation {
+class HLoadGlobalGeneric: public HTemplateInstruction<2> {
  public:
   HLoadGlobalGeneric(HValue* context,
                      HValue* global_object,
                      Handle<Object> name,
                      bool for_typeof)
-      : HBinaryOperation(context, global_object),
-        name_(name),
+      : name_(name),
         for_typeof_(for_typeof) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, global_object);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -3221,14 +3355,19 @@ class HLoadContextSlot: public HUnaryOperation {
 
 
 static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+  // TODO(gc) On bleeding edge we omit write barrier when we are
+  // storing old space constant. We can't allow such an optimization
+  // on GC branch.
   return !value->type().IsSmi();
 }
 
 
-class HStoreContextSlot: public HBinaryOperation {
+class HStoreContextSlot: public HTemplateInstruction<2> {
  public:
   HStoreContextSlot(HValue* context, int slot_index, HValue* value)
-      : HBinaryOperation(context, value), slot_index_(slot_index) {
+      : slot_index_(slot_index) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, value);
     SetFlag(kChangesContextSlots);
   }
 
@@ -3292,13 +3431,15 @@ class HLoadNamedField: public HUnaryOperation {
 };
 
 
-class HLoadNamedFieldPolymorphic: public HUnaryOperation {
+class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
  public:
-  HLoadNamedFieldPolymorphic(HValue* object,
+  HLoadNamedFieldPolymorphic(HValue* context,
+                             HValue* object,
                              ZoneMapList* types,
                              Handle<String> name);
 
-  HValue* object() { return OperandAt(0); }
+  HValue* context() { return OperandAt(0); }
+  HValue* object() { return OperandAt(1); }
   ZoneMapList* types() { return &types_; }
   Handle<String> name() { return name_; }
   bool need_generic() { return need_generic_; }
@@ -3322,10 +3463,12 @@ class HLoadNamedFieldPolymorphic: public HUnaryOperation {
 
 
 
-class HLoadNamedGeneric: public HBinaryOperation {
+class HLoadNamedGeneric: public HTemplateInstruction<2> {
  public:
   HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name)
-      : HBinaryOperation(context, object), name_(name) {
+      : name_(name) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, object);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -3367,9 +3510,11 @@ class HLoadFunctionPrototype: public HUnaryOperation {
 };
 
 
-class HLoadKeyedFastElement: public HBinaryOperation {
+class HLoadKeyedFastElement: public HTemplateInstruction<2> {
  public:
-  HLoadKeyedFastElement(HValue* obj, HValue* key) : HBinaryOperation(obj, key) {
+  HLoadKeyedFastElement(HValue* obj, HValue* key) {
+    SetOperandAt(0, obj);
+    SetOperandAt(1, key);
     set_representation(Representation::Tagged());
     SetFlag(kDependsOnArrayElements);
     SetFlag(kUseGVN);
@@ -3380,8 +3525,9 @@ class HLoadKeyedFastElement: public HBinaryOperation {
 
   virtual Representation RequiredInputRepresentation(int index) const {
     // The key is supposed to be Integer32.
-    return (index == 1) ? Representation::Integer32()
-        : Representation::Tagged();
+    return index == 0
+      ? Representation::Tagged()
+      : Representation::Integer32();
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -3395,15 +3541,16 @@ class HLoadKeyedFastElement: public HBinaryOperation {
 };
 
 
-class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
+class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
-                                    ExternalArrayType array_type)
-      : HBinaryOperation(external_elements, key),
-        array_type_(array_type) {
-    if (array_type == kExternalFloatArray ||
-        array_type == kExternalDoubleArray) {
+                                    JSObject::ElementsKind elements_kind)
+      :  elements_kind_(elements_kind) {
+    SetOperandAt(0, external_elements);
+    SetOperandAt(1, key);
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3419,13 +3566,14 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     // The key is supposed to be Integer32, but the base pointer
     // for the element load is a naked pointer.
-    return (index == 1) ? Representation::Integer32()
-        : Representation::External();
+    return index == 0
+      ? Representation::External()
+      : Representation::Integer32();
   }
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 
@@ -3434,11 +3582,11 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
     if (!other->IsLoadKeyedSpecializedArrayElement()) return false;
     HLoadKeyedSpecializedArrayElement* cast_other =
         HLoadKeyedSpecializedArrayElement::cast(other);
-    return array_type_ == cast_other->array_type();
+    return elements_kind_ == cast_other->elements_kind();
   }
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 
@@ -3466,17 +3614,18 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
 };
 
 
-class HStoreNamedField: public HBinaryOperation {
+class HStoreNamedField: public HTemplateInstruction<2> {
  public:
   HStoreNamedField(HValue* obj,
                    Handle<String> name,
                    HValue* val,
                    bool in_object,
                    int offset)
-      : HBinaryOperation(obj, val),
-        name_(name),
+      : name_(name),
         is_in_object_(in_object),
         offset_(offset) {
+    SetOperandAt(0, obj);
+    SetOperandAt(1, val);
     if (is_in_object_) {
       SetFlag(kChangesInobjectFields);
     } else {
@@ -3558,7 +3707,8 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
 
   virtual Representation RequiredInputRepresentation(int index) const {
     // The key is supposed to be Integer32.
-    return (index == 1) ? Representation::Integer32()
+    return index == 1
+        ? Representation::Integer32()
         : Representation::Tagged();
   }
 
@@ -3581,8 +3731,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
-                                     ExternalArrayType array_type)
-      : array_type_(array_type) {
+                                     JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) {
     SetFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
@@ -3595,8 +3745,10 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      if (index == 2 && (array_type() == kExternalFloatArray ||
-                         array_type() == kExternalDoubleArray)) {
+      bool float_or_double_elements =
+          elements_kind() == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+          elements_kind() == JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      if (index == 2 && float_or_double_elements) {
         return Representation::Double();
       } else {
         return Representation::Integer32();
@@ -3607,12 +3759,12 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 
@@ -3652,7 +3804,8 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
 
 class HStringAdd: public HBinaryOperation {
  public:
-  HStringAdd(HValue* left, HValue* right) : HBinaryOperation(left, right) {
+  HStringAdd(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
@@ -3673,10 +3826,12 @@ class HStringAdd: public HBinaryOperation {
 };
 
 
-class HStringCharCodeAt: public HBinaryOperation {
+class HStringCharCodeAt: public HTemplateInstruction<3> {
  public:
-  HStringCharCodeAt(HValue* string, HValue* index)
-      : HBinaryOperation(string, index) {
+  HStringCharCodeAt(HValue* context, HValue* string, HValue* index) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, string);
+    SetOperandAt(2, index);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
@@ -3684,12 +3839,14 @@ class HStringCharCodeAt: public HBinaryOperation {
 
   virtual Representation RequiredInputRepresentation(int index) const {
     // The index is supposed to be Integer32.
-    return (index == 1) ? Representation::Integer32()
+    return index == 2
+        ? Representation::Integer32()
         : Representation::Tagged();
   }
 
-  HValue* string() { return OperandAt(0); }
-  HValue* index() { return OperandAt(1); }
+  HValue* context() { return OperandAt(0); }
+  HValue* string() { return OperandAt(1); }
+  HValue* index() { return OperandAt(2); }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt)
 
@@ -3702,16 +3859,23 @@ class HStringCharCodeAt: public HBinaryOperation {
 };
 
 
-class HStringCharFromCode: public HUnaryOperation {
+class HStringCharFromCode: public HTemplateInstruction<2> {
  public:
-  explicit HStringCharFromCode(HValue* char_code) : HUnaryOperation(char_code) {
-    set_representation(Representation::Tagged());
+  HStringCharFromCode(HValue* context, HValue* char_code) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, char_code);
+     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Integer32();
+    return index == 0
+        ? Representation::Tagged()
+        : Representation::Integer32();
   }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
 
   virtual bool DataEquals(HValue* other) { return true; }
 
@@ -3764,23 +3928,27 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
 };
 
 
-class HArrayLiteral: public HMaterializedLiteral<0> {
+class HArrayLiteral: public HMaterializedLiteral<1> {
  public:
-  HArrayLiteral(Handle<FixedArray> constant_elements,
+  HArrayLiteral(HValue* context,
+                Handle<FixedArray> constant_elements,
                 int length,
                 int literal_index,
                 int depth)
-      : HMaterializedLiteral<0>(literal_index, depth),
+      : HMaterializedLiteral<1>(literal_index, depth),
         length_(length),
-        constant_elements_(constant_elements) {}
+        constant_elements_(constant_elements) {
+    SetOperandAt(0, context);
+  }
 
+  HValue* context() { return OperandAt(0); }
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   int length() const { return length_; }
 
   bool IsCopyOnWrite() const;
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::None();
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ArrayLiteral)
@@ -3826,20 +3994,24 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
 };
 
 
-class HRegExpLiteral: public HMaterializedLiteral<0> {
+class HRegExpLiteral: public HMaterializedLiteral<1> {
  public:
-  HRegExpLiteral(Handle<String> pattern,
+  HRegExpLiteral(HValue* context,
+                 Handle<String> pattern,
                  Handle<String> flags,
                  int literal_index)
-      : HMaterializedLiteral<0>(literal_index, 0),
+      : HMaterializedLiteral<1>(literal_index, 0),
         pattern_(pattern),
-        flags_(flags) { }
+        flags_(flags) {
+    SetOperandAt(0, context);
+  }
 
+  HValue* context() { return OperandAt(0); }
   Handle<String> pattern() { return pattern_; }
   Handle<String> flags() { return flags_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::None();
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral)
@@ -3850,15 +4022,20 @@ class HRegExpLiteral: public HMaterializedLiteral<0> {
 };
 
 
-class HFunctionLiteral: public HTemplateInstruction<0> {
+class HFunctionLiteral: public HTemplateInstruction<1> {
  public:
-  HFunctionLiteral(Handle<SharedFunctionInfo> shared, bool pretenure)
+  HFunctionLiteral(HValue* context,
+                   Handle<SharedFunctionInfo> shared,
+                   bool pretenure)
       : shared_info_(shared), pretenure_(pretenure) {
+    SetOperandAt(0, context);
     set_representation(Representation::Tagged());
   }
 
+  HValue* context() { return OperandAt(0); }
+
   virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::None();
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
@@ -3872,11 +4049,16 @@ class HFunctionLiteral: public HTemplateInstruction<0> {
 };
 
 
-class HTypeof: public HUnaryOperation {
+class HTypeof: public HTemplateInstruction<2> {
  public:
-  explicit HTypeof(HValue* value) : HUnaryOperation(value) {
+  explicit HTypeof(HValue* context, HValue* value) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, value);
     set_representation(Representation::Tagged());
   }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -3920,8 +4102,8 @@ class HValueOf: public HUnaryOperation {
 
 class HDeleteProperty: public HBinaryOperation {
  public:
-  HDeleteProperty(HValue* obj, HValue* key)
-      : HBinaryOperation(obj, key) {
+  HDeleteProperty(HValue* context, HValue* obj, HValue* key)
+      : HBinaryOperation(context, obj, key) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -3930,6 +4112,8 @@ class HDeleteProperty: public HBinaryOperation {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType();
+
   DECLARE_CONCRETE_INSTRUCTION(DeleteProperty)
 
   HValue* object() { return left(); }
@@ -3937,17 +4121,19 @@ class HDeleteProperty: public HBinaryOperation {
 };
 
 
-class HIn: public HTemplateInstruction<2> {
+class HIn: public HTemplateInstruction<3> {
  public:
-  HIn(HValue* key, HValue* object) {
-    SetOperandAt(0, key);
-    SetOperandAt(1, object);
+  HIn(HValue* context, HValue* key, HValue* object) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, key);
+    SetOperandAt(2, object);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
-  HValue* key() { return OperandAt(0); }
-  HValue* object() { return OperandAt(1); }
+  HValue* context() { return OperandAt(0); }
+  HValue* key() { return OperandAt(1); }
+  HValue* object() { return OperandAt(2); }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();

@@ -60,8 +60,8 @@ namespace internal {
   V(ContinueStatement)                          \
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
-  V(WithEnterStatement)                         \
-  V(WithExitStatement)                          \
+  V(EnterWithContextStatement)                  \
+  V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
   V(WhileStatement)                             \
@@ -80,7 +80,6 @@ namespace internal {
   V(RegExpLiteral)                              \
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
-  V(CatchExtensionObject)                       \
   V(Assignment)                                 \
   V(Throw)                                      \
   V(Property)                                   \
@@ -135,7 +134,7 @@ class AstNode: public ZoneObject {
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
 
-  AstNode() : id_(GetNextId()) {
+  AstNode() {
     Isolate* isolate = Isolate::Current();
     isolate->set_ast_node_count(isolate->ast_node_count() + 1);
   }
@@ -164,24 +163,15 @@ class AstNode: public ZoneObject {
 
   static int Count() { return Isolate::Current()->ast_node_count(); }
   static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
-  unsigned id() const { return id_; }
 
  protected:
-  static unsigned GetNextId() {
-    Isolate* isolate = Isolate::Current();
-    unsigned tmp = isolate->ast_node_id();
-    isolate->set_ast_node_id(tmp + 1);
-    return tmp;
-  }
+  static unsigned GetNextId() { return ReserveIdRange(1); }
   static unsigned ReserveIdRange(int n) {
     Isolate* isolate = Isolate::Current();
     unsigned tmp = isolate->ast_node_id();
     isolate->set_ast_node_id(tmp + n);
     return tmp;
   }
-
- private:
-  unsigned id_;
 
   friend class CaseClause;  // Generates AST IDs.
 };
@@ -220,7 +210,7 @@ class Expression: public AstNode {
     kTest
   };
 
-  Expression() {}
+  Expression() : id_(GetNextId()), test_id_(GetNextId()) {}
 
   virtual int position() const {
     UNREACHABLE();
@@ -271,15 +261,12 @@ class Expression: public AstNode {
     return Handle<Map>();
   }
 
-  ExternalArrayType external_array_type() const {
-    return external_array_type_;
-  }
-  void set_external_array_type(ExternalArrayType array_type) {
-    external_array_type_ = array_type;
-  }
+  unsigned id() const { return id_; }
+  unsigned test_id() const { return test_id_; }
 
  private:
-  ExternalArrayType external_array_type_;
+  unsigned id_;
+  unsigned test_id_;
 };
 
 
@@ -396,6 +383,7 @@ class IterationStatement: public BreakableStatement {
   // Bailout support.
   int OsrEntryId() const { return osr_entry_id_; }
   virtual int ContinueId() const = 0;
+  virtual int StackCheckId() const = 0;
 
   // Code generation
   Label* continue_target()  { return &continue_target_; }
@@ -434,6 +422,7 @@ class DoWhileStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return continue_id_; }
+  virtual int StackCheckId() const { return back_edge_id_; }
   int BackEdgeId() const { return back_edge_id_; }
 
   virtual bool IsInlineable() const;
@@ -468,6 +457,7 @@ class WhileStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return EntryId(); }
+  virtual int StackCheckId() const { return body_id_; }
   int BodyId() const { return body_id_; }
 
  private:
@@ -507,6 +497,7 @@ class ForStatement: public IterationStatement {
 
   // Bailout support.
   virtual int ContinueId() const { return continue_id_; }
+  virtual int StackCheckId() const { return body_id_; }
   int BodyId() const { return body_id_; }
 
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
@@ -545,6 +536,7 @@ class ForInStatement: public IterationStatement {
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
   virtual int ContinueId() const { return EntryId(); }
+  virtual int StackCheckId() const { return EntryId(); }
 
  private:
   Expression* each_;
@@ -618,31 +610,27 @@ class ReturnStatement: public Statement {
 };
 
 
-class WithEnterStatement: public Statement {
+class EnterWithContextStatement: public Statement {
  public:
-  explicit WithEnterStatement(Expression* expression, bool is_catch_block)
-      : expression_(expression), is_catch_block_(is_catch_block) { }
+  explicit EnterWithContextStatement(Expression* expression)
+      : expression_(expression) { }
 
-  DECLARE_NODE_TYPE(WithEnterStatement)
+  DECLARE_NODE_TYPE(EnterWithContextStatement)
 
   Expression* expression() const { return expression_; }
 
-  bool is_catch_block() const { return is_catch_block_; }
   virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
-  bool is_catch_block_;
 };
 
 
-class WithExitStatement: public Statement {
+class ExitContextStatement: public Statement {
  public:
-  WithExitStatement() { }
-
   virtual bool IsInlineable() const;
 
-  DECLARE_NODE_TYPE(WithExitStatement)
+  DECLARE_NODE_TYPE(ExitContextStatement)
 };
 
 
@@ -715,6 +703,7 @@ class IfStatement: public Statement {
       : condition_(condition),
         then_statement_(then_statement),
         else_statement_(else_statement),
+        if_id_(GetNextId()),
         then_id_(GetNextId()),
         else_id_(GetNextId()) {
   }
@@ -730,6 +719,7 @@ class IfStatement: public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
+  int IfId() const { return if_id_; }
   int ThenId() const { return then_id_; }
   int ElseId() const { return else_id_; }
 
@@ -737,6 +727,7 @@ class IfStatement: public Statement {
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
+  int if_id_;
   int then_id_;
   int else_id_;
 };
@@ -746,9 +737,7 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public AstNode {
  public:
-  explicit TargetCollector(ZoneList<Label*>* targets)
-      : targets_(targets) {
-  }
+  TargetCollector(): targets_(0) { }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
@@ -759,11 +748,11 @@ class TargetCollector: public AstNode {
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<Label*>* targets() { return targets_; }
+  ZoneList<Label*>* targets() { return &targets_; }
   virtual bool IsInlineable() const;
 
  private:
-  ZoneList<Label*>* targets_;
+  ZoneList<Label*> targets_;
 };
 
 
@@ -789,21 +778,25 @@ class TryStatement: public Statement {
 class TryCatchStatement: public TryStatement {
  public:
   TryCatchStatement(Block* try_block,
-                    VariableProxy* catch_var,
+                    Scope* scope,
+                    Variable* variable,
                     Block* catch_block)
       : TryStatement(try_block),
-        catch_var_(catch_var),
+        scope_(scope),
+        variable_(variable),
         catch_block_(catch_block) {
   }
 
   DECLARE_NODE_TYPE(TryCatchStatement)
 
-  VariableProxy* catch_var() const { return catch_var_; }
+  Scope* scope() { return scope_; }
+  Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   virtual bool IsInlineable() const;
 
  private:
-  VariableProxy* catch_var_;
+  Scope* scope_;
+  Variable* variable_;
   Block* catch_block_;
 };
 
@@ -1043,27 +1036,6 @@ class ArrayLiteral: public MaterializedLiteral {
 };
 
 
-// Node for constructing a context extension object for a catch block.
-// The catch context extension object has one property, the catch
-// variable, which should be DontDelete.
-class CatchExtensionObject: public Expression {
- public:
-  CatchExtensionObject(Literal* key, VariableProxy* value)
-      : key_(key), value_(value) {
-  }
-
-  DECLARE_NODE_TYPE(CatchExtensionObject)
-
-  Literal* key() const { return key_; }
-  VariableProxy* value() const { return value_; }
-  virtual bool IsInlineable() const;
-
- private:
-  Literal* key_;
-  VariableProxy* value_;
-};
-
-
 class VariableProxy: public Expression {
  public:
   explicit VariableProxy(Variable* var);
@@ -1071,16 +1043,7 @@ class VariableProxy: public Expression {
   DECLARE_NODE_TYPE(VariableProxy)
 
   // Type testing & conversion
-  virtual Property* AsProperty() {
-    return var_ == NULL ? NULL : var_->AsProperty();
-  }
-
-  Variable* AsVariable() {
-    if (this == NULL || var_ == NULL) return NULL;
-    Expression* rewrite = var_->rewrite();
-    if (rewrite == NULL || rewrite->AsSlot() != NULL) return var_;
-    return NULL;
-  }
+  Variable* AsVariable() { return (this == NULL) ? NULL : var_; }
 
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
@@ -1209,8 +1172,7 @@ class Property: public Expression {
         is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
-        is_function_prototype_(false),
-        is_arguments_access_(false) { }
+        is_function_prototype_(false) { }
 
   DECLARE_NODE_TYPE(Property)
 
@@ -1225,13 +1187,6 @@ class Property: public Expression {
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
-
-  // Marks that this is actually an argument rewritten to a keyed property
-  // accessing the argument through the arguments shadow object.
-  void set_is_arguments_access(bool is_arguments_access) {
-    is_arguments_access_ = is_arguments_access;
-  }
-  bool is_arguments_access() const { return is_arguments_access_; }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -1254,7 +1209,6 @@ class Property: public Expression {
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
-  bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
 };
 
@@ -1462,7 +1416,8 @@ class CountOperation: public Expression {
         expression_(expr),
         pos_(pos),
         assignment_id_(GetNextId()),
-        count_id_(GetNextId()) { }
+        count_id_(GetNextId()),
+        receiver_types_(NULL) { }
 
   DECLARE_NODE_TYPE(CountOperation)
 
@@ -1486,6 +1441,7 @@ class CountOperation: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
+  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -1500,6 +1456,7 @@ class CountOperation: public Expression {
   int assignment_id_;
   int count_id_;
   Handle<Map> monomorphic_receiver_type_;
+  ZoneMapList* receiver_types_;
 };
 
 
@@ -1526,6 +1483,10 @@ class CompareOperation: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
   bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
+
+  // Match special cases.
+  bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
+  bool IsLiteralCompareUndefined(Expression** expr);
 
  private:
   Token::Value op_;
@@ -1687,7 +1648,8 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression)
+                  bool is_expression,
+                  bool has_duplicate_parameters)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1699,10 +1661,12 @@ class FunctionLiteral: public Expression {
         num_parameters_(num_parameters),
         start_position_(start_position),
         end_position_(end_position),
-        is_expression_(is_expression),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        pretenure_(false) { }
+        is_expression_(is_expression),
+        pretenure_(false),
+        has_duplicate_parameters_(has_duplicate_parameters) {
+  }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
 
@@ -1742,6 +1706,8 @@ class FunctionLiteral: public Expression {
   void set_pretenure(bool value) { pretenure_ = value; }
   virtual bool IsInlineable() const;
 
+  bool has_duplicate_parameters() { return has_duplicate_parameters_; }
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1753,10 +1719,11 @@ class FunctionLiteral: public Expression {
   int num_parameters_;
   int start_position_;
   int end_position_;
-  bool is_expression_;
   int function_token_position_;
   Handle<String> inferred_name_;
+  bool is_expression_;
   bool pretenure_;
+  bool has_duplicate_parameters_;
 };
 
 
@@ -1950,6 +1917,7 @@ class RegExpCharacterClass: public RegExpTree {
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
   bool is_negated() { return is_negated_; }
+
  private:
   CharacterSet set_;
   bool is_negated_;
@@ -2034,6 +2002,7 @@ class RegExpQuantifier: public RegExpTree {
   bool is_non_greedy() { return type_ == NON_GREEDY; }
   bool is_greedy() { return type_ == GREEDY; }
   RegExpTree* body() { return body_; }
+
  private:
   RegExpTree* body_;
   int min_;
@@ -2066,6 +2035,7 @@ class RegExpCapture: public RegExpTree {
   int index() { return index_; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
+
  private:
   RegExpTree* body_;
   int index_;
@@ -2096,6 +2066,7 @@ class RegExpLookahead: public RegExpTree {
   bool is_positive() { return is_positive_; }
   int capture_count() { return capture_count_; }
   int capture_from() { return capture_from_; }
+
  private:
   RegExpTree* body_;
   bool is_positive_;

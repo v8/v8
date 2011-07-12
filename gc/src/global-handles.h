@@ -162,9 +162,6 @@ class GlobalHandles {
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
 
-  // Iterates over all strong and dependent handles.
-  void IterateStrongAndDependentRoots(ObjectVisitor* v);
-
   // Iterates over all handles.
   void IterateAllRoots(ObjectVisitor* v);
 
@@ -174,9 +171,6 @@ class GlobalHandles {
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 
-  // Iterates over all weak independent roots in heap.
-  void IterateWeakIndependentRoots(ObjectVisitor* v);
-
   // Iterates over weak roots that are bound to a given callback.
   void IterateWeakRoots(WeakReferenceGuest f,
                         WeakReferenceCallback callback);
@@ -185,9 +179,20 @@ class GlobalHandles {
   // them as pending.
   void IdentifyWeakHandles(WeakSlotCallback f);
 
-  // Find all weak independent handles satisfying the callback predicate, mark
-  // them as pending.
-  void IdentifyWeakIndependentHandles(WeakSlotCallbackWithHeap f);
+  // NOTE: Three ...NewSpace... functions below are used during
+  // scavenge collections and iterate over sets of handles that are
+  // guaranteed to contain all handles holding new space objects (but
+  // may also include old space objects).
+
+  // Iterates over strong and dependent handles. See the node above.
+  void IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v);
+
+  // Finds weak independent handles satisfying the callback predicate
+  // and marks them as pending. See the note above.
+  void IdentifyNewSpaceWeakIndependentHandles(WeakSlotCallbackWithHeap f);
+
+  // Iterates over weak independent handles. See the note above.
+  void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.
@@ -224,12 +229,14 @@ class GlobalHandles {
   void PrintStats();
   void Print();
 #endif
-  class Pool;
+
  private:
   explicit GlobalHandles(Isolate* isolate);
 
-  // Internal node structure, one for each global handle.
+  // Internal node structures.
   class Node;
+  class NodeBlock;
+  class NodeIterator;
 
   Isolate* isolate_;
 
@@ -241,35 +248,21 @@ class GlobalHandles {
   // number_of_weak_handles_.
   int number_of_global_object_weak_handles_;
 
-  // Global handles are kept in a single linked list pointed to by head_.
-  Node* head_;
-  Node* head() { return head_; }
-  void set_head(Node* value) { head_ = value; }
+  // List of all allocated node blocks.
+  NodeBlock* first_block_;
 
-  // Free list for DESTROYED global handles not yet deallocated.
+  // List of node blocks with used nodes.
+  NodeBlock* first_used_block_;
+
+  // Free list of nodes.
   Node* first_free_;
-  Node* first_free() { return first_free_; }
-  void set_first_free(Node* value) { first_free_ = value; }
 
-  // List of deallocated nodes.
-  // Deallocated nodes form a prefix of all the nodes and
-  // |first_deallocated| points to last deallocated node before
-  // |head|.  Those deallocated nodes are additionally linked
-  // by |next_free|:
-  //                                    1st deallocated  head
-  //                                           |          |
-  //                                           V          V
-  //    node          node        ...         node       node
-  //      .next      -> .next ->                .next ->
-  //   <- .next_free <- .next_free           <- .next_free
-  Node* first_deallocated_;
-  Node* first_deallocated() { return first_deallocated_; }
-  void set_first_deallocated(Node* value) {
-    first_deallocated_ = value;
-  }
+  // Contains all nodes holding new space objects. Note: when the list
+  // is accessed, some of the objects may have been promoted already.
+  List<Node*> new_space_nodes_;
 
-  Pool* pool_;
   int post_gc_processing_count_;
+
   List<ObjectGroup*> object_groups_;
   List<ImplicitRefGroup*> implicit_ref_groups_;
 

@@ -109,8 +109,6 @@ void CompilationInfo::DisableOptimization() {
 void CompilationInfo::AbortOptimization() {
   Handle<Code> code(shared_info()->code());
   SetCode(code);
-  Isolate* isolate = code->GetIsolate();
-  isolate->compilation_cache()->MarkForLazyOptimizing(closure());
 }
 
 
@@ -213,10 +211,12 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   //
   // The encoding is as a signed value, with parameters and receiver using
   // the negative indices and locals the non-negative ones.
-  const int limit = LUnallocated::kMaxFixedIndices / 2;
+  const int parameter_limit = -LUnallocated::kMinFixedIndex;
+  const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info->scope();
-  if ((scope->num_parameters() + 1) > limit ||
-      scope->num_stack_slots() > limit) {
+  if ((scope->num_parameters() + 1) > parameter_limit ||
+      (info->osr_ast_id() != AstNode::kNoNumber &&
+       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     info->AbortOptimization();
     Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization(*closure);
@@ -338,7 +338,7 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->global_context().is_null());
@@ -411,7 +411,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         String::cast(script->name())));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
-                   info->code()));
+                   info->code(),
+                   info));
   } else {
     PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
@@ -420,7 +421,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         *info->code(),
         *result,
         isolate->heap()->empty_string()));
-    GDBJIT(AddCode(Handle<String>(), script, info->code()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
   }
 
   // Hint to the runtime system used when allocating space for initial
@@ -508,7 +509,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (natives == NATIVES_CODE) info.MarkAsAllowingNativesSyntax();
+    if (natives == NATIVES_CODE) {
+      info.MarkAsAllowingNativesSyntax();
+      info.MarkAsNative();
+    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
@@ -572,7 +576,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
 bool Compiler::CompileLazy(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);
@@ -613,6 +617,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
       if (info->IsOptimizing()) {
+        ASSERT(shared->scope_info() != SerializedScopeInfo::Empty());
         function->ReplaceCode(*code);
       } else {
         // Update the shared function info with the compiled code and the
@@ -654,9 +659,6 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
-          } else if (isolate->compilation_cache()->ShouldOptimizeEagerly(
-              function)) {
-            isolate->runtime_profiler()->OptimizeSoon(*function);
           }
         }
       }
@@ -677,6 +679,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   info.SetFunction(literal);
   info.SetScope(literal->scope());
   if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
+  if (script->type()->value() == Script::TYPE_NATIVE) info.MarkAsNative();
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to
@@ -742,6 +745,8 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_strict_mode(lit->strict_mode());
+  function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
+  function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
 }
 
 
@@ -780,7 +785,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 
   GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
-                 Handle<Code>(info->code())));
+                 Handle<Code>(info->code()),
+                 info));
 }
 
 } }  // namespace v8::internal

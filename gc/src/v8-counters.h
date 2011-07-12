@@ -129,8 +129,9 @@ namespace internal {
      V8.GCCompactorCausedByWeakHandles)                               \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                   \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
-  SC(map_slow_to_fast_elements, V8.MapSlowToFastElements)             \
-  SC(map_fast_to_slow_elements, V8.MapFastToSlowElements)             \
+  SC(map_to_fast_elements, V8.MapToFastElements)                      \
+  SC(map_to_fast_double_elements, V8.MapToFastDoubleElements)         \
+  SC(map_to_slow_elements, V8.MapToSlowElements)                      \
   SC(map_to_external_array_elements, V8.MapToExternalArrayElements)   \
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
@@ -172,14 +173,10 @@ namespace internal {
   SC(named_load_inline_field, V8.NamedLoadInlineFast)                 \
   SC(keyed_load_inline_generic, V8.KeyedLoadInlineGeneric)            \
   SC(keyed_load_inline_fast, V8.KeyedLoadInlineFast)                  \
-  SC(named_load_full, V8.NamedLoadFull)                               \
-  SC(keyed_load_full, V8.KeyedLoadFull)                               \
   SC(keyed_store_inline_generic, V8.KeyedStoreInlineGeneric)          \
   SC(keyed_store_inline_fast, V8.KeyedStoreInlineFast)                \
   SC(named_store_inline_generic, V8.NamedStoreInlineGeneric)          \
   SC(named_store_inline_fast, V8.NamedStoreInlineFast)                \
-  SC(keyed_store_full, V8.KeyedStoreFull)                             \
-  SC(named_store_full, V8.NamedStoreFull)                             \
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)                \
   SC(named_store_global_inline, V8.NamedStoreGlobalInline)            \
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \

@@ -30,6 +30,7 @@
 #include "incremental-marking.h"
 
 #include "code-stubs.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {

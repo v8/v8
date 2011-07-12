@@ -47,8 +47,9 @@ namespace internal {
 
 NativesExternalStringResource::NativesExternalStringResource(
     Bootstrapper* bootstrapper,
-    const char* source)
-    : data_(source), length_(StrLength(source)) {
+    const char* source,
+    size_t length)
+    : data_(source), length_(length) {
   if (bootstrapper->delete_these_non_arrays_on_tear_down_ == NULL) {
     bootstrapper->delete_these_non_arrays_on_tear_down_ = new List<char*>(2);
   }
@@ -75,16 +76,18 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
     if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
       // We can use external strings for the natives.
+      Vector<const char> source = Natives::GetRawScriptSource(index);
       NativesExternalStringResource* resource =
           new NativesExternalStringResource(this,
-              Natives::GetScriptSource(index).start());
+                                            source.start(),
+                                            source.length());
       Handle<String> source_code =
           factory->NewExternalStringFromAscii(resource);
       heap->natives_source_cache()->set(index, *source_code);
     } else {
       // Old snapshot code can't cope with external strings at all.
       Handle<String> source_code =
-        factory->NewStringFromAscii(Natives::GetScriptSource(index));
+        factory->NewStringFromAscii(Natives::GetRawScriptSource(index));
       heap->natives_source_cache()->set(index, *source_code);
     }
   }
@@ -811,7 +814,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   // --- G l o b a l   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   global_context()->set_closure(*empty_function);
-  global_context()->set_fcontext(*global_context());
   global_context()->set_previous(NULL);
   // Set extension and global object.
   global_context()->set_extension(*inner_global);
@@ -1052,6 +1054,24 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 #endif
   }
 
+  {  // --- aliased_arguments_boilerplate_
+    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
+    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
+    new_map->set_pre_allocated_property_fields(2);
+    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
+    new_map->set_elements_kind(JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+    // Set up a well-formed parameter map to make assertions happy.
+    Handle<FixedArray> elements = factory->NewFixedArray(2);
+    elements->set_map(heap->non_strict_arguments_elements_map());
+    Handle<FixedArray> array;
+    array = factory->NewFixedArray(0);
+    elements->set(0, *array);
+    array = factory->NewFixedArray(0);
+    elements->set(1, *array);
+    result->set_elements(*elements);
+    global_context()->set_aliased_arguments_boilerplate(*result);
+  }
+
   {  // --- strict mode arguments boilerplate
     const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1182,7 +1202,8 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = ExperimentalNatives::GetScriptName(index);
   Factory* factory = isolate->factory();
   Handle<String> source_code =
-      factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index));
+      factory->NewStringFromAscii(
+          ExperimentalNatives::GetRawScriptSource(index));
   return CompileNative(name, source_code);
 }
 
@@ -1289,6 +1310,7 @@ void Genesis::InstallNativeFunctions() {
 void Genesis::InstallExperimentalNativeFunctions() {
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
+    INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
   }
 }
 

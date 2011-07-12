@@ -269,6 +269,9 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   output_ = new FrameDescription*[1];
   output_[0] = new(output_frame_size) FrameDescription(
       output_frame_size, function_);
+#ifdef DEBUG
+  output_[0]->SetKind(Code::OPTIMIZED_FUNCTION);
+#endif
 
   // Clear the incoming parameters in the optimized frame to avoid
   // confusing the garbage collector.
@@ -384,6 +387,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new(output_frame_size) FrameDescription(output_frame_size, function);
+#ifdef DEBUG
+  output_frame->SetKind(Code::FUNCTION);
+#endif
 
   bool is_bottommost = (0 == frame_index);
   bool is_topmost = (output_count_ - 1 == frame_index);
@@ -518,7 +524,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
 
   // Set the continuation for the topmost frame.
-  if (is_topmost) {
+  if (is_topmost && bailout_type_ != DEBUGGER) {
     Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
         ? builtins->builtin(Builtins::kNotifyDeoptimized)
@@ -531,8 +537,28 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 }
 
 
-#define __ masm()->
+void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
+  // Set the register values. The values are not important as there are no
+  // callee saved registers in JavaScript frames, so all registers are
+  // spilled. Registers fp and sp are set to the correct values though.
 
+  for (int i = 0; i < Register::kNumRegisters; i++) {
+    input_->SetRegister(i, i * 4);
+  }
+  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
+  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
+  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; i++) {
+    input_->SetDoubleRegister(i, 0.0);
+  }
+
+  // Fill the frame content from the actual data on the frame.
+  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
+    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+  }
+}
+
+
+#define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
@@ -613,30 +639,21 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   ASSERT(Register::kNumRegisters == kNumberOfRegisters);
-  ASSERT(kNumberOfRegisters % 2 == 0);
-
-  Label arm_loop;
-  __ add(r6, r1, Operand(FrameDescription::registers_offset()));
-  __ mov(r5, Operand(sp));
-  __ mov(r4, Operand(kNumberOfRegisters / 2));
-
-  __ bind(&arm_loop);
-  __ Ldrd(r2, r3, MemOperand(r5, kPointerSize * 2, PostIndex));
-  __ sub(r4, r4, Operand(1), SetCC);
-  __ Strd(r2, r3, MemOperand(r6, kPointerSize * 2, PostIndex));
-  __ b(gt, &arm_loop);
+  for (int i = 0; i < kNumberOfRegisters; i++) {
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    __ ldr(r2, MemOperand(sp, i * kPointerSize));
+    __ str(r2, MemOperand(r1, offset));
+  }
 
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  Label vfp_loop;
-  __ add(r6, r1, Operand(FrameDescription::double_registers_offset()));
-  __ mov(r4, Operand(DwVfpRegister::kNumAllocatableRegisters));
-
-  __ bind(&vfp_loop);
-  __ Ldrd(r2, r3, MemOperand(r5, kDoubleSize, PostIndex));
-  __ sub(r4, r4, Operand(1), SetCC);
-  __ Strd(r2, r3, MemOperand(r6, kDoubleSize, PostIndex));
-  __ b(gt, &vfp_loop);
+  int double_regs_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ vldr(d0, sp, src_offset);
+    __ vstr(d0, r1, dst_offset);
+  }
 
   // Remove the bailout id, eventually return address, and the saved registers
   // from the stack.
