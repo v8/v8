@@ -588,9 +588,9 @@ class HValue: public ZoneObject {
   // it would otherwise output what should be a minus zero as an int32 zero.
   // If the operation also exists in a form that takes int32 and outputs int32
   // then the operation should return its input value so that we can propagate
-  // back.  There are two operations that need to propagate back to more than
-  // one input.  They are phi and binary add.  They always return NULL and
-  // expect the caller to take care of things.
+  // back.  There are three operations that need to propagate back to more than
+  // one input.  They are phi and binary div and mul.  They always return NULL
+  // and expect the caller to take care of things.
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited) {
     visited->Add(id());
     return NULL;

@@ -1666,8 +1666,8 @@ void HInferRepresentation::Analyze() {
         HValue* use = it.value();
         if (use->IsPhi()) {
           int id = HPhi::cast(use)->phi_id();
-          change = change ||
-              connected_phis[i]->UnionIsChanged(*connected_phis[id]);
+          if (connected_phis[i]->UnionIsChanged(*connected_phis[id]))
+            change = true;
         }
       }
     }
