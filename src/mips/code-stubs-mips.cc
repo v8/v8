@@ -3743,24 +3743,22 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // 4 args slots
   // args
 
-  #ifdef ENABLE_LOGGING_AND_PROFILING
-    // If this is the outermost JS call, set js_entry_sp value.
-    Label non_outermost_js;
-    ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
-                                  masm->isolate());
-    __ li(t1, Operand(ExternalReference(js_entry_sp)));
-    __ lw(t2, MemOperand(t1));
-    __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
-    __ sw(fp, MemOperand(t1));
-    __ li(t0, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-    Label cont;
-    __ b(&cont);
-    __ nop();   // Branch delay slot nop.
-    __ bind(&non_outermost_js);
-    __ li(t0, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
-    __ bind(&cont);
-    __ push(t0);
-  #endif
+  // If this is the outermost JS call, set js_entry_sp value.
+  Label non_outermost_js;
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
+                                masm->isolate());
+  __ li(t1, Operand(ExternalReference(js_entry_sp)));
+  __ lw(t2, MemOperand(t1));
+  __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
+  __ sw(fp, MemOperand(t1));
+  __ li(t0, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  Label cont;
+  __ b(&cont);
+  __ nop();   // Branch delay slot nop.
+  __ bind(&non_outermost_js);
+  __ li(t0, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ bind(&cont);
+  __ push(t0);
 
   // Call a faked try-block that does the invoke.
   __ bal(&invoke);  // bal exposes branch delay slot.
@@ -3829,16 +3827,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PopTryHandler();
 
   __ bind(&exit);  // v0 holds result
-  #ifdef ENABLE_LOGGING_AND_PROFILING
-    // Check if the current stack frame is marked as the outermost JS frame.
-    Label non_outermost_js_2;
-    __ pop(t1);
-    __ Branch(&non_outermost_js_2, ne, t1,
-              Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-    __ li(t1, Operand(ExternalReference(js_entry_sp)));
-    __ sw(zero_reg, MemOperand(t1));
-    __ bind(&non_outermost_js_2);
-  #endif
+  // Check if the current stack frame is marked as the outermost JS frame.
+  Label non_outermost_js_2;
+  __ pop(t1);
+  __ Branch(&non_outermost_js_2, ne, t1,
+            Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ li(t1, Operand(ExternalReference(js_entry_sp)));
+  __ sw(zero_reg, MemOperand(t1));
+  __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(t1);

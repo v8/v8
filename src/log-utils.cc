@@ -33,8 +33,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 LogDynamicBuffer::LogDynamicBuffer(
     int block_size, int max_size, const char* seal, int seal_size)
     : block_size_(block_size),
@@ -142,7 +140,6 @@ static void AddIsolateIdIfNeeded(StringStream* stream) {
 
 
 void Log::Initialize() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
 
@@ -222,7 +219,6 @@ void Log::Initialize() {
       }
     }
   }
-#endif
 }
 
 
@@ -422,7 +418,5 @@ void LogMessageBuilder::WriteToLogFile() {
   }
 }
 
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

@@ -3255,11 +3255,9 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
     GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
   }
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
-#endif
 }
 
 

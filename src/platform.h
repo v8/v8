@@ -597,7 +597,6 @@ class TickSample {
   bool has_external_callback : 1;
 };
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 class Sampler {
  public:
   // Initialize sampler.
@@ -655,8 +654,6 @@ class Sampler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
 

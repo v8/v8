@@ -1839,8 +1839,6 @@ Socket* OS::CreateSocket() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 // ----------------------------------------------------------------------------
 // Win32 profiler support.
 
@@ -2015,6 +2013,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

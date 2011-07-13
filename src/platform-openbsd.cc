@@ -250,15 +250,12 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static unsigned StringToLong(char* buffer) {
   return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
 }
-#endif
 
 
 void OS::LogSharedLibraryAddresses() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   static const int MAP_LENGTH = 1024;
   int fd = open("/proc/self/maps", O_RDONLY);
   if (fd < 0) return;
@@ -295,7 +292,6 @@ void OS::LogSharedLibraryAddresses() {
     LOG(i::Isolate::Current(), SharedLibraryEvent(start_of_path, start, end));
   }
   close(fd);
-#endif
 }
 
 
@@ -576,8 +572,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 static pthread_t GetThreadID() {
   pthread_t thread_id = pthread_self();
   return thread_id;
@@ -804,6 +798,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

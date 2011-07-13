@@ -2,8 +2,6 @@
 //
 // Tests of logging utilities from log-utils.h
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "v8.h"
 
 #include "log-utils.h"
@@ -136,5 +134,3 @@ TEST(DynaBufSealing) {
   // Verify that there's no data beyond the seal.
   CHECK_EQ(0, ReadData(&dynabuf, 100 + seal_size, &buf));
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING

@@ -33,8 +33,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 class Logger;
 
 // A memory buffer that increments its size as you write in it.  Size
@@ -223,8 +221,6 @@ class LogMessageBuilder BASE_EMBEDDED {
   ScopedLock sl;
   int pos_;
 };
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
 

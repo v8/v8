@@ -60,17 +60,8 @@ LIBRARY_FLAGS = {
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT']
     },
-    'vmstate:on': {
-      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING'],
-    },
     'objectprint:on': {
       'CPPDEFINES':   ['OBJECT_PRINT'],
-    },
-    'protectheap:on': {
-      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_HEAP_PROTECTION'],
-    },
-    'profilingsupport:on': {
-      'CPPDEFINES':   ['ENABLE_VMSTATE_TRACKING', 'ENABLE_LOGGING_AND_PROFILING'],
     },
     'debuggersupport:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT'],
@@ -929,20 +920,10 @@ SIMPLE_OPTIONS = {
     'default': 'static',
     'help': 'the type of library to produce'
   },
-  'vmstate': {
-    'values': ['on', 'off'],
-    'default': 'off',
-    'help': 'enable VM state tracking'
-  },
   'objectprint': {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'enable object printing'
-  },
-  'protectheap': {
-    'values': ['on', 'off'],
-    'default': 'off',
-    'help': 'enable heap protection'
   },
   'profilingsupport': {
     'values': ['on', 'off'],

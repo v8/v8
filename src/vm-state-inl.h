@@ -39,7 +39,6 @@ namespace internal {
 // logger and partially threaded through the call stack.  States are pushed by
 // VMState construction and popped by destruction.
 //
-#ifdef ENABLE_VMSTATE_TRACKING
 inline const char* StateToString(StateTag state) {
   switch (state) {
     case JS:
@@ -61,19 +60,16 @@ inline const char* StateToString(StateTag state) {
 
 VMState::VMState(Isolate* isolate, StateTag tag)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
     LOG(isolate, UncheckedStringEvent("Entering", StateToString(tag)));
     LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
-#endif
 
   isolate_->SetCurrentVMState(tag);
 }
 
 
 VMState::~VMState() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
     LOG(isolate_,
         UncheckedStringEvent("Leaving",
@@ -81,15 +77,10 @@ VMState::~VMState() {
     LOG(isolate_,
         UncheckedStringEvent("To", StateToString(previous_tag_)));
   }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
   isolate_->SetCurrentVMState(previous_tag_);
 }
 
-#endif  // ENABLE_VMSTATE_TRACKING
-
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate), previous_callback_(isolate->external_callback()) {
@@ -99,8 +90,6 @@ ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
 ExternalCallbackScope::~ExternalCallbackScope() {
   isolate_->set_external_callback(previous_callback_);
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 } }  // namespace v8::internal

@@ -452,14 +452,10 @@ DEFINE_bool(trace_regexp_assembler,
             "trace regexp macro assembler calls.")
 
 //
-// Logging and profiling only flags
+// Logging and profiling flags
 //
 #undef FLAG
-#ifdef ENABLE_LOGGING_AND_PROFILING
 #define FLAG FLAG_FULL
-#else
-#define FLAG FLAG_READONLY
-#endif
 
 // log.cc
 DEFINE_bool(log, false,
