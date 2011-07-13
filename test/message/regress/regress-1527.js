@@ -25,26 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform and architecture specific thread local store functions.
-
-#ifndef V8_PLATFORM_TLS_H_
-#define V8_PLATFORM_TLS_H_
-
-#ifndef V8_NO_FAST_TLS
-
-// When fast TLS is requested we include the appropriate
-// implementation header.
-//
-// The implementation header defines V8_FAST_TLS_SUPPORTED if it
-// provides fast TLS support for the current platform and architecture
-// combination.
-
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-#include "platform-tls-win32.h"
-#elif defined(__APPLE__)
-#include "platform-tls-mac.h"
-#endif
-
-#endif
-
-#endif  // V8_PLATFORM_TLS_H_
+var o1 = {foo: 'bar'};
+var o2 = {
+  1: 'blah',
+  2: o1.foo,
+  3: foo
+}

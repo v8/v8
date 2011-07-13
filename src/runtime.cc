@@ -12145,7 +12145,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
   NoHandleAllocation ha;
   v8::V8::ResumeProfiler();
@@ -12159,7 +12158,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
   return isolate->heap()->undefined_value();
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position

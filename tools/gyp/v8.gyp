@@ -62,10 +62,7 @@
     ['use_system_v8==0', {
       'target_defaults': {
         'defines': [
-          'ENABLE_LOGGING_AND_PROFILING',
           'ENABLE_DEBUGGER_SUPPORT',
-          'ENABLE_VMSTATE_TRACKING',
-          'V8_FAST_TLS',
         ],
         'conditions': [
           ['OS!="mac"', {

@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -25,64 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-{
-  'targets': [
-    {
-      'target_name': 'd8',
-      'type': 'executable',
-      'dependencies': [
-        'd8_js2c#host',
-        '../tools/gyp/v8.gyp:v8',
-      ],
-      'include_dirs+': [
-        '../src',
-      ],
-      'defines': [
-        'ENABLE_DEBUGGER_SUPPORT',
-      ],
-      'sources': [
-        'd8.cc',
-        'd8-debug.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
-      ],
-      'conditions': [
-        [ 'OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-          'sources': [ 'd8-posix.cc', ]
-        }],
-        [ 'OS=="win"', {
-          'sources': [ 'd8-windows.cc', ]
-        }],
-      ],
-    },
-    {
-      'target_name': 'd8_js2c',
-      'type': 'none',
-      'toolsets': ['host'],
-      'variables': {
-        'js_files': [
-          'd8.js',
-          'macros.py',
-        ],
-      },
-      'actions': [
-        {
-          'action_name': 'd8_js2c',
-          'inputs': [
-            '../tools/js2c.py',
-            '<@(js_files)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
-          ],
-          'action': [
-            'python',
-            '../tools/js2c.py',
-            '<@(_outputs)',
-            'D8',
-            '<@(js_files)'
-          ],
-        },
-      ],
-    }
-  ],
-}
+*%(basename)s:32: ReferenceError: foo is not defined
+  3: foo
+     ^
+ReferenceError: foo is not defined
+    at *%(basename)s:32:6

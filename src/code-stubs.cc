@@ -61,21 +61,29 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 }
 
 
+SmartPointer<const char> CodeStub::GetName() {
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  PrintName(&stream);
+  return stream.ToCString();
+}
+
+
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
   Isolate* isolate = masm->isolate();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
-  GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
+  SmartPointer<const char> name = GetName();
+  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
+  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
-#ifdef DEBUG
-    Print();
-#endif
-    code->Disassemble(GetName());
+    code->Disassemble(*name);
     PrintF("\n");
   }
 #endif
@@ -213,13 +221,7 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* InstanceofStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
+void InstanceofStub::PrintName(StringStream* stream) {
   const char* args = "";
   if (HasArgsInRegisters()) {
     args = "_REGS";
@@ -235,12 +237,10 @@ const char* InstanceofStub::GetName() {
     return_true_false_object = "_TRUEFALSE";
   }
 
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "InstanceofStub%s%s%s",
-               args,
-               inline_check,
-               return_true_false_object);
-  return name_;
+  stream->Add("InstanceofStub%s%s%s",
+              args,
+              inline_check,
+              return_true_false_object);
 }
 
 
@@ -301,5 +301,31 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   }
 }
 
+
+void ArgumentsAccessStub::PrintName(StringStream* stream) {
+  const char* type_name = NULL;  // Make g++ happy.
+  switch (type_) {
+    case READ_ELEMENT: type_name = "ReadElement"; break;
+    case NEW_NON_STRICT_FAST: type_name = "NewNonStrictFast"; break;
+    case NEW_NON_STRICT_SLOW: type_name = "NewNonStrictSlow"; break;
+    case NEW_STRICT: type_name = "NewStrict"; break;
+  }
+  stream->Add("ArgumentsAccessStub_%s", type_name);
+}
+
+
+void CallFunctionStub::PrintName(StringStream* stream) {
+  const char* in_loop_name = NULL;  // Make g++ happy.
+  switch (in_loop_) {
+    case NOT_IN_LOOP: in_loop_name = ""; break;
+    case IN_LOOP: in_loop_name = "_InLoop"; break;
+  }
+  const char* flags_name = NULL;  // Make g++ happy.
+  switch (flags_) {
+    case NO_CALL_FUNCTION_FLAGS: flags_name = ""; break;
+    case RECEIVER_MIGHT_BE_IMPLICIT: flags_name = "_Implicit"; break;
+  }
+  stream->Add("CallFunctionStub_Args%d%s%s", argc_, in_loop_name, flags_name);
+}
 
 } }  // namespace v8::internal

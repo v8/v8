@@ -35,7 +35,6 @@ function TestGet(handler) {
   var o = Proxy.create(handler)
   assertEquals(42, o.a)
   assertEquals(42, o["b"])
-//  assertEquals(Object.getOwnPropertyDescriptor(o, "b").value, 42)
 }
 
 TestGet({
@@ -69,6 +68,64 @@ TestGet(Proxy.create({
 }))
 
 
+function TestGetCall(handler) {
+  var p = Proxy.create(handler)
+  assertEquals(55, p.f())
+  assertEquals(55, p.f("unused", "arguments"))
+  assertEquals(55, p.f.call(p))
+  assertEquals(55, p.withargs(45, 5))
+  assertEquals(55, p.withargs.call(p, 11, 22))
+  assertEquals("6655", "66" + p)  // calls p.toString
+}
+
+TestGetCall({
+  get: function(r, k) { return function() { return 55 } }
+})
+TestGetCall({
+  get: function(r, k) { return this.get2(r, k) },
+  get2: function(r, k) { return function() { return 55 } }
+})
+TestGetCall({
+  getPropertyDescriptor: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+TestGetCall({
+  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
+  getPropertyDescriptor2: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+TestGetCall({
+  getPropertyDescriptor: function(k) {
+    return {get value() { return function() { return 55 } }}
+  }
+})
+TestGetCall({
+  get: undefined,
+  getPropertyDescriptor: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+TestGetCall({
+  get: function(r, k) {
+    if (k == "gg") {
+      return function() { return 55 }
+    } else if (k == "withargs") {
+      return function(n, m) { return n + m * 2 }
+    } else {
+      return function() { return this.gg() }
+    }
+  }
+})
+
+TestGetCall(Proxy.create({
+  get: function(pr, pk) {
+    return function(r, k) { return function() { return 55 } }
+  }
+}))
+
+
 
 // Setters.
 
@@ -82,9 +139,6 @@ function TestSet(handler) {
   assertEquals(43, o["b"] = 43)
   assertEquals("b", key)
   assertEquals(43, val)
-//  assertTrue(Object.defineProperty(o, "c", {value: 44}))
-//  assertEquals("c", key)
-//  assertEquals(44, val)
 }
 
 TestSet({
@@ -149,7 +203,7 @@ TestSet(Proxy.create({
 
 
 
-// Property definition (Object.defineProperty).
+// Property definition (Object.defineProperty and Object.defineProperties).
 
 var key
 var desc
@@ -193,7 +247,7 @@ function TestDefine(handler) {
   assertEquals("zzz", key)
   assertEquals(0, Object.getOwnPropertyNames(desc).length)
 
-// This test requires [s in proxy] to be implemented first.
+// TODO(rossberg): This test requires [s in proxy] to be implemented first.
 //  var d = Proxy.create({
 //    get: function(r, k) { return (k === "value") ? 77 : void 0 },
 //    getOwnPropertyNames: function() { return ["value"] }
@@ -204,6 +258,20 @@ function TestDefine(handler) {
 //  assertEquals("p", key)
 //  assertEquals(1, Object.getOwnPropertyNames(desc).length)
 //  assertEquals(77, desc.value)
+
+  var props = {
+    'bla': {},
+    blub: {get: function() { return true }},
+    '': {get value() { return 20 }},
+    last: {value: 21, configurable: true, mine: "eyes"}
+  }
+  Object.defineProperty(props, "hidden", {value: "hidden", enumerable: false})
+  assertEquals(o, Object.defineProperties(o, props))
+  assertEquals("last", key)
+  assertEquals(2, Object.getOwnPropertyNames(desc).length)
+  assertEquals(21, desc.value)
+  assertEquals(true, desc.configurable)
+  assertEquals(undefined, desc.mine)  // Arguably a bug in the spec...
 }
 
 TestDefine({
@@ -218,6 +286,44 @@ TestDefine(Proxy.create({
     return function(k, d) { key = k; desc = d; return true }
   }
 }))
+
+
+
+// Property descriptors (Object.getOwnPropertyDescriptor).
+
+function TestDescriptor(handler) {
+  var o = Proxy.create(handler)
+  var descs = [
+    {configurable: true},
+    {value: 34, enumerable: true, configurable: true},
+    {value: 3, writable: false, mine: "eyes", configurable: true},
+    {get value() { return 20 }, get configurable() { return true }},
+    {get: function() { "get" }, set: function() { "set" }, configurable: true}
+  ]
+  for (var i = 0; i < descs.length; ++i) {
+    assertEquals(o, Object.defineProperty(o, i, descs[i]))
+    var desc = Object.getOwnPropertyDescriptor(o, i)
+    for (p in descs[i]) {
+      // TODO(rossberg): Ignore user attributes as long as the spec isn't
+      // fixed suitably.
+      if (p != "mine") assertEquals(descs[i][p], desc[p])
+    }
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(o, "absent"))
+  }
+}
+
+
+TestDescriptor({
+  defineProperty: function(k, d) { this["__" + k] = d; return true },
+  getOwnPropertyDescriptor: function(k) { return this["__" + k] }
+})
+TestDescriptor({
+  defineProperty: function(k, d) { this["__" + k] = d; return true },
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) { return this["__" + k] }
+})
 
 
 
@@ -309,7 +415,7 @@ TestPrototype()
 
 
 
-// Property names (Object.getOwnPropertyNames).
+// Property names (Object.getOwnPropertyNames, Object.keys).
 
 function TestPropertyNames(names, handler) {
   var p = Proxy.create(handler)
@@ -330,4 +436,52 @@ TestPropertyNames(["[object Object]"], {
   get getOwnPropertyNames() {
     return function() { return [{}] }
   }
+})
+
+
+function TestKeys(names, handler) {
+  var p = Proxy.create(handler)
+  assertArrayEquals(names, Object.keys(p))
+}
+
+TestKeys([], {
+  keys: function() { return [] }
+})
+TestKeys(["a", "zz", " ", "0"], {
+  keys: function() { return ["a", "zz", " ", 0] }
+})
+TestKeys(["throw", "function "], {
+  keys: function() { return this.keys2() },
+  keys2: function() { return ["throw", "function "] }
+})
+TestKeys(["[object Object]"], {
+  get keys() {
+    return function() { return [{}] }
+  }
+})
+TestKeys(["a", "0"], {
+  getOwnPropertyNames: function() { return ["a", 23, "zz", "", 0] },
+  getOwnPropertyDescriptor: function(k) { return {enumerable: k.length == 1} }
+})
+TestKeys(["23", "zz", ""], {
+  getOwnPropertyNames: function() { return this.getOwnPropertyNames2() },
+  getOwnPropertyNames2: function() { return ["a", 23, "zz", "", 0] },
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) { return {enumerable: k.length != 1} }
+})
+TestKeys(["a", "b", "c", "5"], {
+  get getOwnPropertyNames() {
+    return function() { return ["0", 4, "a", "b", "c", 5] }
+  },
+  get getOwnPropertyDescriptor() {
+    return function(k) { return {enumerable: k >= "44"} }
+  }
+})
+TestKeys([], {
+  get getOwnPropertyNames() {
+    return function() { return ["a", "b", "c"] }
+  },
+  getOwnPropertyDescriptor: function(k) { return {} }
 })
