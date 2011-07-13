@@ -2548,6 +2548,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
     LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
     cmp(elements, ip);
     b(eq, &ok);
+    LoadRoot(ip, Heap::kFixedDoubleArrayMapRootIndex);
+    cmp(elements, ip);
+    b(eq, &ok);
     LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
     cmp(elements, ip);
     b(eq, &ok);

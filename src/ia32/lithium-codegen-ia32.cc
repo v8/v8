@@ -2790,7 +2790,8 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   __ ucomisd(input_reg, xmm0);
   __ j(above, &positive, Label::kNear);
   __ j(equal, &zero, Label::kNear);
-  ExternalReference nan = ExternalReference::address_of_nan();
+  ExternalReference nan =
+      ExternalReference::address_of_canonical_non_hole_nan();
   __ movdbl(input_reg, Operand::StaticVariable(nan));
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
@@ -3451,7 +3452,8 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     DeoptimizeIf(not_equal, env);
 
     // Convert undefined to NaN.
-    ExternalReference nan = ExternalReference::address_of_nan();
+    ExternalReference nan =
+        ExternalReference::address_of_canonical_non_hole_nan();
     __ movdbl(result_reg, Operand::StaticVariable(nan));
     __ jmp(&done, Label::kNear);
 
