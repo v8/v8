@@ -4302,32 +4302,6 @@ MaybeObject* StringDictionaryShape::AsObject(String* key) {
 }
 
 
-bool ObjectDictionaryShape::IsMatch(JSObject* key, Object* other) {
-  ASSERT(other->IsJSObject());
-  return key == JSObject::cast(other);
-}
-
-
-uint32_t ObjectDictionaryShape::Hash(JSObject* key) {
-  MaybeObject* maybe_hash = key->GetIdentityHash();
-  ASSERT(!maybe_hash->IsFailure());
-  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
-}
-
-
-uint32_t ObjectDictionaryShape::HashForObject(JSObject* key, Object* other) {
-  ASSERT(other->IsJSObject());
-  MaybeObject* maybe_hash = JSObject::cast(other)->GetIdentityHash();
-  ASSERT(!maybe_hash->IsFailure());
-  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
-}
-
-
-MaybeObject* ObjectDictionaryShape::AsObject(JSObject* key) {
-  return key;
-}
-
-
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:

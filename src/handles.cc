@@ -427,14 +427,38 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
   Object* holder = obj->BypassGlobalProxy();
   if (holder->IsUndefined()) return isolate->factory()->undefined_value();
   obj = Handle<JSObject>(JSObject::cast(holder), isolate);
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->GetHiddenProperties(create_if_needed),
-                     Object);
-}
 
+  if (obj->HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = obj->map()->instance_descriptors();
+    if ((descriptors->number_of_descriptors() > 0) &&
+        (descriptors->GetKey(0) == isolate->heap()->hidden_symbol()) &&
+        descriptors->IsProperty(0)) {
+      ASSERT(descriptors->GetType(0) == FIELD);
+      return Handle<Object>(obj->FastPropertyAt(descriptors->GetFieldIndex(0)),
+                            isolate);
+    }
+  }
 
-Handle<Smi> GetIdentityHash(Handle<JSObject> obj) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(), obj->GetIdentityHash(), Smi);
+  // Only attempt to find the hidden properties in the local object and not
+  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
+  // the general case in the presence of interceptors.
+  if (!obj->HasHiddenPropertiesObject()) {
+    // Hidden properties object not found. Allocate a new hidden properties
+    // object if requested. Otherwise return the undefined value.
+    if (create_if_needed) {
+      Handle<Object> hidden_obj =
+          isolate->factory()->NewJSObject(isolate->object_function());
+      CALL_HEAP_FUNCTION(isolate,
+                         obj->SetHiddenPropertiesObject(*hidden_obj), Object);
+    } else {
+      return isolate->factory()->undefined_value();
+    }
+  }
+  return Handle<Object>(obj->GetHiddenPropertiesObject(), isolate);
 }
 
 

@@ -268,8 +268,6 @@ Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 // will be allocated. Otherwise the Heap::undefined_value is returned.
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj, bool create_if_needed);
 
-Handle<Smi> GetIdentityHash(Handle<JSObject> obj);
-
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
 
