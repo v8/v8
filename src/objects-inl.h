@@ -1621,7 +1621,9 @@ inline double FixedDoubleArray::hole_nan_as_double() {
 
 
 inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
-  return BitCast<double, uint64_t>(kCanonicalNonHoleNanInt64);
+  ASSERT(BitCast<uint64_t>(OS::nan_value()) != kHoleNanInt64);
+  ASSERT((BitCast<uint64_t>(OS::nan_value()) >> 32) != kHoleNanUpper32);
+  return OS::nan_value();
 }
 
 
