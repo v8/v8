@@ -1662,7 +1662,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     // Clear dead prototype transitions.
     int number_of_transitions = map->NumberOfProtoTransitions();
     if (number_of_transitions > 0) {
-      FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
+      FixedArray* prototype_transitions =
+          map->unchecked_prototype_transitions();
       int new_number_of_transitions = 0;
       const int header = Map::kProtoTransitionHeaderSize;
       const int proto_offset =
