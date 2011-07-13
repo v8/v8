@@ -3748,7 +3748,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // the double array.
   ExternalReference canonical_nan_reference =
       ExternalReference::address_of_canonical_non_hole_nan();
-  __ Set(kScratchRegister, kCanonicalNonHoleNanInt64);
+  __ Set(kScratchRegister, BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
   __ movq(xmm0, kScratchRegister);
   __ jmp(&have_double_value, Label::kNear);
 

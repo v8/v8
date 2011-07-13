@@ -4380,8 +4380,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ b(eq, &have_double_value);
   __ bind(&is_nan);
   // Load canonical NaN for storing into the double array.
-  __ mov(mantissa_reg, Operand(kCanonicalNonHoleNanLower32));
-  __ mov(exponent_reg, Operand(kCanonicalNonHoleNanUpper32));
+  uint64_t nan_int64 = BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+  __ mov(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
+  __ mov(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
   __ jmp(&have_double_value);
 
   __ bind(&smi_value);
