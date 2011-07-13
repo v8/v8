@@ -497,6 +497,13 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
   RecordPosition(pointers->position());
   __ Call(code, mode);
   RegisterLazyDeoptimization(instr, safepoint_mode);
+
+  // Signal that we don't inline smi code before these stubs in the
+  // optimizing code generator.
+  if (code->kind() == Code::BINARY_OP_IC ||
+      code->kind() == Code::COMPARE_IC) {
+    __ nop();
+  }
 }
 
 
@@ -1368,6 +1375,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ nop();  // Signals no inlined code.
 }
 
 

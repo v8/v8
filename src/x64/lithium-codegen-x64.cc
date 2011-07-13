@@ -1246,6 +1246,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ nop();  // Signals no inlined code.
 }
 
 
