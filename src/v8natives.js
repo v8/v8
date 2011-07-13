@@ -595,7 +595,7 @@ function GetProperty(obj, p) {
     var descriptor = %_CallFunction(handler, p, getProperty);
     if (IS_UNDEFINED(descriptor)) return descriptor;
     var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.configurable) {
+    if (!desc.isConfigurable()) {
       throw MakeTypeError("proxy_prop_not_configurable",
                           [handler, "getPropertyDescriptor", p, descriptor]);
     }
@@ -624,6 +624,23 @@ function HasProperty(obj, p) {
 
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, p) {
+  if (%IsJSProxy(obj)) {
+    var handler = %GetHandler(obj);
+    var getOwnProperty = handler.getOwnPropertyDescriptor;
+    if (IS_UNDEFINED(getOwnProperty)) {
+      throw MakeTypeError("handler_trap_missing",
+                          [handler, "getOwnPropertyDescriptor"]);
+    }
+    var descriptor = %_CallFunction(handler, p, getOwnProperty);
+    if (IS_UNDEFINED(descriptor)) return descriptor;
+    var desc = ToCompletePropertyDescriptor(descriptor);
+    if (!desc.isConfigurable()) {
+      throw MakeTypeError("proxy_prop_not_configurable",
+                          [handler, "getOwnPropertyDescriptor", p, descriptor]);
+    }
+    return desc;
+  }
+
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
@@ -836,7 +853,8 @@ function ObjectGetPrototypeOf(obj) {
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
   if (!IS_SPEC_OBJECT(obj))
-    throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyDescriptor"]);
+    throw MakeTypeError("obj_ctor_property_non_object",
+                        ["getOwnPropertyDescriptor"]);
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
 }
