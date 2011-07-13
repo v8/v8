@@ -2,8 +2,6 @@
 //
 // Tests of logging functions from log.h
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #ifdef __linux__
 #include <math.h>
 #include <pthread.h>
@@ -1089,5 +1087,3 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   LOGGER->TearDown();
   i::FLAG_always_compact = saved_always_compact;
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
