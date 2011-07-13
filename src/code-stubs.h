@@ -181,15 +181,14 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // Returns a name for logging/debugging purposes.
-  virtual const char* GetName() { return MajorName(MajorKey(), false); }
+  SmartPointer<const char> GetName();
+  virtual void PrintName(StringStream* stream) {
+    stream->Add("%s", MajorName(MajorKey(), false));
+  }
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
-
-#ifdef DEBUG
-  virtual void Print() { PrintF("%s\n", GetName()); }
-#endif
 
   // Computes the key based on major and minor.
   uint32_t GetKey() {
@@ -362,7 +361,7 @@ class InstanceofStub: public CodeStub {
     kReturnTrueFalseObject = 1 << 2
   };
 
-  explicit InstanceofStub(Flags flags) : flags_(flags), name_(NULL) { }
+  explicit InstanceofStub(Flags flags) : flags_(flags) { }
 
   static Register left();
   static Register right();
@@ -385,10 +384,9 @@ class InstanceofStub: public CodeStub {
     return (flags_ & kReturnTrueFalseObject) != 0;
   }
 
-  virtual const char* GetName();
+  virtual void PrintName(StringStream* stream);
 
   Flags flags_;
-  char* name_;
 };
 
 
@@ -466,8 +464,7 @@ class CompareStub: public CodeStub {
       include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
       include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
       lhs_(lhs),
-      rhs_(rhs),
-      name_(NULL) { }
+      rhs_(rhs) { }
 
   CompareStub(Condition cc,
               bool strict,
@@ -478,8 +475,7 @@ class CompareStub: public CodeStub {
       include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
       include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
       lhs_(no_reg),
-      rhs_(no_reg),
-      name_(NULL) { }
+      rhs_(no_reg) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -533,26 +529,7 @@ class CompareStub: public CodeStub {
 
   // Unfortunately you have to run without snapshots to see most of these
   // names in the profile since most compare stubs end up in the snapshot.
-  char* name_;
-  virtual const char* GetName();
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (minor %d) (cc %d), (strict %s), "
-           "(never_nan_nan %s), (smi_compare %s) (number_compare %s) ",
-           MinorKey(),
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false",
-           never_nan_nan_ ? "true" : "false",
-           include_smi_compare_ ? "inluded" : "not included",
-           include_number_compare_ ? "included" : "not included");
-
-    if (!lhs_.is(no_reg) && !rhs_.is(no_reg)) {
-      PrintF("(lhs r%d), (rhs r%d)\n", lhs_.code(), rhs_.code());
-    } else {
-      PrintF("\n");
-    }
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 };
 
 
@@ -610,7 +587,9 @@ class JSConstructEntryStub : public JSEntryStub {
  private:
   int MinorKey() { return 1; }
 
-  virtual const char* GetName() { return "JSConstructEntryStub"; }
+  virtual void PrintName(StringStream* stream) {
+    stream->Add("JSConstructEntryStub");
+  }
 };
 
 
@@ -637,11 +616,7 @@ class ArgumentsAccessStub: public CodeStub {
   void GenerateNewNonStrictFast(MacroAssembler* masm);
   void GenerateNewNonStrictSlow(MacroAssembler* masm);
 
-#ifdef DEBUG
-  void Print() {
-    PrintF("ArgumentsAccessStub (type %d)\n", type_);
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 };
 
 
@@ -685,14 +660,7 @@ class CallFunctionStub: public CodeStub {
   InLoopFlag in_loop_;
   CallFunctionFlags flags_;
 
-#ifdef DEBUG
-  void Print() {
-    PrintF("CallFunctionStub (args %d, in_loop %d, flags %d)\n",
-           argc_,
-           static_cast<int>(in_loop_),
-           static_cast<int>(flags_));
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class InLoopBits: public BitField<InLoopFlag, 0, 1> {};

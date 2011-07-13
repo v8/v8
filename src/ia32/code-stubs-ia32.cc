@@ -511,25 +511,17 @@ static void IntegerConvert(MacroAssembler* masm,
 }
 
 
-const char* UnaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void UnaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name = NULL;  // Make g++ happy.
   switch (mode_) {
     case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
     case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "UnaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               UnaryOpIC::GetName(operand_type_));
-  return name_;
+  stream->Add("UnaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              UnaryOpIC::GetName(operand_type_));
 }
 
 
@@ -914,12 +906,7 @@ void BinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* BinaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void BinaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
   switch (mode_) {
@@ -928,13 +915,10 @@ const char* BinaryOpStub::GetName() {
     case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
     default: overwrite_name = "UnknownOverwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "BinaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               BinaryOpIC::GetName(operands_type_));
-  return name_;
+  stream->Add("BinaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              BinaryOpIC::GetName(operands_type_));
 }
 
 
@@ -4726,15 +4710,8 @@ int CompareStub::MinorKey() {
 
 // Unfortunately you have to run without snapshots to see most of these
 // names in the profile since most compare stubs end up in the snapshot.
-const char* CompareStub::GetName() {
+void CompareStub::PrintName(StringStream* stream) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
-
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
   const char* cc_name;
   switch (cc_) {
     case less: cc_name = "LT"; break;
@@ -4745,35 +4722,12 @@ const char* CompareStub::GetName() {
     case not_equal: cc_name = "NE"; break;
     default: cc_name = "UnknownCondition"; break;
   }
-
-  const char* strict_name = "";
-  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
-    strict_name = "_STRICT";
-  }
-
-  const char* never_nan_nan_name = "";
-  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
-    never_nan_nan_name = "_NO_NAN";
-  }
-
-  const char* include_number_compare_name = "";
-  if (!include_number_compare_) {
-    include_number_compare_name = "_NO_NUMBER";
-  }
-
-  const char* include_smi_compare_name = "";
-  if (!include_smi_compare_) {
-    include_smi_compare_name = "_NO_SMI";
-  }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "CompareStub_%s%s%s%s%s",
-               cc_name,
-               strict_name,
-               never_nan_nan_name,
-               include_number_compare_name,
-               include_smi_compare_name);
-  return name_;
+  bool is_equality = cc_ == equal || cc_ == not_equal;
+  stream->Add("CompareStub_%s", cc_name);
+  if (strict_ && is_equality) stream->Add("_STRICT");
+  if (never_nan_nan_ && is_equality) stream->Add("_NO_NAN");
+  if (!include_number_compare_) stream->Add("_NO_NUMBER");
+  if (!include_smi_compare_) stream->Add("_NO_SMI");
 }
 
 
