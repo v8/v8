@@ -157,7 +157,9 @@ class Logger {
   Sampler* sampler();
 
   // Frees resources acquired in Setup.
-  void TearDown();
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  FILE* TearDown();
 
   // Enable the computation of a sliding window of states.
   void EnableSlidingStateWindow();
@@ -278,10 +280,6 @@ class Logger {
   void PauseProfiler();
   void ResumeProfiler();
   bool IsProfilerPaused();
-
-  // If logging is performed into a memory buffer, allows to
-  // retrieve previously written messages. See v8.h.
-  int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();

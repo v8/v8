@@ -147,6 +147,11 @@ bool OS::Remove(const char* path) {
 }
 
 
+FILE* OS::OpenTemporaryFile() {
+  return tmpfile();
+}
+
+
 const char* const OS::LogFileOpenMode = "w";
 
 

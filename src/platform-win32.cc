@@ -740,6 +740,24 @@ bool OS::Remove(const char* path) {
 }
 
 
+FILE* OS::OpenTemporaryFile() {
+  // tmpfile_s tries to use the root dir, don't use it.
+  char tempPathBuffer[MAX_PATH];
+  DWORD path_result = 0;
+  path_result = GetTempPath(MAX_PATH, tempPathBuffer);
+  if (path_result > MAX_PATH || path_result == 0) return NULL;
+  UINT name_result = 0;
+  char tempNameBuffer[MAX_PATH];
+  name_result = GetTempFileName(tempPathBuffer, "", 0, tempNameBuffer);
+  if (name_result == 0) return NULL;
+  FILE* result = FOpen(tempNameBuffer, "w+");  // Same mode as tmpfile uses.
+  if (result != NULL) {
+    Remove(tempNameBuffer);  // Delete on close.
+  }
+  return result;
+}
+
+
 // Open log file in binary mode to avoid /n -> /r/n conversion.
 const char* const OS::LogFileOpenMode = "wb";
 

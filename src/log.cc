@@ -1281,7 +1281,6 @@ void Logger::PauseProfiler() {
           ticker_->Stop();
         }
         FLAG_log_code = false;
-        // Must be the same message as Log::kDynamicBufferSeal.
         LOG(ISOLATE, UncheckedStringEvent("profiler", "pause"));
       }
       --logging_nesting_;
@@ -1320,11 +1319,6 @@ void Logger::LogFailure() {
 
 bool Logger::IsProfilerSamplerActive() {
   return ticker_->IsActive();
-}
-
-
-int Logger::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-  return log_->GetLogLines(from_pos, dest_buf, max_size);
 }
 
 
@@ -1683,8 +1677,8 @@ void Logger::EnsureTickerStopped() {
 }
 
 
-void Logger::TearDown() {
-  if (!is_initialized_) return;
+FILE* Logger::TearDown() {
+  if (!is_initialized_) return NULL;
   is_initialized_ = false;
 
   // Stop the profiler before closing the file.
@@ -1700,7 +1694,7 @@ void Logger::TearDown() {
   delete ticker_;
   ticker_ = NULL;
 
-  log_->Close();
+  return log_->Close();
 }
 
 

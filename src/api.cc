@@ -4842,12 +4842,6 @@ bool V8::IsProfilerPaused() {
 }
 
 
-int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-  ASSERT(max_size >= kMinimumSizeForLogLinesBuffer);
-  return LOGGER->GetLogLines(from_pos, dest_buf, max_size);
-}
-
-
 int V8::GetCurrentThreadId() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
