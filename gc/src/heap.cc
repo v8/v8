@@ -5975,6 +5975,31 @@ void Heap::FreeQueuedChunks() {
   for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
     next = chunk->next_chunk();
     chunk->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
+
+    if (chunk->owner()->identity() == LO_SPACE) {
+      // StoreBuffer::Filter relies on MemoryChunk::FromAnyPointerAddress.
+      // If FromAnyPointerAddress encounters a slot that belongs to a large
+      // chunk queued for deletion it will fail to find the chunk because
+      // it try to perform a search in the list of pages owned by of the large
+      // object space and queued chunks were detached from that list.
+      // To work around this we split large chunk into normal kPageSize aligned
+      // pieces and initialize owner field and flags of every piece.
+      // If FromAnyPointerAddress encounteres a slot that belongs to one of
+      // these smaller pieces it will treat it as a slot on a normal Page.
+      MemoryChunk* inner = MemoryChunk::FromAddress(
+          chunk->address() + Page::kPageSize);
+      MemoryChunk* inner_last = MemoryChunk::FromAddress(
+          chunk->address() + chunk->size() - 1);
+      while (inner <= inner_last) {
+        // Size of a large chunk is always a multiple of
+        // OS::AllocationAlignment() so there is always
+        // enough space for a fake MemoryChunk header.
+        inner->set_owner(lo_space());
+        inner->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
+        inner = MemoryChunk::FromAddress(
+            inner->address() + Page::kPageSize);
+      }
+    }
   }
   isolate_->heap()->store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
   for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
