@@ -39,7 +39,6 @@
       ],
       'defines': [
         'ENABLE_DEBUGGER_SUPPORT',
-        'V8_FAST_TLS',
       ],
       'sources': [
         'd8.cc',

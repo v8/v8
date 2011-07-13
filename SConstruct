@@ -69,8 +69,8 @@ LIBRARY_FLAGS = {
     'inspector:on': {
       'CPPDEFINES':   ['INSPECTOR'],
     },
-    'fasttls:on': {
-      'CPPDEFINES':   ['V8_FAST_TLS'],
+    'fasttls:off': {
+      'CPPDEFINES':   ['V8_NO_FAST_TLS'],
     },
     'liveobjectlist:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT', 'INSPECTOR',

@@ -63,7 +63,6 @@
       'target_defaults': {
         'defines': [
           'ENABLE_DEBUGGER_SUPPORT',
-          'V8_FAST_TLS',
         ],
         'conditions': [
           ['OS!="mac"', {
