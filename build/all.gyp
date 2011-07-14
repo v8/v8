@@ -9,9 +9,15 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
-        '../test/cctest/cctest.gyp:*',
         '../src/d8.gyp:*',
-      ]
+      ],
+      'conditions': [
+        [ 'component!="shared_library"', {
+          'dependencies': [
+            '../test/cctest/cctest.gyp:*', 
+          ], 
+        }]
+      ],
     }
   ]
 }
