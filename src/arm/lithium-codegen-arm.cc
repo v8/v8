@@ -500,7 +500,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
 
   // Signal that we don't inline smi code before these stubs in the
   // optimizing code generator.
-  if (code->kind() == Code::BINARY_OP_IC ||
+  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
       code->kind() == Code::COMPARE_IC) {
     __ nop();
   }
