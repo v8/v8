@@ -95,6 +95,11 @@ class SourceGroup {
                   begin_offset_(0),
                   end_offset_(0) { }
 
+  ~SourceGroup() {
+    delete next_semaphore_;
+    delete done_semaphore_;
+  }
+
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
     begin_offset_ = offset;
