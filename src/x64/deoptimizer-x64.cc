@@ -643,7 +643,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // We push all registers onto the stack, even though we do not need
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    Register r = Register::toRegister(i);
+    Register r = Register::from_code(i);
     __ push(r);
   }
 
@@ -801,12 +801,12 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Restore the registers from the stack.
   for (int i = kNumberOfRegisters - 1; i >= 0 ; i--) {
-    Register r = Register::toRegister(i);
+    Register r = Register::from_code(i);
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
     if (r.is(rsp)) {
       ASSERT(i > 0);
-      r = Register::toRegister(i - 1);
+      r = Register::from_code(i - 1);
     }
     __ pop(r);
   }
