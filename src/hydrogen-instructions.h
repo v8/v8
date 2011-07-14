@@ -1123,40 +1123,19 @@ class HChange: public HUnaryOperation {
 class HClampToUint8: public HUnaryOperation {
  public:
   explicit HClampToUint8(HValue* value)
-      : HUnaryOperation(value),
-        input_rep_(Representation::None()) {
-    SetFlag(kFlexibleRepresentation);
-    set_representation(Representation::Tagged());
+      : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return input_rep_;
-  }
-
-  virtual Representation InferredRepresentation() {
-    // TODO(danno): Inference on input types should happen separately from
-    // return representation.
-    Representation new_rep = value()->representation();
-    if (input_rep_.IsNone()) {
-      if (!new_rep.IsNone()) {
-        input_rep_ = new_rep;
-        return Representation::Integer32();
-      } else {
-        return Representation::None();
-      }
-    } else {
-      return Representation::Integer32();
-    }
+    return Representation::None();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampToUint8)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  Representation input_rep_;
 };
 
 
