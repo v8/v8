@@ -9,7 +9,7 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
-        '../src/d8.gyp:*',
+        '../src/d8.gyp:d8',
       ],
       'conditions': [
         [ 'component!="shared_library"', {
