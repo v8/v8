@@ -66,9 +66,10 @@ class Processor: public AstVisitor {
 
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
-    VariableProxy* result_proxy = new VariableProxy(result_);
-    return new Assignment(Token::ASSIGN, result_proxy, value,
-                          RelocInfo::kNoPosition);
+    Zone* zone = isolate()->zone();
+    VariableProxy* result_proxy = new(zone) VariableProxy(result_);
+    return new(zone) Assignment(Token::ASSIGN, result_proxy, value,
+                                RelocInfo::kNoPosition);
   }
 
   // Node visitors.
@@ -229,8 +230,9 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      VariableProxy* result_proxy = new VariableProxy(result);
-      body->Add(new ReturnStatement(result_proxy));
+      Zone* zone = info->isolate()->zone();
+      VariableProxy* result_proxy = new(zone) VariableProxy(result);
+      body->Add(new(zone) ReturnStatement(result_proxy));
     }
   }
 
