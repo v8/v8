@@ -138,7 +138,7 @@ class AstNode: public ZoneObject {
   void* operator new(size_t size, Zone* zone) {
     Isolate* isolate = zone->isolate();
     isolate->set_ast_node_count(isolate->ast_node_count() + 1);
-    return zone->New(size);
+    return zone->New(static_cast<int>(size));
   }
 
   AstNode() {}
