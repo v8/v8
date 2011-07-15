@@ -26,6 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'variables': {
+    'console%': '',
+  },
   'targets': [
     {
       'target_name': 'd8',
