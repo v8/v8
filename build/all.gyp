@@ -14,8 +14,8 @@
       'conditions': [
         [ 'component!="shared_library"', {
           'dependencies': [
-            '../test/cctest/cctest.gyp:*', 
-          ], 
+            '../test/cctest/cctest.gyp:*',
+          ],
         }]
       ],
     }
