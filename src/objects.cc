@@ -189,7 +189,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     AccessorInfo* data = AccessorInfo::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
-    HandleScope scope;
+    HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
     JSObject* holder_handle = JSObject::cast(holder);
     Handle<String> key(name);
@@ -229,7 +229,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
                                             String* name_raw,
                                             Object* handler_raw) {
   Isolate* isolate = name_raw->GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Object> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> handler(handler_raw);
@@ -2173,9 +2173,9 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     }
   }
 
-  HandleScope scope;
-  Handle<Object> value_handle(value);
   Heap* heap = GetHeap();
+  HandleScope scope(heap->isolate());
+  Handle<Object> value_handle(value);
   heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
   return *value_handle;
 }
@@ -2202,7 +2202,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Object> receiver(this);
   Handle<Object> name(name_raw);
   Handle<Object> value(value_raw);
@@ -2228,12 +2228,50 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 }
 
 
+MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
+    String* name_raw, DeleteMode mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Object> receiver(this);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Failure::Exception();
+  }
+
+  // Call trap function.
+  Object** args[] = { name.location() };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  Object* bool_result = result->ToBoolean();
+  if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Failure::Exception();
+  }
+  return bool_result;
+}
+
+
 MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     JSReceiver* receiver_raw,
     String* name_raw,
     bool* has_exception) {
   Isolate* isolate = GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> handler(this->handler());
@@ -2322,7 +2360,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   }
   if (result->IsReadOnly() && result->IsProperty()) {
     if (strict_mode == kStrictMode) {
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       Handle<String> key(name);
       Handle<Object> holder(this);
       Handle<Object> args[2] = { key, holder };
@@ -3173,6 +3211,15 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     }
   }
   return isolate->heap()->true_value();
+}
+
+
+MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
+  } else {
+    return JSObject::cast(this)->DeleteProperty(name, mode);
+  }
 }
 
 
@@ -7527,7 +7574,7 @@ void JSArray::Expand(int required_size) {
 
 
 static Failure* ArrayLengthRangeError(Heap* heap) {
-  HandleScope scope;
+  HandleScope scope(heap->isolate());
   return heap->isolate()->Throw(
       *FACTORY->NewRangeError("invalid_array_length",
           HandleVector<Object>(NULL, 0)));
@@ -7725,7 +7772,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
   if (!this->map()->is_extensible()) {
-    HandleScope scope;
+    HandleScope scope(heap->isolate());
     Handle<Object> handle(this, heap->isolate());
     return heap->isolate()->Throw(
         *FACTORY->NewTypeError("non_extensible_proto",
@@ -7739,7 +7786,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   for (Object* pt = value; pt != heap->null_value(); pt = pt->GetPrototype()) {
     if (JSObject::cast(pt) == this) {
       // Cycle detected.
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       return heap->isolate()->Throw(
           *FACTORY->NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
     }
@@ -8523,7 +8570,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
     if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       Handle<Object> value_handle(value);
       heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
       return *value_handle;
@@ -11069,11 +11116,11 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 
 template<typename Shape, typename Key>
 Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
-                                               JSObject::DeleteMode mode) {
+                                               JSReceiver::DeleteMode mode) {
   Heap* heap = Dictionary<Shape, Key>::GetHeap();
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
+  if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return heap->false_value();
   }
   SetEntry(entry, heap->null_value(), heap->null_value());

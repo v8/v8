@@ -3872,7 +3872,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
        || result.type() == CONSTANT_FUNCTION)) {
     Object* ok;
     { MaybeObject* maybe_ok =
-          obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+          obj->DeleteProperty(name, JSReceiver::NORMAL_DELETION);
       if (!maybe_ok->ToObject(&ok)) return maybe_ok;
     }
   }
@@ -4126,24 +4126,25 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
 
 
 MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
-                                                Handle<JSObject> js_object,
+                                                Handle<JSReceiver> receiver,
                                                 Handle<Object> key) {
   HandleScope scope(isolate);
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (key->ToArrayIndex(&index)) {
+  if (receiver->IsJSObject() && key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
     // String object we just need to redirect the deletion to the
     // underlying string if the index is in range.  Since the
     // underlying string does nothing with the deletion, we can ignore
     // such deletions.
-    if (js_object->IsStringObjectWithCharacterAt(index)) {
+    if (receiver->IsStringObjectWithCharacterAt(index)) {
       return isolate->heap()->true_value();
     }
 
-    return js_object->DeleteElement(index, JSObject::FORCE_DELETION);
+    return JSObject::cast(*receiver)->DeleteElement(
+        index, JSReceiver::FORCE_DELETION);
   }
 
   Handle<String> key_string;
@@ -4158,7 +4159,7 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
   }
 
   key_string->TryFlatten();
-  return js_object->DeleteProperty(*key_string, JSObject::FORCE_DELETION);
+  return receiver->DeleteProperty(*key_string, JSReceiver::FORCE_DELETION);
 }
 
 
@@ -4237,12 +4238,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(JSObject, object, args[0]);
+  CONVERT_CHECKED(JSReceiver, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
   CONVERT_SMI_ARG_CHECKED(strict, 2);
   return object->DeleteProperty(key, (strict == kStrictMode)
-                                      ? JSObject::STRICT_DELETION
-                                      : JSObject::NORMAL_DELETION);
+                                      ? JSReceiver::STRICT_DELETION
+                                      : JSReceiver::NORMAL_DELETION);
 }
 
 
@@ -8198,9 +8199,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   // index is non-negative.
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
   if (index >= 0) {
-    return object->DeleteElement(index, JSObject::NORMAL_DELETION);
+    return object->DeleteElement(index, JSReceiver::NORMAL_DELETION);
   } else {
-    return object->DeleteProperty(*name, JSObject::NORMAL_DELETION);
+    return object->DeleteProperty(*name, JSReceiver::NORMAL_DELETION);
   }
 }
 

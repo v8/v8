@@ -636,7 +636,7 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeObject* ForceDeleteObjectProperty(
       Isolate* isolate,
-      Handle<JSObject> object,
+      Handle<JSReceiver> object,
       Handle<Object> key);
 
   MUST_USE_RESULT static MaybeObject* GetObjectProperty(

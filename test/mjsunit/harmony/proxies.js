@@ -289,6 +289,50 @@ TestDefine(Proxy.create({
 
 
 
+// Property deletion (delete).
+
+var key
+function TestDelete(handler) {
+  var o = Proxy.create(handler)
+  assertEquals(true, delete o.a)
+  assertEquals("a", key)
+  assertEquals(true, delete o["b"])
+  assertEquals("b", key)
+
+  assertEquals(false, delete o.z1)
+  assertEquals("z1", key)
+  assertEquals(false, delete o["z2"])
+  assertEquals("z2", key);
+
+  (function() {
+    "use strict"
+    assertEquals(true, delete o.c)
+    assertEquals("c", key)
+    assertEquals(true, delete o["d"])
+    assertEquals("d", key)
+
+    assertThrows(function() { delete o.z3 }, TypeError)
+    assertEquals("z3", key)
+    assertThrows(function() { delete o["z4"] }, TypeError)
+    assertEquals("z4", key)
+  })()
+}
+
+TestDelete({
+  'delete': function(k) { key = k; return k < "z" }
+})
+TestDelete({
+  'delete': function(k) { return this.delete2(k) },
+  delete2: function(k) { key = k; return k < "z" }
+})
+TestDelete(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) { key = k; return k < "z" }
+  }
+}))
+
+
+
 // Property descriptors (Object.getOwnPropertyDescriptor).
 
 function TestDescriptor(handler) {
