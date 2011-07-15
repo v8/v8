@@ -59,6 +59,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
 #endif
       sweep_precisely_(false),
       compacting_(false),
+      collect_maps_(FLAG_collect_maps),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
 #ifdef DEBUG
@@ -254,7 +255,7 @@ void MarkCompactCollector::CollectGarbage() {
   MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
-  if (FLAG_collect_maps) ClearNonLiveTransitions();
+  if (collect_maps_) ClearNonLiveTransitions();
 
 #ifdef DEBUG
   if (FLAG_verify_heap) {
@@ -263,6 +264,8 @@ void MarkCompactCollector::CollectGarbage() {
 #endif
 
   SweepSpaces();
+
+  if (!collect_maps_) ReattachInitialMaps();
 
   heap_->isolate()->pc_to_code_cache()->Flush();
 
@@ -402,7 +405,10 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Disable collection of maps if incremental marking is enabled.
   // TODO(gc) improve maps collection algorithm to work with incremental
   // marking.
-  if (FLAG_incremental_marking) FLAG_collect_maps = false;
+  // TODO(gc) consider oscillating collect_maps_ on and off when possible. This
+  // will allow map transition trees to die from both root and leaves.
+  collect_maps_ = FLAG_collect_maps &&
+      !heap()->incremental_marking()->IsMarking();
 
   // Rather than passing the tracer around we stash it in a static member
   // variable.
@@ -414,7 +420,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
   ASSERT(!FLAG_always_compact || !FLAG_never_compact);
 
-  if (FLAG_collect_maps) CreateBackPointers();
+  if (collect_maps_) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit) {
     // If GDBJIT interface is active disable compaction.
@@ -1435,7 +1441,7 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
     // in a special way to make transition links weak.
     // Only maps for subclasses of JSReceiver can have transitions.
     STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    if (FLAG_collect_maps && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
+    if (collect_maps_ && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
       MarkMapContents(map);
     } else {
       marking_deque_.PushBlack(map);
@@ -2035,6 +2041,24 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   }
 }
 #endif  // DEBUG
+
+
+void MarkCompactCollector::ReattachInitialMaps() {
+  HeapObjectIterator map_iterator(heap()->map_space());
+  for (HeapObject* obj = map_iterator.Next();
+       obj != NULL;
+       obj = map_iterator.Next()) {
+    if (obj->IsFreeSpace()) continue;
+    Map* map = Map::cast(obj);
+
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    if (map->instance_type() < FIRST_JS_RECEIVER_TYPE) continue;
+
+    if (map->attached_to_shared_function_info()) {
+      JSFunction::cast(map->constructor())->shared()->AttachInitialMap(map);
+    }
+  }
+}
 
 
 void MarkCompactCollector::ClearNonLiveTransitions() {

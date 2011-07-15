@@ -516,6 +516,8 @@ class MarkCompactCollector {
   // candidates.
   bool compacting_;
 
+  bool collect_maps_;
+
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   GCTracer* tracer_;
@@ -616,6 +618,12 @@ class MarkCompactCollector {
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
+
+  // Marking detaches initial maps from SharedFunctionInfo objects
+  // to make this reference weak. We need to reattach initial maps
+  // back after collection. This is either done during
+  // ClearNonLiveTransitions pass or by calling this function.
+  void ReattachInitialMaps();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for

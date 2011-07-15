@@ -2898,7 +2898,8 @@ MaybeObject* JSObject::NormalizeElements() {
     set_elements(dictionary);
   }
 
-  old_map->GetHeap()->isolate()->counters()->elements_to_dictionary()->Increment();
+  old_map->GetHeap()->isolate()->counters()->elements_to_dictionary()->
+      Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
