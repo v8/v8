@@ -2801,6 +2801,13 @@ class V8EXPORT StartupDataDecompressor {  // NOLINT
   char** raw_data;
 };
 
+
+/**
+ * EntropySource is used as a callback function when v8 needs a source
+ * of entropy.
+ */
+typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
+
 /**
  * Container class for static utility functions.
  */
@@ -3024,6 +3031,12 @@ class V8EXPORT V8 {
    * you use the API without calling it first.
    */
   static bool Initialize();
+
+  /**
+   * Allows the host application to provide a callback which can be used
+   * as a source of entropy for random number generators.
+   */
+  static void SetEntropySource(EntropySource source);
 
   /**
    * Adjusts the amount of registered external memory.  Used to give

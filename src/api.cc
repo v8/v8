@@ -3933,6 +3933,11 @@ bool v8::V8::Initialize() {
 }
 
 
+void v8::V8::SetEntropySource(EntropySource source) {
+  i::V8::SetEntropySource(source);
+}
+
+
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
