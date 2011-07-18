@@ -2132,10 +2132,15 @@ THREADED_TEST(GetSetProperty) {
 THREADED_TEST(PropertyAttributes) {
   v8::HandleScope scope;
   LocalContext context;
+  // none
+  Local<String> prop = v8_str("none");
+  context->Global()->Set(prop, v8_num(7));
+  CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(prop));
   // read-only
-  Local<String> prop = v8_str("read_only");
+  prop = v8_str("read_only");
   context->Global()->Set(prop, v8_num(7), v8::ReadOnly);
   CHECK_EQ(7, context->Global()->Get(prop)->Int32Value());
+  CHECK_EQ(v8::ReadOnly, context->Global()->GetPropertyAttributes(prop));
   Script::Compile(v8_str("read_only = 9"))->Run();
   CHECK_EQ(7, context->Global()->Get(prop)->Int32Value());
   context->Global()->Set(prop, v8_num(10));
@@ -2146,6 +2151,25 @@ THREADED_TEST(PropertyAttributes) {
   CHECK_EQ(13, context->Global()->Get(prop)->Int32Value());
   Script::Compile(v8_str("delete dont_delete"))->Run();
   CHECK_EQ(13, context->Global()->Get(prop)->Int32Value());
+  CHECK_EQ(v8::DontDelete, context->Global()->GetPropertyAttributes(prop));
+  // dont-enum
+  prop = v8_str("dont_enum");
+  context->Global()->Set(prop, v8_num(28), v8::DontEnum);
+  CHECK_EQ(v8::DontEnum, context->Global()->GetPropertyAttributes(prop));
+  // absent
+  prop = v8_str("absent");
+  CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(prop));
+  Local<Value> fake_prop = v8_num(1);
+  CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(fake_prop));
+  // exception
+  TryCatch try_catch;
+  Local<Value> exception =
+      CompileRun("({ toString: function() { throw 'exception';} })");
+  CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(exception));
+  CHECK(try_catch.HasCaught());
+  String::AsciiValue exception_value(try_catch.Exception());
+  CHECK_EQ("exception", *exception_value);
+  try_catch.Reset();
 }
 
 
