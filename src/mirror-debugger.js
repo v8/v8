@@ -1605,8 +1605,10 @@ FrameMirror.prototype.invocationText = function() {
     // Try to find the function as a property in the receiver. Include the
     // prototype chain in the lookup.
     var property = GetUndefinedMirror();
-    if (!receiver.isUndefined()) {
-      for (var r = receiver; !r.isNull() && property.isUndefined(); r = r.protoObject()) {
+    if (receiver.isObject()) {
+      for (var r = receiver;
+           !r.isNull() && property.isUndefined();
+           r = r.protoObject()) {
         property = r.lookupProperty(func);
       }
     }
