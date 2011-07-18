@@ -1181,6 +1181,8 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("--build-only", help="Only build requirements, don't run the tests",
       default=False, action="store_true")
+  result.add_option("--build-system", help="Build system in use (scons or gyp)",
+      default='scons')
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
@@ -1280,6 +1282,10 @@ def ProcessOptions(options):
   if options.noprof:
     options.scons_flags.append("prof=off")
     options.scons_flags.append("profilingsupport=off")
+  if options.build_system == 'gyp':
+    if options.build_only:
+      print "--build-only not supported for gyp, please build manually."
+      options.build_only = False
   return True
 
 
@@ -1398,6 +1404,9 @@ def Main():
   if options.valgrind:
     run_valgrind = join(workspace, "tools", "run-valgrind.py")
     options.special_command = "python -u " + run_valgrind + " @"
+
+  if options.build_system == 'gyp':
+    SUFFIX['debug'] = ''
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)

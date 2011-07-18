@@ -26,27 +26,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
-  'target_defaults': {
-    'type': 'executable',
-    'dependencies': [
-      '../tools/gyp/v8.gyp:v8',
-    ],
-    'include_dirs': [
-      '../include',
-    ],
-  },
   'targets': [
     {
-      'target_name': 'shell',
+      'target_name': 'preparser',
+      'type': 'executable',
+      'dependencies': [
+        '../tools/gyp/v8.gyp:preparser_lib',
+      ],
       'sources': [
-        'shell.cc',
+        'preparser-process.cc',
       ],
     },
-    {
-      'target_name': 'process',
-      'sources': [
-        'process.cc',
-      ],
-    }
   ],
 }
