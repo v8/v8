@@ -2080,8 +2080,7 @@ void MacroAssembler::Call(Handle<Code> code,
   bind(&start);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
-    ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-    ast_id_for_reloc_info_ = ast_id;
+    SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, rs, rt, bd);
