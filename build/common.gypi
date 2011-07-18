@@ -1,4 +1,4 @@
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2010 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -46,37 +46,23 @@
     'host_arch%': '<(host_arch)',
     'target_arch%': '<(host_arch)',
     'v8_target_arch%': '<(target_arch)',
-    'conditions': [
-      ['(target_arch=="arm" and host_arch!="arm") or \
-        (target_arch=="x64" and host_arch!="x64")', {
-        'want_separate_host_toolset': 1,
-      }, {
-        'want_separate_host_toolset': 0,
-      }],
-    ],
   },
   'target_defaults': {
     'default_configuration': 'Debug',
-    'defines': [
-      'ENABLE_DEBUGGER_SUPPORT',
-    ],
     'configurations': {
       'Debug': {
         'cflags': [ '-g', '-O0' ],
-        'defines': [ 'ENABLE_DISASSEMBLER', 'DEBUG', 'V8_ENABLE_CHECKS',
-                     'OBJECT_PRINT' ],
+        'defines': [ 'ENABLE_DISASSEMBLER', 'DEBUG' ],
       },
       'Release': {
-        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections',
-                    '-ffunction-sections' ],
+        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
       },
     },
   },
   'conditions': [
     [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '-pthread', '-fno-rtti', '-fno-exceptions',
-                    '-pedantic' ],
+        'cflags': [ '-Wall', '-pthread', '-fno-rtti', '-fno-exceptions' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
           [ 'target_arch=="ia32"', {
