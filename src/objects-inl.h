@@ -3761,6 +3761,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
+ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
 
 
 Address Foreign::address() {

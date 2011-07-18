@@ -529,3 +529,84 @@ TestKeys([], {
   },
   getOwnPropertyDescriptor: function(k) { return {} }
 })
+
+
+
+// Fixing (Object.freeze, Object.seal, Object.preventExtensions,
+//         Object.isFrozen, Object.isSealed, Object.isExtensible)
+
+function TestFix(names, handler) {
+  var proto = {p: 77}
+  var assertFixing = function(o, s, f, e) {
+    assertEquals(s, Object.isSealed(o))
+    assertEquals(f, Object.isFrozen(o))
+    assertEquals(e, Object.isExtensible(o))
+  }
+
+  var o1 = Proxy.create(handler, proto)
+  assertFixing(o1, false, false, true)
+  Object.seal(o1)
+  assertFixing(o1, true, names.length === 0, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o1).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o1).sort())
+  assertEquals(proto, Object.getPrototypeOf(o1))
+  assertEquals(77, o1.p)
+  for (var n in o1) {
+    var desc = Object.getOwnPropertyDescriptor(o1, n)
+    if (desc !== undefined) assertFalse(desc.configurable)
+  }
+
+  var o2 = Proxy.create(handler, proto)
+  assertFixing(o2, false, false, true)
+  Object.freeze(o2)
+  assertFixing(o2, true, true, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o2).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o2).sort())
+  assertEquals(proto, Object.getPrototypeOf(o2))
+  assertEquals(77, o2.p)
+  for (var n in o2) {
+    var desc = Object.getOwnPropertyDescriptor(o2, n)
+    if (desc !== undefined) assertFalse(desc.writable)
+    if (desc !== undefined) assertFalse(desc.configurable)
+  }
+
+  var o3 = Proxy.create(handler, proto)
+  assertFixing(o3, false, false, true)
+  Object.preventExtensions(o3)
+  assertFixing(o3, names.length === 0, names.length === 0, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o3).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o3).sort())
+  assertEquals(proto, Object.getPrototypeOf(o3))
+  assertEquals(77, o3.p)
+}
+
+TestFix([], {
+  fix: function() { return {} }
+})
+TestFix(["a", "b", "c", "d", "zz"], {
+  fix: function() {
+    return {
+      a: {value: "a", writable: true, configurable: false, enumerable: true},
+      b: {value: 33, writable: false, configurable: false, enumerable: true},
+      c: {value: 0, writable: true, configurable: true, enumerable: true},
+      d: {value: true, writable: false, configurable: true, enumerable: true},
+      zz: {value: 0, enumerable: false}
+    }
+  }
+})
+TestFix(["a"], {
+  fix: function() { return this.fix2() },
+  fix2: function() {
+    return {a: {value: 4, writable: true, configurable: true, enumerable: true}}
+  }
+})
+TestFix(["b"], {
+  get fix() {
+    return function() {
+      return {b: {configurable: true, writable: true, enumerable: true}}
+    }
+  }
+})

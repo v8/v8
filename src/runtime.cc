@@ -615,6 +615,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSProxy, proxy, args[0]);
+  proxy->Fix();
+  return proxy;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

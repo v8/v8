@@ -2301,6 +2301,18 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 }
 
 
+void JSProxy::Fix() {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSProxy> self(this);
+
+  isolate->factory()->BecomeJSObject(self);
+  ASSERT(IsJSObject());
+  // TODO(rossberg): recognize function proxies.
+}
+
+
+
 MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                             String* name,
                                             Object* value,

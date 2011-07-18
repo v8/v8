@@ -6475,6 +6475,9 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
+  // [padding]: The padding slot (unused, see below).
+  DECL_ACCESSORS(padding, Object)
+
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
@@ -6493,6 +6496,9 @@ class JSProxy: public JSReceiver {
       String* name,
       bool* has_exception);
 
+  // Turn this into an (empty) JSObject.
+  void Fix();
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void JSProxyPrint() {
@@ -6504,9 +6510,14 @@ class JSProxy: public JSReceiver {
   void JSProxyVerify();
 #endif
 
-  // Layout description.
+  // Layout description. We add padding so that a proxy has the same
+  // size as a virgin JSObject. This is essential for becoming a JSObject
+  // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+  static const int kPaddingOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPaddingOffset + kPointerSize;
+
+  STATIC_CHECK(kSize == JSObject::kHeaderSize);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,
