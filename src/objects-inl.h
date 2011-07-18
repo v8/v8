@@ -1610,6 +1610,23 @@ void FixedArray::set(int index, Object* value) {
 }
 
 
+inline bool FixedDoubleArray::is_the_hole_nan(double value) {
+  return BitCast<uint64_t, double>(value) == kHoleNanInt64;
+}
+
+
+inline double FixedDoubleArray::hole_nan_as_double() {
+  return BitCast<double, uint64_t>(kHoleNanInt64);
+}
+
+
+inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
+  ASSERT(BitCast<uint64_t>(OS::nan_value()) != kHoleNanInt64);
+  ASSERT((BitCast<uint64_t>(OS::nan_value()) >> 32) != kHoleNanUpper32);
+  return OS::nan_value();
+}
+
+
 double FixedDoubleArray::get(int index) {
   ASSERT(map() != HEAP->fixed_cow_array_map() &&
          map() != HEAP->fixed_array_map());

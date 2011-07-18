@@ -4229,6 +4229,12 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
+    MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
 void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
                                                       bool is_js_array) {
   // ----------- S t a t e -------------
@@ -4289,6 +4295,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   Handle<Code> ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ Jump(ic, RelocInfo::CODE_TARGET);
+}
+
+
+void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
+    MacroAssembler* masm,
+    bool is_js_array) {
+  UNIMPLEMENTED();
 }
 
 

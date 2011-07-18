@@ -2868,7 +2868,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         // Consume one of the new prefixes (already parsed).
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
         int last = stack->pop();
-        result = new CallNew(result, args, last);
+        result = new(zone()) CallNew(result, args, last);
         break;
       }
       default:

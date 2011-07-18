@@ -319,6 +319,8 @@ class Scope: public ZoneObject {
 
   explicit Scope(Type type);
 
+  Isolate* const isolate_;
+
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes

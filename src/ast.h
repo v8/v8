@@ -134,10 +134,14 @@ class AstNode: public ZoneObject {
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
 
-  AstNode() {
-    Isolate* isolate = Isolate::Current();
+  // Override ZoneObject's new to count allocated AST nodes.
+  void* operator new(size_t size, Zone* zone) {
+    Isolate* isolate = zone->isolate();
     isolate->set_ast_node_count(isolate->ast_node_count() + 1);
+    return zone->New(static_cast<int>(size));
   }
+
+  AstNode() {}
 
   virtual ~AstNode() { }
 
@@ -172,6 +176,11 @@ class AstNode: public ZoneObject {
     isolate->set_ast_node_id(tmp + n);
     return tmp;
   }
+
+ private:
+  // Hidden to prevent accidental usage. It would have to load the
+  // current zone from the TLS.
+  void* operator new(size_t size);
 
   friend class CaseClause;  // Generates AST IDs.
 };

@@ -58,11 +58,6 @@ namespace internal {
 const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
-uint64_t FixedDoubleArray::kHoleNanInt64 = -1;
-uint64_t FixedDoubleArray::kCanonicalNonHoleNanLower32 = 0x7FF00000;
-uint64_t FixedDoubleArray::kCanonicalNonHoleNanInt64 =
-    kCanonicalNonHoleNanLower32 << 32;
-
 MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
                                                   Object* value) {
   Object* result;
@@ -194,7 +189,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     AccessorInfo* data = AccessorInfo::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
-    HandleScope scope;
+    HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
     JSObject* holder_handle = JSObject::cast(holder);
     Handle<String> key(name);
@@ -234,7 +229,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
                                             String* name_raw,
                                             Object* handler_raw) {
   Isolate* isolate = name_raw->GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Object> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> handler(handler_raw);
@@ -2178,9 +2173,9 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     }
   }
 
-  HandleScope scope;
-  Handle<Object> value_handle(value);
   Heap* heap = GetHeap();
+  HandleScope scope(heap->isolate());
+  Handle<Object> value_handle(value);
   heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
   return *value_handle;
 }
@@ -2207,7 +2202,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Object> receiver(this);
   Handle<Object> name(name_raw);
   Handle<Object> value(value_raw);
@@ -2233,12 +2228,50 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 }
 
 
+MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
+    String* name_raw, DeleteMode mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Object> receiver(this);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Failure::Exception();
+  }
+
+  // Call trap function.
+  Object** args[] = { name.location() };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  Object* bool_result = result->ToBoolean();
+  if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return Failure::Exception();
+  }
+  return bool_result;
+}
+
+
 MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     JSReceiver* receiver_raw,
     String* name_raw,
     bool* has_exception) {
   Isolate* isolate = GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> handler(this->handler());
@@ -2327,7 +2360,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   }
   if (result->IsReadOnly() && result->IsProperty()) {
     if (strict_mode == kStrictMode) {
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       Handle<String> key(name);
       Handle<Object> holder(this);
       Handle<Object> args[2] = { key, holder };
@@ -2811,16 +2844,18 @@ MaybeObject* JSObject::NormalizeElements() {
   ASSERT(!HasExternalArrayElements());
 
   // Find the backing store.
-  FixedArray* array = FixedArray::cast(elements());
+  FixedArrayBase* array = FixedArrayBase::cast(elements());
   Map* old_map = array->map();
   bool is_arguments =
       (old_map == old_map->heap()->non_strict_arguments_elements_map());
   if (is_arguments) {
-    array = FixedArray::cast(array->get(1));
+    array = FixedArrayBase::cast(FixedArray::cast(array)->get(1));
   }
   if (array->IsDictionary()) return array;
 
-  ASSERT(HasFastElements() || HasFastArgumentsElements());
+  ASSERT(HasFastElements() ||
+         HasFastDoubleElements() ||
+         HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
   int length = IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
@@ -2833,7 +2868,7 @@ MaybeObject* JSObject::NormalizeElements() {
   }
 
   // Copy the elements to the new backing store.
-  bool has_double_elements = old_map->has_fast_double_elements();
+  bool has_double_elements = array->IsFixedDoubleArray();
   for (int i = 0; i < length; i++) {
     Object* value = NULL;
     if (has_double_elements) {
@@ -2851,7 +2886,7 @@ MaybeObject* JSObject::NormalizeElements() {
       }
     } else {
       ASSERT(old_map->has_fast_elements());
-      value = array->get(i);
+      value = FixedArray::cast(array)->get(i);
     }
     PropertyDetails details = PropertyDetails(NONE, NORMAL);
     if (!value->IsTheHole()) {
@@ -3176,6 +3211,15 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     }
   }
   return isolate->heap()->true_value();
+}
+
+
+MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
+  } else {
+    return JSObject::cast(this)->DeleteProperty(name, mode);
+  }
 }
 
 
@@ -7317,22 +7361,28 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
     new_map = Map::cast(object);
   }
 
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
   switch (GetElementsKind()) {
-    case FAST_ELEMENTS:
+    case FAST_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
       CopyFastElementsToFast(FixedArray::cast(elements()), new_elements, mode);
       set_map(new_map);
       set_elements(new_elements);
       break;
-    case DICTIONARY_ELEMENTS:
+    }
+    case DICTIONARY_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
       CopySlowElementsToFast(NumberDictionary::cast(elements()),
                              new_elements,
                              mode);
       set_map(new_map);
       set_elements(new_elements);
       break;
+    }
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
       // The object's map and the parameter map are unchanged, the unaliased
       // arguments are copied to the new backing store.
       FixedArray* parameter_map = FixedArray::cast(elements());
@@ -7368,6 +7418,8 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
           new_elements->set(i, obj, UPDATE_WRITE_BARRIER);
         }
       }
+      set_map(new_map);
+      set_elements(new_elements);
       break;
     }
     case EXTERNAL_BYTE_ELEMENTS:
@@ -7430,7 +7482,9 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
       break;
   }
 
+  ASSERT(new_map->has_fast_double_elements());
   set_map(new_map);
+  ASSERT(elems->IsFixedDoubleArray());
   set_elements(elems);
 
   if (IsJSArray()) {
@@ -7520,7 +7574,7 @@ void JSArray::Expand(int required_size) {
 
 
 static Failure* ArrayLengthRangeError(Heap* heap) {
-  HandleScope scope;
+  HandleScope scope(heap->isolate());
   return heap->isolate()->Throw(
       *FACTORY->NewRangeError("invalid_array_length",
           HandleVector<Object>(NULL, 0)));
@@ -7718,7 +7772,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
   if (!this->map()->is_extensible()) {
-    HandleScope scope;
+    HandleScope scope(heap->isolate());
     Handle<Object> handle(this, heap->isolate());
     return heap->isolate()->Throw(
         *FACTORY->NewTypeError("non_extensible_proto",
@@ -7732,7 +7786,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   for (Object* pt = value; pt != heap->null_value(); pt = pt->GetPrototype()) {
     if (JSObject::cast(pt) == this) {
       // Cycle detected.
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       return heap->isolate()->Throw(
           *FACTORY->NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
     }
@@ -8407,8 +8461,9 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
-    MaybeObject* result =
-        SetFastElementsCapacityAndLength(new_length, new_length);
+    MaybeObject* result = ShouldConvertToFastDoubleElements()
+        ? SetFastDoubleElementsCapacityAndLength(new_length, new_length)
+        : SetFastElementsCapacityAndLength(new_length, new_length);
     if (result->IsFailure()) return result;
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
@@ -8495,6 +8550,9 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   }
 
   // Otherwise default to slow case.
+  ASSERT(HasFastDoubleElements());
+  ASSERT(map()->has_fast_double_elements());
+  ASSERT(elements()->IsFixedDoubleArray());
   Object* obj;
   { MaybeObject* maybe_obj = NormalizeElements();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -8512,7 +8570,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
     if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
-      HandleScope scope;
+      HandleScope scope(heap->isolate());
       Handle<Object> value_handle(value);
       heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
       return *value_handle;
@@ -8948,10 +9006,13 @@ bool JSObject::HasDenseElements() {
   int capacity = 0;
   int number_of_elements = 0;
 
-  FixedArray* backing_store = FixedArray::cast(elements());
+  FixedArrayBase* backing_store_base = FixedArrayBase::cast(elements());
+  FixedArray* backing_store = NULL;
   switch (GetElementsKind()) {
     case NON_STRICT_ARGUMENTS_ELEMENTS:
-      backing_store = FixedArray::cast(backing_store->get(1));
+      backing_store_base =
+          FixedArray::cast(FixedArray::cast(backing_store_base)->get(1));
+      backing_store = FixedArray::cast(backing_store_base);
       if (backing_store->IsDictionary()) {
         NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
         capacity = dictionary->Capacity();
@@ -8960,13 +9021,15 @@ bool JSObject::HasDenseElements() {
       }
       // Fall through.
     case FAST_ELEMENTS:
+      backing_store = FixedArray::cast(backing_store_base);
       capacity = backing_store->length();
       for (int i = 0; i < capacity; ++i) {
         if (!backing_store->get(i)->IsTheHole()) ++number_of_elements;
       }
       break;
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
+      NumberDictionary* dictionary =
+          NumberDictionary::cast(FixedArray::cast(elements()));
       capacity = dictionary->Capacity();
       number_of_elements = dictionary->NumberOfElements();
       break;
@@ -11053,11 +11116,11 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 
 template<typename Shape, typename Key>
 Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
-                                               JSObject::DeleteMode mode) {
+                                               JSReceiver::DeleteMode mode) {
   Heap* heap = Dictionary<Shape, Key>::GetHeap();
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
+  if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return heap->false_value();
   }
   SetEntry(entry, heap->null_value(), heap->null_value());

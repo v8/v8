@@ -138,7 +138,7 @@ Assignment::Assignment(Token::Value op,
   ASSERT(Token::IsAssignmentOp(op));
   if (is_compound()) {
     binary_operation_ =
-        new BinaryOperation(binary_op(), target, value, pos + 1);
+        new(ZONE) BinaryOperation(binary_op(), target, value, pos + 1);
     compound_load_id_ = GetNextId();
   }
 }
@@ -187,7 +187,7 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
 
 ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
   emit_store_ = true;
-  key_ = new Literal(value->name());
+  key_ = new(ZONE) Literal(value->name());
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
 }

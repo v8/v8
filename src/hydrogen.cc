@@ -1666,8 +1666,8 @@ void HInferRepresentation::Analyze() {
         HValue* use = it.value();
         if (use->IsPhi()) {
           int id = HPhi::cast(use)->phi_id();
-          change = change ||
-              connected_phis[i]->UnionIsChanged(*connected_phis[id]);
+          if (connected_phis[i]->UnionIsChanged(*connected_phis[id]))
+            change = true;
         }
       }
     }
@@ -3925,8 +3925,16 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
     length = AddInstruction(new(zone()) HJSArrayLength(object));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     AddInstruction(elements);
+    if (is_store) {
+      AddInstruction(new(zone()) HCheckMap(
+          elements, isolate()->factory()->fixed_array_map()));
+    }
   } else {
     AddInstruction(elements);
+    if (is_store) {
+      AddInstruction(new(zone()) HCheckMap(
+          elements, isolate()->factory()->fixed_array_map()));
+    }
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   }
@@ -4033,6 +4041,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         elements = AddInstruction(new(zone()) HLoadElements(object));
         elements->ClearFlag(HValue::kUseGVN);
         if (is_store) {
+          AddInstruction(new(zone()) HCheckMap(
+              elements, isolate()->factory()->fixed_array_map()));
           access = AddInstruction(
               new(zone()) HStoreKeyedFastElement(elements, checked_key, val));
         } else {
@@ -4049,6 +4059,10 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         set_current_block(if_fastobject);
         elements = AddInstruction(new(zone()) HLoadElements(object));
         elements->ClearFlag(HValue::kUseGVN);
+        if (is_store) {
+          AddInstruction(new(zone()) HCheckMap(
+              elements, isolate()->factory()->fixed_array_map()));
+        }
         length = AddInstruction(new(zone()) HFixedArrayLength(elements));
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
         if (is_store) {

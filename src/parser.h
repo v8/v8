@@ -668,7 +668,7 @@ class Parser {
   Expression* NewCall(Expression* expression,
                       ZoneList<Expression*>* arguments,
                       int pos) {
-    return new Call(expression, arguments, pos);
+    return new(zone()) Call(expression, arguments, pos);
   }
 
 
