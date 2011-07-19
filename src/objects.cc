@@ -3207,7 +3207,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     case FAST_DOUBLE_ELEMENTS: {
       int length = IsJSArray()
           ? Smi::cast(JSArray::cast(this)->length())->value()
-          : FixedArray::cast(elements())->length();
+          : FixedDoubleArray::cast(elements())->length();
       if (index < static_cast<uint32_t>(length)) {
         FixedDoubleArray::cast(elements())->set_the_hole(index);
       }
@@ -7628,31 +7628,54 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
     const int value = Smi::cast(smi_length)->value();
     if (value < 0) return ArrayLengthRangeError(GetHeap());
     switch (GetElementsKind()) {
-      case FAST_ELEMENTS: {
-        int old_capacity = FixedArray::cast(elements())->length();
+      case FAST_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS: {
+        int old_capacity = FixedArrayBase::cast(elements())->length();
         if (value <= old_capacity) {
           if (IsJSArray()) {
-            Object* obj;
-            { MaybeObject* maybe_obj = EnsureWritableFastElements();
-              if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-            }
-            FixedArray* fast_elements = FixedArray::cast(elements());
             if (2 * value <= old_capacity) {
               // If more than half the elements won't be used, trim the array.
               if (value == 0) {
                 initialize_elements();
               } else {
-                fast_elements->set_length(value);
-                Address filler_start = fast_elements->address() +
-                                       FixedArray::OffsetOfElementAt(value);
-                int filler_size = (old_capacity - value) * kPointerSize;
+                Address filler_start;
+                int filler_size;
+                if (GetElementsKind() == FAST_ELEMENTS) {
+                  Object* obj;
+                  { MaybeObject* maybe_obj = EnsureWritableFastElements();
+                    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+                  }
+                  FixedArray* fast_elements = FixedArray::cast(elements());
+                  fast_elements->set_length(value);
+                  filler_start = fast_elements->address() +
+                      FixedArray::OffsetOfElementAt(value);
+                  filler_size = (old_capacity - value) * kPointerSize;
+                } else {
+                  ASSERT(GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+                  FixedDoubleArray* fast_double_elements =
+                      FixedDoubleArray::cast(elements());
+                  fast_double_elements->set_length(value);
+                  filler_start = fast_double_elements->address() +
+                      FixedDoubleArray::OffsetOfElementAt(value);
+                  filler_size = (old_capacity - value) * kDoubleSize;
+                }
                 GetHeap()->CreateFillerObjectAt(filler_start, filler_size);
               }
             } else {
               // Otherwise, fill the unused tail with holes.
               int old_length = FastD2I(JSArray::cast(this)->length()->Number());
-              for (int i = value; i < old_length; i++) {
-                fast_elements->set_the_hole(i);
+              if (GetElementsKind() == FAST_ELEMENTS) {
+                FixedArray* fast_elements = FixedArray::cast(elements());
+                for (int i = value; i < old_length; i++) {
+                  fast_elements->set_the_hole(i);
+                }
+              } else {
+                ASSERT(GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+                FixedDoubleArray* fast_double_elements =
+                    FixedDoubleArray::cast(elements());
+                for (int i = value; i < old_length; i++) {
+                  fast_double_elements->set_the_hole(i);
+                }
               }
             }
             JSArray::cast(this)->set_length(Smi::cast(smi_length));
@@ -7663,8 +7686,18 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
         int new_capacity = value > min ? value : min;
         if (new_capacity <= kMaxFastElementsLength ||
             !ShouldConvertToSlowElements(new_capacity)) {
-          MaybeObject* result =
-              SetFastElementsCapacityAndLength(new_capacity, value);
+          MaybeObject* result;
+          if (GetElementsKind() == FAST_ELEMENTS) {
+            Object* obj;
+            { MaybeObject* maybe_obj = EnsureWritableFastElements();
+              if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+            }
+            result = SetFastElementsCapacityAndLength(new_capacity, value);
+          }  else {
+            ASSERT(GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+            result = SetFastDoubleElementsCapacityAndLength(new_capacity,
+                                                            value);
+          }
           if (result->IsFailure()) return result;
           return this;
         }
@@ -7700,7 +7733,6 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case EXTERNAL_PIXEL_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
         UNREACHABLE();
         break;
     }

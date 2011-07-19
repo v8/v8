@@ -4007,7 +4007,8 @@ bool JSObject::HasIndexedInterceptor() {
 
 
 bool JSObject::AllowsSetElementsLength() {
-  bool result = elements()->IsFixedArray();
+  bool result = elements()->IsFixedArray() ||
+      elements()->IsFixedDoubleArray();
   ASSERT(result == !HasExternalArrayElements());
   return result;
 }
