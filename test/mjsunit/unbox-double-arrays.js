@@ -28,8 +28,8 @@
 // Test dictionary -> double elements -> dictionary elements round trip
 
 // Flags: --allow-natives-syntax --unbox-double-arrays --expose-gc
-var large_array_size = 100000;
-var approx_dict_to_elements_threshold = 75000;
+var large_array_size = 500000;
+var approx_dict_to_elements_threshold = 69000;
 
 var name = 0;
 
@@ -42,21 +42,14 @@ function expected_array_value(i) {
 }
 
 function force_to_fast_double_array(a) {
-  a[large_array_size - 2] = 1;
   for (var i= 0; i < approx_dict_to_elements_threshold; ++i ) {
     a[i] = expected_array_value(i);
   }
   assertTrue(%HasFastDoubleElements(a));
 }
 
-function make_object_like_array(size) {
-  obj = new Object();
-  obj.length = size;
-  return obj;
-}
-
 function testOneArrayType(allocator) {
-  var large_array = new allocator(large_array_size);
+  var large_array = new allocator(500000);
   force_to_fast_double_array(large_array);
   var six = 6;
 
@@ -326,94 +319,35 @@ function testOneArrayType(allocator) {
 
   // Make sure that we haven't converted from fast double.
   assertTrue(%HasFastDoubleElements(large_array));
-}
+  // Cause the array to grow beyond it's JSArray length. This will double the
+  // size of the capacity and force the array into "slow" dictionary case.
+  large_array[large_array_size+1] = 50;
+  assertTrue(%HasDictionaryElements(large_array));
+  assertEquals(50, large_array[large_array_size+1]);
+  assertEquals(large_array_size+2, large_array.length);
+  assertEquals(Infinity, large_array[5]);
+  assertEquals(undefined, large_array[large_array_size-1]);
+  assertEquals(undefined, large_array[-1]);
+  assertEquals(large_array_size+2, large_array.length);
 
-testOneArrayType(make_object_like_array);
-testOneArrayType(Array);
+  // Test dictionary -> double elements -> fast elements.
+  var large_array2 = new allocator(large_array_size);
+  force_to_fast_double_array(large_array2);
+  delete large_array2[5];
 
-var large_array = new Array(large_array_size);
-force_to_fast_double_array(large_array);
-assertTrue(%HasFastDoubleElements(large_array));
-
-// Cause the array to grow beyond it's JSArray length. This will double the
-// size of the capacity and force the array into "slow" dictionary case.
-large_array[5] = Infinity;
-large_array[large_array_size+10001] = 50;
-assertTrue(%HasDictionaryElements(large_array));
-assertEquals(50, large_array[large_array_size+10001]);
-assertEquals(large_array_size+10002, large_array.length);
-assertEquals(Infinity, large_array[5]);
-assertEquals(undefined, large_array[large_array_size-1]);
-assertEquals(undefined, large_array[-1]);
-assertEquals(large_array_size+10002, large_array.length);
-
-// Test dictionary -> double elements -> fast elements.
-var large_array2 = new Array(large_array_size);
-force_to_fast_double_array(large_array2);
-delete large_array2[5];
-
-// Convert back to fast elements and make sure the contents of the array are
-// unchanged.
-large_array2[25] = new Object();
-assertTrue(%HasFastElements(large_array2));
-for (var i= 0; i < approx_dict_to_elements_threshold; i += 500 ) {
-  if (i != 25 && i != 5) {
-    assertEquals(expected_array_value(i), large_array2[i]);
+  // Convert back to fast elements and make sure the contents of the array are
+  // unchanged.
+  large_array2[25] = new Object();
+  assertTrue(%HasFastElements(large_array2));
+  for (var i= 0; i < approx_dict_to_elements_threshold; i += 500 ) {
+    if (i != 25 && i != 5) {
+      assertEquals(expected_array_value(i), large_array2[i]);
+    }
   }
-}
-assertEquals(undefined, large_array2[5]);
-assertEquals(undefined, large_array2[large_array_size-1]);
-assertEquals(undefined, large_array2[-1]);
-assertEquals(large_array_size, large_array2.length);
-
-// Make sure it's possible to change the array's length and that array is still
-// intact after the resize.
-var large_array3 = new Array(large_array_size);
-force_to_fast_double_array(large_array3);
-large_array3.length = 60000;
-assertEquals(60000, large_array3.length);
-assertEquals(undefined, large_array3[60000]);
-assertTrue(%HasFastDoubleElements(large_array3));
-assertEquals(expected_array_value(5), large_array3[5]);
-assertEquals(expected_array_value(6), large_array3[6]);
-assertEquals(expected_array_value(7), large_array3[7]);
-assertEquals(expected_array_value(large_array3.length-1),
-             large_array3[large_array3.length-1]);
-assertEquals(undefined, large_array3[large_array_size-1]);
-assertEquals(undefined, large_array3[-1]);
-gc();
-
-for (var i= 0; i < large_array3.length; i += 501 ) {
-  assertEquals(expected_array_value(i), large_array3[i]);
+  assertEquals(undefined, large_array2[5])
+      assertEquals(undefined, large_array2[large_array_size-1])
+      assertEquals(undefined, large_array2[-1])
+      assertEquals(large_array_size, large_array2.length);
 }
 
-large_array3.length = 25;
-assertEquals(25, large_array3.length);
-assertTrue(%HasFastDoubleElements(large_array3));
-assertEquals(undefined, large_array3[25]);
-assertEquals(expected_array_value(5), large_array3[5]);
-assertEquals(expected_array_value(6), large_array3[6]);
-assertEquals(expected_array_value(7), large_array3[7]);
-assertEquals(expected_array_value(large_array3.length-1),
-             large_array3[large_array3.length-1]);
-assertEquals(undefined, large_array3[large_array_size-1]);
-assertEquals(undefined, large_array3[-1]);
-gc();
-
-for (var i= 0; i < large_array3.length; ++i) {
-  assertEquals(expected_array_value(i), large_array3[i]);
-}
-
-large_array3.length = 100;
-assertEquals(100, large_array3.length);
-large_array3[95] = 95;
-assertTrue(%HasFastDoubleElements(large_array3));
-assertEquals(undefined, large_array3[100]);
-assertEquals(95, large_array3[95]);
-assertEquals(expected_array_value(5), large_array3[5]);
-assertEquals(expected_array_value(6), large_array3[6]);
-assertEquals(expected_array_value(7), large_array3[7]);
-assertEquals(undefined, large_array3[large_array3.length-1]);
-assertEquals(undefined, large_array3[large_array_size-1]);
-assertEquals(undefined, large_array3[-1]);
-gc();
+testOneArrayType(Array);
