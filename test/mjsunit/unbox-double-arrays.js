@@ -27,9 +27,11 @@
 
 // Test dictionary -> double elements -> dictionary elements round trip
 
-// Flags: --allow-natives-syntax --unbox-double-arrays
+// Flags: --allow-natives-syntax --unbox-double-arrays --expose-gc
 var large_array_size = 500000;
 var approx_dict_to_elements_threshold = 69000;
+
+var name = 0;
 
 function expected_array_value(i) {
   if ((i % 2) == 0) {
@@ -49,40 +51,100 @@ function force_to_fast_double_array(a) {
 function testOneArrayType(allocator) {
   var large_array = new allocator(500000);
   force_to_fast_double_array(large_array);
+  var six = 6;
 
   for (var i= 0; i < approx_dict_to_elements_threshold; i += 501 ) {
     assertEquals(expected_array_value(i), large_array[i]);
   }
 
-  function get_test_various_loads() {
-    return function test_various_loads(a, value_5, value_6, value_7) {
-      assertTrue(%HasFastDoubleElements(a));
-      assertEquals(value_5, a[5]);
-      assertEquals(value_6, a[6]);
-      assertEquals(value_7, a[7]);
-      assertEquals(undefined, a[large_array_size-1]);
-      assertEquals(undefined, a[-1]);
-      assertEquals(large_array_size, a.length);
-      assertTrue(%HasFastDoubleElements(a));
-    }
+  // This function has a constant and won't get inlined.
+  function computed_6() {
+    return six;
   }
 
-  function get_test_various_stores() {
-    return function test_various_stores(a, value_5, value_6, value_7) {
-      assertTrue(%HasFastDoubleElements(a));
-      a[5] = value_5;
-      a[6] = value_6;
-      a[7] = value_7;
-      assertTrue(%HasFastDoubleElements(a));
-    }
+  // Multiple versions of the test function makes sure that IC/Crankshaft state
+  // doesn't get reused.
+  function test_various_loads(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
   }
 
-  // Run tests up to three times to make sure both runtime and IC implementation
-  // (premonomorphic and monomorphic) of KeyedLoad access works in various
-  // cases.
+  function test_various_loads2(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_loads3(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_loads4(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_loads5(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_loads6(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
+    assertEquals(undefined, a[large_array_size-1]);
+    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_stores(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    a[5] = value_5;
+    a[computed_6()] = value_6;
+    a[7] = value_7;
+    assertTrue(%HasFastDoubleElements(a));
+  }
 
   // Test double and integer values
-  test_various_loads = get_test_various_loads();
   test_various_loads(large_array,
                      expected_array_value(5),
                      expected_array_value(6),
@@ -91,159 +153,169 @@ function testOneArrayType(allocator) {
                      expected_array_value(5),
                      expected_array_value(6),
                      expected_array_value(7));
+  test_various_loads(large_array,
+                     expected_array_value(5),
+                     expected_array_value(6),
+                     expected_array_value(7));
+  %OptimizeFunctionOnNextCall(test_various_loads);
   test_various_loads(large_array,
                      expected_array_value(5),
                      expected_array_value(6),
                      expected_array_value(7));
 
   // Test NaN values
-  test_various_stores = get_test_various_stores();
   test_various_stores(large_array, NaN, -NaN, expected_array_value(7));
 
-  test_various_loads(large_array,
-                     NaN,
-                     -NaN,
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     NaN,
-                     -NaN,
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     NaN,
-                     -NaN,
-                     expected_array_value(7));
+  test_various_loads2(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+  test_various_loads2(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+  test_various_loads2(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+  %OptimizeFunctionOnNextCall(test_various_loads2);
+  test_various_loads2(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
 
   // Test Infinity values
-  test_various_stores = get_test_various_stores();
   test_various_stores(large_array,
                       Infinity,
                       -Infinity,
                       expected_array_value(7));
 
-  test_various_loads(large_array,
-                     Infinity,
-                     -Infinity,
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     Infinity,
-                     -Infinity,
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     Infinity,
-                     -Infinity,
-                     expected_array_value(7));
+  test_various_loads3(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+  test_various_loads3(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+  test_various_loads3(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+  %OptimizeFunctionOnNextCall(test_various_loads3);
+  test_various_loads3(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
 
   // Test the hole for the default runtime implementation.
   delete large_array[5];
   delete large_array[6];
-  test_various_loads = get_test_various_loads();
-  test_various_loads(large_array,
-                     undefined,
-                     undefined,
-                     expected_array_value(7));
+  test_various_loads4(large_array,
+                      undefined,
+                      undefined,
+                      expected_array_value(7));
 
   // Test the keyed load IC implementation when the value is the hole.
-  test_various_loads = get_test_various_loads();
   test_various_stores(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
                       expected_array_value(7));
-  test_various_loads(large_array,
-                     expected_array_value(5),
-                     expected_array_value(6),
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     expected_array_value(5),
-                     expected_array_value(6),
-                     expected_array_value(7));
+  test_various_loads5(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+  test_various_loads5(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
   delete large_array[5];
   delete large_array[6];
-  test_various_loads(large_array,
-                     undefined,
-                     undefined,
-                     expected_array_value(7));
-  test_various_loads(large_array,
-                     undefined,
-                     undefined,
-                     expected_array_value(7));
+  test_various_loads5(large_array,
+                      undefined,
+                      undefined,
+                      expected_array_value(7));
+  test_various_loads5(large_array,
+                      undefined,
+                      undefined,
+                      expected_array_value(7));
 
-  // Test both runtime and IC variants of double array stores for normal
-  // values (double and integer).
-  test_various_stores = get_test_various_stores();
-  test_various_stores(large_array,
-                      expected_array_value(4),
-                      expected_array_value(5),
-                      expected_array_value(6));
-  test_various_loads(large_array,
-                     expected_array_value(4),
-                     expected_array_value(5),
-                     expected_array_value(6));
+  // Make sure Crankshaft code handles the hole correctly (bailout)
   test_various_stores(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
                       expected_array_value(7));
-  test_various_loads(large_array,
-                     expected_array_value(5),
-                     expected_array_value(6),
-                     expected_array_value(7));
-
-  // Test stores of NaN to make sure they don't get mistaken for the
-  // hole. Test both runtime and IC implementation.
-  test_various_stores = get_test_various_stores();
-  test_various_stores(large_array,
-                      NaN,
-                      -NaN,
-                      expected_array_value(6));
-  test_various_loads(large_array,
-                      NaN,
-                      -NaN,
-                     expected_array_value(6));
-  test_various_stores(large_array,
+  test_various_loads6(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
                       expected_array_value(7));
-  test_various_loads(large_array,
-                     expected_array_value(5),
-                     expected_array_value(6),
-                     expected_array_value(7));
-  test_various_stores(large_array,
-                      NaN,
-                      -NaN,
-                      expected_array_value(7));
-  test_various_loads(large_array,
-                      NaN,
-                      -NaN,
-                     expected_array_value(7));
-
-  // Test stores of Infinity to make sure they don't get mistaken for the
-  // hole. Test both runtime and IC implementation.
-  test_various_stores = get_test_various_stores();
-  test_various_stores(large_array,
-                      Infinity,
-                      -Infinity,
-                      expected_array_value(6));
-  test_various_loads(large_array,
-                      Infinity,
-                      -Infinity,
-                     expected_array_value(6));
-  test_various_stores(large_array,
+  test_various_loads6(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
                       expected_array_value(7));
-  test_various_loads(large_array,
-                     expected_array_value(5),
-                     expected_array_value(6),
-                     expected_array_value(7));
-  test_various_stores(large_array,
-                      Infinity,
-                      -Infinity,
+  %OptimizeFunctionOnNextCall(test_various_loads6);
+  test_various_loads6(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
                       expected_array_value(7));
-  test_various_loads(large_array,
-                      Infinity,
-                      -Infinity,
-                     expected_array_value(7));
 
   delete large_array[5];
+  delete large_array[6];
+  test_various_loads6(large_array,
+                      undefined,
+                      undefined,
+                      expected_array_value(7));
+
+  // Test stores for non-NaN.
+  %OptimizeFunctionOnNextCall(test_various_stores);
+  test_various_stores(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+
+  test_various_stores(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+
+  test_various_loads6(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+
+  // Test NaN behavior for stores.
+  test_various_stores(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+
+  test_various_stores(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+
+  test_various_loads6(large_array,
+                      NaN,
+                      -NaN,
+                      expected_array_value(7));
+
+  // Test Infinity behavior for stores.
+  test_various_stores(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+
+  test_various_stores(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+
+  test_various_loads6(large_array,
+                      Infinity,
+                      -Infinity,
+                      expected_array_value(7));
+
+  assertTrue(%GetOptimizationStatus(test_various_stores) != 2);
 
   // Make sure that we haven't converted from fast double.
   assertTrue(%HasFastDoubleElements(large_array));
@@ -253,7 +325,7 @@ function testOneArrayType(allocator) {
   assertTrue(%HasDictionaryElements(large_array));
   assertEquals(50, large_array[large_array_size+1]);
   assertEquals(large_array_size+2, large_array.length);
-  assertEquals(undefined, large_array[5]);
+  assertEquals(Infinity, large_array[5]);
   assertEquals(undefined, large_array[large_array_size-1]);
   assertEquals(undefined, large_array[-1]);
   assertEquals(large_array_size+2, large_array.length);

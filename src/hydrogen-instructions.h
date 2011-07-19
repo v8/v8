@@ -131,6 +131,7 @@ class LChunkBuilder;
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
   V(LoadGlobalGeneric)                         \
+  V(LoadKeyedFastDoubleElement)                \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
   V(LoadKeyedSpecializedArrayElement)          \
@@ -156,6 +157,7 @@ class LChunkBuilder;
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
+  V(StoreKeyedFastDoubleElement)               \
   V(StoreKeyedFastElement)                     \
   V(StoreKeyedGeneric)                         \
   V(StoreKeyedSpecializedArrayElement)         \
@@ -3519,6 +3521,37 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
 };
 
 
+class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
+ public:
+  HLoadKeyedFastDoubleElement(HValue* elements, HValue* key) {
+    SetOperandAt(0, elements);
+    SetOperandAt(1, key);
+    set_representation(Representation::Double());
+    SetFlag(kDependsOnArrayElements);
+    SetFlag(kUseGVN);
+  }
+
+  HValue* elements() { return OperandAt(0); }
+  HValue* key() { return OperandAt(1); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    // The key is supposed to be Integer32.
+    return index == 0
+      ? Representation::Tagged()
+      : Representation::Integer32();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  bool RequiresHoleCheck() const;
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
@@ -3701,6 +3734,41 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement)
+};
+
+
+class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
+ public:
+  HStoreKeyedFastDoubleElement(HValue* elements,
+                               HValue* key,
+                               HValue* val) {
+    SetOperandAt(0, elements);
+    SetOperandAt(1, key);
+    SetOperandAt(2, val);
+    SetFlag(kChangesArrayElements);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    if (index == 1) {
+      return Representation::Integer32();
+    } else if (index == 2) {
+      return Representation::Double();
+    } else {
+      return Representation::Tagged();
+    }
+  }
+
+  HValue* elements() { return OperandAt(0); }
+  HValue* key() { return OperandAt(1); }
+  HValue* value() { return OperandAt(2); }
+
+  bool NeedsWriteBarrier() {
+    return StoringValueNeedsWriteBarrier(value());
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement)
 };
 
 
