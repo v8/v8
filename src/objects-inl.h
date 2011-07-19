@@ -4157,6 +4157,22 @@ Object* JSReceiver::GetPrototype() {
 }
 
 
+bool JSReceiver::HasProperty(String* name) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+  }
+  return GetPropertyAttribute(name) != ABSENT;
+}
+
+
+bool JSReceiver::HasLocalProperty(String* name) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+  }
+  return GetLocalPropertyAttribute(name) != ABSENT;
+}
+
+
 PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
 }

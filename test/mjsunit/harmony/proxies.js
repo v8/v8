@@ -28,6 +28,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+// TODO(rossberg): test exception cases.
+
 
 // Getters.
 
@@ -399,6 +401,79 @@ assertTrue(typeof Proxy.create({}) == "object")
 assertTrue("object" == typeof Proxy.create({}))
 
 // No function proxies yet.
+
+
+
+// Element (in).
+
+var key
+function TestIn(handler) {
+  var o = Proxy.create(handler)
+  assertTrue("a" in o)
+  assertEquals("a", key)
+  assertTrue(99 in o)
+  assertEquals("99", key)
+  assertFalse("z" in o)
+  assertEquals("z", key)
+
+  if ("b" in o) {
+  } else {
+    assertTrue(false)
+  }
+  assertEquals("b", key)
+
+  if ("zz" in o) {
+    assertTrue(false)
+  }
+  assertEquals("zz", key)
+
+  if (!("c" in o)) {
+    assertTrue(false)
+  }
+  assertEquals("c", key)
+
+  if (!("zzz" in o)) {
+  } else {
+    assertTrue(false)
+  }
+  assertEquals("zzz", key)
+}
+
+TestIn({
+  has: function(k) { key = k; return k < "z" }
+})
+TestIn({
+  has: function(k) { return this.has2(k) },
+  has2: function(k) { key = k; return k < "z" }
+})
+TestIn({
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+TestIn({
+  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
+  getPropertyDescriptor2: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+TestIn({
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {get value() { return 42 }} : void 0
+  }
+})
+TestIn({
+  get: undefined,
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestIn(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) { key = k; return k < "z" }
+  }
+}))
 
 
 

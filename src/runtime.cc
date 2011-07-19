@@ -4315,11 +4315,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
 
-  // Only JS objects can have properties.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
+  // Only JS receivers can have properties.
+  if (args[0]->IsJSReceiver()) {
+    JSReceiver* receiver = JSReceiver::cast(args[0]);
     CONVERT_CHECKED(String, key, args[1]);
-    if (object->HasProperty(key)) return isolate->heap()->true_value();
+    if (receiver->HasProperty(key)) return isolate->heap()->true_value();
   }
   return isolate->heap()->false_value();
 }

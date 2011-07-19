@@ -2196,6 +2196,31 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
 }
 
 
+bool JSProxy::HasPropertyWithHandler(String* name_raw) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Object> receiver(this);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("has");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    trap = isolate->derived_has_trap();
+  }
+
+  // Call trap function.
+  Object** args[] = { name.location() };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  return result->ToBoolean()->IsTrue();
+}
+
+
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
     String* name_raw,
     Object* value_raw,
