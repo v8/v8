@@ -12284,8 +12284,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScript) {
 // call to this function is encountered it is skipped.  The seen_caller
 // in/out parameter is used to remember if the caller has been seen
 // yet.
-static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
-    bool* seen_caller) {
+static bool ShowFrameInStackTrace(StackFrame* raw_frame,
+                                  Object* caller,
+                                  bool* seen_caller) {
   // Only display JS frames.
   if (!raw_frame->is_java_script())
     return false;
@@ -12298,11 +12299,25 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
     *seen_caller = true;
     return false;
   }
-  // Skip all frames until we've seen the caller.  Also, skip the most
-  // obvious builtin calls.  Some builtin calls (such as Number.ADD
-  // which is invoked using 'call') are very difficult to recognize
-  // so we're leaving them in for now.
-  return *seen_caller && !frame->receiver()->IsJSBuiltinsObject();
+  // Skip all frames until we've seen the caller.
+  if (!(*seen_caller)) return false;
+  // Also, skip the most obvious builtin calls. We recognize builtins
+  // as (1) functions called with the builtins object as the receiver and
+  // as (2) functions from native scripts called with undefined as the
+  // receiver (direct calls to helper functions in the builtins
+  // code). Some builtin calls (such as Number.ADD which is invoked
+  // using 'call') are very difficult to recognize so we're leaving
+  // them in for now.
+  if (frame->receiver()->IsJSBuiltinsObject()) {
+    return false;
+  }
+  JSFunction* fun = JSFunction::cast(raw_fun);
+  Object* raw_script = fun->shared()->script();
+  if (frame->receiver()->IsUndefined() && raw_script->IsScript()) {
+    int script_type = Script::cast(raw_script)->type()->value();
+    return script_type != Script::TYPE_NATIVE;
+  }
+  return true;
 }
 
 

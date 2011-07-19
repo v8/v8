@@ -1051,13 +1051,15 @@ function captureStackTrace(obj, cons_opt) {
 
 $Math.__proto__ = global.Object.prototype;
 
-DefineError(function Error() { });
-DefineError(function TypeError() { });
-DefineError(function RangeError() { });
-DefineError(function SyntaxError() { });
-DefineError(function ReferenceError() { });
-DefineError(function EvalError() { });
-DefineError(function URIError() { });
+// DefineError is a native function. Use explicit receiver. Otherwise
+// the receiver will be 'undefined'.
+this.DefineError(function Error() { });
+this.DefineError(function TypeError() { });
+this.DefineError(function RangeError() { });
+this.DefineError(function SyntaxError() { });
+this.DefineError(function ReferenceError() { });
+this.DefineError(function EvalError() { });
+this.DefineError(function URIError() { });
 
 $Error.captureStackTrace = captureStackTrace;
 
