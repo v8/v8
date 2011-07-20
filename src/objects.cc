@@ -7687,8 +7687,7 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
         }
         int min = NewElementsCapacity(old_capacity);
         int new_capacity = value > min ? value : min;
-        if (new_capacity <= kMaxFastElementsLength ||
-            !ShouldConvertToSlowElements(new_capacity)) {
+        if (!ShouldConvertToSlowElements(new_capacity)) {
           MaybeObject* result;
           if (GetElementsKind() == FAST_ELEMENTS) {
             result = SetFastElementsCapacityAndLength(new_capacity, value);
@@ -8434,8 +8433,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   if ((index - length) < kMaxGap) {
     // Try allocating extra space.
     int new_capacity = NewElementsCapacity(index + 1);
-    if (new_capacity <= kMaxFastElementsLength ||
-        !ShouldConvertToSlowElements(new_capacity)) {
+    if (!ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       Object* new_elements;
       MaybeObject* maybe =
@@ -8617,8 +8615,7 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   if ((index - elms_length) < kMaxGap) {
     // Try allocating extra space.
     int new_capacity = NewElementsCapacity(index+1);
-    if (new_capacity <= kMaxFastElementsLength ||
-        !ShouldConvertToSlowElements(new_capacity)) {
+    if (!ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       Object* obj;
       { MaybeObject* maybe_obj =
@@ -9141,21 +9138,22 @@ bool JSObject::HasDenseElements() {
 
 
 bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
+  if (new_capacity <= kMaxFastElementsLength) return false;
   // Keep the array in fast case if the current backing storage is
   // almost filled and if the new capacity is no more than twice the
   // old capacity.
-  int elements_length = 0;
+  int old_capacity = 0;
   if (elements()->map() == GetHeap()->non_strict_arguments_elements_map()) {
     FixedArray* backing_store = FixedArray::cast(elements());
-    elements_length = FixedArray::cast(backing_store->get(1))->length();
+    old_capacity = FixedArray::cast(backing_store->get(1))->length();
   } else if (HasFastElements()) {
-    elements_length = FixedArray::cast(elements())->length();
+    old_capacity = FixedArray::cast(elements())->length();
   } else if (HasFastDoubleElements()) {
-    elements_length = FixedDoubleArray::cast(elements())->length();
+    old_capacity = FixedDoubleArray::cast(elements())->length();
   } else {
     UNREACHABLE();
   }
-  return !HasDenseElements() || ((new_capacity / 2) > elements_length);
+  return !HasDenseElements() || ((new_capacity / 2) > old_capacity);
 }
 
 
