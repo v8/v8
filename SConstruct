@@ -398,13 +398,13 @@ CCTEST_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'LIBPATH':      [abspath('.')],
-      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
-                       '-Wno-unused-but-set-variable'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
       'LIBS':         ['pthread'],
+      'CCFLAGS':      ['-Wno-unused-but-set-variable'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
