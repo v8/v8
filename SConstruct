@@ -398,7 +398,8 @@ CCTEST_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'LIBPATH':      [abspath('.')],
-      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
+                       '-Wno-unused-but-set-variable'],
       'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LINKFLAGS':    ['$CCFLAGS'],
     },

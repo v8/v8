@@ -2529,6 +2529,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #else
   // Already there in AMD64 calling convention.
   ASSERT(arg1.is(rdi));
+  USE(arg1);
 #endif
 
   // Locate the code entry and call it.

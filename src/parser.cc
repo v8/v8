@@ -719,7 +719,6 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
 
   {
     // Parse the function literal.
-    Handle<String> no_name = isolate()->factory()->empty_symbol();
     Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
     if (!info->closure().is_null()) {
       scope = Scope::DeserializeScopeChain(info, scope);
@@ -3443,7 +3442,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   ObjectLiteralPropertyChecker checker(this, top_scope_->is_strict_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
-  Scanner::Location loc = scanner().location();
 
   while (peek() != Token::RBRACE) {
     if (fni_ != NULL) fni_->Enter();

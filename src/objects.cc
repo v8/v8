@@ -2245,8 +2245,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
       receiver.location(), name.location(), value.location()
   };
   bool has_exception;
-  Handle<Object> result =
-      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
   if (has_exception) return Failure::Exception();
 
   return *value;

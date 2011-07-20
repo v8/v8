@@ -1883,7 +1883,6 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     __ push(ToRegister(instr->InputAt(0)));
     __ Push(instr->function());
 
-    Register temp = ToRegister(instr->TempAt(0));
     static const int kAdditionalDelta = 10;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
