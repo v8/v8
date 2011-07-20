@@ -404,6 +404,7 @@ CCTEST_EXTRA_FLAGS = {
     },
     'os:linux': {
       'LIBS':         ['pthread'],
+      'CCFLAGS':      ['-Wno-unused-but-set-variable'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],

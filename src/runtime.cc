@@ -615,6 +615,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSProxy, proxy, args[0]);
+  proxy->Fix();
+  return proxy;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -4307,11 +4315,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
 
-  // Only JS objects can have properties.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
+  // Only JS receivers can have properties.
+  if (args[0]->IsJSReceiver()) {
+    JSReceiver* receiver = JSReceiver::cast(args[0]);
     CONVERT_CHECKED(String, key, args[1]);
-    if (object->HasProperty(key)) return isolate->heap()->true_value();
+    if (receiver->HasProperty(key)) return isolate->heap()->true_value();
   }
   return isolate->heap()->false_value();
 }
@@ -10128,7 +10136,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
-  Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SerializedScopeInfo> scope_info(shared->scope_info());
   ASSERT(*scope_info != SerializedScopeInfo::Empty());
   ScopeInfo<> info(*scope_info);
 
@@ -10300,10 +10309,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject()) {
-    // If the receiver is NOT a JSObject we have hit an optimization
-    // where a value object is not converted into a wrapped JS objects.
-    // To hide this optimization from the debugger, we wrap the receiver
+  if (!receiver->IsJSObject() && !shared->strict_mode() && !shared->native()) {
+    // If the receiver is not a JSObject and the function is not a
+    // builtin or strict-mode we have hit an optimization where a
+    // value object is not converted into a wrapped JS objects. To
+    // hide this optimization from the debugger, we wrap the receiver
     // by creating correct wrapper object based on the calling frame's
     // global context.
     it.Advance();
@@ -12274,8 +12284,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScript) {
 // call to this function is encountered it is skipped.  The seen_caller
 // in/out parameter is used to remember if the caller has been seen
 // yet.
-static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
-    bool* seen_caller) {
+static bool ShowFrameInStackTrace(StackFrame* raw_frame,
+                                  Object* caller,
+                                  bool* seen_caller) {
   // Only display JS frames.
   if (!raw_frame->is_java_script())
     return false;
@@ -12288,11 +12299,25 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
     *seen_caller = true;
     return false;
   }
-  // Skip all frames until we've seen the caller.  Also, skip the most
-  // obvious builtin calls.  Some builtin calls (such as Number.ADD
-  // which is invoked using 'call') are very difficult to recognize
-  // so we're leaving them in for now.
-  return *seen_caller && !frame->receiver()->IsJSBuiltinsObject();
+  // Skip all frames until we've seen the caller.
+  if (!(*seen_caller)) return false;
+  // Also, skip the most obvious builtin calls. We recognize builtins
+  // as (1) functions called with the builtins object as the receiver and
+  // as (2) functions from native scripts called with undefined as the
+  // receiver (direct calls to helper functions in the builtins
+  // code). Some builtin calls (such as Number.ADD which is invoked
+  // using 'call') are very difficult to recognize so we're leaving
+  // them in for now.
+  if (frame->receiver()->IsJSBuiltinsObject()) {
+    return false;
+  }
+  JSFunction* fun = JSFunction::cast(raw_fun);
+  Object* raw_script = fun->shared()->script();
+  if (frame->receiver()->IsUndefined() && raw_script->IsScript()) {
+    int script_type = Script::cast(raw_script)->type()->value();
+    return script_type != Script::TYPE_NATIVE;
+  }
+  return true;
 }
 
 

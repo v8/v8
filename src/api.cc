@@ -2794,6 +2794,26 @@ Local<Value> v8::Object::Get(uint32_t index) {
 }
 
 
+PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetPropertyAttribute()",
+             return static_cast<PropertyAttribute>(NONE));
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  if (!key_obj->IsString()) {
+    EXCEPTION_PREAMBLE(isolate);
+    key_obj = i::Execution::ToString(key_obj, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
+  }
+  i::Handle<i::String> key_string = i::Handle<i::String>::cast(key_obj);
+  PropertyAttributes result = self->GetPropertyAttribute(*key_string);
+  if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
+  return static_cast<PropertyAttribute>(result);
+}
+
+
 Local<Value> v8::Object::GetPrototype() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetPrototype()",

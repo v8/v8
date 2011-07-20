@@ -304,7 +304,7 @@ void Scope::Initialize(bool inside_with) {
                            Variable::VAR,
                            false,
                            Variable::THIS);
-    var->set_rewrite(new(isolate_->zone()) Slot(var, Slot::PARAMETER, -1));
+    var->set_rewrite(NewSlot(var, Slot::PARAMETER, -1));
     receiver_ = var;
   }
 
@@ -350,7 +350,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
   Variable* var =
       variables_.Declare(this, name, mode, true, Variable::NORMAL);
-  var->set_rewrite(new(isolate_->zone()) Slot(var, Slot::CONTEXT, index));
+  var->set_rewrite(NewSlot(var, Slot::CONTEXT, index));
   return var;
 }
 
@@ -407,8 +407,8 @@ VariableProxy* Scope::NewUnresolved(Handle<String> name,
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   ASSERT(!already_resolved());
-  VariableProxy* proxy =
-      new(isolate_->zone()) VariableProxy(name, false, inside_with, position);
+  VariableProxy* proxy = new(isolate_->zone()) VariableProxy(
+      isolate_, name, false, inside_with, position);
   unresolved_.Add(proxy);
   return proxy;
 }
@@ -708,7 +708,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
     // Declare a new non-local.
     var = map->Declare(NULL, name, mode, true, Variable::NORMAL);
     // Allocate it by giving it a dynamic lookup.
-    var->set_rewrite(new(isolate_->zone()) Slot(var, Slot::LOOKUP, -1));
+    var->set_rewrite(NewSlot(var, Slot::LOOKUP, -1));
   }
   return var;
 }
@@ -964,14 +964,12 @@ bool Scope::HasArgumentsParameter() {
 
 
 void Scope::AllocateStackSlot(Variable* var) {
-  var->set_rewrite(
-      new(isolate_->zone()) Slot(var, Slot::LOCAL, num_stack_slots_++));
+  var->set_rewrite(NewSlot(var, Slot::LOCAL, num_stack_slots_++));
 }
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->set_rewrite(
-      new(isolate_->zone()) Slot(var, Slot::CONTEXT, num_heap_slots_++));
+  var->set_rewrite(NewSlot(var, Slot::CONTEXT, num_heap_slots_++));
 }
 
 
@@ -1024,7 +1022,7 @@ void Scope::AllocateParameterLocals() {
       } else {
         ASSERT(var->rewrite() == NULL || var->IsParameter());
         if (var->rewrite() == NULL) {
-          var->set_rewrite(new(isolate_->zone()) Slot(var, Slot::PARAMETER, i));
+          var->set_rewrite(NewSlot(var, Slot::PARAMETER, i));
         }
       }
     }

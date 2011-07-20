@@ -187,6 +187,7 @@ bool Shell::ExecuteString(Handle<String> source,
 Handle<Value> Shell::Print(const Arguments& args) {
   Handle<Value> val = Write(args);
   printf("\n");
+  fflush(stdout);
   return val;
 }
 

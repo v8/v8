@@ -1089,9 +1089,8 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder,
+                  scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
   __ Move(rax, Handle<Object>(value));
@@ -3746,8 +3745,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&is_nan);
   // Convert all NaNs to the same canonical NaN value when they are stored in
   // the double array.
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   __ Set(kScratchRegister, BitCast<uint64_t>(
       FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
   __ movq(xmm0, kScratchRegister);

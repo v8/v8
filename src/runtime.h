@@ -284,6 +284,7 @@ namespace internal {
   F(CreateJSProxy, 2, 1) \
   F(IsJSProxy, 1, 1) \
   F(GetHandler, 1, 1) \
+  F(Fix, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \

@@ -1394,14 +1394,8 @@ class JSReceiver: public HeapObject {
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
   // Can cause a GC.
-  bool HasProperty(String* name) {
-    return GetPropertyAttribute(name) != ABSENT;
-  }
-
-  // Can cause a GC.
-  bool HasLocalProperty(String* name) {
-    return GetLocalPropertyAttribute(name) != ABSENT;
-  }
+  inline bool HasProperty(String* name);
+  inline bool HasLocalProperty(String* name);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -2174,6 +2168,9 @@ class FixedDoubleArray: public FixedArrayBase {
   inline static int SizeFor(int length) {
     return kHeaderSize + length * kDoubleSize;
   }
+
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
   inline static bool is_the_hole_nan(double value);
   inline static double hole_nan_as_double();
@@ -6475,8 +6472,13 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
+  // [padding]: The padding slot (unused, see below).
+  DECL_ACCESSORS(padding, Object)
+
   // Casting.
   static inline JSProxy* cast(Object* obj);
+
+  bool HasPropertyWithHandler(String* name);
 
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
       String* name,
@@ -6493,6 +6495,9 @@ class JSProxy: public JSReceiver {
       String* name,
       bool* has_exception);
 
+  // Turn this into an (empty) JSObject.
+  void Fix();
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void JSProxyPrint() {
@@ -6504,9 +6509,14 @@ class JSProxy: public JSReceiver {
   void JSProxyVerify();
 #endif
 
-  // Layout description.
+  // Layout description. We add padding so that a proxy has the same
+  // size as a virgin JSObject. This is essential for becoming a JSObject
+  // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+  static const int kPaddingOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPaddingOffset + kPointerSize;
+
+  STATIC_CHECK(kSize == JSObject::kHeaderSize);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,

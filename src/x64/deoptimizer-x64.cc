@@ -128,7 +128,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address instruction_start = function->code()->instruction_start();
   Address jump_table_address =
       instruction_start + function->code()->safepoint_table_offset();
+#ifdef DEBUG
   Address previous_pc = instruction_start;
+#endif
 
   SafepointTableDeoptimiztionEntryIterator deoptimizations(function->code());
   Address entry_pc = NULL;
@@ -157,12 +159,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
       CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
       patcher.masm()->Call(GetDeoptimizationEntry(deoptimization_index, LAZY),
                            RelocInfo::NONE);
+#ifdef DEBUG
       previous_pc = call_end_address;
+#endif
     } else {
       // Not room enough for a long Call instruction. Write a short call
       // instruction to a long jump placed elsewhere in the code.
+#ifdef DEBUG
       Address short_call_end_address =
           call_address + MacroAssembler::kShortCallInstructionLength;
+#endif
       ASSERT(next_pc >= short_call_end_address);
 
       // Write jump in jump-table.
@@ -177,7 +183,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
       CodePatcher call_patcher(call_address,
                                MacroAssembler::kShortCallInstructionLength);
       call_patcher.masm()->call(jump_table_address);
+#ifdef DEBUG
       previous_pc = short_call_end_address;
+#endif
     }
 
     // Continue with next deoptimization entry.

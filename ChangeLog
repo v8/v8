@@ -1,3 +1,12 @@
+2011-07-20: Version 3.4.14
+
+        Fix the debugger for strict-mode functions. (Chromium issue 89236)
+
+        Add GetPropertyAttribute method for Object in the API. (Patch by Peter Varga)
+
+        Fix -Wunused-but-set-variable for gcc-4.6 on x64. (Issue 1291)
+
+
 2011-07-18: Version 3.4.13
 
         Improved debugger support to allow inspection of optimized frames (issue

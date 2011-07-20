@@ -1458,6 +1458,13 @@ class Object : public Value {
 
   V8EXPORT Local<Value> Get(uint32_t index);
 
+  /**
+   * Gets the property attributes of a property which can be None or
+   * any combination of ReadOnly, DontEnum and DontDelete. Returns
+   * None when the property doesn't exist.
+   */
+  V8EXPORT PropertyAttribute GetPropertyAttributes(Handle<Value> key);
+
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.
   V8EXPORT bool Has(Handle<String> key);

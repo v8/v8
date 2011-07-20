@@ -67,8 +67,11 @@ class Processor: public AstVisitor {
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
     Zone* zone = isolate()->zone();
-    VariableProxy* result_proxy = new(zone) VariableProxy(result_);
-    return new(zone) Assignment(Token::ASSIGN, result_proxy, value,
+    VariableProxy* result_proxy = new(zone) VariableProxy(isolate(), result_);
+    return new(zone) Assignment(isolate(),
+                                Token::ASSIGN,
+                                result_proxy,
+                                value,
                                 RelocInfo::kNoPosition);
   }
 
@@ -230,8 +233,9 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      Zone* zone = info->isolate()->zone();
-      VariableProxy* result_proxy = new(zone) VariableProxy(result);
+      Isolate* isolate = info->isolate();
+      Zone* zone = isolate->zone();
+      VariableProxy* result_proxy = new(zone) VariableProxy(isolate, result);
       body->Add(new(zone) ReturnStatement(result_proxy));
     }
   }
