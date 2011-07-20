@@ -8142,6 +8142,15 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
           !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
+      if ((index < length) &&
+          !FixedDoubleArray::cast(elements())->is_the_hole(index)) return true;
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
@@ -8163,9 +8172,6 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
       }
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-      UNREACHABLE();
-      break;
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound) {
@@ -9603,6 +9609,21 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      int length = IsJSArray() ?
+          Smi::cast(JSArray::cast(this)->length())->value() :
+          FixedDoubleArray::cast(elements())->length();
+      for (int i = 0; i < length; i++) {
+        if (!FixedDoubleArray::cast(elements())->is_the_hole(i)) {
+          if (storage != NULL) {
+            storage->set(counter, Smi::FromInt(i));
+          }
+          counter++;
+        }
+      }
+      ASSERT(!storage || storage->length() >= counter);
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       int length = ExternalPixelArray::cast(elements())->length();
       while (counter < length) {
@@ -9632,9 +9653,6 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-      UNREACHABLE();
-      break;
     case DICTIONARY_ELEMENTS: {
       if (storage != NULL) {
         element_dictionary()->CopyKeysTo(storage,

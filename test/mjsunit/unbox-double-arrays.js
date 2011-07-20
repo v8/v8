@@ -417,3 +417,52 @@ assertEquals(undefined, large_array3[large_array3.length-1]);
 assertEquals(undefined, large_array3[large_array_size-1]);
 assertEquals(undefined, large_array3[-1]);
 gc();
+
+// Test apply on arrays backed by double elements.
+function called_by_apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6) {
+  assertEquals(expected_array_value(0), arg0);
+  assertEquals(NaN, arg1);
+  assertEquals(-NaN, arg2);
+  assertEquals(Infinity, arg3);
+  assertEquals(-Infinity, arg4);
+  assertEquals(expected_array_value(5), arg5);
+}
+
+large_array3[1] = NaN;
+large_array3[2] = -NaN;
+large_array3[3] = Infinity;
+large_array3[4] = -Infinity;
+
+function call_apply() {
+  assertTrue(%HasFastDoubleElements(large_array3));
+  called_by_apply.apply({}, large_array3);
+}
+
+call_apply();
+call_apply();
+call_apply();
+%OptimizeFunctionOnNextCall(call_apply);
+call_apply();
+call_apply();
+call_apply();
+
+function test_for_in() {
+  // Due to previous tests, keys 0..25 and 95 should be present.
+  next_expected = 0;
+  assertTrue(%HasFastDoubleElements(large_array3));
+  for (x in large_array3) {
+    assertTrue(next_expected++ == x);
+    if (next_expected == 25) {
+      next_expected = 95;
+    }
+  }
+  assertTrue(next_expected == 96);
+}
+
+test_for_in();
+test_for_in();
+test_for_in();
+%OptimizeFunctionOnNextCall(test_for_in);
+test_for_in();
+test_for_in();
+test_for_in();
