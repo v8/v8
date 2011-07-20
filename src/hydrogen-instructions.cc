@@ -1798,11 +1798,6 @@ void HSimulate::Verify() {
 }
 
 
-void HBoundsCheck::Verify() {
-  HInstruction::Verify();
-}
-
-
 void HCheckSmi::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
@@ -1810,18 +1805,6 @@ void HCheckSmi::Verify() {
 
 
 void HCheckNonSmi::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckInstanceType::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckMap::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
