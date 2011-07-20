@@ -2169,6 +2169,9 @@ class FixedDoubleArray: public FixedArrayBase {
     return kHeaderSize + length * kDoubleSize;
   }
 
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
+
   inline static bool is_the_hole_nan(double value);
   inline static double hole_nan_as_double();
   inline static double canonical_not_the_hole_nan_as_double();
