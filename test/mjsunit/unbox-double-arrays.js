@@ -466,3 +466,51 @@ test_for_in();
 test_for_in();
 test_for_in();
 test_for_in();
+
+// Test elements getters.
+assertEquals(expected_array_value(10), large_array3[10]);
+assertEquals(expected_array_value(-NaN), large_array3[2]);
+large_array3.__defineGetter__("2", function(){
+    return expected_array_value(10);
+});
+
+function test_getter() {
+  assertEquals(expected_array_value(10), large_array3[10]);
+  assertEquals(expected_array_value(10), large_array3[2]);
+}
+
+test_getter();
+test_getter();
+test_getter();
+%OptimizeFunctionOnNextCall(test_getter);
+test_getter();
+test_getter();
+test_getter();
+
+// Test element setters.
+large_array4 = new Array(large_array_size);
+force_to_fast_double_array(large_array4);
+
+var setter_called = false;
+
+assertEquals(expected_array_value(10), large_array4[10]);
+assertEquals(expected_array_value(2), large_array4[2]);
+large_array4.__defineSetter__("10", function(value){
+    setter_called = true;
+  });
+
+function test_setter() {
+  setter_called = false;
+  large_array4[10] = 119;
+  assertTrue(setter_called);
+  assertEquals(undefined, large_array4[10]);
+  assertEquals(expected_array_value(2), large_array4[2]);
+}
+
+test_setter();
+test_setter();
+test_setter();
+%OptimizeFunctionOnNextCall(test_setter);
+test_setter();
+test_setter();
+test_setter();
