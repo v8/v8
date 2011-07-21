@@ -368,11 +368,7 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
 
   int size_in_words = byte_size / kPointerSize;
 
-  if ((dst < src) || (dst >= (src + size_in_words))) {
-    ASSERT((dst >= (src + size_in_words)) ||
-           ((OffsetFrom(reinterpret_cast<Address>(src)) -
-             OffsetFrom(reinterpret_cast<Address>(dst))) >= kPointerSize));
-
+  if ((dst < src) || (dst >= (src + byte_size))) {
     Object** src_slot = reinterpret_cast<Object**>(src);
     Object** dst_slot = reinterpret_cast<Object**>(dst);
     Object** end_slot = src_slot + size_in_words;
@@ -390,8 +386,7 @@ void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
                                                    Address src,
                                                    int byte_size) {
   ASSERT(IsAligned(byte_size, kPointerSize));
-  ASSERT((dst >= (src + byte_size)) ||
-         ((OffsetFrom(src) - OffsetFrom(dst)) >= kPointerSize));
+  ASSERT((dst < src) || (dst >= (src + byte_size)));
 
   CopyBlockToOldSpaceAndUpdateRegionMarks(dst, src, byte_size);
 }
