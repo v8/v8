@@ -619,7 +619,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSProxy, proxy, args[0]);
   proxy->Fix();
-  return proxy;
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -2331,7 +2331,7 @@ void JSProxy::Fix() {
   Handle<JSProxy> self(this);
 
   isolate->factory()->BecomeJSObject(self);
-  ASSERT(IsJSObject());
+  ASSERT(self->IsJSObject());
   // TODO(rossberg): recognize function proxies.
 }
 
