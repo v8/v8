@@ -7209,6 +7209,7 @@ const char* Code::Kind2String(Kind kind) {
     case UNARY_OP_IC: return "UNARY_OP_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
+    case TO_BOOLEAN_IC: return "TO_BOOLEAN_IC";
   }
   UNREACHABLE();
   return NULL;

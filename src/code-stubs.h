@@ -900,14 +900,56 @@ class KeyedStoreElementStub : public CodeStub {
 
 class ToBooleanStub: public CodeStub {
  public:
-  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+  enum Type {
+    UNDEFINED,
+    BOOLEAN,
+    NULL_TYPE,
+    SMI,
+    UNDETECTABLE,
+    SPEC_OBJECT,
+    STRING,
+    HEAP_NUMBER,
+    INTERNAL_OBJECT,
+    NUMBER_OF_TYPES
+  };
+
+  class Types {
+   public:
+    Types() {}
+    explicit Types(int bits) : set_(bits) {}
+
+    bool IsEmpty() const { return set_.IsEmpty(); }
+    bool Contains(Type type) const { return set_.Contains(type); }
+    void Add(Type type) { set_.Add(type); }
+    int ToInt() const { return set_.ToIntegral(); }
+    void Print(StringStream* stream);
+    void TraceTransition(Types to);
+    bool Record(Handle<Object> object);
+
+   private:
+    EnumSet<Type> set_;
+  };
+
+  explicit ToBooleanStub(Register tos, Types types = Types())
+      : tos_(tos), types_(types) { }
 
   void Generate(MacroAssembler* masm);
+  virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
+  virtual void PrintName(StringStream* stream);
 
  private:
-  Register tos_;
   Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return tos_.code(); }
+  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToInt(); }
+
+  void CheckOddball(MacroAssembler* masm,
+                    Type type,
+                    Handle<Object> value,
+                    bool result,
+                    Label* patch);
+  void GenerateTypeTransition(MacroAssembler* masm);
+
+  Register tos_;
+  Types types_;
 };
 
 } }  // namespace v8::internal
