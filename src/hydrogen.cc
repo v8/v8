@@ -3911,7 +3911,7 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
   bool fast_double_elements = map->has_fast_double_elements();
-  if (is_store && !fast_double_elements) {
+  if (is_store && map->has_fast_elements()) {
     AddInstruction(new(zone()) HCheckMap(
         elements, isolate()->factory()->fixed_array_map()));
   }
@@ -4022,9 +4022,10 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
           elements_kind == JSObject::FAST_DOUBLE_ELEMENTS) {
         bool fast_double_elements =
             elements_kind == JSObject::FAST_DOUBLE_ELEMENTS;
-        if (is_store && !fast_double_elements) {
+        if (is_store && elements_kind == JSObject::FAST_ELEMENTS) {
           AddInstruction(new(zone()) HCheckMap(
-              elements, isolate()->factory()->fixed_array_map()));
+              elements, isolate()->factory()->fixed_array_map(),
+              elements_kind_branch));
         }
         HBasicBlock* if_jsarray = graph()->CreateBasicBlock();
         HBasicBlock* if_fastobject = graph()->CreateBasicBlock();

@@ -1898,10 +1898,14 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 };
 
 
-class HCheckMap: public HUnaryOperation {
+class HCheckMap: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value, Handle<Map> map)
-      : HUnaryOperation(value), map_(map) {
+  HCheckMap(HValue* value, Handle<Map> map, HValue* typecheck = NULL)
+      : map_(map) {
+    SetOperandAt(0, value);
+    // If callers don't depend on a typecheck, they can pass in NULL. In that
+    // case we use a copy of the |value| argument as a dummy value.
+    SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
@@ -1913,6 +1917,7 @@ class HCheckMap: public HUnaryOperation {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
+  HValue* value() { return OperandAt(0); }
   Handle<Map> map() const { return map_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMap)
