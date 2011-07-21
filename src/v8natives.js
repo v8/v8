@@ -209,7 +209,7 @@ function ObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     return '[object Undefined]';
   }
-  if (IS_NULL(this)) return  '[object Null]';
+  if (IS_NULL(this)) return '[object Null]';
   return "[object " + %_ClassOf(ToObject(this)) + "]";
 }
 
