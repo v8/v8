@@ -4689,7 +4689,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
     case JSObject::FAST_ELEMENTS:
       return UnionOfKeys(FixedArray::cast(array->elements()));
     case JSObject::FAST_DOUBLE_ELEMENTS:
-      UNIMPLEMENTED();
+      return UnionOfDoubleKeys(FixedDoubleArray::cast(array->elements()));
       break;
     case JSObject::DICTIONARY_ELEMENTS: {
       NumberDictionary* dict = array->element_dictionary();
@@ -4779,6 +4779,69 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
       ASSERT(e->IsString() || e->IsNumber());
       result->set(len0 + index, e, mode);
       index++;
+    }
+  }
+  ASSERT(extra == index);
+  return result;
+}
+
+
+MaybeObject* FixedArray::UnionOfDoubleKeys(FixedDoubleArray* other) {
+  int len0 = length();
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < len0; i++) {
+      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    }
+  }
+#endif
+  int len1 = other->length();
+  // Optimize if 'other' is empty.
+  // We cannot optimize if 'this' is empty, as other may have holes
+  // or non keys.
+  if (len1 == 0) return this;
+
+  // Compute how many elements are not in this.
+  int extra = 0;
+  Heap* heap = GetHeap();
+  Object* obj;
+  for (int y = 0; y < len1; y++) {
+    if (!other->is_the_hole(y)) {
+      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get(y));
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      if (!HasKey(this, obj)) extra++;
+    }
+  }
+
+  if (extra == 0) return this;
+
+  // Allocate the result
+  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(len0 + extra);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  // Fill in the content
+  FixedArray* result = FixedArray::cast(obj);
+  {
+    // Limit the scope of the AssertNoAllocation
+    AssertNoAllocation no_gc;
+    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+    for (int i = 0; i < len0; i++) {
+      Object* e = get(i);
+      ASSERT(e->IsString() || e->IsNumber());
+      result->set(i, e, mode);
+    }
+  }
+
+  // Fill in the extra keys.
+  int index = 0;
+  for (int y = 0; y < len1; y++) {
+    if (!other->is_the_hole(y)) {
+      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get(y));
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      if (!HasKey(this, obj)) {
+        result->set(len0 + index, obj);
+        index++;
+      }
     }
   }
   ASSERT(extra == index);
@@ -7542,9 +7605,10 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
 
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
+    case FAST_DOUBLE_ELEMENTS:
       // Make sure we never try to shrink dense arrays into sparse arrays.
-      ASSERT(static_cast<uint32_t>(FixedArray::cast(elements())->length()) <=
-                                   new_length);
+      ASSERT(static_cast<uint32_t>(
+          FixedArrayBase::cast(elements())->length()) <= new_length);
       MaybeObject* result = NormalizeElements();
       if (result->IsFailure()) return result;
 
@@ -7573,7 +7637,6 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -7914,6 +7977,17 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
+      if ((index < length) &&
+          !FixedDoubleArray::cast(elements())->is_the_hole(index)) {
+        return true;
+      }
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
@@ -7928,8 +8002,7 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         return true;
@@ -9380,6 +9453,15 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       return (index < length) &&
           !FixedArray::cast(elements())->get(index)->IsTheHole();
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>(
+              Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
+      return (index < length) &&
+          !FixedDoubleArray::cast(elements())->is_the_hole(index);
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return index < static_cast<uint32_t>(pixels->length());
@@ -9395,9 +9477,6 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       ExternalArray* array = ExternalArray::cast(elements());
       return index < static_cast<uint32_t>(array->length());
     }
-    case FAST_DOUBLE_ELEMENTS:
-      UNREACHABLE();
-      break;
     case DICTIONARY_ELEMENTS: {
       return element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound;

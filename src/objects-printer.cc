@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -282,6 +282,19 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      // Print in array notation for non-sparse arrays.
+      FixedDoubleArray* p = FixedDoubleArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        if (p->is_the_hole(i)) {
+          PrintF(out, "   %d: <the hole>", i);
+        } else {
+          PrintF(out, "   %d: %g", i, p->get(i));
+        }
+        PrintF(out, "\n");
+      }
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* p = ExternalPixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
@@ -360,9 +373,6 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
-      break;
   }
 }
 
