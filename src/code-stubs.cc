@@ -342,7 +342,6 @@ void ToBooleanStub::Types::Print(StringStream* stream) {
   if (Contains(BOOLEAN)) stream->Add("Bool");
   if (Contains(SMI)) stream->Add("Smi");
   if (Contains(NULL_TYPE)) stream->Add("Null");
-  if (Contains(UNDETECTABLE)) stream->Add("Undetectable");
   if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
   if (Contains(STRING)) stream->Add("String");
   if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
@@ -378,22 +377,20 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
   } else if (object->IsSmi()) {
     Add(SMI);
     return Smi::cast(*object)->value() != 0;
-  } else if (object->IsUndetectableObject()) {
-    Add(UNDETECTABLE);
-    return false;
   } else if (object->IsSpecObject()) {
     Add(SPEC_OBJECT);
-    return true;
+    return !object->IsUndetectableObject();
   } else if (object->IsString()) {
     Add(STRING);
-    return String::cast(*object)->length() != 0;
+    return !object->IsUndetectableObject() &&
+        String::cast(*object)->length() != 0;
   } else if (object->IsHeapNumber()) {
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
-    return value != 0 && !isnan(value);
+    return !object->IsUndetectableObject() && value != 0 && !isnan(value);
   } else {
     Add(INTERNAL_OBJECT);
-    return true;
+    return !object->IsUndetectableObject();
   }
 }
 

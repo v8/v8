@@ -259,7 +259,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   CheckOddball(masm, NULL_TYPE, factory->null_value(), false, &patch);
 
   bool need_map =
-      types_.Contains(UNDETECTABLE) |
       types_.Contains(SPEC_OBJECT) |
       types_.Contains(STRING) |
       types_.Contains(HEAP_NUMBER) |
@@ -286,17 +285,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     // Everything with a map could be undetectable, so check this now.
     __ test_b(FieldOperand(map, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
-    if (types_.Contains(UNDETECTABLE)) {
-      // Undetectable -> false.
-      Label not_undetectable;
-      __ j(zero, &not_undetectable, Label::kNear);
-      __ Set(tos_, Immediate(0));
-      __ ret(1 * kPointerSize);
-      __ bind(&not_undetectable);
-    } else {
-      // We've seen an undetectable value for the first time -> patch.
-      __ j(not_zero, &patch, Label::kNear);
-    }
+    // Undetectable -> false.
+    Label not_undetectable;
+    __ j(zero, &not_undetectable, Label::kNear);
+    __ Set(tos_, Immediate(0));
+    __ ret(1 * kPointerSize);
+    __ bind(&not_undetectable);
   }
 
   if (types_.Contains(SPEC_OBJECT)) {
@@ -385,7 +379,7 @@ void ToBooleanStub::CheckOddball(MacroAssembler* masm,
 void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ pop(ecx);  // Get return address, operand is now on top of stack.
   __ push(Immediate(Smi::FromInt(tos_.code())));
-  __ push(Immediate(Smi::FromInt(types_.ToInt())));
+  __ push(Immediate(Smi::FromInt(types_.ToByte())));
   __ push(ecx);  // Push return address.
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.

@@ -905,7 +905,6 @@ class ToBooleanStub: public CodeStub {
     BOOLEAN,
     NULL_TYPE,
     SMI,
-    UNDETECTABLE,
     SPEC_OBJECT,
     STRING,
     HEAP_NUMBER,
@@ -913,21 +912,25 @@ class ToBooleanStub: public CodeStub {
     NUMBER_OF_TYPES
   };
 
+  // At most 8 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set of these types. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 8);
+
   class Types {
    public:
     Types() {}
-    explicit Types(int bits) : set_(bits) {}
+    explicit Types(byte bits) : set_(bits) {}
 
     bool IsEmpty() const { return set_.IsEmpty(); }
     bool Contains(Type type) const { return set_.Contains(type); }
     void Add(Type type) { set_.Add(type); }
-    int ToInt() const { return set_.ToIntegral(); }
+    byte ToByte() const { return set_.ToIntegral(); }
     void Print(StringStream* stream);
     void TraceTransition(Types to);
     bool Record(Handle<Object> object);
 
    private:
-    EnumSet<Type> set_;
+    EnumSet<Type, byte> set_;
   };
 
   explicit ToBooleanStub(Register tos, Types types = Types())
@@ -939,7 +942,11 @@ class ToBooleanStub: public CodeStub {
 
  private:
   Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToInt(); }
+  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToByte(); }
+
+  virtual void FinishCode(Code* code) {
+    code->set_to_boolean_state(types_.ToByte());
+  }
 
   void CheckOddball(MacroAssembler* masm,
                     Type type,
