@@ -3560,6 +3560,68 @@ THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
 }
 
 
+static v8::Handle<Value> UnboxedDoubleIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 25) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> UnboxedDoubleIndexedPropertySetter(
+    uint32_t index,
+    Local<Value> value,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 25) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+Handle<v8::Array> UnboxedDoubleIndexedPropertyEnumerator(
+    const AccessorInfo& info) {
+  // Force the list of returned keys to be stored in a FastDoubleArray.
+  Local<Script> indexed_property_names_script = Script::Compile(v8_str(
+      "keys = new Array(); keys[125000] = 1;"
+      "for(i = 0; i < 80000; i++) { keys[i] = i; };"
+      "keys.length = 25; keys;"));
+  Local<Value> result = indexed_property_names_script->Run();
+  return Local<v8::Array>(::v8::Array::Cast(*result));
+}
+
+
+// Make sure that the the interceptor code in the runtime properly handles
+// merging property name lists for double-array-backed arrays.
+THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(UnboxedDoubleIndexedPropertyGetter,
+                                   UnboxedDoubleIndexedPropertySetter,
+                                   0,
+                                   0,
+                                   UnboxedDoubleIndexedPropertyEnumerator);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  // When obj is created, force it to be Stored in a FastDoubleArray.
+  Local<Script> create_unboxed_double_script = Script::Compile(v8_str(
+      "obj[125000] = 1; for(i = 0; i < 80000; i+=2) { obj[i] = i; } "
+      "key_count = 0; "
+      "for (x in obj) {key_count++;};"
+      "obj;"));
+  Local<Value> result = create_unboxed_double_script->Run();
+  CHECK(result->ToObject()->HasRealIndexedProperty(2000));
+  Local<Script> key_count_check = Script::Compile(v8_str(
+      "key_count;"));
+  result = key_count_check->Run();
+  CHECK_EQ(v8_num(40013), result);
+}
+
+
 static v8::Handle<Value> IdentityIndexedPropertyGetter(
     uint32_t index,
     const AccessorInfo& info) {

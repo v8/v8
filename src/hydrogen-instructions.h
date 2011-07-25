@@ -1663,12 +1663,14 @@ class HCallRuntime: public HCall<1> {
 };
 
 
-class HJSArrayLength: public HUnaryOperation {
+class HJSArrayLength: public HTemplateInstruction<2> {
  public:
-  explicit HJSArrayLength(HValue* value) : HUnaryOperation(value) {
+  HJSArrayLength(HValue* value, HValue* typecheck) {
     // The length of an array is stored as a tagged value in the array
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
+    SetOperandAt(0, value);
+    SetOperandAt(1, typecheck);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnArrayLengths);
@@ -1678,6 +1680,8 @@ class HJSArrayLength: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  HValue* value() { return OperandAt(0); }
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 
@@ -1894,10 +1898,14 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 };
 
 
-class HCheckMap: public HUnaryOperation {
+class HCheckMap: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value, Handle<Map> map)
-      : HUnaryOperation(value), map_(map) {
+  HCheckMap(HValue* value, Handle<Map> map, HValue* typecheck = NULL)
+      : map_(map) {
+    SetOperandAt(0, value);
+    // If callers don't depend on a typecheck, they can pass in NULL. In that
+    // case we use a copy of the |value| argument as a dummy value.
+    SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
@@ -1909,10 +1917,7 @@ class HCheckMap: public HUnaryOperation {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
-#ifdef DEBUG
-  virtual void Verify();
-#endif
-
+  HValue* value() { return OperandAt(0); }
   Handle<Map> map() const { return map_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMap)
@@ -1979,10 +1984,6 @@ class HCheckInstanceType: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
-
-#ifdef DEBUG
-  virtual void Verify();
-#endif
 
   virtual HValue* Canonicalize();
 
@@ -2457,10 +2458,6 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();
   }
-
-#ifdef DEBUG
-  virtual void Verify();
-#endif
 
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }

@@ -790,6 +790,8 @@ class Object : public MaybeObject {
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
 
+  INLINE(bool IsSpecObject());
+
   // Oddball testing.
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
@@ -2048,6 +2050,7 @@ class FixedArrayBase: public HeapObject {
   static const int kHeaderSize = kLengthOffset + kPointerSize;
 };
 
+class FixedDoubleArray;
 
 // FixedArray describes fixed-sized arrays with element type Object*.
 class FixedArray: public FixedArrayBase {
@@ -2089,6 +2092,10 @@ class FixedArray: public FixedArrayBase {
 
   // Compute the union of this and other.
   MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
+
+  // Compute the union of this and other.
+  MUST_USE_RESULT MaybeObject* UnionOfDoubleKeys(
+      FixedDoubleArray* other);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -3480,13 +3487,14 @@ class Code: public HeapObject {
     UNARY_OP_IC,
     BINARY_OP_IC,
     COMPARE_IC,
+    TO_BOOLEAN_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
 
     // Pseudo-kinds.
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = COMPARE_IC
+    LAST_IC_KIND = TO_BOOLEAN_IC
   };
 
   enum {
@@ -3552,13 +3560,10 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_unary_op_stub() {
-    return kind() == UNARY_OP_IC;
-  }
-  inline bool is_binary_op_stub() {
-    return kind() == BINARY_OP_IC;
-  }
+  inline bool is_unary_op_stub() { return kind() == UNARY_OP_IC; }
+  inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
+  inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -3600,20 +3605,23 @@ class Code: public HeapObject {
   inline CheckType check_type();
   inline void set_check_type(CheckType value);
 
-  // [type-recording unary op type]: For all UNARY_OP_IC.
+  // [type-recording unary op type]: For kind UNARY_OP_IC.
   inline byte unary_op_type();
   inline void set_unary_op_type(byte value);
 
-  // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
+  // [type-recording binary op type]: For kind BINARY_OP_IC.
   inline byte binary_op_type();
   inline void set_binary_op_type(byte value);
   inline byte binary_op_result_type();
   inline void set_binary_op_result_type(byte value);
 
-  // [compare state]: For kind compare IC stubs, tells what state the
-  // stub is in.
+  // [compare state]: For kind COMPARE_IC, tells what state the stub is in.
   inline byte compare_state();
   inline void set_compare_state(byte value);
+
+  // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
+  inline byte to_boolean_state();
+  inline void set_to_boolean_state(byte value);
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
@@ -3756,9 +3764,10 @@ class Code: public HeapObject {
   static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
   static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
 
-  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
+  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
+  static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
   static const int kHasDeoptimizationSupportOffset = kOptimizableOffset + 1;
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;

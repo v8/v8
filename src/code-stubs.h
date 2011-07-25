@@ -900,14 +900,63 @@ class KeyedStoreElementStub : public CodeStub {
 
 class ToBooleanStub: public CodeStub {
  public:
-  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+  enum Type {
+    UNDEFINED,
+    BOOLEAN,
+    NULL_TYPE,
+    SMI,
+    SPEC_OBJECT,
+    STRING,
+    HEAP_NUMBER,
+    INTERNAL_OBJECT,
+    NUMBER_OF_TYPES
+  };
+
+  // At most 8 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set of these types. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 8);
+
+  class Types {
+   public:
+    Types() {}
+    explicit Types(byte bits) : set_(bits) {}
+
+    bool IsEmpty() const { return set_.IsEmpty(); }
+    bool Contains(Type type) const { return set_.Contains(type); }
+    void Add(Type type) { set_.Add(type); }
+    byte ToByte() const { return set_.ToIntegral(); }
+    void Print(StringStream* stream);
+    void TraceTransition(Types to);
+    bool Record(Handle<Object> object);
+
+   private:
+    EnumSet<Type, byte> set_;
+  };
+
+  explicit ToBooleanStub(Register tos, Types types = Types())
+      : tos_(tos), types_(types) { }
 
   void Generate(MacroAssembler* masm);
+  virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
+  virtual void PrintName(StringStream* stream);
 
  private:
-  Register tos_;
   Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return tos_.code(); }
+  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToByte(); }
+
+  virtual void FinishCode(Code* code) {
+    code->set_to_boolean_state(types_.ToByte());
+  }
+
+  void CheckOddball(MacroAssembler* masm,
+                    Type type,
+                    Handle<Object> value,
+                    bool result,
+                    Label* patch);
+  void GenerateTypeTransition(MacroAssembler* masm);
+
+  Register tos_;
+  Types types_;
 };
 
 } }  // namespace v8::internal

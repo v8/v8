@@ -158,6 +158,12 @@ bool Object::IsString() {
 }
 
 
+bool Object::IsSpecObject() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
+}
+
+
 bool Object::IsSymbol() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
@@ -2757,7 +2763,8 @@ int Code::major_key() {
   ASSERT(kind() == STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC);
+         kind() == COMPARE_IC ||
+         kind() == TO_BOOLEAN_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
 
@@ -2766,7 +2773,8 @@ void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC);
+         kind() == COMPARE_IC ||
+         kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
 }
@@ -2907,6 +2915,17 @@ void Code::set_compare_state(byte value) {
   WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
 }
 
+
+byte Code::to_boolean_state() {
+  ASSERT(is_to_boolean_ic_stub());
+  return READ_BYTE_FIELD(this, kToBooleanTypeOffset);
+}
+
+
+void Code::set_to_boolean_state(byte value) {
+  ASSERT(is_to_boolean_ic_stub());
+  WRITE_BYTE_FIELD(this, kToBooleanTypeOffset, value);
+}
 
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
