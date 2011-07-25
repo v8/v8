@@ -1,8 +1,19 @@
+2011-07-25: Version 3.5.0
+
+        Implemented Object.prototype.{hasOwnProperty, propertyIsEnumerable} for
+        proxies.
+
+        Removed logging to memory support.
+
+        Bugfixes and performance work.
+
+
 2011-07-20: Version 3.4.14
 
         Fix the debugger for strict-mode functions. (Chromium issue 89236)
 
-        Add GetPropertyAttribute method for Object in the API. (Patch by Peter Varga)
+        Add GetPropertyAttribute method for Object in the API. (Patch by 
+        Peter Varga)
 
         Fix -Wunused-but-set-variable for gcc-4.6 on x64. (Issue 1291)
 
