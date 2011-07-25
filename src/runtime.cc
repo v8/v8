@@ -1968,6 +1968,61 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, function, args[0]);
+
+  MaybeObject* maybe_name =
+      isolate->heap()->AllocateStringFromAscii(CStrVector("prototype"));
+  String* name;
+  if (!maybe_name->To(&name)) return maybe_name;
+
+  if (function->HasFastProperties()) {
+    // Construct a new field descriptor with updated attributes.
+    DescriptorArray* instance_desc = function->map()->instance_descriptors();
+    int index = instance_desc->Search(name);
+    ASSERT(index != DescriptorArray::kNotFound);
+    PropertyDetails details(instance_desc->GetDetails(index));
+    CallbacksDescriptor new_desc(name,
+        instance_desc->GetValue(index),
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
+        details.index());
+    // Construct a new field descriptors array containing the new descriptor.
+    Object* descriptors_unchecked;
+    { MaybeObject* maybe_descriptors_unchecked =
+        instance_desc->CopyInsert(&new_desc, REMOVE_TRANSITIONS);
+      if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
+        return maybe_descriptors_unchecked;
+      }
+    }
+    DescriptorArray* new_descriptors =
+        DescriptorArray::cast(descriptors_unchecked);
+    // Create a new map featuring the new field descriptors array.
+    Object* map_unchecked;
+    { MaybeObject* maybe_map_unchecked = function->map()->CopyDropDescriptors();
+      if (!maybe_map_unchecked->ToObject(&map_unchecked)) {
+        return maybe_map_unchecked;
+      }
+    }
+    Map* new_map = Map::cast(map_unchecked);
+    new_map->set_instance_descriptors(new_descriptors);
+    function->set_map(new_map);
+  } else {  // Dictionary properties.
+    // Directly manipulate the property details.
+    int entry = function->property_dictionary()->FindEntry(name);
+    ASSERT(entry != StringDictionary::kNotFound);
+    PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
+    PropertyDetails new_details(
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
+        details.type(),
+        details.index());
+    function->property_dictionary()->DetailsAtPut(entry, new_details);
+  }
+  return function;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsAPIFunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

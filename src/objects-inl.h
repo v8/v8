@@ -3268,8 +3268,6 @@ ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
 ACCESSORS(FunctionTemplateInfo, flag, Smi, kFlagOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_attributes, Smi,
-          kPrototypeAttributesOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
@@ -3324,6 +3322,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
+               kReadOnlyPrototypeBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,

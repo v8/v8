@@ -2471,6 +2471,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
 // callback setter removed.  The two lines looking up the LookupResult
 // result are also added.  If one of the functions is changed, the other
 // should be.
+// Note that this method cannot be used to set the prototype of a function
+// because ConvertDescriptorToField() which is called in "case CALLBACKS:"
+// doesn't handle function prototypes correctly.
 MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,

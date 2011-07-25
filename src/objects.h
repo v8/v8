@@ -6846,7 +6846,6 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
-  DECL_ACCESSORS(prototype_attributes, Smi)
 
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
@@ -6854,6 +6853,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   // If the bit is set, object instances created by this function
   // requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
+  DECL_BOOLEAN_ACCESSORS(read_only_prototype)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -6886,14 +6886,14 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kPrototypeAttributesOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kPrototypeAttributesOffset + kPointerSize;
+  static const int kSize = kFlagOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.
   static const int kHiddenPrototypeBit   = 0;
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
+  static const int kReadOnlyPrototypeBit = 3;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };
