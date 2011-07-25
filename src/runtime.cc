@@ -11192,7 +11192,6 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   if (sinfo->number_of_stack_slots() > 0) {
     index = scope_info->StackSlotIndex(isolate->heap()->arguments_symbol());
     if (index != -1) {
-      CHECK(false);
       return Handle<Object>(frame->GetExpression(index), isolate);
     }
   }
