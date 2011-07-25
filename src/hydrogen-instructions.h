@@ -3060,6 +3060,7 @@ class HShr: public HBitwiseBinaryOperation {
   HShr(HValue* context, HValue* left, HValue* right)
       : HBitwiseBinaryOperation(context, left, right) { }
 
+  virtual Range* InferRange();
   virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Shr)
