@@ -933,8 +933,12 @@ class HUnaryControlInstruction: public HTemplateControlInstruction<2, 1> {
 
 class HBranch: public HUnaryControlInstruction {
  public:
-  HBranch(HValue* value, HBasicBlock* true_target, HBasicBlock* false_target)
-      : HUnaryControlInstruction(value, true_target, false_target) {
+  HBranch(HValue* value,
+          HBasicBlock* true_target,
+          HBasicBlock* false_target,
+          ToBooleanStub::Types expected_input_types = ToBooleanStub::no_types())
+      : HUnaryControlInstruction(value, true_target, false_target),
+        expected_input_types_(expected_input_types) {
     ASSERT(true_target != NULL && false_target != NULL);
   }
   explicit HBranch(HValue* value)
@@ -945,7 +949,14 @@ class HBranch: public HUnaryControlInstruction {
     return Representation::None();
   }
 
+  ToBooleanStub::Types expected_input_types() const {
+    return expected_input_types_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Branch)
+
+ private:
+  ToBooleanStub::Types expected_input_types_;
 };
 
 

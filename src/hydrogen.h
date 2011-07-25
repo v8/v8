@@ -719,6 +719,8 @@ class HGraphBuilder: public AstVisitor {
                           HBasicBlock* second,
                           int join_id);
 
+  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
+
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
@@ -747,7 +749,6 @@ class HGraphBuilder: public AstVisitor {
   CompilationInfo* info() const {
     return function_state()->compilation_info();
   }
-  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
   AstContext* call_context() const {
     return function_state()->call_context();

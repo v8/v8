@@ -933,6 +933,8 @@ class ToBooleanStub: public CodeStub {
     EnumSet<Type, byte> set_;
   };
 
+  static Types no_types() { return Types(); }
+
   explicit ToBooleanStub(Register tos, Types types = Types())
       : tos_(tos), types_(types) { }
 

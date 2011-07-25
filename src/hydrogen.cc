@@ -2158,7 +2158,9 @@ void TestContext::BuildBranch(HValue* value) {
   }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
-  HBranch* test = new(zone()) HBranch(value, empty_true, empty_false);
+  unsigned test_id = condition()->test_id();
+  ToBooleanStub::Types expected(builder->oracle()->ToBooleanTypes(test_id));
+  HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
   empty_true->Goto(if_true());
@@ -5504,9 +5506,11 @@ void HGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
+    unsigned test_id = expr->left()->test_id();
+    ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
     HBranch* test = is_logical_and
-      ? new(zone()) HBranch(Top(), eval_right, empty_block)
-      : new(zone()) HBranch(Top(), empty_block, eval_right);
+      ? new(zone()) HBranch(Top(), eval_right, empty_block, expected)
+      : new(zone()) HBranch(Top(), empty_block, eval_right, expected);
     current_block()->Finish(test);
 
     set_current_block(eval_right);
