@@ -2246,7 +2246,6 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 void LCodeGen::DoLoadKeyedFastDoubleElement(
     LLoadKeyedFastDoubleElement* instr) {
-  Register elements = ToRegister(instr->elements());
   XMMRegister result(ToDoubleRegister(instr->result()));
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3101,14 +3100,11 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Register elements = ToRegister(instr->elements());
   Label have_value;
 
   __ ucomisd(value, value);
   __ j(parity_odd, &have_value);  // NaN.
 
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   __ Set(kScratchRegister, BitCast<uint64_t>(
       FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
   __ movq(value, kScratchRegister);
