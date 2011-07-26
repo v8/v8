@@ -238,7 +238,7 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void ReplaceCheckedValues();
-  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
+  void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -293,6 +293,7 @@ class HGraph: public ZoneObject {
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          Object* value);
 
+  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);

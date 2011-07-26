@@ -736,6 +736,8 @@ void HGraph::AssignDominators() {
   HPhase phase("Assign dominators", this);
   for (int i = 0; i < blocks_.length(); ++i) {
     if (blocks_[i]->IsLoopHeader()) {
+      // Only the first predecessor of a loop header is from outside the loop.
+      // All others are back edges, and thus cannot dominate the loop header.
       blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->first());
     } else {
       for (int j = 0; j < blocks_[i]->predecessors()->length(); ++j) {
@@ -743,13 +745,16 @@ void HGraph::AssignDominators() {
       }
     }
   }
+}
 
-  // Propagate flag marking blocks containing unconditional deoptimize.
+// Mark all blocks that are dominated by an unconditional soft deoptimize to
+// prevent code motion across those blocks.
+void HGraph::PropagateDeoptimizingMark()
+{
+  HPhase phase("Propagate deoptimizing mark", this);
   MarkAsDeoptimizingRecursively(entry_block());
 }
 
-
-// Mark all blocks that are dominated by an unconditional deoptimize.
 void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
   for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
     HBasicBlock* dominated = block->dominated_blocks()->at(i);
@@ -2295,6 +2300,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->OrderBlocks();
   graph()->AssignDominators();
+  graph()->PropagateDeoptimizingMark();
   graph()->EliminateRedundantPhis();
   if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
   if (!graph()->CollectPhis()) {
