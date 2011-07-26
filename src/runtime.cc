@@ -1666,7 +1666,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
   ASSERT(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(elements_count, 0);
-  if (elements_count > JSArray::kMaxFastElementsLength) {
+  if (elements_count < 0 ||
+      elements_count > FixedArray::kMaxLength ||
+      !Smi::IsValid(elements_count)) {
     return isolate->ThrowIllegalOperation();
   }
   Object* new_object;

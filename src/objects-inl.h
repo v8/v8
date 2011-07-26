@@ -1967,6 +1967,17 @@ void DescriptorArray::Swap(int first, int second) {
 
 
 template<typename Shape, typename Key>
+int HashTable<Shape, Key>::ComputeCapacity(int at_least_space_for) {
+  const int kMinCapacity = 32;
+  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  if (capacity < kMinCapacity) {
+    capacity = kMinCapacity;  // Guarantee min capacity.
+  }
+  return capacity;
+}
+
+
+template<typename Shape, typename Key>
 int HashTable<Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }
