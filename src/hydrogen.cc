@@ -749,8 +749,7 @@ void HGraph::AssignDominators() {
 
 // Mark all blocks that are dominated by an unconditional soft deoptimize to
 // prevent code motion across those blocks.
-void HGraph::PropagateDeoptimizingMark()
-{
+void HGraph::PropagateDeoptimizingMark() {
   HPhase phase("Propagate deoptimizing mark", this);
   MarkAsDeoptimizingRecursively(entry_block());
 }
