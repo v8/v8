@@ -184,6 +184,7 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
   V(ArrayElements)                             \
+  V(DoubleArrayElements)                       \
   V(SpecializedArrayElements)                  \
   V(GlobalVars)                                \
   V(Maps)                                      \
@@ -3536,7 +3537,7 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     set_representation(Representation::Double());
-    SetFlag(kDependsOnArrayElements);
+    SetFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
   }
 
@@ -3754,7 +3755,7 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-    SetFlag(kChangesArrayElements);
+    SetFlag(kChangesDoubleArrayElements);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
