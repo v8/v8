@@ -199,7 +199,7 @@ Handle<Value> Shell::Write(const Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    int n = fwrite(*str, sizeof(**str), str.length(), stdout);
+    int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
     if (n != str.length()) {
       printf("Error in fwrite\n");
       exit(1);
@@ -231,7 +231,7 @@ Handle<Value> Shell::ReadLine(const Arguments& args) {
   do {  // Repeat if the line ends with an escape '\'.
     // fgets got an error. Just give up.
     if (fgets(buffer, kBufferSize, stdin) == NULL) return Null();
-    length = strlen(buffer);
+    length = static_cast<int>(strlen(buffer));
     linebreak = (length > 1 && buffer[length-2] == '\\');
     if (linebreak) buffer[length-2] = '\n';
     accumulator = String::Concat(accumulator, String::New(buffer, length-1));
@@ -299,9 +299,12 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
   persistent_array.MarkIndependent();
-  array->SetIndexedPropertiesToExternalArrayData(data, type, length);
-  array->Set(String::New("length"), Int32::New(length), ReadOnly);
-  array->Set(String::New("BYTES_PER_ELEMENT"), Int32::New(element_size));
+  array->SetIndexedPropertiesToExternalArrayData(data, type,
+                                                 static_cast<int>(length));
+  array->Set(String::New("length"),
+             Int32::New(static_cast<int32_t>(length)), ReadOnly);
+  array->Set(String::New("BYTES_PER_ELEMENT"),
+             Int32::New(static_cast<int32_t>(element_size)));
   return array;
 }
 
@@ -790,7 +793,7 @@ static char* ReadChars(const char* name, int* size_out) {
   char* chars = new char[size + 1];
   chars[size] = '\0';
   for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
+    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
     i += read;
   }
   fclose(file);
@@ -981,7 +984,7 @@ Handle<String> SourceGroup::ReadFile(const char* name) {
   char* chars = new char[size + 1];
   chars[size] = '\0';
   for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
+    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
     i += read;
   }
   fclose(file);
