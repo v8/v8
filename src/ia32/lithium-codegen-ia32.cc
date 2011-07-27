@@ -1424,7 +1424,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       // The conversion stub doesn't cause garbage collections so it's
       // safe to not record a safepoint after the call.
       __ bind(&call_stub);
-      ToBooleanStub stub(eax);
+      ToBooleanStub stub(eax, ToBooleanStub::all_types());
       __ pushad();
       __ push(reg);
       __ CallStub(&stub);
