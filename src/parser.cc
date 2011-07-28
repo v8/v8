@@ -2755,7 +2755,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
           Handle<String> name = callee->name();
           Variable* var = top_scope_->Lookup(name);
           if (var == NULL) {
-            top_scope_->RecordEvalCall();
+            top_scope_->DeclarationScope()->RecordEvalCall();
           }
         }
         result = NewCall(result, args, pos);
