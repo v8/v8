@@ -1,3 +1,18 @@
+2011-07-28: Version 3.5.1
+
+        Fixed setting the readonly flag on the prototype property using the
+        API call FunctionTemplate::SetPrototypeAttributes (issue 1539).
+
+        Changed the tools/test.py script to use d8 instead of shell for
+        testing.
+
+        Fixed crash in ToBooleanStub when GC happens during invocation.
+
+        Enabled automatic unboxing of double arrays.
+
+        Performance improvements on all platforms.
+
+
 2011-07-25: Version 3.5.0
 
         Implemented Object.prototype.{hasOwnProperty, propertyIsEnumerable} for
