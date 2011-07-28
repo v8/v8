@@ -4532,7 +4532,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names,
                                    i == 0 ? 0 : local_property_count[i - 1]);
-    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
+    if (jsproto->HasHiddenProperties()) {
       proto_with_hidden_properties++;
     }
     if (i < length - 1) {
