@@ -861,7 +861,7 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange() {
-  if (representation().IsInteger32 ()) {
+  if (representation().IsInteger32()) {
     // Untagged integer32 cannot be -0.
     return new Range ();
   } else {
