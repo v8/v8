@@ -1230,6 +1230,30 @@ Range* HSar::InferRange() {
 }
 
 
+Range* HShr::InferRange() {
+  if (right()->IsConstant()) {
+    HConstant* c = HConstant::cast(right());
+    if (c->HasInteger32Value()) {
+      int shift_count = c->Integer32Value() & 0x1f;
+      if (left()->range()->CanBeNegative()) {
+        // Only compute bounds if the result always fits into an int32.
+        return (shift_count >= 1)
+            ? new Range(0, static_cast<uint32_t>(0xffffffff) >> shift_count)
+            : new Range();
+      } else {
+        // For positive inputs we can use the >> operator.
+        Range* result = (left()->range() != NULL)
+            ? left()->range()->Copy()
+            : new Range();
+        result->Sar(c->Integer32Value());
+        return result;
+      }
+    }
+  }
+  return HValue::InferRange();
+}
+
+
 Range* HShl::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());

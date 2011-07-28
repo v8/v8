@@ -142,6 +142,11 @@ MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
 }
 
 
+MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
+  return CopyFixedDoubleArrayWithMap(src, src->map());
+}
+
+
 MaybeObject* Heap::AllocateRaw(int size_in_bytes,
                                AllocationSpace space,
                                AllocationSpace retry_space) {

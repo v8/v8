@@ -1967,6 +1967,17 @@ void DescriptorArray::Swap(int first, int second) {
 
 
 template<typename Shape, typename Key>
+int HashTable<Shape, Key>::ComputeCapacity(int at_least_space_for) {
+  const int kMinCapacity = 32;
+  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  if (capacity < kMinCapacity) {
+    capacity = kMinCapacity;  // Guarantee min capacity.
+  }
+  return capacity;
+}
+
+
+template<typename Shape, typename Key>
 int HashTable<Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }
@@ -3268,8 +3279,6 @@ ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
 ACCESSORS(FunctionTemplateInfo, flag, Smi, kFlagOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_attributes, Smi,
-          kPrototypeAttributesOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
@@ -3324,6 +3333,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
+               kReadOnlyPrototypeBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,

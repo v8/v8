@@ -922,6 +922,7 @@ class ToBooleanStub: public CodeStub {
     explicit Types(byte bits) : set_(bits) {}
 
     bool IsEmpty() const { return set_.IsEmpty(); }
+    bool IsAll() const { return ToByte() == ((1 << NUMBER_OF_TYPES) - 1); }
     bool Contains(Type type) const { return set_.Contains(type); }
     void Add(Type type) { set_.Add(type); }
     byte ToByte() const { return set_.ToIntegral(); }
@@ -932,6 +933,9 @@ class ToBooleanStub: public CodeStub {
    private:
     EnumSet<Type, byte> set_;
   };
+
+  static Types no_types() { return Types(); }
+  static Types all_types() { return Types((1 << NUMBER_OF_TYPES) - 1); }
 
   explicit ToBooleanStub(Register tos, Types types = Types())
       : tos_(tos), types_(types) { }

@@ -1654,7 +1654,7 @@ class JSObject: public JSReceiver {
   bool ShouldConvertToFastElements();
   // Returns true if the elements of JSObject contains only values that can be
   // represented in a FixedDoubleArray.
-  bool ShouldConvertToFastDoubleElements();
+  bool CanConvertToFastDoubleElements();
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -1948,8 +1948,21 @@ class JSObject: public JSReceiver {
   // Also maximal value of JSArray's length property.
   static const uint32_t kMaxElementCount = 0xffffffffu;
 
+  // Constants for heuristics controlling conversion of fast elements
+  // to slow elements.
+
+  // Maximal gap that can be introduced by adding an element beyond
+  // the current elements length.
   static const uint32_t kMaxGap = 1024;
-  static const int kMaxFastElementsLength = 5000;
+
+  // Maximal length of fast elements array that won't be checked for
+  // being dense enough on expansion.
+  static const int kMaxUncheckedFastElementsLength = 5000;
+
+  // Same as above but for old arrays. This limit is more strict. We
+  // don't want to be wasteful with long lived objects.
+  static const int kMaxUncheckedOldFastElementsLength = 500;
+
   static const int kInitialMaxFastElementArray = 100000;
   static const int kMaxFastProperties = 12;
   static const int kMaxInstanceSize = 255 * kPointerSize;
@@ -2014,6 +2027,9 @@ class JSObject: public JSReceiver {
 
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
+
+  // Gets the current elements capacity and the number of used elements.
+  void GetElementsCapacityAndUsage(int* capacity, int* used);
 
   bool CanSetCallback(String* name);
   MUST_USE_RESULT MaybeObject* SetElementCallback(
@@ -2490,6 +2506,10 @@ class HashTable: public FixedArray {
   MUST_USE_RESULT static MaybeObject* Allocate(
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
+
+  // Computes the required capacity for a table holding the given
+  // number of elements. May be more than HashTable::kMaxCapacity.
+  static int ComputeCapacity(int at_least_space_for);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
@@ -6846,7 +6866,6 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
-  DECL_ACCESSORS(prototype_attributes, Smi)
 
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
@@ -6854,6 +6873,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   // If the bit is set, object instances created by this function
   // requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
+  DECL_BOOLEAN_ACCESSORS(read_only_prototype)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -6886,14 +6906,14 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kPrototypeAttributesOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kPrototypeAttributesOffset + kPointerSize;
+  static const int kSize = kFlagOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.
   static const int kHiddenPrototypeBit   = 0;
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
+  static const int kReadOnlyPrototypeBit = 3;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

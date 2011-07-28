@@ -348,8 +348,10 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ ret(1 * kPointerSize);
   }
 
-  __ bind(&patch);
-  GenerateTypeTransition(masm);
+  if (!types_.IsAll()) {
+    __ bind(&patch);
+    GenerateTypeTransition(masm);
+  }
 }
 
 

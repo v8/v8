@@ -7055,53 +7055,34 @@ THREADED_TEST(SetPrototype) {
 }
 
 
-THREADED_TEST(SetPrototypeProperties) {
+THREADED_TEST(FunctionReadOnlyPrototype) {
   v8::HandleScope handle_scope;
   LocalContext context;
 
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
-  t1->SetPrototypeAttributes(v8::DontDelete);
+  t1->PrototypeTemplate()->Set(v8_str("x"), v8::Integer::New(42));
+  t1->ReadOnlyPrototype();
   context->Global()->Set(v8_str("func1"), t1->GetFunction());
+  // Configured value of ReadOnly flag.
   CHECK(CompileRun(
       "(function() {"
       "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
-      "  return (descriptor['writable'] == true) &&"
-      "         (descriptor['enumerable'] == true) &&"
-      "         (descriptor['configurable'] == false);"
+      "  return (descriptor['writable'] == false);"
       "})()")->BooleanValue());
+  CHECK_EQ(42, CompileRun("func1.prototype.x")->Int32Value());
+  CHECK_EQ(42,
+           CompileRun("func1.prototype = {}; func1.prototype.x")->Int32Value());
 
   Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
-  t2->SetPrototypeAttributes(v8::DontEnum);
+  t2->PrototypeTemplate()->Set(v8_str("x"), v8::Integer::New(42));
   context->Global()->Set(v8_str("func2"), t2->GetFunction());
+  // Default value of ReadOnly flag.
   CHECK(CompileRun(
       "(function() {"
       "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
-      "  return (descriptor['writable'] == true) &&"
-      "         (descriptor['enumerable'] == false) &&"
-      "         (descriptor['configurable'] == true);"
+      "  return (descriptor['writable'] == true);"
       "})()")->BooleanValue());
-
-  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
-  t3->SetPrototypeAttributes(v8::ReadOnly);
-  context->Global()->Set(v8_str("func3"), t3->GetFunction());
-  CHECK(CompileRun(
-      "(function() {"
-      "  descriptor = Object.getOwnPropertyDescriptor(func3, 'prototype');"
-      "  return (descriptor['writable'] == false) &&"
-      "         (descriptor['enumerable'] == true) &&"
-      "         (descriptor['configurable'] == true);"
-      "})()")->BooleanValue());
-
-  Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New();
-  t4->SetPrototypeAttributes(v8::ReadOnly | v8::DontEnum | v8::DontDelete);
-  context->Global()->Set(v8_str("func4"), t4->GetFunction());
-  CHECK(CompileRun(
-      "(function() {"
-      "  descriptor = Object.getOwnPropertyDescriptor(func4, 'prototype');"
-      "  return (descriptor['writable'] == false) &&"
-      "         (descriptor['enumerable'] == false) &&"
-      "         (descriptor['configurable'] == false);"
-      "})()")->BooleanValue());
+  CHECK_EQ(42, CompileRun("func2.prototype.x")->Int32Value());
 }
 
 

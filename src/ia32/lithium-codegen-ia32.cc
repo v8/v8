@@ -1424,7 +1424,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       // The conversion stub doesn't cause garbage collections so it's
       // safe to not record a safepoint after the call.
       __ bind(&call_stub);
-      ToBooleanStub stub(eax);
+      ToBooleanStub stub(eax, ToBooleanStub::all_types());
       __ pushad();
       __ push(reg);
       __ CallStub(&stub);
@@ -2232,7 +2232,6 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 void LCodeGen::DoLoadKeyedFastDoubleElement(
     LLoadKeyedFastDoubleElement* instr) {
-  Register elements = ToRegister(instr->elements());
   XMMRegister result = ToDoubleRegister(instr->result());
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3097,7 +3096,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Register elements = ToRegister(instr->elements());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Label have_value;
 
