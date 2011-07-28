@@ -926,9 +926,10 @@ class ToBooleanStub: public CodeStub {
     bool Contains(Type type) const { return set_.Contains(type); }
     void Add(Type type) { set_.Add(type); }
     byte ToByte() const { return set_.ToIntegral(); }
-    void Print(StringStream* stream);
-    void TraceTransition(Types to);
+    void Print(StringStream* stream) const;
+    void TraceTransition(Types to) const;
     bool Record(Handle<Object> object);
+    bool NeedsMap() const;
 
    private:
     EnumSet<Type, byte> set_;

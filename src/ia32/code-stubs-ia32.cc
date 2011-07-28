@@ -258,12 +258,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // 'null' -> false.
   CheckOddball(masm, NULL_TYPE, factory->null_value(), false, &patch);
 
-  bool need_map =
-      types_.Contains(SPEC_OBJECT) |
-      types_.Contains(STRING) |
-      types_.Contains(HEAP_NUMBER) |
-      types_.Contains(INTERNAL_OBJECT);
-
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
     Label not_smi;
@@ -274,12 +268,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     }
     __ ret(1 * kPointerSize);
     __ bind(&not_smi);
-  } else if (need_map) {
+  } else if (types_.NeedsMap()) {
     // If we need a map later and have a Smi -> patch.
     __ JumpIfSmi(argument, &patch, Label::kNear);
   }
 
-  if (need_map) {
+  if (types_.NeedsMap()) {
     __ mov(map, FieldOperand(argument, HeapObject::kMapOffset));
 
     // Everything with a map could be undetectable, so check this now.
