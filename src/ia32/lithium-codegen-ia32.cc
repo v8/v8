@@ -1392,10 +1392,9 @@ void LCodeGen::DoBranch(LBranch* instr) {
     EmitBranch(true_block, false_block, not_equal);
   } else {
     ASSERT(r.IsTagged());
-    Factory* factory = this->factory();
     Register reg = ToRegister(instr->InputAt(0));
     if (instr->hydrogen()->value()->type().IsBoolean()) {
-      __ cmp(reg, factory->true_value());
+      __ cmp(reg, factory()->true_value());
       EmitBranch(true_block, false_block, equal);
     } else {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
@@ -1407,41 +1406,41 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::UNDEFINED)) {
         // undefined -> false.
-        __ cmp(reg, factory->undefined_value());
+        __ cmp(reg, factory()->undefined_value());
         __ j(equal, false_label);
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
         // We've seen undefined for the first time -> deopt.
-        __ cmp(reg, factory->undefined_value());
+        __ cmp(reg, factory()->undefined_value());
         DeoptimizeIf(equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // true -> true.
-        __ cmp(reg, factory->true_value());
+        __ cmp(reg, factory()->true_value());
         __ j(equal, true_label);
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a string for the first time -> deopt.
-        __ cmp(reg, factory->true_value());
+        // We've seen a boolean for the first time -> deopt.
+        __ cmp(reg, factory()->true_value());
         DeoptimizeIf(equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // false -> false.
-        __ cmp(reg, factory->false_value());
+        __ cmp(reg, factory()->false_value());
         __ j(equal, false_label);
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a string for the first time -> deopt.
-        __ cmp(reg, factory->false_value());
+        // We've seen a boolean for the first time -> deopt.
+        __ cmp(reg, factory()->false_value());
         DeoptimizeIf(equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
         // 'null' -> false.
-        __ cmp(reg, factory->null_value());
+        __ cmp(reg, factory()->null_value());
         __ j(equal, false_label);
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
         // We've seen null for the first time -> deopt.
-        __ cmp(reg, factory->null_value());
+        __ cmp(reg, factory()->null_value());
         DeoptimizeIf(equal, instr->environment());
       }
 
@@ -1497,7 +1496,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-               factory->heap_number_map());
+               factory()->heap_number_map());
         __ j(not_equal, &not_heap_number, Label::kNear);
         __ fldz();
         __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
@@ -1508,7 +1507,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
         // We've seen a heap number for the first time -> deopt.
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-               factory->heap_number_map());
+               factory()->heap_number_map());
         DeoptimizeIf(equal, instr->environment());
       }
 
