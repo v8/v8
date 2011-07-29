@@ -481,6 +481,7 @@ void HValue::RegisterUse(int index, HValue* new_value) {
 
 void HValue::AddNewRange(Range* r) {
   if (!HasRange()) ComputeInitialRange();
+  if (!HasRange()) range_ = new Range();
   ASSERT(HasRange());
   r->StackUpon(range_);
   range_ = r;
@@ -861,22 +862,27 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange() {
-  if (representation().IsInteger32()) {
-    // Untagged integer32 cannot be -0.
-    return new Range ();
-  } else {
-    // Tagged values, untagged doubles, and values with unknown representation
-    // can contain -0.
+  if (representation().IsTagged()) {
+    // Tagged values are always in int32 range when converted to integer,
+    // but they can contain -0.
     Range* result = new Range();
     result->set_can_be_minus_zero(true);
     return result;
+  } else if (representation().IsNone()) {
+    return NULL;
+  } else {
+    // Untagged integer32 cannot be -0 and we don't compute ranges for
+    // untagged doubles.
+    return new Range();
   }
 }
 
 
 Range* HConstant::InferRange() {
   if (has_int32_value_) {
-    return new Range(int32_value_, int32_value_);
+    Range* result = new Range(int32_value_, int32_value_);
+    result->set_can_be_minus_zero(false);
+    return result;
   }
   return HValue::InferRange();
 }
@@ -885,7 +891,8 @@ Range* HConstant::InferRange() {
 Range* HPhi::InferRange() {
   if (representation().IsInteger32()) {
     if (block()->IsLoopHeader()) {
-      return new Range();
+      Range* range = new Range(kMinInt, kMaxInt);
+      return range;
     } else {
       Range* range = OperandAt(0)->range()->Copy();
       for (int i = 1; i < OperandCount(); ++i) {
