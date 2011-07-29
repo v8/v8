@@ -560,6 +560,21 @@ void String::StringPrint(FILE* out) {
 }
 
 
+// This method is only meant to be called from gdb for debugging purposes.
+// Since the string can also be in two-byte encoding, non-ascii characters
+// will be ignored in the output.
+char* String::ToAsciiArray() {
+  // Static so that subsequent calls frees previously allocated space.
+  // This also means that previous results will be overwritten.
+  static char* buffer = NULL;
+  if (buffer != NULL) free(buffer);
+  buffer = new char[length()+1];
+  WriteToFlat(this, buffer, 0, length());
+  buffer[length()] = 0;
+  return buffer;
+}
+
+
 void JSProxy::JSProxyPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSProxy");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
