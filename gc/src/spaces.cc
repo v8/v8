@@ -160,7 +160,7 @@ bool CodeRange::Setup(const size_t requested) {
   Address aligned_base =
       RoundUp(reinterpret_cast<Address>(code_range_->address()),
               MemoryChunk::kAlignment);
-  int size = code_range_->size() - (aligned_base - base);
+  size_t size = code_range_->size() - (aligned_base - base);
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
   return true;
@@ -320,7 +320,8 @@ Address MemoryAllocator::ReserveAlignedMemory(const size_t requested,
   ASSERT(IsAligned(alignment, OS::AllocateAlignment()));
   if (size_ + requested > capacity_) return NULL;
 
-  size_t allocated = RoundUp(requested + alignment, OS::AllocateAlignment());
+  size_t allocated = RoundUp(requested + alignment,
+                             static_cast<intptr_t>(OS::AllocateAlignment()));
 
   Address base = reinterpret_cast<Address>(
       VirtualMemory::ReserveRegion(allocated));
@@ -515,7 +516,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 #ifdef DEBUG
   ZapBlock(base, chunk_size);
 #endif
-  isolate_->counters()->memory_allocated()->Increment(chunk_size);
+  isolate_->counters()->memory_allocated()->
+      Increment(static_cast<int>(chunk_size));
 
   LOG(isolate_, NewEvent("MemoryChunk", base, chunk_size));
   if (owner != NULL) {
@@ -1839,8 +1841,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int bytes_left = new_node_size - size_in_bytes;
   ASSERT(bytes_left >= 0);
 
-  int old_linear_size = owner_->limit() - owner_->top();
-
+  int old_linear_size = static_cast<int>(owner_->limit() - owner_->top());
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
@@ -1966,7 +1967,7 @@ void PagedSpace::PrepareForMarkCompact() {
   // on the first allocation after the sweep.
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.
-  int old_linear_size = limit() - top();
+  int old_linear_size = static_cast<int>(limit() - top());
   Free(top(), old_linear_size);
   SetTop(NULL, NULL);
 
@@ -1996,7 +1997,7 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
   if (new_area == NULL) new_area = SlowAllocateRaw(size_in_bytes);
   if (new_area == NULL) return false;
 
-  int old_linear_size = limit() - top();
+  int old_linear_size = static_cast<int>(limit() - top());
   // Mark the old linear allocation area with a free space so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
@@ -2018,7 +2019,7 @@ bool LargeObjectSpace::ReserveSpace(int bytes) {
 bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   if (IsSweepingComplete()) return true;
 
-  int freed_bytes = 0;
+  intptr_t freed_bytes = 0;
   Page* last = last_unswept_page_->next_page();
   Page* p = first_unswept_page_;
   do {
@@ -2483,8 +2484,7 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
 
   bool owned = (chunk->owner() == this);
 
-  SLOW_ASSERT(!owned
-              || !FindObject(address)->IsFailure());
+  SLOW_ASSERT(!owned || !FindObject(address)->IsFailure());
 
   return owned;
 }

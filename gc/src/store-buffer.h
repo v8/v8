@@ -84,7 +84,7 @@ class StoreBuffer {
   static const int kStoreBufferOverflowBit = 1 << 16;
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
-  static const int kOldStoreBufferLength = kStoreBufferLength * 64;
+  static const int kOldStoreBufferLength = kStoreBufferLength * 16;
   static const int kHashMapLengthLog2 = 12;
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 

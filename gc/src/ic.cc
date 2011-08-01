@@ -88,7 +88,8 @@ void IC::TraceIC(const char* type,
       // function and the original code.
       JSFunction* function = JSFunction::cast(frame->function());
       function->PrintName();
-      int code_offset = address() - js_code->instruction_start();
+      int code_offset =
+          static_cast<int>(address() - js_code->instruction_start());
       PrintF("+%d", code_offset);
     } else {
       PrintF("<unknown>");

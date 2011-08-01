@@ -352,7 +352,7 @@ class MemoryChunk {
 
   Address body_limit() { return address() + size(); }
 
-  int body_size() { return size() - kObjectStartOffset; }
+  int body_size() { return static_cast<int>(size() - kObjectStartOffset); }
 
   bool Contains(Address addr) {
     return addr >= body() && addr < address() + size();

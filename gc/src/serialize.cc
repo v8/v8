@@ -631,6 +631,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
       maybe_new_allocation =
           reinterpret_cast<PagedSpace*>(space)->AllocateRaw(size);
     }
+    ASSERT(!maybe_new_allocation->IsFailure());
     Object* new_allocation = maybe_new_allocation->ToObjectUnchecked();
     HeapObject* new_object = HeapObject::cast(new_allocation);
     address = new_object->address();
@@ -691,6 +692,7 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 
 void Deserializer::Deserialize() {
   isolate_ = Isolate::Current();
+  ASSERT(isolate_ != NULL);
   // Don't GC while deserializing - just expand the heap.
   Address* store_buffer_top =
       reinterpret_cast<Address*>(isolate_->heap()->store_buffer_top());

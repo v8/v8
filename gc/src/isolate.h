@@ -772,7 +772,7 @@ class Isolate {
     return name##_;                                                     \
   }                                                                     \
   inline void set_##name(type value) {                                  \
-    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    ASSERT_EQ(OFFSET_OF(Isolate, name##_), name##_debug_offset_);       \
     name##_ = value;                                                    \
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)

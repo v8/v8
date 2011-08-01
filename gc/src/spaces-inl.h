@@ -168,7 +168,8 @@ Page* Page::Initialize(Heap* heap,
   ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(Page::kObjectAreaSize);
   owner->Free(page->ObjectAreaStart(),
-              page->ObjectAreaEnd() - page->ObjectAreaStart());
+              static_cast<int>(page->ObjectAreaEnd() -
+                               page->ObjectAreaStart()));
 
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
 
@@ -301,13 +302,13 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
       allocation_info_.limit = Min(
           allocation_info_.limit + inline_allocation_limit_step_,
           high);
-      int bytes_allocated = new_top - top_on_previous_step_;
+      int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
       heap()->incremental_marking()->Step(bytes_allocated);
       top_on_previous_step_ = new_top;
       return AllocateRawInternal(size_in_bytes);
     } else if (AddFreshPage()) {
       // Switched to new page. Try allocating again.
-      int bytes_allocated = old_top - top_on_previous_step_;
+      int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
       heap()->incremental_marking()->Step(bytes_allocated);
       top_on_previous_step_ = to_space_.page_low();
       return AllocateRawInternal(size_in_bytes);

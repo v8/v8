@@ -1202,7 +1202,7 @@ class Heap {
            (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
-  inline void LowerOldGenLimits(int bytes) {
+  inline void LowerOldGenLimits(intptr_t bytes) {
     old_gen_promotion_limit_ -= bytes;
     old_gen_allocation_limit_ -= bytes;
   }

@@ -112,7 +112,7 @@ static inline T AddressFrom(intptr_t x) {
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
-static inline T RoundDown(T x, int m) {
+static inline T RoundDown(T x, intptr_t m) {
   ASSERT(IsPowerOf2(m));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
@@ -120,8 +120,8 @@ static inline T RoundDown(T x, int m) {
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
-static inline T RoundUp(T x, int m) {
-  return RoundDown(x + m - 1, m);
+static inline T RoundUp(T x, intptr_t m) {
+  return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
 
 

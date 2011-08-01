@@ -397,7 +397,7 @@ void IncrementalMarking::StartMarking() {
 
   // Initialize marking stack.
   Address addr = static_cast<Address>(marking_deque_memory_->address());
-  int size = marking_deque_memory_->size();
+  size_t size = marking_deque_memory_->size();
   if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
   marking_deque_.Initialize(addr, addr + size);
 
@@ -432,11 +432,11 @@ void IncrementalMarking::PrepareForScavenge() {
 void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   if (!IsMarking()) return;
 
-  intptr_t current = marking_deque_.bottom();
-  intptr_t mask = marking_deque_.mask();
-  intptr_t limit = marking_deque_.top();
+  int current = marking_deque_.bottom();
+  int mask = marking_deque_.mask();
+  int limit = marking_deque_.top();
   HeapObject** array = marking_deque_.array();
-  intptr_t new_top = current;
+  int new_top = current;
 
   Map* filler_map = heap_->one_pointer_filler_map();
 

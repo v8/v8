@@ -188,7 +188,7 @@ class MarkingDeque {
     HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
     HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
     array_ = obj_low;
-    mask_ = RoundDownToPowerOf2(obj_high - obj_low) - 1;
+    mask_ = RoundDownToPowerOf2(static_cast<int>(obj_high - obj_low)) - 1;
     top_ = bottom_ = 0;
     overflowed_ = false;
   }
@@ -248,10 +248,10 @@ class MarkingDeque {
   }
 
   HeapObject** array() { return array_; }
-  intptr_t bottom() { return bottom_; }
-  intptr_t top() { return top_; }
-  intptr_t mask() { return mask_; }
-  void set_top(intptr_t top) { top_ = top; }
+  int bottom() { return bottom_; }
+  int top() { return top_; }
+  int mask() { return mask_; }
+  void set_top(int top) { top_ = top; }
 
  private:
   HeapObject** array_;
@@ -301,7 +301,8 @@ class SlotsBuffer {
 
   static int SizeOfChain(SlotsBuffer* buffer) {
     if (buffer == NULL) return 0;
-    return buffer->idx_ + (buffer->chain_length_ - 1) * kNumberOfElements;
+    return static_cast<int>(buffer->idx_ +
+                            (buffer->chain_length_ - 1) * kNumberOfElements);
   }
 
   inline bool IsFull() {
@@ -441,7 +442,7 @@ class MarkCompactCollector {
 
   // Sweep a single page from the given space conservatively.
   // Return a number of reclaimed bytes.
-  static int SweepConservatively(PagedSpace* space, Page* p);
+  static intptr_t SweepConservatively(PagedSpace* space, Page* p);
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
     return Page::FromAddress(reinterpret_cast<Address>(anchor))->
