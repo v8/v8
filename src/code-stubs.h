@@ -955,7 +955,7 @@ class ToBooleanStub: public CodeStub {
 
   void CheckOddball(MacroAssembler* masm,
                     Type type,
-                    Handle<Object> value,
+                    Heap::RootListIndex value,
                     bool result,
                     Label* patch);
   void GenerateTypeTransition(MacroAssembler* masm);
