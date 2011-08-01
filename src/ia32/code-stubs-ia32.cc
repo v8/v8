@@ -255,7 +255,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
   CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
 
-  // 'null' -> false.!!!
+  // 'null' -> false.
   CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
 
   if (types_.Contains(SMI)) {

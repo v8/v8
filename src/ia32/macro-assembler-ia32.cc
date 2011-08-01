@@ -265,8 +265,7 @@ void MacroAssembler::SafePush(const Immediate& x) {
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   // see ROOT_ACCESSOR macro in factory.h
-  Handle<Object> value(BitCast<Object**>(
-      &isolate()->heap()->roots_address()[index]));
+  Handle<Object> value(&isolate()->heap()->roots_address()[index]);
   cmp(with, value);
 }
 
