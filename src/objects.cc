@@ -2967,6 +2967,91 @@ MaybeObject* JSObject::NormalizeElements() {
 }
 
 
+MaybeObject* JSObject::GetHiddenProperties(HiddenPropertiesFlag flag) {
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
+  Object* holder = BypassGlobalProxy();
+  if (holder->IsUndefined()) return heap->undefined_value();
+  JSObject* obj = JSObject::cast(holder);
+  if (obj->HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = obj->map()->instance_descriptors();
+    if ((descriptors->number_of_descriptors() > 0) &&
+        (descriptors->GetKey(0) == heap->hidden_symbol()) &&
+        descriptors->IsProperty(0)) {
+      ASSERT(descriptors->GetType(0) == FIELD);
+      return obj->FastPropertyAt(descriptors->GetFieldIndex(0));
+    }
+  }
+
+  // Only attempt to find the hidden properties in the local object and not
+  // in the prototype chain.
+  if (!obj->HasHiddenPropertiesObject()) {
+    // Hidden properties object not found. Allocate a new hidden properties
+    // object if requested. Otherwise return the undefined value.
+    if (flag == ALLOW_CREATION) {
+      Object* hidden_obj;
+      { MaybeObject* maybe_obj = heap->AllocateJSObject(
+            isolate->context()->global_context()->object_function());
+        if (!maybe_obj->ToObject(&hidden_obj)) return maybe_obj;
+      }
+      return obj->SetHiddenPropertiesObject(hidden_obj);
+    } else {
+      return heap->undefined_value();
+    }
+  }
+  return obj->GetHiddenPropertiesObject();
+}
+
+
+MaybeObject* JSObject::GetIdentityHash(HiddenPropertiesFlag flag) {
+  Isolate* isolate = GetIsolate();
+  Object* hidden_props_obj;
+  { MaybeObject* maybe_obj = GetHiddenProperties(flag);
+    if (!maybe_obj->ToObject(&hidden_props_obj)) return maybe_obj;
+  }
+  if (!hidden_props_obj->IsJSObject()) {
+    // We failed to create hidden properties.  That's a detached
+    // global proxy.
+    ASSERT(hidden_props_obj->IsUndefined());
+    return Smi::FromInt(0);
+  }
+  JSObject* hidden_props = JSObject::cast(hidden_props_obj);
+  String* hash_symbol = isolate->heap()->identity_hash_symbol();
+  {
+    // Note that HasLocalProperty() can cause a GC in the general case in the
+    // presence of interceptors.
+    AssertNoAllocation no_alloc;
+    if (hidden_props->HasLocalProperty(hash_symbol)) {
+      MaybeObject* hash = hidden_props->GetProperty(hash_symbol);
+      return Smi::cast(hash->ToObjectChecked());
+    }
+  }
+
+  int hash_value;
+  int attempts = 0;
+  do {
+    // Generate a random 32-bit hash value but limit range to fit
+    // within a smi.
+    hash_value = V8::Random(isolate) & Smi::kMaxValue;
+    attempts++;
+  } while (hash_value == 0 && attempts < 30);
+  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
+
+  Smi* hash = Smi::FromInt(hash_value);
+  { MaybeObject* result = hidden_props->SetLocalPropertyIgnoreAttributes(
+        hash_symbol,
+        hash,
+        static_cast<PropertyAttributes>(None));
+    if (result->IsFailure()) return result;
+  }
+  return hash;
+}
+
+
 MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
                                                      DeleteMode mode) {
   // Check local property, ignore interceptor.
@@ -10380,6 +10465,8 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
+template class HashTable<ObjectHashTableShape, JSObject*>;
+
 template class Dictionary<StringDictionaryShape, String*>;
 
 template class Dictionary<NumberDictionaryShape, uint32_t>;
@@ -11688,6 +11775,64 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   ASSERT(obj->HasFastProperties());
 
   return obj;
+}
+
+
+Object* ObjectHashTable::Lookup(JSObject* key) {
+  // If the object does not have an identity hash, it was never used as a key.
+  MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::OMIT_CREATION);
+  if (maybe_hash->IsFailure()) return GetHeap()->undefined_value();
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return GetHeap()->undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
+MaybeObject* ObjectHashTable::Put(JSObject* key, Object* value) {
+  // Make sure the key object has an identity hash code.
+  int hash;
+  { MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::ALLOW_CREATION);
+    if (maybe_hash->IsFailure()) return maybe_hash;
+    hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+  }
+  int entry = FindEntry(key);
+
+  // Check whether to perform removal operation.
+  if (value->IsUndefined()) {
+    if (entry == kNotFound) return this;
+    RemoveEntry(entry);
+    return Shrink(key);
+  }
+
+  // Key is already in table, just overwrite value.
+  if (entry != kNotFound) {
+    set(EntryToIndex(entry) + 1, value);
+    return this;
+  }
+
+  // Check whether the hash table should be extended.
+  Object* obj;
+  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  ObjectHashTable* table = ObjectHashTable::cast(obj);
+  table->AddEntry(table->FindInsertionEntry(hash), key, value);
+  return table;
+}
+
+
+void ObjectHashTable::AddEntry(int entry, JSObject* key, Object* value) {
+  set(EntryToIndex(entry), key);
+  set(EntryToIndex(entry) + 1, value);
+  ElementAdded();
+}
+
+
+void ObjectHashTable::RemoveEntry(int entry) {
+  Object* null_value = GetHeap()->null_value();
+  set(EntryToIndex(entry), null_value);
+  set(EntryToIndex(entry) + 1, null_value);
+  ElementRemoved();
 }
 
 

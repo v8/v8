@@ -1638,6 +1638,23 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* SetHiddenPropertiesObject(
       Object* hidden_obj);
 
+  // Indicates whether the hidden properties object should be created.
+  enum HiddenPropertiesFlag { ALLOW_CREATION, OMIT_CREATION };
+
+  // Retrieves the hidden properties object.
+  //
+  // The undefined value might be returned in case no hidden properties object
+  // is present and creation was omitted.
+  inline bool HasHiddenProperties();
+  MUST_USE_RESULT MaybeObject* GetHiddenProperties(HiddenPropertiesFlag flag);
+
+  // Retrieves a permanent object identity hash code.
+  //
+  // The identity hash is stored as a hidden property. The undefined value might
+  // be returned in case no hidden properties object is present and creation was
+  // omitted.
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(HiddenPropertiesFlag flag);
+
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
@@ -2930,6 +2947,40 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   static const int kRequiresSlowElementsMask = 1;
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
+};
+
+
+class ObjectHashTableShape {
+ public:
+  static inline bool IsMatch(JSObject* key, Object* other);
+  static inline uint32_t Hash(JSObject* key);
+  static inline uint32_t HashForObject(JSObject* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(JSObject* key);
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+};
+
+
+// ObjectHashTable maps keys that are JavaScript objects to object values by
+// using the identity hash of the key for hashing purposes.
+class ObjectHashTable: public HashTable<ObjectHashTableShape, JSObject*> {
+ public:
+  static inline ObjectHashTable* cast(Object* obj) {
+    ASSERT(obj->IsHashTable());
+    return reinterpret_cast<ObjectHashTable*>(obj);
+  }
+
+  // Looks up the value associated with the given key. The undefined value is
+  // returned in case the key is not present.
+  Object* Lookup(JSObject* key);
+
+  // Adds (or overwrites) the value associated with the given key. Mapping a
+  // key to the undefined value causes removal of the whole entry.
+  MUST_USE_RESULT MaybeObject* Put(JSObject* key, Object* value);
+
+ private:
+  void AddEntry(int entry, JSObject* key, Object* value);
+  void RemoveEntry(int entry);
 };
 
 
@@ -5876,6 +5927,8 @@ class String: public HeapObject {
     StringPrint(stdout);
   }
   void StringPrint(FILE* out);
+
+  char* ToAsciiArray();
 #endif
 #ifdef DEBUG
   void StringVerify();

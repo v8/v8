@@ -336,7 +336,7 @@ void ToBooleanStub::PrintName(StringStream* stream) {
 }
 
 
-void ToBooleanStub::Types::Print(StringStream* stream) {
+void ToBooleanStub::Types::Print(StringStream* stream) const {
   if (IsEmpty()) stream->Add("None");
   if (Contains(UNDEFINED)) stream->Add("Undefined");
   if (Contains(BOOLEAN)) stream->Add("Bool");
@@ -349,7 +349,7 @@ void ToBooleanStub::Types::Print(StringStream* stream) {
 }
 
 
-void ToBooleanStub::Types::TraceTransition(Types to) {
+void ToBooleanStub::Types::TraceTransition(Types to) const {
   if (!FLAG_trace_ic) return;
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
@@ -392,6 +392,14 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
     Add(INTERNAL_OBJECT);
     return !object->IsUndetectableObject();
   }
+}
+
+
+bool ToBooleanStub::Types::NeedsMap() const {
+  return Contains(ToBooleanStub::SPEC_OBJECT)
+      || Contains(ToBooleanStub::STRING)
+      || Contains(ToBooleanStub::HEAP_NUMBER)
+      || Contains(ToBooleanStub::INTERNAL_OBJECT);
 }
 
 

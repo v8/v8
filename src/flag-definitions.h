@@ -400,6 +400,7 @@ DEFINE_bool(print_json_ast, false, "print source AST as JSON")
 DEFINE_bool(print_builtin_json_ast, false,
             "print source AST for builtins as JSON")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(verify_stack_height, false, "verify stack height tracing on ia32")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
