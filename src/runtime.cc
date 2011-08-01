@@ -1172,7 +1172,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
             return ThrowRedeclarationError(isolate, "const", name);
           }
           // Otherwise, we check for locally conflicting declarations.
-          if (is_local && (is_read_only || is_const_property)) {
+          if (is_local && is_const_property) {
             const char* type = (is_read_only) ? "const" : "var";
             return ThrowRedeclarationError(isolate, type, name);
           }
@@ -1406,12 +1406,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
           // make sure to introduce it.
           found = false;
         } else if ((intercepted & READ_ONLY) != 0) {
-          // The property is present, but read-only. Since we're trying to
-          // overwrite it with a variable declaration we must throw a
-          // re-declaration error.  However if we found readonly property
+          // The property is present, but read-only, so we ignore the
+          // redeclaration. However if we found readonly property
           // on one of hidden prototypes, just shadow it.
           if (real_holder != isolate->context()->global()) break;
-          return ThrowRedeclarationError(isolate, "const", name);
+          return isolate->heap()->undefined_value();
         }
       }
 

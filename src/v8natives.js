@@ -162,13 +162,14 @@ function GlobalEval(x) {
 
 function SetupGlobal() {
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "undefined", void 0,
+               DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // Setup non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
