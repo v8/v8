@@ -3641,10 +3641,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   }
 
   int num_parameters = 0;
-  // Function declarations are hoisted.
-  Scope* scope = (type == DECLARATION)
-      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
-      : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
+  Scope* scope = NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
   int materialized_literal_count;
   int expected_property_count;
