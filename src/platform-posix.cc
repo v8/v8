@@ -70,6 +70,7 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+#ifndef __CYGWIN__
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {
   mprotect(address, size, PROT_READ | PROT_EXEC);
@@ -80,6 +81,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 void OS::Guard(void* address, const size_t size) {
   mprotect(address, size, PROT_NONE);
 }
+#endif  // __CYGWIN__
 
 
 // ----------------------------------------------------------------------------
