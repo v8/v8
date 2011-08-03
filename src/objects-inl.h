@@ -1612,6 +1612,7 @@ Object* FixedArray::get(int index) {
 
 void FixedArray::set(int index, Smi* value) {
   ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(index >= 0 && index < this->length());
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
