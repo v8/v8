@@ -666,7 +666,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapSet) {
   CONVERT_ARG_CHECKED(JSObject, key, 1);
   Handle<Object> value(args[2]);
   Handle<ObjectHashTable> table(weakmap->table());
-  weakmap->set_table(*PutIntoObjectHashTable(table, key, value));
+  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  weakmap->set_table(*new_table);
   return *value;
 }
 
