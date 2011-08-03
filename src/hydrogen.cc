@@ -2269,11 +2269,11 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->OrderBlocks();
   graph()->AssignDominators();
+  graph()->EliminateRedundantPhis();
   if (!graph()->CheckPhis()) {
     Bailout("Unsupported phi use of arguments object");
     return NULL;
   }
-  graph()->EliminateRedundantPhis();
   if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
   if (!graph()->CollectPhis()) {
     Bailout("Unsupported phi use of uninitialized constant");
