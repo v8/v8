@@ -242,6 +242,10 @@ class HGraph: public ZoneObject {
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
+  bool CheckPhis();
+
+  // Returns false if there are phi-uses of hole values comming
+  // from uninitialized consts.
   bool CollectPhis();
 
   Handle<Code> Compile(CompilationInfo* info);

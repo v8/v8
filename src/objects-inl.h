@@ -1339,6 +1339,8 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
+  ASSERT(map()->has_fast_double_elements() ==
+         value->IsFixedDoubleArray());
   ASSERT(value->HasValidElements());
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, mode);

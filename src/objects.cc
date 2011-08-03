@@ -10679,19 +10679,19 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     set_map(new_map);
     set_elements(fast_elements);
-  } else {
+  } else if (!HasFastDoubleElements()) {
     Object* obj;
     { MaybeObject* maybe_obj = EnsureWritableFastElements();
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
   }
-  ASSERT(HasFastElements());
+  ASSERT(HasFastElements() || HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
 
-  FixedArray* elements = FixedArray::cast(this->elements());
-  uint32_t elements_length = static_cast<uint32_t>(elements->length());
+  FixedArrayBase* elements_base = FixedArrayBase::cast(this->elements());
+  uint32_t elements_length = static_cast<uint32_t>(elements_base->length());
   if (limit > elements_length) {
     limit = elements_length ;
   }
@@ -10710,47 +10710,78 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     result_double = HeapNumber::cast(new_double);
   }
 
-  AssertNoAllocation no_alloc;
-
-  // Split elements into defined, undefined and the_hole, in that order.
-  // Only count locations for undefined and the hole, and fill them afterwards.
-  WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_alloc);
-  unsigned int undefs = limit;
-  unsigned int holes = limit;
-  // Assume most arrays contain no holes and undefined values, so minimize the
-  // number of stores of non-undefined, non-the-hole values.
-  for (unsigned int i = 0; i < undefs; i++) {
-    Object* current = elements->get(i);
-    if (current->IsTheHole()) {
-      holes--;
-      undefs--;
-    } else if (current->IsUndefined()) {
-      undefs--;
-    } else {
-      continue;
+  uint32_t result = 0;
+  if (elements_base->map() == heap->fixed_double_array_map()) {
+    FixedDoubleArray* elements = FixedDoubleArray::cast(elements_base);
+    // Split elements into defined and the_hole, in that order.
+    unsigned int holes = limit;
+    // Assume most arrays contain no holes and undefined values, so minimize the
+    // number of stores of non-undefined, non-the-hole values.
+    for (unsigned int i = 0; i < holes; i++) {
+      if (elements->is_the_hole(i)) {
+        holes--;
+      } else {
+        continue;
+      }
+      // Position i needs to be filled.
+      while (holes > i) {
+        if (elements->is_the_hole(holes)) {
+          holes--;
+        } else {
+          elements->set(i, elements->get(holes));
+          break;
+        }
+      }
     }
-    // Position i needs to be filled.
-    while (undefs > i) {
-      current = elements->get(undefs);
+    result = holes;
+    while (holes < limit) {
+      elements->set_the_hole(holes);
+      holes++;
+    }
+  } else {
+    FixedArray* elements = FixedArray::cast(elements_base);
+    AssertNoAllocation no_alloc;
+
+    // Split elements into defined, undefined and the_hole, in that order.  Only
+    // count locations for undefined and the hole, and fill them afterwards.
+    WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_alloc);
+    unsigned int undefs = limit;
+    unsigned int holes = limit;
+    // Assume most arrays contain no holes and undefined values, so minimize the
+    // number of stores of non-undefined, non-the-hole values.
+    for (unsigned int i = 0; i < undefs; i++) {
+      Object* current = elements->get(i);
       if (current->IsTheHole()) {
         holes--;
         undefs--;
       } else if (current->IsUndefined()) {
         undefs--;
       } else {
-        elements->set(i, current, write_barrier);
-        break;
+        continue;
+      }
+      // Position i needs to be filled.
+      while (undefs > i) {
+        current = elements->get(undefs);
+        if (current->IsTheHole()) {
+          holes--;
+          undefs--;
+        } else if (current->IsUndefined()) {
+          undefs--;
+        } else {
+          elements->set(i, current, write_barrier);
+          break;
+        }
       }
     }
-  }
-  uint32_t result = undefs;
-  while (undefs < holes) {
-    elements->set_undefined(undefs);
-    undefs++;
-  }
-  while (holes < limit) {
-    elements->set_the_hole(holes);
-    holes++;
+    result = undefs;
+    while (undefs < holes) {
+      elements->set_undefined(undefs);
+      undefs++;
+    }
+    while (holes < limit) {
+      elements->set_the_hole(holes);
+      holes++;
+    }
   }
 
   if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {

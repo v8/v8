@@ -249,14 +249,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   }
 
   // undefined -> false
-  CheckOddball(masm, UNDEFINED, factory->undefined_value(), false, &patch);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
 
   // Boolean -> its value
-  CheckOddball(masm, BOOLEAN, factory->false_value(), false, &patch);
-  CheckOddball(masm, BOOLEAN, factory->true_value(), true, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
 
   // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, factory->null_value(), false, &patch);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
 
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
@@ -351,14 +351,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,
                                  Type type,
-                                 Handle<Object> value,
+                                 Heap::RootListIndex value,
                                  bool result,
                                  Label* patch) {
   const Register argument = eax;
   if (types_.Contains(type)) {
     // If we see an expected oddball, return its ToBoolean value tos_.
     Label different_value;
-    __ cmp(argument, value);
+    __ CompareRoot(argument, value);
     __ j(not_equal, &different_value, Label::kNear);
     __ Set(tos_, Immediate(result ? 1 : 0));
     __ ret(1 * kPointerSize);
@@ -366,7 +366,7 @@ void ToBooleanStub::CheckOddball(MacroAssembler* masm,
   } else if (types_.Contains(INTERNAL_OBJECT)) {
     // If we see an unexpected oddball and handle internal objects, we must
     // patch because the code for internal objects doesn't handle it explictly.
-    __ cmp(argument, value);
+    __ CompareRoot(argument, value);
     __ j(equal, patch);
   }
 }

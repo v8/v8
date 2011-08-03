@@ -1393,9 +1393,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->InputAt(0));
-    if (instr->hydrogen()->value()->type().IsBoolean()) {
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsBoolean()) {
       __ cmp(reg, factory()->true_value());
       EmitBranch(true_block, false_block, equal);
+    } else if (type.IsSmi()) {
+      __ test(reg, Operand(reg));
+      EmitBranch(true_block, false_block, not_equal);
     } else {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
       Label* false_label = chunk_->GetAssemblyLabel(false_block);
@@ -1455,7 +1459,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
 
-      Register map;
+      Register map = no_reg;
       if (expected.NeedsMap()) {
         map = ToRegister(instr->TempAt(0));
         ASSERT(!map.is(reg));

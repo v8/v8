@@ -9590,6 +9590,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
     maybe_new_map = to->map()->GetFastElementsMap();
+  } else if (new_elements->map() ==
+             isolate->heap()->fixed_double_array_map()) {
+    maybe_new_map = to->map()->GetFastDoubleElementsMap();
   } else {
     maybe_new_map = to->map()->GetSlowElementsMap();
   }
@@ -9677,12 +9680,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     }
     return *isolate->factory()->NewJSArrayWithElements(keys);
   } else {
-    ASSERT(array->HasFastElements());
+    ASSERT(array->HasFastElements() || array->HasFastDoubleElements());
     Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
     // -1 means start of array.
     single_interval->set(0, Smi::FromInt(-1));
+    FixedArrayBase* elements = FixedArrayBase::cast(array->elements());
     uint32_t actual_length =
-        static_cast<uint32_t>(FixedArray::cast(array->elements())->length());
+        static_cast<uint32_t>(elements->length());
     uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
         isolate->factory()->NewNumber(static_cast<double>(min_length));
