@@ -1195,7 +1195,7 @@ void Genesis::InitializeExperimentalGlobal() {
   Isolate* isolate = this->isolate();
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
-  // TODO (mstarzinger): Move this into Genesis::InitializeGlobal once we no
+  // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind a flag, so WeakMap gets added to the snapshot.
   if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
     Handle<JSFunction> weakmap_fun =
