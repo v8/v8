@@ -488,6 +488,8 @@
             '../../src/diy-fp.cc',
             '../../src/diy-fp.h',
             '../../src/double.h',
+            '../../src/elements.cc',
+            '../../src/elements.h',
             '../../src/execution.cc',
             '../../src/execution.h',
             '../../src/factory.cc',

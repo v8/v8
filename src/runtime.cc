@@ -9200,13 +9200,13 @@ static void IterateExternalArrayElements(Isolate* isolate,
     if (elements_are_guaranteed_smis) {
       for (uint32_t j = 0; j < len; j++) {
         HandleScope loop_scope;
-        Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get(j))));
+        Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get_scalar(j))));
         visitor->visit(j, e);
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
         HandleScope loop_scope;
-        int64_t val = static_cast<int64_t>(array->get(j));
+        int64_t val = static_cast<int64_t>(array->get_scalar(j));
         if (Smi::IsValid(static_cast<intptr_t>(val))) {
           Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
           visitor->visit(j, e);
@@ -9220,7 +9220,7 @@ static void IterateExternalArrayElements(Isolate* isolate,
   } else {
     for (uint32_t j = 0; j < len; j++) {
       HandleScope loop_scope(isolate);
-      Handle<Object> e = isolate->factory()->NewNumber(array->get(j));
+      Handle<Object> e = isolate->factory()->NewNumber(array->get_scalar(j));
       visitor->visit(j, e);
     }
   }
@@ -9406,7 +9406,7 @@ static bool IterateElements(Isolate* isolate,
       Handle<ExternalPixelArray> pixels(ExternalPixelArray::cast(
           receiver->elements()));
       for (uint32_t j = 0; j < length; j++) {
-        Handle<Smi> e(Smi::FromInt(pixels->get(j)));
+        Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)));
         visitor->visit(j, e);
       }
       break;
