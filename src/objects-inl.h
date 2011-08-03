@@ -3861,6 +3861,12 @@ ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
 
 
 ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
+ACCESSORS_GCSAFE(JSWeakMap, next, Object, kNextOffset)
+
+
+ObjectHashTable* JSWeakMap::unchecked_table() {
+  return reinterpret_cast<ObjectHashTable*>(READ_FIELD(this, kTableOffset));
+}
 
 
 Address Foreign::address() {
@@ -4468,6 +4474,11 @@ uint32_t ObjectHashTableShape::HashForObject(JSObject* key, Object* other) {
 
 MaybeObject* ObjectHashTableShape::AsObject(JSObject* key) {
   return key;
+}
+
+
+void ObjectHashTable::RemoveEntry(int entry) {
+  RemoveEntry(entry, GetHeap());
 }
 
 

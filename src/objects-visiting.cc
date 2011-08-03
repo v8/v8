@@ -88,6 +88,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
+    case JS_WEAK_MAP_TYPE:
+      return kVisitJSWeakMap;
+
     case JS_REGEXP_TYPE:
       return kVisitJSRegExp;
 
@@ -115,7 +118,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
-    case JS_WEAK_MAP_TYPE:
       return GetVisitorIdForSize(kVisitJSObject,
                                  kVisitJSObjectGeneric,
                                  instance_size);

@@ -642,6 +642,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
   ASSERT(weakmap->map()->inobject_properties() == 0);
   Handle<ObjectHashTable> table = isolate->factory()->NewObjectHashTable(0);
   weakmap->set_table(*table);
+  weakmap->set_next(Smi::FromInt(0));
   return *weakmap;
 }
 

@@ -11640,10 +11640,9 @@ void ObjectHashTable::AddEntry(int entry, JSObject* key, Object* value) {
 }
 
 
-void ObjectHashTable::RemoveEntry(int entry) {
-  Object* null_value = GetHeap()->null_value();
-  set(EntryToIndex(entry), null_value);
-  set(EntryToIndex(entry) + 1, null_value);
+void ObjectHashTable::RemoveEntry(int entry, Heap* heap) {
+  set_null(heap, EntryToIndex(entry));
+  set_null(heap, EntryToIndex(entry) + 1);
   ElementRemoved();
 }
 

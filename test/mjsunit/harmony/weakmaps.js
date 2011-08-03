@@ -112,3 +112,9 @@ var m = new WeakMap;
 assertTrue(m instanceof WeakMap);
 assertTrue(WeakMap.prototype.set instanceof Function)
 assertTrue(WeakMap.prototype.get instanceof Function)
+
+
+// Stress Test
+// There is a proposed stress-test available at the es-discuss mailing list
+// which cannot be reasonably automated.  Check it out by hand if you like:
+// https://mail.mozilla.org/pipermail/es-discuss/2011-May/014096.html

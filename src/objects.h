@@ -2984,8 +2984,16 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape, JSObject*> {
   MUST_USE_RESULT MaybeObject* Put(JSObject* key, Object* value);
 
  private:
+  friend class MarkCompactCollector;
+
   void AddEntry(int entry, JSObject* key, Object* value);
-  void RemoveEntry(int entry);
+  void RemoveEntry(int entry, Heap* heap);
+  inline void RemoveEntry(int entry);
+
+  // Returns the index to the value of an entry.
+  static inline int EntryToValueIndex(int entry) {
+    return EntryToIndex(entry) + 1;
+  }
 };
 
 
@@ -6642,6 +6650,12 @@ class JSWeakMap: public JSObject {
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, ObjectHashTable)
 
+  // [next]: linked list of encountered weak maps during GC.
+  DECL_ACCESSORS(next, Object)
+
+  // Unchecked accessors to be used during GC.
+  inline ObjectHashTable* unchecked_table();
+
   // Casting.
   static inline JSWeakMap* cast(Object* obj);
 
@@ -6656,7 +6670,8 @@ class JSWeakMap: public JSObject {
 #endif
 
   static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
+  static const int kNextOffset = kTableOffset + kPointerSize;
+  static const int kSize = kNextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
