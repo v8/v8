@@ -963,6 +963,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS array[%u]>", static_cast<uint32_t>(length));
       break;
     }
+    case JS_WEAK_MAP_TYPE: {
+      int elements = JSWeakMap::cast(this)->table()->NumberOfElements();
+      accumulator->Add("<JS WeakMap[%d]>", elements);
+      break;
+    }
     case JS_REGEXP_TYPE: {
       accumulator->Add("<JS RegExp>");
       break;
@@ -1193,6 +1198,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_WEAK_MAP_TYPE:
     case JS_REGEXP_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:

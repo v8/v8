@@ -51,6 +51,7 @@
 //       - JSReceiver  (suitable for property access)
 //         - JSObject
 //           - JSArray
+//           - JSWeakMap
 //           - JSRegExp
 //           - JSFunction
 //           - GlobalObject
@@ -333,6 +334,7 @@ static const int kVariableSizeSentinel = 0;
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
   V(JS_ARRAY_TYPE)                                                             \
   V(JS_PROXY_TYPE)                                                             \
+  V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
                                                                                \
   V(JS_FUNCTION_TYPE)                                                          \
@@ -570,6 +572,7 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
   JS_PROXY_TYPE,
+  JS_WEAK_MAP_TYPE,
 
   JS_REGEXP_TYPE,  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE
 
@@ -752,6 +755,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSArray)                                   \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
+  V(JSWeakMap)                                 \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -6630,6 +6634,33 @@ class JSFunctionProxy: public JSProxy {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);
+};
+
+
+// The JSWeakMap describes EcmaScript Harmony weak maps
+class JSWeakMap: public JSObject {
+ public:
+  // [table]: the backing hash table mapping keys to values.
+  DECL_ACCESSORS(table, ObjectHashTable)
+
+  // Casting.
+  static inline JSWeakMap* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void JSWeakMapPrint() {
+    JSWeakMapPrint(stdout);
+  }
+  void JSWeakMapPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSWeakMapVerify();
+#endif
+
+  static const int kTableOffset = JSObject::kHeaderSize;
+  static const int kSize = kTableOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
 };
 
 

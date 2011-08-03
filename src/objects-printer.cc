@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(out);
       break;
+    case JS_WEAK_MAP_TYPE:
+      JSWeakMap::cast(this)->JSWeakMapPrint(out);
+      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignPrint(out);
       break;
@@ -431,6 +434,7 @@ static const char* TypeToString(InstanceType type) {
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
+    case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
@@ -580,6 +584,16 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
+  PrintF(out, "\n");
+}
+
+
+void JSWeakMap::JSWeakMapPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSWeakMap");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - number of elements = %d\n", table()->NumberOfElements());
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

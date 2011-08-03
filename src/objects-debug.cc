@@ -153,6 +153,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
+    case JS_WEAK_MAP_TYPE:
+      JSWeakMap::cast(this)->JSWeakMapVerify();
+      break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
       break;
@@ -450,6 +453,14 @@ void JSArray::JSArrayVerify() {
   ASSERT(elements()->IsUndefined() ||
          elements()->IsFixedArray() ||
          elements()->IsFixedDoubleArray());
+}
+
+
+void JSWeakMap::JSWeakMapVerify() {
+  CHECK(IsJSWeakMap());
+  JSObjectVerify();
+  VerifyHeapPointer(table());
+  ASSERT(table()->IsHashTable());
 }
 
 

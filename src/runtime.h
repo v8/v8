@@ -287,6 +287,11 @@ namespace internal {
   F(GetHandler, 1, 1) \
   F(Fix, 1, 1) \
   \
+  /* Harmony weakmaps */ \
+  F(WeakMapInitialize, 1, 1) \
+  F(WeakMapGet, 2, 1) \
+  F(WeakMapSet, 3, 1) \
+  \
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \

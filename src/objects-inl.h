@@ -481,6 +481,12 @@ bool Object::IsJSFunctionProxy() {
 }
 
 
+bool Object::IsJSWeakMap() {
+  return Object::IsJSObject() &&
+      HeapObject::cast(this)->map()->instance_type() == JS_WEAK_MAP_TYPE;
+}
+
+
 bool Object::IsJSContextExtensionObject() {
   return IsHeapObject()
       && (HeapObject::cast(this)->map()->instance_type() ==
@@ -1417,6 +1423,8 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_ARRAY_TYPE:
       return JSValue::kSize;
+    case JS_WEAK_MAP_TYPE:
+      return JSWeakMap::kSize;
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2076,6 +2084,7 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
+CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
@@ -3849,6 +3858,9 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
+
+
+ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
 
 
 Address Foreign::address() {
