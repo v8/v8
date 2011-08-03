@@ -603,36 +603,68 @@ MaybeObject* Object::GetProperty(Object* receiver,
 
 
 MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  Object* holder = NULL;
-  if (IsSmi()) {
-    Context* global_context = Isolate::Current()->context()->global_context();
-    holder = global_context->number_function()->instance_prototype();
-  } else {
-    HeapObject* heap_object = HeapObject::cast(this);
+  Heap* heap = IsSmi()
+      ? Isolate::Current()->heap()
+      : HeapObject::cast(this)->GetHeap();
+  Object* holder = this;
 
-    if (heap_object->IsJSObject()) {
-      return JSObject::cast(this)->GetElementWithReceiver(receiver, index);
-    }
-    Heap* heap = heap_object->GetHeap();
-    Isolate* isolate = heap->isolate();
-
-    Context* global_context = isolate->context()->global_context();
-    if (heap_object->IsString()) {
-      holder = global_context->string_function()->instance_prototype();
-    } else if (heap_object->IsHeapNumber()) {
+  // Iterate up the prototype chain until an element is found or the null
+  // prototype is encountered.
+  for (holder = this;
+       holder != heap->null_value();
+       holder = holder->GetPrototype()) {
+    if (holder->IsSmi()) {
+      Context* global_context = Isolate::Current()->context()->global_context();
       holder = global_context->number_function()->instance_prototype();
-    } else if (heap_object->IsBoolean()) {
-      holder = global_context->boolean_function()->instance_prototype();
-    } else if (heap_object->IsJSProxy()) {
-      return heap->undefined_value();  // For now...
     } else {
-      // Undefined and null have no indexed properties.
-      ASSERT(heap_object->IsUndefined() || heap_object->IsNull());
-      return heap->undefined_value();
+      HeapObject* heap_object = HeapObject::cast(holder);
+      if (!heap_object->IsJSObject()) {
+        Isolate* isolate = heap->isolate();
+        Context* global_context = isolate->context()->global_context();
+        if (heap_object->IsString()) {
+          holder = global_context->string_function()->instance_prototype();
+        } else if (heap_object->IsHeapNumber()) {
+          holder = global_context->number_function()->instance_prototype();
+        } else if (heap_object->IsBoolean()) {
+          holder = global_context->boolean_function()->instance_prototype();
+        } else if (heap_object->IsJSProxy()) {
+          return heap->undefined_value();  // For now...
+        } else {
+          // Undefined and null have no indexed properties.
+          ASSERT(heap_object->IsUndefined() || heap_object->IsNull());
+          return heap->undefined_value();
+        }
+      }
+    }
+
+    // Inline the case for JSObjects. Doing so significantly improves the
+    // performance of fetching elements where checking the prototype chain is
+    // necessary.
+    JSObject* js_object = JSObject::cast(holder);
+
+    // Check access rights if needed.
+    if (js_object->IsAccessCheckNeeded()) {
+      Isolate* isolate = heap->isolate();
+      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
+        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
+        return heap->undefined_value();
+      }
+    }
+
+    if (js_object->HasIndexedInterceptor()) {
+      return js_object->GetElementWithInterceptor(receiver, index);
+    }
+
+    if (js_object->elements() != heap->empty_fixed_array()) {
+      MaybeObject* result = js_object->GetElementsAccessor()->GetWithReceiver(
+          js_object,
+          receiver,
+          index);
+      if (result != heap->the_hole_value()) return result;
     }
   }
 
-  return JSObject::cast(holder)->GetElementWithReceiver(receiver, index);
+  return heap->undefined_value();
 }
 
 
@@ -8992,35 +9024,6 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
   Object* pt = holder_handle->GetPrototype();
   if (pt == heap->null_value()) return heap->undefined_value();
   return pt->GetElementWithReceiver(*this_handle, index);
-}
-
-
-MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
-                                              uint32_t index) {
-  // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_GET)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_GET);
-      return heap->undefined_value();
-    }
-  }
-
-  if (HasIndexedInterceptor()) {
-    return GetElementWithInterceptor(receiver, index);
-  }
-
-  Heap* heap = GetHeap();
-  if (elements() != heap->empty_fixed_array()) {
-    MaybeObject* result = GetElementsAccessor()->GetWithReceiver(this,
-                                                                 receiver,
-                                                                 index);
-    if (result != heap->the_hole_value()) return result;
-  }
-
-  Object* pt = GetPrototype();
-  if (pt == heap->null_value()) return heap->undefined_value();
-  return pt->GetElementWithReceiver(receiver, index);
 }
 
 

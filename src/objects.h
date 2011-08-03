@@ -1739,7 +1739,6 @@ class JSObject: public JSReceiver {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
   MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
 
   // Replace the elements' backing store with fast elements of the given
