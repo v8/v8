@@ -167,6 +167,12 @@ bool Object::IsString() {
 }
 
 
+bool Object::IsSpecObject() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
+}
+
+
 bool Object::IsSymbol() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
@@ -1223,6 +1229,8 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
+  ASSERT(map()->has_fast_double_elements() ==
+         value->IsFixedDoubleArray());
   ASSERT(value->HasValidElements());
   WRITE_FIELD(this, kElementsOffset, value);
   WRITE_BARRIER(GetHeap(), this, kElementsOffset, value);
@@ -1499,6 +1507,23 @@ void FixedArray::set(int index, Object* value) {
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
+}
+
+
+inline bool FixedDoubleArray::is_the_hole_nan(double value) {
+  return BitCast<uint64_t, double>(value) == kHoleNanInt64;
+}
+
+
+inline double FixedDoubleArray::hole_nan_as_double() {
+  return BitCast<double, uint64_t>(kHoleNanInt64);
+}
+
+
+inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
+  ASSERT(BitCast<uint64_t>(OS::nan_value()) != kHoleNanInt64);
+  ASSERT((BitCast<uint64_t>(OS::nan_value()) >> 32) != kHoleNanUpper32);
+  return OS::nan_value();
 }
 
 
@@ -1836,6 +1861,17 @@ void DescriptorArray::Swap(int first, int second) {
   FixedArray* content_array = GetContentArray();
   fast_swap(content_array, ToValueIndex(first), ToValueIndex(second));
   fast_swap(content_array, ToDetailsIndex(first),  ToDetailsIndex(second));
+}
+
+
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::ComputeCapacity(int at_least_space_for) {
+  const int kMinCapacity = 32;
+  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  if (capacity < kMinCapacity) {
+    capacity = kMinCapacity;  // Guarantee min capacity.
+  }
+  return capacity;
 }
 
 
@@ -2635,7 +2671,8 @@ int Code::major_key() {
   ASSERT(kind() == STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC);
+         kind() == COMPARE_IC ||
+         kind() == TO_BOOLEAN_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
 
@@ -2644,7 +2681,8 @@ void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC);
+         kind() == COMPARE_IC ||
+         kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
 }
@@ -2785,6 +2823,17 @@ void Code::set_compare_state(byte value) {
   WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
 }
 
+
+byte Code::to_boolean_state() {
+  ASSERT(is_to_boolean_ic_stub());
+  return READ_BYTE_FIELD(this, kToBooleanTypeOffset);
+}
+
+
+void Code::set_to_boolean_state(byte value) {
+  ASSERT(is_to_boolean_ic_stub());
+  WRITE_BYTE_FIELD(this, kToBooleanTypeOffset, value);
+}
 
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
@@ -3091,8 +3140,6 @@ ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
 ACCESSORS(FunctionTemplateInfo, flag, Smi, kFlagOffset)
-ACCESSORS(FunctionTemplateInfo, prototype_attributes, Smi,
-          kPrototypeAttributesOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
@@ -3147,6 +3194,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
+               kReadOnlyPrototypeBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
@@ -3611,6 +3660,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
+ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
 
 
 Address Foreign::address() {
@@ -3856,7 +3906,8 @@ bool JSObject::HasIndexedInterceptor() {
 
 
 bool JSObject::AllowsSetElementsLength() {
-  bool result = elements()->IsFixedArray();
+  bool result = elements()->IsFixedArray() ||
+      elements()->IsFixedDoubleArray();
   ASSERT(result == !HasExternalArrayElements());
   return result;
 }
@@ -4006,6 +4057,22 @@ Object* JSReceiver::GetPrototype() {
 }
 
 
+bool JSReceiver::HasProperty(String* name) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+  }
+  return GetPropertyAttribute(name) != ABSENT;
+}
+
+
+bool JSReceiver::HasLocalProperty(String* name) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasPropertyWithHandler(name);
+  }
+  return GetLocalPropertyAttribute(name) != ABSENT;
+}
+
+
 PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
 }
@@ -4051,6 +4118,11 @@ MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
                                     hidden_obj,
                                     DONT_ENUM,
                                     kNonStrictMode);
+}
+
+
+bool JSObject::HasHiddenProperties() {
+  return !GetHiddenProperties(OMIT_CREATION)->ToObjectChecked()->IsUndefined();
 }
 
 
@@ -4165,6 +4237,31 @@ uint32_t StringDictionaryShape::HashForObject(String* key, Object* other) {
 
 
 MaybeObject* StringDictionaryShape::AsObject(String* key) {
+  return key;
+}
+
+
+bool ObjectHashTableShape::IsMatch(JSObject* key, Object* other) {
+  return key == JSObject::cast(other);
+}
+
+
+uint32_t ObjectHashTableShape::Hash(JSObject* key) {
+  MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::OMIT_CREATION);
+  ASSERT(!maybe_hash->IsFailure());
+  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+}
+
+
+uint32_t ObjectHashTableShape::HashForObject(JSObject* key, Object* other) {
+  MaybeObject* maybe_hash = JSObject::cast(other)->GetIdentityHash(
+      JSObject::OMIT_CREATION);
+  ASSERT(!maybe_hash->IsFailure());
+  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+}
+
+
+MaybeObject* ObjectHashTableShape::AsObject(JSObject* key) {
   return key;
 }
 

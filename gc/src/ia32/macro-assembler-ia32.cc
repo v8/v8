@@ -348,6 +348,13 @@ void MacroAssembler::SafePush(const Immediate& x) {
 }
 
 
+void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
+  // see ROOT_ACCESSOR macro in factory.h
+  Handle<Object> value(&isolate()->heap()->roots_address()[index]);
+  cmp(with, value);
+}
+
+
 void MacroAssembler::CmpObjectType(Register heap_object,
                                    InstanceType type,
                                    Register map) {
@@ -2127,6 +2134,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
     Label ok;
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
         Immediate(factory->fixed_array_map()));
+    j(equal, &ok);
+    cmp(FieldOperand(elements, HeapObject::kMapOffset),
+        Immediate(factory->fixed_double_array_map()));
     j(equal, &ok);
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
         Immediate(factory->fixed_cow_array_map()));

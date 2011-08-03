@@ -230,68 +230,114 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The stub returns zero for false, and a non-zero value for true.
+// The stub expects its argument on the stack and returns its result in tos_:
+// zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
-  Label false_result, true_result, not_string;
+  Label patch;
+  const Register argument = rax;
   const Register map = rdx;
 
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+  if (!types_.IsEmpty()) {
+    __ movq(argument, Operand(rsp, 1 * kPointerSize));
+  }
 
   // undefined -> false
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &false_result);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
 
   // Boolean -> its value
-  __ CompareRoot(rax, Heap::kFalseValueRootIndex);
-  __ j(equal, &false_result);
-  __ CompareRoot(rax, Heap::kTrueValueRootIndex);
-  __ j(equal, &true_result);
-
-  // Smis: 0 -> false, all other -> true
-  __ Cmp(rax, Smi::FromInt(0));
-  __ j(equal, &false_result);
-  __ JumpIfSmi(rax, &true_result);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
 
   // 'null' -> false.
-  __ CompareRoot(rax, Heap::kNullValueRootIndex);
-  __ j(equal, &false_result, Label::kNear);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
 
-  // Get the map of the heap object.
-  __ movq(map, FieldOperand(rax, HeapObject::kMapOffset));
+  if (types_.Contains(SMI)) {
+    // Smis: 0 -> false, all other -> true
+    Label not_smi;
+    __ JumpIfNotSmi(argument, &not_smi, Label::kNear);
+    // argument contains the correct return value already
+    if (!tos_.is(argument)) {
+      __ movq(tos_, argument);
+    }
+    __ ret(1 * kPointerSize);
+    __ bind(&not_smi);
+  } else if (types_.NeedsMap()) {
+    // If we need a map later and have a Smi -> patch.
+    __ JumpIfSmi(argument, &patch, Label::kNear);
+  }
 
-  // Undetectable -> false.
-  __ testb(FieldOperand(map, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsUndetectable));
-  __ j(not_zero, &false_result, Label::kNear);
+  if (types_.NeedsMap()) {
+    __ movq(map, FieldOperand(argument, HeapObject::kMapOffset));
 
-  // JavaScript object -> true.
-  __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-  __ j(above_equal, &true_result, Label::kNear);
+    // Everything with a map could be undetectable, so check this now.
+    __ testb(FieldOperand(map, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    // Undetectable -> false.
+    Label not_undetectable;
+    __ j(zero, &not_undetectable, Label::kNear);
+    __ Set(tos_, 0);
+    __ ret(1 * kPointerSize);
+    __ bind(&not_undetectable);
+  }
 
-  // String value -> false iff empty.
-  __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-  __ j(above_equal, &not_string, Label::kNear);
-  __ cmpq(FieldOperand(rax, String::kLengthOffset), Immediate(0));
-  __ j(zero, &false_result, Label::kNear);
-  __ jmp(&true_result, Label::kNear);
+  if (types_.Contains(SPEC_OBJECT)) {
+    // spec object -> true.
+    Label not_js_object;
+    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+    __ j(below, &not_js_object, Label::kNear);
+    __ Set(tos_, 1);
+    __ ret(1 * kPointerSize);
+    __ bind(&not_js_object);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a spec object for the first time -> patch.
+    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+    __ j(above_equal, &patch, Label::kNear);
+  }
 
-  __ bind(&not_string);
-  // HeapNumber -> false iff +0, -0, or NaN.
-  // These three cases set the zero flag when compared to zero using ucomisd.
-  __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &true_result, Label::kNear);
-  __ xorps(xmm0, xmm0);
-  __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ j(zero, &false_result, Label::kNear);
-  // Fall through to |true_result|.
+  if (types_.Contains(STRING)) {
+    // String value -> false iff empty.
+    Label not_string;
+    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+    __ j(above_equal, &not_string, Label::kNear);
+    __ movq(tos_, FieldOperand(argument, String::kLengthOffset));
+    __ ret(1 * kPointerSize);  // the string length is OK as the return value
+    __ bind(&not_string);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a string for the first time -> patch
+    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+    __ j(below, &patch, Label::kNear);
+  }
 
-  // Return 1/0 for true/false in tos_.
-  __ bind(&true_result);
-  __ Set(tos_, 1);
-  __ ret(1 * kPointerSize);
-  __ bind(&false_result);
-  __ Set(tos_, 0);
-  __ ret(1 * kPointerSize);
+  if (types_.Contains(HEAP_NUMBER)) {
+    // heap number -> false iff +0, -0, or NaN.
+    Label not_heap_number, false_result;
+    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &not_heap_number, Label::kNear);
+    __ xorps(xmm0, xmm0);
+    __ ucomisd(xmm0, FieldOperand(argument, HeapNumber::kValueOffset));
+    __ j(zero, &false_result, Label::kNear);
+    __ Set(tos_, 1);
+    __ ret(1 * kPointerSize);
+    __ bind(&false_result);
+    __ Set(tos_, 0);
+    __ ret(1 * kPointerSize);
+    __ bind(&not_heap_number);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a heap number for the first time -> patch
+    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+    __ j(equal, &patch, Label::kNear);
+  }
+
+  if (types_.Contains(INTERNAL_OBJECT)) {
+    // internal objects -> true
+    __ Set(tos_, 1);
+    __ ret(1 * kPointerSize);
+  }
+
+  if (!types_.IsAll()) {
+    __ bind(&patch);
+    GenerateTypeTransition(masm);
+  }
 }
 
 
@@ -309,6 +355,43 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       argument_count);
   __ PopCallerSaved(save_doubles_);
   __ ret(0);
+}
+
+
+void ToBooleanStub::CheckOddball(MacroAssembler* masm,
+                                 Type type,
+                                 Heap::RootListIndex value,
+                                 bool result,
+                                 Label* patch) {
+  const Register argument = rax;
+  if (types_.Contains(type)) {
+    // If we see an expected oddball, return its ToBoolean value tos_.
+    Label different_value;
+    __ CompareRoot(argument, value);
+    __ j(not_equal, &different_value, Label::kNear);
+    __ Set(tos_, result ? 1 : 0);
+    __ ret(1 * kPointerSize);
+    __ bind(&different_value);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // If we see an unexpected oddball and handle internal objects, we must
+    // patch because the code for internal objects doesn't handle it explictly.
+    __ CompareRoot(argument, value);
+    __ j(equal, patch);
+  }
+}
+
+
+void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ pop(rcx);  // Get return address, operand is now on top of stack.
+  __ Push(Smi::FromInt(tos_.code()));
+  __ Push(Smi::FromInt(types_.ToByte()));
+  __ push(rcx);  // Push return address.
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
+      3,
+      1);
 }
 
 
@@ -659,25 +742,17 @@ void UnaryOpStub::GenerateGenericCodeFallback(MacroAssembler* masm) {
 }
 
 
-const char* UnaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void UnaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name = NULL;  // Make g++ happy.
   switch (mode_) {
     case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
     case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "UnaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               UnaryOpIC::GetName(operand_type_));
-  return name_;
+  stream->Add("UnaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              UnaryOpIC::GetName(operand_type_));
 }
 
 
@@ -738,12 +813,7 @@ void BinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* BinaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void BinaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
   switch (mode_) {
@@ -752,13 +822,10 @@ const char* BinaryOpStub::GetName() {
     case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
     default: overwrite_name = "UnknownOverwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "BinaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               BinaryOpIC::GetName(operands_type_));
-  return name_;
+  stream->Add("BinaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              BinaryOpIC::GetName(operands_type_));
 }
 
 
@@ -2562,6 +2629,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #else
   // Already there in AMD64 calling convention.
   ASSERT(arg1.is(rdi));
+  USE(arg1);
 #endif
 
   // Locate the code entry and call it.
@@ -3237,6 +3305,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       Isolate::Current()->builtins()->ArgumentsAdaptorTrampoline();
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -3473,9 +3542,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Label not_outermost_js, not_outermost_js_2;
-#endif
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
     // Setup frame.
@@ -3520,7 +3587,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ push(c_entry_fp_operand);
   }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ Load(rax, js_entry_sp);
@@ -3534,7 +3600,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&not_outermost_js);
   __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
-#endif
 
   // Call a faked try-block that does the invoke.
   __ call(&invoke);
@@ -3578,7 +3643,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PopTryHandler();
 
   __ bind(&exit);
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(rbx);
   __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
@@ -3586,7 +3650,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ movq(kScratchRegister, js_entry_sp);
   __ movq(Operand(kScratchRegister, 0), Immediate(0));
   __ bind(&not_outermost_js_2);
-#endif
 
   // Restore the top frame descriptor from the stack.
   { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
@@ -3800,15 +3863,8 @@ int CompareStub::MinorKey() {
 
 // Unfortunately you have to run without snapshots to see most of these
 // names in the profile since most compare stubs end up in the snapshot.
-const char* CompareStub::GetName() {
+void CompareStub::PrintName(StringStream* stream) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
-
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
   const char* cc_name;
   switch (cc_) {
     case less: cc_name = "LT"; break;
@@ -3819,35 +3875,12 @@ const char* CompareStub::GetName() {
     case not_equal: cc_name = "NE"; break;
     default: cc_name = "UnknownCondition"; break;
   }
-
-  const char* strict_name = "";
-  if (strict_ && (cc_ == equal || cc_ == not_equal)) {
-    strict_name = "_STRICT";
-  }
-
-  const char* never_nan_nan_name = "";
-  if (never_nan_nan_ && (cc_ == equal || cc_ == not_equal)) {
-    never_nan_nan_name = "_NO_NAN";
-  }
-
-  const char* include_number_compare_name = "";
-  if (!include_number_compare_) {
-    include_number_compare_name = "_NO_NUMBER";
-  }
-
-  const char* include_smi_compare_name = "";
-  if (!include_smi_compare_) {
-    include_smi_compare_name = "_NO_SMI";
-  }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "CompareStub_%s%s%s%s",
-               cc_name,
-               strict_name,
-               never_nan_nan_name,
-               include_number_compare_name,
-               include_smi_compare_name);
-  return name_;
+  bool is_equality = cc_ == equal || cc_ == not_equal;
+  stream->Add("CompareStub_%s", cc_name);
+  if (strict_ && is_equality) stream->Add("_STRICT");
+  if (never_nan_nan_ && is_equality) stream->Add("_NO_NAN");
+  if (!include_number_compare_) stream->Add("_NO_NUMBER");
+  if (!include_smi_compare_) stream->Add("_NO_SMI");
 }
 
 

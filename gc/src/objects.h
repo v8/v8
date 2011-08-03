@@ -795,6 +795,8 @@ class Object : public MaybeObject {
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
 
+  INLINE(bool IsSpecObject());
+
   // Oddball testing.
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
@@ -1255,6 +1257,12 @@ class HeapNumber: public HeapObject {
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
  public:
+  enum DeleteMode {
+    NORMAL_DELETION,
+    STRICT_DELETION,
+    FORCE_DELETION
+  };
+
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
@@ -1269,6 +1277,8 @@ class JSReceiver: public HeapObject {
                                            PropertyAttributes attributes,
                                            StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
 
@@ -1282,14 +1292,8 @@ class JSReceiver: public HeapObject {
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
   // Can cause a GC.
-  bool HasProperty(String* name) {
-    return GetPropertyAttribute(name) != ABSENT;
-  }
-
-  // Can cause a GC.
-  bool HasLocalProperty(String* name) {
-    return GetLocalPropertyAttribute(name) != ABSENT;
-  }
+  inline bool HasProperty(String* name);
+  inline bool HasLocalProperty(String* name);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1318,12 +1322,6 @@ class JSReceiver: public HeapObject {
 // caching.
 class JSObject: public JSReceiver {
  public:
-  enum DeleteMode {
-    NORMAL_DELETION,
-    STRICT_DELETION,
-    FORCE_DELETION
-  };
-
   enum ElementsKind {
     // The "fast" kind for tagged values. Must be first to make it possible
     // to efficiently check maps if they have fast elements.
@@ -1536,6 +1534,23 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* SetHiddenPropertiesObject(
       Object* hidden_obj);
 
+  // Indicates whether the hidden properties object should be created.
+  enum HiddenPropertiesFlag { ALLOW_CREATION, OMIT_CREATION };
+
+  // Retrieves the hidden properties object.
+  //
+  // The undefined value might be returned in case no hidden properties object
+  // is present and creation was omitted.
+  inline bool HasHiddenProperties();
+  MUST_USE_RESULT MaybeObject* GetHiddenProperties(HiddenPropertiesFlag flag);
+
+  // Retrieves a permanent object identity hash code.
+  //
+  // The identity hash is stored as a hidden property. The undefined value might
+  // be returned in case no hidden properties object is present and creation was
+  // omitted.
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(HiddenPropertiesFlag flag);
+
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
@@ -1552,7 +1567,7 @@ class JSObject: public JSReceiver {
   bool ShouldConvertToFastElements();
   // Returns true if the elements of JSObject contains only values that can be
   // represented in a FixedDoubleArray.
-  bool ShouldConvertToFastDoubleElements();
+  bool CanConvertToFastDoubleElements();
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -1846,8 +1861,21 @@ class JSObject: public JSReceiver {
   // Also maximal value of JSArray's length property.
   static const uint32_t kMaxElementCount = 0xffffffffu;
 
+  // Constants for heuristics controlling conversion of fast elements
+  // to slow elements.
+
+  // Maximal gap that can be introduced by adding an element beyond
+  // the current elements length.
   static const uint32_t kMaxGap = 1024;
-  static const int kMaxFastElementsLength = 5000;
+
+  // Maximal length of fast elements array that won't be checked for
+  // being dense enough on expansion.
+  static const int kMaxUncheckedFastElementsLength = 5000;
+
+  // Same as above but for old arrays. This limit is more strict. We
+  // don't want to be wasteful with long lived objects.
+  static const int kMaxUncheckedOldFastElementsLength = 500;
+
   static const int kInitialMaxFastElementArray = 100000;
   static const int kMaxFastProperties = 12;
   static const int kMaxInstanceSize = 255 * kPointerSize;
@@ -1913,6 +1941,9 @@ class JSObject: public JSReceiver {
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
 
+  // Gets the current elements capacity and the number of used elements.
+  void GetElementsCapacityAndUsage(int* capacity, int* used);
+
   bool CanSetCallback(String* name);
   MUST_USE_RESULT MaybeObject* SetElementCallback(
       uint32_t index,
@@ -1948,6 +1979,7 @@ class FixedArrayBase: public HeapObject {
   static const int kHeaderSize = kLengthOffset + kPointerSize;
 };
 
+class FixedDoubleArray;
 
 // FixedArray describes fixed-sized arrays with element type Object*.
 class FixedArray: public FixedArrayBase {
@@ -1989,6 +2021,10 @@ class FixedArray: public FixedArrayBase {
 
   // Compute the union of this and other.
   MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
+
+  // Compute the union of this and other.
+  MUST_USE_RESULT MaybeObject* UnionOfDoubleKeys(
+      FixedDoubleArray* other);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -2069,23 +2105,12 @@ class FixedDoubleArray: public FixedArrayBase {
     return kHeaderSize + length * kDoubleSize;
   }
 
-  // The following can't be declared inline as const static
-  // because they're 64-bit.
-  static uint64_t kCanonicalNonHoleNanLower32;
-  static uint64_t kCanonicalNonHoleNanInt64;
-  static uint64_t kHoleNanInt64;
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  inline static bool is_the_hole_nan(double value) {
-    return BitCast<uint64_t, double>(value) == kHoleNanInt64;
-  }
-
-  inline static double hole_nan_as_double() {
-    return BitCast<double, uint64_t>(kHoleNanInt64);
-  }
-
-  inline static double canonical_not_the_hole_nan_as_double() {
-    return BitCast<double, uint64_t>(kCanonicalNonHoleNanInt64);
-  }
+  inline static bool is_the_hole_nan(double value);
+  inline static double hole_nan_as_double();
+  inline static double canonical_not_the_hole_nan_as_double();
 
   // Casting.
   static inline FixedDoubleArray* cast(Object* obj);
@@ -2394,6 +2419,10 @@ class HashTable: public FixedArray {
   MUST_USE_RESULT static MaybeObject* Allocate(
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
+
+  // Computes the required capacity for a table holding the given
+  // number of elements. May be more than HashTable::kMaxCapacity.
+  static int ComputeCapacity(int at_least_space_for);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
@@ -2814,6 +2843,40 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   static const int kRequiresSlowElementsMask = 1;
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
+};
+
+
+class ObjectHashTableShape {
+ public:
+  static inline bool IsMatch(JSObject* key, Object* other);
+  static inline uint32_t Hash(JSObject* key);
+  static inline uint32_t HashForObject(JSObject* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(JSObject* key);
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+};
+
+
+// ObjectHashTable maps keys that are JavaScript objects to object values by
+// using the identity hash of the key for hashing purposes.
+class ObjectHashTable: public HashTable<ObjectHashTableShape, JSObject*> {
+ public:
+  static inline ObjectHashTable* cast(Object* obj) {
+    ASSERT(obj->IsHashTable());
+    return reinterpret_cast<ObjectHashTable*>(obj);
+  }
+
+  // Looks up the value associated with the given key. The undefined value is
+  // returned in case the key is not present.
+  Object* Lookup(JSObject* key);
+
+  // Adds (or overwrites) the value associated with the given key. Mapping a
+  // key to the undefined value causes removal of the whole entry.
+  MUST_USE_RESULT MaybeObject* Put(JSObject* key, Object* value);
+
+ private:
+  void AddEntry(int entry, JSObject* key, Object* value);
+  void RemoveEntry(int entry);
 };
 
 
@@ -3430,13 +3493,14 @@ class Code: public HeapObject {
     UNARY_OP_IC,
     BINARY_OP_IC,
     COMPARE_IC,
+    TO_BOOLEAN_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
 
     // Pseudo-kinds.
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = COMPARE_IC
+    LAST_IC_KIND = TO_BOOLEAN_IC
   };
 
   enum {
@@ -3502,13 +3566,10 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_unary_op_stub() {
-    return kind() == UNARY_OP_IC;
-  }
-  inline bool is_binary_op_stub() {
-    return kind() == BINARY_OP_IC;
-  }
+  inline bool is_unary_op_stub() { return kind() == UNARY_OP_IC; }
+  inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
+  inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -3550,20 +3611,23 @@ class Code: public HeapObject {
   inline CheckType check_type();
   inline void set_check_type(CheckType value);
 
-  // [type-recording unary op type]: For all UNARY_OP_IC.
+  // [type-recording unary op type]: For kind UNARY_OP_IC.
   inline byte unary_op_type();
   inline void set_unary_op_type(byte value);
 
-  // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
+  // [type-recording binary op type]: For kind BINARY_OP_IC.
   inline byte binary_op_type();
   inline void set_binary_op_type(byte value);
   inline byte binary_op_result_type();
   inline void set_binary_op_result_type(byte value);
 
-  // [compare state]: For kind compare IC stubs, tells what state the
-  // stub is in.
+  // [compare state]: For kind COMPARE_IC, tells what state the stub is in.
   inline byte compare_state();
   inline void set_compare_state(byte value);
+
+  // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
+  inline byte to_boolean_state();
+  inline void set_to_boolean_state(byte value);
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
@@ -3702,9 +3766,10 @@ class Code: public HeapObject {
   static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
   static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
 
-  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
+  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
+  static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
   static const int kHasDeoptimizationSupportOffset = kOptimizableOffset + 1;
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
@@ -5790,6 +5855,8 @@ class String: public HeapObject {
     StringPrint(stdout);
   }
   void StringPrint(FILE* out);
+
+  char* ToAsciiArray();
 #endif
 #ifdef DEBUG
   void StringVerify();
@@ -6411,19 +6478,31 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
+  // [padding]: The padding slot (unused, see below).
+  DECL_ACCESSORS(padding, Object)
+
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
+  bool HasPropertyWithHandler(String* name);
+
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
-      String* name_raw,
-      Object* value_raw,
+      String* name,
+      Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
+      String* name,
+      DeleteMode mode);
+
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
-      String* name_raw,
+      String* name,
       bool* has_exception);
+
+  // Turn this into an (empty) JSObject.
+  void Fix();
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -6436,9 +6515,14 @@ class JSProxy: public JSReceiver {
   void JSProxyVerify();
 #endif
 
-  // Layout description.
+  // Layout description. We add padding so that a proxy has the same
+  // size as a virgin JSObject. This is essential for becoming a JSObject
+  // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+  static const int kPaddingOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPaddingOffset + kPointerSize;
+
+  STATIC_CHECK(kSize == JSObject::kHeaderSize);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,
@@ -6759,7 +6843,6 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
-  DECL_ACCESSORS(prototype_attributes, Smi)
 
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
@@ -6767,6 +6850,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   // If the bit is set, object instances created by this function
   // requires access check.
   DECL_BOOLEAN_ACCESSORS(needs_access_check)
+  DECL_BOOLEAN_ACCESSORS(read_only_prototype)
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
@@ -6799,14 +6883,14 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kPrototypeAttributesOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kPrototypeAttributesOffset + kPointerSize;
+  static const int kSize = kFlagOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.
   static const int kHiddenPrototypeBit   = 0;
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
+  static const int kReadOnlyPrototypeBit = 3;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };

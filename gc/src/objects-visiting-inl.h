@@ -49,6 +49,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   FixedArray::BodyDescriptor,
                   int>::Visit);
 
+  table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
+
   table_.Register(kVisitGlobalContext,
                   &FixedBodyVisitor<StaticVisitor,
                   Context::ScavengeBodyDescriptor,

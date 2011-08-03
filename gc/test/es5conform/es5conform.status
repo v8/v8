@@ -41,16 +41,6 @@ chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
 # We are compatible with Safari and Firefox.
 chapter11/11.1/11.1.5: UNIMPLEMENTED
 
-# We do not have a global object called 'global' as required by tests.
-chapter15/15.1: FAIL_OK
-
-# NaN is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
-# Infinity is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
-# undefined is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
-
 # Our Function object has an "arguments" property which is used as a
 # non-property in the test.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-183: FAIL_OK

@@ -692,30 +692,6 @@ void PagedSpace::TearDown() {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void PagedSpace::Protect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->ProtectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-
-void PagedSpace::Unprotect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->UnprotectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-#endif
-
-
 MaybeObject* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on precisely swept spaces.
   ASSERT(!heap()->mark_compact_collector()->in_use());
@@ -868,7 +844,6 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
 
   // Allocate and setup the histogram arrays if necessary.
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
   promoted_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
 
@@ -876,7 +851,6 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
                        promoted_histogram_[name].set_name(#name);
   INSTANCE_TYPE_LIST(SET_NAME)
 #undef SET_NAME
-#endif
 
   ASSERT(maximum_semispace_capacity == heap()->ReservedSemiSpaceSize());
   ASSERT(static_cast<intptr_t>(chunk_size_) >=
@@ -906,7 +880,6 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
 
 
 void NewSpace::TearDown() {
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   if (allocated_histogram_) {
     DeleteArray(allocated_histogram_);
     allocated_histogram_ = NULL;
@@ -915,7 +888,6 @@ void NewSpace::TearDown() {
     DeleteArray(promoted_histogram_);
     promoted_histogram_ = NULL;
   }
-#endif
 
   start_ = NULL;
   allocation_info_.top = NULL;
@@ -932,24 +904,6 @@ void NewSpace::TearDown() {
   chunk_base_ = NULL;
   chunk_size_ = 0;
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void NewSpace::Protect() {
-  heap()->isolate()->memory_allocator()->Protect(ToSpaceStart(), Capacity());
-  heap()->isolate()->memory_allocator()->Protect(FromSpaceStart(), Capacity());
-}
-
-
-void NewSpace::Unprotect() {
-  heap()->isolate()->memory_allocator()->Unprotect(ToSpaceStart(), Capacity(),
-                                                   to_space_.executable());
-  heap()->isolate()->memory_allocator()->Unprotect(FromSpaceStart(), Capacity(),
-                                                   from_space_.executable());
-}
-
-#endif
 
 
 void NewSpace::Flip() {
@@ -1453,6 +1407,7 @@ static void ReportCodeKindStatistics() {
       CASE(UNARY_OP_IC);
       CASE(BINARY_OP_IC);
       CASE(COMPARE_IC);
+      CASE(TO_BOOLEAN_IC);
     }
   }
 
@@ -1520,7 +1475,6 @@ static void ReportHistogram(bool print_spill) {
 
 
 // Support for statistics gathering for --heap-stats and --log-gc.
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 void NewSpace::ClearHistograms() {
   for (int i = 0; i <= LAST_TYPE; i++) {
     allocated_histogram_[i].clear();
@@ -1530,9 +1484,7 @@ void NewSpace::ClearHistograms() {
 
 // Because the copying collector does not touch garbage objects, we iterate
 // the new space before a collection to get a histogram of allocated objects.
-// This only happens (1) when compiled with DEBUG and the --heap-stats flag is
-// set, or when compiled with ENABLE_LOGGING_AND_PROFILING and the --log-gc
-// flag is set.
+// This only happens when --log-gc flag is set.
 void NewSpace::CollectStatistics() {
   ClearHistograms();
   SemiSpaceIterator it(this);
@@ -1541,7 +1493,6 @@ void NewSpace::CollectStatistics() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static void DoReportStatistics(Isolate* isolate,
                                HistogramInfo* info, const char* description) {
   LOG(isolate, HeapSampleBeginEvent("NewSpace", description));
@@ -1568,7 +1519,6 @@ static void DoReportStatistics(Isolate* isolate,
   }
   LOG(isolate, HeapSampleEndEvent("NewSpace", description));
 }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 void NewSpace::ReportStatistics() {
@@ -1591,13 +1541,11 @@ void NewSpace::ReportStatistics() {
   }
 #endif  // DEBUG
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) {
     Isolate* isolate = ISOLATE;
     DoReportStatistics(isolate, allocated_histogram_, "allocated");
     DoReportStatistics(isolate, promoted_histogram_, "promoted");
   }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
@@ -1615,7 +1563,6 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
   promoted_histogram_[type].increment_number(1);
   promoted_histogram_[type].increment_bytes(obj->Size());
 }
-#endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces implementation
@@ -2328,7 +2275,11 @@ void LargeObjectSpace::TearDown() {
   while (first_page_ != NULL) {
     LargePage* page = first_page_;
     first_page_ = first_page_->next_page();
+    LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", page->address()));
 
+    ObjectSpace space = static_cast<ObjectSpace>(1 << identity());
+    heap()->isolate()->memory_allocator()->PerformAllocationCallback(
+        space, kAllocationActionFree, page->size());
     heap()->isolate()->memory_allocator()->Free(page);
   }
 
@@ -2337,30 +2288,6 @@ void LargeObjectSpace::TearDown() {
   objects_size_ = 0;
 }
 
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void LargeObjectSpace::Protect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    heap()->isolate()->memory_allocator()->Protect(chunk->address(),
-                                                   chunk->size());
-    chunk = chunk->next();
-  }
-}
-
-
-void LargeObjectSpace::Unprotect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    bool is_code = chunk->GetObject()->IsCode();
-    heap()->isolate()->memory_allocator()->Unprotect(chunk->address(),
-        chunk->size(), is_code ? EXECUTABLE : NOT_EXECUTABLE);
-    chunk = chunk->next();
-  }
-}
-
-#endif
 
 MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
                                                    Executability executable) {

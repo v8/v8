@@ -58,6 +58,8 @@ class Factory {
 
   Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
 
+  Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
+
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
@@ -252,6 +254,9 @@ class Factory {
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
+
+  // Change the type of the argument into a regular JS object and reinitialize.
+  void BecomeJSObject(Handle<JSProxy> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);

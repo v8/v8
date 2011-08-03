@@ -786,7 +786,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // IDs for bailouts from optimized code.
       ASSERT(prop->obj()->AsVariableProxy() != NULL);
       { AccumulatorValueContext for_object(this);
-        EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        EmitVariableLoad(prop->obj()->AsVariableProxy());
       }
 
       __ push(r0);
@@ -1123,7 +1123,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
 
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
-  EmitVariableLoad(expr->var());
+  EmitVariableLoad(expr);
 }
 
 
@@ -1272,7 +1272,11 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
 }
 
 
-void FullCodeGenerator::EmitVariableLoad(Variable* var) {
+void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
+  // Record position before possible IC call.
+  SetSourcePosition(proxy->position());
+  Variable* var = proxy->var();
+
   // Three cases: non-this global variables, lookup slots, and all other
   // types of slots.
   Slot* slot = var->AsSlot();
@@ -1604,7 +1608,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
-          EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          EmitVariableLoad(expr->target()->AsVariableProxy());
           PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
@@ -2762,7 +2766,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
-  __ LoadRoot(r0, Heap::kfunction_class_symbolRootIndex);
+  __ LoadRoot(r0, Heap::kObject_symbolRootIndex);
   __ jmp(&done);
 
   // Non-JS objects have class null.
@@ -2785,13 +2789,12 @@ void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
   //     with '%2s' (see Logger::LogRuntime for all the formats).
   //   2 (array): Arguments to the format string.
   ASSERT_EQ(args->length(), 3);
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (CodeGenerator::ShouldGenerateLog(args->at(0))) {
     VisitForStackValue(args->at(1));
     VisitForStackValue(args->at(2));
     __ CallRuntime(Runtime::kLog, 2);
   }
-#endif
+
   // Finally, we're expected to leave a value on the top of the stack.
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   context()->Plug(r0);
@@ -3840,7 +3843,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
     AccumulatorValueContext context(this);
-    EmitVariableLoad(expr->expression()->AsVariableProxy()->var());
+    EmitVariableLoad(expr->expression()->AsVariableProxy());
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {

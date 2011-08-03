@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "globals.h"
-#include "zone.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -238,6 +237,11 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
+
+  // TODO(1571) We can't use ToBooleanStub::Types as the return value because
+  // of various cylces in our headers. Death to tons of implementations in
+  // headers!! :-P
+  byte ToBooleanTypes(unsigned ast_id);
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);

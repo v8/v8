@@ -191,15 +191,14 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // Returns a name for logging/debugging purposes.
-  virtual const char* GetName() { return MajorName(MajorKey(), false); }
+  SmartPointer<const char> GetName();
+  virtual void PrintName(StringStream* stream) {
+    stream->Add("%s", MajorName(MajorKey(), false));
+  }
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
-
-#ifdef DEBUG
-  virtual void Print() { PrintF("%s\n", GetName()); }
-#endif
 
   // Computes the key based on major and minor.
   uint32_t GetKey() {
@@ -372,7 +371,7 @@ class InstanceofStub: public CodeStub {
     kReturnTrueFalseObject = 1 << 2
   };
 
-  explicit InstanceofStub(Flags flags) : flags_(flags), name_(NULL) { }
+  explicit InstanceofStub(Flags flags) : flags_(flags) { }
 
   static Register left();
   static Register right();
@@ -395,10 +394,9 @@ class InstanceofStub: public CodeStub {
     return (flags_ & kReturnTrueFalseObject) != 0;
   }
 
-  virtual const char* GetName();
+  virtual void PrintName(StringStream* stream);
 
   Flags flags_;
-  char* name_;
 };
 
 
@@ -476,8 +474,7 @@ class CompareStub: public CodeStub {
       include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
       include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
       lhs_(lhs),
-      rhs_(rhs),
-      name_(NULL) { }
+      rhs_(rhs) { }
 
   CompareStub(Condition cc,
               bool strict,
@@ -488,8 +485,7 @@ class CompareStub: public CodeStub {
       include_number_compare_((flags & NO_NUMBER_COMPARE_IN_STUB) == 0),
       include_smi_compare_((flags & NO_SMI_COMPARE_IN_STUB) == 0),
       lhs_(no_reg),
-      rhs_(no_reg),
-      name_(NULL) { }
+      rhs_(no_reg) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -543,26 +539,7 @@ class CompareStub: public CodeStub {
 
   // Unfortunately you have to run without snapshots to see most of these
   // names in the profile since most compare stubs end up in the snapshot.
-  char* name_;
-  virtual const char* GetName();
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (minor %d) (cc %d), (strict %s), "
-           "(never_nan_nan %s), (smi_compare %s) (number_compare %s) ",
-           MinorKey(),
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false",
-           never_nan_nan_ ? "true" : "false",
-           include_smi_compare_ ? "inluded" : "not included",
-           include_number_compare_ ? "included" : "not included");
-
-    if (!lhs_.is(no_reg) && !rhs_.is(no_reg)) {
-      PrintF("(lhs r%d), (rhs r%d)\n", lhs_.code(), rhs_.code());
-    } else {
-      PrintF("\n");
-    }
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 };
 
 
@@ -620,7 +597,9 @@ class JSConstructEntryStub : public JSEntryStub {
  private:
   int MinorKey() { return 1; }
 
-  virtual const char* GetName() { return "JSConstructEntryStub"; }
+  virtual void PrintName(StringStream* stream) {
+    stream->Add("JSConstructEntryStub");
+  }
 };
 
 
@@ -647,11 +626,7 @@ class ArgumentsAccessStub: public CodeStub {
   void GenerateNewNonStrictFast(MacroAssembler* masm);
   void GenerateNewNonStrictSlow(MacroAssembler* masm);
 
-#ifdef DEBUG
-  void Print() {
-    PrintF("ArgumentsAccessStub (type %d)\n", type_);
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 };
 
 
@@ -695,14 +670,7 @@ class CallFunctionStub: public CodeStub {
   InLoopFlag in_loop_;
   CallFunctionFlags flags_;
 
-#ifdef DEBUG
-  void Print() {
-    PrintF("CallFunctionStub (args %d, in_loop %d, flags %d)\n",
-           argc_,
-           static_cast<int>(in_loop_),
-           static_cast<int>(flags_));
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class InLoopBits: public BitField<InLoopFlag, 0, 1> {};
@@ -942,14 +910,68 @@ class KeyedStoreElementStub : public CodeStub {
 
 class ToBooleanStub: public CodeStub {
  public:
-  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+  enum Type {
+    UNDEFINED,
+    BOOLEAN,
+    NULL_TYPE,
+    SMI,
+    SPEC_OBJECT,
+    STRING,
+    HEAP_NUMBER,
+    INTERNAL_OBJECT,
+    NUMBER_OF_TYPES
+  };
+
+  // At most 8 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set of these types. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 8);
+
+  class Types {
+   public:
+    Types() {}
+    explicit Types(byte bits) : set_(bits) {}
+
+    bool IsEmpty() const { return set_.IsEmpty(); }
+    bool IsAll() const { return ToByte() == ((1 << NUMBER_OF_TYPES) - 1); }
+    bool Contains(Type type) const { return set_.Contains(type); }
+    void Add(Type type) { set_.Add(type); }
+    byte ToByte() const { return set_.ToIntegral(); }
+    void Print(StringStream* stream) const;
+    void TraceTransition(Types to) const;
+    bool Record(Handle<Object> object);
+    bool NeedsMap() const;
+
+   private:
+    EnumSet<Type, byte> set_;
+  };
+
+  static Types no_types() { return Types(); }
+  static Types all_types() { return Types((1 << NUMBER_OF_TYPES) - 1); }
+
+  explicit ToBooleanStub(Register tos, Types types = Types())
+      : tos_(tos), types_(types) { }
 
   void Generate(MacroAssembler* masm);
+  virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
+  virtual void PrintName(StringStream* stream);
 
  private:
-  Register tos_;
   Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return tos_.code(); }
+  int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToByte(); }
+
+  virtual void FinishCode(Code* code) {
+    code->set_to_boolean_state(types_.ToByte());
+  }
+
+  void CheckOddball(MacroAssembler* masm,
+                    Type type,
+                    Heap::RootListIndex value,
+                    bool result,
+                    Label* patch);
+  void GenerateTypeTransition(MacroAssembler* masm);
+
+  Register tos_;
+  Types types_;
 };
 
 } }  // namespace v8::internal

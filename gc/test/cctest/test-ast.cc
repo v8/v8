@@ -40,7 +40,7 @@ TEST(List) {
   CHECK_EQ(0, list->length());
 
   ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNode* node = new EmptyStatement();
+  AstNode* node = new(ZONE) EmptyStatement();
   list->Add(node);
   CHECK_EQ(1, list->length());
   CHECK_EQ(node, list->at(0));
@@ -55,15 +55,4 @@ TEST(List) {
   list->Clear();
   CHECK_EQ(0, list->length());
   delete list;
-}
-
-
-TEST(DeleteEmpty) {
-  {
-    List<int>* list = new List<int>(0);
-    delete list;
-  }
-  {
-    List<int> list(0);
-  }
 }

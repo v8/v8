@@ -1230,6 +1230,30 @@ Range* HSar::InferRange() {
 }
 
 
+Range* HShr::InferRange() {
+  if (right()->IsConstant()) {
+    HConstant* c = HConstant::cast(right());
+    if (c->HasInteger32Value()) {
+      int shift_count = c->Integer32Value() & 0x1f;
+      if (left()->range()->CanBeNegative()) {
+        // Only compute bounds if the result always fits into an int32.
+        return (shift_count >= 1)
+            ? new Range(0, static_cast<uint32_t>(0xffffffff) >> shift_count)
+            : new Range();
+      } else {
+        // For positive inputs we can use the >> operator.
+        Range* result = (left()->range() != NULL)
+            ? left()->range()->Copy()
+            : new Range();
+        result->Sar(c->Integer32Value());
+        return result;
+      }
+    }
+  }
+  return HValue::InferRange();
+}
+
+
 Range* HShl::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
@@ -1366,6 +1390,19 @@ bool HLoadKeyedFastElement::RequiresHoleCheck() const {
 }
 
 
+void HLoadKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
+bool HLoadKeyedFastDoubleElement::RequiresHoleCheck() const {
+  return true;
+}
+
+
 void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
@@ -1444,6 +1481,15 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
 
 void HStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
+
+
+void HStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");
@@ -1776,11 +1822,6 @@ void HSimulate::Verify() {
 }
 
 
-void HBoundsCheck::Verify() {
-  HInstruction::Verify();
-}
-
-
 void HCheckSmi::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
@@ -1788,18 +1829,6 @@ void HCheckSmi::Verify() {
 
 
 void HCheckNonSmi::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckInstanceType::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckMap::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

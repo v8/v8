@@ -116,6 +116,7 @@ class LCodeGen;
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
   V(LoadKeyedFastElement)                       \
+  V(LoadKeyedFastDoubleElement)                 \
   V(LoadKeyedGeneric)                           \
   V(LoadKeyedSpecializedArrayElement)           \
   V(LoadNamedField)                             \
@@ -141,6 +142,7 @@ class LCodeGen;
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
+  V(StoreKeyedFastDoubleElement)                \
   V(StoreKeyedFastElement)                      \
   V(StoreKeyedGeneric)                          \
   V(StoreKeyedSpecializedArrayElement)          \
@@ -874,10 +876,11 @@ class LConstantT: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LBranch: public LControlInstruction<1, 0> {
+class LBranch: public LControlInstruction<1, 1> {
  public:
-  explicit LBranch(LOperand* value) {
+  explicit LBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Branch, "branch")
@@ -1155,6 +1158,23 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement, "load-keyed-fast-element")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
+
+  LOperand* elements() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+};
+
+
+class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadKeyedFastDoubleElement(LOperand* elements,
+                              LOperand* key) {
+    inputs_[0] = elements;
+    inputs_[1] = key;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement,
+                               "load-keyed-fast-double-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastDoubleElement)
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
@@ -1648,6 +1668,28 @@ class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   LOperand* object() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+};
+
+
+class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
+ public:
+  LStoreKeyedFastDoubleElement(LOperand* elements,
+                               LOperand* key,
+                               LOperand* val) {
+    inputs_[0] = elements;
+    inputs_[1] = key;
+    inputs_[2] = val;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement,
+                               "store-keyed-fast-double-element")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastDoubleElement)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
 };

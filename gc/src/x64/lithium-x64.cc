@@ -428,6 +428,15 @@ void LStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
+void LStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
+  value()->PrintTo(stream);
+}
+
+
 void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("[");
@@ -1027,7 +1036,11 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  return new LBranch(UseRegisterAtStart(v));
+  LInstruction* branch = new LBranch(UseRegister(v));
+  // When we handle all cases, we never deopt, so we don't need to assign the
+  // environment then.
+  bool all_cases_handled = instr->expected_input_types().IsAll();
+  return all_cases_handled ? branch : AssignEnvironment(branch);
 }
 
 
@@ -1824,6 +1837,18 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
+    HLoadKeyedFastDoubleElement* instr) {
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->key()->representation().IsInteger32());
+  LOperand* elements = UseRegisterAtStart(instr->elements());
+  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+  LLoadKeyedFastDoubleElement* result =
+      new LLoadKeyedFastDoubleElement(elements, key);
+  return AssignEnvironment(DefineAsRegister(result));
+}
+
+
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
   JSObject::ElementsKind elements_kind = instr->elements_kind();
@@ -1873,6 +1898,20 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
       : UseRegisterOrConstantAtStart(instr->key());
 
   return AssignEnvironment(new LStoreKeyedFastElement(obj, key, val));
+}
+
+
+LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
+    HStoreKeyedFastDoubleElement* instr) {
+  ASSERT(instr->value()->representation().IsDouble());
+  ASSERT(instr->elements()->representation().IsTagged());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* elements = UseRegisterAtStart(instr->elements());
+  LOperand* val = UseTempRegister(instr->value());
+  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+
+  return new LStoreKeyedFastDoubleElement(elements, key, val);
 }
 
 

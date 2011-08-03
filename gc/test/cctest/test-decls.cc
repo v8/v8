@@ -498,7 +498,7 @@ TEST(Reappearing) {
                   0,
                   2,  // var declaration + const initialization
                   4,  // 2 x declaration + 2 x initialization
-                  EXPECT_EXCEPTION);  // x has already been declared!
+                  EXPECT_RESULT, Undefined());  // x = 0 fails for a const.
   }
 }
 

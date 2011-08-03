@@ -100,7 +100,7 @@ private:
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 
 // Flags for experimental implementation features.
-DEFINE_bool(unbox_double_arrays, false, "automatically unbox arrays of doubles")
+DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
@@ -412,6 +412,7 @@ DEFINE_bool(print_json_ast, false, "print source AST as JSON")
 DEFINE_bool(print_builtin_json_ast, false,
             "print source AST for builtins as JSON")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
+DEFINE_bool(verify_stack_height, false, "verify stack height tracing on ia32")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
@@ -471,14 +472,10 @@ DEFINE_bool(trace_regexp_assembler,
             "trace regexp macro assembler calls.")
 
 //
-// Logging and profiling only flags
+// Logging and profiling flags
 //
 #undef FLAG
-#ifdef ENABLE_LOGGING_AND_PROFILING
 #define FLAG FLAG_FULL
-#else
-#define FLAG FLAG_READONLY
-#endif
 
 // log.cc
 DEFINE_bool(log, false,
@@ -508,19 +505,6 @@ DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
-
-//
-// Heap protection flags
-// Using heap protection requires ENABLE_LOGGING_AND_PROFILING as well.
-//
-#ifdef ENABLE_HEAP_PROTECTION
-#undef FLAG
-#define FLAG FLAG_FULL
-
-DEFINE_bool(protect_heap, false,
-            "Protect/unprotect V8's heap when leaving/entring the VM.")
-
-#endif
 
 //
 // Disassembler only flags

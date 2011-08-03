@@ -319,6 +319,8 @@ class Scope: public ZoneObject {
 
   explicit Scope(Type type);
 
+  Isolate* const isolate_;
+
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -355,11 +357,17 @@ class Scope: public ZoneObject {
   // Illegal redeclaration.
   Expression* illegal_redecl_;
 
-  // Scope-specific information.
-  bool scope_inside_with_;  // this scope is inside a 'with' of some outer scope
-  bool scope_contains_with_;  // this scope contains a 'with' statement
-  bool scope_calls_eval_;  // this scope contains an 'eval' call
-  bool strict_mode_;  // this scope is a strict mode scope
+  // Scope-specific information computed during parsing.
+  //
+  // This scope is inside a 'with' of some outer scope.
+  bool scope_inside_with_;
+  // This scope contains a 'with' statement.
+  bool scope_contains_with_;
+  // This scope or a nested catch scope or with scope contain an 'eval' call. At
+  // the 'eval' call site this scope is the declaration scope.
+  bool scope_calls_eval_;
+  // This scope is a strict mode scope.
+  bool strict_mode_;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
@@ -422,6 +430,10 @@ class Scope: public ZoneObject {
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
+
+  inline Slot* NewSlot(Variable* var, Slot::Type type, int index) {
+    return new(isolate_->zone()) Slot(isolate_, var, type, index);
+  }
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {

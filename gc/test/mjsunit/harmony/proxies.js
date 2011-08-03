@@ -28,6 +28,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+// TODO(rossberg): test exception cases.
+
 
 // Getters.
 
@@ -35,28 +37,32 @@ function TestGet(handler) {
   var o = Proxy.create(handler)
   assertEquals(42, o.a)
   assertEquals(42, o["b"])
-//  assertEquals(Object.getOwnPropertyDescriptor(o, "b").value, 42)
 }
 
 TestGet({
   get: function(r, k) { return 42 }
 })
+
 TestGet({
   get: function(r, k) { return this.get2(r, k) },
   get2: function(r, k) { return 42 }
 })
+
 TestGet({
   getPropertyDescriptor: function(k) { return {value: 42} }
 })
+
 TestGet({
   getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
   getPropertyDescriptor2: function(k) { return {value: 42} }
 })
+
 TestGet({
   getPropertyDescriptor: function(k) {
     return {get value() { return 42 }}
   }
 })
+
 TestGet({
   get: undefined,
   getPropertyDescriptor: function(k) { return {value: 42} }
@@ -65,6 +71,70 @@ TestGet({
 TestGet(Proxy.create({
   get: function(pr, pk) {
     return function(r, k) { return 42 }
+  }
+}))
+
+
+function TestGetCall(handler) {
+  var p = Proxy.create(handler)
+  assertEquals(55, p.f())
+  assertEquals(55, p.f("unused", "arguments"))
+  assertEquals(55, p.f.call(p))
+  assertEquals(55, p.withargs(45, 5))
+  assertEquals(55, p.withargs.call(p, 11, 22))
+  assertEquals("6655", "66" + p)  // calls p.toString
+}
+
+TestGetCall({
+  get: function(r, k) { return function() { return 55 } }
+})
+
+TestGetCall({
+  get: function(r, k) { return this.get2(r, k) },
+  get2: function(r, k) { return function() { return 55 } }
+})
+
+TestGetCall({
+  getPropertyDescriptor: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+
+TestGetCall({
+  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
+  getPropertyDescriptor2: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+
+TestGetCall({
+  getPropertyDescriptor: function(k) {
+    return {get value() { return function() { return 55 } }}
+  }
+})
+
+TestGetCall({
+  get: undefined,
+  getPropertyDescriptor: function(k) {
+    return {value: function() { return 55 }}
+  }
+})
+
+TestGetCall({
+  get: function(r, k) {
+    if (k == "gg") {
+      return function() { return 55 }
+    } else if (k == "withargs") {
+      return function(n, m) { return n + m * 2 }
+    } else {
+      return function() { return this.gg() }
+    }
+  }
+})
+
+TestGetCall(Proxy.create({
+  get: function(pr, pk) {
+    return function(r, k) { return function() { return 55 } }
   }
 }))
 
@@ -82,22 +152,22 @@ function TestSet(handler) {
   assertEquals(43, o["b"] = 43)
   assertEquals("b", key)
   assertEquals(43, val)
-//  assertTrue(Object.defineProperty(o, "c", {value: 44}))
-//  assertEquals("c", key)
-//  assertEquals(44, val)
 }
 
 TestSet({
   set: function(r, k, v) { key = k; val = v; return true }
 })
+
 TestSet({
   set: function(r, k, v) { return this.set2(r, k, v) },
   set2: function(r, k, v) { key = k; val = v; return true }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) { return {writable: true} },
   defineProperty: function(k, desc) { key = k; val = desc.value }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) {
     return this.getOwnPropertyDescriptor2(k)
@@ -106,22 +176,26 @@ TestSet({
   defineProperty: function(k, desc) { this.defineProperty2(k, desc) },
   defineProperty2: function(k, desc) { key = k; val = desc.value }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) {
     return {get writable() { return true }}
   },
   defineProperty: function(k, desc) { key = k; val = desc.value }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) {
     return {set: function(v) { key = k; val = v }}
   }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) { return null },
   getPropertyDescriptor: function(k) { return {writable: true} },
   defineProperty: function(k, desc) { key = k; val = desc.value }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) { return null },
   getPropertyDescriptor: function(k) {
@@ -129,12 +203,14 @@ TestSet({
   },
   defineProperty: function(k, desc) { key = k; val = desc.value }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) { return null },
   getPropertyDescriptor: function(k) {
     return {set: function(v) { key = k; val = v }}
   }
 })
+
 TestSet({
   getOwnPropertyDescriptor: function(k) { return null },
   getPropertyDescriptor: function(k) { return null },
@@ -149,7 +225,7 @@ TestSet(Proxy.create({
 
 
 
-// Property definition (Object.defineProperty).
+// Property definition (Object.defineProperty and Object.defineProperties).
 
 var key
 var desc
@@ -193,7 +269,7 @@ function TestDefine(handler) {
   assertEquals("zzz", key)
   assertEquals(0, Object.getOwnPropertyNames(desc).length)
 
-// This test requires [s in proxy] to be implemented first.
+// TODO(rossberg): This test requires [s in proxy] to be implemented first.
 //  var d = Proxy.create({
 //    get: function(r, k) { return (k === "value") ? 77 : void 0 },
 //    getOwnPropertyNames: function() { return ["value"] }
@@ -204,20 +280,121 @@ function TestDefine(handler) {
 //  assertEquals("p", key)
 //  assertEquals(1, Object.getOwnPropertyNames(desc).length)
 //  assertEquals(77, desc.value)
+
+  var props = {
+    'bla': {},
+    blub: {get: function() { return true }},
+    '': {get value() { return 20 }},
+    last: {value: 21, configurable: true, mine: "eyes"}
+  }
+  Object.defineProperty(props, "hidden", {value: "hidden", enumerable: false})
+  assertEquals(o, Object.defineProperties(o, props))
+  assertEquals("last", key)
+  assertEquals(2, Object.getOwnPropertyNames(desc).length)
+  assertEquals(21, desc.value)
+  assertEquals(true, desc.configurable)
+  assertEquals(undefined, desc.mine)  // Arguably a bug in the spec...
 }
 
 TestDefine({
   defineProperty: function(k, d) { key = k; desc = d; return true }
 })
+
 TestDefine({
   defineProperty: function(k, d) { return this.defineProperty2(k, d) },
   defineProperty2: function(k, d) { key = k; desc = d; return true }
 })
+
 TestDefine(Proxy.create({
   get: function(pr, pk) {
     return function(k, d) { key = k; desc = d; return true }
   }
 }))
+
+
+
+// Property deletion (delete).
+
+var key
+function TestDelete(handler) {
+  var o = Proxy.create(handler)
+  assertEquals(true, delete o.a)
+  assertEquals("a", key)
+  assertEquals(true, delete o["b"])
+  assertEquals("b", key)
+
+  assertEquals(false, delete o.z1)
+  assertEquals("z1", key)
+  assertEquals(false, delete o["z2"])
+  assertEquals("z2", key);
+
+  (function() {
+    "use strict"
+    assertEquals(true, delete o.c)
+    assertEquals("c", key)
+    assertEquals(true, delete o["d"])
+    assertEquals("d", key)
+
+    assertThrows(function() { delete o.z3 }, TypeError)
+    assertEquals("z3", key)
+    assertThrows(function() { delete o["z4"] }, TypeError)
+    assertEquals("z4", key)
+  })()
+}
+
+TestDelete({
+  'delete': function(k) { key = k; return k < "z" }
+})
+
+TestDelete({
+  'delete': function(k) { return this.delete2(k) },
+  delete2: function(k) { key = k; return k < "z" }
+})
+
+TestDelete(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) { key = k; return k < "z" }
+  }
+}))
+
+
+
+// Property descriptors (Object.getOwnPropertyDescriptor).
+
+function TestDescriptor(handler) {
+  var o = Proxy.create(handler)
+  var descs = [
+    {configurable: true},
+    {value: 34, enumerable: true, configurable: true},
+    {value: 3, writable: false, mine: "eyes", configurable: true},
+    {get value() { return 20 }, get configurable() { return true }},
+    {get: function() { "get" }, set: function() { "set" }, configurable: true}
+  ]
+  for (var i = 0; i < descs.length; ++i) {
+    assertEquals(o, Object.defineProperty(o, i, descs[i]))
+    var desc = Object.getOwnPropertyDescriptor(o, i)
+    for (p in descs[i]) {
+      // TODO(rossberg): Ignore user attributes as long as the spec isn't
+      // fixed suitably.
+      if (p != "mine") assertEquals(descs[i][p], desc[p])
+    }
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(o, "absent"))
+  }
+}
+
+
+TestDescriptor({
+  defineProperty: function(k, d) { this["__" + k] = d; return true },
+  getOwnPropertyDescriptor: function(k) { return this["__" + k] }
+})
+
+TestDescriptor({
+  defineProperty: function(k, d) { this["__" + k] = d; return true },
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) { return this["__" + k] }
+})
 
 
 
@@ -252,7 +429,143 @@ assertTrue("object" == typeof Proxy.create({}))
 
 
 
-// Instanceof (instanceof).
+// Membership test (in).
+
+var key
+function TestIn(handler) {
+  var o = Proxy.create(handler)
+  assertTrue("a" in o)
+  assertEquals("a", key)
+  assertTrue(99 in o)
+  assertEquals("99", key)
+  assertFalse("z" in o)
+  assertEquals("z", key)
+
+  if ("b" in o) {
+  } else {
+    assertTrue(false)
+  }
+  assertEquals("b", key)
+
+  if ("zz" in o) {
+    assertTrue(false)
+  }
+  assertEquals("zz", key)
+
+  if (!("c" in o)) {
+    assertTrue(false)
+  }
+  assertEquals("c", key)
+
+  if (!("zzz" in o)) {
+  } else {
+    assertTrue(false)
+  }
+  assertEquals("zzz", key)
+}
+
+TestIn({
+  has: function(k) { key = k; return k < "z" }
+})
+
+TestIn({
+  has: function(k) { return this.has2(k) },
+  has2: function(k) { key = k; return k < "z" }
+})
+
+TestIn({
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestIn({
+  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
+  getPropertyDescriptor2: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestIn({
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {get value() { return 42 }} : void 0
+  }
+})
+
+TestIn({
+  get: undefined,
+  getPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestIn(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) { key = k; return k < "z" }
+  }
+}))
+
+
+
+// Own Properties (Object.prototype.hasOwnProperty).
+
+var key
+function TestHasOwn(handler) {
+  var o = Proxy.create(handler)
+  assertTrue(Object.prototype.hasOwnProperty.call(o, "a"))
+  assertEquals("a", key)
+  assertTrue(Object.prototype.hasOwnProperty.call(o, 99))
+  assertEquals("99", key)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "z"))
+  assertEquals("z", key)
+}
+
+TestHasOwn({
+  hasOwn: function(k) { key = k; return k < "z" }
+})
+
+TestHasOwn({
+  hasOwn: function(k) { return this.hasOwn2(k) },
+  hasOwn2: function(k) { key = k; return k < "z" }
+})
+
+TestHasOwn({
+  getOwnPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestHasOwn({
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestHasOwn({
+  getOwnPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {get value() { return 42 }} : void 0
+  }
+})
+
+TestHasOwn({
+  hasOwn: undefined,
+  getOwnPropertyDescriptor: function(k) {
+    key = k; return k < "z" ? {value: 42} : void 0
+  }
+})
+
+TestHasOwn(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) { key = k; return k < "z" }
+  }
+}))
+
+
+
+// Instanceof (instanceof)
 
 function TestInstanceof() {
   var o = {}
@@ -289,7 +602,7 @@ TestInstanceof()
 
 
 
-// Prototype (Object.getPrototypeOf).
+// Prototype (Object.getPrototypeOf, Object.prototype.isPrototypeOf).
 
 function TestPrototype() {
   var o = {}
@@ -303,13 +616,39 @@ function TestPrototype() {
   assertSame(Object.getPrototypeOf(p2), o)
   assertSame(Object.getPrototypeOf(p3), p2)
   assertSame(Object.getPrototypeOf(p4), null)
+
+  assertTrue(Object.prototype.isPrototypeOf(o))
+  assertFalse(Object.prototype.isPrototypeOf(p1))
+  assertTrue(Object.prototype.isPrototypeOf(p2))
+  assertTrue(Object.prototype.isPrototypeOf(p3))
+  assertFalse(Object.prototype.isPrototypeOf(p4))
+  assertTrue(Object.prototype.isPrototypeOf.call(Object.prototype, o))
+  assertFalse(Object.prototype.isPrototypeOf.call(Object.prototype, p1))
+  assertTrue(Object.prototype.isPrototypeOf.call(Object.prototype, p2))
+  assertTrue(Object.prototype.isPrototypeOf.call(Object.prototype, p3))
+  assertFalse(Object.prototype.isPrototypeOf.call(Object.prototype, p4))
+  assertFalse(Object.prototype.isPrototypeOf.call(o, o))
+  assertFalse(Object.prototype.isPrototypeOf.call(o, p1))
+  assertTrue(Object.prototype.isPrototypeOf.call(o, p2))
+  assertTrue(Object.prototype.isPrototypeOf.call(o, p3))
+  assertFalse(Object.prototype.isPrototypeOf.call(o, p4))
+  assertFalse(Object.prototype.isPrototypeOf.call(p1, p1))
+  assertFalse(Object.prototype.isPrototypeOf.call(p1, o))
+  assertFalse(Object.prototype.isPrototypeOf.call(p1, p2))
+  assertFalse(Object.prototype.isPrototypeOf.call(p1, p3))
+  assertFalse(Object.prototype.isPrototypeOf.call(p1, p4))
+  assertFalse(Object.prototype.isPrototypeOf.call(p2, p1))
+  assertFalse(Object.prototype.isPrototypeOf.call(p2, p2))
+  assertTrue(Object.prototype.isPrototypeOf.call(p2, p3))
+  assertFalse(Object.prototype.isPrototypeOf.call(p2, p4))
+  assertFalse(Object.prototype.isPrototypeOf.call(p3, p2))
 }
 
 TestPrototype()
 
 
 
-// Property names (Object.getOwnPropertyNames).
+// Property names (Object.getOwnPropertyNames, Object.keys).
 
 function TestPropertyNames(names, handler) {
   var p = Proxy.create(handler)
@@ -319,15 +658,241 @@ function TestPropertyNames(names, handler) {
 TestPropertyNames([], {
   getOwnPropertyNames: function() { return [] }
 })
+
 TestPropertyNames(["a", "zz", " ", "0"], {
   getOwnPropertyNames: function() { return ["a", "zz", " ", 0] }
 })
+
 TestPropertyNames(["throw", "function "], {
   getOwnPropertyNames: function() { return this.getOwnPropertyNames2() },
   getOwnPropertyNames2: function() { return ["throw", "function "] }
 })
+
 TestPropertyNames(["[object Object]"], {
   get getOwnPropertyNames() {
     return function() { return [{}] }
   }
 })
+
+
+function TestKeys(names, handler) {
+  var p = Proxy.create(handler)
+  assertArrayEquals(names, Object.keys(p))
+}
+
+TestKeys([], {
+  keys: function() { return [] }
+})
+
+TestKeys(["a", "zz", " ", "0"], {
+  keys: function() { return ["a", "zz", " ", 0] }
+})
+
+TestKeys(["throw", "function "], {
+  keys: function() { return this.keys2() },
+  keys2: function() { return ["throw", "function "] }
+})
+
+TestKeys(["[object Object]"], {
+  get keys() {
+    return function() { return [{}] }
+  }
+})
+
+TestKeys(["a", "0"], {
+  getOwnPropertyNames: function() { return ["a", 23, "zz", "", 0] },
+  getOwnPropertyDescriptor: function(k) { return {enumerable: k.length == 1} }
+})
+
+TestKeys(["23", "zz", ""], {
+  getOwnPropertyNames: function() { return this.getOwnPropertyNames2() },
+  getOwnPropertyNames2: function() { return ["a", 23, "zz", "", 0] },
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) { return {enumerable: k.length != 1} }
+})
+
+TestKeys(["a", "b", "c", "5"], {
+  get getOwnPropertyNames() {
+    return function() { return ["0", 4, "a", "b", "c", 5] }
+  },
+  get getOwnPropertyDescriptor() {
+    return function(k) { return {enumerable: k >= "44"} }
+  }
+})
+
+TestKeys([], {
+  get getOwnPropertyNames() {
+    return function() { return ["a", "b", "c"] }
+  },
+  getOwnPropertyDescriptor: function(k) { return {} }
+})
+
+
+
+// Fixing (Object.freeze, Object.seal, Object.preventExtensions,
+//         Object.isFrozen, Object.isSealed, Object.isExtensible)
+
+function TestFix(names, handler) {
+  var proto = {p: 77}
+  var assertFixing = function(o, s, f, e) {
+    assertEquals(s, Object.isSealed(o))
+    assertEquals(f, Object.isFrozen(o))
+    assertEquals(e, Object.isExtensible(o))
+  }
+
+  var o1 = Proxy.create(handler, proto)
+  assertFixing(o1, false, false, true)
+  Object.seal(o1)
+  assertFixing(o1, true, names.length === 0, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o1).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o1).sort())
+  assertEquals(proto, Object.getPrototypeOf(o1))
+  assertEquals(77, o1.p)
+  for (var n in o1) {
+    var desc = Object.getOwnPropertyDescriptor(o1, n)
+    if (desc !== undefined) assertFalse(desc.configurable)
+  }
+
+  var o2 = Proxy.create(handler, proto)
+  assertFixing(o2, false, false, true)
+  Object.freeze(o2)
+  assertFixing(o2, true, true, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o2).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o2).sort())
+  assertEquals(proto, Object.getPrototypeOf(o2))
+  assertEquals(77, o2.p)
+  for (var n in o2) {
+    var desc = Object.getOwnPropertyDescriptor(o2, n)
+    if (desc !== undefined) assertFalse(desc.writable)
+    if (desc !== undefined) assertFalse(desc.configurable)
+  }
+
+  var o3 = Proxy.create(handler, proto)
+  assertFixing(o3, false, false, true)
+  Object.preventExtensions(o3)
+  assertFixing(o3, names.length === 0, names.length === 0, false)
+  assertArrayEquals(names.sort(), Object.getOwnPropertyNames(o3).sort())
+  assertArrayEquals(names.filter(function(x) {return x < "z"}).sort(),
+                    Object.keys(o3).sort())
+  assertEquals(proto, Object.getPrototypeOf(o3))
+  assertEquals(77, o3.p)
+}
+
+TestFix([], {
+  fix: function() { return {} }
+})
+
+TestFix(["a", "b", "c", "d", "zz"], {
+  fix: function() {
+    return {
+      a: {value: "a", writable: true, configurable: false, enumerable: true},
+      b: {value: 33, writable: false, configurable: false, enumerable: true},
+      c: {value: 0, writable: true, configurable: true, enumerable: true},
+      d: {value: true, writable: false, configurable: true, enumerable: true},
+      zz: {value: 0, enumerable: false}
+    }
+  }
+})
+
+TestFix(["a"], {
+  fix: function() { return this.fix2() },
+  fix2: function() {
+    return {a: {value: 4, writable: true, configurable: true, enumerable: true}}
+  }
+})
+
+TestFix(["b"], {
+  get fix() {
+    return function() {
+      return {b: {configurable: true, writable: true, enumerable: true}}
+    }
+  }
+})
+
+
+
+// String conversion (Object.prototype.toString, Object.prototype.toLocaleString)
+
+var key
+function TestToString(handler) {
+  var o = Proxy.create(handler)
+  key = ""
+  assertEquals("[object Object]", Object.prototype.toString.call(o))
+  assertEquals("", key)
+  assertEquals("my_proxy", Object.prototype.toLocaleString.call(o))
+  assertEquals("toString", key)
+}
+
+TestToString({
+  get: function(r, k) { key = k; return function() { return "my_proxy" } }
+})
+
+TestToString({
+  get: function(r, k) { return this.get2(r, k) },
+  get2: function(r, k) { key = k; return function() { return "my_proxy" } }
+})
+
+TestToString(Proxy.create({
+  get: function(pr, pk) {
+    return function(r, k) { key = k; return function() { return "my_proxy" } }
+  }
+}))
+
+
+
+// Value conversion (Object.prototype.toValue)
+
+function TestValueOf(handler) {
+  var o = Proxy.create(handler)
+  assertSame(o, Object.prototype.valueOf.call(o))
+}
+
+TestValueOf({})
+
+
+
+// Enumerability (Object.prototype.propertyIsEnumerable)
+
+var key
+function TestIsEnumerable(handler) {
+  var o = Proxy.create(handler)
+  assertTrue(Object.prototype.propertyIsEnumerable.call(o, "a"))
+  assertEquals("a", key)
+  assertTrue(Object.prototype.propertyIsEnumerable.call(o, 2))
+  assertEquals("2", key)
+  assertFalse(Object.prototype.propertyIsEnumerable.call(o, "z"))
+  assertEquals("z", key)
+}
+
+TestIsEnumerable({
+  getOwnPropertyDescriptor: function(k) {
+    key = k; return {enumerable: k < "z", configurable: true}
+  },
+})
+
+TestIsEnumerable({
+  getOwnPropertyDescriptor: function(k) {
+    return this.getOwnPropertyDescriptor2(k)
+  },
+  getOwnPropertyDescriptor2: function(k) {
+    key = k; return {enumerable: k < "z", configurable: true}
+  },
+})
+
+TestIsEnumerable({
+  getOwnPropertyDescriptor: function(k) {
+    key = k; return {get enumerable() { return k < "z" }, configurable: true}
+  },
+})
+
+TestIsEnumerable(Proxy.create({
+  get: function(pr, pk) {
+    return function(k) {
+      key = k; return {enumerable: k < "z", configurable: true}
+    }
+  }
+}))

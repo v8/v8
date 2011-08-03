@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "v8.h"
 
 #include "profile-generator-inl.h"
@@ -3281,5 +3279,3 @@ String* GetConstructorNameForHeapProfile(JSObject* object) {
 }
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_LOGGING_AND_PROFILING

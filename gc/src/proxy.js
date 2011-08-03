@@ -135,3 +135,19 @@ function DerivedSetTrap(receiver, name, val) {
 function DerivedHasTrap(name) {
   return !!this.getPropertyDescriptor(name)
 }
+
+function DerivedHasOwnTrap(name) {
+  return !!this.getOwnPropertyDescriptor(name)
+}
+
+function DerivedKeysTrap() {
+  var names = this.getOwnPropertyNames()
+  var enumerableNames = []
+  for (var i = 0, count = 0; i < names.length; ++i) {
+    var name = names[i]
+    if (this.getOwnPropertyDescriptor(TO_STRING_INLINE(name)).enumerable) {
+      enumerableNames[count++] = names[i]
+    }
+  }
+  return enumerableNames
+}

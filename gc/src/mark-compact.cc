@@ -2118,7 +2118,6 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
               cached_map,
               SKIP_WRITE_BARRIER);
         }
-        new_number_of_transitions++;
       }
 
       // Fill slots that became free with undefined value.
@@ -3312,11 +3311,9 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
     GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
   }
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
-#endif
 }
 
 

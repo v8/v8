@@ -78,13 +78,36 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
+static void* GetRandomMmapAddr() {
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  // Note that the current isolate isn't set up in a call path via
+  // CpuFeatures::Probe. We don't care about randomization in this case because
+  // the code page is immediately freed.
+  if (isolate != NULL) {
+#ifdef V8_TARGET_ARCH_X64
+    uint64_t rnd1 = V8::RandomPrivate(isolate);
+    uint64_t rnd2 = V8::RandomPrivate(isolate);
+    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
+    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
+    // the hint address to 46 bits to give the kernel a fighting chance of
+    // fulfilling our placement request.
+    raw_addr &= V8_UINT64_C(0x3ffffffff000);
+#else
+    uint32_t raw_addr = V8::RandomPrivate(isolate);
+    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
+    // variety of ASLR modes (PAE kernel, NX compat mode, etc).
+    raw_addr &= 0x3ffff000;
+    raw_addr += 0x20000000;
+#endif
+    return reinterpret_cast<void*>(raw_addr);
+  }
+  return NULL;
+}
+
+
 void OS::Setup() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  // Seed the random number generator. We preserve microsecond resolution.
+  uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
 
@@ -367,10 +390,10 @@ size_t OS::AllocateAlignment() {
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
-  // TODO(805): Port randomization of allocated executable memory to Linux.
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* addr = GetRandomMmapAddr();
+  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(i::Isolate::Current(),
         StringEvent("OS::Allocate", "mmap failed"));
@@ -388,23 +411,6 @@ void OS::Free(void* address, const size_t size) {
   USE(result);
   ASSERT(result == 0);
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  mprotect(address, size, PROT_READ);
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  // TODO(1240712): mprotect has a return value which is ignored here.
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  mprotect(address, size, prot);
-}
-
-#endif
 
 
 void OS::Sleep(int milliseconds) {
@@ -483,7 +489,6 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
@@ -540,7 +545,6 @@ void OS::LogSharedLibraryAddresses() {
   }
   free(lib_name);
   fclose(fp);
-#endif
 }
 
 
@@ -548,7 +552,6 @@ static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
 
 
 void OS::SignalCodeMovingGC() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // Support for ll_prof.py.
   //
   // The Linux profiler built into the kernel logs all mmap's with
@@ -564,7 +567,6 @@ void OS::SignalCodeMovingGC() {
   ASSERT(addr != MAP_FAILED);
   munmap(addr, size);
   fclose(f);
-#endif
 }
 
 
@@ -635,12 +637,12 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(NULL,
-                     size,
-                     PROT_NONE,
-                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                     kMmapFd,
-                     kMmapFdOffset);
+  void* result = mmap(GetRandomMmapAddr(),
+                      size,
+                      PROT_NONE,
+                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                      kMmapFd,
+                      kMmapFdOffset);
 
   if (result == MAP_FAILED) return NULL;
 
@@ -788,6 +790,7 @@ class LinuxMutex : public Mutex {
     ASSERT(result == 0);
     result = pthread_mutex_init(&mutex_, &attrs);
     ASSERT(result == 0);
+    USE(result);
   }
 
   virtual ~LinuxMutex() { pthread_mutex_destroy(&mutex_); }
@@ -891,8 +894,6 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new LinuxSemaphore(count);
 }
 
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
 // Android runs a fairly new Linux kernel, so signal info is there,
@@ -1181,6 +1182,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

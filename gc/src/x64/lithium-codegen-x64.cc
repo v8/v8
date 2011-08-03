@@ -1338,6 +1338,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 
   BinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ nop();  // Signals no inlined code.
 }
 
 
@@ -1398,39 +1399,119 @@ void LCodeGen::DoBranch(LBranch* instr) {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
       Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-      __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
-      __ j(equal, false_label);
-      __ CompareRoot(reg, Heap::kTrueValueRootIndex);
-      __ j(equal, true_label);
-      __ CompareRoot(reg, Heap::kFalseValueRootIndex);
-      __ j(equal, false_label);
-      __ Cmp(reg, Smi::FromInt(0));
-      __ j(equal, false_label);
-      __ JumpIfSmi(reg, true_label);
+      ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
+      // Avoid deopts in the case where we've never executed this path before.
+      if (expected.IsEmpty()) expected = ToBooleanStub::all_types();
 
-      // Test for double values. Plus/minus zero and NaN are false.
-      Label call_stub;
-      __ CompareRoot(FieldOperand(reg, HeapObject::kMapOffset),
-                     Heap::kHeapNumberMapRootIndex);
-      __ j(not_equal, &call_stub, Label::kNear);
+      if (expected.Contains(ToBooleanStub::UNDEFINED)) {
+        // undefined -> false.
+        __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen undefined for the first time -> deopt.
+        __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
+        DeoptimizeIf(equal, instr->environment());
+      }
 
-      // HeapNumber => false iff +0, -0, or NaN. These three cases set the
-      // zero flag when compared to zero using ucomisd.
-      __ xorps(xmm0, xmm0);
-      __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
-      __ j(zero, false_label);
-      __ jmp(true_label);
+      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+        // true -> true.
+        __ CompareRoot(reg, Heap::kTrueValueRootIndex);
+        __ j(equal, true_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a boolean for the first time -> deopt.
+        __ CompareRoot(reg, Heap::kTrueValueRootIndex);
+        DeoptimizeIf(equal, instr->environment());
+      }
 
-      // The conversion stub doesn't cause garbage collections so it's
-      // safe to not record a safepoint after the call.
-      __ bind(&call_stub);
-      ToBooleanStub stub(rax);
-      __ Pushad();
-      __ push(reg);
-      __ CallStub(&stub);
-      __ testq(rax, rax);
-      __ Popad();
-      EmitBranch(true_block, false_block, not_zero);
+      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+        // false -> false.
+        __ CompareRoot(reg, Heap::kFalseValueRootIndex);
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a boolean for the first time -> deopt.
+        __ CompareRoot(reg, Heap::kFalseValueRootIndex);
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
+        // 'null' -> false.
+        __ CompareRoot(reg, Heap::kNullValueRootIndex);
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen null for the first time -> deopt.
+        __ CompareRoot(reg, Heap::kNullValueRootIndex);
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::SMI)) {
+        // Smis: 0 -> false, all other -> true.
+        __ Cmp(reg, Smi::FromInt(0));
+        __ j(equal, false_label);
+        __ JumpIfSmi(reg, true_label);
+      } else if (expected.NeedsMap()) {
+        // If we need a map later and have a Smi -> deopt.
+        __ testb(reg, Immediate(kSmiTagMask));
+        DeoptimizeIf(zero, instr->environment());
+      }
+
+      const Register map = kScratchRegister;
+      if (expected.NeedsMap()) {
+        __ movq(map, FieldOperand(reg, HeapObject::kMapOffset));
+        // Everything with a map could be undetectable, so check this now.
+        __ testb(FieldOperand(map, Map::kBitFieldOffset),
+                 Immediate(1 << Map::kIsUndetectable));
+        // Undetectable -> false.
+        __ j(not_zero, false_label);
+      }
+
+      if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
+        // spec object -> true.
+        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+        __ j(above_equal, true_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a spec object for the first time -> deopt.
+        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+        DeoptimizeIf(above_equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::STRING)) {
+        // String value -> false iff empty.
+        Label not_string;
+        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+        __ j(above_equal, &not_string, Label::kNear);
+        __ cmpq(FieldOperand(reg, String::kLengthOffset), Immediate(0));
+        __ j(not_zero, true_label);
+        __ jmp(false_label);
+        __ bind(&not_string);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a string for the first time -> deopt
+        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+        DeoptimizeIf(below, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
+        // heap number -> false iff +0, -0, or NaN.
+        Label not_heap_number;
+        __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+        __ j(not_equal, &not_heap_number, Label::kNear);
+        __ xorps(xmm0, xmm0);
+        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
+        __ j(zero, false_label);
+        __ jmp(true_label);
+        __ bind(&not_heap_number);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a heap number for the first time -> deopt.
+        __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // internal objects -> true
+        __ jmp(true_label);
+      } else {
+        // We've seen something for the first time -> deopt.
+        DeoptimizeIf(no_condition, instr->environment());
+      }
     }
   }
 }
@@ -1879,7 +1960,6 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     __ push(ToRegister(instr->InputAt(0)));
     __ Push(instr->function());
 
-    Register temp = ToRegister(instr->TempAt(0));
     static const int kAdditionalDelta = 10;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
@@ -2255,10 +2335,34 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
-Operand LCodeGen::BuildExternalArrayOperand(
+void LCodeGen::DoLoadKeyedFastDoubleElement(
+    LLoadKeyedFastDoubleElement* instr) {
+  XMMRegister result(ToDoubleRegister(instr->result()));
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+        sizeof(kHoleNanLower32);
+    Operand hole_check_operand = BuildFastArrayOperand(
+        instr->elements(),
+        instr->key(),
+        JSObject::FAST_DOUBLE_ELEMENTS,
+        offset);
+    __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
+    DeoptimizeIf(equal, instr->environment());
+  }
+
+  Operand double_load_operand = BuildFastArrayOperand(
+      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+  __ movsd(result, double_load_operand);
+}
+
+
+Operand LCodeGen::BuildFastArrayOperand(
     LOperand* external_pointer,
     LOperand* key,
-    JSObject::ElementsKind elements_kind) {
+    JSObject::ElementsKind elements_kind,
+    uint32_t offset) {
   Register external_pointer_reg = ToRegister(external_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
@@ -2266,10 +2370,12 @@ Operand LCodeGen::BuildExternalArrayOperand(
     if (constant_value & 0xF0000000) {
       Abort("array index constant value too big");
     }
-    return Operand(external_pointer_reg, constant_value * (1 << shift_size));
+    return Operand(external_pointer_reg,
+                   constant_value * (1 << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(external_pointer_reg, ToRegister(key), scale_factor, 0);
+    return Operand(external_pointer_reg, ToRegister(key),
+                   scale_factor, offset);
   }
 }
 
@@ -2277,8 +2383,8 @@ Operand LCodeGen::BuildExternalArrayOperand(
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   JSObject::ElementsKind elements_kind = instr->elements_kind();
-  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), elements_kind));
+  Operand operand(BuildFastArrayOperand(instr->external_pointer(),
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
@@ -3004,8 +3110,8 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
   JSObject::ElementsKind elements_kind = instr->elements_kind();
-  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), elements_kind));
+  Operand operand(BuildFastArrayOperand(instr->external_pointer(),
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
@@ -3081,6 +3187,25 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   }
 }
 
+
+void LCodeGen::DoStoreKeyedFastDoubleElement(
+    LStoreKeyedFastDoubleElement* instr) {
+  XMMRegister value = ToDoubleRegister(instr->value());
+  Label have_value;
+
+  __ ucomisd(value, value);
+  __ j(parity_odd, &have_value);  // NaN.
+
+  __ Set(kScratchRegister, BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+  __ movq(value, kScratchRegister);
+
+  __ bind(&have_value);
+  Operand double_store_operand = BuildFastArrayOperand(
+      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+  __ movsd(double_store_operand, value);
+}
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->object()).is(rdx));

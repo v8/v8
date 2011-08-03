@@ -274,12 +274,11 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 void Heap::ReportStatisticsBeforeGC() {
   // Heap::ReportHeapStatistics will also log NewSpace statistics when
-  // compiled with ENABLE_LOGGING_AND_PROFILING and --log-gc is set.  The
-  // following logic is used to avoid double logging.
-#if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
+  // compiled --log-gc is set.  The following logic is used to avoid
+  // double logging.
+#ifdef DEBUG
   if (FLAG_heap_stats || FLAG_log_gc) new_space_.CollectStatistics();
   if (FLAG_heap_stats) {
     ReportHeapStatistics("Before GC");
@@ -287,23 +286,16 @@ void Heap::ReportStatisticsBeforeGC() {
     new_space_.ReportStatistics();
   }
   if (FLAG_heap_stats || FLAG_log_gc) new_space_.ClearHistograms();
-#elif defined(DEBUG)
-  if (FLAG_heap_stats) {
-    new_space_.CollectStatistics();
-    ReportHeapStatistics("Before GC");
-    new_space_.ClearHistograms();
-  }
-#elif defined(ENABLE_LOGGING_AND_PROFILING)
+#else
   if (FLAG_log_gc) {
     new_space_.CollectStatistics();
     new_space_.ReportStatistics();
     new_space_.ClearHistograms();
   }
-#endif
+#endif  // DEBUG
 }
 
 
-#if defined(ENABLE_LOGGING_AND_PROFILING)
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
   PrintF("Memory allocator,   used: %8" V8_PTR_PREFIX "d"
@@ -349,7 +341,6 @@ void Heap::PrintShortHeapStatistics() {
          lo_space_->Size(),
          lo_space_->Available());
 }
-#endif
 
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
@@ -357,20 +348,17 @@ void Heap::PrintShortHeapStatistics() {
 void Heap::ReportStatisticsAfterGC() {
   // Similar to the before GC, we use some complicated logic to ensure that
   // NewSpace statistics are logged exactly once when --log-gc is turned on.
-#if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
+#if defined(DEBUG)
   if (FLAG_heap_stats) {
     new_space_.CollectStatistics();
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
     new_space_.ReportStatistics();
   }
-#elif defined(DEBUG)
-  if (FLAG_heap_stats) ReportHeapStatistics("After GC");
-#elif defined(ENABLE_LOGGING_AND_PROFILING)
+#else
   if (FLAG_log_gc) new_space_.ReportStatistics();
-#endif
+#endif  // DEBUG
 }
-#endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
 void Heap::GarbageCollectionPrologue() {
@@ -387,11 +375,11 @@ void Heap::GarbageCollectionPrologue() {
   }
 
   if (FLAG_gc_verbose) Print();
-#endif
+#endif  // DEBUG
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+#if defined(DEBUG)
   ReportStatisticsBeforeGC();
-#endif
+#endif  // DEBUG
 
   LiveObjectList::GCPrologue();
 }
@@ -428,12 +416,10 @@ void Heap::GarbageCollectionEpilogue() {
       symbol_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+#if defined(DEBUG)
   ReportStatisticsAfterGC();
-#endif
-#ifdef ENABLE_DEBUGGER_SUPPORT
+#endif  // DEBUG
   isolate_->debug()->AfterGarbageCollection();
-#endif
 }
 
 
@@ -1388,15 +1374,12 @@ class ScavengingVisitor : public StaticVisitorBase {
   enum ObjectContents  { DATA_OBJECT, POINTER_OBJECT };
   enum SizeRestriction { SMALL, UNKNOWN_SIZE };
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   static void RecordCopiedObject(Heap* heap, HeapObject* obj) {
     bool should_record = false;
 #ifdef DEBUG
     should_record = FLAG_heap_stats;
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
     should_record = should_record || FLAG_log_gc;
-#endif
     if (should_record) {
       if (heap->new_space()->Contains(obj)) {
         heap->new_space()->RecordAllocation(obj);
@@ -1405,7 +1388,6 @@ class ScavengingVisitor : public StaticVisitorBase {
       }
     }
   }
-#endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
@@ -1421,12 +1403,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     source->set_map_word(MapWord::FromForwardingAddress(target));
 
     if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
       // Update NewSpace stats if necessary.
       RecordCopiedObject(heap, target);
-#endif
       HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
-#if defined(ENABLE_LOGGING_AND_PROFILING)
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging() ||
           CpuProfiler::is_profiling(isolate)) {
@@ -1435,7 +1414,6 @@ class ScavengingVisitor : public StaticVisitorBase {
               source->address(), target->address()));
         }
       }
-#endif
     }
 
     if (marks_handling == TRANSFER_MARKS) {
@@ -1626,15 +1604,11 @@ static void InitializeScavengingVisitorsTables() {
 
 
 void Heap::SelectScavengingVisitorsTable() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   bool logging_and_profiling =
       isolate()->logger()->is_logging() ||
       CpuProfiler::is_profiling(isolate()) ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling());
-#else
-  bool logging_and_profiling = false;
-#endif
 
   if (!incremental_marking()->IsMarking()) {
     if (!logging_and_profiling) {
@@ -3369,14 +3343,13 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
   if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
   map->set_prototype(prototype);
-  map->set_pre_allocated_property_fields(1);
-  map->set_inobject_properties(1);
 
   // Allocate the proxy object.
   Object* result;
   MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
   JSProxy::cast(result)->set_handler(handler);
+  JSProxy::cast(result)->set_padding(Smi::FromInt(0));
   return result;
 }
 
@@ -3491,17 +3464,22 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
               object_size);
   }
 
-  FixedArray* elements = FixedArray::cast(source->elements());
+  FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
     Object* elem;
-    { MaybeObject* maybe_elem =
-          (elements->map() == fixed_cow_array_map()) ?
-          elements : CopyFixedArray(elements);
+    { MaybeObject* maybe_elem;
+      if (elements->map() == fixed_cow_array_map()) {
+        maybe_elem = FixedArray::cast(elements);
+      } else if (source->HasFastDoubleElements()) {
+        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
+      } else {
+        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
+      }
       if (!maybe_elem->ToObject(&elem)) return maybe_elem;
     }
-    JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
+    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem));
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
@@ -3513,6 +3491,36 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   }
   // Return the new clone.
   return clone;
+}
+
+
+MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
+  // Allocate fresh map.
+  // TODO(rossberg): Once we optimize proxies, cache these maps.
+  Map* map;
+  MaybeObject* maybe_map_obj =
+      AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
+
+  // Check that the receiver has the same size as a fresh object.
+  ASSERT(map->instance_size() == object->map()->instance_size());
+
+  map->set_prototype(object->map()->prototype());
+
+  // Allocate the backing storage for the properties.
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties;
+  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, TENURED);
+    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
+  }
+
+  // Reset the map for the object.
+  object->set_map(map);
+
+  // Reinitialize the object from the constructor map.
+  InitializeJSObjectFromMap(JSObject::cast(object),
+                            FixedArray::cast(properties), map);
+  return object;
 }
 
 
@@ -3827,6 +3835,23 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
+}
+
+
+MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
+                                               Map* map) {
+  int len = src->length();
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(len, NOT_TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  HeapObject* dst = HeapObject::cast(obj);
+  dst->set_map(map);
+  CopyBlock(
+      dst->address() + FixedDoubleArray::kLengthOffset,
+      src->address() + FixedDoubleArray::kLengthOffset,
+      FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
+  return obj;
 }
 
 
@@ -5179,28 +5204,6 @@ void Heap::Shrink() {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void Heap::Protect() {
-  if (HasBeenSetup()) {
-    AllSpaces spaces;
-    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
-      space->Protect();
-  }
-}
-
-
-void Heap::Unprotect() {
-  if (HasBeenSetup()) {
-    AllSpaces spaces;
-    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
-      space->Unprotect();
-  }
-}
-
-#endif
-
-
 void Heap::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
   ASSERT(callback != NULL);
   GCPrologueCallbackPair pair(callback, gc_type);
@@ -5844,9 +5847,7 @@ GCTracer::~GCTracer() {
     PrintF("\n");
   }
 
-#if defined(ENABLE_LOGGING_AND_PROFILING)
   heap_->PrintShortHeapStatistics();
-#endif
 }
 
 

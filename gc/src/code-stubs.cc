@@ -61,21 +61,29 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 }
 
 
+SmartPointer<const char> CodeStub::GetName() {
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  PrintName(&stream);
+  return stream.ToCString();
+}
+
+
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
   Isolate* isolate = masm->isolate();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
-  GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
+  SmartPointer<const char> name = GetName();
+  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
+  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
-#ifdef DEBUG
-    Print();
-#endif
-    code->Disassemble(GetName());
+    code->Disassemble(*name);
     PrintF("\n");
   }
 #endif
@@ -217,13 +225,7 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* InstanceofStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
+void InstanceofStub::PrintName(StringStream* stream) {
   const char* args = "";
   if (HasArgsInRegisters()) {
     args = "_REGS";
@@ -239,12 +241,10 @@ const char* InstanceofStub::GetName() {
     return_true_false_object = "_TRUEFALSE";
   }
 
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "InstanceofStub%s%s%s",
-               args,
-               inline_check,
-               return_true_false_object);
-  return name_;
+  stream->Add("InstanceofStub%s%s%s",
+              args,
+              inline_check,
+              return_true_false_object);
 }
 
 
@@ -254,7 +254,7 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
     case JSObject::FAST_DOUBLE_ELEMENTS:
-      UNIMPLEMENTED();
+      KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(masm);
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -283,7 +283,8 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
       break;
     case JSObject::FAST_DOUBLE_ELEMENTS:
-      UNIMPLEMENTED();
+      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
+                                                             is_js_array_);
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -303,6 +304,106 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
       break;
   }
+}
+
+
+void ArgumentsAccessStub::PrintName(StringStream* stream) {
+  const char* type_name = NULL;  // Make g++ happy.
+  switch (type_) {
+    case READ_ELEMENT: type_name = "ReadElement"; break;
+    case NEW_NON_STRICT_FAST: type_name = "NewNonStrictFast"; break;
+    case NEW_NON_STRICT_SLOW: type_name = "NewNonStrictSlow"; break;
+    case NEW_STRICT: type_name = "NewStrict"; break;
+  }
+  stream->Add("ArgumentsAccessStub_%s", type_name);
+}
+
+
+void CallFunctionStub::PrintName(StringStream* stream) {
+  const char* in_loop_name = NULL;  // Make g++ happy.
+  switch (in_loop_) {
+    case NOT_IN_LOOP: in_loop_name = ""; break;
+    case IN_LOOP: in_loop_name = "_InLoop"; break;
+  }
+  const char* flags_name = NULL;  // Make g++ happy.
+  switch (flags_) {
+    case NO_CALL_FUNCTION_FLAGS: flags_name = ""; break;
+    case RECEIVER_MIGHT_BE_IMPLICIT: flags_name = "_Implicit"; break;
+  }
+  stream->Add("CallFunctionStub_Args%d%s%s", argc_, in_loop_name, flags_name);
+}
+
+
+void ToBooleanStub::PrintName(StringStream* stream) {
+  stream->Add("ToBooleanStub_");
+  types_.Print(stream);
+}
+
+
+void ToBooleanStub::Types::Print(StringStream* stream) const {
+  if (IsEmpty()) stream->Add("None");
+  if (Contains(UNDEFINED)) stream->Add("Undefined");
+  if (Contains(BOOLEAN)) stream->Add("Bool");
+  if (Contains(SMI)) stream->Add("Smi");
+  if (Contains(NULL_TYPE)) stream->Add("Null");
+  if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
+  if (Contains(STRING)) stream->Add("String");
+  if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
+  if (Contains(INTERNAL_OBJECT)) stream->Add("InternalObject");
+}
+
+
+void ToBooleanStub::Types::TraceTransition(Types to) const {
+  if (!FLAG_trace_ic) return;
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  stream.Add("[ToBooleanIC (");
+  Print(&stream);
+  stream.Add("->");
+  to.Print(&stream);
+  stream.Add(")]\n");
+  stream.OutputToStdOut();
+}
+
+
+bool ToBooleanStub::Types::Record(Handle<Object> object) {
+  if (object->IsUndefined()) {
+    Add(UNDEFINED);
+    return false;
+  } else if (object->IsBoolean()) {
+    Add(BOOLEAN);
+    return object->IsTrue();
+  } else if (object->IsNull()) {
+    Add(NULL_TYPE);
+    return false;
+  } else if (object->IsSmi()) {
+    Add(SMI);
+    return Smi::cast(*object)->value() != 0;
+  } else if (object->IsSpecObject()) {
+    Add(SPEC_OBJECT);
+    return !object->IsUndetectableObject();
+  } else if (object->IsString()) {
+    Add(STRING);
+    return !object->IsUndetectableObject() &&
+        String::cast(*object)->length() != 0;
+  } else if (object->IsHeapNumber()) {
+    Add(HEAP_NUMBER);
+    double value = HeapNumber::cast(*object)->value();
+    return !object->IsUndetectableObject() && value != 0 && !isnan(value);
+  } else {
+    Add(INTERNAL_OBJECT);
+    return !object->IsUndetectableObject();
+  }
+}
+
+
+bool ToBooleanStub::Types::NeedsMap() const {
+  return Contains(ToBooleanStub::SPEC_OBJECT)
+      || Contains(ToBooleanStub::STRING)
+      || Contains(ToBooleanStub::HEAP_NUMBER)
+      || Contains(ToBooleanStub::INTERNAL_OBJECT);
 }
 
 
