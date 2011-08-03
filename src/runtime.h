@@ -209,6 +209,7 @@ namespace internal {
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2, 1) \
   F(FunctionSetLength, 2, 1) \
+  F(BoundFunctionSetLength, 2, 1)    \
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionSetReadOnlyPrototype, 1, 1) \
   F(FunctionGetName, 1, 1) \

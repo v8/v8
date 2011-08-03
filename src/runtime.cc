@@ -2002,6 +2002,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetLength) {
 }
 
 
+// Creates a local, readonly, property called length with the correct
+// length (when read by the user). This effectively overwrites the
+// interceptor used to normally provide the length.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BoundFunctionSetLength) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  CONVERT_CHECKED(Smi, length, args[1]);
+  MaybeObject* maybe_name =
+      isolate->heap()->AllocateStringFromAscii(CStrVector("length"));
+  String* name;
+  if (!maybe_name->To(&name)) return maybe_name;
+  PropertyAttributes attr =
+      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
+  return fun->AddProperty(name, length, attr, kNonStrictMode);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
