@@ -58,13 +58,36 @@ function WeakMapSet(key, value) {
   return %WeakMapSet(this, key, value);
 }
 
+
+function WeakMapHas(key) {
+  if (!IS_SPEC_OBJECT(key)) {
+    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
+  }
+  return !IS_UNDEFINED(%WeakMapGet(this, key));
+}
+
+
+function WeakMapDelete(key) {
+  if (!IS_SPEC_OBJECT(key)) {
+    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
+  }
+  if (!IS_UNDEFINED(%WeakMapGet(this, key))) {
+    %WeakMapSet(this, key, void 0);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // -------------------------------------------------------------------
 
 function SetupWeakMap() {
   // Setup the non-enumerable functions on the WeakMap prototype object.
   InstallFunctionsOnHiddenPrototype($WeakMap.prototype, DONT_ENUM, $Array(
     "get", WeakMapGet,
-    "set", WeakMapSet
+    "set", WeakMapSet,
+    "has", WeakMapHas,
+    "delete", WeakMapDelete
   ));
 }
 

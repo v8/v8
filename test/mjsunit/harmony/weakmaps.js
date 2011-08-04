@@ -32,6 +32,8 @@
 var m = new WeakMap;
 assertDoesNotThrow(function () { m.get(new Object) });
 assertDoesNotThrow(function () { m.set(new Object) });
+assertDoesNotThrow(function () { m.has(new Object) });
+assertDoesNotThrow(function () { m.delete(new Object) });
 
 
 // Test invalid getter and setter calls
@@ -53,6 +55,27 @@ function TestMapping(map, key, value) {
 TestMapping(m, new Object, 23);
 TestMapping(m, new Object, 'the-value');
 TestMapping(m, new Object, new Object);
+
+
+// Test expected querying behavior
+var m = new WeakMap;
+var key = new Object;
+TestMapping(m, key, 'to-be-present');
+assertTrue(m.has(key));
+assertFalse(m.has(new Object));
+TestMapping(m, key, undefined);
+assertFalse(m.has(key));
+assertFalse(m.has(new Object));
+
+
+// Test expected deletion behavior
+var m = new WeakMap;
+var key = new Object;
+TestMapping(m, key, 'to-be-deleted');
+assertTrue(m.delete(key));
+assertFalse(m.delete(key));
+assertFalse(m.delete(new Object));
+assertSame(m.get(key), undefined);
 
 
 // Test GC of map with entry
@@ -112,6 +135,8 @@ var m = new WeakMap;
 assertTrue(m instanceof WeakMap);
 assertTrue(WeakMap.prototype.set instanceof Function)
 assertTrue(WeakMap.prototype.get instanceof Function)
+assertTrue(WeakMap.prototype.has instanceof Function)
+assertTrue(WeakMap.prototype.delete instanceof Function)
 
 
 // Stress Test
