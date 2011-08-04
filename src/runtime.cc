@@ -4584,9 +4584,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   // Get the property names.
   jsproto = obj;
   int proto_with_hidden_properties = 0;
+  int next_copy_index = 0;
   for (int i = 0; i < length; i++) {
-    jsproto->GetLocalPropertyNames(*names,
-                                   i == 0 ? 0 : local_property_count[i - 1]);
+    jsproto->GetLocalPropertyNames(*names, next_copy_index);
+    next_copy_index += local_property_count[i];
     if (jsproto->HasHiddenProperties()) {
       proto_with_hidden_properties++;
     }

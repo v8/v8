@@ -9537,7 +9537,9 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
     }
     ASSERT(storage->length() >= index);
   } else {
-    property_dictionary()->CopyKeysTo(storage, StringDictionary::UNSORTED);
+    property_dictionary()->CopyKeysTo(storage,
+                                      index,
+                                      StringDictionary::UNSORTED);
   }
 }
 
@@ -10286,6 +10288,7 @@ template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Shrink(
 
 template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
     FixedArray*,
+    int,
     Dictionary<StringDictionaryShape, String*>::SortMode);
 
 template int
@@ -11415,11 +11418,11 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
+    int index,
     typename Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(NONE)));
   int capacity = HashTable<Shape, Key>::Capacity();
-  int index = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {

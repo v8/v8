@@ -2810,7 +2810,7 @@ class Dictionary: public HashTable<Shape, Key> {
                   PropertyAttributes filter,
                   SortMode sort_mode);
   // Fill in details for properties into storage.
-  void CopyKeysTo(FixedArray* storage, SortMode sort_mode);
+  void CopyKeysTo(FixedArray* storage, int index, SortMode sort_mode);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
