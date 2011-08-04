@@ -3140,48 +3140,6 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
 }
 
 
-MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
-                                                    DeleteMode mode) {
-  ASSERT(!HasExternalArrayElements());
-  switch (GetElementsKind()) {
-    case FAST_ELEMENTS: {
-      Object* obj;
-      { MaybeObject* maybe_obj = EnsureWritableFastElements();
-        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      }
-      uint32_t length = IsJSArray() ?
-      static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
-      static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if (index < length) {
-        FixedArray::cast(elements())->set_the_hole(index);
-      }
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary = element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      if (entry != NumberDictionary::kNotFound) {
-        Object* deleted = dictionary->DeleteProperty(entry, mode);
-        if (deleted == GetHeap()->true_value()) {
-          MaybeObject* maybe_elements = dictionary->Shrink(index);
-          FixedArray* new_elements = NULL;
-          if (!maybe_elements->To(&new_elements)) {
-            return maybe_elements;
-          }
-          set_elements(new_elements);
-        }
-        return deleted;
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-  return GetHeap()->true_value();
-}
-
-
 MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
@@ -3209,97 +3167,11 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
-  MaybeObject* raw_result =
-      this_handle->DeleteElementPostInterceptor(index, NORMAL_DELETION);
+  MaybeObject* raw_result = GetElementsAccessor()->Delete(*this_handle,
+                                                          index,
+                                                          NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
-}
-
-
-MaybeObject* JSObject::DeleteFastElement(uint32_t index) {
-  ASSERT(HasFastElements() || HasFastArgumentsElements());
-  Heap* heap = GetHeap();
-  FixedArray* backing_store = FixedArray::cast(elements());
-  if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
-    backing_store = FixedArray::cast(backing_store->get(1));
-  } else {
-    Object* writable;
-    MaybeObject* maybe = EnsureWritableFastElements();
-    if (!maybe->ToObject(&writable)) return maybe;
-    backing_store = FixedArray::cast(writable);
-  }
-  uint32_t length = static_cast<uint32_t>(
-      IsJSArray()
-      ? Smi::cast(JSArray::cast(this)->length())->value()
-      : backing_store->length());
-  if (index < length) {
-    backing_store->set_the_hole(index);
-    // If an old space backing store is larger than a certain size and
-    // has too few used values, normalize it.
-    // To avoid doing the check on every delete we require at least
-    // one adjacent hole to the value being deleted.
-    Object* hole = heap->the_hole_value();
-    const int kMinLengthForSparsenessCheck = 64;
-    if (backing_store->length() >= kMinLengthForSparsenessCheck &&
-        !heap->InNewSpace(backing_store) &&
-        ((index > 0 && backing_store->get(index - 1) == hole) ||
-         (index + 1 < length && backing_store->get(index + 1) == hole))) {
-      int num_used = 0;
-      for (int i = 0; i < backing_store->length(); ++i) {
-        if (backing_store->get(i) != hole) ++num_used;
-        // Bail out early if more than 1/4 is used.
-        if (4 * num_used > backing_store->length()) break;
-      }
-      if (4 * num_used <= backing_store->length()) {
-        MaybeObject* result = NormalizeElements();
-        if (result->IsFailure()) return result;
-      }
-    }
-  }
-  return heap->true_value();
-}
-
-
-MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
-                                               DeleteMode mode) {
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  FixedArray* backing_store = FixedArray::cast(elements());
-  bool is_arguments =
-      (GetElementsKind() == JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
-  if (is_arguments) {
-    backing_store = FixedArray::cast(backing_store->get(1));
-  }
-  NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
-  int entry = dictionary->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
-    Object* result = dictionary->DeleteProperty(entry, mode);
-    if (result == heap->true_value()) {
-      MaybeObject* maybe_elements = dictionary->Shrink(index);
-      FixedArray* new_elements = NULL;
-      if (!maybe_elements->To(&new_elements)) {
-        return maybe_elements;
-      }
-      if (is_arguments) {
-        FixedArray::cast(elements())->set(1, new_elements);
-      } else {
-        set_elements(new_elements);
-      }
-    }
-    if (mode == STRICT_DELETION && result == heap->false_value()) {
-      // In strict mode, attempting to delete a non-configurable property
-      // throws an exception.
-      HandleScope scope(isolate);
-      Handle<Object> holder(this);
-      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, holder };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("strict_delete_property",
-                                           HandleVector(args, 2));
-      return isolate->Throw(*error);
-    }
-  }
-  return heap->true_value();
 }
 
 
@@ -3321,62 +3193,13 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
   if (HasIndexedInterceptor()) {
     // Skip interceptor if forcing deletion.
-    return (mode == FORCE_DELETION)
-        ? DeleteElementPostInterceptor(index, FORCE_DELETION)
-        : DeleteElementWithInterceptor(index);
+    if (mode != FORCE_DELETION) {
+      return DeleteElementWithInterceptor(index);
+    }
+    mode = JSReceiver::FORCE_DELETION;
   }
 
-  switch (GetElementsKind()) {
-    case FAST_ELEMENTS:
-      return DeleteFastElement(index);
-
-    case DICTIONARY_ELEMENTS:
-      return DeleteDictionaryElement(index, mode);
-
-    case FAST_DOUBLE_ELEMENTS: {
-      int length = IsJSArray()
-          ? Smi::cast(JSArray::cast(this)->length())->value()
-          : FixedDoubleArray::cast(elements())->length();
-      if (index < static_cast<uint32_t>(length)) {
-        FixedDoubleArray::cast(elements())->set_the_hole(index);
-      }
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      // Pixel and external array elements cannot be deleted. Just
-      // silently ignore here.
-      break;
-
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      FixedArray* parameter_map = FixedArray::cast(elements());
-      uint32_t length = parameter_map->length();
-      Object* probe =
-          index < (length - 2) ? parameter_map->get(index + 2) : NULL;
-      if (probe != NULL && !probe->IsTheHole()) {
-        // TODO(kmillikin): We could check if this was the last aliased
-        // parameter, and revert to normal elements in that case.  That
-        // would enable GC of the context.
-        parameter_map->set_the_hole(index + 2);
-      } else {
-        FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-        if (arguments->IsDictionary()) {
-          return DeleteDictionaryElement(index, mode);
-        } else {
-          return DeleteFastElement(index);
-        }
-      }
-      break;
-    }
-  }
-  return isolate->heap()->true_value();
+  return GetElementsAccessor()->Delete(this, index, mode);
 }
 
 

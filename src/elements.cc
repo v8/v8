@@ -69,6 +69,10 @@ class ElementsAccessorBase : public ElementsAccessor {
     return obj->GetHeap()->the_hole_value();
   }
 
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) = 0;
+
  protected:
   static BackingStoreClass* GetBackingStore(JSObject* obj) {
     return BackingStoreClass::cast(obj->elements());
@@ -85,12 +89,73 @@ class ElementsAccessorBase : public ElementsAccessor {
 
 class FastElementsAccessor
     : public ElementsAccessorBase<FastElementsAccessor, FixedArray> {
+ public:
+  static MaybeObject* DeleteCommon(JSObject* obj,
+                                   uint32_t index) {
+    ASSERT(obj->HasFastElements() || obj->HasFastArgumentsElements());
+    Heap* heap = obj->GetHeap();
+    FixedArray* backing_store = FixedArray::cast(obj->elements());
+    if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
+      backing_store = FixedArray::cast(backing_store->get(1));
+    } else {
+      Object* writable;
+      MaybeObject* maybe = obj->EnsureWritableFastElements();
+      if (!maybe->ToObject(&writable)) return maybe;
+      backing_store = FixedArray::cast(writable);
+    }
+    uint32_t length = static_cast<uint32_t>(
+        obj->IsJSArray()
+        ? Smi::cast(JSArray::cast(obj)->length())->value()
+        : backing_store->length());
+    if (index < length) {
+      backing_store->set_the_hole(index);
+      // If an old space backing store is larger than a certain size and
+      // has too few used values, normalize it.
+      // To avoid doing the check on every delete we require at least
+      // one adjacent hole to the value being deleted.
+      Object* hole = heap->the_hole_value();
+      const int kMinLengthForSparsenessCheck = 64;
+      if (backing_store->length() >= kMinLengthForSparsenessCheck &&
+          !heap->InNewSpace(backing_store) &&
+          ((index > 0 && backing_store->get(index - 1) == hole) ||
+           (index + 1 < length && backing_store->get(index + 1) == hole))) {
+        int num_used = 0;
+        for (int i = 0; i < backing_store->length(); ++i) {
+          if (backing_store->get(i) != hole) ++num_used;
+          // Bail out early if more than 1/4 is used.
+          if (4 * num_used > backing_store->length()) break;
+        }
+        if (4 * num_used <= backing_store->length()) {
+          MaybeObject* result = obj->NormalizeElements();
+          if (result->IsFailure()) return result;
+        }
+      }
+    }
+    return heap->true_value();
+  }
+
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) {
+    return DeleteCommon(obj, index);
+  }
 };
 
 
 class FastDoubleElementsAccessor
     : public ElementsAccessorBase<FastDoubleElementsAccessor,
                                   FixedDoubleArray> {
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) {
+    int length = obj->IsJSArray()
+        ? Smi::cast(JSArray::cast(obj)->length())->value()
+        : FixedDoubleArray::cast(obj->elements())->length();
+    if (index < static_cast<uint32_t>(length)) {
+      FixedDoubleArray::cast(obj->elements())->set_the_hole(index);
+    }
+    return obj->GetHeap()->true_value();
+  }
 };
 
 
@@ -111,6 +176,13 @@ class ExternalElementsAccessor
     } else {
       return obj->GetHeap()->undefined_value();
     }
+  }
+
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) {
+    // External arrays always ignore deletes.
+    return obj->GetHeap()->true_value();
   }
 };
 
@@ -194,6 +266,57 @@ class DictionaryElementsAccessor
     return obj->GetHeap()->the_hole_value();
   }
 
+
+  static MaybeObject* DeleteCommon(JSObject* obj,
+                                   uint32_t index,
+                                   JSReceiver::DeleteMode mode) {
+    Isolate* isolate = obj->GetIsolate();
+    Heap* heap = isolate->heap();
+    FixedArray* backing_store = FixedArray::cast(obj->elements());
+    bool is_arguments =
+        (obj->GetElementsKind() == JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+    if (is_arguments) {
+      backing_store = FixedArray::cast(backing_store->get(1));
+    }
+    NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
+      Object* result = dictionary->DeleteProperty(entry, mode);
+      if (result == heap->true_value()) {
+        MaybeObject* maybe_elements = dictionary->Shrink(index);
+        FixedArray* new_elements = NULL;
+        if (!maybe_elements->To(&new_elements)) {
+          return maybe_elements;
+        }
+        if (is_arguments) {
+          FixedArray::cast(obj->elements())->set(1, new_elements);
+        } else {
+          obj->set_elements(new_elements);
+        }
+      }
+      if (mode == JSObject::STRICT_DELETION &&
+          result == heap->false_value()) {
+        // In strict mode, attempting to delete a non-configurable property
+        // throws an exception.
+        HandleScope scope(isolate);
+        Handle<Object> holder(obj);
+        Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
+        Handle<Object> args[2] = { name, holder };
+        Handle<Object> error =
+            isolate->factory()->NewTypeError("strict_delete_property",
+                                             HandleVector(args, 2));
+        return isolate->Throw(*error);
+      }
+    }
+    return heap->true_value();
+  }
+
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) {
+    return DeleteCommon(obj, index, mode);
+  }
+
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
                                        uint32_t index) {
@@ -235,6 +358,29 @@ class NonStrictArgumentsElementsAccessor
       }
     }
     return obj->GetHeap()->the_hole_value();
+  }
+
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) {
+    FixedArray* parameter_map = FixedArray::cast(obj->elements());
+    uint32_t length = parameter_map->length();
+    Object* probe =
+        index < (length - 2) ? parameter_map->get(index + 2) : NULL;
+    if (probe != NULL && !probe->IsTheHole()) {
+      // TODO(kmillikin): We could check if this was the last aliased
+      // parameter, and revert to normal elements in that case.  That
+      // would enable GC of the context.
+      parameter_map->set_the_hole(index + 2);
+    } else {
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        return DictionaryElementsAccessor::DeleteCommon(obj, index, mode);
+      } else {
+        return FastElementsAccessor::DeleteCommon(obj, index);
+      }
+    }
+    return obj->GetHeap()->true_value();
   }
 };
 

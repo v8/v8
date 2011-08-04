@@ -43,6 +43,10 @@ class ElementsAccessor {
                                        Object* receiver,
                                        uint32_t index) = 0;
 
+  virtual MaybeObject* Delete(JSObject* obj,
+                              uint32_t index,
+                              JSReceiver::DeleteMode mode) = 0;
+
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
     ASSERT(elements_kind < JSObject::kElementsKindCount);

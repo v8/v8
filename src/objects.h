@@ -2030,8 +2030,6 @@ class JSObject: public JSReceiver {
                                                              DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(String* name);
 
-  MUST_USE_RESULT MaybeObject* DeleteElementPostInterceptor(uint32_t index,
-                                                            DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
