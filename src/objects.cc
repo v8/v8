@@ -8342,7 +8342,8 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
     }
     ASSERT(storage->length() >= index);
   } else {
-    property_dictionary()->CopyKeysTo(storage);
+    property_dictionary()->CopyKeysTo(storage,
+                                      index);
   }
 }
 
@@ -8926,7 +8927,7 @@ template Object* Dictionary<NumberDictionaryShape, uint32_t>::DeleteProperty(
     int, JSObject::DeleteMode);
 
 template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
-    FixedArray*);
+    FixedArray*, int);
 
 template int
 Dictionary<StringDictionaryShape, String*>::NumberOfElementsFilterAttributes(
@@ -9982,11 +9983,11 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
 
 
 template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
+void Dictionary<Shape, Key>::CopyKeysTo(
+    FixedArray* storage, int index) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(NONE)));
   int capacity = HashTable<Shape, Key>::Capacity();
-  int index = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {

@@ -2554,7 +2554,7 @@ class Dictionary: public HashTable<Shape, Key> {
   // Copies keys to preallocated fixed array.
   void CopyKeysTo(FixedArray* storage, PropertyAttributes filter);
   // Fill in details for properties into storage.
-  void CopyKeysTo(FixedArray* storage);
+  void CopyKeysTo(FixedArray* storage, int index);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
