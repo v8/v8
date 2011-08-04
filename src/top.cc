@@ -47,6 +47,10 @@ namespace internal {
 
 ThreadLocalTop::ThreadLocalTop() {
   InitializeInternal();
+  // This flag may be set using v8::V8::IgnoreOutOfMemoryException()
+  // before an isolate is initialized. The initialize methods below do
+  // not touch it to preserve its value.
+  ignore_out_of_memory_ = false;
 }
 
 
@@ -327,6 +331,7 @@ void Isolate::PrintStack() {
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     accumulator.OutputToStdOut();
+    InitializeLoggingAndCounters();
     accumulator.Log();
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;

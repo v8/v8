@@ -29,6 +29,7 @@ static void SetUp() {
   // Log to memory buffer.
   i::FLAG_logfile = "*";
   i::FLAG_log = true;
+  ISOLATE->InitializeLoggingAndCounters();
   LOGGER->Setup();
 }
 
@@ -120,6 +121,7 @@ TEST(MemoryLoggingTurnedOff) {
   // Log to stdout
   i::FLAG_logfile = "-";
   i::FLAG_log = true;
+  ISOLATE->InitializeLoggingAndCounters();
   LOGGER->Setup();
   CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 0));
   CHECK_EQ(0, LOGGER->GetLogLines(100, NULL, 0));

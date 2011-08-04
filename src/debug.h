@@ -809,7 +809,7 @@ class Debugger {
   bool IsDebuggerActive();
 
  private:
-  Debugger();
+  explicit Debugger(Isolate* isolate);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,
