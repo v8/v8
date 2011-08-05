@@ -192,6 +192,10 @@
                   '-O2',
                   '-Os',
                 ],
+                'cflags': [
+                  '-fomit-frame-pointer',
+                  '-O3',
+                ],
                 'conditions': [
                   [ 'gcc_version==44', {
                     'cflags': [
