@@ -11434,7 +11434,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   context->set_extension(*local_scope);
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->declaration_context());
+  Handle<Context> function_context;
+  // Get the function's context if it has one.
+  if (scope_info->HasHeapAllocatedLocals()) {
+    function_context = Handle<Context>(frame_context->declaration_context());
+  }
   context = CopyWithContextChain(isolate, go_between, frame_context, context);
 
   if (additional_context->IsJSObject()) {
