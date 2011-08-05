@@ -4730,13 +4730,6 @@ class SharedFunctionInfo: public HeapObject {
   inline bool native();
   inline void set_native(bool value);
 
-  // Indicates that the function was created by the Function function.
-  // Though it's anonymous, toString should treat it as if it had the name
-  // "anonymous".  We don't set the name itself so that the system does not
-  // see a binding for it.
-  inline bool name_should_print_as_anonymous();
-  inline void set_name_should_print_as_anonymous(bool flag);
-
   // Indicates whether the function is a bound function created using
   // the bind function.
   inline bool bound();
@@ -4922,6 +4915,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
   static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
+  static const int kBoundFunction = 9;
 
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,
@@ -4932,10 +4926,7 @@ class SharedFunctionInfo: public HeapObject {
     kStrictModeFunction,
     kUsesArguments,
     kHasDuplicateParameters,
-    kNative,
-    kBoundFunction,
-    kNameShouldPrintAsAnonymous,
-    kCompilerHintsCount  // Pseudo entry
+    kNative
   };
 
  private:
@@ -4948,9 +4939,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsSmiTagSize = 0;
   static const int kCompilerHintsSize = kIntSize;
 #endif
-
-  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount <=
-                SharedFunctionInfo::kCompilerHintsSize * kBitsPerByte);
 
  public:
   // Constants for optimizing codegen for strict mode function and
