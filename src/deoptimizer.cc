@@ -1438,6 +1438,7 @@ void SlotRef::ComputeSlotMappingForArguments(JavaScriptFrame* frame,
   UNREACHABLE();
 }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(
     Deoptimizer* deoptimizer, int frame_index) {
@@ -1467,5 +1468,6 @@ void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

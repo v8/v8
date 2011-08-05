@@ -438,7 +438,9 @@ void Heap::GarbageCollectionEpilogue() {
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
 #endif  // DEBUG
+#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
+#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
