@@ -788,7 +788,7 @@ bool JavaScriptScanner::ScanRegExpFlags() {
 // ----------------------------------------------------------------------------
 // Keyword Matcher
 
-KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
+const KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
   { "break",  KEYWORD_PREFIX, Token::BREAK },
   { NULL,     C,              Token::ILLEGAL },
   { NULL,     D,              Token::ILLEGAL },

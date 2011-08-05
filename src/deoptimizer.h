@@ -317,7 +317,7 @@ class Deoptimizer : public Malloced {
 
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
 
-  static int table_entry_size_;
+  static const int table_entry_size_;
 
   friend class FrameDescription;
   friend class DeoptimizingCodeListNode;

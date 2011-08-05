@@ -633,7 +633,7 @@ class KeywordMatcher {
   static const unsigned int kFirstCharRangeLength =
       kFirstCharRangeMax - kFirstCharRangeMin + 1;
   // State map for first keyword character range.
-  static FirstState first_states_[kFirstCharRangeLength];
+  static const FirstState first_states_[kFirstCharRangeLength];
 
   // If input equals keyword's character at position, continue matching keyword
   // from that position.
