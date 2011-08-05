@@ -3534,35 +3534,13 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               strict_mode,
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, strict_mode,
                kStrictModeFunction)
-
-
-bool SharedFunctionInfo::native() {
-  return BooleanBit::get(compiler_hints(), kNative);
-}
-
-
-void SharedFunctionInfo::set_native(bool value) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kNative,
-                                     value));
-}
-
-
-bool SharedFunctionInfo::bound() {
-  return BooleanBit::get(compiler_hints(), kBoundFunction);
-}
-
-
-void SharedFunctionInfo::set_bound(bool value) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kBoundFunction,
-                                     value));
-}
-
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
+               name_should_print_as_anonymous,
+               kNameShouldPrintAsAnonymous)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

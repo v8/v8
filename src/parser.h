@@ -554,8 +554,7 @@ class Parser {
 
   enum FunctionLiteralType {
     EXPRESSION,
-    DECLARATION,
-    NESTED
+    DECLARATION
   };
 
   ZoneList<Expression*>* ParseArguments(bool* ok);

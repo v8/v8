@@ -615,8 +615,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
   ASSERT(args.length() == 1);
   Object* obj = args[0];
-  return obj->IsJSProxy()
-      ? isolate->heap()->true_value() : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(obj->IsJSProxy());
 }
 
 
@@ -1038,8 +1037,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsExtensible) {
     ASSERT(proto->IsJSGlobalObject());
     obj = JSObject::cast(proto);
   }
-  return obj->map()->is_extensible() ? isolate->heap()->true_value()
-                                     : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(obj->map()->is_extensible());
 }
 
 
@@ -1105,8 +1103,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DisableAccessChecks) {
     Map::cast(new_map)->set_is_access_check_needed(false);
     object->set_map(Map::cast(new_map));
   }
-  return needs_access_checks ? isolate->heap()->true_value()
-                             : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(needs_access_checks);
 }
 
 
@@ -1917,6 +1914,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetName) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionNameShouldPrintAsAnonymous) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  return isolate->heap()->ToBoolean(
+      f->shared()->name_should_print_as_anonymous());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionMarkNameShouldPrintAsAnonymous) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  f->shared()->set_name_should_print_as_anonymous(true);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetBound) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -2097,8 +2112,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsAPIFunction) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, f, args[0]);
-  return f->shared()->IsApiFunction() ? isolate->heap()->true_value()
-                                      : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
 }
 
 
@@ -2107,8 +2121,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsBuiltin) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, f, args[0]);
-  return f->IsBuiltin() ? isolate->heap()->true_value() :
-                          isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(f->IsBuiltin());
 }
 
 
@@ -9980,9 +9993,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       details->set(0, *value);
       details->set(1, property_details);
       if (hasJavaScriptAccessors) {
-        details->set(2,
-                     caught_exception ? isolate->heap()->true_value()
-                                      : isolate->heap()->false_value());
+        details->set(2, isolate->heap()->ToBoolean(caught_exception));
         details->set(3, FixedArray::cast(*result_callback_obj)->get(0));
         details->set(4, FixedArray::cast(*result_callback_obj)->get(1));
       }
@@ -12165,8 +12176,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteLOL) {
 #ifdef LIVE_OBJECT_LIST
   CONVERT_SMI_ARG_CHECKED(id, 0);
   bool success = LiveObjectList::Delete(id);
-  return success ? isolate->heap()->true_value() :
-                   isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(success);
 #else
   return isolate->heap()->undefined_value();
 #endif
