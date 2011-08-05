@@ -1283,9 +1283,14 @@ def ProcessOptions(options):
   return True
 
 
+def DoSkip(case):
+  return (SKIP in case.outcomes) or (SLOW in case.outcomes)
+
+
 REPORT_TEMPLATE = """\
 Total: %(total)i tests
  * %(skipped)4d tests will be skipped
+ * %(timeout)4d tests are expected to timeout sometimes
  * %(nocrash)4d tests are expected to be flaky but not crash
  * %(pass)4d tests are expected to pass
  * %(fail_ok)4d tests are expected to fail that we won't fix
@@ -1297,10 +1302,11 @@ def PrintReport(cases):
     return (PASS in o) and (FAIL in o) and (not CRASH in o) and (not OKAY in o)
   def IsFailOk(o):
     return (len(o) == 2) and (FAIL in o) and (OKAY in o)
-  unskipped = [c for c in cases if not SKIP in c.outcomes]
+  unskipped = [c for c in cases if not DoSkip(c)]
   print REPORT_TEMPLATE % {
     'total': len(cases),
     'skipped': len(cases) - len(unskipped),
+    'timeout': len([t for t in unskipped if TIMEOUT in t.outcomes]),
     'nocrash': len([t for t in unskipped if IsFlaky(t.outcomes)]),
     'pass': len([t for t in unskipped if list(t.outcomes) == [PASS]]),
     'fail_ok': len([t for t in unskipped if IsFailOk(t.outcomes)]),
@@ -1472,15 +1478,14 @@ def Main():
     for rule in globally_unused_rules:
       print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
 
+  if not options.isolates:
+    all_cases = [c for c in all_cases if not c.TestsIsolates()]
+
   if options.report:
     PrintReport(all_cases)
 
   result = None
-  def DoSkip(case):
-    return SKIP in case.outcomes or SLOW in case.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
-  if not options.isolates:
-    cases_to_run = [c for c in cases_to_run if not c.TestsIsolates()]
   if len(cases_to_run) == 0:
     print "No tests to run."
     return 0
