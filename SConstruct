@@ -436,7 +436,7 @@ CCTEST_EXTRA_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
-      'LINKFLAGS': ['/STACK:2091752']
+      'LINKFLAGS': ['/STACK:2097152']
     },
   }
 }
@@ -601,7 +601,7 @@ SAMPLE_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
-      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
     },
     'mode:debug': {
       'CCFLAGS':    ['/Od'],
@@ -756,7 +756,7 @@ PREPARSER_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
-      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
     },
     'mode:debug': {
       'CCFLAGS':    ['/Od'],
@@ -822,6 +822,57 @@ D8_FLAGS = {
   'msvc': {
     'all': {
       'LIBS': ['winmm', 'ws2_32']
+    },
+    'verbose:off': {
+      'CCFLAGS': ['/nologo'],
+      'LINKFLAGS': ['/NOLOGO']
+    },
+    'verbose:on': {
+      'LINKFLAGS': ['/VERBOSE']
+    },
+    'prof:on': {
+      'LINKFLAGS': ['/MAP']
+    },
+    'mode:release': {
+      'CCFLAGS':   ['/O2'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MT']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'pgo:off': {
+          'LINKFLAGS':    ['/LTCG'],
+        },
+      },
+      'pgo:instrument': {
+        'LINKFLAGS':    ['/LTCG:PGI']
+      },
+      'pgo:optimize': {
+        'LINKFLAGS':    ['/LTCG:PGO']
+      }
+    },
+    'arch:ia32': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X86']
+    },
+    'arch:x64': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
+    },
+    'mode:debug': {
+      'CCFLAGS':    ['/Od'],
+      'LINKFLAGS':  ['/DEBUG'],
+      'CPPDEFINES': ['DEBUG'],
+      'msvcrt:static': {
+        'CCFLAGS':  ['/MTd']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS':  ['/MDd']
+      }
     }
   }
 }

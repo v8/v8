@@ -30,6 +30,7 @@
     'library%': 'static_library',
     'component%': 'static_library',
     'visibility%': 'hidden',
+    'msvs_multi_core_compile%': '1',
     'variables': {
       'conditions': [
         [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {

@@ -169,6 +169,10 @@
               },
               'VCLinkerTool': {
                 'LinkIncremental': '2',
+                # For future reference, the stack size needs to be increased
+                # when building for Windows 64-bit, otherwise some test cases
+                # can cause stack overflow.
+                # 'StackReserveSize': '297152',
               },
             },
             'conditions': [
@@ -239,6 +243,10 @@
                     'OptimizeReferences': '2',
                     'OptimizeForWindows98': '1',
                     'EnableCOMDATFolding': '2',
+                    # For future reference, the stack size needs to be
+                    # increased when building for Windows 64-bit, otherwise
+                    # some test cases can cause stack overflow.
+                    # 'StackReserveSize': '297152',
                   },
                 },
               }],
