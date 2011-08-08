@@ -605,8 +605,6 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }
-
-  if (output_count_ - 1 == frame_index) iterator->Done();
 }
 
 
