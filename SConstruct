@@ -1394,10 +1394,12 @@ def BuildSpecific(env, mode, env_overrides, tools):
     env['SONAME'] = soname
 
   # Build the object files by invoking SCons recursively.
+  d8_env = Environment(tools=tools)
+  d8_env.Replace(**context.flags['d8'])
   (object_files, shell_files, mksnapshot, preparser_files) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
-    exports='context tools',
+    exports='context tools d8_env',
     duplicate=False
   )
 
@@ -1426,8 +1428,6 @@ def BuildSpecific(env, mode, env_overrides, tools):
   context.library_targets.append(library)
   context.library_targets.append(preparser_library)
 
-  d8_env = Environment(tools=tools)
-  d8_env.Replace(**context.flags['d8'])
   context.ApplyEnvOverrides(d8_env)
   if context.options['library'] == 'static':
     shell = d8_env.Program('d8' + suffix, object_files + shell_files)
