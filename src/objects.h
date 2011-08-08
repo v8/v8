@@ -4666,12 +4666,10 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_end_position(int end_position);
 
   // Is this function a function expression in the source code.
-  inline bool is_expression();
-  inline void set_is_expression(bool value);
+  DECL_BOOLEAN_ACCESSORS(is_expression)
 
   // Is this function a top-level function (scripts, evals).
-  inline bool is_toplevel();
-  inline void set_is_toplevel(bool value);
+  DECL_BOOLEAN_ACCESSORS(is_toplevel)
 
   // Bit field containing various information collected by the compiler to
   // drive optimization.
@@ -4727,13 +4725,21 @@ class SharedFunctionInfo: public HeapObject {
   // These needs special threatment in .call and .apply since
   // null passed as the receiver should not be translated to the
   // global object.
-  inline bool native();
-  inline void set_native(bool value);
+  DECL_BOOLEAN_ACCESSORS(native)
+
+  // Indicates that the function was created by the Function function.
+  // Though it's anonymous, toString should treat it as if it had the name
+  // "anonymous".  We don't set the name itself so that the system does not
+  // see a binding for it.
+  DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
 
   // Indicates whether the function is a bound function created using
   // the bind function.
-  inline bool bound();
-  inline void set_bound(bool value);
+  DECL_BOOLEAN_ACCESSORS(bound)
+
+  // Indicates that the function is anonymous (the name field can be set
+  // through the API, which does not change this flag).
+  DECL_BOOLEAN_ACCESSORS(is_anonymous)
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -4915,7 +4921,6 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
   static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
-  static const int kBoundFunction = 9;
 
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,
@@ -4926,7 +4931,11 @@ class SharedFunctionInfo: public HeapObject {
     kStrictModeFunction,
     kUsesArguments,
     kHasDuplicateParameters,
-    kNative
+    kNative,
+    kBoundFunction,
+    kIsAnonymous,
+    kNameShouldPrintAsAnonymous,
+    kCompilerHintsCount  // Pseudo entry
   };
 
  private:
@@ -4939,6 +4948,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCompilerHintsSmiTagSize = 0;
   static const int kCompilerHintsSize = kIntSize;
 #endif
+
+  STATIC_ASSERT(SharedFunctionInfo::kCompilerHintsCount <=
+                SharedFunctionInfo::kCompilerHintsSize * kBitsPerByte);
 
  public:
   // Constants for optimizing codegen for strict mode function and

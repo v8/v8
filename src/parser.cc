@@ -731,10 +731,14 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
 
     FunctionLiteralType type =
         shared_info->is_expression() ? EXPRESSION : DECLARATION;
+    Handle<String> function_name =
+        shared_info->is_anonymous() ? Handle<String>::null() : name;
     bool ok = true;
-    result = ParseFunctionLiteral(name,
-                                  false,    // Strict mode name already checked.
-                                  RelocInfo::kNoPosition, type, &ok);
+    result = ParseFunctionLiteral(function_name,
+                                  false,  // Strict mode name already checked.
+                                  RelocInfo::kNoPosition,
+                                  type,
+                                  &ok);
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
   }
@@ -2842,8 +2846,11 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
     }
-    result = ParseFunctionLiteral(name, is_strict_reserved_name,
-                                  function_token_position, NESTED, CHECK_OK);
+    result = ParseFunctionLiteral(name,
+                                  is_strict_reserved_name,
+                                  function_token_position,
+                                  EXPRESSION,
+                                  CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }
@@ -3412,7 +3419,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
         ParseFunctionLiteral(name,
                              false,   // reserved words are allowed here
                              RelocInfo::kNoPosition,
-                             DECLARATION,
+                             EXPRESSION,
                              CHECK_OK);
     // Allow any number of parameters for compatiabilty with JSC.
     // Specification only allows zero parameters for get and one for set.
@@ -3619,25 +3626,22 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
 }
 
 
-FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
+FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                               bool name_is_strict_reserved,
                                               int function_token_position,
                                               FunctionLiteralType type,
                                               bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  bool is_named = !var_name.is_null();
 
-  // The name associated with this function. If it's a function expression,
-  // this is the actual function name, otherwise this is the name of the
-  // variable declared and initialized with the function (expression). In
-  // that case, we don't have a function name (it's empty).
-  Handle<String> name =
-      is_named ? var_name : isolate()->factory()->empty_symbol();
-  // The function name, if any.
-  Handle<String> function_name = isolate()->factory()->empty_symbol();
-  if (is_named && (type == EXPRESSION || type == NESTED)) {
-    function_name = name;
+  // Anonymous functions were passed either the empty symbol or a null
+  // handle as the function name.  Remember if we were passed a non-empty
+  // handle to decide whether to invoke function name inference.
+  bool should_infer_name = function_name.is_null();
+
+  // We want a non-null handle as the function name.
+  if (should_infer_name) {
+    function_name = isolate()->factory()->empty_symbol();
   }
 
   int num_parameters = 0;
@@ -3655,7 +3659,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   bool has_duplicate_parameters = false;
   // Parse function body.
   { LexicalScope lexical_scope(this, scope, isolate());
-    top_scope_->SetScopeName(name);
+    top_scope_->SetScopeName(function_name);
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
@@ -3705,7 +3709,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
-    if (!function_name.is_null() && function_name->length() > 0) {
+    if (type == EXPRESSION && function_name->length() > 0) {
       Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
       VariableProxy* fproxy =
           top_scope_->NewUnresolved(function_name, inside_with());
@@ -3739,7 +3743,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         end_pos = entry.end_pos();
         if (end_pos <= function_block_pos) {
           // End position greater than end of stream is safe, and hard to check.
-          ReportInvalidPreparseData(name, CHECK_OK);
+          ReportInvalidPreparseData(function_name, CHECK_OK);
         }
         isolate()->counters()->total_preparse_skipped()->Increment(
             end_pos - function_block_pos);
@@ -3769,7 +3773,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     // Validate strict mode.
     if (top_scope_->is_strict_mode()) {
-      if (IsEvalOrArguments(name)) {
+      if (IsEvalOrArguments(function_name)) {
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -3813,7 +3817,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
   FunctionLiteral* function_literal =
       new(zone()) FunctionLiteral(isolate(),
-                                  name,
+                                  function_name,
                                   scope,
                                   body,
                                   materialized_literal_count,
@@ -3823,11 +3827,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                                   num_parameters,
                                   start_pos,
                                   end_pos,
-                                  (function_name->length() > 0),
+                                  type == EXPRESSION,
                                   has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
 
-  if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
+  if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
 }
 
