@@ -787,9 +787,9 @@ static FILE* FOpen(const char* path, const char* mode) {
 #if (defined(_WIN32) || defined(_WIN64))
   FILE* result;
   if (fopen_s(&result, path, mode) == 0) {
-   return result;
+    return result;
   } else {
-   return NULL;
+    return NULL;
   }
 #else
   FILE* file = fopen(path, mode);
