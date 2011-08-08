@@ -497,9 +497,7 @@ class TranslationIterator BASE_EMBEDDED {
 
   int32_t Next();
 
-  bool HasNext() const { return index_ >= 0; }
-
-  void Done() { index_ = -1; }
+  bool HasNext() const { return index_ < buffer_->length(); }
 
   void Skip(int n) {
     for (int i = 0; i < n; i++) Next();

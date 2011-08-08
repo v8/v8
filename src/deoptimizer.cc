@@ -1183,11 +1183,11 @@ void TranslationBuffer::Add(int32_t value) {
 
 
 int32_t TranslationIterator::Next() {
-  ASSERT(HasNext());
   // Run through the bytes until we reach one with a least significant
   // bit of zero (marks the end).
   uint32_t bits = 0;
   for (int i = 0; true; i += 7) {
+    ASSERT(HasNext());
     uint8_t next = buffer_->get(index_++);
     bits |= (next >> 1) << i;
     if ((next & 1) == 0) break;
