@@ -616,7 +616,7 @@ VirtualMemory::VirtualMemory(size_t size) {
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (0 == munmap(address(), size())) address_ = NULL;
+    if (ReleaseRegion(address(), size())) address_ = NULL;
   }
 }
 

@@ -58,6 +58,7 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe() {
+  ASSERT(!initialized_);
   ASSERT(supported_ == 0);
 #ifdef DEBUG
   initialized_ = true;
