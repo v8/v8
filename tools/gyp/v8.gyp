@@ -644,7 +644,6 @@
             '../../src/scopes.h',
             '../../src/serialize.cc',
             '../../src/serialize.h',
-            '../../src/shell.h',
             '../../src/small-pointer-list.h',
             '../../src/smart-pointer.h',
             '../../src/snapshot-common.cc',
