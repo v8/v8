@@ -42,7 +42,7 @@
 
 namespace i = ::v8::internal;
 
-TEST(KeywordMatcher) {
+TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
     i::Token::Value token;
@@ -50,86 +50,56 @@ TEST(KeywordMatcher) {
 
   static const KeywordToken keywords[] = {
 #define KEYWORD(t, s, d) { s, i::Token::t },
-#define IGNORE(t, s, d)  /* */
-      TOKEN_LIST(IGNORE, KEYWORD, IGNORE)
+      TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
 #undef KEYWORD
       { NULL, i::Token::IDENTIFIER }
   };
 
-  static const char* future_keywords[] = {
-#define FUTURE(t, s, d) s,
-      TOKEN_LIST(IGNORE, IGNORE, FUTURE)
-#undef FUTURE
-#undef IGNORE
-      NULL
-  };
-
   KeywordToken key_token;
+  i::UnicodeCache unicode_cache;
+  i::byte buffer[32];
   for (int i = 0; (key_token = keywords[i]).keyword != NULL; i++) {
-    i::KeywordMatcher matcher;
-    const char* keyword = key_token.keyword;
-    int length = i::StrLength(keyword);
-    for (int j = 0; j < length; j++) {
-      if (key_token.token == i::Token::INSTANCEOF && j == 2) {
-        // "in" is a prefix of "instanceof". It's the only keyword
-        // that is a prefix of another.
-        CHECK_EQ(i::Token::IN, matcher.token());
-      } else {
-        CHECK_EQ(i::Token::IDENTIFIER, matcher.token());
-      }
-      matcher.AddChar(keyword[j]);
+    const i::byte* keyword =
+        reinterpret_cast<const i::byte*>(key_token.keyword);
+    int length = i::StrLength(key_token.keyword);
+    CHECK(static_cast<int>(sizeof(buffer)) >= length);
+    {
+      i::Utf8ToUC16CharacterStream stream(keyword, length);
+      i::JavaScriptScanner scanner(&unicode_cache);
+      scanner.Initialize(&stream);
+      CHECK_EQ(key_token.token, scanner.Next());
+      CHECK_EQ(i::Token::EOS, scanner.Next());
     }
-    CHECK_EQ(key_token.token, matcher.token());
-    // Adding more characters will make keyword matching fail.
-    matcher.AddChar('z');
-    CHECK_EQ(i::Token::IDENTIFIER, matcher.token());
-    // Adding a keyword later will not make it match again.
-    matcher.AddChar('i');
-    matcher.AddChar('f');
-    CHECK_EQ(i::Token::IDENTIFIER, matcher.token());
-  }
-
-  // Future keywords are not recognized.
-  const char* future_keyword;
-  for (int i = 0; (future_keyword = future_keywords[i]) != NULL; i++) {
-    i::KeywordMatcher matcher;
-    int length = i::StrLength(future_keyword);
-    for (int j = 0; j < length; j++) {
-      matcher.AddChar(future_keyword[j]);
+    // Removing characters will make keyword matching fail.
+    {
+      i::Utf8ToUC16CharacterStream stream(keyword, length - 1);
+      i::JavaScriptScanner scanner(&unicode_cache);
+      scanner.Initialize(&stream);
+      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+      CHECK_EQ(i::Token::EOS, scanner.Next());
     }
-    CHECK_EQ(i::Token::IDENTIFIER, matcher.token());
+    // Adding characters will make keyword matching fail.
+    static const char chars_to_append[] = { 'z', '0', '_' };
+    for (int j = 0; j < static_cast<int>(ARRAY_SIZE(chars_to_append)); ++j) {
+      memmove(buffer, keyword, length);
+      buffer[length] = chars_to_append[j];
+      i::Utf8ToUC16CharacterStream stream(buffer, length + 1);
+      i::JavaScriptScanner scanner(&unicode_cache);
+      scanner.Initialize(&stream);
+      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+      CHECK_EQ(i::Token::EOS, scanner.Next());
+    }
+    // Replacing characters will make keyword matching fail.
+    {
+      memmove(buffer, keyword, length);
+      buffer[length - 1] = '_';
+      i::Utf8ToUC16CharacterStream stream(buffer, length);
+      i::JavaScriptScanner scanner(&unicode_cache);
+      scanner.Initialize(&stream);
+      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+      CHECK_EQ(i::Token::EOS, scanner.Next());
+    }
   }
-
-  // Zero isn't ignored at first.
-  i::KeywordMatcher bad_start;
-  bad_start.AddChar(0);
-  CHECK_EQ(i::Token::IDENTIFIER, bad_start.token());
-  bad_start.AddChar('i');
-  bad_start.AddChar('f');
-  CHECK_EQ(i::Token::IDENTIFIER, bad_start.token());
-
-  // Zero isn't ignored at end.
-  i::KeywordMatcher bad_end;
-  bad_end.AddChar('i');
-  bad_end.AddChar('f');
-  CHECK_EQ(i::Token::IF, bad_end.token());
-  bad_end.AddChar(0);
-  CHECK_EQ(i::Token::IDENTIFIER, bad_end.token());
-
-  // Case isn't ignored.
-  i::KeywordMatcher bad_case;
-  bad_case.AddChar('i');
-  bad_case.AddChar('F');
-  CHECK_EQ(i::Token::IDENTIFIER, bad_case.token());
-
-  // If we mark it as failure, continuing won't help.
-  i::KeywordMatcher full_stop;
-  full_stop.AddChar('i');
-  CHECK_EQ(i::Token::IDENTIFIER, full_stop.token());
-  full_stop.Fail();
-  CHECK_EQ(i::Token::IDENTIFIER, full_stop.token());
-  full_stop.AddChar('f');
-  CHECK_EQ(i::Token::IDENTIFIER, full_stop.token());
 }
 
 
