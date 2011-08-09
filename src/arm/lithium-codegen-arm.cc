@@ -1679,8 +1679,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(ne, &not_heap_number);
         __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
         __ VFPCompareAndSetFlags(dbl_scratch, 0.0);
-        __ b(vs, false_label); // NaN -> false.
-        __ b(eq, false_label); // +0, -0 -> false.
+        __ b(vs, false_label);  // NaN -> false.
+        __ b(eq, false_label);  // +0, -0 -> false.
         __ b(true_label);
         __ bind(&not_heap_number);
       } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
