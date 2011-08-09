@@ -48,3 +48,10 @@ assertEquals('hest', o.m());
 assertEquals('hest', o.m());
 %OptimizeFunctionOnNextCall(o.m);
 assertEquals('hest', o.m());
+
+// Fixing the bug above introduced (revealed?) an inconsistency in named
+// getters and setters.  The property name was also treated as a function
+// name.
+var global = 'horse';
+var p = { get global() { return global; }};
+assertEquals('horse', p.global);

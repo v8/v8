@@ -552,16 +552,11 @@ class Parser {
   // in the object literal boilerplate.
   Handle<Object> GetBoilerplateValue(Expression* expression);
 
-  enum FunctionLiteralType {
-    EXPRESSION,
-    DECLARATION
-  };
-
   ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(Handle<String> var_name,
                                         bool name_is_reserved,
                                         int function_token_position,
-                                        FunctionLiteralType type,
+                                        FunctionLiteral::Type type,
                                         bool* ok);
 
 

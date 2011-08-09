@@ -659,8 +659,8 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           0,
           source->length(),
-          false,
-          false);
+          FunctionLiteral::ANONYMOUS_EXPRESSION,
+          false);  // Does not have duplicate parameters.
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -729,12 +729,13 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
       top_scope_->EnableStrictMode();
     }
 
-    FunctionLiteralType type =
-        shared_info->is_expression() ? EXPRESSION : DECLARATION;
-    Handle<String> function_name =
-        shared_info->is_anonymous() ? Handle<String>::null() : name;
+    FunctionLiteral::Type type = shared_info->is_expression()
+        ? (shared_info->is_anonymous()
+              ? FunctionLiteral::ANONYMOUS_EXPRESSION
+              : FunctionLiteral::NAMED_EXPRESSION)
+        : FunctionLiteral::DECLARATION;
     bool ok = true;
-    result = ParseFunctionLiteral(function_name,
+    result = ParseFunctionLiteral(name,
                                   false,  // Strict mode name already checked.
                                   RelocInfo::kNoPosition,
                                   type,
@@ -1475,7 +1476,7 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   FunctionLiteral* fun = ParseFunctionLiteral(name,
                                               is_strict_reserved,
                                               function_token_position,
-                                              DECLARATION,
+                                              FunctionLiteral::DECLARATION,
                                               CHECK_OK);
   // Even if we're not at the top-level of the global or a function
   // scope, we treat is as such and introduce the function with it's
@@ -2846,10 +2847,13 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
       name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
                                                  CHECK_OK);
     }
+    FunctionLiteral::Type type = name.is_null()
+        ? FunctionLiteral::ANONYMOUS_EXPRESSION
+        : FunctionLiteral::NAMED_EXPRESSION;
     result = ParseFunctionLiteral(name,
                                   is_strict_reserved_name,
                                   function_token_position,
-                                  EXPRESSION,
+                                  type,
                                   CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
@@ -3419,7 +3423,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
         ParseFunctionLiteral(name,
                              false,   // reserved words are allowed here
                              RelocInfo::kNoPosition,
-                             EXPRESSION,
+                             FunctionLiteral::ANONYMOUS_EXPRESSION,
                              CHECK_OK);
     // Allow any number of parameters for compatiabilty with JSC.
     // Specification only allows zero parameters for get and one for set.
@@ -3629,7 +3633,7 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
 FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                               bool name_is_strict_reserved,
                                               int function_token_position,
-                                              FunctionLiteralType type,
+                                              FunctionLiteral::Type type,
                                               bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -3646,7 +3650,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
 
   int num_parameters = 0;
   // Function declarations are hoisted.
-  Scope* scope = (type == DECLARATION)
+  Scope* scope = (type == FunctionLiteral::DECLARATION)
       ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
       : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
@@ -3709,7 +3713,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
-    if (type == EXPRESSION && function_name->length() > 0) {
+    if (type == FunctionLiteral::NAMED_EXPRESSION) {
       Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
       VariableProxy* fproxy =
           top_scope_->NewUnresolved(function_name, inside_with());
@@ -3827,7 +3831,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                   num_parameters,
                                   start_pos,
                                   end_pos,
-                                  type == EXPRESSION,
+                                  type,
                                   has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
 
