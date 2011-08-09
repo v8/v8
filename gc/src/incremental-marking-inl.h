@@ -92,6 +92,21 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
   ASSERT(obj->Size() >= 2*kPointerSize);
   ASSERT(IsMarking());
   Marking::BlackToGrey(mark_bit);
+  int64_t old_bytes_rescanned = bytes_rescanned_;
+  bytes_rescanned_ = old_bytes_rescanned + obj->Size();
+  if ((bytes_rescanned_ >> 20) != (old_bytes_rescanned >> 20)) {
+    if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSize()) {
+      // If we have queued twice the heap size for rescanning then we are
+      // going around in circles, scanning the same objects again and again
+      // as the program mutates the heap faster than we can incrementally
+      // trace it.  In this case we switch to non-incremental marking in
+      // order to finish off this marking phase.
+      if (FLAG_trace_gc) {
+        PrintF("Hurrying incremental marking because of lack of progress\n");
+      }
+      allocation_marking_factor_ = kMaxAllocationMarkingFactor;
+    }
+  }
 
   marking_deque_.UnshiftGrey(obj);
 }

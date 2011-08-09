@@ -360,8 +360,8 @@ class Heap {
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
   bool ConfigureHeap(int max_semispace_size,
-                     int max_old_gen_size,
-                     int max_executable_size);
+                     intptr_t max_old_gen_size,
+                     intptr_t max_executable_size);
   bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
@@ -2199,6 +2199,7 @@ class GCTracer BASE_EMBEDDED {
   // Incremental marking steps counters.
   int steps_count_;
   double steps_took_;
+  double longest_step_;
   int steps_count_since_last_gc_;
   double steps_took_since_last_gc_;
 

@@ -4724,8 +4724,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
 bool Heap::ConfigureHeap(int max_semispace_size,
-                         int max_old_gen_size,
-                         int max_executable_size) {
+                         intptr_t max_old_gen_size,
+                         intptr_t max_executable_size) {
   if (HasBeenSetup()) return false;
 
   if (max_semispace_size > 0) {
@@ -5752,6 +5752,7 @@ GCTracer::GCTracer(Heap* heap)
 
   steps_count_ = heap_->incremental_marking()->steps_count();
   steps_took_ = heap_->incremental_marking()->steps_took();
+  longest_step_ = heap_->incremental_marking()->longest_step();
   steps_count_since_last_gc_ =
       heap_->incremental_marking()->steps_count_since_last_gc();
   steps_took_since_last_gc_ =
@@ -5797,9 +5798,11 @@ GCTracer::~GCTracer() {
                static_cast<int>(steps_took_since_last_gc_),
                steps_count_since_last_gc_);
       } else {
-        PrintF(" (+ %d ms in %d steps since start of marking)",
+        PrintF(" (+ %d ms in %d steps since start of marking, "
+                   "biggest step %f ms)",
                static_cast<int>(steps_took_),
-               steps_count_);
+               steps_count_,
+               longest_step_);
       }
     }
     PrintF(".\n");

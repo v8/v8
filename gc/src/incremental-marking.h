@@ -94,6 +94,7 @@ class IncrementalMarking {
   static const intptr_t kAllocationMarkingFactorSpeedupInterval = 1024;
   // This is how much we increase the marking/allocating factor by.
   static const intptr_t kAllocationMarkingFactorSpeedup = 4;
+  static const intptr_t kMaxAllocationMarkingFactor = 1000000000;
 
   void Step(intptr_t allocated);
 
@@ -142,6 +143,10 @@ class IncrementalMarking {
     return steps_took_;
   }
 
+  inline double longest_step() {
+    return longest_step_;
+  }
+
   inline int steps_count_since_last_gc() {
     return steps_count_since_last_gc_;
   }
@@ -172,8 +177,10 @@ class IncrementalMarking {
   void ResetStepCounters() {
     steps_count_ = 0;
     steps_took_ = 0;
+    longest_step_ = 0.0;
     steps_count_since_last_gc_ = 0;
     steps_took_since_last_gc_ = 0;
+    bytes_rescanned_ = 0;
     allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
 
@@ -208,11 +215,15 @@ class IncrementalMarking {
 
   int steps_count_;
   double steps_took_;
+  double longest_step_;
   int steps_count_since_last_gc_;
   double steps_took_since_last_gc_;
+  int64_t bytes_rescanned_;
   bool should_hurry_;
   int allocation_marking_factor_;
   intptr_t allocated_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };
 
 } }  // namespace v8::internal

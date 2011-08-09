@@ -42,6 +42,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       marking_deque_memory_(NULL),
       steps_count_(0),
       steps_took_(0),
+      longest_step_(0.0),
       steps_count_since_last_gc_(0),
       steps_took_since_last_gc_(0),
       should_hurry_(false),
@@ -466,6 +467,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
   steps_took_since_last_gc_ = 0;
   steps_count_since_last_gc_ = 0;
+  longest_step_ = 0.0;
 }
 
 
@@ -622,6 +624,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
     double end = OS::TimeCurrentMillis();
     double delta = (end - start);
+    longest_step_ = Max(longest_step_, delta);
     steps_took_ += delta;
     steps_took_since_last_gc_ += delta;
   }
