@@ -618,13 +618,17 @@ class KeywordMatcher {
     TH,
     TR,
     V,
-    W
+    W,
+    LAST_STATE = W
   };
 
+
+  STATIC_ASSERT(LAST_STATE <= 0xFF);
+  STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
   struct FirstState {
     const char* keyword;
-    State state;
-    Token::Value token;
+    State state : 8;
+    Token::Value token : 8;
   };
 
   // Range of possible first characters of a keyword.

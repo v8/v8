@@ -89,10 +89,158 @@ void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   Scan();
 }
 
+
+// Ensure that tokens can be stored in a byte.
+STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
+
+// Table of one-character tokens, by character (0x00..0x7f only).
+static byte one_char_tokens[] = {
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LPAREN,       // 0x28
+  Token::RPAREN,       // 0x29
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::COMMA,        // 0x2c
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::COLON,        // 0x3a
+  Token::SEMICOLON,    // 0x3b
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::CONDITIONAL,  // 0x3f
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LBRACK,     // 0x5b
+  Token::ILLEGAL,
+  Token::RBRACK,     // 0x5d
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LBRACE,       // 0x7b
+  Token::ILLEGAL,
+  Token::RBRACE,       // 0x7d
+  Token::BIT_NOT,      // 0x7e
+  Token::ILLEGAL
+};
+
+
 Token::Value JavaScriptScanner::Next() {
   current_ = next_;
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
+  if (static_cast<unsigned>(c0_) <= 0x7f) {
+    Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
+    if (token != Token::ILLEGAL) {
+      int pos = source_pos();
+      next_.token = token;
+      next_.location.beg_pos = pos;
+      next_.location.end_pos = pos + 1;
+      Advance();
+      return current_.token;
+    }
+  }
   Scan();
   return current_.token;
 }
