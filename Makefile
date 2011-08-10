@@ -74,19 +74,16 @@ $(BUILDS): $(OUTDIR)/Makefile-$$(basename $$@)
 
 # Test targets.
 check: all
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)
 
-debug.check: debug
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --mode=debug
-
-release.check: release
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --mode=release
+$(addsuffix .check,$(MODES)): $$(basename $$@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --mode=$(basename $@)
 
 $(addsuffix .check,$(ARCHES)): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --arch=$(basename $@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --arch=$(basename $@)
 
 $(CHECKS): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --arch-and-mode=$(basename $@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --arch-and-mode=$(basename $@)
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean,$(ARCHES)):

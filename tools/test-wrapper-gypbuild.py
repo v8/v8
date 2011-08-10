@@ -50,6 +50,9 @@ def BuildOptions():
   result.add_option("--arch-and-mode",
                     help='Architecture and mode in the format "arch.mode"',
                     default=None)
+  result.add_option("--outdir",
+                    help='Base output directory',
+                    default='out')
 
   # Flags this wrapper script handles itself:
   result.add_option("-m", "--mode",
@@ -208,7 +211,7 @@ def Main():
   for mode in options.mode:
     for arch in options.arch:
       print ">>> running tests for %s.%s" % (arch, mode)
-      shell = workspace + '/out/' + arch + '.' + mode + "/shell"
+      shell = workspace + '/' + options.outdir + '/' + arch + '.' + mode + "/d8"
       child = subprocess.Popen(' '.join(args_for_children +
                                         ['--mode=' + mode] +
                                         ['--shell=' + shell]),
