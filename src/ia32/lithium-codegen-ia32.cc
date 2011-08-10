@@ -2756,13 +2756,23 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
+  Label done;
+
+  // Deoptimize on negative numbers.
   __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
   __ ucomisd(input_reg, xmm_scratch);
+  DeoptimizeIf(below, instr->environment());
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(below_equal, instr->environment());
-  } else {
-    DeoptimizeIf(below, instr->environment());
+    // Check for negative zero.
+    Label positive_sign;
+    __ j(above, &positive_sign, Label::kNear);
+    __ movmskpd(output_reg, input_reg);
+    __ test(output_reg, Immediate(1));
+    DeoptimizeIf(not_zero, instr->environment());
+    __ Set(output_reg, Immediate(0));
+    __ jmp(&done, Label::kNear);
+    __ bind(&positive_sign);
   }
 
   // Use truncating instruction (OK because input is positive).
@@ -2771,6 +2781,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   // Overflow is signalled with minint.
   __ cmp(output_reg, 0x80000000u);
   DeoptimizeIf(equal, instr->environment());
+  __ bind(&done);
 }
 
 

@@ -3014,19 +3014,18 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register scratch1 = result;
-  Register scratch2 = scratch0();
+  Register scratch = scratch0();
   Label done, check_sign_on_zero;
 
   // Extract exponent bits.
-  __ vmov(scratch1, input.high());
-  __ ubfx(scratch2,
-          scratch1,
+  __ vmov(result, input.high());
+  __ ubfx(scratch,
+          result,
           HeapNumber::kExponentShift,
           HeapNumber::kExponentBits);
 
   // If the number is in ]-0.5, +0.5[, the result is +/- 0.
-  __ cmp(scratch2, Operand(HeapNumber::kExponentBias - 2));
+  __ cmp(scratch, Operand(HeapNumber::kExponentBias - 2));
   __ mov(result, Operand(0), LeaveCC, le);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ b(le, &check_sign_on_zero);
@@ -3036,19 +3035,19 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
   // The following conversion will not work with numbers
   // outside of ]-2^32, 2^32[.
-  __ cmp(scratch2, Operand(HeapNumber::kExponentBias + 32));
+  __ cmp(scratch, Operand(HeapNumber::kExponentBias + 32));
   DeoptimizeIf(ge, instr->environment());
 
   // Save the original sign for later comparison.
-  __ and_(scratch2, scratch1, Operand(HeapNumber::kSignMask));
+  __ and_(scratch, result, Operand(HeapNumber::kSignMask));
 
   __ Vmov(double_scratch0(), 0.5);
   __ vadd(input, input, double_scratch0());
 
   // Check sign of the result: if the sign changed, the input
   // value was in ]0.5, 0[ and the result should be -0.
-  __ vmov(scratch1, input.high());
-  __ eor(scratch1, scratch1, Operand(scratch2), SetCC);
+  __ vmov(result, input.high());
+  __ eor(result, result, Operand(scratch), SetCC);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(mi, instr->environment());
   } else {
@@ -3059,8 +3058,8 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   __ EmitVFPTruncate(kRoundToMinusInf,
                      double_scratch0().low(),
                      input,
-                     scratch1,
-                     scratch2);
+                     result,
+                     scratch);
   DeoptimizeIf(ne, instr->environment());
   __ vmov(result, double_scratch0().low());
 
@@ -3069,8 +3068,8 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
     __ cmp(result, Operand(0));
     __ b(ne, &done);
     __ bind(&check_sign_on_zero);
-    __ vmov(scratch1, input.high());
-    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    __ vmov(scratch, input.high());
+    __ tst(scratch, Operand(HeapNumber::kSignMask));
     DeoptimizeIf(ne, instr->environment());
   }
   __ bind(&done);

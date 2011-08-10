@@ -2773,13 +2773,19 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
     __ cmpl(output_reg, Immediate(0x80000000));
     DeoptimizeIf(equal, instr->environment());
   } else {
+    // Deoptimize on negative inputs.
     __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
     __ ucomisd(input_reg, xmm_scratch);
-
+    DeoptimizeIf(below, instr->environment());
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      DeoptimizeIf(below_equal, instr->environment());
-    } else {
-      DeoptimizeIf(below, instr->environment());
+      // Check for negative zero.
+      __ j(above, &positive_sign, Label::kNear);
+      __ movmskpd(output_reg, input_reg);
+      __ testq(output_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ Set(output_reg, Immediate(0));
+      __ jmp(&done);
+      __ bind(&positive_sign);
     }
 
     // Use truncating instruction (OK because input is positive).
@@ -2789,6 +2795,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
     __ cmpl(output_reg, Immediate(0x80000000));
     DeoptimizeIf(equal, instr->environment());
   }
+  __ bind(&done);
 }
 
 
