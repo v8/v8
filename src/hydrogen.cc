@@ -4762,10 +4762,17 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   Property* prop = callee->AsProperty();
   ASSERT(prop != NULL);
 
-  if (info()->scope()->arguments() == NULL) return false;
+  if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+    return false;
+  }
+  Handle<Map> function_map = expr->GetReceiverTypes()->first();
+  if (function_map->instance_type() != JS_FUNCTION_TYPE ||
+      !expr->target()->shared()->HasBuiltinFunctionId() ||
+      expr->target()->shared()->builtin_function_id() != kFunctionApply) {
+    return false;
+  }
 
-  Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-  if (!name->IsEqualTo(CStrVector("apply"))) return false;
+  if (info()->scope()->arguments() == NULL) return false;
 
   ZoneList<Expression*>* args = expr->arguments();
   if (args->length() != 2) return false;
@@ -4774,9 +4781,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
-
-  if (!expr->IsMonomorphic() ||
-      expr->check_type() != RECEIVER_MAP_CHECK) return false;
 
   // Our implementation of arguments (based on this stack frame or an
   // adapter below it) does not work for inlined functions.
@@ -4794,10 +4798,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* receiver = Pop();
   HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
   HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
-  AddCheckConstantFunction(expr,
-                           function,
-                           expr->GetReceiverTypes()->first(),
-                           true);
+  AddCheckConstantFunction(expr, function, function_map, true);
   HInstruction* result =
       new(zone()) HApplyArguments(function, receiver, length, elements);
   result->set_position(expr->position());

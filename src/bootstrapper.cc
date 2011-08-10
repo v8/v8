@@ -1587,8 +1587,6 @@ bool Genesis::InstallNatives() {
   global_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
-  InstallBuiltinFunctionIds();
-
   // Install Function.prototype.call and apply.
   { Handle<String> key = factory()->function_class_symbol();
     Handle<JSFunction> function =
@@ -1621,6 +1619,8 @@ bool Genesis::InstallNatives() {
     call->shared()->set_length(1);
     apply->shared()->set_length(2);
   }
+
+  InstallBuiltinFunctionIds();
 
   // Create a constructor for RegExp results (a variant of Array that
   // predefines the two properties index and match).
