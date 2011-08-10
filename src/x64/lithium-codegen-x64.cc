@@ -2759,6 +2759,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  Label done;
 
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatures::Scope scope(SSE4_1);
@@ -2779,11 +2780,12 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
     DeoptimizeIf(below, instr->environment());
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Check for negative zero.
+      Label positive_sign;
       __ j(above, &positive_sign, Label::kNear);
       __ movmskpd(output_reg, input_reg);
       __ testq(output_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr->environment());
-      __ Set(output_reg, Immediate(0));
+      __ Set(output_reg, 0);
       __ jmp(&done);
       __ bind(&positive_sign);
     }
