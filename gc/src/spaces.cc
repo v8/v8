@@ -820,7 +820,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 // NewSpace implementation
 
 
-bool NewSpace::Setup(int maximum_semispace_capacity) {
+bool NewSpace::Setup(int reserved_semispace_capacity,
+                     int maximum_semispace_capacity) {
   // Setup new space based on the preallocated memory block defined by
   // start and size. The provided space is divided into two semi-spaces.
   // To support fast containment testing in the new space, the size of
@@ -830,8 +831,8 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
   size_t size = 0;
   Address base =
       heap()->isolate()->memory_allocator()->ReserveAlignedMemory(
-          2 * maximum_semispace_capacity,
-          2 * maximum_semispace_capacity,
+          2 * reserved_semispace_capacity,
+          2 * reserved_semispace_capacity,
           &size);
 
   if (base == NULL) return false;
@@ -852,24 +853,24 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
   INSTANCE_TYPE_LIST(SET_NAME)
 #undef SET_NAME
 
-  ASSERT(maximum_semispace_capacity == heap()->ReservedSemiSpaceSize());
+  ASSERT(reserved_semispace_capacity == heap()->ReservedSemiSpaceSize());
   ASSERT(static_cast<intptr_t>(chunk_size_) >=
          2 * heap()->ReservedSemiSpaceSize());
-  ASSERT(IsAddressAligned(chunk_base_, 2 * maximum_semispace_capacity, 0));
+  ASSERT(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
 
   if (!to_space_.Setup(chunk_base_,
                        initial_semispace_capacity,
                        maximum_semispace_capacity)) {
     return false;
   }
-  if (!from_space_.Setup(chunk_base_ + maximum_semispace_capacity,
+  if (!from_space_.Setup(chunk_base_ + reserved_semispace_capacity,
                          initial_semispace_capacity,
                          maximum_semispace_capacity)) {
     return false;
   }
 
   start_ = chunk_base_;
-  address_mask_ = ~(2 * maximum_semispace_capacity - 1);
+  address_mask_ = ~(2 * reserved_semispace_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTagMask;
   object_expected_ = reinterpret_cast<uintptr_t>(start_) | kHeapObjectTag;
 
@@ -1793,7 +1794,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
   owner_->Free(owner_->top(), old_linear_size);
-  owner_->heap()->incremental_marking()->Step(size_in_bytes - old_linear_size);
+  owner_->heap()->incremental_marking()->OldSpaceStep(
+      size_in_bytes - old_linear_size);
 
   const int kThreshold = IncrementalMarking::kAllocatedThreshold;
 
@@ -2311,7 +2313,7 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
   first_page_ = page;
 
 
-  heap()->incremental_marking()->Step(object_size);
+  heap()->incremental_marking()->OldSpaceStep(object_size);
   return page->GetObject();
 }
 

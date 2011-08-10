@@ -150,7 +150,8 @@ TEST(NewSpace) {
 
   NewSpace new_space(HEAP);
 
-  CHECK(new_space.Setup(HEAP->ReservedSemiSpaceSize()));
+  CHECK(new_space.Setup(HEAP->ReservedSemiSpaceSize(),
+                        HEAP->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {

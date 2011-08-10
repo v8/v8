@@ -87,15 +87,21 @@ class IncrementalMarking {
   // of at a moderate rate of work and gradually increase the speed of the
   // incremental marker until it completes.
   // Do some marking every time this much memory has been allocated.
-  static const intptr_t kAllocatedThreshold = 8192;
+  static const intptr_t kAllocatedThreshold = 65536;
   // Start off by marking this many times more memory than has been allocated.
-  static const intptr_t kInitialAllocationMarkingFactor = 4;
+  static const intptr_t kInitialAllocationMarkingFactor = 1;
+  // But if we are promoting a lot of data we need to mark faster to keep up
+  // with the data that is entering the old space through promotion.
+  static const intptr_t kFastMarking = 3;
   // After this many steps we increase the marking/allocating factor.
   static const intptr_t kAllocationMarkingFactorSpeedupInterval = 1024;
   // This is how much we increase the marking/allocating factor by.
-  static const intptr_t kAllocationMarkingFactorSpeedup = 4;
+  static const intptr_t kAllocationMarkingFactorSpeedup = 2;
   static const intptr_t kMaxAllocationMarkingFactor = 1000000000;
 
+  void OldSpaceStep(intptr_t allocated) {
+    Step(allocated * kFastMarking / kInitialAllocationMarkingFactor);
+  }
   void Step(intptr_t allocated);
 
   inline void RestartIfNotMarking() {
@@ -168,6 +174,18 @@ class IncrementalMarking {
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
   void ActivateGeneratedStub(Code* stub);
+
+  void NotifyOfHighPromotionRate() {
+    if (IsMarking()) {
+      if (allocation_marking_factor_ < kFastMarking) {
+        if (FLAG_trace_gc) {
+          PrintF("Increasing marking speed to %d due to high promotion rate\n",
+                 kFastMarking);
+        }
+        allocation_marking_factor_ = kFastMarking;
+      }
+    }
+  }
 
  private:
   void set_should_hurry(bool val) {

@@ -1920,7 +1920,7 @@ class NewSpace : public Space {
       inline_allocation_limit_step_(0) {}
 
   // Sets up the new space using the given chunk.
-  bool Setup(int max_semispace_size);
+  bool Setup(int reserved_semispace_size_, int max_semispace_size);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.

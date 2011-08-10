@@ -711,6 +711,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   int start_new_space_size = Heap::new_space()->SizeAsInt();
 
+  if (IsHighSurvivalRate()) {
+    // We speed up the incremental marker if it is running so that it
+    // does not fall behind the rate of promotion, which would cause a
+    // constantly growing old space.
+    incremental_marking()->NotifyOfHighPromotionRate();
+  }
+
   if (collector == MARK_COMPACTOR) {
     // Perform mark-sweep with optional compaction.
     MarkCompact(tracer);
@@ -4731,6 +4738,10 @@ bool Heap::ConfigureHeap(int max_semispace_size,
   if (max_semispace_size > 0) {
     if (max_semispace_size < Page::kPageSize) {
       max_semispace_size = Page::kPageSize;
+      if (FLAG_trace_gc) {
+        PrintF("Max semispace size cannot be less than %dkbytes",
+               Page::kPageSize >> 10);
+      }
     }
     max_semispace_size_ = max_semispace_size;
   }
@@ -4743,6 +4754,10 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     // than the default reserved semispace size.
     if (max_semispace_size_ > reserved_semispace_size_) {
       max_semispace_size_ = reserved_semispace_size_;
+      if (FLAG_trace_gc) {
+        PrintF("Max semispace size cannot be more than %dkbytes",
+               reserved_semispace_size_ >> 10);
+      }
     }
   } else {
     // If we are not using snapshots we reserve space for the actual
@@ -5037,7 +5052,7 @@ bool Heap::Setup(bool create_heap_objects) {
       return false;
 
   // Setup new space.
-  if (!new_space_.Setup(reserved_semispace_size_)) {
+  if (!new_space_.Setup(reserved_semispace_size_, max_semispace_size_)) {
     return false;
   }
 
