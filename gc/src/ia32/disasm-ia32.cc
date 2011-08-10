@@ -54,7 +54,7 @@ struct ByteMnemonic {
 };
 
 
-static ByteMnemonic two_operands_instr[] = {
+static const ByteMnemonic two_operands_instr[] = {
   {0x01, "add", OPER_REG_OP_ORDER},
   {0x03, "add", REG_OPER_OP_ORDER},
   {0x09, "or", OPER_REG_OP_ORDER},
@@ -80,7 +80,7 @@ static ByteMnemonic two_operands_instr[] = {
 };
 
 
-static ByteMnemonic zero_operands_instr[] = {
+static const ByteMnemonic zero_operands_instr[] = {
   {0xC3, "ret", UNSET_OP_ORDER},
   {0xC9, "leave", UNSET_OP_ORDER},
   {0x90, "nop", UNSET_OP_ORDER},
@@ -99,14 +99,14 @@ static ByteMnemonic zero_operands_instr[] = {
 };
 
 
-static ByteMnemonic call_jump_instr[] = {
+static const ByteMnemonic call_jump_instr[] = {
   {0xE8, "call", UNSET_OP_ORDER},
   {0xE9, "jmp", UNSET_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
 };
 
 
-static ByteMnemonic short_immediate_instr[] = {
+static const ByteMnemonic short_immediate_instr[] = {
   {0x05, "add", UNSET_OP_ORDER},
   {0x0D, "or", UNSET_OP_ORDER},
   {0x15, "adc", UNSET_OP_ORDER},
@@ -121,7 +121,7 @@ static ByteMnemonic short_immediate_instr[] = {
 // Generally we don't want to generate these because they are subject to partial
 // register stalls.  They are included for completeness and because the cmp
 // variant is used by the RecordWrite stub.  Because it does not update the
-// register it is npt subject to partial register stalls.
+// register it is not subject to partial register stalls.
 static ByteMnemonic byte_immediate_instr[] = {
   {0x0c, "or", UNSET_OP_ORDER},
   {0x24, "and", UNSET_OP_ORDER},
@@ -131,7 +131,7 @@ static ByteMnemonic byte_immediate_instr[] = {
 };
 
 
-static const char* jump_conditional_mnem[] = {
+static const char* const jump_conditional_mnem[] = {
   /*0*/ "jo", "jno", "jc", "jnc",
   /*4*/ "jz", "jnz", "jna", "ja",
   /*8*/ "js", "jns", "jpe", "jpo",
@@ -139,7 +139,7 @@ static const char* jump_conditional_mnem[] = {
 };
 
 
-static const char* set_conditional_mnem[] = {
+static const char* const set_conditional_mnem[] = {
   /*0*/ "seto", "setno", "setc", "setnc",
   /*4*/ "setz", "setnz", "setna", "seta",
   /*8*/ "sets", "setns", "setpe", "setpo",
@@ -147,7 +147,7 @@ static const char* set_conditional_mnem[] = {
 };
 
 
-static const char* conditional_move_mnem[] = {
+static const char* const conditional_move_mnem[] = {
   /*0*/ "cmovo", "cmovno", "cmovc", "cmovnc",
   /*4*/ "cmovz", "cmovnz", "cmovna", "cmova",
   /*8*/ "cmovs", "cmovns", "cmovpe", "cmovpo",
@@ -184,7 +184,7 @@ class InstructionTable {
   InstructionDesc instructions_[256];
   void Clear();
   void Init();
-  void CopyTable(ByteMnemonic bm[], InstructionType type);
+  void CopyTable(const ByteMnemonic bm[], InstructionType type);
   void SetTableRange(InstructionType type,
                      byte start,
                      byte end,
@@ -224,7 +224,8 @@ void InstructionTable::Init() {
 }
 
 
-void InstructionTable::CopyTable(ByteMnemonic bm[], InstructionType type) {
+void InstructionTable::CopyTable(const ByteMnemonic bm[],
+                                 InstructionType type) {
   for (int i = 0; bm[i].b >= 0; i++) {
     InstructionDesc* id = &instructions_[bm[i].b];
     id->mnem = bm[i].mnem;

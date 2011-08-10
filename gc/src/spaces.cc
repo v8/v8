@@ -133,12 +133,12 @@ void HeapObjectIterator::Verify() {
 // CodeRange
 
 
-CodeRange::CodeRange()
-    : code_range_(NULL),
+CodeRange::CodeRange(Isolate* isolate)
+    : isolate_(isolate),
+      code_range_(NULL),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0),
-      isolate_(NULL) {
+      current_allocation_block_index_(0) {
 }
 
 
@@ -268,6 +268,15 @@ void CodeRange::TearDown() {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
+
+MemoryAllocator::MemoryAllocator(Isolate* isolate)
+    : isolate_(isolate),
+      capacity_(0),
+      capacity_executable_(0),
+      size_(0),
+      size_executable_(0) {
+}
+
 
 bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
   capacity_ = RoundUp(capacity, Page::kPageSize);

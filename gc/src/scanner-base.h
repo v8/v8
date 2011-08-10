@@ -618,13 +618,17 @@ class KeywordMatcher {
     TH,
     TR,
     V,
-    W
+    W,
+    LAST_STATE = W
   };
 
+
+  STATIC_ASSERT(LAST_STATE <= 0xFF);
+  STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
   struct FirstState {
     const char* keyword;
-    State state;
-    Token::Value token;
+    State state : 8;
+    Token::Value token : 8;
   };
 
   // Range of possible first characters of a keyword.
@@ -633,7 +637,7 @@ class KeywordMatcher {
   static const unsigned int kFirstCharRangeLength =
       kFirstCharRangeMax - kFirstCharRangeMin + 1;
   // State map for first keyword character range.
-  static FirstState first_states_[kFirstCharRangeLength];
+  static const FirstState first_states_[kFirstCharRangeLength];
 
   // If input equals keyword's character at position, continue matching keyword
   // from that position.

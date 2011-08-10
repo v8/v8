@@ -1460,7 +1460,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
 
-      Register map;
+      Register map = no_reg;
       if (expected.NeedsMap()) {
         map = ToRegister(instr->TempAt(0));
         ASSERT(!map.is(reg));

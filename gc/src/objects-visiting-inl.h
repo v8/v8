@@ -73,6 +73,8 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 
+  table_.Register(kVisitJSWeakMap, &JSObjectVisitor::Visit);
+
   table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
   table_.template RegisterSpecializations<DataObjectVisitor,

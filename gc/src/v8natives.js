@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -162,14 +162,13 @@ function GlobalEval(x) {
 
 function SetupGlobal() {
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
 
   // Setup non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -1429,7 +1428,9 @@ function FunctionSourceString(func) {
     }
   }
 
-  var name = %FunctionGetName(func);
+  var name = %FunctionNameShouldPrintAsAnonymous(func)
+      ? 'anonymous'
+      : %FunctionGetName(func);
   return 'function ' + name + source;
 }
 
@@ -1499,9 +1500,9 @@ function FunctionBind(this_arg) { // Length is 1.
 
   // Set the correct length.
   var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;
-  %FunctionSetLength(result, length);
   %FunctionRemovePrototype(result);
   %FunctionSetBound(result);
+  %BoundFunctionSetLength(result, length);
   return result;
 }
 
@@ -1524,7 +1525,7 @@ function NewFunction(arg1) {  // length == 1
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
   var f = %CompileString(source)();
-  %FunctionSetName(f, "anonymous");
+  %FunctionMarkNameShouldPrintAsAnonymous(f);
   return %SetNewFunctionAttributes(f);
 }
 

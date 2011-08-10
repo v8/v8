@@ -106,6 +106,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitPropertyCell,
     kVisitSharedFunctionInfo,
     kVisitJSFunction,
+    kVisitJSWeakMap,
     kVisitJSRegExp,
 
     kVisitorIdCount,
@@ -292,13 +293,13 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return FixedDoubleArray::SizeFor(length);
   }
 
+  static inline int VisitJSObject(Map* map, HeapObject* object) {
+    return JSObjectVisitor::Visit(map, object);
+  }
+
   static inline int VisitSeqAsciiString(Map* map, HeapObject* object) {
     return SeqAsciiString::cast(object)->
         SeqAsciiStringSize(map->instance_type());
-  }
-
-  static inline int VisitJSRegExp(Map* map, HeapObject* object) {
-    return JSObjectVisitor::Visit(map, object);
   }
 
   static inline int VisitSeqTwoByteString(Map* map, HeapObject* object) {

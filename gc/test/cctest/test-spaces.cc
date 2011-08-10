@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -98,20 +98,51 @@ TEST(Page) {
 #endif
 
 
+namespace v8 {
+namespace internal {
+
+// Temporarily sets a given allocator in an isolate.
+class TestMemoryAllocatorScope {
+ public:
+  TestMemoryAllocatorScope(Isolate* isolate, MemoryAllocator* allocator)
+      : isolate_(isolate),
+        old_allocator_(isolate->memory_allocator_) {
+    isolate->memory_allocator_ = allocator;
+  }
+
+  ~TestMemoryAllocatorScope() {
+    isolate_->memory_allocator_ = old_allocator_;
+  }
+
+ private:
+  Isolate* isolate_;
+  MemoryAllocator* old_allocator_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestMemoryAllocatorScope);
+};
+
+} }  // namespace v8::internal
+
+
 TEST(MemoryAllocator) {
   OS::Setup();
   Isolate* isolate = Isolate::Current();
-  CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(isolate->memory_allocator()->Setup(HEAP->MaxReserved(),
-                                           HEAP->MaxExecutableSize()));
+  isolate->InitializeLoggingAndCounters();
+  Heap* heap = isolate->heap();
+  CHECK(isolate->heap()->ConfigureHeapDefault());
+
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+                                heap->MaxExecutableSize()));
 
   int total_pages = 0;
-  OldSpace faked_space(HEAP,
-                       HEAP->MaxReserved(),
+  OldSpace faked_space(heap,
+                       heap->MaxReserved(),
                        OLD_POINTER_SPACE,
                        NOT_EXECUTABLE);
   Page* first_page =
-      isolate->memory_allocator()->AllocatePage(&faked_space, NOT_EXECUTABLE);
+      memory_allocator->AllocatePage(&faked_space, NOT_EXECUTABLE);
+
   first_page->InsertAfter(faked_space.anchor()->prev_page());
   CHECK(first_page->is_valid());
   CHECK(first_page->next_page() == faked_space.anchor());
@@ -123,7 +154,7 @@ TEST(MemoryAllocator) {
 
   // Again, we should get n or n - 1 pages.
   Page* other =
-      isolate->memory_allocator()->AllocatePage(&faked_space, NOT_EXECUTABLE);
+      memory_allocator->AllocatePage(&faked_space, NOT_EXECUTABLE);
   CHECK(other->is_valid());
   total_pages++;
   other->InsertAfter(first_page);
@@ -136,19 +167,25 @@ TEST(MemoryAllocator) {
 
   Page* second_page = first_page->next_page();
   CHECK(second_page->is_valid());
-  isolate->memory_allocator()->Free(first_page);
-  isolate->memory_allocator()->Free(second_page);
-  isolate->memory_allocator()->TearDown();
+  memory_allocator->Free(first_page);
+  memory_allocator->Free(second_page);
+  memory_allocator->TearDown();
+  delete memory_allocator;
 }
 
 
 TEST(NewSpace) {
   OS::Setup();
-  CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(
-      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
+  Isolate* isolate = Isolate::Current();
+  isolate->InitializeLoggingAndCounters();
+  Heap* heap = isolate->heap();
+  CHECK(heap->ConfigureHeapDefault());
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+                                heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  NewSpace new_space(HEAP);
+  NewSpace new_space(heap);
 
   CHECK(new_space.Setup(HEAP->ReservedSemiSpaceSize(),
                         HEAP->ReservedSemiSpaceSize()));
@@ -161,18 +198,24 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  Isolate::Current()->memory_allocator()->TearDown();
+  memory_allocator->TearDown();
+  delete memory_allocator;
 }
 
 
 TEST(OldSpace) {
   OS::Setup();
-  CHECK(HEAP->ConfigureHeapDefault());
-  CHECK(Isolate::Current()->memory_allocator()->Setup(
-      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
+  Isolate* isolate = Isolate::Current();
+  isolate->InitializeLoggingAndCounters();
+  Heap* heap = isolate->heap();
+  CHECK(heap->ConfigureHeapDefault());
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator->Setup(heap->MaxReserved(),
+                                heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  OldSpace* s = new OldSpace(HEAP,
-                             HEAP->MaxOldGenerationSize(),
+  OldSpace* s = new OldSpace(heap,
+                             heap->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
@@ -185,13 +228,13 @@ TEST(OldSpace) {
 
   s->TearDown();
   delete s;
-  Isolate::Current()->memory_allocator()->TearDown();
+  memory_allocator->TearDown();
+  delete memory_allocator;
 }
 
 
 TEST(LargeObjectSpace) {
-  OS::Setup();
-  CHECK(HEAP->Setup(false));
+  v8::V8::Initialize();
 
   LargeObjectSpace* lo = HEAP->lo_space();
   CHECK(lo != NULL);
@@ -220,6 +263,4 @@ TEST(LargeObjectSpace) {
   CHECK(!lo->IsEmpty());
 
   CHECK(lo->AllocateRawData(lo_size)->IsFailure());
-
-  HEAP->TearDown();
 }

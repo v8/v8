@@ -10663,17 +10663,16 @@ TEST(PreCompileInvalidPreparseDataError) {
            *exception_value);
 
   try_catch.Reset();
+
   // Overwrite function bar's start position with 200.  The function entry
-  // will not be found when searching for it by position.
+  // will not be found when searching for it by position and we should fall
+  // back on eager compilation.
   sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
   compiled_script = Script::New(source, NULL, sd);
-  CHECK(try_catch.HasCaught());
-  String::AsciiValue second_exception_value(try_catch.Message()->Get());
-  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
-           *second_exception_value);
+  CHECK(!try_catch.HasCaught());
 
   delete sd;
 }
@@ -11664,7 +11663,7 @@ THREADED_TEST(PixelArray) {
   // Force GC to trigger verification.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(i % 256, pixels->get(i));
+    CHECK_EQ(i % 256, pixels->get_scalar(i));
     CHECK_EQ(i % 256, pixel_data[i]);
   }
 
@@ -12139,7 +12138,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   // Force GC to trigger verification.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array->get(i)));
+    CHECK_EQ(static_cast<int64_t>(i),
+             static_cast<int64_t>(array->get_scalar(i)));
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
   }
 
