@@ -97,6 +97,7 @@ private:
 #define FLAG FLAG_FULL
 
 // Flags for experimental language features.
+DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
 

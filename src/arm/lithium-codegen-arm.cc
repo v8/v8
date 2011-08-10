@@ -4395,6 +4395,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = eq;
 
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
+    final_branch_condition = eq;
+
   } else if (type_name->Equals(heap()->undefined_symbol())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ b(eq, true_label);
@@ -4413,8 +4417,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ CompareRoot(input, Heap::kNullValueRootIndex);
-    __ b(eq, true_label);
+    if (!FLAG_harmony_typeof) {
+      __ CompareRoot(input, Heap::kNullValueRootIndex);
+      __ b(eq, true_label);
+    }
     __ CompareObjectType(input, input, scratch,
                          FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(lt, false_label);

@@ -4853,7 +4853,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
         return isolate->heap()->boolean_symbol();
       }
       if (heap_obj->IsNull()) {
-        return isolate->heap()->object_symbol();
+        return FLAG_harmony_typeof
+            ? isolate->heap()->null_symbol()
+            : isolate->heap()->object_symbol();
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();

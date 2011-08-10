@@ -4200,6 +4200,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ cmp(input, factory()->false_value());
     final_branch_condition = equal;
 
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+    __ cmp(input, factory()->null_value());
+    final_branch_condition = equal;
+
   } else if (type_name->Equals(heap()->undefined_symbol())) {
     __ cmp(input, factory()->undefined_value());
     __ j(equal, true_label);
@@ -4218,8 +4222,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ cmp(input, factory()->null_value());
-    __ j(equal, true_label);
+    if (!FLAG_harmony_typeof) {
+      __ cmp(input, factory()->null_value());
+      __ j(equal, true_label);
+    }
     __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
