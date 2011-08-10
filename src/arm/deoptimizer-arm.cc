@@ -65,8 +65,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // For each return after a safepoint insert an absolute call to the
   // corresponding deoptimization entry.
-  ASSERT(patch_size() % Assembler::kInstrSize == 0);
-  int call_size_in_words = patch_size() / Assembler::kInstrSize;
   unsigned last_pc_offset = 0;
   SafepointTable table(function->code());
   for (unsigned i = 0; i < table.length(); i++) {
@@ -87,13 +85,18 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 #endif
     last_pc_offset = pc_offset;
     if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      last_pc_offset += gap_code_size;
-      CodePatcher patcher(code->instruction_start() + last_pc_offset,
-                          call_size_in_words);
       Address deoptimization_entry = Deoptimizer::GetDeoptimizationEntry(
           deoptimization_index, Deoptimizer::LAZY);
+      last_pc_offset += gap_code_size;
+      int call_size_in_bytes = MacroAssembler::CallSize(deoptimization_entry,
+                                                        RelocInfo::NONE);
+      int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
+      ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
+      ASSERT(call_size_in_bytes <= patch_size());
+      CodePatcher patcher(code->instruction_start() + last_pc_offset,
+                          call_size_in_words);
       patcher.masm()->Call(deoptimization_entry, RelocInfo::NONE);
-      last_pc_offset += patch_size();
+      last_pc_offset += call_size_in_bytes;
     }
   }
 
