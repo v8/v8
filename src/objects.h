@@ -2128,10 +2128,6 @@ class FixedArray: public FixedArrayBase {
   // Compute the union of this and other.
   MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
 
-  // Compute the union of this and other.
-  MUST_USE_RESULT MaybeObject* UnionOfDoubleKeys(
-      FixedDoubleArray* other);
-
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
 

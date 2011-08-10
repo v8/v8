@@ -4637,51 +4637,7 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
 
 
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  ASSERT(!array->HasExternalArrayElements());
-  switch (array->GetElementsKind()) {
-    case JSObject::FAST_ELEMENTS:
-      return UnionOfKeys(FixedArray::cast(array->elements()));
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-      return UnionOfDoubleKeys(FixedDoubleArray::cast(array->elements()));
-      break;
-    case JSObject::DICTIONARY_ELEMENTS: {
-      NumberDictionary* dict = array->element_dictionary();
-      int size = dict->NumberOfElements();
-
-      // Allocate a temporary fixed array.
-      Object* object;
-      { MaybeObject* maybe_object = GetHeap()->AllocateFixedArray(size);
-        if (!maybe_object->ToObject(&object)) return maybe_object;
-      }
-      FixedArray* key_array = FixedArray::cast(object);
-
-      int capacity = dict->Capacity();
-      int pos = 0;
-      // Copy the elements from the JSArray to the temporary fixed array.
-      for (int i = 0; i < capacity; i++) {
-        if (dict->IsKey(dict->KeyAt(i))) {
-          key_array->set(pos++, dict->ValueAt(i));
-        }
-      }
-      // Compute the union of this and the temporary fixed array.
-      return UnionOfKeys(key_array);
-    }
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      break;
-  }
-  UNREACHABLE();
-  return GetHeap()->null_value();  // Failure case needs to "return" a value.
+  return array->GetElementsAccessor()->AddJSArrayKeysToFixedArray(array, this);
 }
 
 
@@ -4732,69 +4688,6 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
       ASSERT(e->IsString() || e->IsNumber());
       result->set(len0 + index, e, mode);
       index++;
-    }
-  }
-  ASSERT(extra == index);
-  return result;
-}
-
-
-MaybeObject* FixedArray::UnionOfDoubleKeys(FixedDoubleArray* other) {
-  int len0 = length();
-#ifdef DEBUG
-  if (FLAG_enable_slow_asserts) {
-    for (int i = 0; i < len0; i++) {
-      ASSERT(get(i)->IsString() || get(i)->IsNumber());
-    }
-  }
-#endif
-  int len1 = other->length();
-  // Optimize if 'other' is empty.
-  // We cannot optimize if 'this' is empty, as other may have holes
-  // or non keys.
-  if (len1 == 0) return this;
-
-  // Compute how many elements are not in this.
-  int extra = 0;
-  Heap* heap = GetHeap();
-  Object* obj;
-  for (int y = 0; y < len1; y++) {
-    if (!other->is_the_hole(y)) {
-      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get_scalar(y));
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      if (!HasKey(this, obj)) extra++;
-    }
-  }
-
-  if (extra == 0) return this;
-
-  // Allocate the result
-  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(len0 + extra);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  // Fill in the content
-  FixedArray* result = FixedArray::cast(obj);
-  {
-    // Limit the scope of the AssertNoAllocation
-    AssertNoAllocation no_gc;
-    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < len0; i++) {
-      Object* e = get(i);
-      ASSERT(e->IsString() || e->IsNumber());
-      result->set(i, e, mode);
-    }
-  }
-
-  // Fill in the extra keys.
-  int index = 0;
-  for (int y = 0; y < len1; y++) {
-    if (!other->is_the_hole(y)) {
-      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get_scalar(y));
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      if (!HasKey(this, obj)) {
-        result->set(len0 + index, obj);
-        index++;
-      }
     }
   }
   ASSERT(extra == index);
