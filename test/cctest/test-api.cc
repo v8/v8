@@ -14595,6 +14595,24 @@ THREADED_TEST(CreationContext) {
 }
 
 
+THREADED_TEST(CreationContextOfJsFunction) {
+  HandleScope handle_scope;
+  Persistent<Context> context = Context::New();
+  InstallContextId(context, 1);
+
+  Local<Object> function;
+  {
+    Context::Scope scope(context);
+    function = CompileRun("function foo() {}; foo").As<Object>();
+  }
+
+  CHECK(function->CreationContext() == context);
+  CheckContextId(function, 1);
+
+  context.Dispose();
+}
+
+
 Handle<Value> HasOwnPropertyIndexedPropertyGetter(uint32_t index,
                                                   const AccessorInfo& info) {
   if (index == 42) return v8_str("yes");
