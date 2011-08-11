@@ -319,10 +319,13 @@
             }],
             # The ARM assembler assumes the host is 32 bits,
             # so force building 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and \
-              _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
             }],
             ['component=="shared_library"', {
               'conditions': [
@@ -429,10 +432,13 @@
           'conditions': [
             # The ARM assembler assumes the host is 32 bits,
             # so force building 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and \
-              _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
             }],
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],
@@ -748,9 +754,13 @@
               'conditions': [
                 # The ARM assembler assumes the host is 32 bits,
                 # so force building 32-bit host tools.
-                ['host_arch=="x64" and _toolset=="host"', {
-                  'cflags': ['-m32'],
-                  'ldflags': ['-m32'],
+                ['host_arch=="x64"', {
+                  'target_conditions': [
+                    ['_toolset=="host"', {
+                      'cflags': ['-m32'],
+                      'ldflags': ['-m32'],
+                    }],
+                  ],
                 }],
               ],
             }],
@@ -993,10 +1003,13 @@
             }],
             # The ARM assembler assumes the host is 32 bits,
             # so force building 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and \
-              _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
             }],
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
@@ -1065,10 +1078,13 @@
             }],
             # The ARM assembler assumes the host is 32 bits,
             # so force building 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and \
-              _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
             }],
           ],
           'link_settings': {
