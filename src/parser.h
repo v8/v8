@@ -435,6 +435,7 @@ class Parser {
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<Handle<String> > args);
+  void SetHarmonyBlockScoping(bool block_scoping);
 
  private:
   // Limit on number of function parameters is chosen arbitrarily.
@@ -483,6 +484,7 @@ class Parser {
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
+  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(bool* ok);
   Block* ParseVariableDeclarations(bool accept_IN,
                                    Handle<String>* out,
@@ -715,6 +717,7 @@ class Parser {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
+  bool harmony_block_scoping_;
 
   friend class LexicalScope;
 };

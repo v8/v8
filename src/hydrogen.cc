@@ -2480,6 +2480,9 @@ void HGraphBuilder::VisitBlock(Block* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  if (stmt->block_scope() != NULL) {
+    return Bailout("ScopedBlock");
+  }
   BreakAndContinueInfo break_info(stmt);
   { BreakAndContinueScope push(&break_info, this);
     CHECK_BAILOUT(VisitStatements(stmt->statements()));

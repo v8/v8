@@ -743,6 +743,7 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedDoubleArray)                          \
   V(Context)                                   \
   V(GlobalContext)                             \
+  V(SerializedScopeInfo)                       \
   V(JSFunction)                                \
   V(Code)                                      \
   V(Oddball)                                   \

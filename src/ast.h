@@ -359,9 +359,13 @@ class Block: public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
+  Scope* block_scope() const { return block_scope_; }
+  void set_block_scope(Scope* block_scope) { block_scope_ = block_scope; }
+
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
+  Scope* block_scope_;
 };
 
 

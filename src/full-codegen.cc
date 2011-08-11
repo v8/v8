@@ -35,6 +35,7 @@
 #include "macro-assembler.h"
 #include "prettyprinter.h"
 #include "scopes.h"
+#include "scopeinfo.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -845,8 +846,23 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
+  Scope* saved_scope = scope();
+  if (stmt->block_scope() != NULL) {
+    { Comment cmnt(masm_, "[ Extend block context");
+      scope_ = stmt->block_scope();
+      __ Push(scope_->GetSerializedScopeInfo());
+      PushFunctionArgumentForContextAllocation();
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      StoreToFrameField(StandardFrameConstants::kContextOffset,
+                        context_register());
+    }
+    { Comment cmnt(masm_, "[ Declarations");
+      VisitDeclarations(scope_->declarations());
+    }
+  }
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
+  scope_ = saved_scope;
   __ bind(nested_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }

@@ -552,7 +552,8 @@ bool Object::IsContext() {
     return (map == heap->function_context_map() ||
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
-            map == heap->global_context_map());
+            map == heap->global_context_map() ||
+            map == heap->block_context_map());
   }
   return false;
 }
@@ -562,6 +563,13 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
+}
+
+
+bool Object::IsSerializedScopeInfo() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->serialized_scope_info_map();
 }
 
 
