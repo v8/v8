@@ -1047,10 +1047,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   // involving maps).
   bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
   LOperand* temp = needs_temp ? TempRegister() : NULL;
-  LInstruction* branch = new LBranch(UseRegister(v), temp);
-  // When we handle all cases, we never deopt, so we don't need to assign the
-  // environment then.
-  return expected.IsAll() ? branch : AssignEnvironment(branch);
+  return AssignEnvironment(new LBranch(UseRegister(v), temp));
 }
 
 

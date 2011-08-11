@@ -1412,40 +1412,19 @@ void LCodeGen::DoBranch(LBranch* instr) {
         // undefined -> false.
         __ cmp(reg, factory()->undefined_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen undefined for the first time -> deopt.
-        __ cmp(reg, factory()->undefined_value());
-        DeoptimizeIf(equal, instr->environment());
       }
-
       if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // true -> true.
         __ cmp(reg, factory()->true_value());
         __ j(equal, true_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a boolean for the first time -> deopt.
-        __ cmp(reg, factory()->true_value());
-        DeoptimizeIf(equal, instr->environment());
-      }
-
-      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // false -> false.
         __ cmp(reg, factory()->false_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a boolean for the first time -> deopt.
-        __ cmp(reg, factory()->false_value());
-        DeoptimizeIf(equal, instr->environment());
       }
-
       if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
         // 'null' -> false.
         __ cmp(reg, factory()->null_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen null for the first time -> deopt.
-        __ cmp(reg, factory()->null_value());
-        DeoptimizeIf(equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::SMI)) {
@@ -1459,26 +1438,24 @@ void LCodeGen::DoBranch(LBranch* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
 
-      Register map = no_reg;
+      Register map = no_reg;  // Keep the compiler happy.
       if (expected.NeedsMap()) {
         map = ToRegister(instr->TempAt(0));
         ASSERT(!map.is(reg));
         __ mov(map, FieldOperand(reg, HeapObject::kMapOffset));
-        // Everything with a map could be undetectable, so check this now.
-        __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-                  1 << Map::kIsUndetectable);
-        // Undetectable -> false.
-        __ j(not_zero, false_label);
+
+        if (expected.CanBeUndetectable()) {
+          // Undetectable -> false.
+          __ test_b(FieldOperand(map, Map::kBitFieldOffset),
+                    1 << Map::kIsUndetectable);
+          __ j(not_zero, false_label);
+        }
       }
 
       if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
         // spec object -> true.
         __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
         __ j(above_equal, true_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a spec object for the first time -> deopt.
-        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-        DeoptimizeIf(above_equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::STRING)) {
@@ -1490,10 +1467,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(not_zero, true_label);
         __ jmp(false_label);
         __ bind(&not_string);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a string for the first time -> deopt
-        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-        DeoptimizeIf(below, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -1508,20 +1481,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(zero, false_label);
         __ jmp(true_label);
         __ bind(&not_heap_number);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a heap number for the first time -> deopt.
-        __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-               factory()->heap_number_map());
-        DeoptimizeIf(equal, instr->environment());
       }
 
-      if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // internal objects -> true
-        __ jmp(true_label);
-      } else {
-        // We've seen something for the first time -> deopt.
-        DeoptimizeIf(no_condition, instr->environment());
-      }
+      // We've seen something for the first time -> deopt.
+      DeoptimizeIf(no_condition, instr->environment());
     }
   }
 }
