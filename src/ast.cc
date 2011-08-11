@@ -544,6 +544,17 @@ bool CallNew::IsInlineable() const {
 
 
 bool CallRuntime::IsInlineable() const {
+  // Don't try to inline JS runtime calls because we don't (currently) even
+  // optimize them.
+  if (is_jsruntime()) return false;
+  // Don't inline the %_ArgumentsLength or %_Arguments because their
+  // implementation will not work.  There is no stack frame to get them
+  // from.
+  if (function()->intrinsic_type == Runtime::INLINE &&
+      (name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
+       name()->IsEqualTo(CStrVector("_Arguments")))) {
+    return false;
+  }
   const int count = arguments()->length();
   for (int i = 0; i < count; ++i) {
     if (!arguments()->at(i)->IsInlineable()) return false;
