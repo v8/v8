@@ -409,12 +409,58 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL_COMPACTION
   };
 
+  static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
+    masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
+    ASSERT(Assembler::IsTstImmediate(masm->instr_at(pos)));
+  }
+
+  static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
+    masm->instr_at_put(pos, (masm->instr_at(pos) & ~(B24 | B20)) | B27);
+    ASSERT(Assembler::IsBranch(masm->instr_at(pos)));
+  }
+
   static Mode GetMode(Code* stub) {
+    Instr first_instruction = Assembler::instr_at(stub->instruction_start());
+    Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
+                                                   Assembler::kInstrSize);
+
+    if (Assembler::IsBranch(first_instruction)) {
+      return INCREMENTAL;
+    }
+
+    ASSERT(Assembler::IsTstImmediate(first_instruction));
+
+    if (Assembler::IsBranch(second_instruction)) {
+      return INCREMENTAL_COMPACTION;
+    }
+
+    ASSERT(Assembler::IsTstImmediate(second_instruction));
+
     return STORE_BUFFER_ONLY;
   }
 
   static void Patch(Code* stub, Mode mode) {
-    ASSERT(mode == STORE_BUFFER_ONLY);
+    MacroAssembler masm(NULL,
+                        stub->instruction_start(),
+                        stub->instruction_size());
+    switch (mode) {
+      case STORE_BUFFER_ONLY:
+        ASSERT(GetMode(stub) == INCREMENTAL ||
+               GetMode(stub) == INCREMENTAL_COMPACTION);
+        PatchBranchIntoNop(&masm, 0);
+        PatchBranchIntoNop(&masm, Assembler::kInstrSize);
+        break;
+      case INCREMENTAL:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, 0);
+        break;
+      case INCREMENTAL_COMPACTION:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, Assembler::kInstrSize);
+        break;
+    }
+    ASSERT(GetMode(stub) == mode);
+    CPU::FlushICache(stub->instruction_start(), 2 * Assembler::kInstrSize);
   }
 
  private:
@@ -429,11 +475,28 @@ class RecordWriteStub: public CodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch0) {
+      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      scratch1_ = GetRegThatIsNotOneOf(object_, address_, scratch0_);
     }
+
+    void Save(MacroAssembler* masm) {
+      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      // We don't have to save scratch0_ because it was given to us as
+      // a scratch register.
+      masm->push(scratch1_);
+    }
+
+    void Restore(MacroAssembler* masm) {
+      masm->pop(scratch1_);
+    }
+
+    // If we have to call into C then we need to save and restore all caller-
+    // saved registers that were not already preserved.  The scratch registers
+    // will be restored by other means so we don't bother pushing them here.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      UNREACHABLE();  // TODO(gc): Save the caller save registers.
+      masm->stm(db_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatures::Scope scope(VFP3);
         masm->sub(sp,
                   sp,
                   Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
@@ -448,7 +511,7 @@ class RecordWriteStub: public CodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatures::Scope scope(VFP3);
         // Restore all VFP registers except d0.
         for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
           DwVfpRegister reg = DwVfpRegister::from_code(i);
@@ -458,17 +521,19 @@ class RecordWriteStub: public CodeStub {
                   sp,
                   Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
       }
-      UNREACHABLE();  // TODO(gc): Restore the caller save registers.
+      masm->ldm(ia_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
     }
 
     inline Register object() { return object_; }
     inline Register address() { return address_; }
     inline Register scratch0() { return scratch0_; }
+    inline Register scratch1() { return scratch1_; }
 
    private:
     Register object_;
     Register address_;
     Register scratch0_;
+    Register scratch1_;
 
     Register GetRegThatIsNotOneOf(Register r1,
                                   Register r2,
@@ -492,11 +557,11 @@ class RecordWriteStub: public CodeStub {
   };
 
   void Generate(MacroAssembler* masm);
-  void GenerateIncremental(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
       OnNoNeedToInformIncrementalMarker on_no_need);
-  void InformIncrementalMarker(MacroAssembler* masm);
+  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
 
   Major MajorKey() { return RecordWrite; }
 

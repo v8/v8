@@ -439,10 +439,11 @@ void MacroAssembler::RecordWriteField(
   // of the object, so so offset must be a multiple of kPointerSize.
   ASSERT(IsAligned(offset, kPointerSize));
 
-  add(dst, object, Operand(offset));
+  add(dst, object, Operand(offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    JumpIfNotSmi(dst, &ok);
+    tst(dst, Operand((1 << kPointerSizeLog2) - 1));
+    b(eq, &ok);
     stop("Unaligned cell in write barrier");
     bind(&ok);
   }

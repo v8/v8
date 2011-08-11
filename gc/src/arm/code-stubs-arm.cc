@@ -6640,11 +6640,133 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
 // we keep the GC informed.  The word in the object where the value has been
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
+  Label skip_to_incremental_noncompacting;
+  Label skip_to_incremental_compacting;
+
+  // The first two instructions are generated with labels so as to get the
+  // offset fixed up correctly by the bind(Label*) call.  We patch it back and
+  // forth between a compare instructions (a nop in this position) and the
+  // real branch when we start and stop incremental heap marking.
+  // See RecordWriteStub::Patch for details.
+  __ b(&skip_to_incremental_noncompacting);
+  __ b(&skip_to_incremental_compacting);
+
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
     __ RememberedSetHelper(
         address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
   }
   __ Ret();
+
+  __ bind(&skip_to_incremental_noncompacting);
+  GenerateIncremental(masm, INCREMENTAL);
+
+  __ bind(&skip_to_incremental_compacting);
+  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+
+  // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
+  // Will be checked in IncrementalMarking::ActivateGeneratedStub.
+  ASSERT(Assembler::GetBranchOffset(masm->instr_at(0)) < (1 << 12));
+  ASSERT(Assembler::GetBranchOffset(masm->instr_at(4)) < (1 << 12));
+  PatchBranchIntoNop(masm, 0);
+  PatchBranchIntoNop(masm, Assembler::kInstrSize);
+}
+
+
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
+  regs_.Save(masm);
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    Label dont_need_remembered_set;
+
+    __ ldr(regs_.scratch0(), MemOperand(regs_.address(), 0));
+    __ JumpIfNotInNewSpace(regs_.scratch0(),
+                           regs_.scratch0(),
+                           &dont_need_remembered_set);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch0(),
+                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     ne,
+                     &dont_need_remembered_set);
+
+    // First notify the incremental marker if necessary, then update the
+    // remembered set.
+    CheckNeedsToInformIncrementalMarker(
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker);
+    InformIncrementalMarker(masm, mode);
+    regs_.Restore(masm);
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+
+    __ bind(&dont_need_remembered_set);
+  }
+
+  CheckNeedsToInformIncrementalMarker(
+      masm, kReturnOnNoNeedToInformIncrementalMarker);
+  InformIncrementalMarker(masm, mode);
+  regs_.Restore(masm);
+  __ Ret();
+}
+
+
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+  int argument_count = 3;
+  __ PrepareCallCFunction(argument_count, regs_.scratch0());
+  Register address =
+      r0.is(regs_.address()) ? regs_.scratch0() : regs_.address();
+  ASSERT(!address.is(regs_.object()));
+  ASSERT(!address.is(r0));
+  __ Move(address, regs_.address());
+  __ Move(r0, regs_.object());
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ Move(r1, address);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ ldr(r1, MemOperand(address, 0));
+  }
+  __ mov(r2, Operand(ExternalReference::isolate_address()));
+
+  // TODO(gc): Create a fast version of this C function that does not duplicate
+  // the checks done in the stub.
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ CallCFunction(
+        ExternalReference::incremental_evacuation_record_write_function(
+            masm->isolate()),
+        argument_count);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ CallCFunction(
+        ExternalReference::incremental_marking_record_write_function(
+            masm->isolate()),
+        argument_count);
+  }
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+}
+
+
+void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
+    MacroAssembler* masm,
+    OnNoNeedToInformIncrementalMarker on_no_need) {
+  Label on_black;
+
+  // Let's look at the color of the object:  If it is not black we don't have
+  // to inform the incremental marker.
+  __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ Ret();
+  }
+
+  __ bind(&on_black);
+
+  // TODO(gc): Add call to EnsureNotWhite here.
+
+  // Fall through when we need to inform the incremental marker.
 }
 
 
