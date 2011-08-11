@@ -317,7 +317,6 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
   // field, and then a sequence of entries.  Each entry is a pair of AST id
   // and code-relative pc offset.
   masm()->Align(kIntSize);
-  masm()->RecordComment("[ Stack check table");
   unsigned offset = masm()->pc_offset();
   unsigned length = stack_checks_.length();
   __ dd(length);
@@ -325,7 +324,6 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
     __ dd(stack_checks_[i].id);
     __ dd(stack_checks_[i].pc_and_state);
   }
-  masm()->RecordComment("]");
   return offset;
 }
 

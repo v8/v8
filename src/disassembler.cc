@@ -122,6 +122,7 @@ static int DecodeIt(FILE* f,
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
+  StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
   disasm::Disassembler d(converter);
   RelocIterator* it = NULL;
@@ -183,8 +184,6 @@ static int DecodeIt(FILE* f,
         it->next();
       }
     }
-
-    StringBuilder out(out_buffer.start(), out_buffer.length());
 
     // Comments.
     for (int i = 0; i < comments.length(); i++) {
@@ -300,6 +299,17 @@ static int DecodeIt(FILE* f,
       }
     }
     DumpBuffer(f, &out);
+  }
+
+  // Emit comments following the last instruction (if any).
+  if (it != NULL) {
+    for ( ; !it->done(); it->next()) {
+      if (RelocInfo::IsComment(it->rinfo()->rmode())) {
+        out.AddFormatted("                  %s",
+                         reinterpret_cast<const char*>(it->rinfo()->data()));
+        DumpBuffer(f, &out);
+      }
+    }
   }
 
   delete it;
