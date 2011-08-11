@@ -3794,6 +3794,13 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     return false;
   }
 
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.
+  if (function_state()->outer() != NULL) {
+    Bailout("arguments access in inlined function");
+    return true;
+  }
+
   HInstruction* result = NULL;
   if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
@@ -4315,10 +4322,17 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   Property* prop = callee->AsProperty();
   ASSERT(prop != NULL);
 
-  if (info()->scope()->arguments() == NULL) return false;
+  if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+    return false;
+  }
+  Handle<Map> function_map = expr->GetReceiverTypes()->first();
+  if (function_map->instance_type() != JS_FUNCTION_TYPE ||
+      !expr->target()->shared()->HasBuiltinFunctionId() ||
+      expr->target()->shared()->builtin_function_id() != kFunctionApply) {
+    return false;
+  }
 
-  Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-  if (!name->IsEqualTo(CStrVector("apply"))) return false;
+  if (info()->scope()->arguments() == NULL) return false;
 
   ZoneList<Expression*>* args = expr->arguments();
   if (args->length() != 2) return false;
@@ -4328,8 +4342,12 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
-  if (!expr->IsMonomorphic() ||
-      expr->check_type() != RECEIVER_MAP_CHECK) return false;
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.
+  if (function_state()->outer() != NULL) {
+    Bailout("Function.prototype.apply optimization in inlined function");
+    return true;
+  }
 
   // Found pattern f.apply(receiver, arguments).
   VisitForValue(prop->obj());
@@ -4340,10 +4358,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* receiver = Pop();
   HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
   HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
-  AddCheckConstantFunction(expr,
-                           function,
-                           expr->GetReceiverTypes()->first(),
-                           true);
+  AddCheckConstantFunction(expr, function, function_map, true);
   HInstruction* result =
       new(zone()) HApplyArguments(function, receiver, length, elements);
   result->set_position(expr->position());
@@ -5274,6 +5289,10 @@ void HGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
 
 // Support for arguments.length and arguments[?].
 void HGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.  This runtime
+  // function is blacklisted by AstNode::IsInlineable.
+  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 0);
   HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
   HArgumentsLength* result = new(zone()) HArgumentsLength(elements);
@@ -5282,6 +5301,10 @@ void HGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
 
 
 void HGraphBuilder::GenerateArguments(CallRuntime* call) {
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.  This runtime
+  // function is blacklisted by AstNode::IsInlineable.
+  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 1);
   VISIT_FOR_VALUE(call->arguments()->at(0));
   HValue* index = Pop();

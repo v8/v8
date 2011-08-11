@@ -4032,6 +4032,7 @@ class Script: public Struct {
 #define FUNCTIONS_WITH_ID_LIST(V)                   \
   V(Array.prototype, push, ArrayPush)               \
   V(Array.prototype, pop, ArrayPop)                 \
+  V(Function.prototype, apply, FunctionApply)       \
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \
   V(String, fromCharCode, StringFromCharCode)       \
