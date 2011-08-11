@@ -6961,12 +6961,16 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   PrintF(out, "Deoptimization Input Data (deopt points = %d)\n", deopt_count);
   if (0 == deopt_count) return;
 
-  PrintF(out, "%6s  %6s  %6s  %12s\n", "index", "ast id", "argc", "commands");
+  PrintF(out, "%6s  %6s  %6s  %12s\n", "index", "ast id", "argc",
+         FLAG_print_code_verbose ? "commands" : "");
   for (int i = 0; i < deopt_count; i++) {
     PrintF(out, "%6d  %6d  %6d",
            i, AstId(i)->value(), ArgumentsStackHeight(i)->value());
 
-    if (!FLAG_print_code_verbose) continue;
+    if (!FLAG_print_code_verbose) {
+      PrintF(out, "\n");
+      continue;
+    }
     // Print details of the frame translation.
     int translation_index = TranslationIndex(i)->value();
     TranslationIterator iterator(TranslationByteArray(), translation_index);
