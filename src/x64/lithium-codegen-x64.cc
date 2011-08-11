@@ -1216,17 +1216,10 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
-void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
+void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ movq(result, FieldOperand(array, FixedArray::kLengthOffset));
-}
-
-
-void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->InputAt(0));
-  __ movl(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
+  __ movq(result, FieldOperand(array, FixedArrayBase::kLengthOffset));
 }
 
 

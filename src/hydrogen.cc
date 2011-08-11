@@ -3940,7 +3940,7 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   HInstruction* length = NULL;
   HInstruction* checked_key = NULL;
   if (map->has_external_array_elements()) {
-    length = AddInstruction(new(zone()) HExternalArrayLength(elements));
+    length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     HLoadExternalArrayPointer* external_elements =
         new(zone()) HLoadExternalArrayPointer(elements);
@@ -3952,7 +3952,7 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   if (map->instance_type() == JS_ARRAY_TYPE) {
     length = AddInstruction(new(zone()) HJSArrayLength(object, mapcheck));
   } else {
-    length = AddInstruction(new(zone()) HFixedArrayLength(elements));
+    length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
   checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   if (is_store) {
@@ -4024,7 +4024,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     if (elements_kind == JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
         && todo_external_array) {
       HInstruction* length =
-          AddInstruction(new(zone()) HExternalArrayLength(elements));
+          AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
       checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
       external_elements = new(zone()) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
@@ -4088,7 +4088,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         if_jsarray->Goto(join);
 
         set_current_block(if_fastobject);
-        length = AddInstruction(new(zone()) HFixedArrayLength(elements));
+        length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
         if (is_store) {
           if (fast_double_elements) {

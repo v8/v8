@@ -62,17 +62,8 @@
 //           - JSMessageObject
 //         - JSProxy
 //           - JSFunctionProxy
-//       - ByteArray
-//       - ExternalArray
-//         - ExternalPixelArray
-//         - ExternalByteArray
-//         - ExternalUnsignedByteArray
-//         - ExternalShortArray
-//         - ExternalUnsignedShortArray
-//         - ExternalIntArray
-//         - ExternalUnsignedIntArray
-//         - ExternalFloatArray
 //       - FixedArrayBase
+//         - ByteArray
 //         - FixedArray
 //           - DescriptorArray
 //           - HashTable
@@ -85,6 +76,15 @@
 //           - JSFunctionResultCache
 //           - SerializedScopeInfo
 //         - FixedDoubleArray
+//         - ExternalArray
+//           - ExternalPixelArray
+//           - ExternalByteArray
+//           - ExternalUnsignedByteArray
+//           - ExternalShortArray
+//           - ExternalUnsignedShortArray
+//           - ExternalIntArray
+//           - ExternalUnsignedIntArray
+//           - ExternalFloatArray
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -2084,6 +2084,7 @@ class FixedArrayBase: public HeapObject {
   static const int kHeaderSize = kLengthOffset + kPointerSize;
 };
 
+
 class FixedDoubleArray;
 
 // FixedArray describes fixed-sized arrays with element type Object*.
@@ -3053,12 +3054,8 @@ class NormalizedMapCache: public FixedArray {
 // ByteArray represents fixed sized byte arrays.  Used by the outside world,
 // such as PCRE, and also by the memory allocator and garbage collector to
 // fill in free blocks in the heap.
-class ByteArray: public HeapObject {
+class ByteArray: public FixedArrayBase {
  public:
-  // [length]: length of the array.
-  inline int length();
-  inline void set_length(int value);
-
   // Setter and getter.
   inline byte get(int index);
   inline void set(int index, byte value);
@@ -3103,10 +3100,6 @@ class ByteArray: public HeapObject {
 #endif
 
   // Layout description.
-  // Length is smi tagged when it is stored.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
-
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
   // Maximal memory consumption for a single ByteArray.
@@ -3130,11 +3123,8 @@ class ByteArray: public HeapObject {
 // Out-of-range values passed to the setter are converted via a C
 // cast, not clamping. Out-of-range indices cause exceptions to be
 // raised rather than being silently ignored.
-class ExternalArray: public HeapObject {
+class ExternalArray: public FixedArrayBase {
  public:
-  // [length]: length of the array.
-  inline int length();
-  inline void set_length(int value);
 
   inline bool is_the_hole(int index) { return false; }
 
@@ -3149,9 +3139,8 @@ class ExternalArray: public HeapObject {
   static const int kMaxLength = 0x3fffffff;
 
   // ExternalArray headers are not quadword aligned.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kExternalPointerOffset =
-      POINTER_SIZE_ALIGN(kLengthOffset + kIntSize);
+      POINTER_SIZE_ALIGN(FixedArrayBase::kLengthOffset + kPointerSize);
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 

@@ -1378,17 +1378,10 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
-void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
+void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ ldr(result, FieldMemOperand(array, ExternalArray::kLengthOffset));
-}
-
-
-void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->InputAt(0));
-  __ ldr(result, FieldMemOperand(array, FixedArray::kLengthOffset));
+  __ ldr(result, FieldMemOperand(array, FixedArrayBase::kLengthOffset));
 }
 
 
