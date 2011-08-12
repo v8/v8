@@ -1343,14 +1343,14 @@ int HeapNumber::get_sign() {
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 
-HeapObject* JSObject::elements() {
+FixedArrayBase* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
   ASSERT(array->HasValidElements());
-  return reinterpret_cast<HeapObject*>(array);
+  return static_cast<FixedArrayBase*>(array);
 }
 
 
-void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
+void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));

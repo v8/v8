@@ -9680,7 +9680,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, from, args[0]);
   CONVERT_CHECKED(JSArray, to, args[1]);
-  HeapObject* new_elements = from->elements();
+  FixedArrayBase* new_elements = from->elements();
   MaybeObject* maybe_new_map;
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {

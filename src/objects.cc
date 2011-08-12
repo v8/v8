@@ -8407,14 +8407,14 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         return isolate->Throw(*error);
       }
     }
-    Object* new_dictionary;
+    FixedArrayBase* new_dictionary;
     MaybeObject* maybe = dictionary->AtNumberPut(index, value);
-    if (!maybe->ToObject(&new_dictionary)) return maybe;
+    if (!maybe->To<FixedArrayBase>(&new_dictionary)) return maybe;
     if (dictionary != NumberDictionary::cast(new_dictionary)) {
       if (is_arguments) {
         elements->set(1, new_dictionary);
       } else {
-        set_elements(HeapObject::cast(new_dictionary));
+        set_elements(new_dictionary);
       }
       dictionary = NumberDictionary::cast(new_dictionary);
     }
