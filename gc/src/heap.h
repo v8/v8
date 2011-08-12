@@ -1209,9 +1209,38 @@ class Heap {
            (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
-  inline void LowerOldGenLimits(intptr_t bytes) {
-    old_gen_promotion_limit_ -= bytes;
-    old_gen_allocation_limit_ -= bytes;
+  static const intptr_t kMinimumPromotionLimit =
+      2 * (Page::kPageSize > MB ? Page::kPageSize : MB);
+  static const intptr_t kMinimumAllocationLimit =
+      8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
+
+  // When we sweep lazily we initially guess that there is no garbage on the
+  // heap and set the limits for the next GC accordingly.  As we sweep we find
+  // out that some of the pages contained garbage and we have to adjust
+  // downwards the size of the heap.  This means the limits that control the
+  // timing of the next GC also need to be adjusted downwards.
+  void LowerOldGenLimits(intptr_t adjustment) {
+    size_of_old_gen_at_last_old_space_gc_ -= adjustment;
+    old_gen_promotion_limit_ =
+        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
+    old_gen_allocation_limit_ =
+        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
+  }
+
+  intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
+    intptr_t limit =
+        Max(old_gen_size + old_gen_size / 3, kMinimumPromotionLimit);
+    limit += new_space_.Capacity();
+    limit *= old_gen_limit_factor_;
+    return limit;
+  }
+
+  intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
+    intptr_t limit =
+        Max(old_gen_size + old_gen_size / 2, kMinimumAllocationLimit);
+    limit += new_space_.Capacity();
+    limit *= old_gen_limit_factor_;
+    return limit;
   }
 
   // Can be called when the embedding application is idle.
@@ -1457,6 +1486,13 @@ class Heap {
   // checked before expanding a paged space in the old generation and on
   // every allocation in large object space.
   intptr_t old_gen_allocation_limit_;
+
+  // Sometimes the heuristics dictate that those limits are increased.  This
+  // variable records that fact.
+  int old_gen_limit_factor_;
+
+  // Used to adjust the limits that control the timing of the next GC.
+  intptr_t size_of_old_gen_at_last_old_space_gc_;
 
   // Limit on the amount of externally allocated memory allowed
   // between global GCs. If reached a global GC is forced.

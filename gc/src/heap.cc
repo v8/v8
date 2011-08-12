@@ -62,12 +62,6 @@ namespace v8 {
 namespace internal {
 
 
-static const intptr_t kMinimumPromotionLimit =
-    2 * (Page::kPageSize > MB ? Page::kPageSize : MB);
-static const intptr_t kMinimumAllocationLimit =
-    8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
-
-
 static Mutex* gc_initializer_mutex = OS::CreateMutex();
 
 
@@ -121,6 +115,8 @@ Heap::Heap()
 #endif  // DEBUG
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
+      old_gen_limit_factor_(1),
+      size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
       amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
@@ -729,15 +725,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
-    intptr_t old_gen_size = PromotedSpaceSize();
-    old_gen_promotion_limit_ =
-        old_gen_size +
-        Max(kMinimumPromotionLimit, old_gen_size / 3) +
-        new_space()->Capacity();
-    old_gen_allocation_limit_ =
-        old_gen_size +
-        Max(kMinimumAllocationLimit, old_gen_size / 2) +
-        new_space()->Capacity();
+    size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSize();
 
     if (high_survival_rate_during_scavenges &&
         IsStableOrIncreasingSurvivalTrend()) {
@@ -747,9 +735,15 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
       // In this case we aggressively raise old generation memory limits to
       // postpone subsequent mark-sweep collection and thus trade memory
       // space for the mutation speed.
-      old_gen_promotion_limit_ *= 2;
-      old_gen_allocation_limit_ *= 2;
+      old_gen_limit_factor_ = 2;
+    } else {
+      old_gen_limit_factor_ = 1;
     }
+
+    old_gen_promotion_limit_ =
+        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
+    old_gen_allocation_limit_ =
+        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
 
     old_gen_exhausted_ = false;
   } else {
@@ -4250,6 +4244,7 @@ void Heap::ReportHeapStatistics(const char* title) {
          old_gen_promotion_limit_);
   PrintF("old_gen_allocation_limit_ %" V8_PTR_PREFIX "d\n",
          old_gen_allocation_limit_);
+  PrintF("old_gen_limit_factor_ %d\n", old_gen_limit_factor_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles());

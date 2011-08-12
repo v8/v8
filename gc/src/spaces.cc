@@ -1930,6 +1930,15 @@ void PagedSpace::PrepareForMarkCompact() {
   SetTop(NULL, NULL);
 
   // Stop lazy sweeping for the space.
+  if (FLAG_trace_gc && first_unswept_page_ != NULL) {
+    int pages = 0;
+    Page* p = last_unswept_page_;
+    do {
+      pages++;
+      p = p->next_page();
+    } while (p != last_unswept_page_);
+    PrintF("Abandoned %d unswept pages\n", pages);
+  }
   first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
 
   // Clear the free list before a full GC---it will be rebuilt afterward.

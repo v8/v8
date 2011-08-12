@@ -1434,6 +1434,7 @@ class PagedSpace : public Space {
   void SetPagesToSweep(Page* first, Page* last) {
     first_unswept_page_ = first;
     last_unswept_page_ = last;
+    int unswept_pages = 0;
 
     Page* p = first;
     do {
@@ -1441,7 +1442,12 @@ class PagedSpace : public Space {
       // page.  We have to set this flag on the pages to indicate this.
       p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
       p = p->next_page();
+      unswept_pages++;
     } while (p != last);
+
+    if (FLAG_trace_gc_verbose) {
+      PrintF("Postponing sweep for %d pages\n", unswept_pages);
+    }
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
