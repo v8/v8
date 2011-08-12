@@ -2012,41 +2012,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 }
 
 
-Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
-  // Parse the statement and collect escaping labels.
-  TargetCollector collector;
-  Statement* stat;
-  { Target target(&this->target_stack_, &collector);
-    with_nesting_level_++;
-    top_scope_->DeclarationScope()->RecordWithStatement();
-    stat = ParseStatement(labels, CHECK_OK);
-    with_nesting_level_--;
-  }
-  // Create resulting block with two statements.
-  // 1: Evaluate the with expression.
-  // 2: The try-finally block evaluating the body.
-  Block* result = new(zone()) Block(isolate(), NULL, 2, false);
-
-  if (result != NULL) {
-    result->AddStatement(new(zone()) EnterWithContextStatement(obj));
-
-    // Create body block.
-    Block* body = new(zone()) Block(isolate(), NULL, 1, false);
-    body->AddStatement(stat);
-
-    // Create exit block.
-    Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
-    exit->AddStatement(new(zone()) ExitContextStatement());
-
-    // Return a try-finally statement.
-    TryFinallyStatement* wrapper = new(zone()) TryFinallyStatement(body, exit);
-    wrapper->set_escaping_targets(collector.targets());
-    result->AddStatement(wrapper);
-  }
-  return result;
-}
-
-
 Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
@@ -2063,7 +2028,11 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  return WithHelper(expr, labels, CHECK_OK);
+  ++with_nesting_level_;
+  top_scope_->DeclarationScope()->RecordWithStatement();
+  Statement* stmt = ParseStatement(labels, CHECK_OK);
+  --with_nesting_level_;
+  return new(zone()) WithStatement(expr, stmt);
 }
 
 
@@ -2198,39 +2167,22 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
-      // Rewrite the catch body B to a single statement block
-      // { try B finally { PopContext }}.
-      Block* inner_body;
-      // We need to collect escapes from the body for both the inner
-      // try/finally used to pop the catch context and any possible outer
-      // try/finally.
-      TargetCollector inner_collector;
-      { Target target(&this->target_stack_, &catch_collector);
-        { Target target(&this->target_stack_, &inner_collector);
-          catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
-          if (top_scope_->is_strict_mode()) {
-            catch_scope->EnableStrictMode();
-          }
-          catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
-
-          Scope* saved_scope = top_scope_;
-          top_scope_ = catch_scope;
-          inner_body = ParseBlock(NULL, CHECK_OK);
-          top_scope_ = saved_scope;
-        }
+      // Rewrite the catch body { B } to a block:
+      // { { B } ExitContext; }.
+      Target target(&this->target_stack_, &catch_collector);
+      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
+      if (top_scope_->is_strict_mode()) {
+        catch_scope->EnableStrictMode();
       }
+      catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
+      catch_block = new(zone()) Block(isolate(), NULL, 2, false);
 
-      // Create exit block.
-      Block* inner_finally = new(zone()) Block(isolate(), NULL, 1, false);
-      inner_finally->AddStatement(new(zone()) ExitContextStatement());
-
-      // Create a try/finally statement.
-      TryFinallyStatement* inner_try_finally =
-          new(zone()) TryFinallyStatement(inner_body, inner_finally);
-      inner_try_finally->set_escaping_targets(inner_collector.targets());
-
-      catch_block = new(zone()) Block(isolate(), NULL, 1, false);
-      catch_block->AddStatement(inner_try_finally);
+      Scope* saved_scope = top_scope_;
+      top_scope_ = catch_scope;
+      Block* catch_body = ParseBlock(NULL, CHECK_OK);
+      top_scope_ = saved_scope;
+      catch_block->AddStatement(catch_body);
+      catch_block->AddStatement(new(zone()) ExitContextStatement());
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }

@@ -2634,12 +2634,11 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void HGraphBuilder::VisitEnterWithContextStatement(
-    EnterWithContextStatement* stmt) {
+void HGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("EnterWithContextStatement");
+  return Bailout("WithStatement");
 }
 
 
