@@ -4637,7 +4637,20 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
 
 
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  return array->GetElementsAccessor()->AddJSArrayKeysToFixedArray(array, this);
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  MaybeObject* maybe_result =
+      accessor->AddElementsToFixedArray(array->elements(), this);
+  FixedArray* result;
+  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
+#ifdef DEBUG
+  if (FLAG_enable_slow_asserts) {
+    for (int i = 0; i < result->length(); i++) {
+      Object* current = result->get(i);
+      ASSERT(current->IsNumber() || current->IsString());
+    }
+  }
+#endif
+  return result;
 }
 
 
