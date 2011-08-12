@@ -92,11 +92,13 @@ class MacroAssembler: public Assembler {
   void Jump(Register target, Condition cond = al);
   void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Register target, Condition cond = al);
+  static int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  static int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  static int CallSize(Handle<Code> code,
+                      RelocInfo::Mode rmode,
+                      Condition cond = al);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode,
             Condition cond = al);
@@ -1025,7 +1027,9 @@ class MacroAssembler: public Assembler {
                            int num_double_arguments);
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  static int CallSize(intptr_t target,
+                      RelocInfo::Mode rmode,
+                      Condition cond = al);
   void Call(intptr_t target,
             RelocInfo::Mode rmode,
             Condition cond = al);
