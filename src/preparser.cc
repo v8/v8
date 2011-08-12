@@ -56,8 +56,6 @@ namespace preparser {
 // That means that contextual checks (like a label being declared where
 // it is used) are generally omitted.
 
-namespace i = ::v8::internal;
-
 void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
