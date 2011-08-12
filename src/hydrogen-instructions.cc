@@ -635,6 +635,12 @@ void HBinaryCall::PrintDataTo(StringStream* stream) {
 }
 
 
+void HBoundsCheck::PrintDataTo(StringStream* stream) {
+  index()->PrintNameTo(stream);
+  stream->Add(" ");
+  length()->PrintNameTo(stream);
+}
+
 void HCallConstantFunction::PrintDataTo(StringStream* stream) {
   if (IsApplyFunction()) {
     stream->Add("optimized apply ");
@@ -1361,6 +1367,20 @@ bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
     if (!found) return false;
   }
   return true;
+}
+
+
+void HLoadNamedFieldPolymorphic::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" .");
+  stream->Add(*String::cast(*name())->ToCString());
+}
+
+
+void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" .");
+  stream->Add(*String::cast(*name())->ToCString());
 }
 
 

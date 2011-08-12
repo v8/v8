@@ -27,10 +27,11 @@
 
 // Flags: --max-new-space-size=256 --allow-natives-syntax
 
+var test_id = 0;
+
 function testFloor(expect, input) {
-  function test(n) {
-    return Math.floor(n);
-  }
+  var test = new Function('n',
+                          '"' + (test_id++) + '";return Math.floor(n)');
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));

@@ -2713,34 +2713,53 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
-  Label done;
 
-  // Deoptimize on negative numbers.
-  __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
-  __ ucomisd(input_reg, xmm_scratch);
-  DeoptimizeIf(below, instr->environment());
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatures::Scope scope(SSE4_1);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      // Deoptimize on negative zero.
+      Label non_zero;
+      __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
+      __ ucomisd(input_reg, xmm_scratch);
+      __ j(not_equal, &non_zero, Label::kNear);
+      __ movmskpd(output_reg, input_reg);
+      __ test(output_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&non_zero);
+    }
+    __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
+    __ cvttsd2si(output_reg, Operand(xmm_scratch));
+    // Overflow is signalled with minint.
+    __ cmp(output_reg, 0x80000000u);
+    DeoptimizeIf(equal, instr->environment());
+  } else {
+    Label done;
+    // Deoptimize on negative numbers.
+    __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ ucomisd(input_reg, xmm_scratch);
+    DeoptimizeIf(below, instr->environment());
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // Check for negative zero.
-    Label positive_sign;
-    __ j(above, &positive_sign, Label::kNear);
-    __ movmskpd(output_reg, input_reg);
-    __ test(output_reg, Immediate(1));
-    DeoptimizeIf(not_zero, instr->environment());
-    __ Set(output_reg, Immediate(0));
-    __ jmp(&done, Label::kNear);
-    __ bind(&positive_sign);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      // Check for negative zero.
+      Label positive_sign;
+      __ j(above, &positive_sign, Label::kNear);
+      __ movmskpd(output_reg, input_reg);
+      __ test(output_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ Set(output_reg, Immediate(0));
+      __ jmp(&done, Label::kNear);
+      __ bind(&positive_sign);
+    }
+
+    // Use truncating instruction (OK because input is positive).
+    __ cvttsd2si(output_reg, Operand(input_reg));
+
+    // Overflow is signalled with minint.
+    __ cmp(output_reg, 0x80000000u);
+    DeoptimizeIf(equal, instr->environment());
+    __ bind(&done);
   }
-
-  // Use truncating instruction (OK because input is positive).
-  __ cvttsd2si(output_reg, Operand(input_reg));
-
-  // Overflow is signalled with minint.
-  __ cmp(output_reg, 0x80000000u);
-  DeoptimizeIf(equal, instr->environment());
-  __ bind(&done);
 }
-
 
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
@@ -2751,12 +2770,10 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   // xmm_scratch = 0.5
   ExternalReference one_half = ExternalReference::address_of_one_half();
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
-
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_half);
   // input = input + 0.5
   __ addsd(input_reg, xmm_scratch);
-
 
   // Compute Math.floor(value + 0.5).
   // Use truncating instruction (OK because input is positive).

@@ -2449,6 +2449,8 @@ class HBoundsCheck: public HTemplateInstruction<2> {
     return Representation::Integer32();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
 
@@ -3416,6 +3418,8 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic)
 
   static const int kMaxLoadPolymorphism = 4;
@@ -3448,6 +3452,8 @@ class HLoadNamedGeneric: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
 
