@@ -3163,10 +3163,9 @@ static i::Context* GetCreationContext(i::JSObject* object) {
   i::Object* constructor = object->map()->constructor();
   i::JSFunction* function;
   if (!constructor->IsJSFunction()) {
-    // API functions have null as a constructor,
+    // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
-    ASSERT(object->IsJSFunction() &&
-           i::JSFunction::cast(object)->shared()->IsApiFunction());
+    ASSERT(object->IsJSFunction());
     function = i::JSFunction::cast(object);
   } else {
     function = i::JSFunction::cast(constructor);

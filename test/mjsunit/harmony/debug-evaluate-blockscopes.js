@@ -25,45 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ELEMENTS_H_
-#define V8_ELEMENTS_H_
+// Flags: --expose-debug-as debug
 
-#include "objects.h"
+// Test debug evaluation for functions without local context, but with
+// nested catch contexts.
 
-namespace v8 {
-namespace internal {
-
-// Abstract base class for handles that can operate on objects with differing
-// ElementsKinds.
-class ElementsAccessor {
- public:
-  ElementsAccessor() { }
-  virtual ~ElementsAccessor() { }
-  virtual MaybeObject* GetWithReceiver(JSObject* obj,
-                                       Object* receiver,
-                                       uint32_t index) = 0;
-
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
-                              JSReceiver::DeleteMode mode) = 0;
-
-  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to) = 0;
-
-  // Returns a shared ElementsAccessor for the specified ElementsKind.
-  static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
-    return elements_accessors_[elements_kind];
+function f() {
+  {                   // Line 1.
+    var i = 1;        // Line 2. // TODO(keuchel): introduce let
+    try {             // Line 3.
+      throw 'stuff';  // Line 4.
+    } catch (e) {     // Line 5.
+      x = 2;          // Line 6.
+    }
   }
-
-  static void InitializeOncePerProcess();
-
- private:
-  static ElementsAccessor** elements_accessors_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
-} }  // namespace v8::internal
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
+// Set breakpoint on line 6.
+var bp = Debug.setBreakPoint(f, 6);
 
-#endif  // V8_ELEMENTS_H_
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    result = exec_state.frame().evaluate("i").value();
+  }
+};
+
+// Add the debug event listener.
+Debug.setListener(listener);
+result = -1;
+f();
+assertEquals(1, result);
+
+// Clear breakpoint.
+Debug.clearBreakPoint(bp);
+// Get rid of the debug event listener.
+Debug.setListener(null);

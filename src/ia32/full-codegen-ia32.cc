@@ -3830,7 +3830,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
-  // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
   bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
   UnaryOverwriteMode overwrite =
@@ -4105,6 +4104,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ j(equal, if_true);
     __ cmp(eax, isolate()->factory()->false_value());
     Split(equal, if_true, if_false, fall_through);
+  } else if (FLAG_harmony_typeof &&
+             check->Equals(isolate()->heap()->null_symbol())) {
+    __ cmp(eax, isolate()->factory()->null_value());
+    Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
     __ cmp(eax, isolate()->factory()->undefined_value());
     __ j(equal, if_true);
@@ -4120,8 +4123,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(eax, if_false);
-    __ cmp(eax, isolate()->factory()->null_value());
-    __ j(equal, if_true);
+    if (!FLAG_harmony_typeof) {
+      __ cmp(eax, isolate()->factory()->null_value());
+      __ j(equal, if_true);
+    }
     __ CmpObjectType(eax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, edx);
     __ j(below, if_false);
     __ CmpInstanceType(edx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

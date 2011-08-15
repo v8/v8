@@ -544,6 +544,7 @@ class PartialSerializer : public Serializer {
     ASSERT(!o->IsScript());
     return o->IsString() || o->IsSharedFunctionInfo() ||
            o->IsHeapNumber() || o->IsCode() ||
+           o->IsSerializedScopeInfo() ||
            o->map() == HEAP->fixed_cow_array_map();
   }
 

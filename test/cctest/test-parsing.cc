@@ -40,8 +40,6 @@
 #include "preparser.h"
 #include "cctest.h"
 
-namespace i = ::v8::internal;
-
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;

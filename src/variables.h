@@ -95,11 +95,12 @@ class Variable: public ZoneObject {
 
   Handle<String> name() const { return name_; }
   Mode mode() const { return mode_; }
-  bool is_accessed_from_inner_scope() const {
-    return is_accessed_from_inner_scope_;
+  bool is_accessed_from_inner_function_scope() const {
+    return is_accessed_from_inner_function_scope_;
   }
-  void MarkAsAccessedFromInnerScope() {
-    is_accessed_from_inner_scope_ = true;
+  void MarkAsAccessedFromInnerFunctionScope() {
+    ASSERT(mode_ != TEMPORARY);
+    is_accessed_from_inner_function_scope_ = true;
   }
   bool is_used() { return is_used_; }
   void set_is_used(bool flag) { is_used_ = flag; }
@@ -156,7 +157,7 @@ class Variable: public ZoneObject {
   bool is_valid_LHS_;
 
   // Usage info.
-  bool is_accessed_from_inner_scope_;  // set by variable resolver
+  bool is_accessed_from_inner_function_scope_;  // set by variable resolver
   bool is_used_;
 };
 

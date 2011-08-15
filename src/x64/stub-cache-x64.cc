@@ -3243,8 +3243,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ SmiToInteger32(rcx, rax);
-  __ cmpl(rcx, FieldOperand(rbx, ExternalArray::kLengthOffset));
+  __ cmpl(rax, FieldOperand(rbx, ExternalArray::kLengthOffset));
   // Unsigned comparison catches both negative and too-large values.
   __ j(above_equal, &miss_force_generic);
 
@@ -3256,29 +3255,31 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // rbx: base pointer of external storage
   switch (elements_kind) {
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      __ SmiToInteger32(rcx, rax);
       __ movsxbq(rcx, Operand(rbx, rcx, times_1, 0));
       break;
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      __ SmiToInteger32(rcx, rax);
       __ movzxbq(rcx, Operand(rbx, rcx, times_1, 0));
       break;
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      __ movsxwq(rcx, Operand(rbx, rcx, times_2, 0));
+      __ movsxwq(rcx, Operand(rbx, rax, times_1, 0));
       break;
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ movzxwq(rcx, Operand(rbx, rcx, times_2, 0));
+      __ movzxwq(rcx, Operand(rbx, rax, times_1, 0));
       break;
     case JSObject::EXTERNAL_INT_ELEMENTS:
-      __ movsxlq(rcx, Operand(rbx, rcx, times_4, 0));
+      __ movsxlq(rcx, Operand(rbx, rax, times_2, 0));
       break;
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      __ movl(rcx, Operand(rbx, rcx, times_4, 0));
+      __ movl(rcx, Operand(rbx, rax, times_2, 0));
       break;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      __ cvtss2sd(xmm0, Operand(rbx, rcx, times_4, 0));
+      __ cvtss2sd(xmm0, Operand(rbx, rax, times_2, 0));
       break;
     case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      __ movsd(xmm0, Operand(rbx, rcx, times_8, 0));
+      __ movsd(xmm0, Operand(rbx, rax, times_4, 0));
       break;
     default:
       UNREACHABLE();
@@ -3378,8 +3379,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ SmiToInteger32(rdi, rcx);  // Untag the index.
-  __ cmpl(rdi, FieldOperand(rbx, ExternalArray::kLengthOffset));
+  __ cmpl(rcx, FieldOperand(rbx, ExternalArray::kLengthOffset));
   // Unsigned comparison catches both negative and too-large values.
   __ j(above_equal, &miss_force_generic);
 
@@ -3389,7 +3389,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // rcx: key (a smi)
   // rdx: receiver (a JSObject)
   // rbx: elements array
-  // rdi: untagged key
   Label check_heap_number;
   if (elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     // Float to pixel conversion is only implemented in the runtime for now.
@@ -3403,37 +3402,32 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // rbx: base pointer of external storage
   switch (elements_kind) {
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      {  // Clamp the value to [0..255].
-        Label done;
-        __ testl(rdx, Immediate(0xFFFFFF00));
-        __ j(zero, &done, Label::kNear);
-        __ setcc(negative, rdx);  // 1 if negative, 0 if positive.
-        __ decb(rdx);  // 0 if negative, 255 if positive.
-        __ bind(&done);
-      }
+      __ ClampUint8(rdx);
+      __ SmiToInteger32(rdi, rcx);
       __ movb(Operand(rbx, rdi, times_1, 0), rdx);
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      __ SmiToInteger32(rdi, rcx);
       __ movb(Operand(rbx, rdi, times_1, 0), rdx);
       break;
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ movw(Operand(rbx, rdi, times_2, 0), rdx);
+      __ movw(Operand(rbx, rcx, times_1, 0), rdx);
       break;
     case JSObject::EXTERNAL_INT_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      __ movl(Operand(rbx, rdi, times_4, 0), rdx);
+      __ movl(Operand(rbx, rcx, times_2, 0), rdx);
       break;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       // Need to perform int-to-float conversion.
       __ cvtlsi2ss(xmm0, rdx);
-      __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
+      __ movss(Operand(rbx, rcx, times_2, 0), xmm0);
       break;
     case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       // Need to perform int-to-float conversion.
       __ cvtlsi2sd(xmm0, rdx);
-      __ movsd(Operand(rbx, rdi, times_8, 0), xmm0);
+      __ movsd(Operand(rbx, rcx, times_4, 0), xmm0);
       break;
     case JSObject::FAST_ELEMENTS:
     case JSObject::FAST_DOUBLE_ELEMENTS:
@@ -3451,7 +3445,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // rcx: key (a smi)
     // rdx: receiver (a JSObject)
     // rbx: elements array
-    // rdi: untagged key
     __ CmpObjectType(rax, HEAP_NUMBER_TYPE, kScratchRegister);
     __ j(not_equal, &slow);
     // No more branches to slow case on this path.
@@ -3461,15 +3454,15 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // reproducible behavior, convert these to zero.
     __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
     __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
-    // rdi: untagged index
     // rbx: base pointer of external storage
+    // rcx: key
     // top of FPU stack: value
     if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
       __ cvtsd2ss(xmm0, xmm0);
-      __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
+      __ movss(Operand(rbx, rcx, times_2, 0), xmm0);
       __ ret(0);
     } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
-      __ movsd(Operand(rbx, rdi, times_8, 0), xmm0);
+      __ movsd(Operand(rbx, rcx, times_4, 0), xmm0);
       __ ret(0);
     } else {
       // Perform float-to-int conversion with truncation (round-to-zero)
@@ -3482,24 +3475,31 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // rdi: untagged index
       // rbx: base pointer of external storage
       switch (elements_kind) {
+        case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+          __ ClampUint8(rdx);
+          __ cvttsd2si(rdx, xmm0);
+          __ SmiToInteger32(rdi, rcx);
+          __ movb(Operand(rbx, rdi, times_1, 0), rdx);
+          break;
         case JSObject::EXTERNAL_BYTE_ELEMENTS:
         case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
           __ cvttsd2si(rdx, xmm0);
+          __ SmiToInteger32(rdi, rcx);
           __ movb(Operand(rbx, rdi, times_1, 0), rdx);
           break;
         case JSObject::EXTERNAL_SHORT_ELEMENTS:
         case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
           __ cvttsd2si(rdx, xmm0);
-          __ movw(Operand(rbx, rdi, times_2, 0), rdx);
+          __ SmiToInteger32(rdi, rcx);
+          __ movw(Operand(rbx, rcx, times_1, 0), rdx);
           break;
         case JSObject::EXTERNAL_INT_ELEMENTS:
         case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
           // Convert to int64, so that NaN and infinities become
           // 0x8000000000000000, which is zero mod 2^32.
           __ cvttsd2siq(rdx, xmm0);
-          __ movl(Operand(rbx, rdi, times_4, 0), rdx);
+          __ movl(Operand(rbx, rcx, times_2, 0), rdx);
           break;
-        case JSObject::EXTERNAL_PIXEL_ELEMENTS:
         case JSObject::EXTERNAL_FLOAT_ELEMENTS:
         case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
         case JSObject::FAST_ELEMENTS:

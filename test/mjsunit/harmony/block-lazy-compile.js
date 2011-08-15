@@ -25,45 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ELEMENTS_H_
-#define V8_ELEMENTS_H_
+// Flags: --allow-natives-syntax
+// Test deserialization of block contexts during lazy compilation
+// of closures.
 
-#include "objects.h"
-
-namespace v8 {
-namespace internal {
-
-// Abstract base class for handles that can operate on objects with differing
-// ElementsKinds.
-class ElementsAccessor {
- public:
-  ElementsAccessor() { }
-  virtual ~ElementsAccessor() { }
-  virtual MaybeObject* GetWithReceiver(JSObject* obj,
-                                       Object* receiver,
-                                       uint32_t index) = 0;
-
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
-                              JSReceiver::DeleteMode mode) = 0;
-
-  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to) = 0;
-
-  // Returns a shared ElementsAccessor for the specified ElementsKind.
-  static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
-    return elements_accessors_[elements_kind];
+function f() {
+  var g;
+  {
+    // TODO(keuchel): introduce let
+    var x = 0;
+    g = function () {
+      x = x + 1;
+      return x;
+    }
   }
+  return g;
+}
 
-  static void InitializeOncePerProcess();
-
- private:
-  static ElementsAccessor** elements_accessors_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_ELEMENTS_H_
+var o = f();
+assertEquals(1, o());
+assertEquals(2, o());
+assertEquals(3, o());
+%OptimizeFunctionOnNextCall(o);
+assertEquals(4, o());

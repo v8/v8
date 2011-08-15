@@ -584,7 +584,8 @@ Parser::Parser(Handle<Script> script,
       pre_data_(pre_data),
       fni_(NULL),
       stack_overflow_(false),
-      parenthesized_function_(false) {
+      parenthesized_function_(false),
+      harmony_block_scoping_(false) {
   AstNode::ResetIds();
 }
 
@@ -809,6 +810,9 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   isolate()->Throw(*result, &location);
 }
 
+void Parser::SetHarmonyBlockScoping(bool block_scoping) {
+  harmony_block_scoping_ = block_scoping;
+}
 
 // Base class containing common code for the different finder classes used by
 // the parser.
@@ -1487,6 +1491,8 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
 
 
 Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
+  if (harmony_block_scoping_) return ParseScopedBlock(labels, ok);
+
   // Block ::
   //   '{' Statement* '}'
 
@@ -1506,6 +1512,56 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
+  return result;
+}
+
+
+Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
+  // Construct block expecting 16 statements.
+  Block* body = new(zone()) Block(isolate(), labels, 16, false);
+  Scope* saved_scope = top_scope_;
+  Scope* block_scope = NewScope(top_scope_,
+                                Scope::BLOCK_SCOPE,
+                                inside_with());
+  body->set_block_scope(block_scope);
+  block_scope->DeclareLocal(isolate()->factory()->block_scope_symbol(),
+                            Variable::VAR);
+  if (top_scope_->is_strict_mode()) {
+    block_scope->EnableStrictMode();
+  }
+  top_scope_ = block_scope;
+
+  // Parse the statements and collect escaping labels.
+  TargetCollector collector;
+  Target target(&this->target_stack_, &collector);
+  Expect(Token::LBRACE, CHECK_OK);
+  {
+    Target target_body(&this->target_stack_, body);
+    InitializationBlockFinder block_finder(top_scope_, target_stack_);
+
+    while (peek() != Token::RBRACE) {
+      Statement* stat = ParseStatement(NULL, CHECK_OK);
+      if (stat && !stat->IsEmpty()) {
+        body->AddStatement(stat);
+        block_finder.Update(stat);
+      }
+    }
+  }
+  Expect(Token::RBRACE, CHECK_OK);
+
+  // Create exit block.
+  Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
+  exit->AddStatement(new(zone()) ExitContextStatement());
+
+  // Create a try-finally statement.
+  TryFinallyStatement* try_finally =
+      new(zone()) TryFinallyStatement(body, exit);
+  try_finally->set_escaping_targets(collector.targets());
+  top_scope_ = saved_scope;
+
+  // Create a result block.
+  Block* result = new(zone()) Block(isolate(), NULL, 1, false);
+  result->AddStatement(try_finally);
   return result;
 }
 
@@ -1956,41 +2012,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 }
 
 
-Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
-  // Parse the statement and collect escaping labels.
-  TargetCollector collector;
-  Statement* stat;
-  { Target target(&this->target_stack_, &collector);
-    with_nesting_level_++;
-    top_scope_->DeclarationScope()->RecordWithStatement();
-    stat = ParseStatement(labels, CHECK_OK);
-    with_nesting_level_--;
-  }
-  // Create resulting block with two statements.
-  // 1: Evaluate the with expression.
-  // 2: The try-finally block evaluating the body.
-  Block* result = new(zone()) Block(isolate(), NULL, 2, false);
-
-  if (result != NULL) {
-    result->AddStatement(new(zone()) EnterWithContextStatement(obj));
-
-    // Create body block.
-    Block* body = new(zone()) Block(isolate(), NULL, 1, false);
-    body->AddStatement(stat);
-
-    // Create exit block.
-    Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
-    exit->AddStatement(new(zone()) ExitContextStatement());
-
-    // Return a try-finally statement.
-    TryFinallyStatement* wrapper = new(zone()) TryFinallyStatement(body, exit);
-    wrapper->set_escaping_targets(collector.targets());
-    result->AddStatement(wrapper);
-  }
-  return result;
-}
-
-
 Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
@@ -2007,7 +2028,11 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  return WithHelper(expr, labels, CHECK_OK);
+  ++with_nesting_level_;
+  top_scope_->DeclarationScope()->RecordWithStatement();
+  Statement* stmt = ParseStatement(labels, CHECK_OK);
+  --with_nesting_level_;
+  return new(zone()) WithStatement(expr, stmt);
 }
 
 
@@ -2142,39 +2167,22 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
-      // Rewrite the catch body B to a single statement block
-      // { try B finally { PopContext }}.
-      Block* inner_body;
-      // We need to collect escapes from the body for both the inner
-      // try/finally used to pop the catch context and any possible outer
-      // try/finally.
-      TargetCollector inner_collector;
-      { Target target(&this->target_stack_, &catch_collector);
-        { Target target(&this->target_stack_, &inner_collector);
-          catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
-          if (top_scope_->is_strict_mode()) {
-            catch_scope->EnableStrictMode();
-          }
-          catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
-
-          Scope* saved_scope = top_scope_;
-          top_scope_ = catch_scope;
-          inner_body = ParseBlock(NULL, CHECK_OK);
-          top_scope_ = saved_scope;
-        }
+      // Rewrite the catch body { B } to a block:
+      // { { B } ExitContext; }.
+      Target target(&this->target_stack_, &catch_collector);
+      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
+      if (top_scope_->is_strict_mode()) {
+        catch_scope->EnableStrictMode();
       }
+      catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
+      catch_block = new(zone()) Block(isolate(), NULL, 2, false);
 
-      // Create exit block.
-      Block* inner_finally = new(zone()) Block(isolate(), NULL, 1, false);
-      inner_finally->AddStatement(new(zone()) ExitContextStatement());
-
-      // Create a try/finally statement.
-      TryFinallyStatement* inner_try_finally =
-          new(zone()) TryFinallyStatement(inner_body, inner_finally);
-      inner_try_finally->set_escaping_targets(inner_collector.targets());
-
-      catch_block = new(zone()) Block(isolate(), NULL, 1, false);
-      catch_block->AddStatement(inner_try_finally);
+      Scope* saved_scope = top_scope_;
+      top_scope_ = catch_scope;
+      Block* catch_body = ParseBlock(NULL, CHECK_OK);
+      top_scope_ = saved_scope;
+      catch_block->AddStatement(catch_body);
+      catch_block->AddStatement(new(zone()) ExitContextStatement());
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }
@@ -5105,6 +5113,8 @@ bool ParserApi::Parse(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (info->is_lazy()) {
     Parser parser(script, true, NULL, NULL);
+    parser.SetHarmonyBlockScoping(!info->is_native() &&
+                                  FLAG_harmony_block_scoping);
     result = parser.ParseLazy(info);
   } else {
     // Whether we allow %identifier(..) syntax.
@@ -5112,6 +5122,8 @@ bool ParserApi::Parse(CompilationInfo* info) {
         info->allows_natives_syntax() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
     Parser parser(script, allow_natives_syntax, info->extension(), pre_data);
+    parser.SetHarmonyBlockScoping(!info->is_native() &&
+                                  FLAG_harmony_block_scoping);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();
@@ -5130,7 +5142,6 @@ bool ParserApi::Parse(CompilationInfo* info) {
                                    info->StrictMode());
     }
   }
-
   info->SetFunction(result);
   return (result != NULL);
 }

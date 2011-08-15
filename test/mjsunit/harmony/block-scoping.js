@@ -25,45 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ELEMENTS_H_
-#define V8_ELEMENTS_H_
+// Flags: --allow-natives-syntax --harmony-block-scoping
+// Test functionality of block scopes.
 
-#include "objects.h"
-
-namespace v8 {
-namespace internal {
-
-// Abstract base class for handles that can operate on objects with differing
-// ElementsKinds.
-class ElementsAccessor {
- public:
-  ElementsAccessor() { }
-  virtual ~ElementsAccessor() { }
-  virtual MaybeObject* GetWithReceiver(JSObject* obj,
-                                       Object* receiver,
-                                       uint32_t index) = 0;
-
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
-                              JSReceiver::DeleteMode mode) = 0;
-
-  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to) = 0;
-
-  // Returns a shared ElementsAccessor for the specified ElementsKind.
-  static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
-    return elements_accessors_[elements_kind];
+// Hoisting of var declarations.
+function f1() {
+  {
+    var x = 1;
+    var y;
   }
+  assertEquals(1, x)
+  assertEquals(undefined, y)
+}
+f1();
 
-  static void InitializeOncePerProcess();
+// Dynamic lookup through block scopes.
+function f2(one) {
+  var x = one + 1;
+  // TODO(keuchel): introduce let
+  // let y = one + 2;
+  if (one == 1) {
+    // Parameter
+    assertEquals(1, eval('one'));
+    // Function local var variable
+    assertEquals(2, eval('x'));
+    // Function local let variable
+    // TODO(keuchel): introduce let
+    // assertEquals(3, eval('y'));
+  }
+}
+f2(1);
 
- private:
-  static ElementsAccessor** elements_accessors_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_ELEMENTS_H_

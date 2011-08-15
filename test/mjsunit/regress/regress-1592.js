@@ -25,45 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ELEMENTS_H_
-#define V8_ELEMENTS_H_
+// Flags: --allow-natives-syntax
 
-#include "objects.h"
-
-namespace v8 {
-namespace internal {
-
-// Abstract base class for handles that can operate on objects with differing
-// ElementsKinds.
-class ElementsAccessor {
- public:
-  ElementsAccessor() { }
-  virtual ~ElementsAccessor() { }
-  virtual MaybeObject* GetWithReceiver(JSObject* obj,
-                                       Object* receiver,
-                                       uint32_t index) = 0;
-
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
-                              JSReceiver::DeleteMode mode) = 0;
-
-  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to) = 0;
-
-  // Returns a shared ElementsAccessor for the specified ElementsKind.
-  static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
-    return elements_accessors_[elements_kind];
-  }
-
-  static void InitializeOncePerProcess();
-
- private:
-  static ElementsAccessor** elements_accessors_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
+var f = {
+  apply: function(a, b) {}
 };
 
-} }  // namespace v8::internal
+function test(a) {
+  f.apply(this, arguments);
+}
 
-#endif  // V8_ELEMENTS_H_
+// Initialize ICs.
+test(1);
+test(1);
+
+%OptimizeFunctionOnNextCall(test);
+
+// Kaboom!
+test(1);
