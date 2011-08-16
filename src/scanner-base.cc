@@ -41,12 +41,12 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache) { }
 
 
-uc32 Scanner::ScanHexEscape(uc32 c, int length) {
-  ASSERT(length <= 4);  // prevent overflow
+  uc32 Scanner::ScanHexNumber(int expected_length) {
+  ASSERT(expected_length <= 4);  // prevent overflow
 
   uc32 digits[4];
   uc32 x = 0;
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < expected_length; i++) {
     digits[i] = c0_;
     int d = HexValue(c0_);
     if (d < 0) {
@@ -54,12 +54,11 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
       // should be illegal, but other JS VMs just return the
       // non-escaped version of the original character.
 
-      // Push back digits read, except the last one (in c0_).
+      // Push back digits that we have advanced past.
       for (int j = i-1; j >= 0; j--) {
         PushBack(digits[j]);
       }
-      // Notice: No handling of error - treat it as "\u"->"u".
-      return c;
+      return unibrow::Utf8::kBadChar;
     }
     x = x * 16 + d;
     Advance();
@@ -638,9 +637,17 @@ void JavaScriptScanner::ScanEscape() {
     case 'n' : c = '\n'; break;
     case 'r' : c = '\r'; break;
     case 't' : c = '\t'; break;
-    case 'u' : c = ScanHexEscape(c, 4); break;
+    case 'u' : {
+      c = ScanHexNumber(4);
+      if (c == static_cast<uc32>(unibrow::Utf8::kBadChar)) c = 'u';
+      break;
+    }
     case 'v' : c = '\v'; break;
-    case 'x' : c = ScanHexEscape(c, 2); break;
+    case 'x' : {
+      c = ScanHexNumber(2);
+      if (c == static_cast<uc32>(unibrow::Utf8::kBadChar)) c = 'x';
+      break;
+    }
     case '0' :  // fall through
     case '1' :  // fall through
     case '2' :  // fall through
@@ -802,7 +809,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return unibrow::Utf8::kBadChar;
   Advance();
-  uc32 c = ScanHexEscape('u', 4);
+  uc32 c = ScanHexNumber(4);
   // We do not allow a unicode escape sequence to start another
   // unicode escape sequence.
   if (c == '\\') return unibrow::Utf8::kBadChar;

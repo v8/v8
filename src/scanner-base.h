@@ -419,7 +419,7 @@ class Scanner {
     }
   }
 
-  uc32 ScanHexEscape(uc32 c, int length);
+  uc32 ScanHexNumber(int expected_length);
 
   // Return the current source position.
   int source_pos() {
