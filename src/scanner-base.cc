@@ -888,7 +888,6 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 static Token::Value KeywordOrIdentifierToken(const char* input,
                                              int input_length,
                                              bool harmony_block_scoping) {
-
   ASSERT(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
