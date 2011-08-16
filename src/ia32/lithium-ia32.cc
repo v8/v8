@@ -1559,8 +1559,9 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  return AssignEnvironment(new LBoundsCheck(UseRegisterAtStart(instr->index()),
-                                            UseAtStart(instr->length())));
+  return AssignEnvironment(new LBoundsCheck(
+      UseRegisterOrConstantAtStart(instr->index()),
+      UseAtStart(instr->length())));
 }
 
 
@@ -1881,9 +1882,9 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   ASSERT(instr->representation().IsTagged());
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* obj = UseRegisterAtStart(instr->object());
-  LOperand* key = UseRegisterAtStart(instr->key());
+  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
-  return AssignEnvironment(DefineSameAsFirst(result));
+  return AssignEnvironment(DefineAsRegister(result));
 }
 
 
