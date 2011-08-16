@@ -3167,9 +3167,10 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
-  MaybeObject* raw_result = GetElementsAccessor()->Delete(*this_handle,
-                                                          index,
-                                                          NORMAL_DELETION);
+  MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
+      *this_handle,
+      index,
+      NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
