@@ -25,40 +25,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-block-scoping
+// Flags: --harmony-block-scoping
 
-// Test debug evaluation for functions without local context, but with
-// nested catch contexts.
+// Test let declarations in various settings.
 
-function f() {
-  {                   // Line 1.
-    let i = 1;        // Line 2.
-    try {             // Line 3.
-      throw 'stuff';  // Line 4.
-    } catch (e) {     // Line 5.
-      x = 2;          // Line 6.
-    }
-  }
-};
+// Global
+let x;
+let y = 2;
 
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
-// Set breakpoint on line 6.
-var bp = Debug.setBreakPoint(f, 6);
+// Block local
+{
+  let y;
+  let x = 3;
+}
 
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    result = exec_state.frame().evaluate("i").value();
-  }
-};
+assertEquals(undefined, x);
+assertEquals(2,y);
 
-// Add the debug event listener.
-Debug.setListener(listener);
-result = -1;
-f();
-assertEquals(1, result);
+if (true) {
+  let y;
+  assertEquals(undefined, y);
+}
 
-// Clear breakpoint.
-Debug.clearBreakPoint(bp);
-// Get rid of the debug event listener.
-Debug.setListener(null);
+function TestLocalThrows(str, expect) {
+  assertThrows("(function(){" + str + "})()", expect);
+}
+
+function TestLocalDoesNotThrow(str) {
+  assertDoesNotThrow("(function(){" + str + "})()");
+}
+
+// Unprotected statement
+TestLocalThrows("if (true) let x;", SyntaxError);
+TestLocalThrows("with ({}) let x;", SyntaxError);
+TestLocalThrows("do let x; while (false)", SyntaxError);
+TestLocalThrows("while (false) let x;", SyntaxError);
+
+TestLocalDoesNotThrow("if (true) var x;");
+TestLocalDoesNotThrow("with ({}) var x;");
+TestLocalDoesNotThrow("do var x; while (false)");
+TestLocalDoesNotThrow("while (false) var x;");

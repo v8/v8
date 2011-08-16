@@ -39,20 +39,178 @@ function f1() {
 }
 f1();
 
-// Dynamic lookup through block scopes.
+
+// Dynamic lookup in and through block contexts.
 function f2(one) {
   var x = one + 1;
-  // TODO(keuchel): introduce let
-  // let y = one + 2;
-  if (one == 1) {
-    // Parameter
+  let y = one + 2;
+  {
+    let z = one + 3;
     assertEquals(1, eval('one'));
-    // Function local var variable
     assertEquals(2, eval('x'));
-    // Function local let variable
-    // TODO(keuchel): introduce let
-    // assertEquals(3, eval('y'));
+    assertEquals(3, eval('y'));
+    assertEquals(4, eval('z'));
   }
 }
 f2(1);
 
+
+// Lookup in and through block contexts.
+function f3(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    assertEquals(1, one);
+    assertEquals(2, x);
+    assertEquals(3, y);
+    assertEquals(4, z);
+  }
+}
+f3(1);
+
+
+// Dynamic lookup from closure.
+function f4(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    function f() {
+      assertEquals(1, eval('one'));
+      assertEquals(2, eval('x'));
+      assertEquals(3, eval('y'));
+      assertEquals(4, eval('z'));
+    };
+  }
+}
+f4(1);
+
+
+// Lookup from closure.
+function f5(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    function f() {
+      assertEquals(1, one);
+      assertEquals(2, x);
+      assertEquals(3, y);
+      assertEquals(4, z);
+    };
+  }
+}
+f5(1);
+
+
+// Return from block.
+function f6() {
+  let x = 1;
+  {
+    let y = 2;
+    return x + y;
+  }
+}
+assertEquals(3, f6(6));
+
+
+// Variable shadowing and lookup.
+function f7(a) {
+  let b = 1;
+  var c = 1;
+  var d = 1;
+  { // let variables shadowing argument, let and var variables
+    let a = 2;
+    let b = 2;
+    let c = 2;
+    assertEquals(2,a);
+    assertEquals(2,b);
+    assertEquals(2,c);
+  }
+  try {
+    throw 'stuff1';
+  } catch (a) {
+    assertEquals('stuff1',a);
+    // catch variable shadowing argument
+    a = 2;
+    assertEquals(2,a);
+    {
+      // let variable shadowing catch variable
+      let a = 3;
+      assertEquals(3,a);
+      try {
+        throw 'stuff2';
+      } catch (a) {
+        assertEquals('stuff2',a);
+        // catch variable shadowing let variable
+        a = 4;
+        assertEquals(4,a);
+      }
+      assertEquals(3,a);
+    }
+    assertEquals(2,a);
+  }
+  try {
+    throw 'stuff3';
+  } catch (c) {
+    // catch variable shadowing var variable
+    assertEquals('stuff3',c);
+    try {
+      throw 'stuff4';
+    } catch(c) {
+      assertEquals('stuff4',c);
+      // catch variable shadowing catch variable
+      c = 3;
+      assertEquals(3,c);
+    }
+    (function(c) {
+      // argument shadowing catch variable
+      c = 3;
+      assertEquals(3,c);
+    })();
+    assertEquals('stuff3', c);
+    (function() {
+      // var variable shadowing catch variable
+      var c = 3;
+    })();
+    assertEquals('stuff3', c);
+    c = 2;
+  }
+  assertEquals(1,c);
+  (function(a,b,c) {
+    // arguments shadowing argument, let and var variable
+    a = 2;
+    b = 2;
+    c = 2;
+    assertEquals(2,a);
+    assertEquals(2,b);
+    assertEquals(2,c);
+    // var variable shadowing var variable
+    var d = 2;
+  })(1,1);
+  assertEquals(1,a);
+  assertEquals(1,b);
+  assertEquals(1,c);
+  assertEquals(1,d);
+}
+f7(1);
+
+
+// Ensure let variables are block local and var variables function local.
+function f8() {
+  var let_accessors = [];
+  var var_accessors = [];
+  for (var i = 0; i < 10; i++) {
+    let x = i;
+    var y = i;
+    let_accessors[i] = function() { return x; }
+    var_accessors[i] = function() { return y; }
+  }
+  for (var j = 0; j < 10; j++) {
+    y = j + 10;
+    assertEquals(j, let_accessors[j]());
+    assertEquals(y, var_accessors[j]());
+  }
+}
+f8();

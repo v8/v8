@@ -742,9 +742,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ mov(r2, Operand(variable->name()));
         // Declaration nodes are always introduced in one of two modes.
         ASSERT(mode == Variable::VAR ||
-               mode == Variable::CONST);
-        PropertyAttributes attr =
-            (mode == Variable::VAR) ? NONE : READ_ONLY;
+               mode == Variable::CONST ||
+               mode == Variable::LET);
+        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
         __ mov(r1, Operand(Smi::FromInt(attr)));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as

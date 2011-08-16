@@ -375,9 +375,11 @@ class Declaration: public AstNode {
       : proxy_(proxy),
         mode_(mode),
         fun_(fun) {
-    ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+    ASSERT(mode == Variable::VAR ||
+           mode == Variable::CONST ||
+           mode == Variable::LET);
     // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == Variable::VAR);
+    ASSERT(fun == NULL || mode == Variable::VAR || mode == Variable::LET);
   }
 
   DECLARE_NODE_TYPE(Declaration)

@@ -11374,6 +11374,11 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
         SerializedScopeInfo::cast(current->extension()));
     new_current =
         isolate->factory()->NewBlockContext(function, new_previous, scope_info);
+    // Copy context slots.
+    int num_context_slots = scope_info->NumberOfContextSlots();
+    for (int i = Context::MIN_CONTEXT_SLOTS; i < num_context_slots; ++i) {
+      new_current->set(i, current->get(i));
+    }
   } else {
     ASSERT(current->IsWithContext());
     Handle<JSObject> extension(JSObject::cast(current->extension()));

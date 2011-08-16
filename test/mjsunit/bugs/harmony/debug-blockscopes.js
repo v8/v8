@@ -192,176 +192,10 @@ function CheckScopeContent(content, number, exec_state) {
 }
 
 
-// Simple empty block scope in local scope.
-BeginTest("Local block 1");
-
-function local_block_1() {
-  {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
-};
-local_block_1();
-EndTest();
-
-
-// Local scope with a parameter.
-BeginTest("Local 2");
-
-function local_2(a) {
-  {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
-};
-local_2(1);
-EndTest();
-
-
-// Local scope with a parameter and a local variable.
-BeginTest("Local 3");
-
-function local_3(a) {
-  let x = 3;
-  debugger;
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,x:3}, 0, exec_state);
-};
-local_3(1);
-EndTest();
-
-
-// Local scope with parameters and local variables.
-BeginTest("Local 4");
-
-function local_4(a, b) {
-  let x = 3;
-  let y = 4;
-  debugger;
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2,x:3,y:4}, 0, exec_state);
-};
-local_4(1, 2);
-EndTest();
-
-
-// Single empty with block.
-BeginTest("With block 1");
-
-function with_block_1() {
-  with({}) {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
-};
-with_block_1();
-EndTest();
-
-
-// Nested empty with blocks.
-BeginTest("With block 2");
-
-function with_block_2() {
-  with({}) {
-    with({}) {
-      debugger;
-    }
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
-  CheckScopeContent({}, 3, exec_state);
-};
-with_block_2();
-EndTest();
-
-
-// With block using an in-place object literal.
-BeginTest("With block 3");
-
-function with_block_3() {
-  with({a:1,b:2}) {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({a:1,b:2}, 1, exec_state);
-};
-with_block_3();
-EndTest();
-
-
-// Nested with blocks using in-place object literals.
-BeginTest("With block 4");
-
-function with_block_4() {
-  with({a:1,b:2}) {
-    with({a:2,b:1}) {
-      debugger;
-    }
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:2,b:1}, 1, exec_state);
-  CheckScopeContent({a:1,b:2}, 3, exec_state);
-};
-with_block_4();
-EndTest();
-
-
 // Simple closure formed by returning an inner function referering to an outer
-// block local variable and an outer function's parameter.
+// block local variable and an outer function's parameter. Due to VM
+// optimizations parts of the actual closure is missing from the debugger
+// information.
 BeginTest("Closure 1");
 
 function closure_1(a) {
@@ -383,6 +217,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
+  CheckScopeContent({z:4}, 1, exec_state);
   CheckScopeContent({a:1,x:2,y:3}, 2, exec_state);
 };
 closure_1(1)();
