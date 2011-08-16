@@ -791,7 +791,7 @@ static int ObjectsFoundInHeap(Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
   HeapIterator iterator;
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
         found_count++;
@@ -1194,9 +1194,9 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   intptr_t size_of_objects_1 = HEAP->SizeOfObjects();
   HeapIterator iterator;
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject* obj = iterator.Next();
+  for (HeapObject* obj = iterator.next();
        obj != NULL;
-       obj = iterator.Next()) {
+       obj = iterator.next()) {
     size_of_objects_2 += obj->Size();
   }
   // Delta must be within 5% of the larger result.
@@ -1229,9 +1229,9 @@ class HeapIteratorTestHelper {
   bool b_found() { return b_found_; }
   void IterateHeap() {
     HeapIterator iterator;
-    for (HeapObject* obj = iterator.Next();
+    for (HeapObject* obj = iterator.next();
          obj != NULL;
-         obj = iterator.Next()) {
+         obj = iterator.next()) {
       if (obj == a_)
         a_found_ = true;
       else if (obj == b_)

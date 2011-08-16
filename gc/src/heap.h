@@ -913,6 +913,9 @@ class Heap {
   // state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(int flags);
 
+  // Check whether the heap is currently iterable.
+  bool IsHeapIterable();
+
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.  May cause a GC.
   void EnsureHeapIsIterable();
@@ -1929,8 +1932,7 @@ class SpaceIterator : public Malloced {
 
 // A HeapIterator provides iteration over the whole heap. It
 // aggregates the specific iterators for the different spaces as
-// these can only iterate over one space only.  It can only be guaranteed
-// to iterate over live objects.
+// these can only iterate over one space only.
 //
 // HeapIterator can skip free list nodes (that is, de-allocated heap
 // objects that still remain in the heap). As implementation of free
@@ -1941,18 +1943,28 @@ class HeapObjectsFilter;
 
 class HeapIterator BASE_EMBEDDED {
  public:
+  enum HeapObjectsFiltering {
+    kNoFiltering,
+    kFilterFreeListNodes,
+    kFilterUnreachable
+  };
+
   HeapIterator();
+  explicit HeapIterator(HeapObjectsFiltering filtering);
   ~HeapIterator();
 
-  HeapObject* Next();
-  void Reset();
+  HeapObject* next();
+  void reset();
 
  private:
   // Perform the initialization.
   void Init();
   // Perform all necessary shutdown (destruction) work.
   void Shutdown();
+  HeapObject* NextObject();
 
+  HeapObjectsFiltering filtering_;
+  HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
@@ -2355,10 +2367,13 @@ class IntrusiveMarking {
     ASSERT(IsMarked(object));
   }
 
-  static int SizeOfMarkedObject(HeapObject* object) {
+  static Map* MapOfMarkedObject(HeapObject* object) {
     uintptr_t map_word = object->map_word().ToRawValue();
-    Map* map = MapWord::FromRawValue(map_word | kNotMarkedBit).ToMap();
-    return object->SizeFromMap(map);
+    return MapWord::FromRawValue(map_word | kNotMarkedBit).ToMap();
+  }
+
+  static int SizeOfMarkedObject(HeapObject* object) {
+    return object->SizeFromMap(MapOfMarkedObject(object));
   }
 
  private:

@@ -1786,9 +1786,11 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
 
 int V8HeapExplorer::EstimateObjectsCount(HeapIterator* iterator) {
   int objects_count = 0;
-  for (HeapObject* obj = iterator->Next();
+  for (HeapObject* obj = iterator->next();
        obj != NULL;
-       obj = iterator->Next(), ++objects_count) {}
+       obj = iterator->next()) {
+    objects_count++;
+  }
   return objects_count;
 }
 
@@ -2128,15 +2130,16 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
 
 bool V8HeapExplorer::IterateAndExtractReferences(
-    HeapIterator* iterator,
     SnapshotFillerInterface* filler) {
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+
   filler_ = filler;
   bool interrupted = false;
 
   // Heap iteration with filtering must be finished in any case.
-  for (HeapObject* obj = iterator->Next();
+  for (HeapObject* obj = iterator.next();
        obj != NULL;
-       obj = iterator->Next(), progress_->ProgressStep()) {
+       obj = iterator.next(), progress_->ProgressStep()) {
     if (!interrupted) {
       ExtractReferences(obj);
       if (!progress_->ProgressReport(false)) interrupted = true;
@@ -2705,18 +2708,35 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-  // Iterator creation should follow TagGlobalObjects as it can allocate.
-  HeapIterator set_progress_heap_iterator;
-  HeapIterator count_entries_heap_iterator;
-  HeapIterator fill_references_heap_iterator;
+#ifdef DEBUG
+  Heap* debug_heap = Isolate::Current()->heap();
+  ASSERT(!debug_heap->old_data_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->old_pointer_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->code_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->cell_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->map_space()->was_swept_conservatively());
+#endif
 
+  // The following code uses heap iterators, so we want the heap to be
+  // stable. It should follow TagGlobalObjects as that can allocate.
   AssertNoAllocation no_alloc;
 
-  SetProgressTotal(&set_progress_heap_iterator,
-                   4);  // 2 passes + dominators + sizes.
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
+
+  SetProgressTotal(4);  // 2 passes + dominators + sizes.
+
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
 
   // Pass 1. Iterate heap contents to count entries and references.
-  if (!CountEntriesAndReferences(&count_entries_heap_iterator)) return false;
+  if (!CountEntriesAndReferences()) return false;
+
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
 
   // Allocate and fill entries in the snapshot, allocate references.
   snapshot_->AllocateEntries(entries_.entries_count(),
@@ -2725,7 +2745,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   entries_.AllocateEntries();
 
   // Pass 2. Fill references.
-  if (!FillReferences(&fill_references_heap_iterator)) return false;
+  if (!FillReferences()) return false;
 
   if (!SetEntriesDominators()) return false;
   if (!ApproximateRetainedSizes()) return false;
@@ -2753,30 +2773,30 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 }
 
 
-void HeapSnapshotGenerator::SetProgressTotal(HeapIterator* iterator,
-                                             int iterations_count) {
+void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == NULL) return;
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
   progress_total_ = (
-      v8_heap_explorer_.EstimateObjectsCount(iterator) +
+      v8_heap_explorer_.EstimateObjectsCount(&iterator) +
       dom_explorer_.EstimateObjectsCount()) * iterations_count;
   progress_counter_ = 0;
 }
 
 
-bool HeapSnapshotGenerator::CountEntriesAndReferences(HeapIterator* iterator) {
+bool HeapSnapshotGenerator::CountEntriesAndReferences() {
   SnapshotCounter counter(&entries_);
   v8_heap_explorer_.AddRootEntries(&counter);
   dom_explorer_.AddRootEntries(&counter);
   return
-      v8_heap_explorer_.IterateAndExtractReferences(iterator, &counter) &&
+      v8_heap_explorer_.IterateAndExtractReferences(&counter) &&
       dom_explorer_.IterateAndExtractReferences(&counter);
 }
 
 
-bool HeapSnapshotGenerator::FillReferences(HeapIterator* iterator) {
+bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
   return
-      v8_heap_explorer_.IterateAndExtractReferences(iterator, &filler) &&
+      v8_heap_explorer_.IterateAndExtractReferences(&filler) &&
       dom_explorer_.IterateAndExtractReferences(&filler);
 }
 
@@ -2807,7 +2827,7 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
       nodes_to_visit.RemoveLast();
     }
   }
-  entries->Truncate(current_entry);
+  ASSERT_EQ(current_entry, entries->length());
 }
 
 

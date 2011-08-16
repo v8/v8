@@ -9864,7 +9864,7 @@ static int GetGlobalObjectsCount() {
   i::Isolate::Current()->heap()->EnsureHeapIsIterable();
   int count = 0;
   i::HeapIterator it;
-  for (i::HeapObject* object = it.Next(); object != NULL; object = it.Next())
+  for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
     if (object->IsJSGlobalObject()) count++;
   return count;
 }

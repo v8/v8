@@ -1130,18 +1130,14 @@ class HeapObject: public Object {
     HeapObjectPrint(stdout);
   }
   void HeapObjectPrint(FILE* out);
-#endif
-#ifdef DEBUG
-  void HeapObjectVerify();
-  inline void VerifyObjectField(int offset);
-  inline void VerifySmiField(int offset);
-#endif
-
-#ifdef OBJECT_PRINT
   void PrintHeader(FILE* out, const char* id);
 #endif
 
 #ifdef DEBUG
+  void HeapObjectVerify();
+  inline void VerifyObjectField(int offset);
+  inline void VerifySmiField(int offset);
+
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
   static void VerifyHeapPointer(Object* p);

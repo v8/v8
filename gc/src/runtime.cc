@@ -11086,10 +11086,11 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
   Handle<SharedFunctionInfo> target;
   while (!done) {
     { // Extra scope for iterator and no-allocation.
-      HeapIterator iterator;
+      isolate->heap()->EnsureHeapIsIterable();
       AssertNoAllocation no_alloc_during_heap_iteration;
-      for (HeapObject* obj = iterator.Next();
-           obj != NULL; obj = iterator.Next()) {
+      HeapIterator iterator;
+      for (HeapObject* obj = iterator.next();
+           obj != NULL; obj = iterator.next()) {
         if (obj->IsSharedFunctionInfo()) {
           Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
           if (shared->script() == *script) {
@@ -11629,7 +11630,7 @@ static int DebugReferencedBy(HeapIterator* iterator,
   int count = 0;
   JSObject* last = NULL;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator->Next()) != NULL) &&
+  while (((heap_obj = iterator->next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -11699,8 +11700,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   // Due to the GC above we know it won't need to do that, but it seems cleaner
   // to get the heap iterator constructed before we start having unprotected
   // Object* locals that are not protected by handles.
-  HeapIterator heap_iterator;
-  HeapIterator heap_iterator2;
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -11719,6 +11718,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Get the number of referencing objects.
   int count;
+  HeapIterator heap_iterator;
   count = DebugReferencedBy(&heap_iterator,
                             target, instance_filter, max_references,
                             NULL, 0, arguments_function);
@@ -11731,6 +11731,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   FixedArray* instances = FixedArray::cast(object);
 
   // Fill the referencing objects.
+  // AllocateFixedArray above does not make the heap non-iterable.
+  ASSERT(HEAP->IsHeapIterable());
+  HeapIterator heap_iterator2;
   count = DebugReferencedBy(&heap_iterator2,
                             target, instance_filter, max_references,
                             instances, count, arguments_function);
@@ -11757,7 +11760,7 @@ static int DebugConstructedBy(HeapIterator* iterator,
   // Iterate the heap.
   int count = 0;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator->Next()) != NULL) &&
+  while (((heap_obj = iterator->next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -11787,9 +11790,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   // First perform a full GC in order to avoid dead objects.
   isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-  HeapIterator heap_iterator;
-  HeapIterator heap_iterator2;
-
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
@@ -11797,6 +11797,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
 
   // Get the number of referencing objects.
   int count;
+  HeapIterator heap_iterator;
   count = DebugConstructedBy(&heap_iterator,
                              constructor,
                              max_references,
@@ -11810,7 +11811,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   }
   FixedArray* instances = FixedArray::cast(object);
 
+  ASSERT(HEAP->IsHeapIterable());
   // Fill the referencing objects.
+  HeapIterator heap_iterator2;
   count = DebugConstructedBy(&heap_iterator2,
                              constructor,
                              max_references,
@@ -11894,9 +11897,9 @@ static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
   AssertNoAllocation no_allocations;
   int counter = 0;
   int buffer_size = buffer->length();
-  for (HeapObject* obj = iterator->Next();
+  for (HeapObject* obj = iterator->next();
        obj != NULL;
-       obj = iterator->Next()) {
+       obj = iterator->next()) {
     ASSERT(obj != NULL);
     if (!obj->IsSharedFunctionInfo()) {
       continue;
@@ -11931,16 +11934,18 @@ RUNTIME_FUNCTION(MaybeObject*,
   array = isolate->factory()->NewFixedArray(kBufferSize);
   int number;
   {
-    HeapIterator heap_iterator;
+    isolate->heap()->EnsureHeapIsIterable();
     AssertNoAllocation no_allocations;
+    HeapIterator heap_iterator;
     Script* scr = *script;
     FixedArray* arr = *array;
     number = FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
   }
   if (number > kBufferSize) {
     array = isolate->factory()->NewFixedArray(number);
-    HeapIterator heap_iterator;
+    isolate->heap()->EnsureHeapIsIterable();
     AssertNoAllocation no_allocations;
+    HeapIterator heap_iterator;
     Script* scr = *script;
     FixedArray* arr = *array;
     FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
@@ -12424,10 +12429,11 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   // Scan the heap for Script objects to find the script with the requested
   // script data.
   Handle<Script> script;
-  HeapIterator iterator;
+  script_name->GetHeap()->EnsureHeapIsIterable();
   AssertNoAllocation no_allocation_during_heap_iteration;
+  HeapIterator iterator;
   HeapObject* obj = NULL;
-  while (script.is_null() && ((obj = iterator.Next()) != NULL)) {
+  while (script.is_null() && ((obj = iterator.next()) != NULL)) {
     // If a script is found check if it has the script data requested.
     if (obj->IsScript()) {
       if (Script::cast(obj)->name()->IsString()) {

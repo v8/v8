@@ -224,7 +224,10 @@ bool Heap::HasBeenSetup() {
 
 
 int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
-  return object->Size();
+  if (IntrusiveMarking::IsMarked(object)) {
+    return IntrusiveMarking::SizeOfMarkedObject(object);
+  }
+  return object->SizeFromMap(object->map());
 }
 
 
@@ -4117,14 +4120,18 @@ STRUCT_LIST(MAKE_CASE)
 }
 
 
+bool Heap::IsHeapIterable() {
+  return (!old_pointer_space()->was_swept_conservatively() &&
+          !old_data_space()->was_swept_conservatively());
+}
+
+
 void Heap::EnsureHeapIsIterable() {
   ASSERT(IsAllocationAllowed());
-  if (old_pointer_space()->was_swept_conservatively() ||
-      old_data_space()->was_swept_conservatively()) {
+  if (!IsHeapIterable()) {
     CollectAllGarbage(kMakeHeapIterableMask);
   }
-  ASSERT(!old_pointer_space()->was_swept_conservatively());
-  ASSERT(!old_data_space()->was_swept_conservatively());
+  ASSERT(IsHeapIterable());
 }
 
 
@@ -4341,6 +4348,7 @@ void Heap::Verify() {
 
   lo_space_->Verify();
 }
+
 #endif  // DEBUG
 
 
@@ -4825,9 +4833,9 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
       isolate()->memory_allocator()->Available();
   if (take_snapshot) {
     HeapIterator iterator;
-    for (HeapObject* obj = iterator.Next();
+    for (HeapObject* obj = iterator.next();
          obj != NULL;
-         obj = iterator.Next()) {
+         obj = iterator.next()) {
       InstanceType type = obj->map()->instance_type();
       ASSERT(0 <= type && type <= LAST_TYPE);
       stats->objects_per_type[type]++;
@@ -5464,9 +5472,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkUnreachableObjects() {
     HeapIterator iterator;
-    for (HeapObject* obj = iterator.Next();
+    for (HeapObject* obj = iterator.next();
          obj != NULL;
-         obj = iterator.Next()) {
+         obj = iterator.next()) {
       IntrusiveMarking::SetMark(obj);
     }
     UnmarkingVisitor visitor;
@@ -5479,7 +5487,16 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 };
 
 
-HeapIterator::HeapIterator() {
+HeapIterator::HeapIterator()
+    : filtering_(HeapIterator::kNoFiltering),
+      filter_(NULL) {
+  Init();
+}
+
+
+HeapIterator::HeapIterator(HeapIterator::HeapObjectsFiltering filtering)
+    : filtering_(filtering),
+      filter_(NULL) {
   Init();
 }
 
@@ -5491,21 +5508,50 @@ HeapIterator::~HeapIterator() {
 
 void HeapIterator::Init() {
   // Start the iteration.
-  HEAP->EnsureHeapIsIterable();
-  space_iterator_ = new SpaceIterator();
+  space_iterator_ = filtering_ == kNoFiltering ? new SpaceIterator :
+      new SpaceIterator(Isolate::Current()->heap()->
+                        GcSafeSizeOfOldObjectFunction());
+  switch (filtering_) {
+    case kFilterFreeListNodes:
+      // TODO(gc): Not handled.
+      break;
+    case kFilterUnreachable:
+      filter_ = new UnreachableObjectsFilter;
+      break;
+    default:
+      break;
+  }
   object_iterator_ = space_iterator_->next();
 }
 
 
 void HeapIterator::Shutdown() {
+#ifdef DEBUG
+  // Assert that in filtering mode we have iterated through all
+  // objects. Otherwise, heap will be left in an inconsistent state.
+  if (filtering_ != kNoFiltering) {
+    ASSERT(object_iterator_ == NULL);
+  }
+#endif
   // Make sure the last iterator is deallocated.
   delete space_iterator_;
   space_iterator_ = NULL;
   object_iterator_ = NULL;
+  delete filter_;
+  filter_ = NULL;
 }
 
 
-HeapObject* HeapIterator::Next() {
+HeapObject* HeapIterator::next() {
+  if (filter_ == NULL) return NextObject();
+
+  HeapObject* obj = NextObject();
+  while (obj != NULL && filter_->SkipObject(obj)) obj = NextObject();
+  return obj;
+}
+
+
+HeapObject* HeapIterator::NextObject() {
   // No iterator means we are done.
   if (object_iterator_ == NULL) return NULL;
 
@@ -5527,7 +5573,7 @@ HeapObject* HeapIterator::Next() {
 }
 
 
-void HeapIterator::Reset() {
+void HeapIterator::reset() {
   // Restart the iterator.
   Shutdown();
   Init();

@@ -1022,7 +1022,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
 

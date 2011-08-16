@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -921,8 +921,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       HeapThing ptr, int children_count, int retainers_count);
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
-  bool IterateAndExtractReferences(HeapIterator* iterator,
-                                   SnapshotFillerInterface* filler);
+  bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
 
   static HeapObject* const kInternalRootObject;
@@ -1053,13 +1052,13 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool ApproximateRetainedSizes();
   bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
                           Vector<HeapEntry*>* dominators);
-  bool CountEntriesAndReferences(HeapIterator* iterator);
-  bool FillReferences(HeapIterator* iterator);
+  bool CountEntriesAndReferences();
+  bool FillReferences();
   void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();
-  void SetProgressTotal(HeapIterator* iterator, int iterations_count);
+  void SetProgressTotal(int iterations_count);
 
   HeapSnapshot* snapshot_;
   v8::ActivityControl* control_;

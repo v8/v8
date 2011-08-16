@@ -1362,7 +1362,7 @@ static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
 
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsSharedFunctionInfo()) continue;
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
     if (sfi->is_compiled()
@@ -1521,7 +1521,7 @@ void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
 void Logger::LogCodeObjects() {
   HeapIterator iterator;
   AssertNoAllocation no_alloc;
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
   }
 }
@@ -1589,7 +1589,7 @@ void Logger::LogCompiledFunctions() {
 void Logger::LogAccessorCallbacks() {
   HeapIterator iterator;
   AssertNoAllocation no_alloc;
-  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo* ai = AccessorInfo::cast(obj);
     if (!ai->name()->IsString()) continue;
