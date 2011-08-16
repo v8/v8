@@ -6315,14 +6315,8 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
-  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
-                     RelocInfo::CODE_TARGET));
   __ mov(r2, Operand(function));
-  // Push return address (accessible to GC through exit frame pc).
-  // Note that using pc with str is deprecated.
-  __ add(ip, pc, Operand(4));
-  __ str(ip, MemOperand(sp, 0));
-  __ Jump(r2);  // Call the api function.
+  GenerateCall(masm, r2);
 }
 
 
@@ -6332,9 +6326,13 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                      RelocInfo::CODE_TARGET));
   // Push return address (accessible to GC through exit frame pc).
   // Note that using pc with str is deprecated.
-  __ add(ip, pc, Operand(4));
+  Label start;
+  __ bind(&start);
+  __ add(ip, pc, Operand(Assembler::kInstrSize));
   __ str(ip, MemOperand(sp, 0));
   __ Jump(target);  // Call the C++ function.
+  ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
+            masm->SizeOfCodeGeneratedSince(&start));
 }
 
 
