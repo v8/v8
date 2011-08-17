@@ -1198,10 +1198,9 @@ void Genesis::InitializeExperimentalGlobal() {
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind a flag, so WeakMap gets added to the snapshot.
   if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
-    Handle<JSFunction> weakmap_fun =
-        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true);
+    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                    isolate->initial_object_prototype(),
+                    Builtins::kIllegal, true);
   }
 }
 

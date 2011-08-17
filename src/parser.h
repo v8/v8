@@ -164,12 +164,14 @@ class ParserApi {
 
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(UC16CharacterStream* source,
-                                  v8::Extension* extension);
+                                  v8::Extension* extension,
+                                  bool harmony_block_scoping);
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
   static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
-                                         v8::Extension* extension);
+                                         v8::Extension* extension,
+                                         bool harmony_block_scoping);
 };
 
 // ----------------------------------------------------------------------------
@@ -452,6 +454,12 @@ class Parser {
     PARSE_EAGERLY
   };
 
+  enum VariableDeclarationContext {
+    kSourceElement,
+    kStatement,
+    kForStatement
+  };
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() { return isolate_->zone(); }
 
@@ -480,13 +488,15 @@ class Parser {
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool* ok);
+  Statement* ParseSourceElement(ZoneStringList* labels, bool* ok);
   Statement* ParseStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
   Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
-  Block* ParseVariableStatement(bool* ok);
-  Block* ParseVariableDeclarations(bool accept_IN,
+  Block* ParseVariableStatement(VariableDeclarationContext var_context,
+                                bool* ok);
+  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    Handle<String>* out,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,

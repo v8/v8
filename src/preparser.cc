@@ -112,6 +112,16 @@ void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
 #undef DUMMY
 
 
+PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
+  switch (peek()) {
+    case i::Token::LET:
+      return ParseVariableStatement(kSourceElement, ok);
+    default:
+      return ParseStatement(ok);
+  }
+}
+
+
 PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
                                                          bool* ok) {
   // SourceElements ::
@@ -119,7 +129,7 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
 
   bool allow_directive_prologue = true;
   while (peek() != end_token) {
-    Statement statement = ParseStatement(CHECK_OK);
+    Statement statement = ParseSourceElement(CHECK_OK);
     if (allow_directive_prologue) {
       if (statement.IsUseStrictLiteral()) {
         set_strict_mode();
@@ -172,7 +182,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
 
     case i::Token::CONST:
     case i::Token::VAR:
-      return ParseVariableStatement(ok);
+      return ParseVariableStatement(kStatement, ok);
 
     case i::Token::SEMICOLON:
       Next();
@@ -258,7 +268,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
     i::Scanner::Location start_location = scanner_->peek_location();
-    Statement statement = ParseStatement(CHECK_OK);
+    Statement statement = ParseSourceElement(CHECK_OK);
     i::Scanner::Location end_location = scanner_->location();
     if (strict_mode() && statement.IsFunctionDeclaration()) {
       ReportMessageAt(start_location.beg_pos, end_location.end_pos,
@@ -272,11 +282,15 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
 }
 
 
-PreParser::Statement PreParser::ParseVariableStatement(bool* ok) {
+PreParser::Statement PreParser::ParseVariableStatement(
+    VariableDeclarationContext var_context,
+    bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(true, NULL, CHECK_OK);
+  Statement result = ParseVariableDeclarations(var_context,
+                                               NULL,
+                                               CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -287,9 +301,10 @@ PreParser::Statement PreParser::ParseVariableStatement(bool* ok) {
 // *var is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is also used for the parsing
 // of 'for-in' loops.
-PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
-                                                          int* num_decl,
-                                                          bool* ok) {
+PreParser::Statement PreParser::ParseVariableDeclarations(
+    VariableDeclarationContext var_context,
+    int* num_decl,
+    bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
@@ -304,13 +319,25 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
       return Statement::Default();
     }
     Consume(i::Token::CONST);
+  } else if (peek() == i::Token::LET) {
+    if (var_context != kSourceElement &&
+        var_context != kForStatement) {
+      i::Scanner::Location location = scanner_->peek_location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "unprotected_let", NULL);
+      *ok = false;
+      return Statement::Default();
+    }
+    Consume(i::Token::LET);
   } else {
     *ok = false;
     return Statement::Default();
   }
 
-  // The scope of a variable/const declared anywhere inside a function
-  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). .
+  // The scope of a var/const declared variable anywhere inside a function
+  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). The scope
+  // of a let declared variable is the scope of the immediately enclosing
+  // block.
   int nvars = 0;  // the number of variables declared
   do {
     // Parse variable name.
@@ -326,7 +353,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
     nvars++;
     if (peek() == i::Token::ASSIGN) {
       Expect(i::Token::ASSIGN, CHECK_OK);
-      ParseAssignmentExpression(accept_IN, CHECK_OK);
+      ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
     }
   } while (peek() == i::Token::COMMA);
 
@@ -535,9 +562,10 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   Expect(i::Token::FOR, CHECK_OK);
   Expect(i::Token::LPAREN, CHECK_OK);
   if (peek() != i::Token::SEMICOLON) {
-    if (peek() == i::Token::VAR || peek() == i::Token::CONST) {
+    if (peek() == i::Token::VAR || peek() == i::Token::CONST ||
+        peek() == i::Token::LET) {
       int decl_count;
-      ParseVariableDeclarations(false, &decl_count, CHECK_OK);
+      ParseVariableDeclarations(kForStatement, &decl_count, CHECK_OK);
       if (peek() == i::Token::IN && decl_count == 1) {
         Expect(i::Token::IN, CHECK_OK);
         ParseExpression(true, CHECK_OK);

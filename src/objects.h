@@ -322,6 +322,7 @@ static const int kVariableSizeSentinel = 0;
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
+  V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \

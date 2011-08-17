@@ -180,6 +180,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         switch (mode) {
           case Variable::INTERNAL:  // Fall through.
           case Variable::VAR:
+          case Variable::LET:
             *attributes = NONE;
             break;
           case Variable::CONST:

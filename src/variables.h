@@ -46,6 +46,8 @@ class Variable: public ZoneObject {
 
     CONST,     // declared via 'const' declarations
 
+    LET,       // declared via 'let' declarations
+
     // Variables introduced by the compiler:
     DYNAMIC,         // always require dynamic lookup (we don't know
                      // the declaration)

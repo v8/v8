@@ -2259,16 +2259,13 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Register elements = ToRegister(instr->elements());
-  Register key = ToRegister(instr->key());
   Register result = ToRegister(instr->result());
-  ASSERT(result.is(elements));
 
   // Load the result.
-  __ mov(result, FieldOperand(elements,
-                              key,
-                              times_pointer_size,
-                              FixedArray::kHeaderSize));
+  __ mov(result,
+         BuildFastArrayOperand(instr->elements(), instr->key(),
+                               JSObject::FAST_ELEMENTS,
+                               FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2301,22 +2298,22 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
 
 
 Operand LCodeGen::BuildFastArrayOperand(
-    LOperand* external_pointer,
+    LOperand* elements_pointer,
     LOperand* key,
     JSObject::ElementsKind elements_kind,
     uint32_t offset) {
-  Register external_pointer_reg = ToRegister(external_pointer);
+  Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
       Abort("array index constant value too big");
     }
-    return Operand(external_pointer_reg,
+    return Operand(elements_pointer_reg,
                    constant_value * (1 << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(external_pointer_reg, ToRegister(key), scale_factor, offset);
+    return Operand(elements_pointer_reg, ToRegister(key), scale_factor, offset);
   }
 }
 
@@ -3093,8 +3090,14 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
-  DeoptimizeIf(above_equal, instr->environment());
+  if (instr->index()->IsConstantOperand()) {
+    __ cmp(ToOperand(instr->length()),
+           ToImmediate(LConstantOperand::cast(instr->index())));
+    DeoptimizeIf(below_equal, instr->environment());
+  } else {
+    __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
+    DeoptimizeIf(above_equal, instr->environment());
+  }
 }
 
 

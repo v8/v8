@@ -397,7 +397,9 @@ Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+  ASSERT(mode == Variable::VAR ||
+         mode == Variable::CONST ||
+         mode == Variable::LET);
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }

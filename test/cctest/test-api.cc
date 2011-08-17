@@ -72,8 +72,6 @@ using ::v8::Undefined;
 using ::v8::V8;
 using ::v8::Value;
 
-namespace i = ::i;
-
 
 static void ExpectString(const char* code, const char* expected) {
   Local<Value> result = CompileRun(code);
