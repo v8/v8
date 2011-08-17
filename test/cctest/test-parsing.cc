@@ -64,9 +64,9 @@ TEST(ScanKeywords) {
     {
       i::Utf8ToUC16CharacterStream stream(keyword, length);
       i::JavaScriptScanner scanner(&unicode_cache);
-      scanner.Initialize(&stream);
       // The scanner should parse 'let' as Token::LET for this test.
       scanner.SetHarmonyBlockScoping(true);
+      scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
