@@ -29,6 +29,7 @@
 
 #include "objects.h"
 #include "elements.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -70,20 +71,20 @@ bool HasKey(FixedArray* array, Object* key) {
 // specialization of SomeElementsAccessor methods).
 template <typename ElementsAccessorSubclass, typename BackingStoreClass>
 class ElementsAccessorBase : public ElementsAccessor {
- public:
+ protected:
   ElementsAccessorBase() { }
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
-                                       uint32_t index) {
+                                       uint32_t key) {
     BackingStoreClass* backing_store = BackingStoreClass::cast(obj->elements());
-    if (index < ElementsAccessorSubclass::GetLength(backing_store)) {
-      return backing_store->get(index);
+    if (key < ElementsAccessorSubclass::GetCapacity(backing_store)) {
+      return backing_store->get(key);
     }
     return obj->GetHeap()->the_hole_value();
   }
 
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
   virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
@@ -97,7 +98,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
 #endif
     BackingStoreClass* backing_store = BackingStoreClass::cast(from);
-    int len1 = ElementsAccessorSubclass::GetCapacity(backing_store);
+    uint32_t len1 = ElementsAccessorSubclass::GetCapacity(backing_store);
 
     // Optimize if 'other' is empty.
     // We cannot optimize if 'this' is empty, as other may have holes.
@@ -105,12 +106,19 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Compute how many elements are not in other.
     int extra = 0;
-    for (int y = 0; y < len1; y++) {
-      Object* value;
-      MaybeObject* maybe_value =
-          ElementsAccessorSubclass::GetElementAtCapacityIndex(backing_store, y);
-      if (!maybe_value->ToObject(&value)) return maybe_value;
-      if (!value->IsTheHole() && !HasKey(to, value)) extra++;
+    for (uint32_t y = 0; y < len1; y++) {
+      if (ElementsAccessorSubclass::HasElementAtIndex(backing_store, y)) {
+        uint32_t key =
+            ElementsAccessorSubclass::GetKeyForIndex(backing_store, y);
+        MaybeObject* maybe_value =
+            ElementsAccessorSubclass::GetElement(backing_store, key);
+        Object* value;
+        if (!maybe_value->ToObject(&value)) return maybe_value;
+        ASSERT(!value->IsTheHole());
+        if (!HasKey(to, value)) {
+          extra++;
+        }
+      }
     }
 
     if (extra == 0) return to;
@@ -133,32 +141,70 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
     // Fill in the extra values.
     int index = 0;
-    for (int y = 0; y < len1; y++) {
-      MaybeObject* maybe_value =
-          ElementsAccessorSubclass::GetElementAtCapacityIndex(backing_store, y);
-      Object* value;
-      if (!maybe_value->ToObject(&value)) return maybe_value;
-      if (!value->IsTheHole() && !HasKey(to, value)) {
-        result->set(len0 + index, value);
-        index++;
+    for (uint32_t y = 0; y < len1; y++) {
+      if (ElementsAccessorSubclass::HasElementAtIndex(backing_store, y)) {
+        uint32_t key =
+            ElementsAccessorSubclass::GetKeyForIndex(backing_store, y);
+        MaybeObject* maybe_value =
+            ElementsAccessorSubclass::GetElement(backing_store, key);
+        Object* value;
+        if (!maybe_value->ToObject(&value)) return maybe_value;
+        if (!value->IsTheHole() && !HasKey(to, value)) {
+          result->set(len0 + index, value);
+          index++;
+        }
       }
     }
     ASSERT(extra == index);
     return result;
   }
 
-  static uint32_t GetLength(BackingStoreClass* backing_store) {
+ protected:
+  static uint32_t GetCapacity(BackingStoreClass* backing_store) {
     return backing_store->length();
   }
 
-  static uint32_t GetCapacity(BackingStoreClass* backing_store) {
-    return GetLength(backing_store);
+  virtual uint32_t GetCapacity(FixedArrayBase* backing_store) {
+    return ElementsAccessorSubclass::GetCapacity(
+        BackingStoreClass::cast(backing_store));
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(
+  static MaybeObject* GetElement(
       BackingStoreClass* backing_store,
-      int index) {
-    return backing_store->get(index);
+      uint32_t key) {
+    return backing_store->get(key);
+  }
+
+  virtual MaybeObject* GetElement(FixedArrayBase* backing_store,
+                                  uint32_t key) {
+    return ElementsAccessorSubclass::GetElement(
+        BackingStoreClass::cast(backing_store), key);
+  }
+
+  static bool HasElementAtIndex(BackingStoreClass* backing_store,
+                                uint32_t index) {
+    uint32_t key =
+        ElementsAccessorSubclass::GetKeyForIndex(backing_store, index);
+    MaybeObject* element = ElementsAccessorSubclass::GetElement(backing_store,
+                                                                key);
+    return !element->IsTheHole();
+  }
+
+  virtual bool HasElementAtIndex(FixedArrayBase* backing_store,
+                                 uint32_t index) {
+    return ElementsAccessorSubclass::HasElementAtIndex(
+        BackingStoreClass::cast(backing_store), index);
+  }
+
+  static uint32_t GetKeyForIndex(BackingStoreClass* backing_store,
+                                         uint32_t index) {
+    return index;
+  }
+
+  virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
+                                              uint32_t index) {
+    return ElementsAccessorSubclass::GetKeyForIndex(
+        BackingStoreClass::cast(backing_store), index);
   }
 
  private:
@@ -170,7 +216,7 @@ class FastElementsAccessor
     : public ElementsAccessorBase<FastElementsAccessor, FixedArray> {
  public:
   static MaybeObject* DeleteCommon(JSObject* obj,
-                                   uint32_t index) {
+                                   uint32_t key) {
     ASSERT(obj->HasFastElements() || obj->HasFastArgumentsElements());
     Heap* heap = obj->GetHeap();
     FixedArray* backing_store = FixedArray::cast(obj->elements());
@@ -186,8 +232,8 @@ class FastElementsAccessor
         obj->IsJSArray()
         ? Smi::cast(JSArray::cast(obj)->length())->value()
         : backing_store->length());
-    if (index < length) {
-      backing_store->set_the_hole(index);
+    if (key < length) {
+      backing_store->set_the_hole(key);
       // If an old space backing store is larger than a certain size and
       // has too few used values, normalize it.
       // To avoid doing the check on every delete we require at least
@@ -196,8 +242,8 @@ class FastElementsAccessor
       const int kMinLengthForSparsenessCheck = 64;
       if (backing_store->length() >= kMinLengthForSparsenessCheck &&
           !heap->InNewSpace(backing_store) &&
-          ((index > 0 && backing_store->get(index - 1) == hole) ||
-           (index + 1 < length && backing_store->get(index + 1) == hole))) {
+          ((key > 0 && backing_store->get(key - 1) == hole) ||
+           (key + 1 < length && backing_store->get(key + 1) == hole))) {
         int num_used = 0;
         for (int i = 0; i < backing_store->length(); ++i) {
           if (backing_store->get(i) != hole) ++num_used;
@@ -213,10 +259,11 @@ class FastElementsAccessor
     return heap->true_value();
   }
 
+ protected:
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key,
                               JSReceiver::DeleteMode mode) {
-    return DeleteCommon(obj, index);
+    return DeleteCommon(obj, key);
   }
 };
 
@@ -224,16 +271,25 @@ class FastElementsAccessor
 class FastDoubleElementsAccessor
     : public ElementsAccessorBase<FastDoubleElementsAccessor,
                                   FixedDoubleArray> {
+ protected:
+  friend class ElementsAccessorBase<FastDoubleElementsAccessor,
+                                    FixedDoubleArray>;
+
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key,
                               JSReceiver::DeleteMode mode) {
     int length = obj->IsJSArray()
         ? Smi::cast(JSArray::cast(obj)->length())->value()
         : FixedDoubleArray::cast(obj->elements())->length();
-    if (index < static_cast<uint32_t>(length)) {
-      FixedDoubleArray::cast(obj->elements())->set_the_hole(index);
+    if (key < static_cast<uint32_t>(length)) {
+      FixedDoubleArray::cast(obj->elements())->set_the_hole(key);
     }
     return obj->GetHeap()->true_value();
+  }
+
+  static bool HasElementAtIndex(FixedDoubleArray* backing_store,
+                                uint32_t index) {
+    return !backing_store->is_the_hole(index);
   }
 };
 
@@ -244,20 +300,20 @@ template<typename ExternalElementsAccessorSubclass,
 class ExternalElementsAccessor
     : public ElementsAccessorBase<ExternalElementsAccessorSubclass,
                                   ExternalArray> {
- public:
+ protected:
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
-                                       uint32_t index) {
+                                       uint32_t key) {
     ExternalArray* backing_store = ExternalArray::cast(obj->elements());
-    if (index < ExternalElementsAccessorSubclass::GetLength(backing_store)) {
-      return backing_store->get(index);
+    if (key < ExternalElementsAccessorSubclass::GetCapacity(backing_store)) {
+      return backing_store->get(key);
     } else {
       return obj->GetHeap()->undefined_value();
     }
   }
 
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key,
                               JSReceiver::DeleteMode mode) {
     // External arrays always ignore deletes.
     return obj->GetHeap()->true_value();
@@ -327,15 +383,15 @@ class DictionaryElementsAccessor
       JSObject* obj,
       Object* receiver,
       NumberDictionary* backing_store,
-      uint32_t index) {
-    int entry = backing_store->FindEntry(index);
+      uint32_t key) {
+    int entry = backing_store->FindEntry(key);
     if (entry != NumberDictionary::kNotFound) {
       Object* element = backing_store->ValueAt(entry);
       PropertyDetails details = backing_store->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         return obj->GetElementWithCallback(receiver,
                                            element,
-                                           index,
+                                           key,
                                            obj);
       } else {
         return element;
@@ -344,9 +400,8 @@ class DictionaryElementsAccessor
     return obj->GetHeap()->the_hole_value();
   }
 
-
   static MaybeObject* DeleteCommon(JSObject* obj,
-                                   uint32_t index,
+                                   uint32_t key,
                                    JSReceiver::DeleteMode mode) {
     Isolate* isolate = obj->GetIsolate();
     Heap* heap = isolate->heap();
@@ -357,11 +412,11 @@ class DictionaryElementsAccessor
       backing_store = FixedArray::cast(backing_store->get(1));
     }
     NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
-    int entry = dictionary->FindEntry(index);
+    int entry = dictionary->FindEntry(key);
     if (entry != NumberDictionary::kNotFound) {
       Object* result = dictionary->DeleteProperty(entry, mode);
       if (result == heap->true_value()) {
-        MaybeObject* maybe_elements = dictionary->Shrink(index);
+        MaybeObject* maybe_elements = dictionary->Shrink(key);
         FixedArray* new_elements = NULL;
         if (!maybe_elements->To(&new_elements)) {
           return maybe_elements;
@@ -378,7 +433,7 @@ class DictionaryElementsAccessor
         // throws an exception.
         HandleScope scope(isolate);
         Handle<Object> holder(obj);
-        Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
+        Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
         Handle<Object> args[2] = { name, holder };
         Handle<Object> error =
             isolate->factory()->NewTypeError("strict_delete_property",
@@ -389,29 +444,36 @@ class DictionaryElementsAccessor
     return heap->true_value();
   }
 
+ protected:
+  friend class ElementsAccessorBase<DictionaryElementsAccessor,
+                                    NumberDictionary>;
+
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key,
                               JSReceiver::DeleteMode mode) {
-    return DeleteCommon(obj, index, mode);
+    return DeleteCommon(obj, key, mode);
   }
 
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
-                                       uint32_t index) {
+                                       uint32_t key) {
     return GetNumberDictionaryElement(obj,
                                       receiver,
                                       obj->element_dictionary(),
-                                      index);
+                                      key);
   }
 
-  static uint32_t GetCapacity(NumberDictionary* dict) {
-    return dict->Capacity();
+  static uint32_t GetKeyForIndex(NumberDictionary* dict,
+                                 uint32_t index) {
+    Object* key = dict->KeyAt(index);
+    return Smi::cast(key)->value();
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(NumberDictionary* dict,
-                                                int index) {
-    if (dict->IsKey(dict->KeyAt(index))) {
-      return dict->ValueAt(index);
+  static MaybeObject* GetElement(NumberDictionary* dict,
+                                 int key) {
+    int entry = dict->FindEntry(key);
+    if (entry != NumberDictionary::kNotFound) {
+      return dict->ValueAt(entry);
     } else {
       return dict->GetHeap()->the_hole_value();
     }
@@ -422,15 +484,16 @@ class DictionaryElementsAccessor
 class NonStrictArgumentsElementsAccessor
     : public ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
                                   FixedArray> {
- public:
+ protected:
+  friend class ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
+                                    FixedArray>;
+
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
-                                       uint32_t index) {
+                                       uint32_t key) {
     FixedArray* parameter_map = FixedArray::cast(obj->elements());
-    uint32_t length = parameter_map->length();
-    Object* probe =
-        (index < length - 2) ? parameter_map->get(index + 2) : NULL;
-    if (probe != NULL && !probe->IsTheHole()) {
+    Object* probe = GetParameterMapArg(parameter_map, key);
+    if (!probe->IsTheHole()) {
       Context* context = Context::cast(parameter_map->get(0));
       int context_index = Smi::cast(probe)->value();
       ASSERT(!context->get(context_index)->IsTheHole());
@@ -443,49 +506,117 @@ class NonStrictArgumentsElementsAccessor
             obj,
             receiver,
             NumberDictionary::cast(arguments),
-            index);
-      } else if (index < static_cast<uint32_t>(arguments->length())) {
-        return arguments->get(index);
+            key);
+      } else if (key < static_cast<uint32_t>(arguments->length())) {
+        return arguments->get(key);
       }
     }
     return obj->GetHeap()->the_hole_value();
   }
 
   virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t index,
+                              uint32_t key
+                              ,
                               JSReceiver::DeleteMode mode) {
     FixedArray* parameter_map = FixedArray::cast(obj->elements());
-    uint32_t length = parameter_map->length();
-    Object* probe =
-        index < (length - 2) ? parameter_map->get(index + 2) : NULL;
-    if (probe != NULL && !probe->IsTheHole()) {
+    Object* probe = GetParameterMapArg(parameter_map, key);
+    if (!probe->IsTheHole()) {
       // TODO(kmillikin): We could check if this was the last aliased
       // parameter, and revert to normal elements in that case.  That
       // would enable GC of the context.
-      parameter_map->set_the_hole(index + 2);
+      parameter_map->set_the_hole(key + 2);
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       if (arguments->IsDictionary()) {
-        return DictionaryElementsAccessor::DeleteCommon(obj, index, mode);
+        return DictionaryElementsAccessor::DeleteCommon(obj, key, mode);
       } else {
-        return FastElementsAccessor::DeleteCommon(obj, index);
+        return FastElementsAccessor::DeleteCommon(obj, key);
       }
     }
     return obj->GetHeap()->true_value();
   }
 
-  static uint32_t GetCapacity(FixedArray* obj) {
-    // TODO(danno): Return max of parameter map length or backing store
-    // capacity.
-    return 0;
+  static uint32_t GetCapacity(FixedArray* parameter_map) {
+    FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+    return Max(static_cast<uint32_t>(parameter_map->length() - 2),
+               ForArray(arguments)->GetCapacity(arguments));
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(FixedArray* obj, int index) {
-    // TODO(danno): Return either value from parameter map of backing
-    // store value at index.
-    return obj->GetHeap()->the_hole_value();
+  static uint32_t GetKeyForIndex(FixedArray* dict,
+                                 uint32_t index) {
+    return index;
+  }
+
+  static bool HasElementAtIndex(FixedArray* parameter_map,
+                                uint32_t index) {
+    Object* probe = GetParameterMapArg(parameter_map, index);
+    if (!probe->IsTheHole()) {
+      return true;
+    } else {
+      FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+      ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
+      return !accessor->GetElement(arguments, index)->IsTheHole();
+    }
+  }
+
+  static MaybeObject* GetElement(FixedArray* parameter_map,
+                                 uint32_t key) {
+    Object* probe = GetParameterMapArg(parameter_map, key);
+    if (!probe->IsTheHole()) {
+      Context* context = Context::cast(parameter_map->get(0));
+      int context_index = Smi::cast(probe)->value();
+      ASSERT(!context->get(context_index)->IsTheHole());
+      return context->get(context_index);
+    } else {
+      FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+      return ForArray(arguments)->GetElement(arguments, key);
+    }
+  }
+
+ private:
+
+  static Object* GetParameterMapArg(FixedArray* parameter_map,
+                                    uint32_t key) {
+    uint32_t length = parameter_map->length();
+    return key < (length - 2 )
+        ? parameter_map->get(key + 2)
+        : parameter_map->GetHeap()->the_hole_value();
   }
 };
+
+
+ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
+  switch (array->map()->instance_type()) {
+    case FIXED_ARRAY_TYPE:
+      if (array->IsDictionary()) {
+        return elements_accessors_[JSObject::DICTIONARY_ELEMENTS];
+      } else {
+        return elements_accessors_[JSObject::FAST_ELEMENTS];
+      }
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_BYTE_ELEMENTS];
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS];
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_SHORT_ELEMENTS];
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS];
+    case EXTERNAL_INT_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_INT_ELEMENTS];
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS];
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_FLOAT_ELEMENTS];
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_DOUBLE_ELEMENTS];
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      return elements_accessors_[JSObject::EXTERNAL_PIXEL_ELEMENTS];
+    default:
+      UNREACHABLE();
+      return NULL;
+      break;
+  }
+}
 
 
 void ElementsAccessor::InitializeOncePerProcess() {
