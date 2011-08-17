@@ -185,7 +185,7 @@ class MacroAssembler: public Assembler {
 
   void CheckPageFlag(Register object,
                      Register scratch,
-                     MemoryChunk::MemoryChunkFlags flag,
+                     int mask,
                      Condition cc,
                      Label* condition_met);
 
@@ -226,8 +226,8 @@ class MacroAssembler: public Assembler {
   void EnsureNotWhite(Register object,
                       Register scratch1,
                       Register scratch2,
-                      Label* object_is_white_and_not_data,
-                      Label::Distance distance);
+                      Register scratch3,
+                      Label* object_is_white_and_not_data);
 
   // Detects conservatively whether an object is data-only, ie it does need to
   // be scanned by the garbage collector.

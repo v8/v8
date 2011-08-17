@@ -560,7 +560,8 @@ class RecordWriteStub: public CodeStub {
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
-      OnNoNeedToInformIncrementalMarker on_no_need);
+      OnNoNeedToInformIncrementalMarker on_no_need,
+      Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
 
   Major MajorKey() { return RecordWrite; }

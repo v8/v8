@@ -3219,7 +3219,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   Label no_remembered_set;
   __ CheckPageFlag(elements,
                    scratch1,
-                   MemoryChunk::SCAN_ON_SCAVENGE,
+                   1 << MemoryChunk::SCAN_ON_SCAVENGE,
                    ne,
                    &no_remembered_set);
   // Possible optimization: do a check that both values are Smis

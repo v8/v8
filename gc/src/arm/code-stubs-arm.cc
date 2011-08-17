@@ -6685,14 +6685,14 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
     __ CheckPageFlag(regs_.object(),
                      regs_.scratch0(),
-                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     1 << MemoryChunk::SCAN_ON_SCAVENGE,
                      ne,
                      &dont_need_remembered_set);
 
     // First notify the incremental marker if necessary, then update the
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker);
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
     InformIncrementalMarker(masm, mode);
     regs_.Restore(masm);
     __ RememberedSetHelper(
@@ -6702,7 +6702,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   }
 
   CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker);
+      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
   InformIncrementalMarker(masm, mode);
   regs_.Restore(masm);
   __ Ret();
@@ -6747,8 +6747,11 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
-    OnNoNeedToInformIncrementalMarker on_no_need) {
+    OnNoNeedToInformIncrementalMarker on_no_need,
+    Mode mode) {
   Label on_black;
+  Label need_incremental;
+  Label need_incremental_pop_scratch;
 
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
@@ -6764,7 +6767,49 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   __ bind(&on_black);
 
-  // TODO(gc): Add call to EnsureNotWhite here.
+  // Get the value from the slot.
+  __ ldr(regs_.scratch0(), MemOperand(regs_.address(), 0));
+
+  if (mode == INCREMENTAL_COMPACTION) {
+    Label ensure_not_white;
+
+    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateMask,
+                     eq,
+                     &ensure_not_white);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
+                     eq,
+                     &need_incremental);
+
+    __ bind(&ensure_not_white);
+  }
+
+  // We need extra registers for this, so we push the object and the address
+  // register temporarily.
+  __ Push(regs_.object(), regs_.address());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),  // Scratch.
+                    regs_.address(),  // Scratch.
+                    &need_incremental_pop_scratch);
+  __ Pop(regs_.object(), regs_.address());
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ Ret();
+  }
+
+  __ bind(&need_incremental_pop_scratch);
+  __ Pop(regs_.object(), regs_.address());
+
+  __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
 }

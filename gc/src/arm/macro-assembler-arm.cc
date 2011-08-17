@@ -492,12 +492,12 @@ void MacroAssembler::RecordWrite(Register object,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersToHereAreInterestingMask,
                 eq,
                 &done);
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersFromHereAreInterestingMask,
                 eq,
                 &done);
 
@@ -3200,12 +3200,12 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 void MacroAssembler::CheckPageFlag(
     Register object,
     Register scratch,
-    MemoryChunk::MemoryChunkFlags flag,
+    int mask,
     Condition cc,
     Label* condition_met) {
   and_(scratch, object, Operand(~Page::kPageAlignmentMask));
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
-  tst(scratch, Operand(1 << flag));
+  tst(scratch, Operand(mask));
   b(cc, condition_met);
 }
 
@@ -3280,6 +3280,99 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
   add(bitmap_reg, bitmap_reg, Operand(ip, LSL, kPointerSizeLog2));
   mov(ip, Operand(1));
   mov(mask_reg, Operand(ip, LSL, mask_reg));
+}
+
+
+void MacroAssembler::EnsureNotWhite(
+    Register value,
+    Register bitmap_scratch,
+    Register mask_scratch,
+    Register load_scratch,
+    Label* value_is_white_and_not_data) {
+  ASSERT(!AreAliased(value, bitmap_scratch, mask_scratch, ip));
+  GetMarkBits(value, bitmap_scratch, mask_scratch);
+
+  // If the value is black or grey we don't need to do anything.
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  Label done;
+
+  // Since both black and grey have a 1 in the first position and white does
+  // not have a 1 there we only need to check one bit.
+  ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(mask_scratch, load_scratch);
+  b(ne, &done);
+
+  if (FLAG_debug_code) {
+    // Check for impossible bit pattern.
+    Label ok;
+    // LSL may overflow, making the check conservative.
+    tst(load_scratch, Operand(mask_scratch, LSL, 1));
+    b(eq, &ok);
+    stop("Impossible marking bit pattern");
+    bind(&ok);
+  }
+
+  // Value is white.  We check whether it is data that doesn't need scanning.
+  // Currently only checks for HeapNumber and non-cons strings.
+  Register map = load_scratch;  // Holds map while checking type.
+  Register length = load_scratch;  // Holds length of object after testing type.
+  Label is_data_object;
+
+  // Check for heap-number
+  ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  mov(length, Operand(HeapNumber::kSize), LeaveCC, eq);
+  b(eq, &is_data_object);
+
+  // Check for strings.
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  Register instance_type = load_scratch;
+  ldrb(instance_type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  tst(instance_type, Operand(kIsConsStringMask | kIsNotStringMask));
+  b(ne, value_is_white_and_not_data);
+  // It's a non-cons string.
+  // If it's external, the length is just ExternalString::kSize.
+  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
+  // External strings are the only ones with the kExternalStringTag bit
+  // set.
+  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  tst(instance_type, Operand(kExternalStringTag));
+  mov(length, Operand(ExternalString::kSize), LeaveCC, ne);
+  b(ne, &is_data_object);
+
+  // Sequential string, either ASCII or UC16.
+  // For ASCII (char-size of 1) we shift the smi tag away to get the length.
+  // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
+  // getting the length multiplied by 2.
+  ASSERT(kAsciiStringTag == 4 && kStringEncodingMask == 4);
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  ldr(ip, FieldMemOperand(value, String::kLengthOffset));
+  tst(instance_type, Operand(kStringEncodingMask));
+  mov(ip, Operand(ip, LSR, 1), LeaveCC, ne);
+  add(length, ip, Operand(SeqString::kHeaderSize + kObjectAlignmentMask));
+  and_(length, length, Operand(~kObjectAlignmentMask));
+
+  bind(&is_data_object);
+  // Value is a data object, and it is white.  Mark it black.  Since we know
+  // that the object is white we can make it black by flipping one bit.
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  orr(ip, ip, Operand(mask_scratch));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+
+  and_(bitmap_scratch, bitmap_scratch, Operand(~Page::kPageAlignmentMask));
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+  add(ip, ip, Operand(length));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+
+  bind(&done);
 }
 
 
