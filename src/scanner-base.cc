@@ -75,7 +75,8 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 
 JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
     : Scanner(scanner_contants),
-      octal_pos_(Location::invalid()) { }
+      octal_pos_(Location::invalid()),
+      harmony_block_scoping_(false) { }
 
 
 void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
