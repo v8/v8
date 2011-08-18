@@ -1335,6 +1335,7 @@ void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
   if (list_ == data) list_ = data->next_;
   if (data->next_ != NULL) data->next_->prev_ = data->prev_;
   if (data->prev_ != NULL) data->prev_->next_ = data->next_;
+  delete data;
 }
 
 
@@ -1535,6 +1536,9 @@ Isolate::~Isolate() {
 
   // Has to be called while counters_ are still alive.
   zone_.DeleteKeptSegment();
+
+  delete[] assembler_spare_buffer_;
+  assembler_spare_buffer_ = NULL;
 
   delete unicode_cache_;
   unicode_cache_ = NULL;
