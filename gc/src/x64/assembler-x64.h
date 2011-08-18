@@ -738,6 +738,10 @@ class Assembler : public AssemblerBase {
     immediate_arithmetic_op_32(0x0, dst, src);
   }
 
+  void addl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x01, src, dst);
+  }
+
   void addq(Register dst, Register src) {
     arithmetic_op(0x03, dst, src);
   }

@@ -180,7 +180,7 @@ class IncrementalMarking {
       if (allocation_marking_factor_ < kFastMarking) {
         if (FLAG_trace_gc) {
           PrintF("Increasing marking speed to %d due to high promotion rate\n",
-                 kFastMarking);
+                 static_cast<int>(kFastMarking));
         }
         allocation_marking_factor_ = kFastMarking;
       }

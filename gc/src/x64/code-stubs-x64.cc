@@ -5445,7 +5445,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
     __ CheckPageFlag(regs_.object(),
                      regs_.scratch0(),
-                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     1 << MemoryChunk::SCAN_ON_SCAVENGE,
                      not_zero,
                      &dont_need_remembered_set);
 
@@ -5519,6 +5519,8 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     OnNoNeedToInformIncrementalMarker on_no_need,
     Mode mode) {
   Label on_black;
+  Label need_incremental;
+  Label need_incremental_pop_object;
 
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
@@ -5538,7 +5540,51 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   __ bind(&on_black);
 
-  // TODO(gc): Add call to EnsureNotWhite here.
+  // Get the value from the slot.
+  __ movq(regs_.scratch0(), Operand(regs_.address(), 0));
+
+  if (mode == INCREMENTAL_COMPACTION) {
+    Label ensure_not_white;
+
+    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateMask,
+                     zero,
+                     &ensure_not_white,
+                     Label::kNear);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
+                     zero,
+                     &need_incremental);
+
+    __ bind(&ensure_not_white);
+  }
+
+  // We need an extra register for this, so we push the object register
+  // temporarily.
+  __ push(regs_.object());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),  // Scratch.
+                    &need_incremental_pop_object,
+                    Label::kNear);
+  __ pop(regs_.object());
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&need_incremental_pop_object);
+  __ pop(regs_.object());
+
+  __ bind(&need_incremental);
+
   // Fall through when we need to inform the incremental marker.
 }
 

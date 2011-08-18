@@ -3088,7 +3088,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   Label no_remembered_set;
   __ CheckPageFlag(elements,
                    temp,
-                   MemoryChunk::SCAN_ON_SCAVENGE,
+                   1 << MemoryChunk::SCAN_ON_SCAVENGE,
                    not_zero,
                    &no_remembered_set,
                    Label::kNear);

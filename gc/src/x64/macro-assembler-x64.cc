@@ -366,14 +366,14 @@ void MacroAssembler::RecordWrite(Register object,
 
   CheckPageFlag(value,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersToHereAreInterestingMask,
                 zero,
                 &done,
                 Label::kNear);
 
   CheckPageFlag(object,
                 value,  // Used as scratch.
-                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                MemoryChunk::kPointersFromHereAreInterestingMask,
                 zero,
                 &done,
                 Label::kNear);
@@ -3938,7 +3938,7 @@ CodePatcher::~CodePatcher() {
 void MacroAssembler::CheckPageFlag(
     Register object,
     Register scratch,
-    MemoryChunk::MemoryChunkFlags flag,
+    int mask,
     Condition cc,
     Label* condition_met,
     Label::Distance condition_met_distance) {
@@ -3949,11 +3949,11 @@ void MacroAssembler::CheckPageFlag(
     movq(scratch, Immediate(~Page::kPageAlignmentMask));
     and_(scratch, object);
   }
-  if (flag < kBitsPerByte) {
+  if (mask < (1 << kBitsPerByte)) {
     testb(Operand(scratch, MemoryChunk::kFlagsOffset),
-          Immediate(static_cast<uint8_t>(1u << flag)));
+          Immediate(static_cast<uint8_t>(mask)));
   } else {
-    testl(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+    testl(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }
@@ -4025,6 +4025,102 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
   and_(rcx, Immediate((1 << Bitmap::kBitsPerCellLog2) - 1));
   movl(mask_reg, Immediate(1));
   shl_cl(mask_reg);
+}
+
+
+void MacroAssembler::EnsureNotWhite(
+    Register value,
+    Register bitmap_scratch,
+    Register mask_scratch,
+    Label* value_is_white_and_not_data,
+    Label::Distance distance) {
+  ASSERT(!AreAliased(value, bitmap_scratch, mask_scratch, rcx));
+  GetMarkBits(value, bitmap_scratch, mask_scratch);
+
+  // If the value is black or grey we don't need to do anything.
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  Label done;
+
+  // Since both black and grey have a 1 in the first position and white does
+  // not have a 1 there we only need to check one bit.
+  testq(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
+  j(not_zero, &done, Label::kNear);
+
+  if (FLAG_debug_code) {
+    // Check for impossible bit pattern.
+    Label ok;
+    push(mask_scratch);
+    // shl.  May overflow making the check conservative.
+    addq(mask_scratch, mask_scratch);
+    testq(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
+    j(zero, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+    pop(mask_scratch);
+  }
+
+  // Value is white.  We check whether it is data that doesn't need scanning.
+  // Currently only checks for HeapNumber and non-cons strings.
+  Register map = rcx;  // Holds map while checking type.
+  Register length = rcx;  // Holds length of object after checking type.
+  Label not_heap_number;
+  Label is_data_object;
+
+  // Check for heap-number
+  movq(map, FieldOperand(value, HeapObject::kMapOffset));
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  j(not_equal, &not_heap_number, Label::kNear);
+  movq(length, Immediate(HeapNumber::kSize));
+  jmp(&is_data_object, Label::kNear);
+
+  bind(&not_heap_number);
+  // Check for strings.
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  Register instance_type = rcx;
+  movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  testb(instance_type, Immediate(kIsConsStringMask | kIsNotStringMask));
+  j(not_zero, value_is_white_and_not_data);
+  // It's a non-cons string.
+  // If it's external, the length is just ExternalString::kSize.
+  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
+  Label not_external;
+  // External strings are the only ones with the kExternalStringTag bit
+  // set.
+  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  testb(instance_type, Immediate(kExternalStringTag));
+  j(zero, &not_external, Label::kNear);
+  movq(length, Immediate(ExternalString::kSize));
+  jmp(&is_data_object, Label::kNear);
+
+  bind(&not_external);
+  // Sequential string, either ASCII or UC16.
+  ASSERT(kAsciiStringTag == 0x04);
+  and_(length, Immediate(kStringEncodingMask));
+  xor_(length, Immediate(kStringEncodingMask));
+  addq(length, Immediate(0x04));
+  // Value now either 4 (if ASCII) or 8 (if UC16), i.e. char-size shifted by 2.
+  imul(length, FieldOperand(value, String::kLengthOffset));
+  shr(length, Immediate(2 + kSmiTagSize));
+  addq(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
+  and_(length, Immediate(~kObjectAlignmentMask));
+
+  bind(&is_data_object);
+  // Value is a data object, and it is white.  Mark it black.  Since we know
+  // that the object is white we can make it black by flipping one bit.
+  or_(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
+
+  and_(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
+  addl(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset), length);
+
+  bind(&done);
 }
 
 } }  // namespace v8::internal
