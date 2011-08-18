@@ -99,6 +99,13 @@ S7.8.4_A7.4_T1: FAIL_OK
 S7.8.4_A4.3_T5: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 
+# Sputnik expects unicode escape sequences in RegExp flags to be interpreted.
+# The specification requires them to be passed uninterpreted to the RegExp
+# constructor. We now implement that.
+S7.8.5_A3.1_T7: FAIL_OK
+S7.8.5_A3.1_T8: FAIL_OK
+S7.8.5_A3.1_T9: FAIL_OK
+
 # We allow some keywords to be used as identifiers.
 S7.5.3_A1.15: FAIL_OK
 S7.5.3_A1.18: FAIL_OK
