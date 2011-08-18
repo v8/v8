@@ -39,16 +39,19 @@ class ElementsAccessor {
  public:
   ElementsAccessor() { }
   virtual ~ElementsAccessor() { }
-  virtual MaybeObject* GetWithReceiver(JSObject* obj,
-                                       Object* receiver,
-                                       uint32_t key) = 0;
+  virtual MaybeObject* Get(FixedArrayBase* backing_store,
+                           uint32_t key,
+                           JSObject* holder,
+                           Object* receiver) = 0;
 
-  virtual MaybeObject* Delete(JSObject* obj,
+  virtual MaybeObject* Delete(JSObject* holder,
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
   virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to) = 0;
+                                               FixedArray* to,
+                                               JSObject* holder,
+                                               Object* receiver) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
@@ -63,14 +66,12 @@ class ElementsAccessor {
  protected:
   friend class NonStrictArgumentsElementsAccessor;
 
-  // TODO(danno): GetElement should be merged with GetWithReceiver.
-  virtual MaybeObject* GetElement(FixedArrayBase* backing_store,
-                                  uint32_t key) = 0;
-
   virtual uint32_t GetCapacity(FixedArrayBase* backing_store) = 0;
 
   virtual bool HasElementAtIndex(FixedArrayBase* backing_store,
-                                 uint32_t index) = 0;
+                                 uint32_t index,
+                                 JSObject* holder,
+                                 Object* receiver) = 0;
 
   // Element handlers distinguish between indexes and keys when the manipulate
   // elements.  Indexes refer to elements in terms of their location in the

@@ -656,10 +656,11 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
     }
 
     if (js_object->elements() != heap->empty_fixed_array()) {
-      MaybeObject* result = js_object->GetElementsAccessor()->GetWithReceiver(
+      MaybeObject* result = js_object->GetElementsAccessor()->Get(
+          js_object->elements(),
+          index,
           js_object,
-          receiver,
-          index);
+          receiver);
       if (result != heap->the_hole_value()) return result;
     }
   }
@@ -4627,7 +4628,7 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   MaybeObject* maybe_result =
-      accessor->AddElementsToFixedArray(array->elements(), this);
+      accessor->AddElementsToFixedArray(array->elements(), this, array, array);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
@@ -4645,7 +4646,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
 MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
   ElementsAccessor* accessor = ElementsAccessor::ForArray(other);
   MaybeObject* maybe_result =
-      accessor->AddElementsToFixedArray(other, this);
+      accessor->AddElementsToFixedArray(other, this, NULL, NULL);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
@@ -8668,9 +8669,10 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   Heap* heap = holder_handle->GetHeap();
   ElementsAccessor* handler = holder_handle->GetElementsAccessor();
-  MaybeObject* raw_result = handler->GetWithReceiver(*holder_handle,
-                                                     *this_handle,
-                                                     index);
+  MaybeObject* raw_result = handler->Get(holder_handle->elements(),
+                                         index,
+                                         *holder_handle,
+                                         *this_handle);
   if (raw_result != heap->the_hole_value()) return raw_result;
 
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
