@@ -1573,6 +1573,8 @@ Isolate::~Isolate() {
   handle_scope_implementer_ = NULL;
   delete break_access_;
   break_access_ = NULL;
+  delete debugger_access_;
+  debugger_access_ = NULL;
 
   delete compilation_cache_;
   compilation_cache_ = NULL;
