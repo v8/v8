@@ -207,7 +207,7 @@ function FormatMessage(message) {
       stack_overflow:               ["Maximum call stack size exceeded"],
       // SyntaxError
       unable_to_parse:              ["Parse error"],
-      duplicate_regexp_flag:        ["Duplicate RegExp flag ", "%0"],
+      invalid_regexp_flags:         ["Invalid flags supplied to RegExp constructor '", "%0", "'"],
       invalid_regexp:               ["Invalid RegExp pattern /", "%0", "/"],
       illegal_break:                ["Illegal break statement"],
       illegal_continue:             ["Illegal continue statement"],

@@ -56,15 +56,6 @@ S15.10.6.3_A1_T16: FAIL_OK
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL
 S15.10.2.11_A1_T3: FAIL
-S15.10.4.1_A5_T1: FAIL
-S15.10.4.1_A5_T2: FAIL
-S15.10.4.1_A5_T3: FAIL
-S15.10.4.1_A5_T4: FAIL
-S15.10.4.1_A5_T5: FAIL
-S15.10.4.1_A5_T6: FAIL
-S15.10.4.1_A5_T7: FAIL
-S15.10.4.1_A5_T8: FAIL
-S15.10.4.1_A5_T9: FAIL
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
