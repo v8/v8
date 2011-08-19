@@ -4793,8 +4793,11 @@ bool Heap::ConfigureHeap(int max_semispace_size,
   initial_semispace_size_ = Min(initial_semispace_size_, max_semispace_size_);
   external_allocation_limit_ = 10 * max_semispace_size_;
 
-  // The old generation is paged.
-  max_old_generation_size_ = RoundUp(max_old_generation_size_, Page::kPageSize);
+  // The old generation is paged and needs at least one page for each space.
+  int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+  max_old_generation_size_ = Max(paged_space_count * Page::kPageSize,
+                                 RoundUp(max_old_generation_size_,
+                                         Page::kPageSize));
 
   configured_ = true;
   return true;

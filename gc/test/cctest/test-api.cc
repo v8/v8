@@ -1882,18 +1882,29 @@ THREADED_TEST(GlobalHandle) {
 }
 
 
-static int NumberOfWeakCalls = 0;
+class WeakCallCounter {
+ public:
+  explicit WeakCallCounter(int id) : id_(id), number_of_weak_calls_(0) { }
+  int id() { return id_; }
+  void increment() { number_of_weak_calls_++; }
+  int NumberOfWeakCalls() { return number_of_weak_calls_; }
+ private:
+  int id_;
+  int number_of_weak_calls_;
+};
+
+
 static void WeakPointerCallback(Persistent<Value> handle, void* id) {
-  CHECK_EQ(reinterpret_cast<void*>(1234), id);
-  NumberOfWeakCalls++;
+  WeakCallCounter* counter = reinterpret_cast<WeakCallCounter*>(id);
+  CHECK_EQ(1234, counter->id());
+  counter->increment();
   handle.Dispose();
 }
+
 
 THREADED_TEST(ApiObjectGroups) {
   HandleScope scope;
   LocalContext env;
-
-  NumberOfWeakCalls = 0;
 
   Persistent<Object> g1s1;
   Persistent<Object> g1s2;
@@ -1902,21 +1913,23 @@ THREADED_TEST(ApiObjectGroups) {
   Persistent<Object> g2s2;
   Persistent<Object> g2c1;
 
+  WeakCallCounter counter(1234);
+
   {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
     g1c1 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g1c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
     g2c1 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g2c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -1935,14 +1948,15 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
-  // Do a full GC
-  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
+  // Do a single full GC. Use kMakeHeapIterableMask to ensure that
+  // incremental garbage collection is stopped.
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
 
   // All object should be alive.
-  CHECK_EQ(0, NumberOfWeakCalls);
+  CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   g1c1.ClearWeak();
@@ -1960,17 +1974,17 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
 
-  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
 
   // All objects should be gone. 5 global handles in total.
-  CHECK_EQ(5, NumberOfWeakCalls);
+  CHECK_EQ(5, counter.NumberOfWeakCalls());
 
   // And now make children weak again and collect them.
-  g1c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-  g2c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+  g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
-  CHECK_EQ(7, NumberOfWeakCalls);
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  CHECK_EQ(7, counter.NumberOfWeakCalls());
 }
 
 
@@ -1978,7 +1992,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   HandleScope scope;
   LocalContext env;
 
-  NumberOfWeakCalls = 0;
+  WeakCallCounter counter(1234);
 
   Persistent<Object> g1s1;
   Persistent<Object> g1s2;
@@ -1991,18 +2005,18 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
     g3s1 = Persistent<Object>::New(Object::New());
     g3s2 = Persistent<Object>::New(Object::New());
-    g3s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
-    g3s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -2024,14 +2038,14 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
-  // Do a full GC
-  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
+  // Do a single full GC
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
 
   // All object should be alive.
-  CHECK_EQ(0, NumberOfWeakCalls);
+  CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2049,10 +2063,10 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
 
-  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
 
   // All objects should be gone. 7 global handles in total.
-  CHECK_EQ(7, NumberOfWeakCalls);
+  CHECK_EQ(7, counter.NumberOfWeakCalls());
 }
 
 
