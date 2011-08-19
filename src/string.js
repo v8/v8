@@ -170,7 +170,7 @@ function StringLocaleCompare(other) {
                         ["String.prototype.localeCompare"]);
   }
   if (%_ArgumentsLength() === 0) return 0;
-  return %StringLocaleCompare(TO_STRING_INLINE(this), 
+  return %StringLocaleCompare(TO_STRING_INLINE(this),
                               TO_STRING_INLINE(other));
 }
 
