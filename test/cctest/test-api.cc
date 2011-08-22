@@ -13693,6 +13693,9 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
       "str2;";
   Local<Value> result = CompileRun(init_code);
 
+  Local<Value> indexof = CompileRun("str2.indexOf('els')");
+  Local<Value> lastindexof = CompileRun("str2.lastIndexOf('dab')");
+
   CHECK(result->IsString());
   i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
   int length = string->length();
@@ -13757,6 +13760,10 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   ExpectString("str2.substring(2, 20);", "elspendabelabelspe");
 
   ExpectString("str2.charAt(2);", "e");
+
+  ExpectObject("str2.indexOf('els');", indexof);
+
+  ExpectObject("str2.lastIndexOf('dab');", lastindexof);
 
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());

@@ -3159,29 +3159,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   if (!sub->IsFlat()) FlattenString(sub);
   if (!pat->IsFlat()) FlattenString(pat);
 
-  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-
   int position = -1;
+  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  // Extract flattened substrings of cons strings before determining asciiness.
+  String* seq_sub = *sub;
+  if (seq_sub->IsConsString()) seq_sub = ConsString::cast(seq_sub)->first();
+  String* seq_pat = *pat;
+  if (seq_pat->IsConsString()) seq_pat = ConsString::cast(seq_pat)->first();
 
-  if (pat->IsAsciiRepresentation()) {
-    Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub->IsAsciiRepresentation()) {
-      position = StringMatchBackwards(sub->ToAsciiVector(),
+  if (seq_pat->IsAsciiRepresentation()) {
+    Vector<const char> pat_vector = seq_pat->ToAsciiVector();
+    if (seq_sub->IsAsciiRepresentation()) {
+      position = StringMatchBackwards(seq_sub->ToAsciiVector(),
                                       pat_vector,
                                       start_index);
     } else {
-      position = StringMatchBackwards(sub->ToUC16Vector(),
+      position = StringMatchBackwards(seq_sub->ToUC16Vector(),
                                       pat_vector,
                                       start_index);
     }
   } else {
-    Vector<const uc16> pat_vector = pat->ToUC16Vector();
-    if (sub->IsAsciiRepresentation()) {
-      position = StringMatchBackwards(sub->ToAsciiVector(),
+    Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
+    if (seq_sub->IsAsciiRepresentation()) {
+      position = StringMatchBackwards(seq_sub->ToAsciiVector(),
                                       pat_vector,
                                       start_index);
     } else {
-      position = StringMatchBackwards(sub->ToUC16Vector(),
+      position = StringMatchBackwards(seq_sub->ToUC16Vector(),
                                       pat_vector,
                                       start_index);
     }
