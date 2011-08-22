@@ -914,6 +914,8 @@ function ReplaceResultBuilder(str) {
   this.special_string = str;
 }
 
+ReplaceResultBuilder.prototype.__proto__ = null;
+
 
 ReplaceResultBuilder.prototype.add = function(str) {
   str = TO_STRING_INLINE(str);

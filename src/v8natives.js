@@ -455,6 +455,7 @@ function PropertyDescriptor() {
 }
 
 PropertyDescriptor.prototype.__proto__ = null;
+
 PropertyDescriptor.prototype.toString = function() {
   return "[object PropertyDescriptor]";
 };
