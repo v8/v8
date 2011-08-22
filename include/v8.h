@@ -1335,7 +1335,7 @@ class Number : public Primitive {
   static inline Number* Cast(v8::Value* obj);
  private:
   V8EXPORT Number();
-  static void CheckCast(v8::Value* obj);
+  V8EXPORT static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1709,7 +1709,7 @@ class Array : public Object {
   static inline Array* Cast(Value* obj);
  private:
   V8EXPORT Array();
-  static void CheckCast(Value* obj);
+  V8EXPORT static void CheckCast(Value* obj);
 };
 
 
