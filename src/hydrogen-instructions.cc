@@ -1306,7 +1306,7 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 
 HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                                                        HValue* object,
-                                                       ZoneMapList* types,
+                                                       SmallMapList* types,
                                                        Handle<String> name)
     : types_(Min(types->length(), kMaxLoadPolymorphism)),
       name_(name),

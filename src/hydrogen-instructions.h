@@ -3405,12 +3405,12 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
  public:
   HLoadNamedFieldPolymorphic(HValue* context,
                              HValue* object,
-                             ZoneMapList* types,
+                             SmallMapList* types,
                              Handle<String> name);
 
   HValue* context() { return OperandAt(0); }
   HValue* object() { return OperandAt(1); }
-  ZoneMapList* types() { return &types_; }
+  SmallMapList* types() { return &types_; }
   Handle<String> name() { return name_; }
   bool need_generic() { return need_generic_; }
 
@@ -3428,7 +3428,7 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
   virtual bool DataEquals(HValue* value);
 
  private:
-  ZoneMapList types_;
+  SmallMapList types_;
   Handle<String> name_;
   bool need_generic_;
 };

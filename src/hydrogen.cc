@@ -3395,7 +3395,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
   ASSERT(!name.is_null());
 
   LookupResult lookup;
-  ZoneMapList* types = expr->GetReceiverTypes();
+  SmallMapList* types = expr->GetReceiverTypes();
   bool is_monomorphic = expr->IsMonomorphic() &&
       ComputeStoredField(types->first(), name, &lookup);
 
@@ -3409,7 +3409,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
 void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
                                                      HValue* object,
                                                      HValue* value,
-                                                     ZoneMapList* types,
+                                                     SmallMapList* types,
                                                      Handle<String> name) {
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
@@ -3500,7 +3500,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     ASSERT(!name.is_null());
 
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
     LookupResult lookup;
 
     if (expr->IsMonomorphic()) {
@@ -3986,7 +3986,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   *has_side_effects = false;
   AddInstruction(new(zone()) HCheckNonSmi(object));
   AddInstruction(HCheckInstanceType::NewIsSpecObject(object));
-  ZoneMapList* maps = prop->GetReceiverTypes();
+  SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
   static const int kNumElementTypes = JSObject::kElementsKindCount;
@@ -4260,7 +4260,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
 
     HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
@@ -4321,7 +4321,7 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
 
 void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
                                                HValue* receiver,
-                                               ZoneMapList* types,
+                                               SmallMapList* types,
                                                Handle<String> name) {
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
@@ -4849,13 +4849,14 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
 
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
 
     HValue* receiver =
         environment()->ExpressionStackAt(expr->arguments()->length());
     if (expr->IsMonomorphic()) {
-      Handle<Map> receiver_map =
-          (types == NULL) ? Handle<Map>::null() : types->first();
+      Handle<Map> receiver_map = (types == NULL || types->is_empty())
+          ? Handle<Map>::null()
+          : types->first();
       if (TryInlineBuiltinFunction(expr,
                                    receiver,
                                    receiver_map,
