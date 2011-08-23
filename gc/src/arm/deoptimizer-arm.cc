@@ -131,7 +131,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-// TODO(gc) make use of unoptimized_code when supporting incremental marking.
 void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
                                         Address pc_after,
                                         Code* check_code,

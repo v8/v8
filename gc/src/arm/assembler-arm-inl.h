@@ -79,7 +79,7 @@ void RelocInfo::set_target_address(Address target, Code* code) {
   Assembler::set_target_address_at(pc_, target);
   if (code != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
-    // TODO(gc) We do not compact code pages.
+    // TODO(1550) We do not compact code pages.
     code->GetHeap()->incremental_marking()->RecordWrite(
         code, NULL, HeapObject::cast(target_code));
   }

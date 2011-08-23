@@ -84,9 +84,6 @@ void StoreBuffer::Setup() {
   hash_map_1_ = new uintptr_t[kHashMapLength];
   hash_map_2_ = new uintptr_t[kHashMapLength];
 
-  heap_->AddGCPrologueCallback(&GCPrologue, kGCTypeAll);
-  heap_->AddGCEpilogueCallback(&GCEpilogue, kGCTypeAll);
-
   ZapHashTables();
 }
 
@@ -161,7 +158,7 @@ void StoreBuffer::HandleFullness() {
   old_buffer_is_filtered_ = true;
   bool page_has_scan_on_scavenge_flag = false;
 
-  PointerChunkIterator it;
+  PointerChunkIterator it(heap_);
   MemoryChunk* chunk;
   while ((chunk = it.next()) != NULL) {
     if (chunk->scan_on_scavenge()) page_has_scan_on_scavenge_flag = true;
@@ -201,7 +198,7 @@ void StoreBuffer::HandleFullness() {
 // Sample the store buffer to see if some pages are taking up a lot of space
 // in the store buffer.
 void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
-  PointerChunkIterator it;
+  PointerChunkIterator it(heap_);
   MemoryChunk* chunk;
   while ((chunk = it.next()) != NULL) {
     chunk->set_store_buffer_counter(0);
@@ -267,7 +264,7 @@ void StoreBuffer::SortUniq() {
 
 bool StoreBuffer::PrepareForIteration() {
   Compact();
-  PointerChunkIterator it;
+  PointerChunkIterator it(heap_);
   MemoryChunk* chunk;
   bool page_has_scan_on_scavenge_flag = false;
   while ((chunk = it.next()) != NULL) {
@@ -343,10 +340,9 @@ void StoreBuffer::ZapHashTables() {
 }
 
 
-void StoreBuffer::GCPrologue(GCType type, GCCallbackFlags flags) {
-  // TODO(gc) ISOLATES MERGE
-  HEAP->store_buffer()->ZapHashTables();
-  HEAP->store_buffer()->during_gc_ = true;
+void StoreBuffer::GCPrologue() {
+  ZapHashTables();
+  during_gc_ = true;
 }
 
 
@@ -403,10 +399,9 @@ void StoreBuffer::Verify() {
 }
 
 
-void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
-  // TODO(gc) ISOLATES MERGE
-  HEAP->store_buffer()->during_gc_ = false;
-  HEAP->store_buffer()->Verify();
+void StoreBuffer::GCEpilogue() {
+  during_gc_ = false;
+  Verify();
 }
 
 
@@ -604,7 +599,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
     if (callback_ != NULL) {
       (*callback_)(heap_, NULL, kStoreBufferStartScanningPagesEvent);
     }
-    PointerChunkIterator it;
+    PointerChunkIterator it(heap_);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != NULL) {
       if (chunk->scan_on_scavenge()) {

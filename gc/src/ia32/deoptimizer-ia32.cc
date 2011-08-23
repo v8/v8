@@ -221,7 +221,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-// TODO(gc) make use of unoptimized_code when supporting incremental marking.
 void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
                                         Address pc_after,
                                         Code* check_code,
@@ -253,7 +252,8 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
 
-  // TODO(gc) we are not compacting code space.
+  // TODO(1550) We are passing NULL as a slot because code can never be on
+  // evacuation candidate.
   unoptimized_code->GetHeap()->incremental_marking()->RecordWrite(
       unoptimized_code, NULL, replacement_code);
 }
@@ -274,8 +274,7 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
-  // TODO(gc) ISOLATES MERGE
-  HEAP->incremental_marking()->RecordWriteOf(check_code);
+  check_code->GetHeap()->incremental_marking()->RecordWriteOf(check_code);
 }
 
 

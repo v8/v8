@@ -363,10 +363,6 @@ bool Marking::TransferMark(Address old_start, Address new_start) {
       heap_->incremental_marking()->WhiteToGreyAndPush(
           HeapObject::FromAddress(new_start), new_mark_bit);
       heap_->incremental_marking()->RestartIfNotMarking();
-      // TODO(gc): if we shift huge array in the loop we might end up pushing
-      // too much into the marking deque. Maybe we should check one or two
-      // elements on top/bottom of the marking deque to see whether they are
-      // equal to old_start.
     }
 
 #ifdef DEBUG
@@ -402,15 +398,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
 
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
-  // TODO(gc) re-enable code flushing.
   FLAG_flush_code = false;
   FLAG_always_compact = false;
 
   // Disable collection of maps if incremental marking is enabled.
-  // TODO(gc) improve maps collection algorithm to work with incremental
-  // marking.
-  // TODO(gc) consider oscillating collect_maps_ on and off when possible. This
-  // will allow map transition trees to die from both root and leaves.
+  // Map collection algorithm relies on a special map transition tree traversal
+  // order which is not implemented for incremental marking.
   collect_maps_ = FLAG_collect_maps &&
       !heap()->incremental_marking()->IsMarking();
 
@@ -654,7 +647,6 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // Since we don't have the object's start, it is impossible to update the
   // page dirty marks. Therefore, we only replace the string with its left
   // substring when page dirty marks do not change.
-  // TODO(gc): Seems like we could relax this restriction with store buffers.
   Object* first = reinterpret_cast<ConsString*>(object)->unchecked_first();
   if (!heap->InNewSpace(object) && heap->InNewSpace(first)) return object;
 
@@ -2173,8 +2165,6 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
                                              undefined,
                                              SKIP_WRITE_BARRIER);
 
-        // TODO(gc) we should not evacuate first page of data space.
-        // but we are doing it now to increase coverage.
         Object** undefined_slot =
             prototype_transitions->data_start() + i;
         RecordSlot(undefined_slot, undefined_slot, undefined);
@@ -2401,7 +2391,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
   if (object_size > heap()->MaxObjectSizeInPagedSpace()) {
     MaybeObject* maybe_result =
-        heap()->lo_space()->AllocateRawFixedArray(object_size);
+        heap()->lo_space()->AllocateRaw(object_size, NOT_EXECUTABLE);
     if (maybe_result->ToObject(&result)) {
       HeapObject* target = HeapObject::cast(result);
       MigrateObject(target->address(),
@@ -3221,7 +3211,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       case LAZY_CONSERVATIVE: {
         Page* next_page = p->next_page();
         freed_bytes += SweepConservatively(space, p);
-        // TODO(gc): tweak the heuristic.
         if (freed_bytes >= newspace_size && p != space->LastPage()) {
           space->SetPagesToSweep(next_page, space->LastPage());
           return;
@@ -3237,8 +3226,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       }
     }
   }
-
-  // TODO(gc): set up allocation top and limit using the free list.
 }
 
 
@@ -3258,15 +3245,13 @@ void MarkCompactCollector::SweepSpaces() {
   SweepSpace(heap()->old_pointer_space(), how_to_sweep);
   SweepSpace(heap()->old_data_space(), how_to_sweep);
   SweepSpace(heap()->code_space(), PRECISE);
-  // TODO(gc): implement specialized sweeper for cell space.
   SweepSpace(heap()->cell_space(), PRECISE);
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     EvacuateNewSpaceAndCandidates();
   }
-  // TODO(gc): ClearNonLiveTransitions depends on precise sweeping of
-  // map space to detect whether unmarked map became dead in this
-  // collection or in one of the previous ones.
-  // TODO(gc): Implement specialized sweeper for map space.
+  // ClearNonLiveTransitions depends on precise sweeping of map space to
+  // detect whether unmarked map became dead in this collection or in one
+  // of the previous ones.
   SweepSpace(heap()->map_space(), PRECISE);
 
   ASSERT(live_map_objects_size_ <= heap()->map_space()->Size());
@@ -3276,69 +3261,7 @@ void MarkCompactCollector::SweepSpaces() {
 }
 
 
-// Iterate the live objects in a range of addresses (eg, a page or a
-// semispace).  The live regions of the range have been linked into a list.
-// The first live region is [first_live_start, first_live_end), and the last
-// address in the range is top.  The callback function is used to get the
-// size of each live object.
-int MarkCompactCollector::IterateLiveObjectsInRange(
-    Address start,
-    Address end,
-    LiveObjectCallback size_func) {
-  int live_objects_size = 0;
-  Address current = start;
-  while (current < end) {
-    uint32_t encoded_map = Memory::uint32_at(current);
-    if (encoded_map == kSingleFreeEncoding) {
-      current += kPointerSize;
-    } else if (encoded_map == kMultiFreeEncoding) {
-      current += Memory::int_at(current + kIntSize);
-    } else {
-      int size = (this->*size_func)(HeapObject::FromAddress(current));
-      current += size;
-      live_objects_size += size;
-    }
-  }
-  return live_objects_size;
-}
-
-
-int MarkCompactCollector::IterateLiveObjects(
-    NewSpace* space, LiveObjectCallback size_f) {
-  ASSERT(MARK_LIVE_OBJECTS < state_ && state_ <= RELOCATE_OBJECTS);
-  int accumulator = 0;
-  Address end = space->top();
-  NewSpacePageIterator it(space->bottom(), end);
-  // The bottom is at the start of its page.
-  ASSERT_EQ(space->bottom(),
-            NewSpacePage::FromAddress(space->bottom())->body());
-  while (it.has_next()) {
-    NewSpacePage* page = it.next();
-    Address start = page->body();
-    Address limit = it.has_next() ? page->body_limit() : end;
-    accumulator += IterateLiveObjectsInRange(start, limit, size_f);
-  }
-  return accumulator;
-}
-
-
-int MarkCompactCollector::IterateLiveObjects(
-    PagedSpace* space, LiveObjectCallback size_f) {
-  ASSERT(MARK_LIVE_OBJECTS < state_ && state_ <= RELOCATE_OBJECTS);
-  // TODO(gc): Do a mark-sweep first with precise sweeping.
-  int total = 0;
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
-    total += IterateLiveObjectsInRange(p->ObjectAreaStart(),
-                                       p->ObjectAreaEnd(),
-                                       size_f);
-  }
-  return total;
-}
-
-
-// TODO(gc) ReportDeleteIfNeeded is not called currently.
+// TODO(1466) ReportDeleteIfNeeded is not called currently.
 // Our profiling tools do not expect intersections between
 // code objects. We should either reenable it or change our tools.
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
@@ -3379,7 +3302,6 @@ void SlotsBuffer::UpdateSlots() {
 
 
 SlotsBuffer* SlotsBufferAllocator::AllocateBuffer(SlotsBuffer* next_buffer) {
-  // TODO(gc) Consider maintaining local cache of buffers.
   return new SlotsBuffer(next_buffer);
 }
 

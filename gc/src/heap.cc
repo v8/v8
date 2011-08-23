@@ -381,6 +381,7 @@ void Heap::GarbageCollectionPrologue() {
 #endif  // DEBUG
 
   LiveObjectList::GCPrologue();
+  store_buffer()->GCPrologue();
 }
 
 intptr_t Heap::SizeOfObjects() {
@@ -393,6 +394,7 @@ intptr_t Heap::SizeOfObjects() {
 }
 
 void Heap::GarbageCollectionEpilogue() {
+  store_buffer()->GCEpilogue();
   LiveObjectList::GCEpilogue();
 #ifdef DEBUG
   allow_allocation(true);
@@ -830,7 +832,7 @@ void Heap::MarkCompactPrologue() {
 
   CompletelyClearInstanceofCache();
 
-  // TODO(gc) select heuristic for flushing NumberString cache with
+  // TODO(1605) select heuristic for flushing NumberString cache with
   // FlushNumberStringCache
   if (FLAG_cleanup_code_caches_at_gc) {
     polymorphic_code_cache()->set_cache(undefined_value());
@@ -1450,11 +1452,8 @@ class ScavengingVisitor : public StaticVisitorBase {
 
       if ((size_restriction != SMALL) &&
           (object_size > Page::kMaxHeapObjectSize)) {
-        if (object_contents == DATA_OBJECT) {
-          maybe_result = heap->lo_space()->AllocateRawData(object_size);
-        } else {
-          maybe_result = heap->lo_space()->AllocateRawFixedArray(object_size);
-        }
+        maybe_result = heap->lo_space()->AllocateRaw(object_size,
+                                                     NOT_EXECUTABLE);
       } else {
         if (object_contents == DATA_OBJECT) {
           maybe_result = heap->old_data_space()->AllocateRaw(object_size);
@@ -2833,7 +2832,7 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   Object* result;
   { MaybeObject* maybe_result = (size <= MaxObjectSizeInPagedSpace())
                    ? old_data_space_->AllocateRaw(size)
-                   : lo_space_->AllocateRawData(size);
+                   : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -2916,7 +2915,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
   if (obj_size > MaxObjectSizeInPagedSpace() || immovable) {
-    maybe_result = lo_space_->AllocateRawCode(obj_size);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
   }
@@ -2961,7 +2960,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   int obj_size = code->Size();
   MaybeObject* maybe_result;
   if (obj_size > MaxObjectSizeInPagedSpace()) {
-    maybe_result = lo_space_->AllocateRawCode(obj_size);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
   }
@@ -3004,7 +3003,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   MaybeObject* maybe_result;
   if (new_obj_size > MaxObjectSizeInPagedSpace()) {
-    maybe_result = lo_space_->AllocateRawCode(new_obj_size);
+    maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(new_obj_size);
   }
@@ -3702,7 +3701,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   // Allocate string.
   Object* result;
   { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
-                   ? lo_space_->AllocateRawData(size)
+                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
@@ -3819,7 +3818,7 @@ MaybeObject* Heap::AllocateRawFixedArray(int length) {
   int size = FixedArray::SizeFor(length);
   return size <= kMaxObjectSizeInNewSpace
       ? new_space_.AllocateRaw(size)
-      : lo_space_->AllocateRawFixedArray(size);
+      : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
 }
 
 
@@ -4510,19 +4509,20 @@ bool EverythingsAPointer(Object** addr) {
 }
 
 
-static void CheckStoreBuffer(Object** current,
+static void CheckStoreBuffer(Heap* heap,
+                             Object** current,
                              Object** limit,
                              Object**** store_buffer_position,
                              Object*** store_buffer_top,
                              CheckStoreBufferFilter filter,
                              Address special_garbage_start,
                              Address special_garbage_end) {
+  Map* free_space_map = heap->free_space_map();
   for ( ; current < limit; current++) {
     Object* o = *current;
     Address current_address = reinterpret_cast<Address>(current);
     // Skip free space.
-    // TODO(gc) ISOLATES MERGE
-    if (o == HEAP->free_space_map()) {
+    if (o == free_space_map) {
       Address current_address = reinterpret_cast<Address>(current);
       FreeSpace* free_space =
           FreeSpace::cast(HeapObject::FromAddress(current_address));
@@ -4549,8 +4549,7 @@ static void CheckStoreBuffer(Object** current,
     // without trying to cast it to a heap object since the hash field of
     // a string can contain values like 1 and 3 which are tagged null
     // pointers.
-    // TODO(gc) ISOLATES MERGE
-    if (!HEAP->InNewSpace(o)) continue;
+    if (!heap->InNewSpace(o)) continue;
     while (**store_buffer_position < current &&
            *store_buffer_position < store_buffer_top) {
       (*store_buffer_position)++;
@@ -4584,7 +4583,8 @@ void Heap::OldPointerSpaceCheckStoreBuffer() {
     Object*** store_buffer_top = store_buffer()->Top();
 
     Object** limit = reinterpret_cast<Object**>(end);
-    CheckStoreBuffer(current,
+    CheckStoreBuffer(this,
+                     current,
                      limit,
                      &store_buffer_position,
                      store_buffer_top,
@@ -4611,7 +4611,8 @@ void Heap::MapSpaceCheckStoreBuffer() {
     Object*** store_buffer_top = store_buffer()->Top();
 
     Object** limit = reinterpret_cast<Object**>(end);
-    CheckStoreBuffer(current,
+    CheckStoreBuffer(this,
+                     current,
                      limit,
                      &store_buffer_position,
                      store_buffer_top,
@@ -4634,7 +4635,8 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
       Object** current = reinterpret_cast<Object**>(object->address());
       Object** limit =
           reinterpret_cast<Object**>(object->address() + object->Size());
-      CheckStoreBuffer(current,
+      CheckStoreBuffer(this,
+                       current,
                        limit,
                        &store_buffer_position,
                        store_buffer_top,

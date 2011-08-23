@@ -216,12 +216,11 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
 }
 
 
-// TODO(gc) ISOLATESMERGE HEAP
-PointerChunkIterator::PointerChunkIterator()
+PointerChunkIterator::PointerChunkIterator(Heap* heap)
     : state_(kOldPointerState),
-      old_pointer_iterator_(HEAP->old_pointer_space()),
-      map_iterator_(HEAP->map_space()),
-      lo_iterator_(HEAP->lo_space()) { }
+      old_pointer_iterator_(heap->old_pointer_space()),
+      map_iterator_(heap->map_space()),
+      lo_iterator_(heap->lo_space()) { }
 
 
 Page* Page::next_page() {
@@ -354,10 +353,11 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
 
 
 bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  // TODO(gc) ISOLATES MERGE
-  return object->map() == HEAP->raw_unchecked_free_space_map()
-      || object->map() == HEAP->raw_unchecked_one_pointer_filler_map()
-      || object->map() == HEAP->raw_unchecked_two_pointer_filler_map();
+  Map* map = object->map();
+  Heap* heap = object->GetHeap();
+  return map == heap->raw_unchecked_free_space_map()
+      || map == heap->raw_unchecked_one_pointer_filler_map()
+      || map == heap->raw_unchecked_two_pointer_filler_map();
 }
 
 } }  // namespace v8::internal

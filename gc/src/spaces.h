@@ -120,8 +120,6 @@ class Space;
 class FreeList;
 class MemoryChunk;
 
-// TODO(gc): Check that this all gets inlined and register allocated on
-// all platforms.
 class MarkBit {
  public:
   typedef uint32_t CellType;
@@ -916,9 +914,6 @@ class MemoryAllocator {
   bool MemoryAllocationCallbackRegistered(
       MemoryAllocationCallback callback);
 
-
-  // TODO(gc) ISOLATSE
-
  private:
   Isolate* isolate_;
 
@@ -1072,8 +1067,6 @@ class AllocationInfo {
 
 #ifdef DEBUG
   bool VerifyPagedAllocation() {
-    // TODO(gc): Make this type-correct. NewSpacePage isn't a Page,
-    // but NewSpace still uses AllocationInfo.
     return (Page::FromAllocationTop(top) == Page::FromAllocationTop(limit))
         && (top <= limit);
   }
@@ -2268,19 +2261,8 @@ class MapSpace : public FixedSpace {
   }
 
   // Given an index, returns the page address.
-  // TODO(gc): this limit is artifical just to keep code compilable
+  // TODO(1600): this limit is artifical just to keep code compilable
   static const int kMaxMapPageIndex = 1 << 16;
-
-  // Are map pointers encodable into map word?
-  bool MapPointersEncodable() {
-    return false;
-  }
-
-  // Should be called after forced sweep to find out if map space needs
-  // compaction.
-  bool NeedsCompaction(int live_maps) {
-    return false;  // TODO(gc): Bring back map compaction.
-  }
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (IsPowerOf2(Map::kSize)) {
@@ -2356,17 +2338,15 @@ class LargeObjectSpace : public Space {
   // Releases internal resources, frees objects in this space.
   void TearDown();
 
-  // Allocates a (non-FixedArray, non-Code) large object.
-  MUST_USE_RESULT MaybeObject* AllocateRawData(int size_in_bytes);
-  // Allocates a large Code object.
-  MUST_USE_RESULT MaybeObject* AllocateRawCode(int size_in_bytes);
-  // Allocates a large FixedArray.
-  MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int size_in_bytes);
-
   static intptr_t ObjectSizeFor(intptr_t chunk_size) {
     if (chunk_size <= (Page::kPageSize + Page::kObjectStartOffset)) return 0;
     return chunk_size - Page::kPageSize - Page::kObjectStartOffset;
   }
+
+  // Shared implementation of AllocateRaw, AllocateRawCode and
+  // AllocateRawFixedArray.
+  MUST_USE_RESULT MaybeObject* AllocateRaw(int object_size,
+                                           Executability executable);
 
   // Available bytes for objects in this space.
   inline intptr_t Available();
@@ -2425,11 +2405,6 @@ class LargeObjectSpace : public Space {
   int page_count_;  // number of chunks
   intptr_t objects_size_;  // size of objects
 
-  // Shared implementation of AllocateRaw, AllocateRawCode and
-  // AllocateRawFixedArray.
-  MUST_USE_RESULT MaybeObject* AllocateRawInternal(int object_size,
-                                                   Executability executable);
-
   friend class LargeObjectIterator;
 
  public:
@@ -2457,7 +2432,7 @@ class LargeObjectIterator: public ObjectIterator {
 // pointers to new space.
 class PointerChunkIterator BASE_EMBEDDED {
  public:
-  inline PointerChunkIterator();
+  inline explicit PointerChunkIterator(Heap* heap);
 
   // Return NULL when the iterator is done.
   MemoryChunk* next() {

@@ -652,18 +652,6 @@ class MarkCompactCollector {
   //          evacuation.
   //
 
-
-  // Iterates live objects in a space, passes live objects
-  // to a callback function which returns the heap size of the object.
-  // Returns the number of live objects iterated.
-  int IterateLiveObjects(NewSpace* space, LiveObjectCallback size_f);
-  int IterateLiveObjects(PagedSpace* space, LiveObjectCallback size_f);
-
-  // Iterates the live objects between a range of addresses, returning the
-  // number of live objects.
-  int IterateLiveObjectsInRange(Address start, Address end,
-                                LiveObjectCallback size_func);
-
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.

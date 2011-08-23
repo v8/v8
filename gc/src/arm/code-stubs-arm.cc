@@ -6727,8 +6727,6 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   }
   __ mov(r2, Operand(ExternalReference::isolate_address()));
 
-  // TODO(gc): Create a fast version of this C function that does not duplicate
-  // the checks done in the stub.
   if (mode == INCREMENTAL_COMPACTION) {
     __ CallCFunction(
         ExternalReference::incremental_evacuation_record_write_function(

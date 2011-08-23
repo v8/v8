@@ -231,7 +231,7 @@ TEST(MarkCompactCollector) {
 }
 
 
-// TODO(gc): compaction of map space is temporary removed from GC.
+// TODO(1600): compaction of map space is temporary removed from GC.
 #if 0
 static Handle<Map> CreateMap() {
   return FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);

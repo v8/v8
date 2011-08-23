@@ -89,8 +89,9 @@ class StoreBuffer {
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 
   void Compact();
-  static void GCPrologue(GCType type, GCCallbackFlags flags);
-  static void GCEpilogue(GCType type, GCCallbackFlags flags);
+
+  void GCPrologue();
+  void GCEpilogue();
 
   Object*** Limit() { return reinterpret_cast<Object***>(old_limit_); }
   Object*** Start() { return reinterpret_cast<Object***>(old_start_); }

@@ -1077,8 +1077,8 @@ class HeapObject: public Object {
   inline void set_map_word(MapWord map_word);
 
   // The Heap the object was allocated in. Used also to access Isolate.
-  // This method can not be used during GC, it ASSERTs this.
   inline Heap* GetHeap();
+
   // Convenience method to get current isolate. This method can be
   // accessed only when its result is the same as
   // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.

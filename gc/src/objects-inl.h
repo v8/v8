@@ -1137,7 +1137,11 @@ void HeapObject::VerifySmiField(int offset) {
 
 
 Heap* HeapObject::GetHeap() {
-  return MemoryChunk::FromAddress(address())->heap();
+  Heap* heap =
+      MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
+  ASSERT(heap != NULL);
+  ASSERT(heap->isolate() == Isolate::Current());
+  return heap;
 }
 
 
@@ -1154,9 +1158,8 @@ Map* HeapObject::map() {
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
   if (value != NULL) {
-    // We are passing NULL as a slot because maps can never be on evacuation
-    // candidate.
-    // TODO(gc) Maps are compacted by a separate (non-evacuation) algorithm.
+    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
   }
 }
@@ -3450,8 +3453,7 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
-  // TODO(gc) ISOLATESMERGE HEAP
-  WRITE_BARRIER(HEAP, this, kCodeOffset, value);
+  WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value);
 }
 
 

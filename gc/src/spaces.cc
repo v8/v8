@@ -758,7 +758,7 @@ int PagedSpace::CountTotalPages() {
 
 
 void PagedSpace::Shrink() {
-  // TODO(gc) release half of pages?
+  // TODO(1614) Not implemented.
 }
 
 
@@ -2310,8 +2310,8 @@ void LargeObjectSpace::TearDown() {
 }
 
 
-MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
-                                                   Executability executable) {
+MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
+                                           Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
@@ -2319,7 +2319,6 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
     return Failure::RetryAfterGC(identity());
   }
 
-  // TODO(gc) isolates merge
   LargePage* page = heap()->isolate()->memory_allocator()->
       AllocateLargePage(object_size, executable, this);
   if (page == NULL) return Failure::RetryAfterGC(identity());
@@ -2334,24 +2333,6 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return page->GetObject();
-}
-
-
-MaybeObject* LargeObjectSpace::AllocateRawCode(int size_in_bytes) {
-  ASSERT(0 < size_in_bytes);
-  return AllocateRawInternal(size_in_bytes, EXECUTABLE);
-}
-
-
-MaybeObject* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
-  ASSERT(0 < size_in_bytes);
-  return AllocateRawInternal(size_in_bytes, NOT_EXECUTABLE);
-}
-
-
-MaybeObject* LargeObjectSpace::AllocateRawData(int size_in_bytes) {
-  ASSERT(0 < size_in_bytes);
-  return AllocateRawInternal(size_in_bytes, NOT_EXECUTABLE);
 }
 
 

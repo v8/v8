@@ -5494,8 +5494,6 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
     __ movq(arg2, Operand(address, 0));
   }
   __ LoadAddress(arg3, ExternalReference::isolate_address());
-  // TODO(gc): Create a fast version of this C function that does not duplicate
-  // the checks done in the stub.
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count);
   if (mode == INCREMENTAL_COMPACTION) {

@@ -87,7 +87,6 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   }
 #endif
   Assembler::set_target_address_at(address, target->instruction_start());
-  // TODO(gc) ISOLATES MERGE code object should have heap() accessor.
   target->GetHeap()->incremental_marking()->RecordWriteOf(target);
 }
 

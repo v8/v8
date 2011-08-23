@@ -37,7 +37,6 @@ namespace v8 {
 namespace internal {
 
 
-// TODO(gc) rename into IncrementalMarker after merge.
 class IncrementalMarking {
  public:
   enum State {

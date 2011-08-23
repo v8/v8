@@ -484,8 +484,8 @@ void MacroAssembler::Abort(const char* msg) {
 
 
 void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
+  // TODO(1599): Do not call stubs from stubs that do not allow stub calls.
   // ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  // TODO(gc): Fix this!
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 

@@ -639,14 +639,13 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     ASSERT(SpaceIsLarge(space_index));
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
-    if (space_index == kLargeData) {
-      new_allocation = lo_space->AllocateRawData(size)->ToObjectUnchecked();
-    } else if (space_index == kLargeFixedArray) {
+    if (space_index == kLargeData || space_index == kLargeFixedArray) {
       new_allocation =
-          lo_space->AllocateRawFixedArray(size)->ToObjectUnchecked();
+          lo_space->AllocateRaw(size, NOT_EXECUTABLE)->ToObjectUnchecked();
     } else {
       ASSERT_EQ(kLargeCode, space_index);
-      new_allocation = lo_space->AllocateRawCode(size)->ToObjectUnchecked();
+      new_allocation =
+          lo_space->AllocateRaw(size, EXECUTABLE)->ToObjectUnchecked();
     }
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.

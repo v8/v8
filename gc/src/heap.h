@@ -903,7 +903,6 @@ class Heap {
   inline bool CollectGarbage(AllocationSpace space);
 
   static const int kNoGCFlags = 0;
-  // TODO(gc) we are ignoring this flag
   static const int kForceCompactionMask = 1;
   static const int kMakeHeapIterableMask = 2;
 
@@ -970,7 +969,7 @@ class Heap {
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
-  // TODO(gc): Try removing the unchecked accessors, now that GC marking does
+  // TODO(1490): Try removing the unchecked accessors, now that GC marking does
   // not corrupt the stack.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   type* name() {                                                               \
@@ -1365,7 +1364,6 @@ class Heap {
     return &marking_;
   }
 
-  // TODO(gc) Rename to IncrementalMarker after merge.
   IncrementalMarking* incremental_marking() {
     return &incremental_marking_;
   }

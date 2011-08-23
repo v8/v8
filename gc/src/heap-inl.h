@@ -95,7 +95,7 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
   // Allocate string.
   Object* result;
   { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
-                   ? lo_space_->AllocateRawData(size)
+                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
@@ -128,7 +128,7 @@ MaybeObject* Heap::AllocateTwoByteSymbol(Vector<const uc16> str,
   // Allocate string.
   Object* result;
   { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
-                   ? lo_space_->AllocateRawData(size)
+                   ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
@@ -192,9 +192,7 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   } else if (CODE_SPACE == space) {
     result = code_space_->AllocateRaw(size_in_bytes);
   } else if (LO_SPACE == space) {
-    // TODO(gc) Keep track of whether we are allocating a fixed array here
-    // so that we can call AllocateRawFixedArray instead.
-    result = lo_space_->AllocateRawData(size_in_bytes);
+    result = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (CELL_SPACE == space) {
     result = cell_space_->AllocateRaw(size_in_bytes);
   } else {

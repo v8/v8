@@ -1907,7 +1907,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  // TODO(gc): Fix this!
+  // TODO(1599): Do not call stubs from stubs that do not allow stub calls.
   // ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond);
 }

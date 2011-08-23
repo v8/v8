@@ -982,8 +982,6 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     Address substitution_entry = substitution->instruction_start();
     for (int i = 0; i < reloc_infos_.length(); i++) {
       reloc_infos_[i].set_target_address(substitution_entry, NULL);
-      // TODO(gc) more precise barrier.
-      // TODO(gc) ISOLATES MERGE: code object should have heap() accessor.
       substitution->GetHeap()->incremental_marking()->RecordWriteOf(
           substitution);
     }
