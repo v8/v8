@@ -5038,55 +5038,38 @@ int String::Utf8Length() {
 }
 
 
-Vector<const char> String::ToAsciiVector() {
-  ASSERT(IsAsciiRepresentation());
-  ASSERT(IsFlat());
-
-  int offset = 0;
+String::FlatContent String::GetFlatContent(const AssertNoAllocation& promise) {
+  // Argument isn't used, it's only there to ensure that the user is
+  // aware that the extracted vectors may not survive a GC.
   int length = this->length();
-  StringRepresentationTag string_tag = StringShape(this).representation_tag();
+  StringShape shape(this);
   String* string = this;
-  if (string_tag == kConsStringTag) {
+  if (shape.representation_tag() == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length() == 0);
+    if (cons->second()->length() != 0) {
+      return FlatContent();
+    }
     string = cons->first();
-    string_tag = StringShape(string).representation_tag();
+    shape = StringShape(string);
   }
-  if (string_tag == kSeqStringTag) {
-    SeqAsciiString* seq = SeqAsciiString::cast(string);
-    char* start = seq->GetChars();
-    return Vector<const char>(start + offset, length);
+  if (shape.encoding_tag() == kAsciiStringTag) {
+    const char* start;
+    if (shape.representation_tag() == kSeqStringTag) {
+      start = SeqAsciiString::cast(string)->GetChars();
+    } else {
+      start = ExternalAsciiString::cast(string)->resource()->data();
+    }
+    return FlatContent(Vector<const char>(start, length));
+  } else {
+    ASSERT(shape.encoding_tag() == kTwoByteStringTag);
+    const uc16* start;
+    if (shape.representation_tag() == kSeqStringTag) {
+      start = SeqTwoByteString::cast(string)->GetChars();
+    } else {
+      start = ExternalTwoByteString::cast(string)->resource()->data();
+    }
+    return FlatContent(Vector<const uc16>(start, length));
   }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
-  const char* start = ext->resource()->data();
-  return Vector<const char>(start + offset, length);
-}
-
-
-Vector<const uc16> String::ToUC16Vector() {
-  ASSERT(IsTwoByteRepresentation());
-  ASSERT(IsFlat());
-
-  int offset = 0;
-  int length = this->length();
-  StringRepresentationTag string_tag = StringShape(this).representation_tag();
-  String* string = this;
-  if (string_tag == kConsStringTag) {
-    ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length() == 0);
-    string = cons->first();
-    string_tag = StringShape(string).representation_tag();
-  }
-  if (string_tag == kSeqStringTag) {
-    SeqTwoByteString* seq = SeqTwoByteString::cast(string);
-    return Vector<const uc16>(seq->GetChars() + offset, length);
-  }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
-  const uc16* start =
-      reinterpret_cast<const uc16*>(ext->resource()->data());
-  return Vector<const uc16>(start + offset, length);
 }
 
 
@@ -5536,11 +5519,14 @@ void FlatStringReader::PostGarbageCollection() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  is_ascii_ = str->IsAsciiRepresentation();
+  AssertNoAllocation no_alloc;
+  String::FlatContent content = str->GetFlatContent(no_alloc);
+  ASSERT(content.is_flat());
+  is_ascii_ = content.IsAscii();
   if (is_ascii_) {
-    start_ = str->ToAsciiVector().start();
+    start_ = content.ToAsciiVector().start();
   } else {
-    start_ = str->ToUC16Vector().start();
+    start_ = content.ToUC16Vector().start();
   }
 }
 
@@ -5860,12 +5846,14 @@ template <typename IteratorA>
 static inline bool CompareStringContentsPartial(Isolate* isolate,
                                                 IteratorA* ia,
                                                 String* b) {
-  if (b->IsFlat()) {
-    if (b->IsAsciiRepresentation()) {
-      VectorIterator<char> ib(b->ToAsciiVector());
+  AssertNoAllocation no_alloc;
+  String::FlatContent content = b->GetFlatContent(no_alloc);
+  if (content.IsFlat()) {
+    if (content.IsAscii()) {
+      VectorIterator<char> ib(content.ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
-      VectorIterator<uc16> ib(b->ToUC16Vector());
+      VectorIterator<uc16> ib(content.ToUC16Vector());
       return CompareStringContents(ia, &ib);
     }
   } else {
@@ -5895,6 +5883,8 @@ bool String::SlowEquals(String* other) {
   String* lhs = this->TryFlattenGetString();
   String* rhs = other->TryFlattenGetString();
 
+  AssertNoAllocation no_alloc;
+
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
     const char* str1 = SeqAsciiString::cast(lhs)->GetChars();
@@ -5904,16 +5894,18 @@ bool String::SlowEquals(String* other) {
   }
 
   Isolate* isolate = GetIsolate();
-  if (lhs->IsFlat()) {
-    if (lhs->IsAsciiRepresentation()) {
-      Vector<const char> vec1 = lhs->ToAsciiVector();
-      if (rhs->IsFlat()) {
-        if (rhs->IsAsciiRepresentation()) {
-          Vector<const char> vec2 = rhs->ToAsciiVector();
+  String::FlatContent lhs_content = lhs->GetFlatContent(no_alloc);
+  String::FlatContent rhs_content = rhs->GetFlatContent(no_alloc);
+  if (lhs_content.IsFlat()) {
+    if (lhs_content.IsAscii()) {
+      Vector<const char> vec1 = lhs_content.ToAsciiVector();
+      if (rhs_content.IsFlat()) {
+        if (rhs_content.IsAscii()) {
+          Vector<const char> vec2 = rhs_content.ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
           VectorIterator<char> buf1(vec1);
-          VectorIterator<uc16> ib(rhs->ToUC16Vector());
+          VectorIterator<uc16> ib(rhs_content.ToUC16Vector());
           return CompareStringContents(&buf1, &ib);
         }
       } else {
@@ -5923,14 +5915,14 @@ bool String::SlowEquals(String* other) {
             isolate->objects_string_compare_buffer_b());
       }
     } else {
-      Vector<const uc16> vec1 = lhs->ToUC16Vector();
-      if (rhs->IsFlat()) {
-        if (rhs->IsAsciiRepresentation()) {
+      Vector<const uc16> vec1 = lhs_content.ToUC16Vector();
+      if (rhs_content.IsFlat()) {
+        if (rhs_content.IsAscii()) {
           VectorIterator<uc16> buf1(vec1);
-          VectorIterator<char> ib(rhs->ToAsciiVector());
+          VectorIterator<char> ib(rhs_content.ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
         } else {
-          Vector<const uc16> vec2(rhs->ToUC16Vector());
+          Vector<const uc16> vec2(rhs_content.ToUC16Vector());
           return CompareRawStringContents(vec1, vec2);
         }
       } else {
@@ -5981,10 +5973,13 @@ bool String::IsEqualTo(Vector<const char> str) {
 
 
 bool String::IsAsciiEqualTo(Vector<const char> str) {
+  AssertNoAllocation no_alloc;
   int slen = length();
   if (str.length() != slen) return false;
-  if (IsFlat() && IsAsciiRepresentation()) {
-    return CompareChars(ToAsciiVector().start(), str.start(), slen) == 0;
+  FlatContent content = GetFlatContent(no_alloc);
+  if (content.IsAscii()) {
+    return CompareChars(content.ToAsciiVector().start(),
+                        str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != static_cast<uint16_t>(str[i])) return false;
@@ -5994,10 +5989,12 @@ bool String::IsAsciiEqualTo(Vector<const char> str) {
 
 
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
+  AssertNoAllocation no_alloc;
   int slen = length();
   if (str.length() != slen) return false;
-  if (IsFlat() && IsTwoByteRepresentation()) {
-    return CompareChars(ToUC16Vector().start(), str.start(), slen) == 0;
+  FlatContent content = GetFlatContent(no_alloc);
+  if (content.IsTwoByte()) {
+    return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != str[i]) return false;
