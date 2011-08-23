@@ -2328,17 +2328,8 @@ HGraph* HGraphBuilder::CreateGraph() {
   graph()->MarkDeoptimizeOnUndefined();
   graph()->InsertRepresentationChanges();
 
-  if (FLAG_use_range) {
-    HRangeAnalysis rangeAnalysis(graph());
-    rangeAnalysis.Analyze();
-  }
   graph()->InitializeInferredTypes();
   graph()->Canonicalize();
-  graph()->ComputeMinusZeroChecks();
-
-  // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(graph());
-  sce.Process();
 
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
@@ -2346,6 +2337,16 @@ HGraph* HGraphBuilder::CreateGraph() {
     HGlobalValueNumberer gvn(graph(), info());
     gvn.Analyze();
   }
+
+  if (FLAG_use_range) {
+    HRangeAnalysis rangeAnalysis(graph());
+    rangeAnalysis.Analyze();
+  }
+  graph()->ComputeMinusZeroChecks();
+
+  // Eliminate redundant stack checks on backwards branches.
+  HStackCheckEliminator sce(graph());
+  sce.Process();
 
   // Replace the results of check instructions with the original value, if the
   // result is used. This is safe now, since we don't do code motion after this
