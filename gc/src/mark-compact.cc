@@ -280,7 +280,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 
 #ifdef DEBUG
-static void VerifyMarkbitsAreClean(PagedSpace* space) {
+void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
@@ -289,7 +289,7 @@ static void VerifyMarkbitsAreClean(PagedSpace* space) {
   }
 }
 
-static void VerifyMarkbitsAreClean(NewSpace* space) {
+void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   NewSpacePageIterator it(space->bottom(), space->top());
 
   while (it.has_next()) {
@@ -298,13 +298,13 @@ static void VerifyMarkbitsAreClean(NewSpace* space) {
   }
 }
 
-static void VerifyMarkbitsAreClean(Heap* heap) {
-  VerifyMarkbitsAreClean(heap->old_pointer_space());
-  VerifyMarkbitsAreClean(heap->old_data_space());
-  VerifyMarkbitsAreClean(heap->code_space());
-  VerifyMarkbitsAreClean(heap->cell_space());
-  VerifyMarkbitsAreClean(heap->map_space());
-  VerifyMarkbitsAreClean(heap->new_space());
+void MarkCompactCollector::VerifyMarkbitsAreClean() {
+  VerifyMarkbitsAreClean(heap_->old_pointer_space());
+  VerifyMarkbitsAreClean(heap_->old_data_space());
+  VerifyMarkbitsAreClean(heap_->code_space());
+  VerifyMarkbitsAreClean(heap_->cell_space());
+  VerifyMarkbitsAreClean(heap_->map_space());
+  VerifyMarkbitsAreClean(heap_->new_space());
 }
 #endif
 
@@ -328,7 +328,6 @@ static void ClearMarkbits(NewSpace* space) {
 
 
 static void ClearMarkbits(Heap* heap) {
-  // TODO(gc): Clean the mark bits while sweeping.
   ClearMarkbits(heap->code_space());
   ClearMarkbits(heap->map_space());
   ClearMarkbits(heap->old_pointer_space());
@@ -425,8 +424,10 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 #endif
 
+  // Clear marking bits for precise sweeping to collect all garbage.
   if (heap()->incremental_marking()->IsMarking() && PreciseSweepingRequired()) {
     heap()->incremental_marking()->Abort();
+    ClearMarkbits(heap_);
   }
 
   if (!FLAG_never_compact) StartCompaction();
@@ -438,12 +439,11 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     space->PrepareForMarkCompact();
   }
 
-  if (!heap()->incremental_marking()->IsMarking()) {
-    ClearMarkbits(heap_);
 #ifdef DEBUG
-    VerifyMarkbitsAreClean(heap_);
-#endif
+  if (!heap()->incremental_marking()->IsMarking()) {
+    VerifyMarkbitsAreClean();
   }
+#endif
 
 #ifdef DEBUG
   live_bytes_ = 0;
@@ -2614,9 +2614,8 @@ enum SweepingMode {
 // if requested.
 static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
+  ASSERT(!p->IsFlagSet(MemoryChunk::WAS_SWEPT_CONSERVATIVELY));
   MarkBit::CellType* cells = p->markbits()->cells();
-
-  p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
   p->MarkSwept();
 
   int last_cell_index =
@@ -2653,6 +2652,8 @@ static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
       }
       free_start = free_end + size;
     }
+    // Clear marking bits for current cell.
+    cells[cell_index] = 0;
   }
   if (free_start != p->ObjectAreaEnd()) {
     space->Free(free_start, static_cast<int>(p->ObjectAreaEnd() - free_start));
@@ -3093,15 +3094,8 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 // spaces will not contain the free space map.
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
-
-  intptr_t freed_bytes = 0;
-
   MarkBit::CellType* cells = p->markbits()->cells();
-
   p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
-
-  // This is the start of the 32 word block that we are currently looking at.
-  Address block_address = p->ObjectAreaStart();
 
   int last_cell_index =
       Bitmap::IndexToCell(
@@ -3109,6 +3103,10 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
               p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
 
   int cell_index = Page::kFirstUsedCell;
+  intptr_t freed_bytes = 0;
+
+  // This is the start of the 32 word block that we are currently looking at.
+  Address block_address = p->ObjectAreaStart();
 
   // Skip over all the dead objects at the start of the page and mark them free.
   for (cell_index = Page::kFirstUsedCell;
@@ -3164,6 +3162,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
       // Update our undigested record of where the current free area started.
       free_start = block_address;
       free_start_cell = cell;
+      // Clear marking bits for current cell.
+      cells[cell_index] = 0;
     }
   }
 

@@ -230,34 +230,31 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
 }
 
 
-void IncrementalMarking::ClearMarkbits(PagedSpace* space) {
+void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    Bitmap::Clear(p);
     SetOldSpacePageFlags(p, true);
   }
 }
 
 
-void IncrementalMarking::ClearMarkbits(NewSpace* space) {
+void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
   while (it.has_next()) {
     NewSpacePage* p = it.next();
-    Bitmap::Clear(p);
     SetNewSpacePageFlags(p, true);
   }
 }
 
 
-void IncrementalMarking::ClearMarkbits() {
-  // TODO(gc): Clear the mark bits in the sweeper.
-  ClearMarkbits(heap_->old_pointer_space());
-  ClearMarkbits(heap_->old_data_space());
-  ClearMarkbits(heap_->cell_space());
-  ClearMarkbits(heap_->map_space());
-  ClearMarkbits(heap_->code_space());
-  ClearMarkbits(heap_->new_space());
+void IncrementalMarking::ActivateIncrementalWriteBarrier() {
+  ActivateIncrementalWriteBarrier(heap_->old_pointer_space());
+  ActivateIncrementalWriteBarrier(heap_->old_data_space());
+  ActivateIncrementalWriteBarrier(heap_->cell_space());
+  ActivateIncrementalWriteBarrier(heap_->map_space());
+  ActivateIncrementalWriteBarrier(heap_->code_space());
+  ActivateIncrementalWriteBarrier(heap_->new_space());
 
   LargePage* lop = heap_->lo_space()->first_page();
   while (lop->is_valid()) {
@@ -265,38 +262,6 @@ void IncrementalMarking::ClearMarkbits() {
     lop = lop->next_page();
   }
 }
-
-
-#ifdef DEBUG
-void IncrementalMarking::VerifyMarkbitsAreClean(PagedSpace* space) {
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* p = it.next();
-    ASSERT(p->markbits()->IsClean());
-  }
-}
-
-
-void IncrementalMarking::VerifyMarkbitsAreClean(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
-
-  while (it.has_next()) {
-    NewSpacePage* p = it.next();
-    ASSERT(p->markbits()->IsClean());
-  }
-}
-
-
-void IncrementalMarking::VerifyMarkbitsAreClean() {
-  VerifyMarkbitsAreClean(heap_->old_pointer_space());
-  VerifyMarkbitsAreClean(heap_->old_data_space());
-  VerifyMarkbitsAreClean(heap_->code_space());
-  VerifyMarkbitsAreClean(heap_->cell_space());
-  VerifyMarkbitsAreClean(heap_->map_space());
-  VerifyMarkbitsAreClean(heap_->new_space());
-}
-#endif
 
 
 bool IncrementalMarking::WorthActivating() {
@@ -408,11 +373,11 @@ void IncrementalMarking::StartMarking() {
   if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
   marking_deque_.Initialize(addr, addr + size);
 
-  // Clear markbits.
-  ClearMarkbits();
+  ActivateIncrementalWriteBarrier();
 
 #ifdef DEBUG
-  VerifyMarkbitsAreClean();
+  // Marking bits are cleared by the sweeper.
+  heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
 #endif
 
   // Mark strong roots grey.

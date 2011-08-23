@@ -201,20 +201,14 @@ class IncrementalMarking {
     allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
 
-  static void ClearMarkbits(PagedSpace* space);
-  static void ClearMarkbits(NewSpace* space);
-  void ClearMarkbits();
-
-#ifdef DEBUG
-  void VerifyMarkbitsAreClean();
-  static void VerifyMarkbitsAreClean(PagedSpace* space);
-  static void VerifyMarkbitsAreClean(NewSpace* space);
-#endif
-
   void StartMarking();
 
-  void DeactivateIncrementalWriteBarrierForSpace(PagedSpace* space);
-  void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
+  static void ActivateIncrementalWriteBarrier(PagedSpace* space);
+  static void ActivateIncrementalWriteBarrier(NewSpace* space);
+  void ActivateIncrementalWriteBarrier();
+
+  static void DeactivateIncrementalWriteBarrierForSpace(PagedSpace* space);
+  static void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
   static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);

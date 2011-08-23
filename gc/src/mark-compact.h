@@ -440,6 +440,12 @@ class MarkCompactCollector {
     PRECISE
   };
 
+#ifdef DEBUG
+  void VerifyMarkbitsAreClean();
+  static void VerifyMarkbitsAreClean(PagedSpace* space);
+  static void VerifyMarkbitsAreClean(NewSpace* space);
+#endif
+
   // Sweep a single page from the given space conservatively.
   // Return a number of reclaimed bytes.
   static intptr_t SweepConservatively(PagedSpace* space, Page* p);

@@ -1930,26 +1930,31 @@ void PagedSpace::PrepareForMarkCompact() {
   Free(top(), old_linear_size);
   SetTop(NULL, NULL);
 
-  // Stop lazy sweeping for the space.
-  if (FLAG_trace_gc && first_unswept_page_ != NULL) {
+  // Stop lazy sweeping and clear marking bits for the space.
+  if (first_unswept_page_ != NULL) {
     int pages = 0;
-    Page* p = last_unswept_page_;
+    Page* last = last_unswept_page_->next_page();
+    Page* p = first_unswept_page_;
     do {
       pages++;
+      Bitmap::Clear(p);
       p = p->next_page();
-    } while (p != last_unswept_page_);
-    PrintF("Abandoned %d unswept pages\n", pages);
+    } while (p != last);
+    if (FLAG_trace_gc) {
+      PrintF("Abandoned %d unswept pages\n", pages);
+    }
   }
   first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
 
-  // Clear EVACUATED flag from all pages.
+  // Clear WAS_SWEPT and WAS_SWEPT_CONSERVATIVELY flags from all pages.
   PageIterator it(this);
   while (it.has_next()) {
     Page* page = it.next();
     page->ClearSwept();
+    page->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
   }
 }
 
