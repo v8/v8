@@ -2610,13 +2610,23 @@ static inline void UpdateSlotsInRange(Object** start, Object** end) {
 }
 
 
-static void UpdateSlotsOnPage(Page* p, ObjectVisitor* visitor) {
-  // TODO(gc) this is basically clone of SweepPrecisely
-  PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+enum SweepingMode {
+  SWEEP_ONLY,
+  SWEEP_AND_UPDATE_SLOTS
+};
+
+
+// Sweep a space precisely.  After this has been done the space can
+// be iterated precisely, hitting only the live objects.  Code space
+// is always swept precisely because we want to be able to iterate
+// over it.  Map space is swept precisely, because it is not compacted.
+// Slots in live objects pointing into evacuation candidates are updated
+// if requested.
+static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
   MarkBit::CellType* cells = p->markbits()->cells();
 
   p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
-  p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
   p->MarkSwept();
 
   int last_cell_index =
@@ -2647,8 +2657,10 @@ static void UpdateSlotsOnPage(Page* p, ObjectVisitor* visitor) {
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
       int size = live_object->Size();
-      UpdateSlotsInRange(HeapObject::RawField(live_object, kPointerSize),
-                         HeapObject::RawField(live_object, size));
+      if (mode == SWEEP_AND_UPDATE_SLOTS) {
+        UpdateSlotsInRange(HeapObject::RawField(live_object, kPointerSize),
+                           HeapObject::RawField(live_object, size));
+      }
       free_start = free_end + size;
     }
   }
@@ -2708,7 +2720,9 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                SlotsBuffer::SizeOfChain(p->slots_buffer()));
       }
     } else {
-      UpdateSlotsOnPage(p, &updating_visitor);
+      PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+      p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+      SweepPrecisely(space, p, SWEEP_AND_UPDATE_SLOTS);
     }
   }
 
@@ -3174,53 +3188,6 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
 }
 
 
-// Sweep a space precisely.  After this has been done the space can
-// be iterated precisely, hitting only the live objects.  Code space
-// is always swept precisely because we want to be able to iterate
-// over it.  Map space is swept precisely, because it is not compacted.
-static void SweepPrecisely(PagedSpace* space,
-                           Page* p) {
-  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
-  MarkBit::CellType* cells = p->markbits()->cells();
-
-  p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
-
-  int last_cell_index =
-      Bitmap::IndexToCell(
-          Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
-
-  int cell_index = Page::kFirstUsedCell;
-  Address free_start = p->ObjectAreaStart();
-  ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  Address object_address = p->ObjectAreaStart();
-  int offsets[16];
-
-  for (cell_index = Page::kFirstUsedCell;
-       cell_index < last_cell_index;
-       cell_index++, object_address += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(object_address))));
-    int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
-    int live_index = 0;
-    for ( ; live_objects != 0; live_objects--) {
-      Address free_end = object_address + offsets[live_index++] * kPointerSize;
-      if (free_end != free_start) {
-        space->Free(free_start, static_cast<int>(free_end - free_start));
-      }
-      HeapObject* live_object = HeapObject::FromAddress(free_end);
-      ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
-      free_start = free_end + live_object->Size();
-    }
-  }
-  if (free_start != p->ObjectAreaEnd()) {
-    space->Free(free_start, static_cast<int>(p->ObjectAreaEnd() - free_start));
-  }
-}
-
-
 void MarkCompactCollector::SweepSpace(PagedSpace* space,
                                       SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
@@ -3262,7 +3229,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
         break;
       }
       case PRECISE: {
-        SweepPrecisely(space, p);
+        SweepPrecisely(space, p, SWEEP_ONLY);
         break;
       }
       default: {
