@@ -2325,15 +2325,15 @@ HGraph* HGraphBuilder::CreateGraph() {
   HInferRepresentation rep(graph());
   rep.Analyze();
 
+  graph()->MarkDeoptimizeOnUndefined();
+  graph()->InsertRepresentationChanges();
+
   if (FLAG_use_range) {
     HRangeAnalysis rangeAnalysis(graph());
     rangeAnalysis.Analyze();
   }
-
   graph()->InitializeInferredTypes();
   graph()->Canonicalize();
-  graph()->MarkDeoptimizeOnUndefined();
-  graph()->InsertRepresentationChanges();
   graph()->ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.

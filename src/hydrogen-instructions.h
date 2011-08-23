@@ -227,14 +227,20 @@ class Range: public ZoneObject {
   Range* next() const { return next_; }
   Range* CopyClearLower() const { return new Range(kMinInt, upper_); }
   Range* CopyClearUpper() const { return new Range(lower_, kMaxInt); }
-  Range* Copy() const { return new Range(lower_, upper_); }
+  Range* Copy() const {
+    Range* result = new Range(lower_, upper_);
+    result->set_can_be_minus_zero(CanBeMinusZero());
+    return result;
+  }
   int32_t Mask() const;
   void set_can_be_minus_zero(bool b) { can_be_minus_zero_ = b; }
   bool CanBeMinusZero() const { return CanBeZero() && can_be_minus_zero_; }
   bool CanBeZero() const { return upper_ >= 0 && lower_ <= 0; }
   bool CanBeNegative() const { return lower_ < 0; }
   bool Includes(int value) const { return lower_ <= value && upper_ >= value; }
-  bool IsMostGeneric() const { return lower_ == kMinInt && upper_ == kMaxInt; }
+  bool IsMostGeneric() const {
+    return lower_ == kMinInt && upper_ == kMaxInt && CanBeMinusZero();
+  }
   bool IsInSmiRange() const {
     return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
   }
@@ -578,9 +584,9 @@ class HValue: public ZoneObject {
   virtual bool IsConvertibleToInteger() const { return true; }
 
   HType type() const { return type_; }
-  void set_type(HType type) {
-    ASSERT(HasNoUses());
-    type_ = type;
+  void set_type(HType new_type) {
+    ASSERT(new_type.IsSubtypeOf(type_));
+    type_ = new_type;
   }
 
   // An operation needs to override this function iff:
@@ -1100,10 +1106,6 @@ class HChange: public HUnaryOperation {
     set_representation(to);
     SetFlag(kUseGVN);
     if (is_truncating) SetFlag(kTruncatingToInt32);
-    if (from.IsInteger32() && to.IsTagged() && value->range() != NULL &&
-        value->range()->IsInSmiRange()) {
-      set_type(HType::Smi());
-    }
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
@@ -1114,6 +1116,8 @@ class HChange: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
+
+  virtual Range* InferRange();
 
   virtual void PrintDataTo(StringStream* stream);
 
