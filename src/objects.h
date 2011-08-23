@@ -5919,7 +5919,7 @@ class String: public HeapObject {
   // If the string isn't flat, and therefore doesn't have flat content, the
   // returned structure will report so, and can't provide a vector of either
   // kind.
-  FlatContent GetFlatContent(const AssertNoAllocation& safety_promise);
+  FlatContent GetFlatContent();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.

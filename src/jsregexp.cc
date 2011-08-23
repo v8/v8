@@ -235,10 +235,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
       return isolate->factory()->null_value();
     }
 
-    String::FlatContent needle_content =
-        needle->GetFlatContent(no_heap_allocation);
-    String::FlatContent subject_content =
-        subject->GetFlatContent(no_heap_allocation);
+    String::FlatContent needle_content = needle->GetFlatContent();
+    String::FlatContent subject_content = subject->GetFlatContent();
     ASSERT(needle_content.IsFlat());
     ASSERT(subject_content.IsFlat());
     // dispatch on type of strings

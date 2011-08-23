@@ -2665,7 +2665,7 @@ void CompiledReplacement::Compile(Handle<String> replacement,
                                   int subject_length) {
   {
     AssertNoAllocation no_alloc;
-    String::FlatContent content = replacement->GetFlatContent(no_alloc);
+    String::FlatContent content = replacement->GetFlatContent();
     ASSERT(content.IsFlat());
     if (content.IsAscii()) {
       ParseReplacementPattern(&parts_,
@@ -3050,8 +3050,8 @@ int Runtime::StringMatch(Isolate* isolate,
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before determining asciiness.
-  String::FlatContent seq_sub = sub->GetFlatContent(no_heap_allocation);
-  String::FlatContent seq_pat = pat->GetFlatContent(no_heap_allocation);
+  String::FlatContent seq_sub = sub->GetFlatContent();
+  String::FlatContent seq_pat = pat->GetFlatContent();
 
   // dispatch on type of strings
   if (seq_pat.IsAscii()) {
@@ -3161,8 +3161,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   int position = -1;
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
 
-  String::FlatContent sub_content = sub->GetFlatContent(no_heap_allocation);
-  String::FlatContent pat_content = pat->GetFlatContent(no_heap_allocation);
+  String::FlatContent sub_content = sub->GetFlatContent();
+  String::FlatContent pat_content = pat->GetFlatContent();
 
   if (pat_content.IsAscii()) {
     Vector<const char> pat_vector = pat_content.ToAsciiVector();
@@ -3400,8 +3400,8 @@ static bool SearchStringMultiple(Isolate* isolate,
   for (;;) {  // Break when search complete.
     builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
     AssertNoAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-    String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
+    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent pattern_content = pattern->GetFlatContent();
     if (subject_content.IsAscii()) {
       Vector<const char> subject_vector = subject_content.ToAsciiVector();
       if (pattern_content.IsAscii()) {
@@ -5419,8 +5419,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
     str = String::cast(flat);
     ASSERT(str->IsFlat());
   }
-  AssertNoAllocation no_alloc;
-  String::FlatContent flat = str->GetFlatContent(no_alloc);
+  String::FlatContent flat = str->GetFlatContent();
   ASSERT(flat.IsFlat());
   if (flat.IsTwoByte()) {
     return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
@@ -5444,8 +5443,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
     str = String::cast(flat);
     ASSERT(str->IsFlat());
   }
-  AssertNoAllocation no_alloc;
-  String::FlatContent flat = str->GetFlatContent(no_alloc);
+  String::FlatContent flat = str->GetFlatContent();
   if (flat.IsTwoByte()) {
     return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
                                                          flat.ToUC16Vector());
@@ -5486,7 +5484,7 @@ static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
   for (int i = 0; i < length; i++) {
     if (i != 0) *(write_cursor++) = ',';
     String* str = String::cast(array->get(i));
-    String::FlatContent content = str->GetFlatContent(no_gc);
+    String::FlatContent content = str->GetFlatContent();
     ASSERT(content.IsFlat());
     if (content.IsTwoByte()) {
       write_cursor = WriteQuoteJsonString<Char, uc16>(isolate,
@@ -5975,8 +5973,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   // No allocation block.
   {
     AssertNoAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-    String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
+    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent pattern_content = pattern->GetFlatContent();
     ASSERT(subject_content.IsFlat());
     ASSERT(pattern_content.IsFlat());
     if (subject_content.IsAscii()) {
@@ -6062,7 +6060,7 @@ static int CopyCachedAsciiCharsToArray(Heap* heap,
                                        const char* chars,
                                        FixedArray* elements,
                                        int length) {
-  AssertNoAllocation nogc;
+  AssertNoAllocation no_gc;
   FixedArray* ascii_cache = heap->single_character_string_cache();
   Object* undefined = heap->undefined_value();
   int i;
@@ -6107,9 +6105,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
           isolate->heap()->AllocateUninitializedFixedArray(length);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
-    AssertNoAllocation no_alloc;
     elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
-    String::FlatContent content = s->GetFlatContent(no_alloc);
+    String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
       Vector<const char> chars = content.ToAsciiVector();
       // Note, this will initialize all elements (not only the prefix)
@@ -6930,7 +6927,6 @@ static Object* StringInputBufferCompare(RuntimeState* state,
 static Object* FlatStringCompare(String* x, String* y) {
   ASSERT(x->IsFlat());
   ASSERT(y->IsFlat());
-  AssertNoAllocation no_alloc;
   Object* equal_prefix_result = Smi::FromInt(EQUAL);
   int prefix_length = x->length();
   if (y->length() < prefix_length) {
@@ -6940,8 +6936,8 @@ static Object* FlatStringCompare(String* x, String* y) {
     equal_prefix_result = Smi::FromInt(LESS);
   }
   int r;
-  String::FlatContent x_content = x->GetFlatContent(no_alloc);
-  String::FlatContent y_content = y->GetFlatContent(no_alloc);
+  String::FlatContent x_content = x->GetFlatContent();
+  String::FlatContent y_content = y->GetFlatContent();
   if (x_content.IsAscii()) {
     Vector<const char> x_chars = x_content.ToAsciiVector();
     if (y_content.IsAscii()) {
@@ -8838,7 +8834,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   FixedArray* output_array = FixedArray::cast(output->elements());
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
-  String::FlatContent str_content = str->GetFlatContent(no_allocation);
+  String::FlatContent str_content = str->GetFlatContent();
   if (str_content.IsAscii()) {
     result = DateParser::Parse(str_content.ToAsciiVector(),
                                output_array,
@@ -12823,10 +12819,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   ASSERT(args.length() == 2);
-  AssertNoAllocation no_alloc;
   CONVERT_CHECKED(String, format, args[0]);
   CONVERT_CHECKED(JSArray, elms, args[1]);
-  String::FlatContent format_content = format->GetFlatContent(no_alloc);
+  String::FlatContent format_content = format->GetFlatContent();
   RUNTIME_ASSERT(format_content.IsAscii());
   Vector<const char> chars = format_content.ToAsciiVector();
   LOGGER->LogRuntime(chars, elms);

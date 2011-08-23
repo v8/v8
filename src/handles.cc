@@ -617,7 +617,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
-    String::FlatContent content = src->GetFlatContent(no_heap_allocation);
+    String::FlatContent content = src->GetFlatContent();
     ASSERT(content.IsFlat());
     if (content.IsAscii()) {
       CalculateLineEnds(isolate,

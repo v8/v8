@@ -635,7 +635,7 @@ bool IrregexpInterpreter::Match(Isolate* isolate,
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
-  String::FlatContent subject_content = subject->GetFlatContent(a);
+  String::FlatContent subject_content = subject->GetFlatContent();
   if (subject_content.IsAscii()) {
     Vector<const char> subject_vector = subject_content.ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];

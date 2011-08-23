@@ -778,8 +778,7 @@ void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
 void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" == ");
-  AssertNoAllocation no_alloc;
-  stream->Add(type_literal_->GetFlatContent(no_alloc).ToAsciiVector());
+  stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
 }
 
 

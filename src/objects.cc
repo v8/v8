@@ -5038,9 +5038,7 @@ int String::Utf8Length() {
 }
 
 
-String::FlatContent String::GetFlatContent(const AssertNoAllocation& promise) {
-  // Argument isn't used, it's only there to ensure that the user is
-  // aware that the extracted vectors may not survive a GC.
+String::FlatContent String::GetFlatContent() {
   int length = this->length();
   StringShape shape(this);
   String* string = this;
@@ -5519,9 +5517,8 @@ void FlatStringReader::PostGarbageCollection() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  AssertNoAllocation no_alloc;
-  String::FlatContent content = str->GetFlatContent(no_alloc);
-  ASSERT(content.is_flat());
+  String::FlatContent content = str->GetFlatContent();
+  ASSERT(content.IsFlat());
   is_ascii_ = content.IsAscii();
   if (is_ascii_) {
     start_ = content.ToAsciiVector().start();
@@ -5846,8 +5843,7 @@ template <typename IteratorA>
 static inline bool CompareStringContentsPartial(Isolate* isolate,
                                                 IteratorA* ia,
                                                 String* b) {
-  AssertNoAllocation no_alloc;
-  String::FlatContent content = b->GetFlatContent(no_alloc);
+  String::FlatContent content = b->GetFlatContent();
   if (content.IsFlat()) {
     if (content.IsAscii()) {
       VectorIterator<char> ib(content.ToAsciiVector());
@@ -5883,8 +5879,6 @@ bool String::SlowEquals(String* other) {
   String* lhs = this->TryFlattenGetString();
   String* rhs = other->TryFlattenGetString();
 
-  AssertNoAllocation no_alloc;
-
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
     const char* str1 = SeqAsciiString::cast(lhs)->GetChars();
@@ -5894,8 +5888,8 @@ bool String::SlowEquals(String* other) {
   }
 
   Isolate* isolate = GetIsolate();
-  String::FlatContent lhs_content = lhs->GetFlatContent(no_alloc);
-  String::FlatContent rhs_content = rhs->GetFlatContent(no_alloc);
+  String::FlatContent lhs_content = lhs->GetFlatContent();
+  String::FlatContent rhs_content = rhs->GetFlatContent();
   if (lhs_content.IsFlat()) {
     if (lhs_content.IsAscii()) {
       Vector<const char> vec1 = lhs_content.ToAsciiVector();
@@ -5973,10 +5967,9 @@ bool String::IsEqualTo(Vector<const char> str) {
 
 
 bool String::IsAsciiEqualTo(Vector<const char> str) {
-  AssertNoAllocation no_alloc;
   int slen = length();
   if (str.length() != slen) return false;
-  FlatContent content = GetFlatContent(no_alloc);
+  FlatContent content = GetFlatContent();
   if (content.IsAscii()) {
     return CompareChars(content.ToAsciiVector().start(),
                         str.start(), slen) == 0;
@@ -5989,10 +5982,9 @@ bool String::IsAsciiEqualTo(Vector<const char> str) {
 
 
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
-  AssertNoAllocation no_alloc;
   int slen = length();
   if (str.length() != slen) return false;
-  FlatContent content = GetFlatContent(no_alloc);
+  FlatContent content = GetFlatContent();
   if (content.IsTwoByte()) {
     return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
   }

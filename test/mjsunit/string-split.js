@@ -117,9 +117,10 @@ assertEquals(["a", "b", "c"], "abc".split("", numberObj(3)));
 assertEquals(["a", "b", "c"], "abc".split("", 4));
 assertEquals(["a", "b", "c"], "abc".split("", numberObj(4)));
 
-var all_ascii_chars = [];
-for (var i = 0; i < 128; i++) all_ascii_chars[i] = String.fromCharCode(i);
-var all_ascii_string = all_ascii_chars.join("");
+
+var all_ascii_codes = [];
+for (var i = 0; i < 128; i++) all_ascii_codes[i] = i;
+var all_ascii_string = String.fromCharCode.apply(String, all_ascii_codes);
 
 var split_chars = all_ascii_string.split("");
 assertEquals(128, split_chars.length);
