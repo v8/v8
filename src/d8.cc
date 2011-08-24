@@ -1287,7 +1287,10 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   V8::Dispose();
+
+#ifndef V8_SHARED
   OnExit();
+#endif  // V8_SHARED
 
   return result;
 }
