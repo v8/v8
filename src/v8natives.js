@@ -354,32 +354,49 @@ function IsInconsistentDescriptor(desc) {
 // ES5 8.10.4
 function FromPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
-  var obj = new $Object();
+
   if (IsDataDescriptor(desc)) {
-    obj.value = desc.getValue();
-    obj.writable = desc.isWritable();
+    return { value: desc.getValue(),
+             writable: desc.isWritable(),
+             enumerable: desc.isEnumerable(),
+             configurable: desc.isConfigurable() };
   }
-  if (IsAccessorDescriptor(desc)) {
-    obj.get = desc.getGet();
-    obj.set = desc.getSet();
-  }
-  obj.enumerable = desc.isEnumerable();
-  obj.configurable = desc.isConfigurable();
-  return obj;
+  // Must be an AccessorDescriptor then. We never return a generic descriptor.
+  return { get: desc.getGet(),
+           set: desc.getSet(),
+           enumerable: desc.isEnumerable(),
+           configurable: desc.isConfigurable() };
 }
+
 
 // Harmony Proxies
 function FromGenericPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
   var obj = new $Object();
-  if (desc.hasValue()) obj.value = desc.getValue();
-  if (desc.hasWritable()) obj.writable = desc.isWritable();
-  if (desc.hasGetter()) obj.get = desc.getGet();
-  if (desc.hasSetter()) obj.set = desc.getSet();
-  if (desc.hasEnumerable()) obj.enumerable = desc.isEnumerable();
-  if (desc.hasConfigurable()) obj.configurable = desc.isConfigurable();
+
+  if (desc.hasValue()) {
+    %IgnoreAttributesAndSetProperty(obj, "value", desc.getValue(), NONE);
+  }
+  if (desc.hasWritable()) {
+    %IgnoreAttributesAndSetProperty(obj, "writable", desc.isWritable(), NONE);
+  }
+  if (desc.hasGetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "get", desc.getGet(), NONE);
+  }
+  if (desc.hasSetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "set", desc.getSet(), NONE);
+  }
+  if (desc.hasEnumerable()) {
+    %IgnoreAttributesAndSetProperty(obj, "enumerable",
+                                    desc.isEnumerable(), NONE);
+  }
+  if (desc.hasConfigurable()) {
+    %IgnoreAttributesAndSetProperty(obj, "configurable",
+                                    desc.isConfigurable(), NONE);
+  }
   return obj;
 }
+
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
