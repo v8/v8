@@ -38,7 +38,7 @@ ARCHES = ia32 x64 arm
 MODES = release debug
 
 # List of files that trigger Makefile regeneration:
-GYPFILES = build/all.gyp build/common.gypi build/v8-features.gypi \
+GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
            preparser/preparser.gyp samples/samples.gyp src/d8.gyp \
            test/cctest/cctest.gyp tools/gyp/v8.gyp
 
@@ -90,21 +90,22 @@ $(addsuffix .clean,$(ARCHES)):
 	rm -f $(OUTDIR)/Makefile-$(basename $@)
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
+	find $(OUTDIR) -regex '.*\(host\|target\)-$(basename $@)\.mk' -delete
 
 clean: $(addsuffix .clean,$(ARCHES))
 
 # GYP file generation targets.
 $(OUTDIR)/Makefile-ia32: $(GYPFILES)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Dtarget_arch=ia32 -S-ia32 \
+	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=ia32 -S-ia32 \
 	              $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-x64: $(GYPFILES)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Dtarget_arch=x64 -S-x64 \
+	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 -S-x64 \
 	              $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-arm: $(GYPFILES) build/armu.gypi
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Ibuild/armu.gypi -S-arm \
+	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi -S-arm \
 	              $(GYPFLAGS)
