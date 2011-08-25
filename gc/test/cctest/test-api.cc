@@ -8521,7 +8521,7 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
   int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
-    HEAP->CollectAllGarbage(i::Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
   return v8::Handle<Value>();
 }
@@ -13742,7 +13742,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
                                  Local<v8::Value> data) {
-  HEAP->CollectAllGarbage(i::Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
 
@@ -14316,7 +14316,7 @@ TEST(DontDeleteCellLoadIC) {
                  "})()",
                  "ReferenceError: cell is not defined");
     CompileRun("cell = \"new_second\";");
-    HEAP->CollectAllGarbage(i::Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     ExpectString("readCell()", "new_second");
     ExpectString("readCell()", "new_second");
   }

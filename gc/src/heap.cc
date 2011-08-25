@@ -440,9 +440,6 @@ void Heap::CollectAllAvailableGarbage() {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  mark_compact_collector()->SetFlags(
-      kMakeHeapIterableMask | kForceCompactionMask);
-
   // Major GC would invoke weak handle callbacks on weakly reachable
   // handles, but won't collect weakly reachable objects until next
   // major GC.  Therefore if we collect aggressively and weak handle callback
@@ -451,6 +448,7 @@ void Heap::CollectAllAvailableGarbage() {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
+  mark_compact_collector()->SetFlags(kMakeHeapIterableMask);
   const int kMaxNumberOfAttempts = 7;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
@@ -4181,7 +4179,7 @@ bool Heap::IdleNotification() {
     last_idle_notification_gc_count_ = gc_count_;
 
   } else if (number_idle_notifications_ == kIdlesBeforeMarkCompact) {
-    CollectAllGarbage(kForceCompactionMask);
+    CollectAllGarbage(kNoGCFlags);
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
     number_idle_notifications_ = 0;

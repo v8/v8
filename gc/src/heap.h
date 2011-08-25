@@ -903,14 +903,15 @@ class Heap {
   inline bool CollectGarbage(AllocationSpace space);
 
   static const int kNoGCFlags = 0;
-  static const int kForceCompactionMask = 1;
-  static const int kMakeHeapIterableMask = 2;
+  static const int kMakeHeapIterableMask = 1;
 
-  // Performs a full garbage collection.  If (flags & kForceCompactionMask) is
-  // non-zero then force compaction.  If (flags & kMakeHeapIterableMask) is non-
-  // zero, then the slower precise sweeper is used, which leaves the heap in a
-  // state where we can iterate over the heap visiting all objects.
+  // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
+  // non-zero, then the slower precise sweeper is used, which leaves the heap
+  // in a state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(int flags);
+
+  // Last hope GC, should try to squeeze as much as possible.
+  void CollectAllAvailableGarbage();
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
@@ -918,9 +919,6 @@ class Heap {
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.  May cause a GC.
   void EnsureHeapIsIterable();
-
-  // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed() { return ++contexts_disposed_; }

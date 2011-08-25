@@ -365,8 +365,8 @@ TEST(PartialSerialization) {
       Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
     }
   }
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   Object* raw_foo;
   {
@@ -490,7 +490,7 @@ TEST(ContextSerialization) {
   }
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of env.
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);

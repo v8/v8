@@ -864,7 +864,7 @@ TEST(Regression39128) {
   InitializeVM();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::HandleScope scope;
 
@@ -960,17 +960,17 @@ TEST(TestCodeFlushing) {
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
@@ -1059,7 +1059,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
@@ -1068,21 +1068,21 @@ TEST(TestInternalWeakLists) {
       HEAP->PerformScavenge();
       CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       HEAP->PerformScavenge();
       CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
 
   // Force compilation cache cleanup.
-  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the global contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1096,7 +1096,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
   }
 
@@ -1111,7 +1111,7 @@ static int CountGlobalContextsWithGC(int n) {
   Handle<Object> object(HEAP->global_contexts_list());
   while (!object->IsUndefined()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     object =
         Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
   }
@@ -1130,7 +1130,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
   while (object->IsJSFunction() &&
          !Handle<JSFunction>::cast(object)->IsBuiltin()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
+    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     object = Handle<Object>(
         Object::cast(JSFunction::cast(*object)->next_function_link()));
   }
