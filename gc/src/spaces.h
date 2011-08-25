@@ -365,7 +365,6 @@ class MemoryChunk {
 
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
-    WAS_SWEPT_CONSERVATIVELY,
     ABOUT_TO_BE_FREED,
     POINTERS_TO_HERE_ARE_INTERESTING,
     POINTERS_FROM_HERE_ARE_INTERESTING,
@@ -376,7 +375,15 @@ class MemoryChunk {
     CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
-    WAS_SWEPT,
+
+    // Pages swept precisely can be iterated, hitting only the live objects.
+    // Whereas those swept conservatively cannot be iterated over. Both flags
+    // indicate that marking bits have been cleared by the sweeper, otherwise
+    // marking bits are still intact.
+    WAS_SWEPT_PRECISELY,
+    WAS_SWEPT_CONSERVATIVELY,
+
+    // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -655,11 +662,15 @@ class Page : public MemoryChunk {
 
   void InitializeAsAnchor(PagedSpace* owner);
 
-  bool WasSwept() { return IsFlagSet(WAS_SWEPT); }
+  bool WasSweptPrecisely() { return IsFlagSet(WAS_SWEPT_PRECISELY); }
+  bool WasSweptConservatively() { return IsFlagSet(WAS_SWEPT_CONSERVATIVELY); }
+  bool WasSwept() { return WasSweptPrecisely() || WasSweptConservatively(); }
 
-  void MarkSwept() { SetFlag(WAS_SWEPT); }
+  void MarkSweptPrecisely() { SetFlag(WAS_SWEPT_PRECISELY); }
+  void MarkSweptConservatively() { SetFlag(WAS_SWEPT_CONSERVATIVELY); }
 
-  void ClearSwept() { ClearFlag(WAS_SWEPT); }
+  void ClearSweptPrecisely() { ClearFlag(WAS_SWEPT_PRECISELY); }
+  void ClearSweptConservatively() { ClearFlag(WAS_SWEPT_CONSERVATIVELY); }
 
   friend class MemoryAllocator;
 };
@@ -1424,23 +1435,17 @@ class PagedSpace : public Space {
   bool was_swept_conservatively() { return was_swept_conservatively_; }
   void set_was_swept_conservatively(bool b) { was_swept_conservatively_ = b; }
 
+  // Evacuation candidates are swept by evacuator.  Needs to return a valid
+  // result before _and_ after evacuation has finished.
+  static bool ShouldBeSweptLazily(Page* p) {
+    return !p->IsEvacuationCandidate() &&
+           !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) &&
+           !p->WasSweptPrecisely();
+  }
+
   void SetPagesToSweep(Page* first, Page* last) {
     first_unswept_page_ = first;
     last_unswept_page_ = last;
-    int unswept_pages = 0;
-
-    Page* p = first;
-    do {
-      // The WAS_SWEPT_CONSERVATIVELY flag means that we can't iterate over the
-      // page.  We have to set this flag on the pages to indicate this.
-      p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
-      p = p->next_page();
-      unswept_pages++;
-    } while (p != last);
-
-    if (FLAG_trace_gc_verbose) {
-      PrintF("Postponing sweep for %d pages\n", unswept_pages);
-    }
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);

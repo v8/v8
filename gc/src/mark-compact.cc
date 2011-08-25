@@ -2494,12 +2494,10 @@ void MarkCompactCollector::EvacuateNewSpace() {
 
 void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   AlwaysAllocateScope always_allocate;
-
-  ASSERT(p->IsEvacuationCandidate() && !p->WasSwept());
-
   PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-
+  ASSERT(p->IsEvacuationCandidate() && !p->WasSwept());
   MarkBit::CellType* cells = p->markbits()->cells();
+  p->MarkSweptPrecisely();
 
   int last_cell_index =
       Bitmap::IndexToCell(
@@ -2536,6 +2534,9 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
                     space->identity());
       ASSERT(object->map_word().IsForwardingAddress());
     }
+
+    // Clear marking bits for current cell.
+    cells[cell_index] = 0;
   }
 }
 
@@ -2614,9 +2615,8 @@ enum SweepingMode {
 // if requested.
 static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
-  ASSERT(!p->IsFlagSet(MemoryChunk::WAS_SWEPT_CONSERVATIVELY));
   MarkBit::CellType* cells = p->markbits()->cells();
-  p->MarkSwept();
+  p->MarkSweptPrecisely();
 
   int last_cell_index =
       Bitmap::IndexToCell(
@@ -2711,6 +2711,10 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                SlotsBuffer::SizeOfChain(p->slots_buffer()));
       }
     } else {
+      if (FLAG_gc_verbose) {
+        PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
+               reinterpret_cast<intptr_t>(p));
+      }
       PagedSpace* space = static_cast<PagedSpace*>(p->owner());
       p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
       SweepPrecisely(space, p, SWEEP_AND_UPDATE_SLOTS);
@@ -2761,8 +2765,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ClearEvacuationCandidate();
-    p->MarkSwept();
-    p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
@@ -3095,7 +3097,7 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
   MarkBit::CellType* cells = p->markbits()->cells();
-  p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
+  p->MarkSweptConservatively();
 
   int last_cell_index =
       Bitmap::IndexToCell(
@@ -3189,9 +3191,14 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
 
   intptr_t freed_bytes = 0;
   intptr_t newspace_size = space->heap()->new_space()->Size();
+  bool lazy_sweeping_active = false;
 
   while (it.has_next()) {
     Page* p = it.next();
+
+    // Clear sweeping flags indicating that marking bits are still intact.
+    p->ClearSweptPrecisely();
+    p->ClearSweptConservatively();
 
     if (p->IsEvacuationCandidate()) {
       ASSERT(evacuation_candidates_.length() > 0);
@@ -3203,17 +3210,30 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       continue;
     }
 
+    if (lazy_sweeping_active) {
+      if (FLAG_gc_verbose) {
+        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
+               reinterpret_cast<intptr_t>(p));
+      }
+      continue;
+    }
+
+    if (FLAG_gc_verbose) {
+      PrintF("Sweeping 0x%" V8PRIxPTR " with sweeper %d.\n",
+             reinterpret_cast<intptr_t>(p),
+             sweeper);
+    }
+
     switch (sweeper) {
       case CONSERVATIVE: {
         SweepConservatively(space, p);
         break;
       }
       case LAZY_CONSERVATIVE: {
-        Page* next_page = p->next_page();
         freed_bytes += SweepConservatively(space, p);
         if (freed_bytes >= newspace_size && p != space->LastPage()) {
-          space->SetPagesToSweep(next_page, space->LastPage());
-          return;
+          space->SetPagesToSweep(p->next_page(), space->LastPage());
+          lazy_sweeping_active = true;
         }
         break;
       }

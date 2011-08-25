@@ -79,7 +79,7 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
              page->ObjectAreaEnd(),
              kOnePageOnly,
              size_func);
-  ASSERT(!page->IsFlagSet(Page::WAS_SWEPT_CONSERVATIVELY));
+  ASSERT(page->WasSweptPrecisely());
 }
 
 
@@ -118,7 +118,7 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   if (cur_page == space_->anchor()) return false;
   cur_addr_ = cur_page->ObjectAreaStart();
   cur_end_ = cur_page->ObjectAreaEnd();
-  ASSERT(!cur_page->IsFlagSet(Page::WAS_SWEPT_CONSERVATIVELY));
+  ASSERT(cur_page->WasSweptPrecisely());
   return true;
 }
 
@@ -450,6 +450,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->slots_buffer_ = NULL;
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
+  chunk->SetFlag(WAS_SWEPT_PRECISELY);
 
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
@@ -790,7 +791,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     if (page == Page::FromAllocationTop(allocation_info_.top)) {
       allocation_pointer_found_in_space = true;
     }
-    ASSERT(!page->IsFlagSet(MemoryChunk::WAS_SWEPT_CONSERVATIVELY));
+    ASSERT(page->WasSweptPrecisely());
     HeapObjectIterator it(page, NULL);
     Address end_of_previous_object = page->ObjectAreaStart();
     Address top = page->ObjectAreaEnd();
@@ -1930,32 +1931,26 @@ void PagedSpace::PrepareForMarkCompact() {
   Free(top(), old_linear_size);
   SetTop(NULL, NULL);
 
-  // Stop lazy sweeping and clear marking bits for the space.
+  // Stop lazy sweeping and clear marking bits for unswept pages.
   if (first_unswept_page_ != NULL) {
-    int pages = 0;
     Page* last = last_unswept_page_->next_page();
     Page* p = first_unswept_page_;
     do {
-      pages++;
-      Bitmap::Clear(p);
+      if (ShouldBeSweptLazily(p)) {
+        ASSERT(!p->WasSwept());
+        Bitmap::Clear(p);
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " lazily abandoned.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
+      }
       p = p->next_page();
     } while (p != last);
-    if (FLAG_trace_gc) {
-      PrintF("Abandoned %d unswept pages\n", pages);
-    }
   }
   first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
-
-  // Clear WAS_SWEPT and WAS_SWEPT_CONSERVATIVELY flags from all pages.
-  PageIterator it(this);
-  while (it.has_next()) {
-    Page* page = it.next();
-    page->ClearSwept();
-    page->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
-  }
 }
 
 
@@ -1997,10 +1992,11 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   Page* p = first_unswept_page_;
   do {
     Page* next_page = p->next_page();
-    // Evacuation candidates were swept by evacuator.
-    if (!p->IsEvacuationCandidate() &&
-        !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) &&
-        !p->WasSwept()) {
+    if (ShouldBeSweptLazily(p)) {
+      if (FLAG_gc_verbose) {
+        PrintF("Sweeping 0x%" V8PRIxPTR " lazily advanced.\n",
+               reinterpret_cast<intptr_t>(p));
+      }
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;
