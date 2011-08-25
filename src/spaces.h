@@ -200,9 +200,9 @@ class Page {
 
   inline void SetIsLargeObjectPage(bool is_large_object_page);
 
-  inline bool IsPageExecutable();
+  inline Executability PageExecutability();
 
-  inline void SetIsPageExecutable(bool is_page_executable);
+  inline void SetPageExecutability(Executability executable);
 
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {

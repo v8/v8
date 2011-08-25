@@ -2762,8 +2762,7 @@ void LargeObjectSpace::TearDown() {
     first_chunk_ = first_chunk_->next();
     LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk->address()));
     Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-    Executability executable =
-        page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
+    Executability executable = page->PageExecutability();
     ObjectSpace space = kObjectSpaceLoSpace;
     if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
     size_t size = chunk->size();
@@ -2813,7 +2812,7 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
   // large object page.  If the chunk_size happened to be written there, its
   // low order bit should already be clear.
   page->SetIsLargeObjectPage(true);
-  page->SetIsPageExecutable(executable);
+  page->SetPageExecutability(executable);
   page->SetRegionMarks(Page::kAllRegionsCleanMarks);
   return HeapObject::FromAddress(object_address);
 }
@@ -2946,8 +2945,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     } else {
       Page* page = Page::FromAddress(RoundUp(current->address(),
                                      Page::kPageSize));
-      Executability executable =
-          page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
+      Executability executable = page->PageExecutability();
       Address chunk_address = current->address();
       size_t chunk_size = current->size();
 

@@ -294,13 +294,13 @@ void Page::SetIsLargeObjectPage(bool is_large_object_page) {
   SetPageFlag(IS_NORMAL_PAGE, !is_large_object_page);
 }
 
-bool Page::IsPageExecutable() {
-  return GetPageFlag(IS_EXECUTABLE);
+Executability Page::PageExecutability() {
+  return GetPageFlag(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
 }
 
 
-void Page::SetIsPageExecutable(bool is_page_executable) {
-  SetPageFlag(IS_EXECUTABLE, is_page_executable);
+void Page::SetPageExecutability(Executability executable) {
+  SetPageFlag(IS_EXECUTABLE, executable == EXECUTABLE);
 }
 
 
