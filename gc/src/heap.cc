@@ -4797,7 +4797,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
-  max_old_generation_size_ = Max(paged_space_count * Page::kPageSize,
+  max_old_generation_size_ = Max(static_cast<intptr_t>(paged_space_count *
+                                                       Page::kPageSize),
                                  RoundUp(max_old_generation_size_,
                                          Page::kPageSize));
 
