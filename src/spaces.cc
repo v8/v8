@@ -2722,9 +2722,14 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
 
   LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
   chunk->size_ = size;
-  Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-  page->heap_ = isolate->heap();
+  chunk->GetPage()->heap_ = isolate->heap();
   return chunk;
+}
+
+
+void LargeObjectChunk::Free(Executability executable) {
+  Isolate* isolate = GetPage()->heap_->isolate();
+  isolate->memory_allocator()->FreeRawMemory(address(), size(), executable);
 }
 
 
@@ -2761,8 +2766,7 @@ void LargeObjectSpace::TearDown() {
     LargeObjectChunk* chunk = first_chunk_;
     first_chunk_ = first_chunk_->next();
     LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk->address()));
-    Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-    Executability executable = page->PageExecutability();
+    Executability executable = chunk->GetPage()->PageExecutability();
     ObjectSpace space = kObjectSpaceLoSpace;
     if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
     size_t size = chunk->size();
@@ -2805,7 +2809,7 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
   first_chunk_ = chunk;
 
   // Initialize page header.
-  Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
+  Page* page = chunk->GetPage();
   Address object_address = page->ObjectAreaStart();
 
   // Clear the low order bit of the second word in the page to flag it as a
@@ -2943,9 +2947,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       previous = current;
       current = current->next();
     } else {
-      Page* page = Page::FromAddress(RoundUp(current->address(),
-                                     Page::kPageSize));
-      Executability executable = page->PageExecutability();
+      Executability executable = current->GetPage()->PageExecutability();
       Address chunk_address = current->address();
       size_t chunk_size = current->size();
 

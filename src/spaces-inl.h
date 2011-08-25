@@ -434,23 +434,6 @@ MaybeObject* PagedSpace::MCAllocateRaw(int size_in_bytes) {
 
 
 // -----------------------------------------------------------------------------
-// LargeObjectChunk
-
-Address LargeObjectChunk::GetStartAddress() {
-  // Round the chunk address up to the nearest page-aligned address
-  // and return the heap object in that page.
-  Page* page = Page::FromAddress(RoundUp(address(), Page::kPageSize));
-  return page->ObjectAreaStart();
-}
-
-
-void LargeObjectChunk::Free(Executability executable) {
-  Isolate* isolate =
-      Page::FromAddress(RoundUp(address(), Page::kPageSize))->heap_->isolate();
-  isolate->memory_allocator()->FreeRawMemory(address(), size(), executable);
-}
-
-// -----------------------------------------------------------------------------
 // NewSpace
 
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
