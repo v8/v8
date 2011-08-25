@@ -638,38 +638,6 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 }
 
 
-// ES5 section 8.12.2.
-function GetProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var descriptor = CallTrap1(obj, "getPropertyDescriptor", void 0, p);
-    if (IS_UNDEFINED(descriptor)) return descriptor;
-    var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.isConfigurable()) {
-      throw MakeTypeError("proxy_prop_not_configurable",
-                          [handler, "getPropertyDescriptor", p, descriptor]);
-    }
-    return desc;
-  }
-  var prop = GetOwnProperty(obj);
-  if (!IS_UNDEFINED(prop)) return prop;
-  var proto = %GetPrototype(obj);
-  if (IS_NULL(proto)) return void 0;
-  return GetProperty(proto, p);
-}
-
-
-// ES5 section 8.12.6
-function HasProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    return ToBoolean(CallTrap1(handler, "has", DerivedHasTrap, p));
-  }
-  var desc = GetProperty(obj, p);
-  return IS_UNDEFINED(desc) ? false : true;
-}
-
-
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, v) {
   var p = ToString(v);

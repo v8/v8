@@ -14937,3 +14937,112 @@ THREADED_TEST(Regress1516) {
     }
   }
 }
+
+
+static bool BlockProtoNamedSecurityTestCallback(Local<v8::Object> global,
+                                                Local<Value> name,
+                                                v8::AccessType type,
+                                                Local<Value> data) {
+  // Only block read access to __proto__.
+  if (type == v8::ACCESS_GET &&
+      name->IsString() &&
+      name->ToString()->Length() == 9 &&
+      name->ToString()->Utf8Length() == 9) {
+    char buffer[10];
+    CHECK_EQ(10, name->ToString()->WriteUtf8(buffer));
+    return strncmp(buffer, "__proto__", 9) != 0;
+  }
+
+  return true;
+}
+
+
+THREADED_TEST(Regress93759) {
+  HandleScope scope;
+
+  // Template for object with security check.
+  Local<ObjectTemplate> no_proto_template = v8::ObjectTemplate::New();
+  // We don't do indexing, so any callback can be used for that.
+  no_proto_template->SetAccessCheckCallbacks(
+      BlockProtoNamedSecurityTestCallback,
+      IndexedSecurityTestCallback);
+
+  // Templates for objects with hidden prototypes and possibly security check.
+  Local<FunctionTemplate> hidden_proto_template = v8::FunctionTemplate::New();
+  hidden_proto_template->SetHiddenPrototype(true);
+
+  Local<FunctionTemplate> protected_hidden_proto_template =
+      v8::FunctionTemplate::New();
+  protected_hidden_proto_template->InstanceTemplate()->SetAccessCheckCallbacks(
+      BlockProtoNamedSecurityTestCallback,
+      IndexedSecurityTestCallback);
+  protected_hidden_proto_template->SetHiddenPrototype(true);
+
+  // Context for "foreign" objects used in test.
+  Persistent<Context> context = v8::Context::New();
+  context->Enter();
+
+  // Plain object, no security check.
+  Local<Object> simple_object = Object::New();
+
+  // Object with explicit security check.
+  Local<Object> protected_object =
+      no_proto_template->NewInstance();
+
+  // JSGlobalProxy object, always have security check.
+  Local<Object> proxy_object =
+      context->Global();
+
+  // Global object, the  prototype of proxy_object. No security checks.
+  Local<Object> global_object =
+      proxy_object->GetPrototype()->ToObject();
+
+  // Hidden prototype without security check.
+  Local<Object> hidden_prototype =
+      hidden_proto_template->GetFunction()->NewInstance();
+  Local<Object> object_with_hidden =
+    Object::New();
+  object_with_hidden->SetPrototype(hidden_prototype);
+
+  // Hidden prototype with security check on the hidden prototype.
+  Local<Object> protected_hidden_prototype =
+      protected_hidden_proto_template->GetFunction()->NewInstance();
+  Local<Object> object_with_protected_hidden =
+    Object::New();
+  object_with_protected_hidden->SetPrototype(protected_hidden_prototype);
+
+  context->Exit();
+
+  // Template for object for second context. Values to test are put on it as
+  // properties.
+  Local<ObjectTemplate> global_template = ObjectTemplate::New();
+  global_template->Set(v8_str("simple"), simple_object);
+  global_template->Set(v8_str("protected"), protected_object);
+  global_template->Set(v8_str("global"), global_object);
+  global_template->Set(v8_str("proxy"), proxy_object);
+  global_template->Set(v8_str("hidden"), object_with_hidden);
+  global_template->Set(v8_str("phidden"), object_with_protected_hidden);
+
+  LocalContext context2(NULL, global_template);
+
+  Local<Value> result1 = CompileRun("Object.getPrototypeOf(simple)");
+  CHECK(result1->Equals(simple_object->GetPrototype()));
+
+  Local<Value> result2 = CompileRun("Object.getPrototypeOf(protected)");
+  CHECK(result2->Equals(Undefined()));
+
+  Local<Value> result3 = CompileRun("Object.getPrototypeOf(global)");
+  CHECK(result3->Equals(global_object->GetPrototype()));
+
+  Local<Value> result4 = CompileRun("Object.getPrototypeOf(proxy)");
+  CHECK(result4->Equals(Undefined()));
+
+  Local<Value> result5 = CompileRun("Object.getPrototypeOf(hidden)");
+  CHECK(result5->Equals(
+      object_with_hidden->GetPrototype()->ToObject()->GetPrototype()));
+
+  Local<Value> result6 = CompileRun("Object.getPrototypeOf(phidden)");
+  CHECK(result6->Equals(Undefined()));
+
+  context.Dispose();
+}

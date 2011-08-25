@@ -683,8 +683,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_CHECKED(JSReceiver, input_obj, args[0]);
+  Object* obj = input_obj;
+  // We don't expect access checks to be needed on JSProxy objects.
+  ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
+    if (obj->IsAccessCheckNeeded() &&
+        !isolate->MayNamedAccess(JSObject::cast(obj),
+                                 isolate->heap()->Proto_symbol(),
+                                 v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+      return isolate->heap()->undefined_value();
+    }
     obj = obj->GetPrototype();
   } while (obj->IsJSObject() &&
            JSObject::cast(obj)->map()->is_hidden_prototype());
