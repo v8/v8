@@ -1185,7 +1185,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   MaybeObject* result = Execution::HandleStackGuardInterrupt();
 
   if (*code_handle != re_code) {  // Return address no longer valid
-    int delta = *code_handle - re_code;
+    intptr_t delta = *code_handle - re_code;
     // Overwrite the return address on the stack.
     *return_address += delta;
   }
