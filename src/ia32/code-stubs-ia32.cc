@@ -2454,7 +2454,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ JumpIfNotSmi(edx, &arg1_is_object, Label::kNear);
 
   __ SmiUntag(edx);
-  __ jmp(&load_arg2, Label::kNear);
+  __ jmp(&load_arg2);
 
   // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
   __ bind(&check_undefined_arg1);
@@ -2462,7 +2462,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ cmp(edx, factory->undefined_value());
   __ j(not_equal, conversion_failure);
   __ mov(edx, Immediate(0));
-  __ jmp(&load_arg2, Label::kNear);
+  __ jmp(&load_arg2);
 
   __ bind(&arg1_is_object);
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
@@ -2481,14 +2481,14 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
 
   __ SmiUntag(eax);
   __ mov(ecx, eax);
-  __ jmp(&done, Label::kNear);
+  __ jmp(&done);
 
   // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
   __ bind(&check_undefined_arg2);
   __ cmp(eax, factory->undefined_value());
   __ j(not_equal, conversion_failure);
   __ mov(ecx, Immediate(0));
-  __ jmp(&done, Label::kNear);
+  __ jmp(&done);
 
   __ bind(&arg2_is_object);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
