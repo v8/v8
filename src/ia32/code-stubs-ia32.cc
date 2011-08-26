@@ -3371,6 +3371,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmp(edx, Operand(eax));
   __ j(greater, &runtime);
 
+  // Reset offset for possibly sliced string.
+  __ Set(edi, Immediate(0));
   // ecx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
   Label seq_ascii_string, seq_two_byte_string, check_code;
@@ -3381,36 +3383,45 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ and_(ebx,
           kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be a flat ascii string.
-  __ test(Operand(ebx),
+  __ and_(Operand(ebx),
           Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_ascii_string);
+  __ j(zero, &seq_ascii_string, Label::kNear);
 
-  // Check for flat cons string.
+  // Check for flat cons string or sliced string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  STATIC_ASSERT(kExternalStringTag != 0);
-  STATIC_ASSERT((kConsStringTag & kExternalStringTag) == 0);
-  __ test(Operand(ebx),
-          Immediate(kIsNotStringMask | kExternalStringTag));
-  __ j(not_zero, &runtime);
-  // String is a cons string.
-  __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
-  __ cmp(Operand(edx), factory->empty_string());
+  // In the case of a sliced string its offset has to be taken into account.
+  Label cons_string, check_encoding;
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(Operand(ebx), Immediate(kExternalStringTag));
+  __ j(less, &cons_string);
+  __ j(equal, &runtime);
+
+  // String is sliced.
+  __ mov(edi, FieldOperand(eax, SlicedString::kOffsetOffset));
+  __ mov(eax, FieldOperand(eax, SlicedString::kParentOffset));
+  // edi: offset of sliced string, smi-tagged.
+  // eax: parent string.
+  __ jmp(&check_encoding, Label::kNear);
+  // String is a cons string, check whether it is flat.
+  __ bind(&cons_string);
+  __ cmp(FieldOperand(eax, ConsString::kSecondOffset), factory->empty_string());
   __ j(not_equal, &runtime);
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
+  __ bind(&check_encoding);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
-  // Is first part a flat two byte string?
+  // eax: first part of cons string or parent of sliced string.
+  // ebx: map of first part of cons string or map of parent of sliced string.
+  // Is first part of cons or parent of slice a flat two byte string?
   __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
             kStringRepresentationMask | kStringEncodingMask);
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be ascii.
   __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
             kStringRepresentationMask);
@@ -3420,14 +3431,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // eax: subject string (flat ascii)
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
-  __ Set(edi, Immediate(1));  // Type is ascii.
-  __ jmp(&check_code);
+  __ Set(ecx, Immediate(1));  // Type is ascii.
+  __ jmp(&check_code, Label::kNear);
 
   __ bind(&seq_two_byte_string);
   // eax: subject string (flat two byte)
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataUC16CodeOffset));
-  __ Set(edi, Immediate(0));  // Type is two byte.
+  __ Set(ecx, Immediate(0));  // Type is two byte.
 
   __ bind(&check_code);
   // Check that the irregexp code has been generated for the actual string
@@ -3437,7 +3448,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // eax: subject string
   // edx: code
-  // edi: encoding of subject string (1 if ascii, 0 if two_byte);
+  // ecx: encoding of subject string (1 if ascii, 0 if two_byte);
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
   __ mov(ebx, Operand(esp, kPreviousIndexOffset));
@@ -3446,7 +3457,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // eax: subject string
   // ebx: previous index
   // edx: code
-  // edi: encoding of subject string (1 if ascii 0 if two_byte);
+  // ecx: encoding of subject string (1 if ascii 0 if two_byte);
   // All checks done. Now push arguments for native regexp code.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->regexp_entry_native(), 1);
@@ -3463,23 +3474,47 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
 
   // Argument 6: Start (high end) of backtracking stack memory area.
-  __ mov(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_address));
-  __ add(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ mov(Operand(esp, 5 * kPointerSize), ecx);
+  __ mov(esi, Operand::StaticVariable(address_of_regexp_stack_memory_address));
+  __ add(esi, Operand::StaticVariable(address_of_regexp_stack_memory_size));
+  __ mov(Operand(esp, 5 * kPointerSize), esi);
 
   // Argument 5: static offsets vector buffer.
   __ mov(Operand(esp, 4 * kPointerSize),
          Immediate(ExternalReference::address_of_static_offsets_vector(
              masm->isolate())));
 
+  // Argument 2: Previous index.
+  __ mov(Operand(esp, 1 * kPointerSize), ebx);
+
+  // Argument 1: Original subject string.
+  // The original subject is in the previous stack frame. Therefore we have to
+  // use ebp, which points exactly to one pointer size below the previous esp.
+  // (Because creating a new stack frame pushes the previous ebp onto the stack
+  // and thereby moves up esp by one kPointerSize.)
+  __ mov(esi, Operand(ebp, kSubjectOffset + kPointerSize));
+  __ mov(Operand(esp, 0 * kPointerSize), esi);
+
+  // esi: original subject string
+  // eax: underlying subject string
+  // ebx: previous index
+  // ecx: encoding of subject string (1 if ascii 0 if two_byte);
+  // edx: code
   // Argument 4: End of string data
   // Argument 3: Start of string data
-  Label setup_two_byte, setup_rest;
-  __ test(edi, Operand(edi));
-  __ mov(edi, FieldOperand(eax, String::kLengthOffset));
-  __ j(zero, &setup_two_byte, Label::kNear);
+  // Prepare start and end index of the input.
+  // Load the length from the original sliced string if that is the case.
+  __ mov(esi, FieldOperand(esi, String::kLengthOffset));
+  __ add(esi, Operand(edi));  // Calculate input end wrt offset.
   __ SmiUntag(edi);
-  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqAsciiString::kHeaderSize));
+  __ add(ebx, Operand(edi));  // Calculate input start wrt offset.
+
+  // ebx: start index of the input string
+  // esi: end index of the input string
+  Label setup_two_byte, setup_rest;
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &setup_two_byte, Label::kNear);
+  __ SmiUntag(esi);
+  __ lea(ecx, FieldOperand(eax, esi, times_1, SeqAsciiString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
@@ -3487,19 +3522,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ bind(&setup_two_byte);
   STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);  // edi is smi (powered by 2).
-  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqTwoByteString::kHeaderSize));
+  STATIC_ASSERT(kSmiTagSize == 1);  // esi is smi (powered by 2).
+  __ lea(ecx, FieldOperand(eax, esi, times_1, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
 
   __ bind(&setup_rest);
-
-  // Argument 2: Previous index.
-  __ mov(Operand(esp, 1 * kPointerSize), ebx);
-
-  // Argument 1: Subject string.
-  __ mov(Operand(esp, 0 * kPointerSize), eax);
 
   // Locate the code entry and call it.
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -3539,7 +3568,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // by javascript code.
   __ cmp(eax, factory->termination_exception());
   Label throw_termination_exception;
-  __ j(equal, &throw_termination_exception);
+  __ j(equal, &throw_termination_exception, Label::kNear);
 
   // Handle normal exception by following handler chain.
   __ Throw(eax);
@@ -4811,6 +4840,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label flat_string;
   Label ascii_string;
   Label got_char_code;
+  Label sliced_string;
 
   // If the receiver is a smi trigger the non-string case.
   STATIC_ASSERT(kSmiTag == 0);
@@ -4841,31 +4871,45 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ j(zero, &flat_string);
 
   // Handle non-flat strings.
-  __ test(result_, Immediate(kIsConsStringMask));
-  __ j(zero, &call_runtime_);
+  __ and_(result_, kStringRepresentationMask);
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(result_, kExternalStringTag);
+  __ j(greater, &sliced_string, Label::kNear);
+  __ j(equal, &call_runtime_);
 
   // ConsString.
   // Check whether the right hand side is the empty string (i.e. if
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
   // the string.
+  Label assure_seq_string;
   __ cmp(FieldOperand(object_, ConsString::kSecondOffset),
          Immediate(masm->isolate()->factory()->empty_string()));
   __ j(not_equal, &call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ mov(object_, FieldOperand(object_, ConsString::kFirstOffset));
+  __ jmp(&assure_seq_string, Label::kNear);
+
+  // SlicedString, unpack and add offset.
+  __ bind(&sliced_string);
+  __ add(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
+  __ mov(object_, FieldOperand(object_, SlicedString::kParentOffset));
+
+  // Assure that we are dealing with a sequential string. Go to runtime if not.
+  __ bind(&assure_seq_string);
   __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
+  __ jmp(&flat_string, Label::kNear);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ test(result_, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string);
+  __ j(not_zero, &ascii_string, Label::kNear);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register.
@@ -4873,7 +4917,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ movzx_w(result_, FieldOperand(object_,
                                    scratch_, times_1,  // Scratch is smi-tagged.
                                    SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code);
+  __ jmp(&got_char_code, Label::kNear);
 
   // ASCII string.
   // Load the byte into the result register.
@@ -5185,6 +5229,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ and_(ecx, kStringRepresentationMask);
   __ cmp(ecx, kExternalStringTag);
   __ j(equal, &string_add_runtime);
+  // We cannot encounter sliced strings here since:
+  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
   // Now check if both strings are ascii strings.
   // eax: first string
   // ebx: length of resulting flat string as a smi
@@ -5596,6 +5642,9 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
+  if (FLAG_string_slices) {
+    __ jmp(&runtime);
+  }
   // Stack frame on entry.
   //  esp[0]: return address
   //  esp[4]: to

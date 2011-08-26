@@ -3674,7 +3674,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   HandleScope handles(isolate);
 
   CONVERT_ARG_CHECKED(String, subject, 1);
-  if (!subject->IsFlat()) { FlattenString(subject); }
+  if (!subject->IsFlat()) FlattenString(subject);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_CHECKED(JSArray, result_array, 3);
