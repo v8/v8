@@ -1866,10 +1866,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetGlobalReceiver) {
-  // Returns a real global receiver, not one of builtins object.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
+  NoHandleAllocation handle_free;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, function, args[0]);
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->native() || shared->strict_mode()) {
+    return isolate->heap()->undefined_value();
+  }
+  // Returns undefined for strict or native functions, or
+  // the associated global receiver for "normal" functions.
+
   Context* global_context =
-      isolate->context()->global()->global_context();
+      function->context()->global()->global_context();
   return global_context->global()->global_receiver();
 }
 
