@@ -3693,10 +3693,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // args
 
   // Save callee saved registers on the stack.
-  __ MultiPush((kCalleeSaved | ra.bit()) & ~sp.bit());
+  __ MultiPush(kCalleeSaved | ra.bit());
 
   // Load argv in s0 register.
-  __ lw(s0, MemOperand(sp, kNumCalleeSaved * kPointerSize +
+  __ lw(s0, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize +
                            StandardFrameConstants::kCArgsSlotsSize));
 
   // We build an EntryFrame.
@@ -3830,7 +3830,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ addiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
 
   // Restore callee saved registers from the stack.
-  __ MultiPop((kCalleeSaved | ra.bit()) & ~sp.bit());
+  __ MultiPop(kCalleeSaved | ra.bit());
   // Return.
   __ Jump(ra);
 }
