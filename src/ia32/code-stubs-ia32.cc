@@ -493,10 +493,10 @@ static void IntegerConvert(MacroAssembler* masm,
     __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
     // If we have a match of the int32-but-not-Smi exponent then skip some
     // logic.
-    __ j(equal, &right_exponent);
+    __ j(equal, &right_exponent, Label::kNear);
     // If the exponent is higher than that then go to slow case.  This catches
     // numbers that don't fit in a signed int32, infinities and NaNs.
-    __ j(less, &normal_exponent);
+    __ j(less, &normal_exponent, Label::kNear);
 
     {
       // Handle a big exponent.  The only reason we have this code is that the
@@ -525,9 +525,9 @@ static void IntegerConvert(MacroAssembler* masm,
       __ or_(ecx, Operand(scratch2));
       // We have the answer in ecx, but we may need to negate it.
       __ test(scratch, Operand(scratch));
-      __ j(positive, &done);
+      __ j(positive, &done, Label::kNear);
       __ neg(ecx);
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
     }
 
     __ bind(&normal_exponent);
@@ -540,7 +540,7 @@ static void IntegerConvert(MacroAssembler* masm,
         (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
     __ sub(Operand(scratch2), Immediate(zero_exponent));
     // ecx already has a Smi zero.
-    __ j(less, &done);
+    __ j(less, &done, Label::kNear);
 
     // We have a shifted exponent between 0 and 30 in scratch2.
     __ shr(scratch2, HeapNumber::kExponentShift);
@@ -765,7 +765,7 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 
     Label slow_allocate_heapnumber, heapnumber_allocated;
     __ AllocateHeapNumber(eax, ebx, ecx, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
+    __ jmp(&heapnumber_allocated, Label::kNear);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
@@ -1442,14 +1442,14 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   Register right = eax;
 
   // Test if left operand is a string.
-  __ JumpIfSmi(left, &call_runtime);
+  __ JumpIfSmi(left, &call_runtime, Label::kNear);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
+  __ j(above_equal, &call_runtime, Label::kNear);
 
   // Test if right operand is a string.
-  __ JumpIfSmi(right, &call_runtime);
+  __ JumpIfSmi(right, &call_runtime, Label::kNear);
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
+  __ j(above_equal, &call_runtime, Label::kNear);
 
   StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
   GenerateRegisterArgsPush(masm);
@@ -1563,7 +1563,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -1777,7 +1777,7 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -1976,7 +1976,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -2451,10 +2451,10 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   Label load_arg2, done;
 
   // Test if arg1 is a Smi.
-  __ JumpIfNotSmi(edx, &arg1_is_object);
+  __ JumpIfNotSmi(edx, &arg1_is_object, Label::kNear);
 
   __ SmiUntag(edx);
-  __ jmp(&load_arg2);
+  __ jmp(&load_arg2, Label::kNear);
 
   // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
   __ bind(&check_undefined_arg1);
@@ -2462,7 +2462,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ cmp(edx, factory->undefined_value());
   __ j(not_equal, conversion_failure);
   __ mov(edx, Immediate(0));
-  __ jmp(&load_arg2);
+  __ jmp(&load_arg2, Label::kNear);
 
   __ bind(&arg1_is_object);
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
@@ -2477,18 +2477,18 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ bind(&load_arg2);
 
   // Test if arg2 is a Smi.
-  __ JumpIfNotSmi(eax, &arg2_is_object);
+  __ JumpIfNotSmi(eax, &arg2_is_object, Label::kNear);
 
   __ SmiUntag(eax);
   __ mov(ecx, eax);
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
   __ bind(&check_undefined_arg2);
   __ cmp(eax, factory->undefined_value());
   __ j(not_equal, conversion_failure);
   __ mov(ecx, Immediate(0));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&arg2_is_object);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
@@ -2867,7 +2867,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ JumpIfNotSmi(edx, &slow);
+  __ JumpIfNotSmi(edx, &slow, Label::kNear);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -2880,7 +2880,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register eax. Use unsigned comparison to get negative
   // check for free.
   __ cmp(edx, Operand(eax));
-  __ j(above_equal, &slow);
+  __ j(above_equal, &slow, Label::kNear);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -2896,7 +2896,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ bind(&adaptor);
   __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ cmp(edx, Operand(ecx));
-  __ j(above_equal, &slow);
+  __ j(above_equal, &slow, Label::kNear);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -3175,11 +3175,11 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor_frame);
+  __ j(equal, &adaptor_frame, Label::kNear);
 
   // Get the length from the frame.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
-  __ jmp(&try_allocate);
+  __ jmp(&try_allocate, Label::kNear);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
@@ -3225,7 +3225,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // If there are no actual arguments, we're done.
   Label done;
   __ test(ecx, Operand(ecx));
-  __ j(zero, &done);
+  __ j(zero, &done, Label::kNear);
 
   // Get the parameters pointer from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
@@ -3822,16 +3822,16 @@ static int NegativeComparisonResult(Condition cc) {
 void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
-  Label check_unequal_objects, done;
+  Label check_unequal_objects;
 
   // Compare two smis if required.
   if (include_smi_compare_) {
     Label non_smi, smi_done;
     __ mov(ecx, Operand(edx));
     __ or_(ecx, Operand(eax));
-    __ JumpIfNotSmi(ecx, &non_smi);
+    __ JumpIfNotSmi(ecx, &non_smi, Label::kNear);
     __ sub(edx, Operand(eax));  // Return on the result of the subtraction.
-    __ j(no_overflow, &smi_done);
+    __ j(no_overflow, &smi_done, Label::kNear);
     __ not_(edx);  // Correct sign in case of overflow. edx is never 0 here.
     __ bind(&smi_done);
     __ mov(eax, edx);
@@ -3953,7 +3953,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
            Immediate(masm->isolate()->factory()->heap_number_map()));
     // If heap number, handle it in the slow case.
-    __ j(equal, &slow);
+    __ j(equal, &slow, Label::kNear);
     // Return non-equal (ebx is not zero)
     __ mov(eax, ebx);
     __ ret(0);
@@ -4004,7 +4004,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ ucomisd(xmm0, xmm1);
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered);
+      __ j(parity_even, &unordered, Label::kNear);
       // Return a result of -1, 0, or 1, based on EFLAGS.
       __ mov(eax, 0);  // equal
       __ mov(ecx, Immediate(Smi::FromInt(1)));
@@ -4020,12 +4020,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ FCmp();
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered);
+      __ j(parity_even, &unordered, Label::kNear);
 
       Label below_label, above_label;
       // Return a result of -1, 0, or 1, based on EFLAGS.
-      __ j(below, &below_label);
-      __ j(above, &above_label);
+      __ j(below, &below_label, Label::kNear);
+      __ j(above, &above_label, Label::kNear);
 
       __ Set(eax, Immediate(0));
       __ ret(0);
@@ -4340,7 +4340,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // If the returned exception is RETRY_AFTER_GC continue at retry label
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ test(eax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry);
+  __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
   __ cmp(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
@@ -4460,11 +4460,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
                                 masm->isolate());
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
-  __ j(not_equal, &not_outermost_js);
+  __ j(not_equal, &not_outermost_js, Label::kNear);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
   __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   Label cont;
-  __ jmp(&cont);
+  __ jmp(&cont, Label::kNear);
   __ bind(&not_outermost_js);
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
   __ bind(&cont);
@@ -4705,26 +4705,26 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&not_js_object);
   // Before null, smi and string value checks, check that the rhs is a function
   // as for a non-function rhs an exception needs to be thrown.
-  __ JumpIfSmi(function, &slow);
+  __ JumpIfSmi(function, &slow, Label::kNear);
   __ CmpObjectType(function, JS_FUNCTION_TYPE, scratch);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &slow, Label::kNear);
 
   // Null is not instance of anything.
   __ cmp(object, factory->null_value());
-  __ j(not_equal, &object_not_null);
+  __ j(not_equal, &object_not_null, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
-  __ JumpIfNotSmi(object, &object_not_null_or_smi);
+  __ JumpIfNotSmi(object, &object_not_null_or_smi, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null_or_smi);
   // String values is not instance of anything.
   Condition is_string = masm->IsObjectStringType(object, scratch, scratch);
-  __ j(NegateCondition(is_string), &slow);
+  __ j(NegateCondition(is_string), &slow, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
