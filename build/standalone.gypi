@@ -89,6 +89,9 @@
           [ 'visibility=="hidden"', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
+          [ 'component=="shared_library"', {
+            'cflags': [ '-fPIC', ],
+          }],
         ],
       },
     }],  # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"'

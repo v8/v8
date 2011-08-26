@@ -58,6 +58,13 @@
 
     'v8_enable_debugger_support%': 1,
 
+    'v8_enable_disassembler%': 0,
+
+    'v8_enable_gdbjit%': 0,
+
+    # Enable profiling support. Only required on Windows.
+    'v8_enable_prof%': 0,
+
     # Chrome needs this definition unconditionally. For standalone V8 builds,
     # it's handled in build/standalone.gypi.
     'want_separate_host_toolset%': 1,
@@ -69,9 +76,14 @@
   'target_defaults': {
     'conditions': [
       ['v8_enable_debugger_support==1', {
-          'defines': ['ENABLE_DEBUGGER_SUPPORT',],
-        },
-      ],
+        'defines': ['ENABLE_DEBUGGER_SUPPORT',],
+      }],
+      ['v8_enable_disassembler==1', {
+        'defines': ['ENABLE_DISASSEMBLER',],
+      }],
+      ['v8_enable_gdbjit==1', {
+        'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
       ['OS!="mac"', {
         # TODO(mark): The OS!="mac" conditional is temporary. It can be
         # removed once the Mac Chromium build stops setting target_arch to
@@ -153,6 +165,13 @@
         'defines': [
           'COMPRESS_STARTUP_DATA_BZ2',
         ],
+      }],
+      ['OS=="win" and v8_enable_prof==1', {
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'GenerateMapFile': 'true',
+          },
+        },
       }],
     ],
     'configurations': {
