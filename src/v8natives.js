@@ -584,45 +584,6 @@ function ConvertDescriptorArrayToDescriptor(desc_array) {
 }
 
 
-// ES5 section 8.12.2.
-function GetProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var getProperty = handler.getPropertyDescriptor;
-    if (IS_UNDEFINED(getProperty)) {
-      throw MakeTypeError("handler_trap_missing",
-                          [handler, "getPropertyDescriptor"]);
-    }
-    var descriptor = %_CallFunction(handler, p, getProperty);
-    if (IS_UNDEFINED(descriptor)) return descriptor;
-    var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.isConfigurable()) {
-      throw MakeTypeError("proxy_prop_not_configurable",
-                          [handler, "getPropertyDescriptor", p, descriptor]);
-    }
-    return desc;
-  }
-  var prop = GetOwnProperty(obj);
-  if (!IS_UNDEFINED(prop)) return prop;
-  var proto = %GetPrototype(obj);
-  if (IS_NULL(proto)) return void 0;
-  return GetProperty(proto, p);
-}
-
-
-// ES5 section 8.12.6
-function HasProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var has = handler.has;
-    if (IS_UNDEFINED(has)) has = DerivedHasTrap;
-    return ToBoolean(%_CallFunction(handler, obj, p, has));
-  }
-  var desc = GetProperty(obj, p);
-  return IS_UNDEFINED(desc) ? false : true;
-}
-
-
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, p) {
   if (%IsJSProxy(obj)) {
