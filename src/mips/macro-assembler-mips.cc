@@ -765,9 +765,7 @@ void MacroAssembler::Ext(Register rt,
     // Move rs to rt and shift it left then right to get the
     // desired bitfield on the right side and zeroes on the left.
     int shift_left = 32 - (pos + size);
-    if (shift_left > 0) {
-      sll(rt, rs, shift_left);
-    }
+    sll(rt, rs, shift_left);  // Acts as a move if shift_left == 0.
 
     int shift_right = 32 - size;
     if (shift_right > 0) {
