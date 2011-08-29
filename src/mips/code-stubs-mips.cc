@@ -4541,8 +4541,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // a sequential string or an external string.
   // In the case of a sliced string its offset has to be taken into account.
   Label cons_string, check_encoding;
-  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
-  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
+  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   __ Branch(&cons_string, lt, at, Operand(kExternalStringTag));
   __ Branch(&runtime, eq, at, Operand(kExternalStringTag));
 
@@ -5025,8 +5025,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Handle non-flat strings.
   __ And(result_, result_, Operand(kStringRepresentationMask));
-  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
-  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
+  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   __ Branch(&sliced_string, gt, result_, Operand(kExternalStringTag));
   __ Branch(&call_runtime_, eq, result_, Operand(kExternalStringTag));
 
