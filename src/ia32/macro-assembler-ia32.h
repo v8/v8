@@ -275,8 +275,8 @@ class MacroAssembler: public Assembler {
 
   // Smi tagging support.
   void SmiTag(Register reg) {
-    ASSERT(kSmiTag == 0);
-    ASSERT(kSmiTagSize == 1);
+    STATIC_ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTagSize == 1);
     add(reg, Operand(reg));
   }
   void SmiUntag(Register reg) {
@@ -285,9 +285,9 @@ class MacroAssembler: public Assembler {
 
   // Modifies the register even if it does not contain a Smi!
   void SmiUntag(Register reg, Label* is_smi) {
-    ASSERT(kSmiTagSize == 1);
+    STATIC_ASSERT(kSmiTagSize == 1);
     sar(reg, kSmiTagSize);
-    ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTag == 0);
     j(not_carry, is_smi);
   }
 

@@ -3199,7 +3199,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
   Label done, not_found;
   // tmp now holds finger offset as a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ mov(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
   __ cmp(key, CodeGenerator::FixedArrayElementOperand(cache, tmp));
   __ j(not_equal, &not_found);
@@ -4242,8 +4242,8 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(edx));
   __ pop(edx);
   __ sub(Operand(edx), Immediate(masm_->CodeObject()));
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
   __ SmiTag(edx);
   __ push(edx);
   // Store result register while executing finally block.
