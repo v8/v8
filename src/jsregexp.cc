@@ -226,7 +226,6 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
 
   String* needle = String::cast(re->DataAt(JSRegExp::kAtomPatternIndex));
-  ASSERT(StringShape(needle).IsSequential());
   int needle_len = needle->length();
   ASSERT(needle->IsFlat());
 
