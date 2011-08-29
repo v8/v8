@@ -5804,13 +5804,17 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   // We support only declarations that do not require code generation.
   Variable* var = decl->proxy()->var();
-  if (!var->IsStackAllocated() || decl->fun() != NULL) {
+  if (!var->IsStackAllocated()) {
     return Bailout("unsupported declaration");
   }
 
   if (decl->mode() == Variable::CONST) {
     ASSERT(var->IsStackAllocated());
     environment()->Bind(var, graph()->GetConstantHole());
+  } else if (decl->fun() != NULL) {
+    VisitForValue(decl->fun());
+    HValue* function = Pop();
+    environment()->Bind(var, function);
   }
 }
 
