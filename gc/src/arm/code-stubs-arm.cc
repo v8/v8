@@ -549,7 +549,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     // | s |   exp   |              mantissa               |
 
     // Check for zero.
-    __ cmp(int_scratch, Operand(0));
+    __ cmp(int_scratch, Operand::Zero());
     __ mov(dst2, int_scratch);
     __ mov(dst1, int_scratch);
     __ b(eq, &done);
@@ -557,7 +557,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     // Preload the sign of the value.
     __ and_(dst2, int_scratch, Operand(HeapNumber::kSignMask), SetCC);
     // Get the absolute value of the object (as an unsigned integer).
-    __ rsb(int_scratch, int_scratch, Operand(0), SetCC, mi);
+    __ rsb(int_scratch, int_scratch, Operand::Zero(), SetCC, mi);
 
     // Get mantisssa[51:20].
 
@@ -589,7 +589,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     __ mov(scratch2, Operand(int_scratch, LSL, scratch2));
     __ orr(dst2, dst2, scratch2);
     // Set dst1 to 0.
-    __ mov(dst1, Operand(0));
+    __ mov(dst1, Operand::Zero());
   }
   __ bind(&done);
 }
@@ -657,7 +657,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     // Check for 0 and -0.
     __ bic(scratch1, dst1, Operand(HeapNumber::kSignMask));
     __ orr(scratch1, scratch1, Operand(dst2));
-    __ cmp(scratch1, Operand(0));
+    __ cmp(scratch1, Operand::Zero());
     __ b(eq, &done);
 
     // Check that the value can be exactly represented by a 32-bit integer.
@@ -730,7 +730,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     // Check for 0 and -0.
     __ bic(dst, scratch1, Operand(HeapNumber::kSignMask));
     __ orr(dst, scratch2, Operand(dst));
-    __ cmp(dst, Operand(0));
+    __ cmp(dst, Operand::Zero());
     __ b(eq, &done);
 
     DoubleIs32BitInteger(masm, scratch1, scratch2, dst, scratch3, not_int32);
@@ -747,7 +747,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     // Set the sign.
     __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
     __ tst(scratch1, Operand(HeapNumber::kSignMask));
-    __ rsb(dst, dst, Operand(0), LeaveCC, mi);
+    __ rsb(dst, dst, Operand::Zero(), LeaveCC, mi);
   }
 
   __ bind(&done);
@@ -1613,14 +1613,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   const Register map = r9.is(tos_) ? r7 : r9;
 
   // undefined -> false.
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
 
   // Boolean -> its value.
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
 
   // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
 
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
@@ -1635,12 +1635,13 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   if (types_.NeedsMap()) {
     __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
 
-    // Everything with a map could be undetectable, so check this now.
-    __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
-    __ tst(ip, Operand(1 << Map::kIsUndetectable));
-    // Undetectable -> false.
-    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
-    __ Ret(ne);
+    if (types_.CanBeUndetectable()) {
+      __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
+      __ tst(ip, Operand(1 << Map::kIsUndetectable));
+      // Undetectable -> false.
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+      __ Ret(ne);
+    }
   }
 
   if (types_.Contains(SPEC_OBJECT)) {
@@ -1648,10 +1649,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
     // tos_ contains the correct non-zero return value already.
     __ Ret(ge);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a spec object for the first time -> patch.
-    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
-    __ b(ge, &patch);
   }
 
   if (types_.Contains(STRING)) {
@@ -1659,10 +1656,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
   __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset), lt);
   __ Ret(lt);  // the string length is OK as the return value
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a string for the first time -> patch
-    __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
-    __ b(lt, &patch);
   }
 
   if (types_.Contains(HEAP_NUMBER)) {
@@ -1679,30 +1672,17 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
     __ Ret();
     __ bind(&not_heap_number);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a heap number for the first time -> patch
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    __ b(eq, &patch);
   }
 
-  if (types_.Contains(INTERNAL_OBJECT)) {
-    // Internal objects -> true.
-    __ mov(tos_, Operand(1, RelocInfo::NONE));
-    __ Ret();
-  }
-
-  if (!types_.IsAll()) {
-    __ bind(&patch);
-    GenerateTypeTransition(masm);
-  }
+  __ bind(&patch);
+  GenerateTypeTransition(masm);
 }
 
 
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,
                                  Type type,
                                  Heap::RootListIndex value,
-                                 bool result,
-                                 Label* patch) {
+                                 bool result) {
   if (types_.Contains(type)) {
     // If we see an expected oddball, return its ToBoolean value tos_.
     __ LoadRoot(ip, value);
@@ -1713,12 +1693,6 @@ void ToBooleanStub::CheckOddball(MacroAssembler* masm,
       __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);
     }
     __ Ret(eq);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // If we see an unexpected oddball and handle internal objects, we must
-    // patch because the code for internal objects doesn't handle it explictly.
-    __ LoadRoot(ip, value);
-    __ cmp(tos_, ip);
-    __ b(eq, patch);
   }
 }
 
@@ -2483,7 +2457,6 @@ void BinaryOpStub::GenerateSmiCode(
   Register left = r1;
   Register right = r0;
   Register scratch1 = r7;
-  Register scratch2 = r9;
 
   // Perform combined smi check on both operands.
   __ orr(scratch1, left, Operand(right));
@@ -2677,7 +2650,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ b(mi, &return_heap_number);
           // Check for minus zero. Return heap number for minus zero.
           Label not_zero;
-          __ cmp(scratch1, Operand(0));
+          __ cmp(scratch1, Operand::Zero());
           __ b(ne, &not_zero);
           __ vmov(scratch2, d5.high());
           __ tst(scratch2, Operand(HeapNumber::kSignMask));
@@ -3169,7 +3142,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     Label no_update;
     Label skip_cache;
-    const Register heap_number_map = r5;
 
     // Call C function to calculate the result and update the cache.
     // Register r0 holds precalculated cache entry address; preserve
@@ -3640,7 +3612,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
-  __ cmp(r6, Operand(0));
+  __ cmp(r6, Operand::Zero());
   __ b(ne, &non_outermost_js);
   __ str(fp, MemOperand(r5));
   __ mov(ip, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
@@ -3715,7 +3687,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(r5);
   __ cmp(r5, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   __ b(ne, &non_outermost_js_2);
-  __ mov(r6, Operand(0));
+  __ mov(r6, Operand::Zero());
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ str(r6, MemOperand(r5));
   __ bind(&non_outermost_js_2);
@@ -3916,7 +3888,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Push(r0, r1);
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
     __ LeaveInternalFrame();
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand::Zero());
     __ LoadRoot(r0, Heap::kTrueValueRootIndex, eq);
     __ LoadRoot(r0, Heap::kFalseValueRootIndex, ne);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
@@ -4050,7 +4022,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
   __ cmp(r1, Operand(Smi::FromInt(0)));
-  __ mov(r9, Operand(0), LeaveCC, eq);
+  __ mov(r9, Operand::Zero(), LeaveCC, eq);
   __ mov(r9, Operand(r1, LSL, 1), LeaveCC, ne);
   __ add(r9, r9, Operand(kParameterMapHeaderSize), LeaveCC, ne);
 
@@ -4074,7 +4046,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   __ ldr(r4, MemOperand(r8, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
-  __ cmp(r1, Operand(0));
+  __ cmp(r1, Operand::Zero());
   __ ldr(r4, MemOperand(r4, kNormalOffset), eq);
   __ ldr(r4, MemOperand(r4, kAliasedOffset), ne);
 
@@ -5765,7 +5737,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ add(left, left, Operand(scratch1));
   __ add(right, right, Operand(scratch1));
-  __ rsb(length, length, Operand(0));
+  __ rsb(length, length, Operand::Zero());
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -6383,12 +6355,8 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
-  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
-                     RelocInfo::CODE_TARGET));
   __ mov(r2, Operand(function));
-  // Push return address (accessible to GC through exit frame pc).
-  __ str(pc, MemOperand(sp, 0));
-  __ Jump(r2);  // Call the api function.
+  GenerateCall(masm, r2);
 }
 
 
@@ -6397,8 +6365,14 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
   // Push return address (accessible to GC through exit frame pc).
-  __ str(pc, MemOperand(sp, 0));
+  // Note that using pc with str is deprecated.
+  Label start;
+  __ bind(&start);
+  __ add(ip, pc, Operand(Assembler::kInstrSize));
+  __ str(ip, MemOperand(sp, 0));
   __ Jump(target);  // Call the C++ function.
+  ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
+            masm->SizeOfCodeGeneratedSince(&start));
 }
 
 
@@ -6621,7 +6595,7 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // treated as a lookup success. For positive lookup probing failure
   // should be treated as lookup failure.
   if (mode_ == POSITIVE_LOOKUP) {
-    __ mov(result, Operand(0));
+    __ mov(result, Operand::Zero());
     __ Ret();
   }
 
@@ -6630,7 +6604,7 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&not_in_dictionary);
-  __ mov(result, Operand(0));
+  __ mov(result, Operand::Zero());
   __ Ret();
 }
 

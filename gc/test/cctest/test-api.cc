@@ -72,8 +72,6 @@ using ::v8::Undefined;
 using ::v8::V8;
 using ::v8::Value;
 
-namespace i = ::i;
-
 
 static void ExpectString(const char* code, const char* expected) {
   Local<Value> result = CompileRun(code);
@@ -398,7 +396,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
     CHECK_EQ(0, dispose_count);
   }
-  i::Isolate::Current()->compilation_cache()->Clear();
+  v8::internal::Isolate::Current()->compilation_cache()->Clear();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(1, dispose_count);
 }
@@ -447,7 +445,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -473,7 +471,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -3633,6 +3631,52 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 
+Handle<v8::Array> NonStrictArgsIndexedPropertyEnumerator(
+    const AccessorInfo& info) {
+  // Force the list of returned keys to be stored in a Arguments object.
+  Local<Script> indexed_property_names_script = Script::Compile(v8_str(
+      "function f(w,x) {"
+      " return arguments;"
+      "}"
+      "keys = f(0, 1, 2, 3);"
+      "keys;"));
+  Local<Value> result = indexed_property_names_script->Run();
+  return Local<v8::Array>(static_cast<v8::Array*>(::v8::Object::Cast(*result)));
+}
+
+
+static v8::Handle<Value> NonStrictIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 4) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+// Make sure that the the interceptor code in the runtime properly handles
+// merging property name lists for non-string arguments arrays.
+THREADED_TEST(IndexedInterceptorNonStrictArgsWithIndexedAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NonStrictIndexedPropertyGetter,
+                                   0,
+                                   0,
+                                   0,
+                                   NonStrictArgsIndexedPropertyEnumerator);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  Local<Script> create_args_script =
+      Script::Compile(v8_str(
+          "var key_count = 0;"
+          "for (x in obj) {key_count++;} key_count;"));
+  Local<Value> result = create_args_script->Run();
+  CHECK_EQ(v8_num(4), result);
+}
+
+
 static v8::Handle<Value> IdentityIndexedPropertyGetter(
     uint32_t index,
     const AccessorInfo& info) {
@@ -5266,6 +5310,40 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strncmp("d\1", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
   CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
+
+  memset(wbuf, 0x1, sizeof(wbuf));
+  wbuf[5] = 'X';
+  len = str->Write(wbuf, 0, 6, String::NO_NULL_TERMINATION);
+  CHECK_EQ(5, len);
+  CHECK_EQ('X', wbuf[5]);
+  uint16_t answer8a[] = {'a', 'b', 'c', 'd', 'e'};
+  uint16_t answer8b[] = {'a', 'b', 'c', 'd', 'e', '\0'};
+  CHECK_EQ(0, StrNCmp16(answer8a, wbuf, 5));
+  CHECK_NE(0, StrCmp16(answer8b, wbuf));
+  wbuf[5] = '\0';
+  CHECK_EQ(0, StrCmp16(answer8b, wbuf));
+
+  memset(buf, 0x1, sizeof(buf));
+  buf[5] = 'X';
+  len = str->WriteAscii(buf, 0, 6, String::NO_NULL_TERMINATION);
+  CHECK_EQ(5, len);
+  CHECK_EQ('X', buf[5]);
+  CHECK_EQ(0, strncmp("abcde", buf, 5));
+  CHECK_NE(0, strcmp("abcde", buf));
+  buf[5] = '\0';
+  CHECK_EQ(0, strcmp("abcde", buf));
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  utf8buf[8] = 'X';
+  len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen,
+                        String::NO_NULL_TERMINATION);
+  CHECK_EQ(8, len);
+  CHECK_EQ('X', utf8buf[8]);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203", 8));
+  CHECK_NE(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+  utf8buf[8] = '\0';
+  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
 }
 
 
@@ -13668,6 +13746,9 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
       "str2;";
   Local<Value> result = CompileRun(init_code);
 
+  Local<Value> indexof = CompileRun("str2.indexOf('els')");
+  Local<Value> lastindexof = CompileRun("str2.lastIndexOf('dab')");
+
   CHECK(result->IsString());
   i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
   int length = string->length();
@@ -13732,6 +13813,10 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   ExpectString("str2.substring(2, 20);", "elspendabelabelspe");
 
   ExpectString("str2.charAt(2);", "e");
+
+  ExpectObject("str2.indexOf('els');", indexof);
+
+  ExpectObject("str2.lastIndexOf('dab');", lastindexof);
 
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
@@ -14611,6 +14696,24 @@ THREADED_TEST(CreationContext) {
 }
 
 
+THREADED_TEST(CreationContextOfJsFunction) {
+  HandleScope handle_scope;
+  Persistent<Context> context = Context::New();
+  InstallContextId(context, 1);
+
+  Local<Object> function;
+  {
+    Context::Scope scope(context);
+    function = CompileRun("function foo() {}; foo").As<Object>();
+  }
+
+  CHECK(function->CreationContext() == context);
+  CheckContextId(function, 1);
+
+  context.Dispose();
+}
+
+
 Handle<Value> HasOwnPropertyIndexedPropertyGetter(uint32_t index,
                                                   const AccessorInfo& info) {
   if (index == 42) return v8_str("yes");
@@ -14852,4 +14955,113 @@ THREADED_TEST(Regress1516) {
       CHECK_GT(elements, map_cache->NumberOfElements());
     }
   }
+}
+
+
+static bool BlockProtoNamedSecurityTestCallback(Local<v8::Object> global,
+                                                Local<Value> name,
+                                                v8::AccessType type,
+                                                Local<Value> data) {
+  // Only block read access to __proto__.
+  if (type == v8::ACCESS_GET &&
+      name->IsString() &&
+      name->ToString()->Length() == 9 &&
+      name->ToString()->Utf8Length() == 9) {
+    char buffer[10];
+    CHECK_EQ(10, name->ToString()->WriteUtf8(buffer));
+    return strncmp(buffer, "__proto__", 9) != 0;
+  }
+
+  return true;
+}
+
+
+THREADED_TEST(Regress93759) {
+  HandleScope scope;
+
+  // Template for object with security check.
+  Local<ObjectTemplate> no_proto_template = v8::ObjectTemplate::New();
+  // We don't do indexing, so any callback can be used for that.
+  no_proto_template->SetAccessCheckCallbacks(
+      BlockProtoNamedSecurityTestCallback,
+      IndexedSecurityTestCallback);
+
+  // Templates for objects with hidden prototypes and possibly security check.
+  Local<FunctionTemplate> hidden_proto_template = v8::FunctionTemplate::New();
+  hidden_proto_template->SetHiddenPrototype(true);
+
+  Local<FunctionTemplate> protected_hidden_proto_template =
+      v8::FunctionTemplate::New();
+  protected_hidden_proto_template->InstanceTemplate()->SetAccessCheckCallbacks(
+      BlockProtoNamedSecurityTestCallback,
+      IndexedSecurityTestCallback);
+  protected_hidden_proto_template->SetHiddenPrototype(true);
+
+  // Context for "foreign" objects used in test.
+  Persistent<Context> context = v8::Context::New();
+  context->Enter();
+
+  // Plain object, no security check.
+  Local<Object> simple_object = Object::New();
+
+  // Object with explicit security check.
+  Local<Object> protected_object =
+      no_proto_template->NewInstance();
+
+  // JSGlobalProxy object, always have security check.
+  Local<Object> proxy_object =
+      context->Global();
+
+  // Global object, the  prototype of proxy_object. No security checks.
+  Local<Object> global_object =
+      proxy_object->GetPrototype()->ToObject();
+
+  // Hidden prototype without security check.
+  Local<Object> hidden_prototype =
+      hidden_proto_template->GetFunction()->NewInstance();
+  Local<Object> object_with_hidden =
+    Object::New();
+  object_with_hidden->SetPrototype(hidden_prototype);
+
+  // Hidden prototype with security check on the hidden prototype.
+  Local<Object> protected_hidden_prototype =
+      protected_hidden_proto_template->GetFunction()->NewInstance();
+  Local<Object> object_with_protected_hidden =
+    Object::New();
+  object_with_protected_hidden->SetPrototype(protected_hidden_prototype);
+
+  context->Exit();
+
+  // Template for object for second context. Values to test are put on it as
+  // properties.
+  Local<ObjectTemplate> global_template = ObjectTemplate::New();
+  global_template->Set(v8_str("simple"), simple_object);
+  global_template->Set(v8_str("protected"), protected_object);
+  global_template->Set(v8_str("global"), global_object);
+  global_template->Set(v8_str("proxy"), proxy_object);
+  global_template->Set(v8_str("hidden"), object_with_hidden);
+  global_template->Set(v8_str("phidden"), object_with_protected_hidden);
+
+  LocalContext context2(NULL, global_template);
+
+  Local<Value> result1 = CompileRun("Object.getPrototypeOf(simple)");
+  CHECK(result1->Equals(simple_object->GetPrototype()));
+
+  Local<Value> result2 = CompileRun("Object.getPrototypeOf(protected)");
+  CHECK(result2->Equals(Undefined()));
+
+  Local<Value> result3 = CompileRun("Object.getPrototypeOf(global)");
+  CHECK(result3->Equals(global_object->GetPrototype()));
+
+  Local<Value> result4 = CompileRun("Object.getPrototypeOf(proxy)");
+  CHECK(result4->Equals(Undefined()));
+
+  Local<Value> result5 = CompileRun("Object.getPrototypeOf(hidden)");
+  CHECK(result5->Equals(
+      object_with_hidden->GetPrototype()->ToObject()->GetPrototype()));
+
+  Local<Value> result6 = CompileRun("Object.getPrototypeOf(phidden)");
+  CHECK(result6->Equals(Undefined()));
+
+  context.Dispose();
 }

@@ -354,32 +354,49 @@ function IsInconsistentDescriptor(desc) {
 // ES5 8.10.4
 function FromPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
-  var obj = new $Object();
+
   if (IsDataDescriptor(desc)) {
-    obj.value = desc.getValue();
-    obj.writable = desc.isWritable();
+    return { value: desc.getValue(),
+             writable: desc.isWritable(),
+             enumerable: desc.isEnumerable(),
+             configurable: desc.isConfigurable() };
   }
-  if (IsAccessorDescriptor(desc)) {
-    obj.get = desc.getGet();
-    obj.set = desc.getSet();
-  }
-  obj.enumerable = desc.isEnumerable();
-  obj.configurable = desc.isConfigurable();
-  return obj;
+  // Must be an AccessorDescriptor then. We never return a generic descriptor.
+  return { get: desc.getGet(),
+           set: desc.getSet(),
+           enumerable: desc.isEnumerable(),
+           configurable: desc.isConfigurable() };
 }
+
 
 // Harmony Proxies
 function FromGenericPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
   var obj = new $Object();
-  if (desc.hasValue()) obj.value = desc.getValue();
-  if (desc.hasWritable()) obj.writable = desc.isWritable();
-  if (desc.hasGetter()) obj.get = desc.getGet();
-  if (desc.hasSetter()) obj.set = desc.getSet();
-  if (desc.hasEnumerable()) obj.enumerable = desc.isEnumerable();
-  if (desc.hasConfigurable()) obj.configurable = desc.isConfigurable();
+
+  if (desc.hasValue()) {
+    %IgnoreAttributesAndSetProperty(obj, "value", desc.getValue(), NONE);
+  }
+  if (desc.hasWritable()) {
+    %IgnoreAttributesAndSetProperty(obj, "writable", desc.isWritable(), NONE);
+  }
+  if (desc.hasGetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "get", desc.getGet(), NONE);
+  }
+  if (desc.hasSetter()) {
+    %IgnoreAttributesAndSetProperty(obj, "set", desc.getSet(), NONE);
+  }
+  if (desc.hasEnumerable()) {
+    %IgnoreAttributesAndSetProperty(obj, "enumerable",
+                                    desc.isEnumerable(), NONE);
+  }
+  if (desc.hasConfigurable()) {
+    %IgnoreAttributesAndSetProperty(obj, "configurable",
+                                    desc.isConfigurable(), NONE);
+  }
   return obj;
 }
+
 
 // ES5 8.10.5.
 function ToPropertyDescriptor(obj) {
@@ -462,6 +479,7 @@ function PropertyDescriptor() {
 }
 
 PropertyDescriptor.prototype.__proto__ = null;
+
 PropertyDescriptor.prototype.toString = function() {
   return "[object PropertyDescriptor]";
 };
@@ -617,38 +635,6 @@ function CallTrap1(handler, name, defaultTrap, x) {
 
 function CallTrap2(handler, name, defaultTrap, x, y) {
   return %_CallFunction(handler, x, y, GetTrap(handler, name, defaultTrap));
-}
-
-
-// ES5 section 8.12.2.
-function GetProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var descriptor = CallTrap1(obj, "getPropertyDescriptor", void 0, p);
-    if (IS_UNDEFINED(descriptor)) return descriptor;
-    var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.isConfigurable()) {
-      throw MakeTypeError("proxy_prop_not_configurable",
-                          [handler, "getPropertyDescriptor", p, descriptor]);
-    }
-    return desc;
-  }
-  var prop = GetOwnProperty(obj);
-  if (!IS_UNDEFINED(prop)) return prop;
-  var proto = %GetPrototype(obj);
-  if (IS_NULL(proto)) return void 0;
-  return GetProperty(proto, p);
-}
-
-
-// ES5 section 8.12.6
-function HasProperty(obj, p) {
-  if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    return ToBoolean(CallTrap1(handler, "has", DerivedHasTrap, p));
-  }
-  var desc = GetProperty(obj, p);
-  return IS_UNDEFINED(desc) ? false : true;
 }
 
 
@@ -1015,24 +1001,27 @@ function ObjectDefineProperty(obj, p, attributes) {
 }
 
 
+function GetOwnEnumerablePropertyNames(properties) {
+  var names = new InternalArray();
+  for (var key in properties) {
+    if (%HasLocalProperty(properties, key)) {
+      names.push(key);
+    }
+  }
+  return names;
+}
+
+
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
-  var key_values = [];
-  for (var key in props) {
-    if (%HasLocalProperty(props, key)) {
-      key_values.push(key);
-      var value = props[key];
-      var desc = ToPropertyDescriptor(value);
-      key_values.push(desc);
-    }
-  }
-  for (var i = 0; i < key_values.length; i += 2) {
-    var key = key_values[i];
-    var desc = key_values[i + 1];
-    DefineOwnProperty(obj, key, desc, true);
+  var names = GetOwnEnumerablePropertyNames(props);
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
+    var desc = ToPropertyDescriptor(props[name]);
+    DefineOwnProperty(obj, name, desc, true);
   }
   return obj;
 }

@@ -2325,20 +2325,11 @@ HGraph* HGraphBuilder::CreateGraph() {
   HInferRepresentation rep(graph());
   rep.Analyze();
 
-  if (FLAG_use_range) {
-    HRangeAnalysis rangeAnalysis(graph());
-    rangeAnalysis.Analyze();
-  }
+  graph()->MarkDeoptimizeOnUndefined();
+  graph()->InsertRepresentationChanges();
 
   graph()->InitializeInferredTypes();
   graph()->Canonicalize();
-  graph()->MarkDeoptimizeOnUndefined();
-  graph()->InsertRepresentationChanges();
-  graph()->ComputeMinusZeroChecks();
-
-  // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(graph());
-  sce.Process();
 
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
@@ -2346,6 +2337,16 @@ HGraph* HGraphBuilder::CreateGraph() {
     HGlobalValueNumberer gvn(graph(), info());
     gvn.Analyze();
   }
+
+  if (FLAG_use_range) {
+    HRangeAnalysis rangeAnalysis(graph());
+    rangeAnalysis.Analyze();
+  }
+  graph()->ComputeMinusZeroChecks();
+
+  // Eliminate redundant stack checks on backwards branches.
+  HStackCheckEliminator sce(graph());
+  sce.Process();
 
   // Replace the results of check instructions with the original value, if the
   // result is used. This is safe now, since we don't do code motion after this
@@ -2480,6 +2481,9 @@ void HGraphBuilder::VisitBlock(Block* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  if (stmt->block_scope() != NULL) {
+    return Bailout("ScopedBlock");
+  }
   BreakAndContinueInfo break_info(stmt);
   { BreakAndContinueScope push(&break_info, this);
     CHECK_BAILOUT(VisitStatements(stmt->statements()));
@@ -2631,12 +2635,11 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void HGraphBuilder::VisitEnterWithContextStatement(
-    EnterWithContextStatement* stmt) {
+void HGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("EnterWithContextStatement");
+  return Bailout("WithStatement");
 }
 
 
@@ -3393,7 +3396,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
   ASSERT(!name.is_null());
 
   LookupResult lookup;
-  ZoneMapList* types = expr->GetReceiverTypes();
+  SmallMapList* types = expr->GetReceiverTypes();
   bool is_monomorphic = expr->IsMonomorphic() &&
       ComputeStoredField(types->first(), name, &lookup);
 
@@ -3407,7 +3410,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
 void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
                                                      HValue* object,
                                                      HValue* value,
-                                                     ZoneMapList* types,
+                                                     SmallMapList* types,
                                                      Handle<String> name) {
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
@@ -3498,7 +3501,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     ASSERT(!name.is_null());
 
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
     LookupResult lookup;
 
     if (expr->IsMonomorphic()) {
@@ -3940,7 +3943,7 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   HInstruction* length = NULL;
   HInstruction* checked_key = NULL;
   if (map->has_external_array_elements()) {
-    length = AddInstruction(new(zone()) HExternalArrayLength(elements));
+    length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
     checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     HLoadExternalArrayPointer* external_elements =
         new(zone()) HLoadExternalArrayPointer(elements);
@@ -3952,7 +3955,7 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   if (map->instance_type() == JS_ARRAY_TYPE) {
     length = AddInstruction(new(zone()) HJSArrayLength(object, mapcheck));
   } else {
-    length = AddInstruction(new(zone()) HFixedArrayLength(elements));
+    length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
   checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   if (is_store) {
@@ -3984,7 +3987,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   *has_side_effects = false;
   AddInstruction(new(zone()) HCheckNonSmi(object));
   AddInstruction(HCheckInstanceType::NewIsSpecObject(object));
-  ZoneMapList* maps = prop->GetReceiverTypes();
+  SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
   static const int kNumElementTypes = JSObject::kElementsKindCount;
@@ -4024,7 +4027,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     if (elements_kind == JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
         && todo_external_array) {
       HInstruction* length =
-          AddInstruction(new(zone()) HExternalArrayLength(elements));
+          AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
       checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
       external_elements = new(zone()) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
@@ -4088,7 +4091,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         if_jsarray->Goto(join);
 
         set_current_block(if_fastobject);
-        length = AddInstruction(new(zone()) HFixedArrayLength(elements));
+        length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
         if (is_store) {
           if (fast_double_elements) {
@@ -4258,7 +4261,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
 
     HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
@@ -4319,7 +4322,7 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
 
 void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
                                                HValue* receiver,
-                                               ZoneMapList* types,
+                                               SmallMapList* types,
                                                Handle<String> name) {
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
@@ -4762,10 +4765,17 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   Property* prop = callee->AsProperty();
   ASSERT(prop != NULL);
 
-  if (info()->scope()->arguments() == NULL) return false;
+  if (!expr->IsMonomorphic() || expr->check_type() != RECEIVER_MAP_CHECK) {
+    return false;
+  }
+  Handle<Map> function_map = expr->GetReceiverTypes()->first();
+  if (function_map->instance_type() != JS_FUNCTION_TYPE ||
+      !expr->target()->shared()->HasBuiltinFunctionId() ||
+      expr->target()->shared()->builtin_function_id() != kFunctionApply) {
+    return false;
+  }
 
-  Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-  if (!name->IsEqualTo(CStrVector("apply"))) return false;
+  if (info()->scope()->arguments() == NULL) return false;
 
   ZoneList<Expression*>* args = expr->arguments();
   if (args->length() != 2) return false;
@@ -4774,9 +4784,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   if (arg_two == NULL || !arg_two->var()->IsStackAllocated()) return false;
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
-
-  if (!expr->IsMonomorphic() ||
-      expr->check_type() != RECEIVER_MAP_CHECK) return false;
 
   // Our implementation of arguments (based on this stack frame or an
   // adapter below it) does not work for inlined functions.
@@ -4794,10 +4801,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* receiver = Pop();
   HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
   HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
-  AddCheckConstantFunction(expr,
-                           function,
-                           expr->GetReceiverTypes()->first(),
-                           true);
+  AddCheckConstantFunction(expr, function, function_map, true);
   HInstruction* result =
       new(zone()) HApplyArguments(function, receiver, length, elements);
   result->set_position(expr->position());
@@ -4846,13 +4850,14 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
 
-    ZoneMapList* types = expr->GetReceiverTypes();
+    SmallMapList* types = expr->GetReceiverTypes();
 
     HValue* receiver =
         environment()->ExpressionStackAt(expr->arguments()->length());
     if (expr->IsMonomorphic()) {
-      Handle<Map> receiver_map =
-          (types == NULL) ? Handle<Map>::null() : types->first();
+      Handle<Map> receiver_map = (types == NULL || types->is_empty())
+          ? Handle<Map>::null()
+          : types->first();
       if (TryInlineBuiltinFunction(expr,
                                    receiver,
                                    receiver_map,

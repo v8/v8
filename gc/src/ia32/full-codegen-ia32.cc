@@ -746,8 +746,10 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ push(esi);
         __ push(Immediate(variable->name()));
         // Declaration nodes are always introduced in one of two modes.
-        ASSERT(mode == Variable::VAR || mode == Variable::CONST);
-        PropertyAttributes attr = (mode == Variable::VAR) ? NONE : READ_ONLY;
+        ASSERT(mode == Variable::VAR ||
+               mode == Variable::CONST ||
+               mode == Variable::LET);
+        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
         __ push(Immediate(Smi::FromInt(attr)));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as
@@ -882,7 +884,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   __ bind(&next_test);
   __ Drop(1);  // Switch value is no longer needed.
   if (default_clause == NULL) {
-    __ jmp(nested_statement.break_target());
+    __ jmp(nested_statement.break_label());
   } else {
     __ jmp(default_clause->body_target());
   }
@@ -897,7 +899,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitStatements(clause->statements());
   }
 
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -1013,12 +1015,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
-  increment_stack_height(4);
+  // 1 ~ The object has already been pushed.
+  increment_stack_height(ForIn::kElementCount - 1);
   // Generate code for doing the condition check.
   __ bind(&loop);
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // Get the current index.
   __ cmp(eax, Operand(esp, 1 * kPointerSize));  // Compare to the array length.
-  __ j(above_equal, loop_statement.break_target());
+  __ j(above_equal, loop_statement.break_label());
 
   // Get the current entry of the array into register ebx.
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
@@ -1042,7 +1045,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ test(eax, Operand(eax));
-  __ j(equal, loop_statement.continue_target());
+  __ j(equal, loop_statement.continue_label());
   __ mov(ebx, Operand(eax));
 
   // Update the 'each' property or variable from the possibly filtered
@@ -1059,17 +1062,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
 
   EmitStackCheck(stmt);
   __ jmp(&loop);
 
   // Remove the pointers stored on the stack.
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   __ add(Operand(esp), Immediate(5 * kPointerSize));
 
-  decrement_stack_height(5);
+  decrement_stack_height(ForIn::kElementCount);
   // Exit and decrement the loop depth.
   __ bind(&exit);
   decrement_loop_depth();
@@ -3854,7 +3857,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
                                            const char* comment) {
-  // TODO(svenpanne): Allowing format strings in Comment would be nice here...
   Comment cmt(masm_, comment);
   bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
   UnaryOverwriteMode overwrite =
@@ -4129,6 +4131,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ j(equal, if_true);
     __ cmp(eax, isolate()->factory()->false_value());
     Split(equal, if_true, if_false, fall_through);
+  } else if (FLAG_harmony_typeof &&
+             check->Equals(isolate()->heap()->null_symbol())) {
+    __ cmp(eax, isolate()->factory()->null_value());
+    Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
     __ cmp(eax, isolate()->factory()->undefined_value());
     __ j(equal, if_true);
@@ -4144,8 +4150,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(eax, if_false);
-    __ cmp(eax, isolate()->factory()->null_value());
-    __ j(equal, if_true);
+    if (!FLAG_harmony_typeof) {
+      __ cmp(eax, isolate()->factory()->null_value());
+      __ j(equal, if_true);
+    }
     __ CmpObjectType(eax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, edx);
     __ j(below, if_false);
     __ CmpInstanceType(edx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

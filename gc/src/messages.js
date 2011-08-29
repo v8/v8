@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -57,11 +57,13 @@ function FormatString(format, message) {
   for (var i = 0; i < format.length; i++) {
     var str = format[i];
     for (arg_num = 0; arg_num < kReplacementMarkers.length; arg_num++) {
-      if (format[i] !== kReplacementMarkers[arg_num]) continue;
-      try {
-        str = ToDetailString(args[arg_num]);
-      } catch (e) {
-        str = "#<error>";
+      if (str == kReplacementMarkers[arg_num]) {
+        try {
+          str = ToDetailString(args[arg_num]);
+        } catch (e) {
+          str = "#<error>";
+        }
+        break;
       }
     }
     result += str;
@@ -100,7 +102,8 @@ function ToStringCheckErrorObject(obj) {
 
 
 function ToDetailString(obj) {
-  if (obj != null && IS_OBJECT(obj) && obj.toString === $Object.prototype.toString) {
+  if (obj != null && IS_OBJECT(obj) &&
+      obj.toString === $Object.prototype.toString) {
     var constructor = obj.constructor;
     if (!constructor) return ToStringCheckErrorObject(obj);
     var constructorName = constructor.name;
@@ -207,7 +210,7 @@ function FormatMessage(message) {
       stack_overflow:               ["Maximum call stack size exceeded"],
       // SyntaxError
       unable_to_parse:              ["Parse error"],
-      duplicate_regexp_flag:        ["Duplicate RegExp flag ", "%0"],
+      invalid_regexp_flags:         ["Invalid flags supplied to RegExp constructor '", "%0", "'"],
       invalid_regexp:               ["Invalid RegExp pattern /", "%0", "/"],
       illegal_break:                ["Illegal break statement"],
       illegal_continue:             ["Illegal continue statement"],
@@ -247,6 +250,7 @@ function FormatMessage(message) {
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
       strict_poison_pill:           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       strict_caller:                ["Illegal access to a strict mode caller function."],
+      unprotected_let:              ["Illegal let declaration in unprotected statement context."],
     };
   }
   var message_type = %MessageGetType(message);
@@ -559,6 +563,7 @@ function SourceLocation(script, position, line, column, start, end) {
   this.end = end;
 }
 
+SourceLocation.prototype.__proto__ = null;
 
 const kLineLengthLimit = 78;
 
@@ -648,6 +653,7 @@ function SourceSlice(script, from_line, to_line, from_position, to_position) {
   this.to_position = to_position;
 }
 
+SourceSlice.prototype.__proto__ = null;
 
 /**
  * Get the source text for a SourceSlice
@@ -715,23 +721,28 @@ function CallSite(receiver, fun, pos) {
   this.pos = pos;
 }
 
+CallSite.prototype.__proto__ = null;
+
 CallSite.prototype.getThis = function () {
   return this.receiver;
 };
 
 CallSite.prototype.getTypeName = function () {
   var constructor = this.receiver.constructor;
-  if (!constructor)
+  if (!constructor) {
     return %_CallFunction(this.receiver, ObjectToString);
+  }
   var constructorName = constructor.name;
-  if (!constructorName)
+  if (!constructorName) {
     return %_CallFunction(this.receiver, ObjectToString);
+  }
   return constructorName;
 };
 
 CallSite.prototype.isToplevel = function () {
-  if (this.receiver == null)
+  if (this.receiver == null) {
     return true;
+  }
   return IS_GLOBAL(this.receiver);
 };
 
@@ -764,8 +775,9 @@ CallSite.prototype.getFunctionName = function () {
   }
   // Maybe this is an evaluation?
   var script = %FunctionGetScript(this.fun);
-  if (script && script.compilation_type == COMPILATION_TYPE_EVAL)
+  if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
     return "eval";
+  }
   return null;
 };
 
@@ -787,13 +799,15 @@ CallSite.prototype.getMethodName = function () {
         this.receiver.__lookupSetter__(prop) === this.fun ||
         (!this.receiver.__lookupGetter__(prop) && this.receiver[prop] === this.fun)) {
       // If we find more than one match bail out to avoid confusion.
-      if (name)
+      if (name) {
         return null;
+      }
       name = prop;
     }
   }
-  if (name)
+  if (name) {
     return name;
+  }
   return null;
 };
 
@@ -803,8 +817,9 @@ CallSite.prototype.getFileName = function () {
 };
 
 CallSite.prototype.getLineNumber = function () {
-  if (this.pos == -1)
+  if (this.pos == -1) {
     return null;
+  }
   var script = %FunctionGetScript(this.fun);
   var location = null;
   if (script) {
@@ -814,8 +829,9 @@ CallSite.prototype.getLineNumber = function () {
 };
 
 CallSite.prototype.getColumnNumber = function () {
-  if (this.pos == -1)
+  if (this.pos == -1) {
     return null;
+  }
   var script = %FunctionGetScript(this.fun);
   var location = null;
   if (script) {
@@ -835,15 +851,17 @@ CallSite.prototype.getPosition = function () {
 
 CallSite.prototype.isConstructor = function () {
   var constructor = this.receiver ? this.receiver.constructor : null;
-  if (!constructor)
+  if (!constructor) {
     return false;
+  }
   return this.fun === constructor;
 };
 
 function FormatEvalOrigin(script) {
   var sourceURL = script.nameOrSourceURL();
-  if (sourceURL)
+  if (sourceURL) {
     return sourceURL;
+  }
 
   var eval_origin = "eval at ";
   if (script.eval_from_function_name) {
@@ -1041,8 +1059,9 @@ function DefineError(f) {
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
   if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
-  if (stackTraceLimit < 0 || stackTraceLimit > 10000)
+  if (stackTraceLimit < 0 || stackTraceLimit > 10000) {
     stackTraceLimit = 10000;
+  }
   var raw_stack = %CollectStackTrace(cons_opt
                                      ? cons_opt
                                      : captureStackTrace, stackTraceLimit);
@@ -1116,8 +1135,10 @@ function errorToString() {
   } catch(e) {
     // If this error message was encountered already return the empty
     // string for it instead of recursively formatting it.
-    if (isCyclicErrorMarker(e)) return '';
-    else throw e;
+    if (isCyclicErrorMarker(e)) {
+      return '';
+    }
+    throw e;
   }
 }
 

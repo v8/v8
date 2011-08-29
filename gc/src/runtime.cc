@@ -683,8 +683,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_CHECKED(JSReceiver, input_obj, args[0]);
+  Object* obj = input_obj;
+  // We don't expect access checks to be needed on JSProxy objects.
+  ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
+    if (obj->IsAccessCheckNeeded() &&
+        !isolate->MayNamedAccess(JSObject::cast(obj),
+                                 isolate->heap()->Proto_symbol(),
+                                 v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+      return isolate->heap()->undefined_value();
+    }
     obj = obj->GetPrototype();
   } while (obj->IsJSObject() &&
            JSObject::cast(obj)->map()->is_hidden_prototype());
@@ -2663,21 +2673,22 @@ class CompiledReplacement {
 void CompiledReplacement::Compile(Handle<String> replacement,
                                   int capture_count,
                                   int subject_length) {
-  ASSERT(replacement->IsFlat());
-  if (replacement->IsAsciiRepresentation()) {
+  {
     AssertNoAllocation no_alloc;
-    ParseReplacementPattern(&parts_,
-                            replacement->ToAsciiVector(),
-                            capture_count,
-                            subject_length);
-  } else {
-    ASSERT(replacement->IsTwoByteRepresentation());
-    AssertNoAllocation no_alloc;
-
-    ParseReplacementPattern(&parts_,
-                            replacement->ToUC16Vector(),
-                            capture_count,
-                            subject_length);
+    String::FlatContent content = replacement->GetFlatContent();
+    ASSERT(content.IsFlat());
+    if (content.IsAscii()) {
+      ParseReplacementPattern(&parts_,
+                              content.ToAsciiVector(),
+                              capture_count,
+                              subject_length);
+    } else {
+      ASSERT(content.IsTwoByte());
+      ParseReplacementPattern(&parts_,
+                              content.ToUC16Vector(),
+                              capture_count,
+                              subject_length);
+    }
   }
   Isolate* isolate = replacement->GetIsolate();
   // Find substrings of replacement string and create them as String objects.
@@ -3052,34 +3063,32 @@ int Runtime::StringMatch(Isolate* isolate,
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before determining asciiness.
-  String* seq_sub = *sub;
-  if (seq_sub->IsConsString()) seq_sub = ConsString::cast(seq_sub)->first();
-  String* seq_pat = *pat;
-  if (seq_pat->IsConsString()) seq_pat = ConsString::cast(seq_pat)->first();
+  String::FlatContent seq_sub = sub->GetFlatContent();
+  String::FlatContent seq_pat = pat->GetFlatContent();
 
   // dispatch on type of strings
-  if (seq_pat->IsAsciiRepresentation()) {
-    Vector<const char> pat_vector = seq_pat->ToAsciiVector();
-    if (seq_sub->IsAsciiRepresentation()) {
+  if (seq_pat.IsAscii()) {
+    Vector<const char> pat_vector = seq_pat.ToAsciiVector();
+    if (seq_sub.IsAscii()) {
       return SearchString(isolate,
-                          seq_sub->ToAsciiVector(),
+                          seq_sub.ToAsciiVector(),
                           pat_vector,
                           start_index);
     }
     return SearchString(isolate,
-                        seq_sub->ToUC16Vector(),
+                        seq_sub.ToUC16Vector(),
                         pat_vector,
                         start_index);
   }
-  Vector<const uc16> pat_vector = seq_pat->ToUC16Vector();
-  if (seq_sub->IsAsciiRepresentation()) {
+  Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
+  if (seq_sub.IsAscii()) {
     return SearchString(isolate,
-                        seq_sub->ToAsciiVector(),
+                        seq_sub.ToAsciiVector(),
                         pat_vector,
                         start_index);
   }
   return SearchString(isolate,
-                      seq_sub->ToUC16Vector(),
+                      seq_sub.ToUC16Vector(),
                       pat_vector,
                       start_index);
 }
@@ -3162,29 +3171,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   if (!sub->IsFlat()) FlattenString(sub);
   if (!pat->IsFlat()) FlattenString(pat);
 
+  int position = -1;
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
 
-  int position = -1;
+  String::FlatContent sub_content = sub->GetFlatContent();
+  String::FlatContent pat_content = pat->GetFlatContent();
 
-  if (pat->IsAsciiRepresentation()) {
-    Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub->IsAsciiRepresentation()) {
-      position = StringMatchBackwards(sub->ToAsciiVector(),
+  if (pat_content.IsAscii()) {
+    Vector<const char> pat_vector = pat_content.ToAsciiVector();
+    if (sub_content.IsAscii()) {
+      position = StringMatchBackwards(sub_content.ToAsciiVector(),
                                       pat_vector,
                                       start_index);
     } else {
-      position = StringMatchBackwards(sub->ToUC16Vector(),
+      position = StringMatchBackwards(sub_content.ToUC16Vector(),
                                       pat_vector,
                                       start_index);
     }
   } else {
-    Vector<const uc16> pat_vector = pat->ToUC16Vector();
-    if (sub->IsAsciiRepresentation()) {
-      position = StringMatchBackwards(sub->ToAsciiVector(),
+    Vector<const uc16> pat_vector = pat_content.ToUC16Vector();
+    if (sub_content.IsAscii()) {
+      position = StringMatchBackwards(sub_content.ToAsciiVector(),
                                       pat_vector,
                                       start_index);
     } else {
-      position = StringMatchBackwards(sub->ToUC16Vector(),
+      position = StringMatchBackwards(sub_content.ToUC16Vector(),
                                       pat_vector,
                                       start_index);
     }
@@ -3402,36 +3413,38 @@ static bool SearchStringMultiple(Isolate* isolate,
   for (;;) {  // Break when search complete.
     builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
     AssertNoAllocation no_gc;
-    if (subject->IsAsciiRepresentation()) {
-      Vector<const char> subject_vector = subject->ToAsciiVector();
-      if (pattern->IsAsciiRepresentation()) {
+    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent pattern_content = pattern->GetFlatContent();
+    if (subject_content.IsAscii()) {
+      Vector<const char> subject_vector = subject_content.ToAsciiVector();
+      if (pattern_content.IsAscii()) {
         if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 pattern->ToAsciiVector(),
+                                 pattern_content.ToAsciiVector(),
                                  *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 pattern->ToUC16Vector(),
+                                 pattern_content.ToUC16Vector(),
                                  *pattern,
                                  builder,
                                  &match_pos)) break;
       }
     } else {
-      Vector<const uc16> subject_vector = subject->ToUC16Vector();
-      if (pattern->IsAsciiRepresentation()) {
+      Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
+      if (pattern_content.IsAscii()) {
         if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 pattern->ToAsciiVector(),
+                                 pattern_content.ToAsciiVector(),
                                  *pattern,
                                  builder,
                                  &match_pos)) break;
       } else {
         if (SearchStringMultiple(isolate,
                                  subject_vector,
-                                 pattern->ToUC16Vector(),
+                                 pattern_content.ToUC16Vector(),
                                  *pattern,
                                  builder,
                                  &match_pos)) break;
@@ -4856,7 +4869,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
         return isolate->heap()->boolean_symbol();
       }
       if (heap_obj->IsNull()) {
-        return isolate->heap()->object_symbol();
+        return FLAG_harmony_typeof
+            ? isolate->heap()->null_symbol()
+            : isolate->heap()->object_symbol();
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
@@ -5417,12 +5432,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
     str = String::cast(flat);
     ASSERT(str->IsFlat());
   }
-  if (str->IsTwoByteRepresentation()) {
+  String::FlatContent flat = str->GetFlatContent();
+  ASSERT(flat.IsFlat());
+  if (flat.IsTwoByte()) {
     return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
-                                                          str->ToUC16Vector());
+                                                          flat.ToUC16Vector());
   } else {
     return QuoteJsonString<char, SeqAsciiString, false>(isolate,
-                                                        str->ToAsciiVector());
+                                                        flat.ToAsciiVector());
   }
 }
 
@@ -5439,12 +5456,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
     str = String::cast(flat);
     ASSERT(str->IsFlat());
   }
-  if (str->IsTwoByteRepresentation()) {
+  String::FlatContent flat = str->GetFlatContent();
+  if (flat.IsTwoByte()) {
     return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
-                                                         str->ToUC16Vector());
+                                                         flat.ToUC16Vector());
   } else {
     return QuoteJsonString<char, SeqAsciiString, true>(isolate,
-                                                       str->ToAsciiVector());
+                                                       flat.ToAsciiVector());
   }
 }
 
@@ -5479,14 +5497,16 @@ static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
   for (int i = 0; i < length; i++) {
     if (i != 0) *(write_cursor++) = ',';
     String* str = String::cast(array->get(i));
-    if (str->IsTwoByteRepresentation()) {
+    String::FlatContent content = str->GetFlatContent();
+    ASSERT(content.IsFlat());
+    if (content.IsTwoByte()) {
       write_cursor = WriteQuoteJsonString<Char, uc16>(isolate,
                                                       write_cursor,
-                                                      str->ToUC16Vector());
+                                                      content.ToUC16Vector());
     } else {
       write_cursor = WriteQuoteJsonString<Char, char>(isolate,
                                                       write_cursor,
-                                                      str->ToAsciiVector());
+                                                      content.ToAsciiVector());
     }
   }
   *(write_cursor++) = ']';
@@ -5965,11 +5985,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   // No allocation block.
   {
-    AssertNoAllocation nogc;
-    if (subject->IsAsciiRepresentation()) {
-      Vector<const char> subject_vector = subject->ToAsciiVector();
-      if (pattern->IsAsciiRepresentation()) {
-        Vector<const char> pattern_vector = pattern->ToAsciiVector();
+    AssertNoAllocation no_gc;
+    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent pattern_content = pattern->GetFlatContent();
+    ASSERT(subject_content.IsFlat());
+    ASSERT(pattern_content.IsFlat());
+    if (subject_content.IsAscii()) {
+      Vector<const char> subject_vector = subject_content.ToAsciiVector();
+      if (pattern_content.IsAscii()) {
+        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
         if (pattern_vector.length() == 1) {
           FindAsciiStringIndices(subject_vector,
                                  pattern_vector[0],
@@ -5985,22 +6009,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
       } else {
         FindStringIndices(isolate,
                           subject_vector,
-                          pattern->ToUC16Vector(),
+                          pattern_content.ToUC16Vector(),
                           &indices,
                           limit);
       }
     } else {
-      Vector<const uc16> subject_vector = subject->ToUC16Vector();
+      Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
       if (pattern->IsAsciiRepresentation()) {
         FindStringIndices(isolate,
                           subject_vector,
-                          pattern->ToAsciiVector(),
+                          pattern_content.ToAsciiVector(),
                           &indices,
                           limit);
       } else {
         FindStringIndices(isolate,
                           subject_vector,
-                          pattern->ToUC16Vector(),
+                          pattern_content.ToUC16Vector(),
                           &indices,
                           limit);
       }
@@ -6049,7 +6073,7 @@ static int CopyCachedAsciiCharsToArray(Heap* heap,
                                        const char* chars,
                                        FixedArray* elements,
                                        int length) {
-  AssertNoAllocation nogc;
+  AssertNoAllocation no_gc;
   FixedArray* ascii_cache = heap->single_character_string_cache();
   Object* undefined = heap->undefined_value();
   int i;
@@ -6082,36 +6106,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
   CONVERT_ARG_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
-  s->TryFlatten();
+  s = FlattenGetString(s);
   const int length = static_cast<int>(Min<uint32_t>(s->length(), limit));
 
   Handle<FixedArray> elements;
+  int position = 0;
   if (s->IsFlat() && s->IsAsciiRepresentation()) {
+    // Try using cached chars where possible.
     Object* obj;
     { MaybeObject* maybe_obj =
           isolate->heap()->AllocateUninitializedFixedArray(length);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
-
-    Vector<const char> chars = s->ToAsciiVector();
-    // Note, this will initialize all elements (not only the prefix)
-    // to prevent GC from seeing partially initialized array.
-    int num_copied_from_cache = CopyCachedAsciiCharsToArray(isolate->heap(),
-                                                            chars.start(),
-                                                            *elements,
-                                                            length);
-
-    for (int i = num_copied_from_cache; i < length; ++i) {
-      Handle<Object> str = LookupSingleCharacterStringFromCode(chars[i]);
-      elements->set(i, *str);
+    String::FlatContent content = s->GetFlatContent();
+    if (content.IsAscii()) {
+      Vector<const char> chars = content.ToAsciiVector();
+      // Note, this will initialize all elements (not only the prefix)
+      // to prevent GC from seeing partially initialized array.
+      position = CopyCachedAsciiCharsToArray(isolate->heap(),
+                                             chars.start(),
+                                             *elements,
+                                             length);
+    } else {
+      MemsetPointer(elements->data_start(),
+                    isolate->heap()->undefined_value(),
+                    length);
     }
   } else {
     elements = isolate->factory()->NewFixedArray(length);
-    for (int i = 0; i < length; ++i) {
-      Handle<Object> str = LookupSingleCharacterStringFromCode(s->Get(i));
-      elements->set(i, *str);
-    }
+  }
+  for (int i = position; i < length; ++i) {
+    Handle<Object> str = LookupSingleCharacterStringFromCode(s->Get(i));
+    elements->set(i, *str);
   }
 
 #ifdef DEBUG
@@ -6922,22 +6949,24 @@ static Object* FlatStringCompare(String* x, String* y) {
     equal_prefix_result = Smi::FromInt(LESS);
   }
   int r;
-  if (x->IsAsciiRepresentation()) {
-    Vector<const char> x_chars = x->ToAsciiVector();
-    if (y->IsAsciiRepresentation()) {
-      Vector<const char> y_chars = y->ToAsciiVector();
+  String::FlatContent x_content = x->GetFlatContent();
+  String::FlatContent y_content = y->GetFlatContent();
+  if (x_content.IsAscii()) {
+    Vector<const char> x_chars = x_content.ToAsciiVector();
+    if (y_content.IsAscii()) {
+      Vector<const char> y_chars = y_content.ToAsciiVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
-      Vector<const uc16> y_chars = y->ToUC16Vector();
+      Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     }
   } else {
-    Vector<const uc16> x_chars = x->ToUC16Vector();
-    if (y->IsAsciiRepresentation()) {
-      Vector<const char> y_chars = y->ToAsciiVector();
+    Vector<const uc16> x_chars = x_content.ToUC16Vector();
+    if (y_content.IsAscii()) {
+      Vector<const char> y_chars = y_content.ToAsciiVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
-      Vector<const uc16> y_chars = y->ToUC16Vector();
+      Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     }
   }
@@ -8317,6 +8346,30 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  SerializedScopeInfo* scope_info = SerializedScopeInfo::cast(args[0]);
+  JSFunction* function;
+  if (args[1]->IsSmi()) {
+    // A smi sentinel indicates a context nested inside global code rather
+    // than some function.  There is a canonical empty function that can be
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
+  } else {
+    function = JSFunction::cast(args[1]);
+  }
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateBlockContext(function,
+                                            isolate->context(),
+                                            scope_info);
+  if (!maybe_context->To(&context)) return maybe_context;
+  isolate->set_context(context);
+  return context;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -8794,13 +8847,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   FixedArray* output_array = FixedArray::cast(output->elements());
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
-  if (str->IsAsciiRepresentation()) {
-    result = DateParser::Parse(str->ToAsciiVector(),
+  String::FlatContent str_content = str->GetFlatContent();
+  if (str_content.IsAscii()) {
+    result = DateParser::Parse(str_content.ToAsciiVector(),
                                output_array,
                                isolate->unicode_cache());
   } else {
-    ASSERT(str->IsTwoByteRepresentation());
-    result = DateParser::Parse(str->ToUC16Vector(),
+    ASSERT(str_content.IsTwoByte());
+    result = DateParser::Parse(str_content.ToUC16Vector(),
                                output_array,
                                isolate->unicode_cache());
   }
@@ -9657,7 +9711,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, from, args[0]);
   CONVERT_CHECKED(JSArray, to, args[1]);
-  HeapObject* new_elements = from->elements();
+  FixedArrayBase* new_elements = from->elements();
   MaybeObject* maybe_new_map;
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
@@ -10642,6 +10696,34 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
 }
 
 
+// Create a plain JSObject which materializes the block scope for the specified
+// block context.
+static Handle<JSObject> MaterializeBlockScope(
+    Isolate* isolate,
+    Handle<Context> context) {
+  ASSERT(context->IsBlockContext());
+  Handle<SerializedScopeInfo> serialized_scope_info(
+      SerializedScopeInfo::cast(context->extension()));
+  ScopeInfo<> scope_info(*serialized_scope_info);
+
+  // Allocate and initialize a JSObject with all the arguments, stack locals
+  // heap locals and extension properties of the debugged function.
+  Handle<JSObject> block_scope =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  // Fill all context locals.
+  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
+    if (!CopyContextLocalsToScopeObject(isolate,
+                                        serialized_scope_info, scope_info,
+                                        context, block_scope)) {
+      return Handle<JSObject>();
+    }
+  }
+
+  return block_scope;
+}
+
+
 // Iterate over the actual scopes visible from a stack frame. All scopes are
 // backed by an actual context except the local scope, which is inserted
 // "artifically" in the context chain.
@@ -10652,7 +10734,8 @@ class ScopeIterator {
     ScopeTypeLocal,
     ScopeTypeWith,
     ScopeTypeClosure,
-    ScopeTypeCatch
+    ScopeTypeCatch,
+    ScopeTypeBlock
   };
 
   ScopeIterator(Isolate* isolate,
@@ -10678,8 +10761,10 @@ class ScopeIterator {
     } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
-      // The context_ is a with or catch block from the outer function.
-      ASSERT(context_->IsWithContext() || context_->IsCatchContext());
+      // The context_ is a block or with or catch block from the outer function.
+      ASSERT(context_->IsWithContext() ||
+             context_->IsCatchContext() ||
+             context_->IsBlockContext());
       at_local_ = true;
     }
   }
@@ -10734,6 +10819,9 @@ class ScopeIterator {
     if (context_->IsCatchContext()) {
       return ScopeTypeCatch;
     }
+    if (context_->IsBlockContext()) {
+      return ScopeTypeBlock;
+    }
     ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
@@ -10754,6 +10842,8 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeClosure:
         // Materialize the content of the closure scope into a JSObject.
         return MaterializeClosure(isolate_, CurrentContext());
+      case ScopeIterator::ScopeTypeBlock:
+        return MaterializeBlockScope(isolate_, CurrentContext());
     }
     UNREACHABLE();
     return Handle<JSObject>();
@@ -11315,7 +11405,18 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
                                             new_previous,
                                             name,
                                             thrown_object);
+  } else if (current->IsBlockContext()) {
+    Handle<SerializedScopeInfo> scope_info(
+        SerializedScopeInfo::cast(current->extension()));
+    new_current =
+        isolate->factory()->NewBlockContext(function, new_previous, scope_info);
+    // Copy context slots.
+    int num_context_slots = scope_info->NumberOfContextSlots();
+    for (int i = Context::MIN_CONTEXT_SLOTS; i < num_context_slots; ++i) {
+      new_current->set(i, current->get(i));
+    }
   } else {
+    ASSERT(current->IsWithContext());
     Handle<JSObject> extension(JSObject::cast(current->extension()));
     new_current =
         isolate->factory()->NewWithContext(function, new_previous, extension);
@@ -12779,7 +12880,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, format, args[0]);
   CONVERT_CHECKED(JSArray, elms, args[1]);
-  Vector<const char> chars = format->ToAsciiVector();
+  String::FlatContent format_content = format->GetFlatContent();
+  RUNTIME_ASSERT(format_content.IsAscii());
+  Vector<const char> chars = format_content.ToAsciiVector();
   LOGGER->LogRuntime(chars, elms);
   return isolate->heap()->undefined_value();
 }

@@ -1,3 +1,69 @@
+2011-08-24: Version 3.5.8
+
+        Added V8EXPORT attributes for v8::Array::CheckCast and
+        v8::Number::CheckCast.
+
+        Made a slight API change enabling opting out from null termination
+        in String::Write*().
+
+        Fixed arm build for gcc-4.6.
+
+
+2011-08-22: Version 3.5.7
+
+        Make scanner handle invalid unicode escapes in identifiers correctly.
+
+        Make regexp flag parsing stricter.
+
+        Fix several memory leaks.
+
+
+2011-08-17: Version 3.5.6
+
+        Fixed issue that could cause crashes when running with --heap-stats.
+
+        Fixed compilation on Linux 2.6.9 and older.
+
+        Fixed live-object-list to work with isolates.
+
+        Fixed memory leaks in zones and isolates.
+
+        Fixed a performance regression for TypedArrays on x64.
+
+        Stability improvements on all platforms.
+
+
+2011-08-15: Version 3.5.5
+
+        Fixed bugs involving negative zero and the optimizing compiler.
+
+        Fixed optimized version of Function.apply(x, arguments). (issue 1592)
+
+        Eliminated uses of deprecated ARM instructions.
+
+        Sped up Math.floor by using SSE 4.1 roundsd instruction on ia32.
+
+        Removed restriction on the size of disassembled code that is printed.
+
+
+2011-08-10: Version 3.5.4
+
+        Added a preliminary implementation of ES Harmony weak maps.  Weak
+        maps can be enabled by the flag --harmony-weakmaps.
+
+        Introduced a toplevel Makefile to support GYP-based building.  GYP
+        can be obtained from http://gyp.googlecode.com.
+
+        Fixed a bug in the length property of functions created by
+        Function.prototype.bind.
+
+        Reduced malloc heap allocation on process startup.
+
+        Several important code generation bug fixes.
+
+        Performance improvements on all platforms.
+
+
 2011-08-03: Version 3.5.3
 
         MIPS: Port of fix to ClassOf check from ARM.

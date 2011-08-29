@@ -757,15 +757,22 @@ void MacroAssembler::Ext(Register rt,
                          uint16_t pos,
                          uint16_t size) {
   ASSERT(pos < 32);
-  ASSERT(pos + size < 32);
+  ASSERT(pos + size < 33);
 
   if (mips32r2) {
     ext_(rt, rs, pos, size);
   } else {
     // Move rs to rt and shift it left then right to get the
     // desired bitfield on the right side and zeroes on the left.
-    sll(rt, rs, 32 - (pos + size));
-    srl(rt, rt, 32 - size);
+    int shift_left = 32 - (pos + size);
+    if (shift_left > 0) {
+      sll(rt, rs, shift_left);
+    }
+
+    int shift_right = 32 - size;
+    if (shift_right > 0) {
+      srl(rt, rt, shift_right);
+    }
   }
 }
 
@@ -807,28 +814,32 @@ void MacroAssembler::Ins(Register rt,
 }
 
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd, FPURegister fs) {
-  // Move the data from fs to t4.
-  mfc1(t4, fs);
-  return Cvt_d_uw(fd, t4);
+void MacroAssembler::Cvt_d_uw(FPURegister fd,
+                              FPURegister fs,
+                              FPURegister scratch) {
+  // Move the data from fs to t8.
+  mfc1(t8, fs);
+  Cvt_d_uw(fd, t8, scratch);
 }
 
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
+void MacroAssembler::Cvt_d_uw(FPURegister fd,
+                              Register rs,
+                              FPURegister scratch) {
   // Convert rs to a FP value in fd (and fd + 1).
   // We do this by converting rs minus the MSB to avoid sign conversion,
-  // then adding 2^31-1 and 1 to the result.
+  // then adding 2^31 to the result (if needed).
 
-  ASSERT(!fd.is(f20));
+  ASSERT(!fd.is(scratch));
   ASSERT(!rs.is(t9));
-  ASSERT(!rs.is(t8));
+  ASSERT(!rs.is(at));
 
-  // Save rs's MSB to t8.
-  And(t8, rs, 0x80000000);
+  // Save rs's MSB to t9.
+  Ext(t9, rs, 31, 1);
   // Remove rs's MSB.
-  And(t9, rs, 0x7FFFFFFF);
-  // Move t9 to fd.
-  mtc1(t9, fd);
+  Ext(at, rs, 0, 31);
+  // Move the result to fd.
+  mtc1(at, fd);
 
   // Convert fd to a real FP value.
   cvt_d_w(fd, fd);
@@ -837,41 +848,39 @@ void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
 
   // If rs's MSB was 0, it's done.
   // Otherwise we need to add that to the FP register.
-  Branch(&conversion_done, eq, t8, Operand(zero_reg));
+  Branch(&conversion_done, eq, t9, Operand(zero_reg));
 
-  // First load 2^31 - 1 into f20.
-  Or(t9, zero_reg, 0x7FFFFFFF);
-  mtc1(t9, f20);
+  // Load 2^31 into f20 as its float representation.
+  li(at, 0x41E00000);
+  mtc1(at, FPURegister::from_code(scratch.code() + 1));
+  mtc1(zero_reg, scratch);
+  // Add it to fd.
+  add_d(fd, fd, scratch);
 
-  // Convert it to FP and add it to fd.
-  cvt_d_w(f20, f20);
-  add_d(fd, fd, f20);
-  // Now add 1.
-  Or(t9, zero_reg, 1);
-  mtc1(t9, f20);
-
-  cvt_d_w(f20, f20);
-  add_d(fd, fd, f20);
   bind(&conversion_done);
 }
 
 
-void MacroAssembler::Trunc_uw_d(FPURegister fd, FPURegister fs) {
-  Trunc_uw_d(fs, t4);
-  mtc1(t4, fd);
+void MacroAssembler::Trunc_uw_d(FPURegister fd,
+                                FPURegister fs,
+                                FPURegister scratch) {
+  Trunc_uw_d(fs, t8, scratch);
+  mtc1(t8, fd);
 }
 
 
-void MacroAssembler::Trunc_uw_d(FPURegister fd, Register rs) {
-  ASSERT(!fd.is(f22));
-  ASSERT(!rs.is(t8));
+void MacroAssembler::Trunc_uw_d(FPURegister fd,
+                                Register rs,
+                                FPURegister scratch) {
+  ASSERT(!fd.is(scratch));
+  ASSERT(!rs.is(at));
 
-  // Load 2^31 into f22.
-  Or(t8, zero_reg, 0x80000000);
-  Cvt_d_uw(f22, t8);
-
-  // Test if f22 > fd.
-  c(OLT, D, fd, f22);
+  // Load 2^31 into scratch as its float representation.
+  li(at, 0x41E00000);
+  mtc1(at, FPURegister::from_code(scratch.code() + 1));
+  mtc1(zero_reg, scratch);
+  // Test if scratch > fd.
+  c(OLT, D, fd, scratch);
 
   Label simple_convert;
   // If fd < 2^31 we can convert it normally.
@@ -879,18 +888,17 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd, Register rs) {
 
   // First we subtract 2^31 from fd, then trunc it to rs
   // and add 2^31 to rs.
-
-  sub_d(f22, fd, f22);
-  trunc_w_d(f22, f22);
-  mfc1(rs, f22);
-  or_(rs, rs, t8);
+  sub_d(scratch, fd, scratch);
+  trunc_w_d(scratch, scratch);
+  mfc1(rs, scratch);
+  Or(rs, rs, 1 << 31);
 
   Label done;
   Branch(&done);
   // Simple conversion.
   bind(&simple_convert);
-  trunc_w_d(f22, fd);
-  mfc1(rs, f22);
+  trunc_w_d(scratch, fd);
+  mfc1(rs, scratch);
 
   bind(&done);
 }
@@ -2244,7 +2252,13 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   // Adjust this code if not the case.
-  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+
   // The return address is passed in register ra.
   if (try_location == IN_JAVASCRIPT) {
     if (type == TRY_CATCH_HANDLER) {
@@ -2252,19 +2266,16 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     } else {
       li(t0, Operand(StackHandler::TRY_FINALLY));
     }
-    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
-           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
-           && StackHandlerConstants::kPCOffset == 3 * kPointerSize
-           && StackHandlerConstants::kNextOffset == 0 * kPointerSize);
     // Save the current handler as the next handler.
     li(t2, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
     lw(t1, MemOperand(t2));
 
     addiu(sp, sp, -StackHandlerConstants::kSize);
-    sw(ra, MemOperand(sp, 12));
-    sw(fp, MemOperand(sp, 8));
-    sw(t0, MemOperand(sp, 4));
-    sw(t1, MemOperand(sp, 0));
+    sw(ra, MemOperand(sp, StackHandlerConstants::kPCOffset));
+    sw(fp, MemOperand(sp, StackHandlerConstants::kFPOffset));
+    sw(cp, MemOperand(sp, StackHandlerConstants::kContextOffset));
+    sw(t0, MemOperand(sp, StackHandlerConstants::kStateOffset));
+    sw(t1, MemOperand(sp, StackHandlerConstants::kNextOffset));
 
     // Link this handler as the new current one.
     sw(sp, MemOperand(t2));
@@ -2272,11 +2283,6 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   } else {
     // Must preserve a0-a3, and s0 (argv).
     ASSERT(try_location == IN_JS_ENTRY);
-    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
-           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
-           && StackHandlerConstants::kPCOffset == 3 * kPointerSize
-           && StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-
     // The frame pointer does not point to a JS frame so we save NULL
     // for fp. We expect the code throwing an exception to check fp
     // before dereferencing it to restore the context.
@@ -2286,11 +2292,14 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     li(t2, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
     lw(t1, MemOperand(t2));
 
+    ASSERT(Smi::FromInt(0) == 0);  // Used for no context.
+
     addiu(sp, sp, -StackHandlerConstants::kSize);
-    sw(ra, MemOperand(sp, 12));
-    sw(zero_reg, MemOperand(sp, 8));
-    sw(t0, MemOperand(sp, 4));
-    sw(t1, MemOperand(sp, 0));
+    sw(ra, MemOperand(sp, StackHandlerConstants::kPCOffset));
+    sw(zero_reg, MemOperand(sp, StackHandlerConstants::kFPOffset));
+    sw(zero_reg, MemOperand(sp, StackHandlerConstants::kContextOffset));
+    sw(t0, MemOperand(sp, StackHandlerConstants::kStateOffset));
+    sw(t1, MemOperand(sp, StackHandlerConstants::kNextOffset));
 
     // Link this handler as the new current one.
     sw(sp, MemOperand(t2));
@@ -2299,7 +2308,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 
 void MacroAssembler::PopTryHandler() {
-  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   li(at, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
@@ -2312,28 +2321,31 @@ void MacroAssembler::Throw(Register value) {
   Move(v0, value);
 
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
   // Drop the sp to the top of the handler.
   li(a3, Operand(ExternalReference(Isolate::k_handler_address,
-                                      isolate())));
+                                   isolate())));
   lw(sp, MemOperand(a3));
 
-  // Restore the next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  // Restore the next handler.
   pop(a2);
   sw(a2, MemOperand(a3));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  MultiPop(a3.bit() | fp.bit());
 
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  // Set cp to NULL if fp is NULL.
+  // Restore context and frame pointer, discard state (a3).
+  MultiPop(a3.bit() | cp.bit() | fp.bit());
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (a3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
+  // of them.
   Label done;
-  Branch(USE_DELAY_SLOT, &done, eq, fp, Operand(zero_reg));
-  mov(cp, zero_reg);   // In branch delay slot.
-  lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  Branch(&done, eq, fp, Operand(zero_reg));
+  sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   bind(&done);
 
 #ifdef DEBUG
@@ -2355,7 +2367,6 @@ void MacroAssembler::Throw(Register value) {
   }
 #endif
 
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   pop(t9);  // 2 instructions: lw, add sp.
   Jump(t9);  // 2 instructions: jr, nop (in delay slot).
 
@@ -2370,7 +2381,12 @@ void MacroAssembler::Throw(Register value) {
 void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
   // v0 is expected to hold the exception.
   Move(v0, value);
@@ -2393,7 +2409,6 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a2);
   sw(a2, MemOperand(a3));
 
@@ -2415,20 +2430,12 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 
   // Stack layout at this point. See also StackHandlerConstants.
   // sp ->   state (ENTRY)
+  //         cp
   //         fp
   //         ra
 
-  // Discard handler state (a2 is not used) and restore frame pointer.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  MultiPop(a2.bit() | fp.bit());  // a2: discarded state.
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  Label cp_null;
-  Branch(USE_DELAY_SLOT, &cp_null, eq, fp, Operand(zero_reg));
-  mov(cp, zero_reg);   // In the branch delay slot.
-  lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&cp_null);
+  // Restore context and frame pointer, discard state (r2).
+  MultiPop(a2.bit() | cp.bit() | fp.bit());
 
 #ifdef DEBUG
   // When emitting debug_code, set ra as return address for the jump.
@@ -2448,7 +2455,6 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     addiu(ra, ra, kOffsetRaBytes);
   }
 #endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   pop(t9);  // 2 instructions: lw, add sp.
   Jump(t9);  // 2 instructions: jr, nop (in delay slot).
 

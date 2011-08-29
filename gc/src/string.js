@@ -149,7 +149,7 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
         position = 0;
       }
       if (position + patLength < subLength) {
-        index = position
+        index = position;
       }
     }
   }
@@ -170,7 +170,7 @@ function StringLocaleCompare(other) {
                         ["String.prototype.localeCompare"]);
   }
   if (%_ArgumentsLength() === 0) return 0;
-  return %StringLocaleCompare(TO_STRING_INLINE(this), 
+  return %StringLocaleCompare(TO_STRING_INLINE(this),
                               TO_STRING_INLINE(other));
 }
 
@@ -913,6 +913,8 @@ function ReplaceResultBuilder(str) {
   }
   this.special_string = str;
 }
+
+ReplaceResultBuilder.prototype.__proto__ = null;
 
 
 ReplaceResultBuilder.prototype.add = function(str) {

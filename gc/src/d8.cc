@@ -740,6 +740,7 @@ Persistent<Context> Shell::CreateEvaluationContext() {
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
   Persistent<Context> context = Context::New(NULL, global_template);
+  ASSERT(!context.IsEmpty());
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
@@ -1236,8 +1237,6 @@ int Shell::RunMain(int argc, char* argv[]) {
       thread->Join();
       delete thread;
     }
-
-  OnExit();
 #endif  // V8_SHARED
   return 0;
 }
@@ -1288,6 +1287,10 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   V8::Dispose();
+
+#ifndef V8_SHARED
+  OnExit();
+#endif  // V8_SHARED
 
   return result;
 }

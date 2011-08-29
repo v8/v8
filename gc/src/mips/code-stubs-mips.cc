@@ -2506,7 +2506,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         CpuFeatures::Scope scope(FPU);
         __ mtc1(a2, f0);
         if (op_ == Token::SHR) {
-          __ Cvt_d_uw(f0, f0);
+          __ Cvt_d_uw(f0, f0, f22);
         } else {
           __ cvt_d_w(f0, f0);
         }
@@ -2920,7 +2920,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         } else {
           // The result must be interpreted as an unsigned 32-bit integer.
           __ mtc1(a2, double_scratch);
-          __ Cvt_d_uw(double_scratch, double_scratch);
+          __ Cvt_d_uw(double_scratch, double_scratch, single_scratch);
         }
 
         // Store the result.

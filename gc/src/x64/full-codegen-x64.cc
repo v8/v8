@@ -717,8 +717,10 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ push(rsi);
         __ Push(variable->name());
         // Declaration nodes are always introduced in one of two modes.
-        ASSERT(mode == Variable::VAR || mode == Variable::CONST);
-        PropertyAttributes attr = (mode == Variable::VAR) ? NONE : READ_ONLY;
+        ASSERT(mode == Variable::VAR ||
+               mode == Variable::CONST ||
+               mode == Variable::LET);
+        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
         __ Push(Smi::FromInt(attr));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as
@@ -845,7 +847,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   __ bind(&next_test);
   __ Drop(1);  // Switch value is no longer needed.
   if (default_clause == NULL) {
-    __ jmp(nested_statement.break_target());
+    __ jmp(nested_statement.break_label());
   } else {
     __ jmp(default_clause->body_target());
   }
@@ -859,7 +861,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitStatements(clause->statements());
   }
 
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -985,7 +987,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&loop);
   __ movq(rax, Operand(rsp, 0 * kPointerSize));  // Get the current index.
   __ cmpq(rax, Operand(rsp, 1 * kPointerSize));  // Compare to the array length.
-  __ j(above_equal, loop_statement.break_target());
+  __ j(above_equal, loop_statement.break_label());
 
   // Get the current entry of the array into register rbx.
   __ movq(rbx, Operand(rsp, 2 * kPointerSize));
@@ -1013,7 +1015,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(rbx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ Cmp(rax, Smi::FromInt(0));
-  __ j(equal, loop_statement.continue_target());
+  __ j(equal, loop_statement.continue_label());
   __ movq(rbx, rax);
 
   // Update the 'each' property or variable from the possibly filtered
@@ -1030,14 +1032,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   __ SmiAddConstant(Operand(rsp, 0 * kPointerSize), Smi::FromInt(1));
 
   EmitStackCheck(stmt);
   __ jmp(&loop);
 
   // Remove the pointers stored on the stack.
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   __ addq(rsp, Immediate(5 * kPointerSize));
 
   // Exit and decrement the loop depth.
@@ -3990,6 +3992,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ j(equal, if_true);
     __ CompareRoot(rax, Heap::kFalseValueRootIndex);
     Split(equal, if_true, if_false, fall_through);
+  } else if (FLAG_harmony_typeof &&
+             check->Equals(isolate()->heap()->null_symbol())) {
+    __ CompareRoot(rax, Heap::kNullValueRootIndex);
+    Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
     __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
     __ j(equal, if_true);
@@ -4006,8 +4012,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(rax, if_false);
-    __ CompareRoot(rax, Heap::kNullValueRootIndex);
-    __ j(equal, if_true);
+    if (!FLAG_harmony_typeof) {
+      __ CompareRoot(rax, Heap::kNullValueRootIndex);
+      __ j(equal, if_true);
+    }
     __ CmpObjectType(rax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, rdx);
     __ j(below, if_false);
     __ CmpInstanceType(rdx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

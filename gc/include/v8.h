@@ -171,12 +171,12 @@ template <class T> class Handle {
   /**
    * Creates an empty handle.
    */
-  inline Handle();
+  inline Handle() : val_(0) {}
 
   /**
    * Creates a new handle for the specified value.
    */
-  inline explicit Handle(T* val) : val_(val) { }
+  inline explicit Handle(T* val) : val_(val) {}
 
   /**
    * Creates a handle for the contents of the specified handle.  This
@@ -203,14 +203,14 @@ template <class T> class Handle {
    */
   inline bool IsEmpty() const { return val_ == 0; }
 
-  inline T* operator->() const { return val_; }
-
-  inline T* operator*() const { return val_; }
-
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
    */
-  inline void Clear() { this->val_ = 0; }
+  inline void Clear() { val_ = 0; }
+
+  inline T* operator->() const { return val_; }
+
+  inline T* operator*() const { return val_; }
 
   /**
    * Checks whether two handles are the same.
@@ -1039,29 +1039,30 @@ class String : public Primitive {
    * \param length The number of characters to copy from the string.  For
    *    WriteUtf8 the number of bytes in the buffer.
    * \param nchars_ref The number of characters written, can be NULL.
-   * \param hints Various hints that might affect performance of this or
+   * \param options Various options that might affect performance of this or
    *    subsequent operations.
    * \return The number of characters copied to the buffer excluding the null
    *    terminator.  For WriteUtf8: The number of bytes copied to the buffer
-   *    including the null terminator.
+   *    including the null terminator (if written).
    */
-  enum WriteHints {
-    NO_HINTS = 0,
-    HINT_MANY_WRITES_EXPECTED = 1
+  enum WriteOptions {
+    NO_OPTIONS = 0,
+    HINT_MANY_WRITES_EXPECTED = 1,
+    NO_NULL_TERMINATION = 2
   };
 
   V8EXPORT int Write(uint16_t* buffer,
                      int start = 0,
                      int length = -1,
-                     WriteHints hints = NO_HINTS) const;  // UTF-16
+                     int options = NO_OPTIONS) const;  // UTF-16
   V8EXPORT int WriteAscii(char* buffer,
                           int start = 0,
                           int length = -1,
-                          WriteHints hints = NO_HINTS) const;  // ASCII
+                          int options = NO_OPTIONS) const;  // ASCII
   V8EXPORT int WriteUtf8(char* buffer,
                          int length = -1,
                          int* nchars_ref = NULL,
-                         WriteHints hints = NO_HINTS) const;  // UTF-8
+                         int options = NO_OPTIONS) const;  // UTF-8
 
   /**
    * A zero length string.
@@ -1335,7 +1336,7 @@ class Number : public Primitive {
   static inline Number* Cast(v8::Value* obj);
  private:
   V8EXPORT Number();
-  static void CheckCast(v8::Value* obj);
+  V8EXPORT static void CheckCast(v8::Value* obj);
 };
 
 
@@ -1709,7 +1710,7 @@ class Array : public Object {
   static inline Array* Cast(Value* obj);
  private:
   V8EXPORT Array();
-  static void CheckCast(Value* obj);
+  V8EXPORT static void CheckCast(Value* obj);
 };
 
 
@@ -3824,10 +3825,6 @@ class Internals {
 };
 
 }  // namespace internal
-
-
-template <class T>
-Handle<T>::Handle() : val_(0) { }
 
 
 template <class T>

@@ -33,6 +33,7 @@
 #include "factory.h"
 #include "jsregexp.h"
 #include "runtime.h"
+#include "small-pointer-list.h"
 #include "token.h"
 #include "variables.h"
 
@@ -60,7 +61,7 @@ namespace internal {
   V(ContinueStatement)                          \
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
-  V(EnterWithContextStatement)                  \
+  V(WithStatement)                              \
   V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
@@ -207,6 +208,36 @@ class Statement: public AstNode {
 };
 
 
+class SmallMapList {
+ public:
+  SmallMapList() {}
+  explicit SmallMapList(int capacity) : list_(capacity) {}
+
+  void Reserve(int capacity) { list_.Reserve(capacity); }
+  void Clear() { list_.Clear(); }
+
+  bool is_empty() const { return list_.is_empty(); }
+  int length() const { return list_.length(); }
+
+  void Add(Handle<Map> handle) {
+    list_.Add(handle.location());
+  }
+
+  Handle<Map> at(int i) const {
+    return Handle<Map>(list_.at(i));
+  }
+
+  Handle<Map> first() const { return at(0); }
+  Handle<Map> last() const { return at(length() - 1); }
+
+ private:
+  // The list stores pointers to Map*, that is Map**, so it's GC safe.
+  SmallPointerList<Map*> list_;
+
+  DISALLOW_COPY_AND_ASSIGN(SmallMapList);
+};
+
+
 class Expression: public AstNode {
  public:
   enum Context {
@@ -265,13 +296,15 @@ class Expression: public AstNode {
     UNREACHABLE();
     return false;
   }
-  virtual ZoneMapList* GetReceiverTypes() {
+  virtual SmallMapList* GetReceiverTypes() {
     UNREACHABLE();
     return NULL;
   }
-  virtual Handle<Map> GetMonomorphicReceiverType() {
-    UNREACHABLE();
-    return Handle<Map>();
+  Handle<Map> GetMonomorphicReceiverType() {
+    ASSERT(IsMonomorphic());
+    SmallMapList* types = GetReceiverTypes();
+    ASSERT(types != NULL && types->length() == 1);
+    return types->at(0);
   }
 
   unsigned id() const { return id_; }
@@ -359,9 +392,13 @@ class Block: public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
+  Scope* block_scope() const { return block_scope_; }
+  void set_block_scope(Scope* block_scope) { block_scope_ = block_scope; }
+
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
+  Scope* block_scope_;
 };
 
 
@@ -371,9 +408,11 @@ class Declaration: public AstNode {
       : proxy_(proxy),
         mode_(mode),
         fun_(fun) {
-    ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+    ASSERT(mode == Variable::VAR ||
+           mode == Variable::CONST ||
+           mode == Variable::LET);
     // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == Variable::VAR);
+    ASSERT(fun == NULL || mode == Variable::VAR || mode == Variable::LET);
   }
 
   DECLARE_NODE_TYPE(Declaration)
@@ -627,19 +666,21 @@ class ReturnStatement: public Statement {
 };
 
 
-class EnterWithContextStatement: public Statement {
+class WithStatement: public Statement {
  public:
-  explicit EnterWithContextStatement(Expression* expression)
-      : expression_(expression) { }
+  WithStatement(Expression* expression, Statement* statement)
+      : expression_(expression), statement_(statement) { }
 
-  DECLARE_NODE_TYPE(EnterWithContextStatement)
+  DECLARE_NODE_TYPE(WithStatement)
 
   Expression* expression() const { return expression_; }
+  Statement* statement() const { return statement_; }
 
   virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
+  Statement* statement_;
 };
 
 
@@ -1205,7 +1246,6 @@ class Property: public Expression {
         key_(key),
         pos_(pos),
         type_(type),
-        receiver_types_(NULL),
         is_monomorphic_(false),
         is_array_length_(false),
         is_string_length_(false),
@@ -1229,11 +1269,8 @@ class Property: public Expression {
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
-  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
+  virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual bool IsArrayLength() { return is_array_length_; }
-  virtual Handle<Map> GetMonomorphicReceiverType() {
-    return monomorphic_receiver_type_;
-  }
 
  private:
   Expression* obj_;
@@ -1241,13 +1278,12 @@ class Property: public Expression {
   int pos_;
   Type type_;
 
-  ZoneMapList* receiver_types_;
+  SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
   bool is_array_length_ : 1;
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
-  Handle<Map> monomorphic_receiver_type_;
 };
 
 
@@ -1263,7 +1299,6 @@ class Call: public Expression {
         pos_(pos),
         is_monomorphic_(false),
         check_type_(RECEIVER_MAP_CHECK),
-        receiver_types_(NULL),
         return_id_(GetNextId(isolate)) {
   }
 
@@ -1277,7 +1312,7 @@ class Call: public Expression {
 
   void RecordTypeFeedback(TypeFeedbackOracle* oracle,
                           CallKind call_kind);
-  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
+  virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   CheckType check_type() const { return check_type_; }
   Handle<JSFunction> target() { return target_; }
@@ -1302,7 +1337,7 @@ class Call: public Expression {
 
   bool is_monomorphic_;
   CheckType check_type_;
-  ZoneMapList* receiver_types_;
+  SmallMapList receiver_types_;
   Handle<JSFunction> target_;
   Handle<JSObject> holder_;
   Handle<JSGlobalPropertyCell> cell_;
@@ -1477,8 +1512,7 @@ class CountOperation: public Expression {
         expression_(expr),
         pos_(pos),
         assignment_id_(GetNextId(isolate)),
-        count_id_(GetNextId(isolate)),
-        receiver_types_(NULL) { }
+        count_id_(GetNextId(isolate)) {}
 
   DECLARE_NODE_TYPE(CountOperation)
 
@@ -1499,10 +1533,7 @@ class CountOperation: public Expression {
 
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
-  virtual Handle<Map> GetMonomorphicReceiverType() {
-    return monomorphic_receiver_type_;
-  }
-  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
+  virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -1516,8 +1547,7 @@ class CountOperation: public Expression {
   int pos_;
   int assignment_id_;
   int count_id_;
-  Handle<Map> monomorphic_receiver_type_;
-  ZoneMapList* receiver_types_;
+  SmallMapList receiver_types_;
 };
 
 
@@ -1665,10 +1695,7 @@ class Assignment: public Expression {
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
-  virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
-  virtual Handle<Map> GetMonomorphicReceiverType() {
-    return monomorphic_receiver_type_;
-  }
+  virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
   // Bailout support.
   int CompoundLoadId() const { return compound_load_id_; }
@@ -1687,8 +1714,7 @@ class Assignment: public Expression {
   bool block_end_;
 
   bool is_monomorphic_;
-  ZoneMapList* receiver_types_;
-  Handle<Map> monomorphic_receiver_type_;
+  SmallMapList receiver_types_;
 };
 
 
@@ -1711,6 +1737,12 @@ class Throw: public Expression {
 
 class FunctionLiteral: public Expression {
  public:
+  enum Type {
+    ANONYMOUS_EXPRESSION,
+    NAMED_EXPRESSION,
+    DECLARATION
+  };
+
   FunctionLiteral(Isolate* isolate,
                   Handle<String> name,
                   Scope* scope,
@@ -1722,7 +1754,7 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression,
+                  Type type,
                   bool has_duplicate_parameters)
       : Expression(isolate),
         name_(name),
@@ -1738,7 +1770,8 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        is_expression_(is_expression),
+        is_expression_(type != DECLARATION),
+        is_anonymous_(type == ANONYMOUS_EXPRESSION),
         pretenure_(false),
         has_duplicate_parameters_(has_duplicate_parameters) {
   }
@@ -1753,6 +1786,7 @@ class FunctionLiteral: public Expression {
   int start_position() const { return start_position_; }
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
+  bool is_anonymous() const { return is_anonymous_; }
   bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -1797,6 +1831,7 @@ class FunctionLiteral: public Expression {
   int function_token_position_;
   Handle<String> inferred_name_;
   bool is_expression_;
+  bool is_anonymous_;
   bool pretenure_;
   bool has_duplicate_parameters_;
 };

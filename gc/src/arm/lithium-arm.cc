@@ -1039,13 +1039,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  LInstruction* branch = new LBranch(UseRegister(v));
-  // When we handle all cases, we never deopt, so we don't need to assign the
-  // environment then. Note that we map the "empty" case to the "all" case in
-  // the code generator.
-  ToBooleanStub::Types types = instr->expected_input_types();
-  bool all_cases_handled = types.IsAll() || types.IsEmpty();
-  return all_cases_handled ? branch : AssignEnvironment(branch);
+  return AssignEnvironment(new LBranch(UseRegister(v)));
 }
 
 
@@ -1405,7 +1399,6 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   Token::Value op = instr->token();
-  Representation r = instr->GetInputRepresentation();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
   bool reversed = (op == Token::GT || op == Token::LTE);
@@ -1515,16 +1508,10 @@ LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoExternalArrayLength(
-    HExternalArrayLength* instr) {
+LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
+    HFixedArrayBaseLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LExternalArrayLength(array));
-}
-
-
-LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
-  LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LFixedArrayLength(array));
+  return DefineAsRegister(new LFixedArrayBaseLength(array));
 }
 
 

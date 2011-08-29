@@ -65,8 +65,12 @@ class Zone {
   template <typename T>
   inline T* NewArray(int length);
 
-  // Delete all objects and free all memory allocated in the Zone.
+  // Deletes all objects and free all memory allocated in the Zone. Keeps one
+  // small (size <= kMaximumKeptSegmentSize) segment around if it finds one.
   void DeleteAll();
+
+  // Deletes the last small segment kept around by DeleteAll().
+  void DeleteKeptSegment();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -194,10 +198,6 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
     AddAll(other);
   }
 };
-
-
-// Introduce a convenience type for zone lists of map handles.
-typedef ZoneList<Handle<Map> > ZoneMapList;
 
 
 // ZoneScopes keep track of the current parsing and compilation

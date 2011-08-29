@@ -153,13 +153,19 @@ LIBRARY_FLAGS = {
         }
       },
       'armeabi:softfp' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }
       },
       'armeabi:hard' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
@@ -496,7 +502,10 @@ SAMPLE_FLAGS = {
         }
       },
       'armeabi:hard' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
@@ -1090,6 +1099,12 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'compress startup data (snapshot) [Linux only]'
   },
+  'vfp3': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'use vfp3 instructions when building the snapshot [Arm only]'
+  },
+
 }
 
 ALL_OPTIONS = dict(PLATFORM_OPTIONS, **SIMPLE_OPTIONS)

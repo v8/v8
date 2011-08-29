@@ -1195,9 +1195,8 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3, name,
+                  miss);
 
   // Return the constant value.
   __ mov(r0, Operand(Handle<Object>(value)));
@@ -3507,9 +3506,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
   // Check that the index is in range.
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
-  __ cmp(ip, Operand(key, ASR, kSmiTagSize));
+  __ cmp(key, ip);
   // Unsigned comparison catches both negative and too-large values.
-  __ b(lo, &miss_force_generic);
+  __ b(hs, &miss_force_generic);
 
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
   // r3: base pointer of external storage
@@ -3829,22 +3828,20 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
-
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &miss_force_generic);
 
+  __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
+
   // Check that the index is in range
-  __ SmiUntag(r4, key);
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
-  __ cmp(r4, ip);
+  __ cmp(key, ip);
   // Unsigned comparison catches both negative and too-large values.
   __ b(hs, &miss_force_generic);
 
   // Handle both smis and HeapNumbers in the fast path. Go to the
   // runtime for all other kinds of values.
   // r3: external array.
-  // r4: key (integer).
   if (elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     // Double to pixel conversion is only implemented in the runtime for now.
     __ JumpIfNotSmi(value, &slow);
@@ -3855,32 +3852,32 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 
   // r3: base pointer of external storage.
-  // r4: key (integer).
   // r5: value (integer).
   switch (elements_kind) {
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       // Clamp the value to [0..255].
       __ Usat(r5, 8, Operand(r5));
-      __ strb(r5, MemOperand(r3, r4, LSL, 0));
+      __ strb(r5, MemOperand(r3, key, LSR, 1));
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      __ strb(r5, MemOperand(r3, r4, LSL, 0));
+      __ strb(r5, MemOperand(r3, key, LSR, 1));
       break;
     case JSObject::EXTERNAL_SHORT_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ strh(r5, MemOperand(r3, r4, LSL, 1));
+      __ strh(r5, MemOperand(r3, key, LSL, 0));
       break;
     case JSObject::EXTERNAL_INT_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      __ str(r5, MemOperand(r3, r4, LSL, 2));
+      __ str(r5, MemOperand(r3, key, LSL, 1));
       break;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       // Perform int-to-float conversion and store to memory.
+      __ SmiUntag(r4, key);
       StoreIntAsFloat(masm, r3, r4, r5, r6, r7, r9);
       break;
     case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      __ add(r3, r3, Operand(r4, LSL, 3));
+      __ add(r3, r3, Operand(key, LSL, 2));
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
       if (CpuFeatures::IsSupported(VFP3)) {
@@ -3913,7 +3910,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
   if (elements_kind != JSObject::EXTERNAL_PIXEL_ELEMENTS) {
     // r3: external array.
-    // r4: index (integer).
     __ bind(&check_heap_number);
     __ CompareObjectType(value, r5, r6, HEAP_NUMBER_TYPE);
     __ b(ne, &slow);
@@ -3921,7 +3917,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 
     // r3: base pointer of external storage.
-    // r4: key (integer).
 
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
@@ -3934,13 +3929,13 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         // include -kHeapObjectTag into it.
         __ sub(r5, r0, Operand(kHeapObjectTag));
         __ vldr(d0, r5, HeapNumber::kValueOffset);
-        __ add(r5, r3, Operand(r4, LSL, 2));
+        __ add(r5, r3, Operand(key, LSL, 1));
         __ vcvt_f32_f64(s0, d0);
         __ vstr(s0, r5, 0);
       } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
         __ sub(r5, r0, Operand(kHeapObjectTag));
         __ vldr(d0, r5, HeapNumber::kValueOffset);
-        __ add(r5, r3, Operand(r4, LSL, 3));
+        __ add(r5, r3, Operand(key, LSL, 2));
         __ vstr(d0, r5, 0);
       } else {
         // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
@@ -3952,15 +3947,15 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         switch (elements_kind) {
           case JSObject::EXTERNAL_BYTE_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ strb(r5, MemOperand(r3, r4, LSL, 0));
+            __ strb(r5, MemOperand(r3, key, LSR, 1));
             break;
           case JSObject::EXTERNAL_SHORT_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ strh(r5, MemOperand(r3, r4, LSL, 1));
+            __ strh(r5, MemOperand(r3, key, LSL, 0));
             break;
           case JSObject::EXTERNAL_INT_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ str(r5, MemOperand(r3, r4, LSL, 2));
+            __ str(r5, MemOperand(r3, key, LSL, 1));
             break;
           case JSObject::EXTERNAL_PIXEL_ELEMENTS:
           case JSObject::EXTERNAL_FLOAT_ELEMENTS:
@@ -4022,7 +4017,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ orr(r5, r7, Operand(r9, LSL, kBinary32ExponentShift));
 
         __ bind(&done);
-        __ str(r5, MemOperand(r3, r4, LSL, 2));
+        __ str(r5, MemOperand(r3, key, LSL, 1));
         // Entry registers are intact, r0 holds the value which is the return
         // value.
         __ Ret();
@@ -4035,7 +4030,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
         __ b(&done);
       } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
-        __ add(r7, r3, Operand(r4, LSL, 3));
+        __ add(r7, r3, Operand(key, LSL, 2));
         // r7: effective address of destination element.
         __ str(r6, MemOperand(r7, 0));
         __ str(r5, MemOperand(r7, Register::kSizeInBytes));
@@ -4091,15 +4086,15 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         switch (elements_kind) {
           case JSObject::EXTERNAL_BYTE_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ strb(r5, MemOperand(r3, r4, LSL, 0));
+            __ strb(r5, MemOperand(r3, key, LSR, 1));
             break;
           case JSObject::EXTERNAL_SHORT_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ strh(r5, MemOperand(r3, r4, LSL, 1));
+            __ strh(r5, MemOperand(r3, key, LSL, 0));
             break;
           case JSObject::EXTERNAL_INT_ELEMENTS:
           case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ str(r5, MemOperand(r3, r4, LSL, 2));
+            __ str(r5, MemOperand(r3, key, LSL, 1));
             break;
           case JSObject::EXTERNAL_PIXEL_ELEMENTS:
           case JSObject::EXTERNAL_FLOAT_ELEMENTS:

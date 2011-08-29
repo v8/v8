@@ -658,10 +658,11 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
     }
 
     if (js_object->elements() != heap->empty_fixed_array()) {
-      MaybeObject* result = js_object->GetElementsAccessor()->GetWithReceiver(
+      MaybeObject* result = js_object->GetElementsAccessor()->Get(
+          js_object->elements(),
+          index,
           js_object,
-          receiver,
-          index);
+          receiver);
       if (result != heap->the_hole_value()) return result;
     }
   }
@@ -2332,7 +2333,8 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   if (has_exception) return Failure::Exception();
 
   Object* bool_result = result->ToBoolean();
-  if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+  if (mode == STRICT_DELETION &&
+      bool_result == isolate->heap()->false_value()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
@@ -3186,9 +3188,10 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
-  MaybeObject* raw_result = GetElementsAccessor()->Delete(*this_handle,
-                                                          index,
-                                                          NORMAL_DELETION);
+  MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
+      *this_handle,
+      index,
+      NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
@@ -4483,20 +4486,6 @@ void CodeCacheHashTable::RemoveByIndex(int index) {
 }
 
 
-static bool HasKey(FixedArray* array, Object* key) {
-  int len0 = array->length();
-  for (int i = 0; i < len0; i++) {
-    Object* element = array->get(i);
-    if (element->IsSmi() && key->IsSmi() && (element == key)) return true;
-    if (element->IsString() &&
-        key->IsString() && String::cast(element)->Equals(String::cast(key))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 MaybeObject* PolymorphicCodeCache::Update(MapList* maps,
                                           Code::Flags flags,
                                           Code* code) {
@@ -4656,167 +4645,37 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
 
 
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  ASSERT(!array->HasExternalArrayElements());
-  switch (array->GetElementsKind()) {
-    case JSObject::FAST_ELEMENTS:
-      return UnionOfKeys(FixedArray::cast(array->elements()));
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-      return UnionOfDoubleKeys(FixedDoubleArray::cast(array->elements()));
-      break;
-    case JSObject::DICTIONARY_ELEMENTS: {
-      NumberDictionary* dict = array->element_dictionary();
-      int size = dict->NumberOfElements();
-
-      // Allocate a temporary fixed array.
-      Object* object;
-      { MaybeObject* maybe_object = GetHeap()->AllocateFixedArray(size);
-        if (!maybe_object->ToObject(&object)) return maybe_object;
-      }
-      FixedArray* key_array = FixedArray::cast(object);
-
-      int capacity = dict->Capacity();
-      int pos = 0;
-      // Copy the elements from the JSArray to the temporary fixed array.
-      for (int i = 0; i < capacity; i++) {
-        if (dict->IsKey(dict->KeyAt(i))) {
-          key_array->set(pos++, dict->ValueAt(i));
-        }
-      }
-      // Compute the union of this and the temporary fixed array.
-      return UnionOfKeys(key_array);
-    }
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      break;
-  }
-  UNREACHABLE();
-  return GetHeap()->null_value();  // Failure case needs to "return" a value.
-}
-
-
-MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
-  int len0 = length();
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  MaybeObject* maybe_result =
+      accessor->AddElementsToFixedArray(array->elements(), this, array, array);
+  FixedArray* result;
+  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
-    for (int i = 0; i < len0; i++) {
-      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    for (int i = 0; i < result->length(); i++) {
+      Object* current = result->get(i);
+      ASSERT(current->IsNumber() || current->IsString());
     }
   }
 #endif
-  int len1 = other->length();
-  // Optimize if 'other' is empty.
-  // We cannot optimize if 'this' is empty, as other may have holes
-  // or non keys.
-  if (len1 == 0) return this;
-
-  // Compute how many elements are not in this.
-  int extra = 0;
-  for (int y = 0; y < len1; y++) {
-    Object* value = other->get(y);
-    if (!value->IsTheHole() && !HasKey(this, value)) extra++;
-  }
-
-  if (extra == 0) return this;
-
-  // Allocate the result
-  Object* obj;
-  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(len0 + extra);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  // Fill in the content
-  AssertNoAllocation no_gc;
-  FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < len0; i++) {
-    Object* e = get(i);
-    ASSERT(e->IsString() || e->IsNumber());
-    result->set(i, e, mode);
-  }
-  // Fill in the extra keys.
-  int index = 0;
-  for (int y = 0; y < len1; y++) {
-    Object* value = other->get(y);
-    if (!value->IsTheHole() && !HasKey(this, value)) {
-      Object* e = other->get(y);
-      ASSERT(e->IsString() || e->IsNumber());
-      result->set(len0 + index, e, mode);
-      index++;
-    }
-  }
-  ASSERT(extra == index);
   return result;
 }
 
 
-MaybeObject* FixedArray::UnionOfDoubleKeys(FixedDoubleArray* other) {
-  int len0 = length();
+MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
+  ElementsAccessor* accessor = ElementsAccessor::ForArray(other);
+  MaybeObject* maybe_result =
+      accessor->AddElementsToFixedArray(other, this, NULL, NULL);
+  FixedArray* result;
+  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
-    for (int i = 0; i < len0; i++) {
-      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    for (int i = 0; i < result->length(); i++) {
+      Object* current = result->get(i);
+      ASSERT(current->IsNumber() || current->IsString());
     }
   }
 #endif
-  int len1 = other->length();
-  // Optimize if 'other' is empty.
-  // We cannot optimize if 'this' is empty, as other may have holes
-  // or non keys.
-  if (len1 == 0) return this;
-
-  // Compute how many elements are not in this.
-  int extra = 0;
-  Heap* heap = GetHeap();
-  Object* obj;
-  for (int y = 0; y < len1; y++) {
-    if (!other->is_the_hole(y)) {
-      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get_scalar(y));
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      if (!HasKey(this, obj)) extra++;
-    }
-  }
-
-  if (extra == 0) return this;
-
-  // Allocate the result
-  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(len0 + extra);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  // Fill in the content
-  FixedArray* result = FixedArray::cast(obj);
-  {
-    // Limit the scope of the AssertNoAllocation
-    AssertNoAllocation no_gc;
-    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < len0; i++) {
-      Object* e = get(i);
-      ASSERT(e->IsString() || e->IsNumber());
-      result->set(i, e, mode);
-    }
-  }
-
-  // Fill in the extra keys.
-  int index = 0;
-  for (int y = 0; y < len1; y++) {
-    if (!other->is_the_hole(y)) {
-      MaybeObject* maybe_obj = heap->NumberFromDouble(other->get_scalar(y));
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      if (!HasKey(this, obj)) {
-        result->set(len0 + index, obj);
-        index++;
-      }
-    }
-  }
-  ASSERT(extra == index);
   return result;
 }
 
@@ -5198,55 +5057,36 @@ int String::Utf8Length() {
 }
 
 
-Vector<const char> String::ToAsciiVector() {
-  ASSERT(IsAsciiRepresentation());
-  ASSERT(IsFlat());
-
-  int offset = 0;
+String::FlatContent String::GetFlatContent() {
   int length = this->length();
-  StringRepresentationTag string_tag = StringShape(this).representation_tag();
+  StringShape shape(this);
   String* string = this;
-  if (string_tag == kConsStringTag) {
+  if (shape.representation_tag() == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length() == 0);
+    if (cons->second()->length() != 0) {
+      return FlatContent();
+    }
     string = cons->first();
-    string_tag = StringShape(string).representation_tag();
+    shape = StringShape(string);
   }
-  if (string_tag == kSeqStringTag) {
-    SeqAsciiString* seq = SeqAsciiString::cast(string);
-    char* start = seq->GetChars();
-    return Vector<const char>(start + offset, length);
+  if (shape.encoding_tag() == kAsciiStringTag) {
+    const char* start;
+    if (shape.representation_tag() == kSeqStringTag) {
+      start = SeqAsciiString::cast(string)->GetChars();
+    } else {
+      start = ExternalAsciiString::cast(string)->resource()->data();
+    }
+    return FlatContent(Vector<const char>(start, length));
+  } else {
+    ASSERT(shape.encoding_tag() == kTwoByteStringTag);
+    const uc16* start;
+    if (shape.representation_tag() == kSeqStringTag) {
+      start = SeqTwoByteString::cast(string)->GetChars();
+    } else {
+      start = ExternalTwoByteString::cast(string)->resource()->data();
+    }
+    return FlatContent(Vector<const uc16>(start, length));
   }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
-  const char* start = ext->resource()->data();
-  return Vector<const char>(start + offset, length);
-}
-
-
-Vector<const uc16> String::ToUC16Vector() {
-  ASSERT(IsTwoByteRepresentation());
-  ASSERT(IsFlat());
-
-  int offset = 0;
-  int length = this->length();
-  StringRepresentationTag string_tag = StringShape(this).representation_tag();
-  String* string = this;
-  if (string_tag == kConsStringTag) {
-    ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length() == 0);
-    string = cons->first();
-    string_tag = StringShape(string).representation_tag();
-  }
-  if (string_tag == kSeqStringTag) {
-    SeqTwoByteString* seq = SeqTwoByteString::cast(string);
-    return Vector<const uc16>(seq->GetChars() + offset, length);
-  }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
-  const uc16* start =
-      reinterpret_cast<const uc16*>(ext->resource()->data());
-  return Vector<const uc16>(start + offset, length);
 }
 
 
@@ -5696,11 +5536,13 @@ void FlatStringReader::PostGarbageCollection() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  is_ascii_ = str->IsAsciiRepresentation();
+  String::FlatContent content = str->GetFlatContent();
+  ASSERT(content.IsFlat());
+  is_ascii_ = content.IsAscii();
   if (is_ascii_) {
-    start_ = str->ToAsciiVector().start();
+    start_ = content.ToAsciiVector().start();
   } else {
-    start_ = str->ToUC16Vector().start();
+    start_ = content.ToUC16Vector().start();
   }
 }
 
@@ -6020,12 +5862,13 @@ template <typename IteratorA>
 static inline bool CompareStringContentsPartial(Isolate* isolate,
                                                 IteratorA* ia,
                                                 String* b) {
-  if (b->IsFlat()) {
-    if (b->IsAsciiRepresentation()) {
-      VectorIterator<char> ib(b->ToAsciiVector());
+  String::FlatContent content = b->GetFlatContent();
+  if (content.IsFlat()) {
+    if (content.IsAscii()) {
+      VectorIterator<char> ib(content.ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
-      VectorIterator<uc16> ib(b->ToUC16Vector());
+      VectorIterator<uc16> ib(content.ToUC16Vector());
       return CompareStringContents(ia, &ib);
     }
   } else {
@@ -6064,16 +5907,18 @@ bool String::SlowEquals(String* other) {
   }
 
   Isolate* isolate = GetIsolate();
-  if (lhs->IsFlat()) {
-    if (lhs->IsAsciiRepresentation()) {
-      Vector<const char> vec1 = lhs->ToAsciiVector();
-      if (rhs->IsFlat()) {
-        if (rhs->IsAsciiRepresentation()) {
-          Vector<const char> vec2 = rhs->ToAsciiVector();
+  String::FlatContent lhs_content = lhs->GetFlatContent();
+  String::FlatContent rhs_content = rhs->GetFlatContent();
+  if (lhs_content.IsFlat()) {
+    if (lhs_content.IsAscii()) {
+      Vector<const char> vec1 = lhs_content.ToAsciiVector();
+      if (rhs_content.IsFlat()) {
+        if (rhs_content.IsAscii()) {
+          Vector<const char> vec2 = rhs_content.ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
           VectorIterator<char> buf1(vec1);
-          VectorIterator<uc16> ib(rhs->ToUC16Vector());
+          VectorIterator<uc16> ib(rhs_content.ToUC16Vector());
           return CompareStringContents(&buf1, &ib);
         }
       } else {
@@ -6083,14 +5928,14 @@ bool String::SlowEquals(String* other) {
             isolate->objects_string_compare_buffer_b());
       }
     } else {
-      Vector<const uc16> vec1 = lhs->ToUC16Vector();
-      if (rhs->IsFlat()) {
-        if (rhs->IsAsciiRepresentation()) {
+      Vector<const uc16> vec1 = lhs_content.ToUC16Vector();
+      if (rhs_content.IsFlat()) {
+        if (rhs_content.IsAscii()) {
           VectorIterator<uc16> buf1(vec1);
-          VectorIterator<char> ib(rhs->ToAsciiVector());
+          VectorIterator<char> ib(rhs_content.ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
         } else {
-          Vector<const uc16> vec2(rhs->ToUC16Vector());
+          Vector<const uc16> vec2(rhs_content.ToUC16Vector());
           return CompareRawStringContents(vec1, vec2);
         }
       } else {
@@ -6143,8 +5988,10 @@ bool String::IsEqualTo(Vector<const char> str) {
 bool String::IsAsciiEqualTo(Vector<const char> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  if (IsFlat() && IsAsciiRepresentation()) {
-    return CompareChars(ToAsciiVector().start(), str.start(), slen) == 0;
+  FlatContent content = GetFlatContent();
+  if (content.IsAscii()) {
+    return CompareChars(content.ToAsciiVector().start(),
+                        str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != static_cast<uint16_t>(str[i])) return false;
@@ -6156,8 +6003,9 @@ bool String::IsAsciiEqualTo(Vector<const char> str) {
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  if (IsFlat() && IsTwoByteRepresentation()) {
-    return CompareChars(ToUC16Vector().start(), str.start(), slen) == 0;
+  FlatContent content = GetFlatContent();
+  if (content.IsTwoByte()) {
+    return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != str[i]) return false;
@@ -7089,12 +6937,16 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   PrintF(out, "Deoptimization Input Data (deopt points = %d)\n", deopt_count);
   if (0 == deopt_count) return;
 
-  PrintF(out, "%6s  %6s  %6s  %12s\n", "index", "ast id", "argc", "commands");
+  PrintF(out, "%6s  %6s  %6s  %12s\n", "index", "ast id", "argc",
+         FLAG_print_code_verbose ? "commands" : "");
   for (int i = 0; i < deopt_count; i++) {
     PrintF(out, "%6d  %6d  %6d",
            i, AstId(i)->value(), ArgumentsStackHeight(i)->value());
 
-    if (!FLAG_print_code_verbose) continue;
+    if (!FLAG_print_code_verbose) {
+      PrintF(out, "\n");
+      continue;
+    }
     // Print details of the frame translation.
     int translation_index = TranslationIndex(i)->value();
     TranslationIterator iterator(TranslationByteArray(), translation_index);
@@ -8531,14 +8383,14 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         return isolate->Throw(*error);
       }
     }
-    Object* new_dictionary;
+    FixedArrayBase* new_dictionary;
     MaybeObject* maybe = dictionary->AtNumberPut(index, value);
-    if (!maybe->ToObject(&new_dictionary)) return maybe;
+    if (!maybe->To<FixedArrayBase>(&new_dictionary)) return maybe;
     if (dictionary != NumberDictionary::cast(new_dictionary)) {
       if (is_arguments) {
         elements->set(1, new_dictionary);
       } else {
-        set_elements(HeapObject::cast(new_dictionary));
+        set_elements(new_dictionary);
       }
       dictionary = NumberDictionary::cast(new_dictionary);
     }
@@ -8827,9 +8679,10 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   Heap* heap = holder_handle->GetHeap();
   ElementsAccessor* handler = holder_handle->GetElementsAccessor();
-  MaybeObject* raw_result = handler->GetWithReceiver(*holder_handle,
-                                                     *this_handle,
-                                                     index);
+  MaybeObject* raw_result = handler->Get(holder_handle->elements(),
+                                         index,
+                                         *holder_handle,
+                                         *this_handle);
   if (raw_result != heap->the_hole_value()) return raw_result;
 
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);

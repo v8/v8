@@ -289,7 +289,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 
 // -----------------------------------------------------------------------------
 // NewSpace
-
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   Address old_top = allocation_info_.top;
   if (allocation_info_.limit - old_top < size_in_bytes) {

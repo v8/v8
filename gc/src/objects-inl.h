@@ -306,6 +306,11 @@ StringRepresentationTag StringShape::representation_tag() {
 }
 
 
+uint32_t StringShape::encoding_tag() {
+  return type_ & kStringEncodingMask;
+}
+
+
 uint32_t StringShape::full_representation_tag() {
   return (type_ & (kStringRepresentationMask | kStringEncodingMask));
 }
@@ -574,7 +579,8 @@ bool Object::IsContext() {
     return (map == heap->function_context_map() ||
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
-            map == heap->global_context_map());
+            map == heap->global_context_map() ||
+            map == heap->block_context_map());
   }
   return false;
 }
@@ -584,6 +590,13 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
+}
+
+
+bool Object::IsSerializedScopeInfo() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->serialized_scope_info_map();
 }
 
 
@@ -1228,14 +1241,14 @@ int HeapNumber::get_sign() {
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 
-HeapObject* JSObject::elements() {
+FixedArrayBase* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
   ASSERT(array->HasValidElements());
-  return reinterpret_cast<HeapObject*>(array);
+  return static_cast<FixedArrayBase*>(array);
 }
 
 
-void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
+void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
@@ -2014,13 +2027,7 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-SMI_ACCESSORS(ByteArray, length, kLengthOffset)
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
-
-// TODO(1493): Investigate if it's possible to s/INT/SMI/ here (and
-// subsequently unify H{Fixed,External}ArrayLength).
-INT_ACCESSORS(ExternalArray, length, kLengthOffset)
-
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 

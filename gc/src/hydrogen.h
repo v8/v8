@@ -874,7 +874,10 @@ class HGraphBuilder: public AstVisitor {
                                             bool is_store);
 
   bool TryArgumentsAccess(Property* expr);
+
+  // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
+
   bool TryInline(Call* expr);
   bool TryInlineBuiltinFunction(Call* expr,
                                 HValue* receiver,
@@ -898,11 +901,11 @@ class HGraphBuilder: public AstVisitor {
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
-                                        ZoneMapList* types,
+                                        SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
-                                  ZoneMapList* types,
+                                  SmallMapList* types,
                                   Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
                                   Expression* expr,

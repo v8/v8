@@ -1273,12 +1273,12 @@ def ProcessOptions(options):
     if options.special_command:
       options.special_command += " --crankshaft"
     else:
-      options.special_command = "@--crankshaft"
-  if options.shell == "d8":
+      options.special_command = "@ --crankshaft"
+  if options.shell.endswith("d8"):
     if options.special_command:
       options.special_command += " --test"
     else:
-      options.special_command = "@--test"
+      options.special_command = "@ --test"
   if options.noprof:
     options.scons_flags.append("prof=off")
     options.scons_flags.append("profilingsupport=off")

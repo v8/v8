@@ -63,18 +63,8 @@
 //           - JSMessageObject
 //         - JSProxy
 //           - JSFunctionProxy
-//       - ByteArray
-//       - FreeSpace
-//       - ExternalArray
-//         - ExternalPixelArray
-//         - ExternalByteArray
-//         - ExternalUnsignedByteArray
-//         - ExternalShortArray
-//         - ExternalUnsignedShortArray
-//         - ExternalIntArray
-//         - ExternalUnsignedIntArray
-//         - ExternalFloatArray
 //       - FixedArrayBase
+//         - ByteArray
 //         - FixedArray
 //           - DescriptorArray
 //           - HashTable
@@ -87,6 +77,15 @@
 //           - JSFunctionResultCache
 //           - SerializedScopeInfo
 //         - FixedDoubleArray
+//         - ExternalArray
+//           - ExternalPixelArray
+//           - ExternalByteArray
+//           - ExternalUnsignedByteArray
+//           - ExternalShortArray
+//           - ExternalUnsignedShortArray
+//           - ExternalIntArray
+//           - ExternalUnsignedIntArray
+//           - ExternalFloatArray
 //       - String
 //         - SeqString
 //           - SeqAsciiString
@@ -325,6 +324,7 @@ static const int kVariableSizeSentinel = 0;
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
+  V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
                                                                                \
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
@@ -639,10 +639,11 @@ enum CompareResult {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
-class ElementsAccessor;
-class StringStream;
-class ObjectVisitor;
 class DictionaryElementsAccessor;
+class ElementsAccessor;
+class FixedArrayBase;
+class ObjectVisitor;
+class StringStream;
 class Failure;
 
 struct ValueInfo : public Malloced {
@@ -748,6 +749,7 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedDoubleArray)                          \
   V(Context)                                   \
   V(GlobalContext)                             \
+  V(SerializedScopeInfo)                       \
   V(JSFunction)                                \
   V(Code)                                      \
   V(Oddball)                                   \
@@ -1384,7 +1386,7 @@ class JSObject: public JSReceiver {
   // In the slow mode the elements is either a NumberDictionary, an
   // ExternalArray, or a FixedArray parameter map for a (non-strict)
   // arguments object.
-  DECL_ACCESSORS(elements, HeapObject)
+  DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   MUST_USE_RESULT inline MaybeObject* ResetElements();
   inline ElementsKind GetElementsKind();
@@ -1976,6 +1978,7 @@ class FixedArrayBase: public HeapObject {
   static const int kHeaderSize = kLengthOffset + kPointerSize;
 };
 
+
 class FixedDoubleArray;
 
 // FixedArray describes fixed-sized arrays with element type Object*.
@@ -2019,10 +2022,6 @@ class FixedArray: public FixedArrayBase {
 
   // Compute the union of this and other.
   MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
-
-  // Compute the union of this and other.
-  MUST_USE_RESULT MaybeObject* UnionOfDoubleKeys(
-      FixedDoubleArray* other);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -2948,12 +2947,8 @@ class NormalizedMapCache: public FixedArray {
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.
-class ByteArray: public HeapObject {
+class ByteArray: public FixedArrayBase {
  public:
-  // [length]: length of the array.
-  inline int length();
-  inline void set_length(int value);
-
   inline int Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
   // Setter and getter.
@@ -3000,10 +2995,6 @@ class ByteArray: public HeapObject {
 #endif
 
   // Layout description.
-  // Length is smi tagged when it is stored.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
-
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
   // Maximal memory consumption for a single ByteArray.
@@ -3065,11 +3056,8 @@ class FreeSpace: public HeapObject {
 // Out-of-range values passed to the setter are converted via a C
 // cast, not clamping. Out-of-range indices cause exceptions to be
 // raised rather than being silently ignored.
-class ExternalArray: public HeapObject {
+class ExternalArray: public FixedArrayBase {
  public:
-  // [length]: length of the array.
-  inline int length();
-  inline void set_length(int value);
 
   inline bool is_the_hole(int index) { return false; }
 
@@ -3084,9 +3072,8 @@ class ExternalArray: public HeapObject {
   static const int kMaxLength = 0x3fffffff;
 
   // ExternalArray headers are not quadword aligned.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kExternalPointerOffset =
-      POINTER_SIZE_ALIGN(kLengthOffset + kIntSize);
+      POINTER_SIZE_ALIGN(FixedArrayBase::kLengthOffset + kPointerSize);
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
@@ -4372,6 +4359,7 @@ class Script: public Struct {
 #define FUNCTIONS_WITH_ID_LIST(V)                   \
   V(Array.prototype, push, ArrayPush)               \
   V(Array.prototype, pop, ArrayPop)                 \
+  V(Function.prototype, apply, FunctionApply)       \
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \
   V(String, fromCharCode, StringFromCharCode)       \
@@ -5724,6 +5712,7 @@ class StringShape BASE_EMBEDDED {
   inline bool IsSequentialTwoByte();
   inline bool IsSymbol();
   inline StringRepresentationTag representation_tag();
+  inline uint32_t encoding_tag();
   inline uint32_t full_representation_tag();
   inline uint32_t size_tag();
 #ifdef DEBUG
@@ -5755,6 +5744,51 @@ class StringShape BASE_EMBEDDED {
 // All string values have a length field.
 class String: public HeapObject {
  public:
+  // Representation of the flat content of a String.
+  // A non-flat string doesn't have flat content.
+  // A flat string has content that's encoded as a sequence of either
+  // ASCII chars or two-byte UC16.
+  // Returned by String::GetFlatContent().
+  class FlatContent {
+   public:
+    // Returns true if the string is flat and this structure contains content.
+    bool IsFlat() { return state_ != NON_FLAT; }
+    // Returns true if the structure contains ASCII content.
+    bool IsAscii() { return state_ == ASCII; }
+    // Returns true if the structure contains two-byte content.
+    bool IsTwoByte() { return state_ == TWO_BYTE; }
+
+    // Return the ASCII content of the string. Only use if IsAscii() returns
+    // true.
+    Vector<const char> ToAsciiVector() {
+      ASSERT_EQ(ASCII, state_);
+      return Vector<const char>::cast(buffer_);
+    }
+    // Return the two-byte content of the string. Only use if IsTwoByte()
+    // returns true.
+    Vector<const uc16> ToUC16Vector() {
+      ASSERT_EQ(TWO_BYTE, state_);
+      return Vector<const uc16>::cast(buffer_);
+    }
+
+   private:
+    enum State { NON_FLAT, ASCII, TWO_BYTE };
+
+    // Constructors only used by String::GetFlatContent().
+    explicit FlatContent(Vector<const char> chars)
+        : buffer_(Vector<const byte>::cast(chars)),
+          state_(ASCII) { }
+    explicit FlatContent(Vector<const uc16> chars)
+        : buffer_(Vector<const byte>::cast(chars)),
+          state_(TWO_BYTE) { }
+    FlatContent() : buffer_(), state_(NON_FLAT) { }
+
+    Vector<const byte> buffer_;
+    State state_;
+
+    friend class String;
+  };
+
   // Get and set the length of the string.
   inline int length();
   inline void set_length(int value);
@@ -5766,10 +5800,10 @@ class String: public HeapObject {
   inline bool IsAsciiRepresentation();
   inline bool IsTwoByteRepresentation();
 
-  // Returns whether this string has ascii chars, i.e. all of them can
-  // be ascii encoded.  This might be the case even if the string is
+  // Returns whether this string has only ASCII chars, i.e. all of them can
+  // be ASCII encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
-  // two-byte external representations even for ascii data.
+  // two-byte external representations even for ASCII data.
   //
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.
@@ -5803,8 +5837,12 @@ class String: public HeapObject {
   // string.
   inline String* TryFlattenGetString(PretenureFlag pretenure = NOT_TENURED);
 
-  Vector<const char> ToAsciiVector();
-  Vector<const uc16> ToUC16Vector();
+  // Tries to return the content of a flat string as a structure holding either
+  // a flat vector of char or of uc16.
+  // If the string isn't flat, and therefore doesn't have flat content, the
+  // returned structure will report so, and can't provide a vector of either
+  // kind.
+  FlatContent GetFlatContent();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.
