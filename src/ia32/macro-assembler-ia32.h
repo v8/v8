@@ -446,6 +446,17 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
+  // Allocate a raw sliced string object. Only the map field of the result is
+  // initialized.
+  void AllocateSlicedString(Register result,
+                            Register scratch1,
+                            Register scratch2,
+                            Label* gc_required);
+  void AllocateAsciiSlicedString(Register result,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
+
   // Copy memory, byte-by-byte, from source to destination.  Not optimized for
   // long or aligned copies.
   // The contents of index and scratch are destroyed.
