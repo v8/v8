@@ -5704,7 +5704,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Set(ecx, Immediate(2));
 
   if (FLAG_string_slices) {
-    Label copy_rountine;
+    Label copy_routine;
     // If coming from the make_two_character_string path, the string
     // is too short to be sliced anyways.
     STATIC_ASSERT(2 < SlicedString::kMinLength);
