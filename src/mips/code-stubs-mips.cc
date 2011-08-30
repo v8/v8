@@ -4527,9 +4527,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
   // First check for flat string.
-  __ And(at, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
+  __ And(a1, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
-  __ Branch(&seq_string, eq, at, Operand(zero_reg));
+  __ Branch(&seq_string, eq, a1, Operand(zero_reg));
 
   // subject: Subject string
   // a0: instance type if Subject string
@@ -4543,8 +4543,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label cons_string, check_encoding;
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
-  __ Branch(&cons_string, lt, at, Operand(kExternalStringTag));
-  __ Branch(&runtime, eq, at, Operand(kExternalStringTag));
+  __ Branch(&cons_string, lt, a1, Operand(kExternalStringTag));
+  __ Branch(&runtime, eq, a1, Operand(kExternalStringTag));
 
   // String is sliced.
   __ lw(t0, FieldMemOperand(subject, SlicedString::kOffsetOffset));
