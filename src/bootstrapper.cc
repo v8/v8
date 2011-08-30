@@ -1160,7 +1160,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 
   {
-    // Setup the call-as-function delegate.
+    // Set up the call-as-function delegate.
     Handle<Code> code =
         Handle<Code>(isolate->builtins()->builtin(
             Builtins::kHandleApiCallAsFunction));
@@ -1172,7 +1172,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   {
-    // Setup the call-as-constructor delegate.
+    // Set up the call-as-constructor delegate.
     Handle<Code> code =
         Handle<Code>(isolate->builtins()->builtin(
             Builtins::kHandleApiCallAsConstructor));
@@ -1192,15 +1192,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 
 void Genesis::InitializeExperimentalGlobal() {
-  Isolate* isolate = this->isolate();
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind a flag, so WeakMap gets added to the snapshot.
   if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
+    Handle<JSObject> prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
     InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true);
+                    prototype, Builtins::kIllegal, true);
   }
 }
 
