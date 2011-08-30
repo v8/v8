@@ -780,10 +780,10 @@ void Assembler::bind(Label* L) {
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = target_at(L->pos());
-  ASSERT(link > 0 || link == kEndOfChain);
   if (link == kEndOfChain) {
     L->Unuse();
-  } else if (link > 0) {
+  } else {
+    ASSERT(link >= 0);
     L->link_to(link);
   }
 }

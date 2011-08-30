@@ -1259,4 +1259,18 @@ TEST(MIPS14) {
   }
 }
 
+
+TEST(MIPS15) {
+  // Test chaining of label usages within instructions (issue 1644).
+  InitializeVM();
+  v8::HandleScope scope;
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  Label target;
+  __ beq(v0, v1, &target);
+  __ bne(v0, v1, &target);
+  __ bind(&target);
+  __ nop();
+}
+
 #undef __
