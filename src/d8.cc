@@ -678,9 +678,9 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
                        FunctionTemplate::New(PixelArray));
 
 #ifdef LIVE_OBJECT_LIST
-  global_template->Set(String::New("lol_is_enabled"), Boolean::New(true));
+  global_template->Set(String::New("lol_is_enabled"), True());
 #else
-  global_template->Set(String::New("lol_is_enabled"), Boolean::New(false));
+  global_template->Set(String::New("lol_is_enabled"), False());
 #endif
 
 #ifndef V8_SHARED
