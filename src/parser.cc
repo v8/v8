@@ -1609,7 +1609,13 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
   Variable::Mode mode = Variable::VAR;
+  // True if the binding needs initialization. 'let' and 'const' declared
+  // bindings are created uninitialized by their declaration nodes and
+  // need initialization. 'var' declared bindings are always initialized
+  // immediately by their declaration nodes.
+  bool needs_init = false;
   bool is_const = false;
+  Token::Value init_op = Token::INIT_VAR;
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
@@ -1621,6 +1627,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     }
     mode = Variable::CONST;
     is_const = true;
+    needs_init = true;
+    init_op = Token::INIT_CONST;
   } else if (peek() == Token::LET) {
     Consume(Token::LET);
     if (var_context != kSourceElement &&
@@ -1631,6 +1639,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       return NULL;
     }
     mode = Variable::LET;
+    needs_init = true;
+    init_op = Token::INIT_LET;
   } else {
     UNREACHABLE();  // by current callers
   }
@@ -1732,9 +1742,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       }
     }
 
-    // Make sure that 'const c' actually initializes 'c' to undefined
-    // even though it seems like a stupid thing to do.
-    if (value == NULL && is_const) {
+    // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
+    if (value == NULL && needs_init) {
       value = GetLiteralUndefined();
     }
 
@@ -1822,12 +1831,11 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     // for constant lookups is always the function context, while it is
     // the top context for variables). Sigh...
     if (value != NULL) {
-      Token::Value op = (is_const ? Token::INIT_CONST : Token::INIT_VAR);
       bool in_with = is_const ? false : inside_with();
       VariableProxy* proxy =
           initialization_scope->NewUnresolved(name, in_with);
       Assignment* assignment =
-          new(zone()) Assignment(isolate(), op, proxy, value, position);
+          new(zone()) Assignment(isolate(), init_op, proxy, value, position);
       if (block) {
         block->AddStatement(new(zone()) ExpressionStatement(assignment));
       }

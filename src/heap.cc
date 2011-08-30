@@ -4085,10 +4085,9 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
                                         SerializedScopeInfo* scope_info) {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArray(scope_info->NumberOfContextSlots());
+        AllocateFixedArrayWithHoles(scope_info->NumberOfContextSlots());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  // TODO(keuchel): properly initialize context slots.
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(block_context_map());
   context->set_closure(function);

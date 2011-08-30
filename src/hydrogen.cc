@@ -3122,6 +3122,8 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   Variable* variable = expr->AsVariable();
   if (variable == NULL) {
     return Bailout("reference to rewritten variable");
+  } else if (variable->mode() == Variable::LET) {
+    return Bailout("reference to let variable");
   } else if (variable->IsStackAllocated()) {
     HValue* value = environment()->Lookup(variable);
     if (variable->mode() == Variable::CONST &&
@@ -3587,8 +3589,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   BinaryOperation* operation = expr->binary_operation();
 
   if (var != NULL) {
-    if (var->mode() == Variable::CONST)  {
-      return Bailout("unsupported const compound assignment");
+    if (var->mode() == Variable::CONST ||
+        var->mode() == Variable::LET)  {
+      return Bailout("unsupported let or const compound assignment");
     }
 
     CHECK_ALIVE(VisitForValue(operation));
@@ -3731,6 +3734,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       // variables (e.g. initialization inside a loop).
       HValue* old_value = environment()->Lookup(var);
       AddInstruction(new HUseConst(old_value));
+    } else if (var->mode() == Variable::LET) {
+      return Bailout("unsupported assignment to let");
     }
 
     if (proxy->IsArguments()) return Bailout("assignment to arguments");
@@ -5804,7 +5809,9 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   // We support only declarations that do not require code generation.
   Variable* var = decl->proxy()->var();
-  if (!var->IsStackAllocated() || decl->fun() != NULL) {
+  if (!var->IsStackAllocated() ||
+      decl->fun() != NULL ||
+      decl->mode() == Variable::LET) {
     return Bailout("unsupported declaration");
   }
 
