@@ -5715,7 +5715,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // ebx: instance type
     // ecx: sub string length
     // edx: from index (smi)
-   Label allocate_slice, sliced_string, seq_string;
+    Label allocate_slice, sliced_string, seq_string;
     __ cmp(ecx, SlicedString::kMinLength);
     // Short slice.  Copy instead of slicing.
     __ j(less, &copy_routine);
