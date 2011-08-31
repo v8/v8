@@ -3270,7 +3270,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
 
   Label done, not_found;
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ lw(a2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
   // a2 now holds finger offset as a smi.
   __ Addu(a3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4265,7 +4265,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   // Cook return address in link register to stack (smi encoded Code* delta).
   __ Subu(a1, ra, Operand(masm_->CodeObject()));
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(0 == kSmiTag);
   __ Addu(a1, a1, Operand(a1));  // Convert to smi.
   __ push(a1);
 }
