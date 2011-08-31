@@ -11,13 +11,7 @@
         '../preparser/preparser.gyp:*',
         '../samples/samples.gyp:*',
         '../src/d8.gyp:d8',
-      ],
-      'conditions': [
-        [ 'component!="shared_library"', {
-          'dependencies': [
-            '../test/cctest/cctest.gyp:*',
-          ],
-        }]
+        '../test/cctest/cctest.gyp:*',
       ],
     }
   ]

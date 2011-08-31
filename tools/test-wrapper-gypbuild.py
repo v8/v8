@@ -215,17 +215,21 @@ def Main():
   for arg in args:
     args_for_children += [arg]
   returncodes = 0
+  env = os.environ
 
   for mode in options.mode:
     for arch in options.arch:
       print ">>> running tests for %s.%s" % (arch, mode)
-      shell = workspace + '/' + options.outdir + '/' + arch + '.' + mode + "/d8"
+      shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
+      env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
+      shell = shellpath + "/d8"
       child = subprocess.Popen(' '.join(args_for_children +
                                         ['--arch=' + arch] +
                                         ['--mode=' + mode] +
                                         ['--shell=' + shell]),
                                shell=True,
-                               cwd=workspace)
+                               cwd=workspace,
+                               env=env)
       returncodes += child.wait()
 
   return returncodes
