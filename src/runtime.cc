@@ -1306,8 +1306,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
+  BindingFlags binding_flags;
   Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes);
+      context->Lookup(name, flags, &index, &attributes, &binding_flags);
 
   if (attributes != ABSENT) {
     // The name was declared before; check for conflicting
@@ -1594,8 +1595,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
+  BindingFlags binding_flags;
   Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes);
+      context->Lookup(name, flags, &index, &attributes, &binding_flags);
 
   // In most situations, the property introduced by the const
   // declaration should be present in the context extension object.
@@ -8386,7 +8388,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
+  BindingFlags binding_flags;
+  Handle<Object> holder = context->Lookup(name,
+                                          flags,
+                                          &index,
+                                          &attributes,
+                                          &binding_flags);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -8488,7 +8495,12 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
+  BindingFlags binding_flags;
+  Handle<Object> holder = context->Lookup(name,
+                                          flags,
+                                          &index,
+                                          &attributes,
+                                          &binding_flags);
 
   // If the index is non-negative, the slot has been found in a local
   // variable or a parameter. Read it from the context object or the
@@ -8504,7 +8516,17 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
-    return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
+    // Check for uninitialized bindings.
+    if (holder->IsContext() &&
+        binding_flags == MUTABLE_CHECK_INITIALIZED &&
+        value->IsTheHole()) {
+      Handle<Object> reference_error =
+          isolate->factory()->NewReferenceError("not_defined",
+                                                HandleVector(&name, 1));
+      return MakePair(isolate->Throw(*reference_error), NULL);
+    } else {
+      return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
+    }
   }
 
   // If the holder is found, we read the property from it.
@@ -8570,14 +8592,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
+  BindingFlags binding_flags;
+  Handle<Object> holder = context->Lookup(name,
+                                          flags,
+                                          &index,
+                                          &attributes,
+                                          &binding_flags);
 
   if (index >= 0) {
     if (holder->IsContext()) {
+      Handle<Context> context = Handle<Context>::cast(holder);
+      if (binding_flags == MUTABLE_CHECK_INITIALIZED &&
+          context->get(index)->IsTheHole()) {
+        Handle<Object> error =
+            isolate->factory()->NewReferenceError("not_defined",
+                                                  HandleVector(&name, 1));
+        return isolate->Throw(*error);
+      }
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
         // Context is a fixed array and set cannot fail.
-        Context::cast(*holder)->set(index, *value);
+        context->set(index, *value);
       } else if (strict_mode == kStrictMode) {
         // Setting read only property in strict mode.
         Handle<Object> error =
@@ -9029,10 +9064,13 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // it is bound in the global context.
   int index = -1;
   PropertyAttributes attributes = ABSENT;
+  BindingFlags binding_flags;
   while (true) {
     receiver = context->Lookup(isolate->factory()->eval_symbol(),
                                FOLLOW_PROTOTYPE_CHAIN,
-                               &index, &attributes);
+                               &index,
+                               &attributes,
+                               &binding_flags);
     // Stop search when eval is found or when the global context is
     // reached.
     if (attributes != ABSENT || context->IsGlobalContext()) break;

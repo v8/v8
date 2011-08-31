@@ -668,12 +668,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   switch (slot->type()) {
     case Slot::PARAMETER:
     case Slot::LOCAL:
-      if (mode == Variable::CONST) {
-        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
-        __ movq(Operand(rbp, SlotOffset(slot)), kScratchRegister);
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ movq(Operand(rbp, SlotOffset(slot)), result_register());
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+        __ movq(Operand(rbp, SlotOffset(slot)), kScratchRegister);
       }
       break;
 
@@ -692,16 +692,16 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ CompareRoot(rbx, Heap::kCatchContextMapRootIndex);
         __ Check(not_equal, "Declaration in catch context.");
       }
-      if (mode == Variable::CONST) {
-        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
-        __ movq(ContextOperand(rsi, slot->index()), kScratchRegister);
-        // No write barrier since the hole value is in old space.
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ movq(ContextOperand(rsi, slot->index()), result_register());
         int offset = Context::SlotOffset(slot->index());
         __ movq(rbx, rsi);
         __ RecordWrite(rbx, offset, result_register(), rcx);
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+        __ movq(ContextOperand(rsi, slot->index()), kScratchRegister);
+        // No write barrier since the hole value is in old space.
       }
       break;
 
@@ -718,10 +718,10 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
-      if (mode == Variable::CONST) {
-        __ PushRoot(Heap::kTheHoleValueRootIndex);
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForStackValue(function);
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+        __ PushRoot(Heap::kTheHoleValueRootIndex);
       } else {
         __ Push(Smi::FromInt(0));  // no initial value!
       }
@@ -1244,6 +1244,18 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
       __ j(not_equal, &done, Label::kNear);
       __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      __ bind(&done);
+      context()->Plug(rax);
+    } else if (var->mode() == Variable::LET) {
+      // Let bindings may be the hole value if they have not been initialized.
+      // Throw a type error in this case.
+      Label done;
+      MemOperand slot_operand = EmitSlotSearch(slot, rax);
+      __ movq(rax, slot_operand);
+      __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &done, Label::kNear);
+      __ Push(var->name());
+      __ CallRuntime(Runtime::kThrowReferenceError, 1);
       __ bind(&done);
       context()->Plug(rax);
     } else {
@@ -1775,6 +1787,57 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     }
     __ bind(&skip);
 
+  } else if (var->mode() == Variable::LET && op != Token::INIT_LET) {
+    // Perform the assignment for non-const variables.  Const assignments
+    // are simply skipped.
+    Slot* slot = var->AsSlot();
+    switch (slot->type()) {
+      case Slot::PARAMETER:
+      case Slot::LOCAL: {
+        Label assign;
+        // Check for an initialized let binding.
+        __ movq(rdx, Operand(rbp, SlotOffset(slot)));
+        __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+        __ j(not_equal, &assign);
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ movq(Operand(rbp, SlotOffset(slot)), rax);
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        // Let variables may be the hole value if they have not been
+        // initialized. Throw a type error in this case.
+        Label assign;
+        MemOperand target = EmitSlotSearch(slot, rcx);
+        // Check for an initialized let binding.
+        __ movq(rdx, target);
+        __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+        __ j(not_equal, &assign, Label::kNear);
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ movq(target, rax);
+        // The value of the assignment is in eax. RecordWrite clobbers its
+        // register arguments.
+        __ movq(rdx, rax);
+        int offset = Context::SlotOffset(slot->index());
+        __ RecordWrite(rcx, offset, rdx, rbx);
+        break;
+      }
+
+      case Slot::LOOKUP:
+        // Call the runtime for the assignment.
+        __ push(rax);  // Value.
+        __ push(rsi);  // Context.
+        __ Push(var->name());
+        __ Push(Smi::FromInt(strict_mode_flag()));
+        __ CallRuntime(Runtime::kStoreContextSlot, 4);
+        break;
+    }
   } else if (var->mode() != Variable::CONST) {
     // Perform the assignment for non-const variables.  Const assignments
     // are simply skipped.
@@ -3075,7 +3138,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
   Label done, not_found;
   // tmp now holds finger offset as a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movq(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
   SmiIndex index =
       __ SmiToIndex(kScratchRegister, tmp, kPointerSizeLog2);

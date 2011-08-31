@@ -693,12 +693,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   switch (slot->type()) {
     case Slot::PARAMETER:
     case Slot::LOCAL:
-      if (mode == Variable::CONST) {
-        __ mov(Operand(ebp, SlotOffset(slot)),
-               Immediate(isolate()->factory()->the_hole_value()));
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ mov(Operand(ebp, SlotOffset(slot)), result_register());
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+        __ mov(Operand(ebp, SlotOffset(slot)),
+               Immediate(isolate()->factory()->the_hole_value()));
       }
       break;
 
@@ -717,16 +717,16 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ cmp(ebx, isolate()->factory()->catch_context_map());
         __ Check(not_equal, "Declaration in catch context.");
       }
-      if (mode == Variable::CONST) {
-        __ mov(ContextOperand(esi, slot->index()),
-               Immediate(isolate()->factory()->the_hole_value()));
-        // No write barrier since the hole value is in old space.
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ mov(ContextOperand(esi, slot->index()), result_register());
         int offset = Context::SlotOffset(slot->index());
         __ mov(ebx, esi);
         __ RecordWrite(ebx, offset, result_register(), ecx);
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+        __ mov(ContextOperand(esi, slot->index()),
+               Immediate(isolate()->factory()->the_hole_value()));
+        // No write barrier since the hole value is in old space.
       }
       break;
 
@@ -744,11 +744,11 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
       increment_stack_height(3);
-      if (mode == Variable::CONST) {
+      if (function != NULL) {
+        VisitForStackValue(function);
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
         increment_stack_height();
-      } else if (function != NULL) {
-        VisitForStackValue(function);
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // No initial value!
         increment_stack_height();
@@ -1266,6 +1266,18 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ cmp(eax, isolate()->factory()->the_hole_value());
       __ j(not_equal, &done, Label::kNear);
       __ mov(eax, isolate()->factory()->undefined_value());
+      __ bind(&done);
+      context()->Plug(eax);
+    } else if (var->mode() == Variable::LET) {
+      // Let bindings may be the hole value if they have not been initialized.
+      // Throw a type error in this case.
+      Label done;
+      MemOperand slot_operand = EmitSlotSearch(slot, eax);
+      __ mov(eax, slot_operand);
+      __ cmp(eax, isolate()->factory()->the_hole_value());
+      __ j(not_equal, &done, Label::kNear);
+      __ push(Immediate(var->name()));
+      __ CallRuntime(Runtime::kThrowReferenceError, 1);
       __ bind(&done);
       context()->Plug(eax);
     } else {
@@ -1855,6 +1867,57 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     }
     __ bind(&skip);
 
+  } else if (var->mode() == Variable::LET && op != Token::INIT_LET) {
+    // Perform the assignment for non-const variables.  Const assignments
+    // are simply skipped.
+    Slot* slot = var->AsSlot();
+    switch (slot->type()) {
+      case Slot::PARAMETER:
+      case Slot::LOCAL: {
+        Label assign;
+        // Check for an initialized let binding.
+        __ mov(edx, Operand(ebp, SlotOffset(slot)));
+        __ cmp(edx, isolate()->factory()->the_hole_value());
+        __ j(not_equal, &assign);
+        __ push(Immediate(var->name()));
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ mov(Operand(ebp, SlotOffset(slot)), eax);
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        // Let variables may be the hole value if they have not been
+        // initialized. Throw a type error in this case.
+        Label assign;
+        MemOperand target = EmitSlotSearch(slot, ecx);
+        // Check for an initialized let binding.
+        __ mov(edx, target);
+        __ cmp(edx, isolate()->factory()->the_hole_value());
+        __ j(not_equal, &assign, Label::kNear);
+        __ push(Immediate(var->name()));
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ mov(target, eax);
+        // The value of the assignment is in eax. RecordWrite clobbers its
+        // register arguments.
+        __ mov(edx, eax);
+        int offset = Context::SlotOffset(slot->index());
+        __ RecordWrite(ecx, offset, edx, ebx);
+        break;
+      }
+
+      case Slot::LOOKUP:
+        // Call the runtime for the assignment.
+        __ push(eax);  // Value.
+        __ push(esi);  // Context.
+        __ push(Immediate(var->name()));
+        __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+        __ CallRuntime(Runtime::kStoreContextSlot, 4);
+        break;
+    }
   } else if (var->mode() != Variable::CONST) {
     // Perform the assignment for non-const variables.  Const assignments
     // are simply skipped.
@@ -3199,7 +3262,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
   Label done, not_found;
   // tmp now holds finger offset as a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ mov(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
   __ cmp(key, CodeGenerator::FixedArrayElementOperand(cache, tmp));
   __ j(not_equal, &not_found);
@@ -4242,8 +4305,8 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(edx));
   __ pop(edx);
   __ sub(Operand(edx), Immediate(masm_->CodeObject()));
-  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
   __ SmiTag(edx);
   __ push(edx);
   // Store result register while executing finally block.

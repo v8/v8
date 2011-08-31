@@ -823,7 +823,7 @@ static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
   void* ptr = v8::External::Unwrap(args.Data());
   CHECK_EQ(expected_ptr, ptr);
-  return v8::Boolean::New(true);
+  return v8::True();
 }
 
 
@@ -2609,7 +2609,7 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 
 
 v8::Handle<Value> CCatcher(const v8::Arguments& args) {
-  if (args.Length() < 1) return v8::Boolean::New(false);
+  if (args.Length() < 1) return v8::False();
   v8::HandleScope scope;
   v8::TryCatch try_catch;
   Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
@@ -7296,7 +7296,7 @@ THREADED_TEST(ConstructorForObject) {
     CHECK(value->IsBoolean());
     CHECK_EQ(true, value->BooleanValue());
 
-    Handle<Value> args3[] = { v8::Boolean::New(true) };
+    Handle<Value> args3[] = { v8::True() };
     Local<Value> value_obj3 = instance->CallAsConstructor(1, args3);
     CHECK(value_obj3->IsObject());
     Local<Object> object3 = Local<Object>::Cast(value_obj3);
@@ -9567,10 +9567,7 @@ THREADED_TEST(Overriding) {
 
 static v8::Handle<Value> IsConstructHandler(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  if (args.IsConstructCall()) {
-    return v8::Boolean::New(true);
-  }
-  return v8::Boolean::New(false);
+  return v8::Boolean::New(args.IsConstructCall());
 }
 
 

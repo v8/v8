@@ -3217,8 +3217,6 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
-  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
-  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
   __ testb(result, Immediate(kSlicedNotConsMask));
   __ j(zero, &cons_string, Label::kNear);
 

@@ -171,7 +171,7 @@ bool Object::IsSymbol() {
   // Because the symbol tag is non-zero and no non-string types have the
   // symbol bit set we can test for symbols with a very simple test
   // operation.
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
   return (type & kIsSymbolMask) != 0;
 }
@@ -256,7 +256,7 @@ StringShape::StringShape(InstanceType t)
 
 bool StringShape::IsSymbol() {
   ASSERT(valid());
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   return (type_ & kIsSymbolMask) != 0;
 }
 

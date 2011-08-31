@@ -1500,9 +1500,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     // Update the write barrier for the array store with v0 as the scratch
     // register.
-    __ li(a2, Operand(offset));
-    // TODO(PJ): double check this RecordWrite call.
-    __ RecordWrite(a1, a2, result_register());
+    __ RecordWrite(a1, Operand(offset), a2, result_register());
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }

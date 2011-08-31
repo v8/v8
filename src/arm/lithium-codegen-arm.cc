@@ -3473,8 +3473,6 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
-  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
-  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
   __ tst(result, Operand(kSlicedNotConsMask));
   __ b(eq, &cons_string);
 
@@ -3759,7 +3757,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   if (instr->needs_check()) {
-    ASSERT(kHeapObjectTag == 1);
+    STATIC_ASSERT(kHeapObjectTag == 1);
     // If the input is a HeapObject, SmiUntag will set the carry flag.
     __ SmiUntag(ToRegister(input), SetCC);
     DeoptimizeIf(cs, instr->environment());
@@ -3844,7 +3842,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // The input was optimistically untagged; revert it.
   // The carry flag is set when we reach this deferred code as we just executed
   // SmiUntag(heap_object, SetCC)
-  ASSERT(kHeapObjectTag == 1);
+  STATIC_ASSERT(kHeapObjectTag == 1);
   __ adc(input_reg, input_reg, Operand(input_reg));
 
   // Heap number map check.

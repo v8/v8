@@ -1,3 +1,11 @@
+2011-08-31: Version 3.5.10
+
+        Added dependency of v8_base on WinSocket2 Windows library in
+        the GYP-build.
+
+        Various bugfixes.
+
+
 2011-08-29: Version 3.5.9
 
         Made FromPropertyDescriptor not trigger inherited setters.
