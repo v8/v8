@@ -53,6 +53,9 @@ def BuildOptions():
   result.add_option("--outdir",
                     help='Base output directory',
                     default='out')
+  result.add_option("--no-presubmit",
+                    help='Skip presubmit checks',
+                    default=False, action="store_true")
 
   # Flags this wrapper script handles itself:
   result.add_option("-m", "--mode",
@@ -202,6 +205,11 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
+
+  if not options.no_presubmit:
+    print ">>> running presubmit tests"
+    subprocess.call([workspace + '/tools/presubmit.py'])
+
   args_for_children = [workspace + '/tools/test.py'] + PassOnOptions(options)
   args_for_children += ['--no-build', '--build-system=gyp']
   for arg in args:
