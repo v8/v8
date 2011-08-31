@@ -134,6 +134,10 @@ class AstNode: public ZoneObject {
 
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
+  // This AST id identifies the point after the declarations have been
+  // visited. We need it to capture the environment effects of declarations
+  // that emit code (function declarations).
+  static const int kDeclarationsId = 3;
 
   // Override ZoneObject's new to count allocated AST nodes.
   void* operator new(size_t size, Zone* zone) {

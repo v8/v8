@@ -2273,10 +2273,6 @@ HGraph* HGraphBuilder::CreateGraph() {
       return NULL;
     }
     SetupScope(scope);
-    VisitDeclarations(scope->declarations());
-    HValue* context = environment()->LookupContext();
-    AddInstruction(
-        new(zone()) HStackCheck(context, HStackCheck::kFunctionEntry));
 
     // Add an edge to the body entry.  This is warty: the graph's start
     // environment will be used by the Lithium translation as the initial
@@ -2298,6 +2294,23 @@ HGraph* HGraphBuilder::CreateGraph() {
     current_block()->Goto(body_entry);
     body_entry->SetJoinId(AstNode::kFunctionEntryId);
     set_current_block(body_entry);
+
+    // Handle implicit declaration of the function name in named function
+    // expressions before other declarations.
+    if (scope->is_function_scope() && scope->function() != NULL) {
+      if (!scope->function()->IsStackAllocated()) {
+        Bailout("unsupported declaration");
+        return NULL;
+      }
+      environment()->Bind(scope->function(), graph()->GetConstantHole());
+    }
+    VisitDeclarations(scope->declarations());
+    AddSimulate(AstNode::kDeclarationsId);
+
+    HValue* context = environment()->LookupContext();
+    AddInstruction(
+        new(zone()) HStackCheck(context, HStackCheck::kFunctionEntry));
+
     VisitStatements(info()->function()->body());
     if (HasStackOverflow()) return NULL;
 
@@ -5810,7 +5823,6 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   // We support only declarations that do not require code generation.
   Variable* var = decl->proxy()->var();
   if (!var->IsStackAllocated() ||
-      decl->fun() != NULL ||
       decl->mode() == Variable::LET) {
     return Bailout("unsupported declaration");
   }
@@ -5818,6 +5830,10 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   if (decl->mode() == Variable::CONST) {
     ASSERT(var->IsStackAllocated());
     environment()->Bind(var, graph()->GetConstantHole());
+  } else if (decl->fun() != NULL) {
+    VisitForValue(decl->fun());
+    HValue* function = Pop();
+    environment()->Bind(var, function);
   }
 }
 

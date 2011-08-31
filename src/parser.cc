@@ -532,7 +532,7 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
   parser->top_scope_ = scope;
   parser->lexical_scope_ = this;
   parser->with_nesting_level_ = 0;
-  isolate->set_ast_node_id(AstNode::kFunctionEntryId + 1);
+  isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
 }
 
 
