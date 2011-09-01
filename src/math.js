@@ -38,7 +38,7 @@ const $abs = MathAbs;
 function MathConstructor() {}
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
 const $Math = new MathConstructor();
-$Math.__proto__ = global.Object.prototype;
+$Math.__proto__ = $Object.prototype;
 %SetProperty(global, "Math", $Math, DONT_ENUM);
 
 // ECMA 262 - 15.8.2.1
