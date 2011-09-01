@@ -383,11 +383,11 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name) {
 }
 
 
-void Scope::DeclareParameter(Handle<String> name) {
+void Scope::DeclareParameter(Handle<String> name, Variable::Mode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var =
-      variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+      variables_.Declare(this, name, mode, true, Variable::NORMAL);
   params_.Add(var);
 }
 
@@ -464,6 +464,28 @@ void Scope::SetIllegalRedeclaration(Expression* expression) {
 void Scope::VisitIllegalRedeclaration(AstVisitor* visitor) {
   ASSERT(HasIllegalRedeclaration());
   illegal_redecl_->Accept(visitor);
+}
+
+
+Declaration* Scope::CheckConflictingVarDeclarations() {
+  int length = decls_.length();
+  for (int i = 0; i < length; i++) {
+    Declaration* decl = decls_[i];
+    if (decl->mode() != Variable::VAR) continue;
+    Handle<String> name = decl->proxy()->name();
+    bool cond = true;
+    for (Scope* scope = decl->scope(); cond ; scope = scope->outer_scope_) {
+      // There is a conflict if there exists a non-VAR binding.
+      Variable* other_var = scope->variables_.Lookup(name);
+      if (other_var != NULL && other_var->mode() != Variable::VAR) {
+        return decl;
+      }
+
+      // Include declaration scope in the iteration but stop after.
+      if (!scope->is_block_scope() && !scope->is_catch_scope()) cond = false;
+    }
+  }
+  return NULL;
 }
 
 
