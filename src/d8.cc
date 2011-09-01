@@ -176,8 +176,8 @@ bool Shell::ExecuteString(Handle<String> source,
         // If all went well and the result wasn't undefined then print
         // the returned value.
         v8::String::Utf8Value str(result);
-        const char* cstr = ToCString(str);
-        printf("%s\n", cstr);
+        fwrite(*str, sizeof(**str), str.length(), stdout);
+        printf("\n");
       }
       return true;
     }
