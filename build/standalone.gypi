@@ -79,10 +79,6 @@
                     '-fno-exceptions', '-pedantic' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
           [ 'OS=="linux"', {
             'cflags': [ '-ansi' ],
           }],
