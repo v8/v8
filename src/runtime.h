@@ -317,7 +317,7 @@ namespace internal {
   F(StoreContextSlot, 4, 1) \
   \
   /* Declarations and initialization */ \
-  F(DeclareGlobals, 4, 1) \
+  F(DeclareGlobals, 3, 1) \
   F(DeclareContextSlot, 4, 1) \
   F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
@@ -661,6 +661,16 @@ class Runtime : public AllStatic {
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);
+};
+
+
+//---------------------------------------------------------------------------
+// Constants used by interface to runtime functions.
+
+enum kDeclareGlobalsFlags {
+  kDeclareGlobalsEvalFlag = 1 << 0,
+  kDeclareGlobalsStrictModeFlag = 1 << 1,
+  kDeclareGlobalsNativeFlag = 1 << 2
 };
 
 } }  // namespace v8::internal

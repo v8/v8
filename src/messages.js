@@ -28,19 +28,6 @@
 
 // -------------------------------------------------------------------
 //
-// Matches Script::Type from objects.h
-var TYPE_NATIVE = 0;
-var TYPE_EXTENSION = 1;
-var TYPE_NORMAL = 2;
-
-// Matches Script::CompilationType from objects.h
-var COMPILATION_TYPE_HOST = 0;
-var COMPILATION_TYPE_EVAL = 1;
-var COMPILATION_TYPE_JSON = 2;
-
-// Matches Messages::kNoLineNumberInfo from v8.h
-var kNoLineNumberInfo = 0;
-
 // If this object gets passed to an error constructor the error will
 // get an accessor for .message that constructs a descriptive error
 // message on access.
@@ -1041,7 +1028,7 @@ function captureStackTrace(obj, cons_opt) {
     // user code.
     var name = f.name;
     %SetProperty(global, name, f, DONT_ENUM);
-    builtins['$' + name] = f;
+    %SetProperty(builtins, '$' + name, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
     // Configure the error function.
     if (name == 'Error') {
       // The prototype of the Error object must itself be an error.

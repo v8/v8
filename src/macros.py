@@ -179,3 +179,17 @@ const SETTER_INDEX = 3;
 const WRITABLE_INDEX = 4;
 const ENUMERABLE_INDEX = 5;
 const CONFIGURABLE_INDEX = 6;
+
+# For messages.js
+# Matches Script::Type from objects.h
+const TYPE_NATIVE = 0;
+const TYPE_EXTENSION = 1;
+const TYPE_NORMAL = 2;
+
+# Matches Script::CompilationType from objects.h
+const COMPILATION_TYPE_HOST = 0;
+const COMPILATION_TYPE_EVAL = 1;
+const COMPILATION_TYPE_JSON = 2;
+
+# Matches Messages::kNoLineNumberInfo from v8.h
+const kNoLineNumberInfo = 0;

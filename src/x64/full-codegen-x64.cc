@@ -742,9 +742,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(rsi);  // The context is the first argument.
   __ Push(pairs);
-  __ Push(Smi::FromInt(is_eval() ? 1 : 0));
-  __ Push(Smi::FromInt(strict_mode_flag()));
-  __ CallRuntime(Runtime::kDeclareGlobals, 4);
+  __ Push(Smi::FromInt(DeclareGlobalsFlags()));
+  __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
 

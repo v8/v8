@@ -350,7 +350,14 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                       prototype,
                                       call_code,
                                       is_ecma_native);
-  SetLocalPropertyNoThrow(target, symbol, function, DONT_ENUM);
+  PropertyAttributes attributes;
+  if (target->IsJSBuiltinsObject()) {
+    attributes =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  } else {
+    attributes = DONT_ENUM;
+  }
+  SetLocalPropertyNoThrow(target, symbol, function, attributes);
   if (is_ecma_native) {
     function->shared()->set_instance_class_name(*symbol);
   }
@@ -1676,7 +1683,6 @@ bool Genesis::InstallNatives() {
 
     global_context()->set_regexp_result_map(*initial_map);
   }
-
 
 #ifdef DEBUG
   builtins->Verify();

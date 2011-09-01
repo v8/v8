@@ -358,6 +358,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
+  int DeclareGlobalsFlags();
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -555,6 +556,7 @@ class FullCodeGenerator: public AstVisitor {
 
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
+  bool is_native() { return info_->is_native(); }
   bool is_strict_mode() { return function()->strict_mode(); }
   StrictModeFlag strict_mode_flag() {
     return is_strict_mode() ? kStrictMode : kNonStrictMode;
