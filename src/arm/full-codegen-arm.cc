@@ -688,10 +688,11 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
 }
 
 
-void FullCodeGenerator::EmitDeclaration(Variable* variable,
+void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
                                         Variable::Mode mode,
                                         FunctionLiteral* function) {
   Comment cmnt(masm_, "[ Declaration");
+  Variable* variable = proxy->var();
   ASSERT(variable != NULL);  // Must have been resolved.
   Slot* slot = variable->AsSlot();
   ASSERT(slot != NULL);
@@ -729,10 +730,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // We know that we have written a function, which is not a smi.
         __ mov(r1, Operand(cp));
         __ RecordWrite(r1, Operand(offset), r2, result_register());
+        PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       } else if (mode == Variable::CONST || mode == Variable::LET) {
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
         __ str(ip, ContextOperand(cp, slot->index()));
         // No write barrier since the_hole_value is in old space.
+        PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       }
       break;
 
@@ -767,7 +770,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
 
 
 void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
-  EmitDeclaration(decl->proxy()->var(), decl->mode(), decl->fun());
+  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
 }
 
 

@@ -239,7 +239,7 @@ class Scope: public ZoneObject {
   // The variable holding the function literal for named function
   // literals, or NULL.
   // Only valid for function scopes.
-  Variable* function() const {
+  VariableProxy* function() const {
     ASSERT(is_function_scope());
     return function_;
   }
@@ -358,7 +358,7 @@ class Scope: public ZoneObject {
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
-  Variable* function_;
+  VariableProxy* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
 

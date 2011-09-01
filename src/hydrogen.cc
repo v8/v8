@@ -2298,11 +2298,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      if (!scope->function()->IsStackAllocated()) {
-        Bailout("unsupported declaration");
-        return NULL;
-      }
-      environment()->Bind(scope->function(), graph()->GetConstantHole());
+      HandleDeclaration(scope->function(), Variable::CONST, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -5822,20 +5818,51 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
-  // We support only declarations that do not require code generation.
-  Variable* var = decl->proxy()->var();
-  if (!var->IsStackAllocated() ||
-      decl->mode() == Variable::LET) {
-    return Bailout("unsupported declaration");
-  }
+  HandleDeclaration(decl->proxy(), decl->mode(), decl->fun());
+}
 
-  if (decl->mode() == Variable::CONST) {
-    ASSERT(var->IsStackAllocated());
-    environment()->Bind(var, graph()->GetConstantHole());
-  } else if (decl->fun() != NULL) {
-    VisitForValue(decl->fun());
-    HValue* function = Pop();
-    environment()->Bind(var, function);
+
+void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
+                                    Variable::Mode mode,
+                                    FunctionLiteral* function) {
+  if (mode == Variable::LET) return Bailout("unsupported let declaration");
+  Variable* var = proxy->var();
+  Slot* slot = var->AsSlot();
+  ASSERT(slot != NULL);
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+    case Slot::LOCAL:
+      if (mode == Variable::CONST) {
+        environment()->Bind(var, graph()->GetConstantHole());
+      } else if (function != NULL) {
+        VisitForValue(function);
+        HValue* function_value = Pop();
+        environment()->Bind(var, function_value);
+      }
+      break;
+    case Slot::CONTEXT: {
+      HValue* context = environment()->LookupContext();
+      if (mode == Variable::CONST) {
+        HStoreContextSlot* store =
+            new HStoreContextSlot(context,
+                                  slot->index(),
+                                  graph()->GetConstantHole());
+        AddInstruction(store);
+        if (store->HasSideEffects()) AddSimulate(proxy->id());
+      } else if (function != NULL) {
+        VisitForValue(function);
+        HValue* function_value = Pop();
+        HStoreContextSlot* store =
+            new HStoreContextSlot(context,
+                                  slot->index(),
+                                  function_value);
+        AddInstruction(store);
+        if (store->HasSideEffects()) AddSimulate(proxy->id());
+      }
+      break;
+    }
+    case Slot::LOOKUP:
+      return Bailout("unsupported lookup slot in declaration");
   }
 }
 

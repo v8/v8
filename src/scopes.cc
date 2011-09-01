@@ -378,8 +378,10 @@ Variable* Scope::Lookup(Handle<String> name) {
 
 Variable* Scope::DeclareFunctionVar(Handle<String> name) {
   ASSERT(is_function_scope() && function_ == NULL);
-  function_ = new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
-  return function_;
+  Variable* function_var =
+      new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
+  function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
+  return function_->var();
 }
 
 
@@ -715,7 +717,7 @@ void Scope::Print(int n) {
   PrettyPrinter printer;
   Indent(n1, "// function var\n");
   if (function_ != NULL) {
-    PrintVar(&printer, n1, function_);
+    PrintVar(&printer, n1, function_->var());
   }
 
   Indent(n1, "// temporary vars\n");
@@ -796,7 +798,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // the name of named function literal is kept in an intermediate scope
     // in between this scope and the next outer scope.)
     if (function_ != NULL && function_->name().is_identical_to(name)) {
-      var = function_;
+      var = function_->var();
 
     } else if (outer_scope_ != NULL) {
       var = outer_scope_->LookupRecursive(
@@ -1114,7 +1116,7 @@ void Scope::AllocateNonParameterLocals() {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != NULL) {
-    AllocateNonParameterLocal(function_);
+    AllocateNonParameterLocal(function_->var());
   }
 }
 
