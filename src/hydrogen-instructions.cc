@@ -425,7 +425,7 @@ void HValue::PrintRangeTo(StringStream* stream) {
 
 
 void HValue::PrintChangesTo(StringStream* stream) {
-  int changes_flags = (flags() & HValue::ChangesFlagsMask());
+  int changes_flags = ChangesFlags();
   if (changes_flags == 0) return;
   stream->Add(" changes[");
   if (changes_flags == AllSideEffects()) {
@@ -512,9 +512,7 @@ void HInstruction::PrintTo(StringStream* stream) {
 
 
 void HInstruction::PrintMnemonicTo(StringStream* stream) {
-  stream->Add("%s", Mnemonic());
-  if (HasSideEffects()) stream->Add("*");
-  stream->Add(" ");
+  stream->Add("%s ", Mnemonic());
 }
 
 
