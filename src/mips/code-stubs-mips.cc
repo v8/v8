@@ -5079,7 +5079,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ And(t0, result_, Operand(kStringEncodingMask));
   __ Branch(&ascii_string, ne, t0, Operand(zero_reg));
 

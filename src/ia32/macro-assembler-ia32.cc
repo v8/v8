@@ -1172,7 +1172,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateConsString(Register result,
+void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Label* gc_required) {
@@ -1208,7 +1208,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 }
 
 
-void MacroAssembler::AllocateSlicedString(Register result,
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                           Register scratch1,
                                           Register scratch2,
                                           Label* gc_required) {
