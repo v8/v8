@@ -442,6 +442,9 @@ class MacroAssembler: public Assembler {
   void MultiPush(RegList regs);
   void MultiPushReversed(RegList regs);
 
+  void MultiPushFPU(RegList regs);
+  void MultiPushReversedFPU(RegList regs);
+
   // Lower case push() for compatibility with arch-independent code.
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
@@ -486,6 +489,9 @@ class MacroAssembler: public Assembler {
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
   void MultiPopReversed(RegList regs);
+
+  void MultiPopFPU(RegList regs);
+  void MultiPopReversedFPU(RegList regs);
 
   // Lower case pop() for compatibility with arch-independent code.
   void pop(Register dst) {

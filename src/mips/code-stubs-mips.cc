@@ -3695,9 +3695,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
 
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Save callee-saved FPU registers.
+    __ MultiPushFPU(kCalleeSavedFPU);
+  }
+
   // Load argv in s0 register.
-  __ lw(s0, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize +
-                           StandardFrameConstants::kCArgsSlotsSize));
+  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
+  if (CpuFeatures::IsSupported(FPU)) {
+    offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
+  }
+
+  __ lw(s0, MemOperand(sp, offset_to_argv +
+        StandardFrameConstants::kCArgsSlotsSize));
 
   // We build an EntryFrame.
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
@@ -3828,6 +3839,12 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Reset the stack to the callee saved registers.
   __ addiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
+
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Restore callee-saved fpu registers.
+    __ MultiPopFPU(kCalleeSavedFPU);
+  }
 
   // Restore callee saved registers from the stack.
   __ MultiPop(kCalleeSaved | ra.bit());
