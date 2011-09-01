@@ -245,7 +245,7 @@ ecma_3/Number/15.7.4.7-1: FAIL_OK
 # toExponential argument restricted to range 0..20 in JSC/V8
 ecma_3/Number/15.7.4.6-1: FAIL_OK
 
-#:=== RegExp:=== 
+#:=== RegExp:===
 # We don't match the syntax error message of Mozilla for invalid
 # RegExp flags.
 ecma_3/RegExp/15.10.4.1-6: FAIL_OK
@@ -578,7 +578,7 @@ js1_5/Regress/regress-352604: FAIL_OK
 js1_5/Regress/regress-417893: FAIL_OK
 
 
-# Unsupported use of "[]" as function parameter. We match JSC. 
+# Unsupported use of "[]" as function parameter. We match JSC.
 js1_5/Regress/regress-416737-01: FAIL_OK
 js1_5/Regress/regress-416737-02: FAIL_OK
 
