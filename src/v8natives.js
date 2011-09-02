@@ -115,13 +115,16 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
+    string = TO_STRING_INLINE(string);
     radix = radix | 0;
   } else {
+    // The spec says ToString should be evaluated before ToInt32.
+    string = TO_STRING_INLINE(string);
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36)))
       return $NaN;
   }
-  string = TO_STRING_INLINE(string);
+
   if (%_HasCachedArrayIndex(string) &&
       (radix == 0 || radix == 10)) {
     return %_GetCachedArrayIndex(string);
