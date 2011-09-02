@@ -331,6 +331,35 @@ void Scope::Initialize(bool inside_with) {
 }
 
 
+Scope* Scope::FinalizeBlockScope() {
+  ASSERT(is_block_scope());
+  ASSERT(temps_.is_empty());
+  ASSERT(params_.is_empty());
+
+  if (num_var_or_const() > 0) return this;
+
+  // Remove this scope from outer scope.
+  for (int i = 0; i < outer_scope_->inner_scopes_.length(); i++) {
+    if (outer_scope_->inner_scopes_[i] == this) {
+      outer_scope_->inner_scopes_.Remove(i);
+      break;
+    }
+  }
+
+  // Reparent inner scopes.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    outer_scope()->AddInnerScope(inner_scopes_[i]);
+  }
+
+  // Move unresolved variables
+  for (int i = 0; i < unresolved_.length(); i++) {
+    outer_scope()->unresolved_.Add(unresolved_[i]);
+  }
+
+  return NULL;
+}
+
+
 Variable* Scope::LocalLookup(Handle<String> name) {
   Variable* result = variables_.Lookup(name);
   if (result != NULL || scope_info_.is_null()) {

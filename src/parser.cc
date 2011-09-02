@@ -1559,9 +1559,6 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   Scope* block_scope = NewScope(top_scope_,
                                 Scope::BLOCK_SCOPE,
                                 inside_with());
-  body->set_block_scope(block_scope);
-  block_scope->DeclareLocal(isolate()->factory()->block_scope_symbol(),
-                            Variable::VAR);
   if (top_scope_->is_strict_mode()) {
     block_scope->EnableStrictMode();
   }
@@ -1584,21 +1581,28 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
-
-  // Create exit block.
-  Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
-  exit->AddStatement(new(zone()) ExitContextStatement());
-
-  // Create a try-finally statement.
-  TryFinallyStatement* try_finally =
-      new(zone()) TryFinallyStatement(body, exit);
-  try_finally->set_escaping_targets(collector.targets());
   top_scope_ = saved_scope;
 
-  // Create a result block.
-  Block* result = new(zone()) Block(isolate(), NULL, 1, false);
-  result->AddStatement(try_finally);
-  return result;
+  block_scope = block_scope->FinalizeBlockScope();
+  body->set_block_scope(block_scope);
+
+  if (block_scope != NULL) {
+    // Create exit block.
+    Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
+    exit->AddStatement(new(zone()) ExitContextStatement());
+
+    // Create a try-finally statement.
+    TryFinallyStatement* try_finally =
+        new(zone()) TryFinallyStatement(body, exit);
+    try_finally->set_escaping_targets(collector.targets());
+
+    // Create a result block.
+    Block* result = new(zone()) Block(isolate(), NULL, 1, false);
+    result->AddStatement(try_finally);
+    return result;
+  } else {
+    return body;
+  }
 }
 
 

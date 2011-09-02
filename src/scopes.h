@@ -112,6 +112,11 @@ class Scope: public ZoneObject {
 
   void Initialize(bool inside_with);
 
+  // Checks if the block scope is redundant, i.e. it does not contain any
+  // block scoped declarations. In that case it is removed from the scope
+  // tree and its children are reparented.
+  Scope* FinalizeBlockScope();
+
   // ---------------------------------------------------------------------------
   // Declarations
 
