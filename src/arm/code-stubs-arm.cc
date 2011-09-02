@@ -4487,7 +4487,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // frame. Therefore we have to use fp, which points exactly to two pointer
   // sizes below the previous sp. (Because creating a new stack frame pushes
   // the previous fp onto the stack and moves up sp by 2 * kPointerSize.)
-  __ ldr(r0, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
+  __ ldr(subject, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
   // If slice offset is not 0, load the length from the original sliced string.
   // Argument 4, r3: End of string data
   // Argument 3, r2: Start of string data
@@ -4495,7 +4495,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(r9, r8, Operand(r9, LSL, r3));
   __ add(r2, r9, Operand(r1, LSL, r3));
 
-  __ ldr(r8, FieldMemOperand(r0, String::kLengthOffset));
+  __ ldr(r8, FieldMemOperand(subject, String::kLengthOffset));
   __ mov(r8, Operand(r8, ASR, kSmiTagSize));
   __ add(r3, r9, Operand(r8, LSL, r3));
 
@@ -4503,7 +4503,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Already there
 
   // Argument 1 (r0): Subject string.
-  // Already there
+  __ mov(r0, subject);
 
   // Locate the code entry and call it.
   __ add(r7, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -4520,12 +4520,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
 
-  __ cmp(subject, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
   __ b(eq, &success);
   Label failure;
-  __ cmp(subject, Operand(NativeRegExpMacroAssembler::FAILURE));
+  __ cmp(r0, Operand(NativeRegExpMacroAssembler::FAILURE));
   __ b(eq, &failure);
-  __ cmp(subject, Operand(NativeRegExpMacroAssembler::EXCEPTION));
+  __ cmp(r0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ b(ne, &runtime);
   // Result must now be exception. If there is no pending exception already a
@@ -4537,18 +4537,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
   __ ldr(r0, MemOperand(r2, 0));
-  __ cmp(subject, r1);
+  __ cmp(r0, r1);
   __ b(eq, &runtime);
 
   __ str(r1, MemOperand(r2, 0));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.
-  __ LoadRoot(ip, Heap::kTerminationExceptionRootIndex);
-  __ cmp(subject, ip);
+  __ CompareRoot(r0, Heap::kTerminationExceptionRootIndex);
+
   Label termination_exception;
   __ b(eq, &termination_exception);
 
-  __ Throw(subject);  // Expects thrown value in r0.
+  __ Throw(r0);  // Expects thrown value in r0.
 
   __ bind(&termination_exception);
   __ ThrowUncatchable(TERMINATION, r0);  // Expects thrown value in r0.
