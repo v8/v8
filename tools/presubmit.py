@@ -42,6 +42,7 @@ import pickle
 import re
 import sys
 import subprocess
+from subprocess import PIPE
 
 # Disabled LINT rules and reason.
 # build/include_what_you_use: Started giving false positives for variables
@@ -235,6 +236,23 @@ class SourceProcessor(SourceFileProcessor):
 
   RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
       'SConstruct', '.status', '.gyp', '.gypi']
+
+  # Overwriting the one in the parent class.
+  def FindFilesIn(self, path):
+    if os.path.exists(path+'/.git'):
+      output = subprocess.Popen('git ls-files --full-name',
+                                stdout=PIPE, cwd=path, shell=True)
+      result = []
+      for file in output.stdout.read().split():
+        for dir_part in os.path.dirname(file).split(os.sep):
+          if self.IgnoreDir(dir_part):
+            break
+        else:
+          if self.IsRelevant(file) and not self.IgnoreFile(file):
+            result.append(join(path, file))
+      if output.wait() == 0:
+        return result
+    return super(SourceProcessor, self).FindFilesIn(path)
 
   def IsRelevant(self, name):
     for ext in SourceProcessor.RELEVANT_EXTENSIONS:
