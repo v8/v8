@@ -36,15 +36,6 @@
 namespace v8 {
 namespace internal {
 
-AstSentinels::AstSentinels()
-    : this_proxy_(Isolate::Current(), true),
-      identifier_proxy_(Isolate::Current(), false),
-      valid_left_hand_side_sentinel_(Isolate::Current()),
-      this_property_(Isolate::Current(), &this_proxy_, NULL, 0),
-      call_sentinel_(Isolate::Current(), NULL, NULL, 0) {
-}
-
-
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
 
@@ -98,15 +89,6 @@ VariableProxy::VariableProxy(Isolate* isolate,
       position_(position) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
-}
-
-
-VariableProxy::VariableProxy(Isolate* isolate, bool is_this)
-    : Expression(isolate),
-      var_(NULL),
-      is_this_(is_this),
-      inside_with_(false),
-      is_trivial_(false) {
 }
 
 
@@ -483,12 +465,6 @@ bool ThisFunction::IsInlineable() const {
 
 
 bool SharedFunctionInfoLiteral::IsInlineable() const {
-  return false;
-}
-
-
-bool ValidLeftHandSideSentinel::IsInlineable() const {
-  UNREACHABLE();
   return false;
 }
 

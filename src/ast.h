@@ -320,20 +320,6 @@ class Expression: public AstNode {
 };
 
 
-/**
- * A sentinel used during pre parsing that represents some expression
- * that is a valid left hand side without having to actually build
- * the expression.
- */
-class ValidLeftHandSideSentinel: public Expression {
- public:
-  explicit ValidLeftHandSideSentinel(Isolate* isolate) : Expression(isolate) {}
-  virtual bool IsValidLeftHandSide() { return true; }
-  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  virtual bool IsInlineable() const;
-};
-
-
 class BreakableStatement: public Statement {
  public:
   enum Type {
@@ -1174,21 +1160,8 @@ class VariableProxy: public Expression {
                 bool is_this,
                 bool inside_with,
                 int position = RelocInfo::kNoPosition);
-  VariableProxy(Isolate* isolate, bool is_this);
 
   friend class Scope;
-};
-
-
-class VariableProxySentinel: public VariableProxy {
- public:
-  virtual bool IsValidLeftHandSide() { return !is_this(); }
-
- private:
-  VariableProxySentinel(Isolate* isolate, bool is_this)
-      : VariableProxy(isolate, is_this) { }
-
-  friend class AstSentinels;
 };
 
 
@@ -1346,36 +1319,6 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell_;
 
   int return_id_;
-};
-
-
-class AstSentinels {
- public:
-  ~AstSentinels() { }
-
-  // Returns a property singleton property access on 'this'.  Used
-  // during preparsing.
-  Property* this_property() { return &this_property_; }
-  VariableProxySentinel* this_proxy() { return &this_proxy_; }
-  VariableProxySentinel* identifier_proxy() { return &identifier_proxy_; }
-  ValidLeftHandSideSentinel* valid_left_hand_side_sentinel() {
-    return &valid_left_hand_side_sentinel_;
-  }
-  Call* call_sentinel() { return &call_sentinel_; }
-  EmptyStatement* empty_statement() { return &empty_statement_; }
-
- private:
-  AstSentinels();
-  VariableProxySentinel this_proxy_;
-  VariableProxySentinel identifier_proxy_;
-  ValidLeftHandSideSentinel valid_left_hand_side_sentinel_;
-  Property this_property_;
-  Call call_sentinel_;
-  EmptyStatement empty_statement_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(AstSentinels);
 };
 
 
