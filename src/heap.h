@@ -225,8 +225,7 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")                   \
-  V(block_scope_symbol, ".block")
+  V(anonymous_function_symbol, "(anonymous function)")
 
 // Forward declarations.
 class GCTracer;

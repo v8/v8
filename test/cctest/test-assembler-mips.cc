@@ -1268,7 +1268,9 @@ TEST(MIPS15) {
 
   Label target;
   __ beq(v0, v1, &target);
+  __ nop();
   __ bne(v0, v1, &target);
+  __ nop();
   __ bind(&target);
   __ nop();
 }

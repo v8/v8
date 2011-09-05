@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "bootstrapper.h"
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "compiler.h"
@@ -1149,22 +1150,14 @@ static Failure* ThrowRedeclarationError(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 3);
   HandleScope scope(isolate);
   Handle<GlobalObject> global = Handle<GlobalObject>(
       isolate->context()->global());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
-  bool is_eval = args.smi_at(2) == 1;
-  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
-  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
-
-  // Compute the property attributes. According to ECMA-262, section
-  // 13, page 71, the property must be read-only and
-  // non-deletable. However, neither SpiderMonkey nor KJS creates the
-  // property as read-only, so we don't either.
-  PropertyAttributes base = is_eval ? NONE : DONT_DELETE;
+  CONVERT_SMI_ARG_CHECKED(flags, 2);
 
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
@@ -1177,7 +1170,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // assign to it when evaluating the assignment for "const x =
     // <expr>" the initial value is the hole.
     bool is_const_property = value->IsTheHole();
-
+    bool is_function_declaration = false;
     if (value->IsUndefined() || is_const_property) {
       // Lookup the property in the global object, and don't set the
       // value of the variable if the property is already there.
@@ -1226,6 +1219,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
         }
       }
     } else {
+      is_function_declaration = true;
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(value);
@@ -1238,10 +1232,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
 
     LookupResult lookup;
     global->LocalLookup(*name, &lookup);
-
-    PropertyAttributes attributes = is_const_property
-        ? static_cast<PropertyAttributes>(base | READ_ONLY)
-        : base;
 
     // There's a local property that we need to overwrite because
     // we're either declaring a function or there's an interceptor
@@ -1257,6 +1247,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       return ThrowRedeclarationError(isolate, type, name);
     }
 
+    // Compute the property attributes. According to ECMA-262, section
+    // 13, page 71, the property must be read-only and
+    // non-deletable. However, neither SpiderMonkey nor KJS creates the
+    // property as read-only, so we don't either.
+    int attr = NONE;
+    if ((flags & kDeclareGlobalsEvalFlag) == 0) {
+      attr |= DONT_DELETE;
+    }
+    bool is_native = (flags & kDeclareGlobalsNativeFlag) != 0;
+    if (is_const_property || (is_native && is_function_declaration)) {
+      attr |= READ_ONLY;
+    }
+
     // Safari does not allow the invocation of callback setters for
     // function declarations. To mimic this behavior, we do not allow
     // the invocation of setters for function values. This makes a
@@ -1267,20 +1270,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     if (value->IsJSFunction()) {
       // Do not change DONT_DELETE to false from true.
       if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
-        attributes = static_cast<PropertyAttributes>(
-            attributes | (lookup.GetAttributes() & DONT_DELETE));
+        attr |= lookup.GetAttributes() & DONT_DELETE;
       }
+      PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
+
       RETURN_IF_EMPTY_HANDLE(isolate,
                              SetLocalPropertyIgnoreAttributes(global,
                                                               name,
                                                               value,
                                                               attributes));
     } else {
+      StrictModeFlag strict_mode =
+          ((flags & kDeclareGlobalsStrictModeFlag) != 0) ? kStrictMode
+                                                         : kNonStrictMode;
       RETURN_IF_EMPTY_HANDLE(isolate,
                              SetProperty(global,
                                          name,
                                          value,
-                                         attributes,
+                                         static_cast<PropertyAttributes>(attr),
                                          strict_mode));
     }
   }
@@ -2147,6 +2154,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsBuiltin) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -8247,6 +8255,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     }
     return Smi::FromInt(-1);
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->undefined_value();
 }
 
 

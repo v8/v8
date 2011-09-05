@@ -134,6 +134,10 @@ class AstNode: public ZoneObject {
 
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
+  // This AST id identifies the point after the declarations have been
+  // visited. We need it to capture the environment effects of declarations
+  // that emit code (function declarations).
+  static const int kDeclarationsId = 3;
 
   // Override ZoneObject's new to count allocated AST nodes.
   void* operator new(size_t size, Zone* zone) {
@@ -316,20 +320,6 @@ class Expression: public AstNode {
 };
 
 
-/**
- * A sentinel used during pre parsing that represents some expression
- * that is a valid left hand side without having to actually build
- * the expression.
- */
-class ValidLeftHandSideSentinel: public Expression {
- public:
-  explicit ValidLeftHandSideSentinel(Isolate* isolate) : Expression(isolate) {}
-  virtual bool IsValidLeftHandSide() { return true; }
-  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  virtual bool IsInlineable() const;
-};
-
-
 class BreakableStatement: public Statement {
  public:
   enum Type {
@@ -404,10 +394,14 @@ class Block: public BreakableStatement {
 
 class Declaration: public AstNode {
  public:
-  Declaration(VariableProxy* proxy, Variable::Mode mode, FunctionLiteral* fun)
+  Declaration(VariableProxy* proxy,
+              Variable::Mode mode,
+              FunctionLiteral* fun,
+              Scope* scope)
       : proxy_(proxy),
         mode_(mode),
-        fun_(fun) {
+        fun_(fun),
+        scope_(scope) {
     ASSERT(mode == Variable::VAR ||
            mode == Variable::CONST ||
            mode == Variable::LET);
@@ -421,11 +415,15 @@ class Declaration: public AstNode {
   Variable::Mode mode() const { return mode_; }
   FunctionLiteral* fun() const { return fun_; }  // may be NULL
   virtual bool IsInlineable() const;
+  Scope* scope() const { return scope_; }
 
  private:
   VariableProxy* proxy_;
   Variable::Mode mode_;
   FunctionLiteral* fun_;
+
+  // Nested scope from which the declaration originated.
+  Scope* scope_;
 };
 
 
@@ -1162,21 +1160,8 @@ class VariableProxy: public Expression {
                 bool is_this,
                 bool inside_with,
                 int position = RelocInfo::kNoPosition);
-  VariableProxy(Isolate* isolate, bool is_this);
 
   friend class Scope;
-};
-
-
-class VariableProxySentinel: public VariableProxy {
- public:
-  virtual bool IsValidLeftHandSide() { return !is_this(); }
-
- private:
-  VariableProxySentinel(Isolate* isolate, bool is_this)
-      : VariableProxy(isolate, is_this) { }
-
-  friend class AstSentinels;
 };
 
 
@@ -1334,36 +1319,6 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell_;
 
   int return_id_;
-};
-
-
-class AstSentinels {
- public:
-  ~AstSentinels() { }
-
-  // Returns a property singleton property access on 'this'.  Used
-  // during preparsing.
-  Property* this_property() { return &this_property_; }
-  VariableProxySentinel* this_proxy() { return &this_proxy_; }
-  VariableProxySentinel* identifier_proxy() { return &identifier_proxy_; }
-  ValidLeftHandSideSentinel* valid_left_hand_side_sentinel() {
-    return &valid_left_hand_side_sentinel_;
-  }
-  Call* call_sentinel() { return &call_sentinel_; }
-  EmptyStatement* empty_statement() { return &empty_statement_; }
-
- private:
-  AstSentinels();
-  VariableProxySentinel this_proxy_;
-  VariableProxySentinel identifier_proxy_;
-  ValidLeftHandSideSentinel valid_left_hand_side_sentinel_;
-  Property this_property_;
-  Call call_sentinel_;
-  EmptyStatement empty_statement_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(AstSentinels);
 };
 
 

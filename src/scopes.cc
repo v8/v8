@@ -331,6 +331,35 @@ void Scope::Initialize(bool inside_with) {
 }
 
 
+Scope* Scope::FinalizeBlockScope() {
+  ASSERT(is_block_scope());
+  ASSERT(temps_.is_empty());
+  ASSERT(params_.is_empty());
+
+  if (num_var_or_const() > 0) return this;
+
+  // Remove this scope from outer scope.
+  for (int i = 0; i < outer_scope_->inner_scopes_.length(); i++) {
+    if (outer_scope_->inner_scopes_[i] == this) {
+      outer_scope_->inner_scopes_.Remove(i);
+      break;
+    }
+  }
+
+  // Reparent inner scopes.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    outer_scope()->AddInnerScope(inner_scopes_[i]);
+  }
+
+  // Move unresolved variables
+  for (int i = 0; i < unresolved_.length(); i++) {
+    outer_scope()->unresolved_.Add(unresolved_[i]);
+  }
+
+  return NULL;
+}
+
+
 Variable* Scope::LocalLookup(Handle<String> name) {
   Variable* result = variables_.Lookup(name);
   if (result != NULL || scope_info_.is_null()) {
@@ -378,16 +407,18 @@ Variable* Scope::Lookup(Handle<String> name) {
 
 Variable* Scope::DeclareFunctionVar(Handle<String> name) {
   ASSERT(is_function_scope() && function_ == NULL);
-  function_ = new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
-  return function_;
+  Variable* function_var =
+      new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
+  function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
+  return function_->var();
 }
 
 
-void Scope::DeclareParameter(Handle<String> name) {
+void Scope::DeclareParameter(Handle<String> name, Variable::Mode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var =
-      variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+      variables_.Declare(this, name, mode, true, Variable::NORMAL);
   params_.Add(var);
 }
 
@@ -464,6 +495,28 @@ void Scope::SetIllegalRedeclaration(Expression* expression) {
 void Scope::VisitIllegalRedeclaration(AstVisitor* visitor) {
   ASSERT(HasIllegalRedeclaration());
   illegal_redecl_->Accept(visitor);
+}
+
+
+Declaration* Scope::CheckConflictingVarDeclarations() {
+  int length = decls_.length();
+  for (int i = 0; i < length; i++) {
+    Declaration* decl = decls_[i];
+    if (decl->mode() != Variable::VAR) continue;
+    Handle<String> name = decl->proxy()->name();
+    bool cond = true;
+    for (Scope* scope = decl->scope(); cond ; scope = scope->outer_scope_) {
+      // There is a conflict if there exists a non-VAR binding.
+      Variable* other_var = scope->variables_.Lookup(name);
+      if (other_var != NULL && other_var->mode() != Variable::VAR) {
+        return decl;
+      }
+
+      // Include declaration scope in the iteration but stop after.
+      if (!scope->is_block_scope() && !scope->is_catch_scope()) cond = false;
+    }
+  }
+  return NULL;
 }
 
 
@@ -693,7 +746,7 @@ void Scope::Print(int n) {
   PrettyPrinter printer;
   Indent(n1, "// function var\n");
   if (function_ != NULL) {
-    PrintVar(&printer, n1, function_);
+    PrintVar(&printer, n1, function_->var());
   }
 
   Indent(n1, "// temporary vars\n");
@@ -774,7 +827,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // the name of named function literal is kept in an intermediate scope
     // in between this scope and the next outer scope.)
     if (function_ != NULL && function_->name().is_identical_to(name)) {
-      var = function_;
+      var = function_->var();
 
     } else if (outer_scope_ != NULL) {
       var = outer_scope_->LookupRecursive(
@@ -1092,7 +1145,7 @@ void Scope::AllocateNonParameterLocals() {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != NULL) {
-    AllocateNonParameterLocal(function_);
+    AllocateNonParameterLocal(function_->var());
   }
 }
 

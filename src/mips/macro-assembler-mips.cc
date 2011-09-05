@@ -703,52 +703,114 @@ void MacroAssembler::li(Register rd, Operand j, bool gen2instr) {
 
 
 void MacroAssembler::MultiPush(RegList regs) {
-  int16_t NumSaved = 0;
-  int16_t NumToPush = NumberOfBitsSet(regs);
+  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t stack_offset = num_to_push * kPointerSize;
 
-  addiu(sp, sp, -4 * NumToPush);
+  Subu(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters; i > 0; i--) {
     if ((regs & (1 << i)) != 0) {
-      sw(ToRegister(i), MemOperand(sp, 4 * (NumToPush - ++NumSaved)));
+      stack_offset -= kPointerSize;
+      sw(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
 }
 
 
 void MacroAssembler::MultiPushReversed(RegList regs) {
-  int16_t NumSaved = 0;
-  int16_t NumToPush = NumberOfBitsSet(regs);
+  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t stack_offset = num_to_push * kPointerSize;
 
-  addiu(sp, sp, -4 * NumToPush);
+  Subu(sp, sp, Operand(stack_offset));
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
-      sw(ToRegister(i), MemOperand(sp, 4 * (NumToPush - ++NumSaved)));
+      stack_offset -= kPointerSize;
+      sw(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
 }
 
 
 void MacroAssembler::MultiPop(RegList regs) {
-  int16_t NumSaved = 0;
+  int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
-      lw(ToRegister(i), MemOperand(sp, 4 * (NumSaved++)));
+      lw(ToRegister(i), MemOperand(sp, stack_offset));
+      stack_offset += kPointerSize;
     }
   }
-  addiu(sp, sp, 4 * NumSaved);
+  addiu(sp, sp, stack_offset);
 }
 
 
 void MacroAssembler::MultiPopReversed(RegList regs) {
-  int16_t NumSaved = 0;
+  int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters; i > 0; i--) {
     if ((regs & (1 << i)) != 0) {
-      lw(ToRegister(i), MemOperand(sp, 4 * (NumSaved++)));
+      lw(ToRegister(i), MemOperand(sp, stack_offset));
+      stack_offset += kPointerSize;
     }
   }
-  addiu(sp, sp, 4 * NumSaved);
+  addiu(sp, sp, stack_offset);
+}
+
+
+void MacroAssembler::MultiPushFPU(RegList regs) {
+  CpuFeatures::Scope scope(FPU);
+  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t stack_offset = num_to_push * kDoubleSize;
+
+  Subu(sp, sp, Operand(stack_offset));
+  for (int16_t i = kNumRegisters; i > 0; i--) {
+    if ((regs & (1 << i)) != 0) {
+      stack_offset -= kDoubleSize;
+      sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+
+void MacroAssembler::MultiPushReversedFPU(RegList regs) {
+  CpuFeatures::Scope scope(FPU);
+  int16_t num_to_push = NumberOfBitsSet(regs);
+  int16_t stack_offset = num_to_push * kDoubleSize;
+
+  Subu(sp, sp, Operand(stack_offset));
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs & (1 << i)) != 0) {
+      stack_offset -= kDoubleSize;
+      sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+
+void MacroAssembler::MultiPopFPU(RegList regs) {
+  CpuFeatures::Scope scope(FPU);
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs & (1 << i)) != 0) {
+      ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kDoubleSize;
+    }
+  }
+  addiu(sp, sp, stack_offset);
+}
+
+
+void MacroAssembler::MultiPopReversedFPU(RegList regs) {
+  CpuFeatures::Scope scope(FPU);
+  int16_t stack_offset = 0;
+
+  for (int16_t i = kNumRegisters; i > 0; i--) {
+    if ((regs & (1 << i)) != 0) {
+      ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kDoubleSize;
+    }
+  }
+  addiu(sp, sp, stack_offset);
 }
 
 
@@ -2753,6 +2815,46 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                                 Register length,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedAsciiStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
 // Allocates a heap number or jumps to the label if the young space is full and
 // a scavenge is needed.
 void MacroAssembler::AllocateHeapNumber(Register result,
@@ -4151,11 +4253,9 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   // mips, even though those argument slots are not normally used.
   // Remaining arguments are pushed on the stack, above (higher address than)
   // the argument slots.
-  ASSERT(StandardFrameConstants::kCArgsSlotsSize % kPointerSize == 0);
   int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
                                  0 : num_arguments - kRegisterPassedArguments) +
-                               (StandardFrameConstants::kCArgsSlotsSize /
-                               kPointerSize);
+                                kCArgSlotCount;
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
@@ -4227,11 +4327,9 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
   Call(function);
 
-  ASSERT(StandardFrameConstants::kCArgsSlotsSize % kPointerSize == 0);
   int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
                                 0 : num_arguments - kRegisterPassedArguments) +
-                               (StandardFrameConstants::kCArgsSlotsSize /
-                               kPointerSize);
+                               kCArgSlotCount;
 
   if (OS::ActivationFrameAlignment() > kPointerSize) {
     lw(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));

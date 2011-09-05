@@ -131,18 +131,18 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
   // For now, this must happen at the very end because of the
   // ordering of the scope info slots and the respective slot indices.
   if (scope->is_function_scope()) {
-    Variable* var = scope->function();
-    if (var != NULL &&
-        var->is_used() &&
-        var->AsSlot()->type() == Slot::CONTEXT) {
-      function_name_ = var->name();
+    VariableProxy* proxy = scope->function();
+    if (proxy != NULL &&
+        proxy->var()->is_used() &&
+        proxy->var()->IsContextSlot()) {
+      function_name_ = proxy->name();
       // Note that we must not find the function name in the context slot
       // list - instead it must be handled separately in the
       // Contexts::Lookup() function. Thus record an empty symbol here so we
       // get the correct number of context slots.
-      ASSERT(var->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(proxy->var()->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_slots_.length());
-      ASSERT(var->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
+      ASSERT(proxy->var()->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
       context_slots_.Add(FACTORY->empty_symbol());
       context_modes_.Add(Variable::INTERNAL);

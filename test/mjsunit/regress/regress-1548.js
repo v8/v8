@@ -25,11 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that CodeGenerator::EmitKeyedPropertyAssignment for the start
-// of an initialization block doesn't normalize the properties of the
-// JSGlobalProxy.
-this.w = 0;
-this.x = 1;
-this.y = 2;
-this.z = 3;
+// Test that the caller and arguments objects are not available on native
+// functions.
 
+function testfn(f) { return [1].map(f)[0]; }
+function foo() { return [].map.caller; }
+assertEquals(null, testfn(foo));
+
+// Try to delete the caller property (to make sure that we can't get to the
+// caller accessor on the prototype.
+delete Array.prototype.map.caller;
+assertEquals(null, testfn(foo));
+
+// Redo tests with arguments object.
+function testarguments(f) { return [1].map(f)[0]; }
+function bar() { return [].map.arguments; }
+assertEquals(null, testfn(bar));
+
+// Try to delete the arguments property (to make sure that we can't get to the
+// caller accessor on the prototype.
+delete Array.prototype.map.arguments;
+assertEquals(null, testarguments(bar));

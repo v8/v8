@@ -2716,7 +2716,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
   for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4 + kArgsSlotsNum] = va_arg(parameters, int32_t);
+    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
   }
   va_end(parameters);
   set_register(sp, entry_stack);

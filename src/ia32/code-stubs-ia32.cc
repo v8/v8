@@ -4907,7 +4907,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string, Label::kNear);
 
@@ -5178,8 +5179,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
   __ and_(ecx, Operand(edi));
-  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
-  __ test(ecx, Immediate(kAsciiStringTag));
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+  __ test(ecx, Immediate(kStringEncodingMask));
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
   // Allocate an acsii cons string.
@@ -5210,7 +5212,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ cmp(edi, kAsciiStringTag | kAsciiDataHintTag);
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
-  __ AllocateConsString(ecx, edi, no_reg, &string_add_runtime);
+  __ AllocateTwoByteConsString(ecx, edi, no_reg, &string_add_runtime);
   __ jmp(&allocated);
 
   // Handle creating a flat result. First check that both strings are not
@@ -5236,12 +5238,13 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ebx: length of resulting flat string as a smi
   // edx: second string
   Label non_ascii_string_add_flat_result;
-  STATIC_ASSERT(kStringEncodingMask == kAsciiStringTag);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
   __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
   __ j(zero, &string_add_runtime);
 
   // Both strings are ascii strings.  As they are short they are both flat.
@@ -5281,7 +5284,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // edx: second string
   __ bind(&non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kAsciiStringTag);
+  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
   __ j(not_zero, &string_add_runtime);
   // Both strings are two byte strings. As they are short they are both
   // flat.
@@ -5759,13 +5762,14 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // string's encoding is wrong because we always have to recheck encoding of
     // the newly created string's parent anyways due to externalized strings.
     Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT(kAsciiStringTag != 0);
-    __ test(ebx, Immediate(kAsciiStringTag));
+    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+    __ test(ebx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
     __ AllocateAsciiSlicedString(eax, ebx, no_reg, &runtime);
     __ jmp(&set_slice_header, Label::kNear);
     __ bind(&two_byte_slice);
-    __ AllocateSlicedString(eax, ebx, no_reg, &runtime);
+    __ AllocateTwoByteSlicedString(eax, ebx, no_reg, &runtime);
     __ bind(&set_slice_header);
     __ mov(FieldOperand(eax, SlicedString::kOffsetOffset), edx);
     __ SmiTag(ecx);

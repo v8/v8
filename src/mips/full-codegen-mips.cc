@@ -266,6 +266,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     scope()->VisitIllegalRedeclaration(this);
 
   } else {
+    PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
     { Comment cmnt(masm_, "[ Declarations");
       // For named function expressions, declare the function name as a
       // constant.
@@ -276,7 +277,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     }
 
     { Comment cmnt(masm_, "[ Stack check");
-      PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
+      PrepareForBailoutForId(AstNode::kDeclarationsId, NO_REGISTERS);
       Label ok;
       __ LoadRoot(t0, Heap::kStackLimitRootIndex);
       __ Branch(&ok, hs, sp, Operand(t0));
@@ -700,12 +701,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   switch (slot->type()) {
     case Slot::PARAMETER:
     case Slot::LOCAL:
-      if (mode == Variable::CONST) {
-        __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
-        __ sw(t0, MemOperand(fp, SlotOffset(slot)));
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ sw(result_register(), MemOperand(fp, SlotOffset(slot)));
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+          __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+          __ sw(t0, MemOperand(fp, SlotOffset(slot)));
       }
       break;
 
@@ -726,17 +727,17 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ Check(ne, "Declaration in catch context.",
                  a1, Operand(t0));
       }
-      if (mode == Variable::CONST) {
-        __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-        __ sw(at, ContextOperand(cp, slot->index()));
-        // No write barrier since the_hole_value is in old space.
-      } else if (function != NULL) {
+      if (function != NULL) {
         VisitForAccumulatorValue(function);
         __ sw(result_register(), ContextOperand(cp, slot->index()));
         int offset = Context::SlotOffset(slot->index());
         // We know that we have written a function, which is not a smi.
         __ mov(a1, cp);
         __ RecordWrite(a1, Operand(offset), a2, result_register());
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+          __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+          __ sw(at, ContextOperand(cp, slot->index()));
+          // No write barrier since the_hole_value is in old space.
       }
       break;
 
@@ -752,13 +753,13 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
-      if (mode == Variable::CONST) {
-        __ LoadRoot(a0, Heap::kTheHoleValueRootIndex);
-        __ Push(cp, a2, a1, a0);
-      } else if (function != NULL) {
+      if (function != NULL) {
         __ Push(cp, a2, a1);
         // Push initial value for function declaration.
         VisitForStackValue(function);
+      } else if (mode == Variable::CONST || mode == Variable::LET) {
+          __ LoadRoot(a0, Heap::kTheHoleValueRootIndex);
+          __ Push(cp, a2, a1, a0);
       } else {
         ASSERT(Smi::FromInt(0) == 0);
         // No initial value!
@@ -780,11 +781,10 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   // The context is the first argument.
-  __ li(a2, Operand(pairs));
-  __ li(a1, Operand(Smi::FromInt(is_eval() ? 1 : 0)));
-  __ li(a0, Operand(Smi::FromInt(strict_mode_flag())));
-  __ Push(cp, a2, a1, a0);
-  __ CallRuntime(Runtime::kDeclareGlobals, 4);
+  __ li(a1, Operand(pairs));
+  __ li(a0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
+  __ Push(cp, a1, a0);
+  __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
 
@@ -1279,9 +1279,22 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
        __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
        __ movz(v0, a0, at);  // Conditional move.
        context()->Plug(v0);
-     } else {
-       context()->Plug(slot);
-     }
+    } else if (var->mode() == Variable::LET) {
+      // Let bindings may be the hole value if they have not been initialized.
+      // Throw a type error in this case.
+      Label done;
+      MemOperand slot_operand = EmitSlotSearch(slot, a0);
+      __ lw(v0, slot_operand);
+      __ LoadRoot(a1, Heap::kTheHoleValueRootIndex);
+      __ Branch(&done, ne, v0, Operand(a1));
+      __ li(v0, Operand(var->name()));
+      __ push(v0);
+      __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      __ bind(&done);
+      context()->Plug(v0);
+    } else {
+      context()->Plug(slot);
+    }
   }
 }
 
@@ -1863,6 +1876,56 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         break;
     }
     __ bind(&skip);
+  } else if (var->mode() == Variable::LET && op != Token::INIT_LET) {
+    // Perform the assignment for non-const variables.  Const assignments
+    // are simply skipped.
+    Slot* slot = var->AsSlot();
+    switch (slot->type()) {
+      case Slot::PARAMETER:
+      case Slot::LOCAL: {
+        Label assign;
+        // Check for an initialized let binding.
+        __ lw(a1, MemOperand(fp, SlotOffset(slot)));
+        __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+        __ Branch(&assign, ne, a1, Operand(t0));
+        __ li(a1, Operand(var->name()));
+        __ push(a1);
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ sw(result_register(), MemOperand(fp, SlotOffset(slot)));
+        break;
+      }
+      case Slot::CONTEXT: {
+        // Let variables may be the hole value if they have not been
+        // initialized. Throw a type error in this case.
+        Label assign;
+        MemOperand target = EmitSlotSearch(slot, a1);
+        // Check for an initialized let binding.
+        __ lw(a3, target);
+        __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+        __ Branch(&assign, ne, a3, Operand(t0));
+        __ li(a3, Operand(var->name()));
+        __ push(a3);
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        // Perform the assignment.
+        __ bind(&assign);
+        __ sw(result_register(), target);
+        // RecordWrite may destroy all its register arguments.
+        __ mov(a3, result_register());
+        int offset = Context::SlotOffset(slot->index());
+        __ RecordWrite(a1, Operand(offset), a2, a3);
+        break;
+      }
+      case Slot::LOOKUP:
+        // Call the runtime for the assignment.
+        __ push(v0);  // Value.
+        __ li(a1, Operand(slot->var()->name()));
+        __ li(a0, Operand(Smi::FromInt(strict_mode_flag())));
+        __ Push(cp, a1, a0);  // Context, name, strict mode.
+        __ CallRuntime(Runtime::kStoreContextSlot, 4);
+        break;
+    }
 
   } else if (var->mode() != Variable::CONST) {
     // Perform the assignment for non-const variables.  Const assignments
@@ -2113,8 +2176,13 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   int receiver_offset = 2 + info_->scope()->num_parameters();
   __ lw(a1, MemOperand(fp, receiver_offset * kPointerSize));
   __ push(a1);
-  // Push the strict mode flag.
-  __ li(a1, Operand(Smi::FromInt(strict_mode_flag())));
+  // Push the strict mode flag. In harmony mode every eval call
+  // is a strict mode eval call.
+  StrictModeFlag strict_mode = strict_mode_flag();
+  if (FLAG_harmony_block_scoping) {
+    strict_mode = kStrictMode;
+  }
+  __ li(a1, Operand(Smi::FromInt(strict_mode)));
   __ push(a1);
 
   __ CallRuntime(flag == SKIP_CONTEXT_LOOKUP
@@ -3206,7 +3274,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
 
   Label done, not_found;
-  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ lw(a2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
   // a2 now holds finger offset as a smi.
   __ Addu(a3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4201,7 +4269,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   // Cook return address in link register to stack (smi encoded Code* delta).
   __ Subu(a1, ra, Operand(masm_->CodeObject()));
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(0 == kSmiTag);
   __ Addu(a1, a1, Operand(a1));  // Convert to smi.
   __ push(a1);
 }

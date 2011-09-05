@@ -3623,7 +3623,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateConsString(Register result,
+void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Label* gc_required) {
@@ -3655,6 +3655,42 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 
   // Set the map. The other fields are left uninitialized.
   LoadRoot(kScratchRegister, Heap::kConsAsciiStringMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                          Register scratch1,
+                                          Register scratch2,
+                                          Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  LoadRoot(kScratchRegister, Heap::kSlicedStringMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  LoadRoot(kScratchRegister, Heap::kSlicedAsciiStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 

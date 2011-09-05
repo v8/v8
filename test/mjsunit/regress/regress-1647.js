@@ -25,11 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that CodeGenerator::EmitKeyedPropertyAssignment for the start
-// of an initialization block doesn't normalize the properties of the
-// JSGlobalProxy.
-this.w = 0;
-this.x = 1;
-this.y = 2;
-this.z = 3;
+// Flags: --allow-natives-syntax
+
+// Test for correct deoptimization in named function expressions.
+
+var t = { foo: function() {} };
+
+var f = (function bar() {
+ t.foo();
+ assertEquals("function", typeof bar);
+});
+
+for (var i = 0; i < 10; i++) f();
+%OptimizeFunctionOnNextCall(f);
+t.number = 2;
+f();
 

@@ -25,11 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that CodeGenerator::EmitKeyedPropertyAssignment for the start
-// of an initialization block doesn't normalize the properties of the
-// JSGlobalProxy.
-this.w = 0;
-this.x = 1;
-this.y = 2;
-this.z = 3;
+// Flags: --allow-natives-syntax
 
+function g(f) { return f.call.apply(f.bind, arguments); }
+
+var x = new Object;
+
+function t() { }
+
+g(t, x);
+g(t, x);
+g(t, x);
+%OptimizeFunctionOnNextCall(g);
+
+function Fake() {}
+
+var fakeCallInvoked = false;
+
+Fake.prototype.call = function () {
+  assertSame(Fake.prototype.bind, this);
+  assertEquals(2, arguments.length);
+  assertSame(fake, arguments[0]);
+  assertSame(x, arguments[1]);
+  fakeCallInvoked = true;
+};
+
+Fake.prototype.bind = function () {
+};
+
+var fake = new Fake;
+
+g(fake, x);
+
+assertTrue(fakeCallInvoked);
