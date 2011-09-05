@@ -1221,8 +1221,7 @@ class Heap {
            (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
-  static const intptr_t kMinimumPromotionLimit =
-      2 * (Page::kPageSize > MB ? Page::kPageSize : MB);
+  static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
   static const intptr_t kMinimumAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
