@@ -1694,7 +1694,10 @@ class HJSArrayLength: public HTemplateInstruction<2> {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 
