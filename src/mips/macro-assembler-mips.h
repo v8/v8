@@ -1203,10 +1203,9 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 // Generate a MemOperand for storing arguments 5..N on the stack
 // when calling CallCFunction().
 static inline MemOperand CFunctionArgumentOperand(int index) {
-  ASSERT(index > StandardFrameConstants::kCArgSlotCount);
+  ASSERT(index > kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
-  int offset =
-      (index - 5) * kPointerSize + StandardFrameConstants::kCArgsSlotsSize;
+  int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;
   return MemOperand(sp, offset);
 }
 

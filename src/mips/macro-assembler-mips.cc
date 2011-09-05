@@ -4213,11 +4213,9 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   // mips, even though those argument slots are not normally used.
   // Remaining arguments are pushed on the stack, above (higher address than)
   // the argument slots.
-  ASSERT(StandardFrameConstants::kCArgsSlotsSize % kPointerSize == 0);
   int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
                                  0 : num_arguments - kRegisterPassedArguments) +
-                               (StandardFrameConstants::kCArgsSlotsSize /
-                               kPointerSize);
+                                kCArgSlotCount;
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
@@ -4289,11 +4287,9 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
   Call(function);
 
-  ASSERT(StandardFrameConstants::kCArgsSlotsSize % kPointerSize == 0);
   int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
                                 0 : num_arguments - kRegisterPassedArguments) +
-                               (StandardFrameConstants::kCArgsSlotsSize /
-                               kPointerSize);
+                               kCArgSlotCount;
 
   if (OS::ActivationFrameAlignment() > kPointerSize) {
     lw(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
