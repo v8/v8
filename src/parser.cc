@@ -30,6 +30,7 @@
 #include "api.h"
 #include "ast-inl.h"
 #include "bootstrapper.h"
+#include "char-predicates-inl.h"
 #include "codegen.h"
 #include "compiler.h"
 #include "func-name-inferrer.h"
