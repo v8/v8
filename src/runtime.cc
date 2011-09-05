@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "bootstrapper.h"
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "compiler.h"
@@ -2153,6 +2154,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsBuiltin) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -8253,6 +8255,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     }
     return Smi::FromInt(-1);
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->undefined_value();
 }
 
 

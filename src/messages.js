@@ -116,10 +116,11 @@ function MakeGenericError(constructor, type, args) {
 
 
 /**
- * Setup the Script function and constructor.
+ * Set up the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%SetProperty(Script.prototype, 'constructor', Script, DONT_ENUM);
+%SetProperty(Script.prototype, 'constructor', Script,
+             DONT_ENUM | DONT_DELETE | READ_ONLY);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
   throw new $Error("Not supported");
@@ -320,7 +321,7 @@ function MakeError(type, args) {
  * @return {number} 0 if input too small, -1 if input too large,
        else the line number.
  */
-Script.prototype.lineFromPosition = function(position) {
+function ScriptLineFromPosition(position) {
   var lower = 0;
   var upper = this.lineCount() - 1;
   var line_ends = this.line_ends;
@@ -359,8 +360,8 @@ Script.prototype.lineFromPosition = function(position) {
  * @return {SourceLocation}
  *     If line is negative or not in the source null is returned.
  */
-Script.prototype.locationFromPosition = function (position,
-                                                  include_resource_offset) {
+function ScriptLocationFromPosition(position,
+                                    include_resource_offset) {
   var line = this.lineFromPosition(position);
   if (line == -1) return null;
 
@@ -368,7 +369,9 @@ Script.prototype.locationFromPosition = function (position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') end--;
+  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') {
+    end--;
+  }
   var column = position - start;
 
   // Adjust according to the offset within the resource.
@@ -393,11 +396,12 @@ Script.prototype.locationFromPosition = function (position,
  * @param {number} opt_line The line within the source. Default value is 0
  * @param {number} opt_column The column in within the line. Default value is 0
  * @param {number} opt_offset_position The offset from the begining of the
- *     source from where the line and column calculation starts. Default value is 0
+ *     source from where the line and column calculation starts.
+ *     Default value is 0
  * @return {SourceLocation}
  *     If line is negative or not in the source null is returned.
  */
-Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_position) {
+function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
   // Default is the first line in the script. Lines in the script is relative
   // to the offset within the resource.
   var line = 0;
@@ -439,7 +443,7 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
  * @return {SourceSlice} The source slice or null of the parameters where
  *     invalid
  */
-Script.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
+function ScriptSourceSlice(opt_from_line, opt_to_line) {
   var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset : opt_from_line;
   var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount() : opt_to_line
 
@@ -466,7 +470,7 @@ Script.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
 }
 
 
-Script.prototype.sourceLine = function (opt_line) {
+function ScriptSourceLine(opt_line) {
   // Default is the first line in the script. Lines in the script are relative
   // to the offset within the resource.
   var line = 0;
@@ -492,7 +496,7 @@ Script.prototype.sourceLine = function (opt_line) {
  * @return {number}
  *     Number of source lines.
  */
-Script.prototype.lineCount = function() {
+function ScriptLineCount() {
   // Return number of source lines.
   return this.line_ends.length;
 };
@@ -508,9 +512,10 @@ Script.prototype.lineCount = function() {
  * @return {?string} script name if present, value for //@ sourceURL comment
  * otherwise.
  */
-Script.prototype.nameOrSourceURL = function() {
-  if (this.name)
+function ScriptNameOrSourceURL() {
+  if (this.name) {
     return this.name;
+  }
   // TODO(608): the spaces in a regexp below had to be escaped as \040
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
@@ -534,6 +539,20 @@ Script.prototype.nameOrSourceURL = function() {
   }
   return this.name;
 }
+
+
+SetUpLockedPrototype(Script,
+  $Array("source", "name", "line_ends", "line_offset", "column_offset"),
+  $Array(
+    "lineFromPosition", ScriptLineFromPosition,
+    "locationFromPosition", ScriptLocationFromPosition,
+    "locationFromLine", ScriptLocationFromLine,
+    "sourceSlice", ScriptSourceSlice,
+    "sourceLine", ScriptSourceLine,
+    "lineCount", ScriptLineCount,
+    "nameOrSourceURL", ScriptNameOrSourceURL
+  )
+);
 
 
 /**
@@ -566,8 +585,6 @@ function SourceLocation(script, position, line, column, start, end) {
   this.end = end;
 }
 
-SourceLocation.prototype.__proto__ = null;
-
 const kLineLengthLimit = 78;
 
 /**
@@ -578,7 +595,7 @@ const kLineLengthLimit = 78;
  * @param {number} opt_before The number of characters to prefer before the
  *     position with a default value of 10 less that the limit
  */
-SourceLocation.prototype.restrict = function (opt_limit, opt_before) {
+function SourceLocationRestrict(opt_limit, opt_before) {
   // Find the actual limit to use.
   var limit;
   var before;
@@ -625,9 +642,18 @@ SourceLocation.prototype.restrict = function (opt_limit, opt_before) {
  * @return {String}
  *     Source text for this location.
  */
-SourceLocation.prototype.sourceText = function () {
+function SourceLocationSourceText() {
   return %_CallFunction(this.script.source, this.start, this.end, StringSubstring);
 };
+
+
+SetUpLockedPrototype(SourceLocation,
+  $Array("script", "position", "line", "column", "start", "end"),
+  $Array(
+    "restrict", SourceLocationRestrict,
+    "sourceText", SourceLocationSourceText
+  )
+);
 
 
 /**
@@ -656,19 +682,22 @@ function SourceSlice(script, from_line, to_line, from_position, to_position) {
   this.to_position = to_position;
 }
 
-SourceSlice.prototype.__proto__ = null;
-
 /**
  * Get the source text for a SourceSlice
  * @return {String} Source text for this slice. The last line will include
  *     the line terminating characters (if any)
  */
-SourceSlice.prototype.sourceText = function () {
+function SourceSliceSourceText() {
   return %_CallFunction(this.script.source,
                         this.from_position,
                         this.to_position,
                         StringSubstring);
 };
+
+SetUpLockedPrototype(SourceSlice,
+  $Array("script", "from_line", "to_line", "from_position", "to_position"),
+  $Array("sourceText", SourceSliceSourceText)
+);
 
 
 // Returns the offset of the given position within the containing
@@ -724,13 +753,11 @@ function CallSite(receiver, fun, pos) {
   this.pos = pos;
 }
 
-CallSite.prototype.__proto__ = null;
-
-CallSite.prototype.getThis = function () {
+function CallSiteGetThis() {
   return this.receiver;
 };
 
-CallSite.prototype.getTypeName = function () {
+function CallSiteGetTypeName() {
   var constructor = this.receiver.constructor;
   if (!constructor) {
     return %_CallFunction(this.receiver, ObjectToString);
@@ -742,33 +769,33 @@ CallSite.prototype.getTypeName = function () {
   return constructorName;
 };
 
-CallSite.prototype.isToplevel = function () {
+function CallSiteIsToplevel() {
   if (this.receiver == null) {
     return true;
   }
   return IS_GLOBAL(this.receiver);
 };
 
-CallSite.prototype.isEval = function () {
+function CallSiteIsEval() {
   var script = %FunctionGetScript(this.fun);
   return script && script.compilation_type == COMPILATION_TYPE_EVAL;
 };
 
-CallSite.prototype.getEvalOrigin = function () {
+function CallSiteGetEvalOrigin() {
   var script = %FunctionGetScript(this.fun);
   return FormatEvalOrigin(script);
 };
 
-CallSite.prototype.getScriptNameOrSourceURL = function () {
+function CallSiteGetScriptNameOrSourceURL() {
   var script = %FunctionGetScript(this.fun);
   return script ? script.nameOrSourceURL() : null;
 };
 
-CallSite.prototype.getFunction = function () {
+function CallSiteGetFunction() {
   return this.fun;
 };
 
-CallSite.prototype.getFunctionName = function () {
+function CallSiteGetFunctionName() {
   // See if the function knows its own name
   var name = this.fun.name;
   if (name) {
@@ -784,7 +811,7 @@ CallSite.prototype.getFunctionName = function () {
   return null;
 };
 
-CallSite.prototype.getMethodName = function () {
+function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
   var ownName = this.fun.name;
@@ -814,12 +841,12 @@ CallSite.prototype.getMethodName = function () {
   return null;
 };
 
-CallSite.prototype.getFileName = function () {
+function CallSiteGetFileName() {
   var script = %FunctionGetScript(this.fun);
   return script ? script.name : null;
 };
 
-CallSite.prototype.getLineNumber = function () {
+function CallSiteGetLineNumber() {
   if (this.pos == -1) {
     return null;
   }
@@ -831,7 +858,7 @@ CallSite.prototype.getLineNumber = function () {
   return location ? location.line + 1 : null;
 };
 
-CallSite.prototype.getColumnNumber = function () {
+function CallSiteGetColumnNumber() {
   if (this.pos == -1) {
     return null;
   }
@@ -843,22 +870,41 @@ CallSite.prototype.getColumnNumber = function () {
   return location ? location.column + 1: null;
 };
 
-CallSite.prototype.isNative = function () {
+function CallSiteIsNative() {
   var script = %FunctionGetScript(this.fun);
   return script ? (script.type == TYPE_NATIVE) : false;
 };
 
-CallSite.prototype.getPosition = function () {
+function CallSiteGetPosition() {
   return this.pos;
 };
 
-CallSite.prototype.isConstructor = function () {
+function CallSiteIsConstructor() {
   var constructor = this.receiver ? this.receiver.constructor : null;
   if (!constructor) {
     return false;
   }
   return this.fun === constructor;
 };
+
+SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
+  "getThis", CallSiteGetThis,
+  "getTypeName", CallSiteGetTypeName,
+  "isToplevel", CallSiteIsToplevel,
+  "isEval", CallSiteIsEval,
+  "getEvalOrigin", CallSiteGetEvalOrigin,
+  "getScriptNameOrSourceURL", CallSiteGetScriptNameOrSourceURL,
+  "getFunction", CallSiteGetFunction,
+  "getFunctionName", CallSiteGetFunctionName,
+  "getMethodName", CallSiteGetMethodName,
+  "getFileName", CallSiteGetFileName,
+  "getLineNumber", CallSiteGetLineNumber,
+  "getColumnNumber", CallSiteGetColumnNumber,
+  "isNative", CallSiteIsNative,
+  "getPosition", CallSiteGetPosition,
+  "isConstructor", CallSiteIsConstructor
+));
+
 
 function FormatEvalOrigin(script) {
   var sourceURL = script.nameOrSourceURL();
@@ -1001,6 +1047,7 @@ function FormatRawStackTrace(error, raw_stack) {
   }
 }
 
+
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
   if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
@@ -1016,7 +1063,7 @@ function captureStackTrace(obj, cons_opt) {
 };
 
 
-(function () {
+function SetUpError() {
   // Define special error type constructors.
 
   function DefineError(f) {
@@ -1085,7 +1132,9 @@ function captureStackTrace(obj, cons_opt) {
   DefineError(function ReferenceError() { });
   DefineError(function EvalError() { });
   DefineError(function URIError() { });
-})();
+}
+
+SetUpError();
 
 $Error.captureStackTrace = captureStackTrace;
 

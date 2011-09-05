@@ -1314,12 +1314,13 @@ function ArrayIsArray(obj) {
 
 
 // -------------------------------------------------------------------
-function SetupArray() {
-  // Setup non-enumerable constructor property on the Array.prototype
+function SetUpArray() {
+  %CheckIsBootstrapping();
+  // Set up non-enumerable constructor property on the Array.prototype
   // object.
   %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
-  // Setup non-enumerable functions on the Array object.
+  // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(
     "isArray", ArrayIsArray
   ));
@@ -1337,7 +1338,7 @@ function SetupArray() {
     return f;
   }
 
-  // Setup non-enumerable functions of the Array.prototype object and
+  // Set up non-enumerable functions of the Array.prototype object and
   // set their names.
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
@@ -1368,19 +1369,13 @@ function SetupArray() {
   %FinishArrayPrototypeSetup($Array.prototype);
 
   // The internal Array prototype doesn't need to be fancy, since it's never
-  // exposed to user code, so no hidden prototypes or DONT_ENUM attributes
-  // are necessary.
-  // The null __proto__ ensures that we never inherit any user created
-  // getters or setters from, e.g., Object.prototype.
-  InternalArray.prototype.__proto__ = null;
-  // Adding only the functions that are actually used, and a toString.
-  InternalArray.prototype.join = getFunction("join", ArrayJoin);
-  InternalArray.prototype.pop = getFunction("pop", ArrayPop);
-  InternalArray.prototype.push = getFunction("push", ArrayPush);
-  InternalArray.prototype.toString = function() {
-    return "Internal Array, length " + this.length;
-  };
+  // exposed to user code.
+  // Adding only the functions that are actually used.
+  SetUpLockedPrototype(InternalArray, $Array(), $Array(
+    "join", getFunction("join", ArrayJoin),
+    "pop", getFunction("pop", ArrayPop),
+    "push", getFunction("push", ArrayPush)
+  ));
 }
 
-
-SetupArray();
+SetUpArray();

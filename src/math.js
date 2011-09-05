@@ -195,8 +195,9 @@ function MathTan(x) {
 
 // -------------------------------------------------------------------
 
-function SetupMath() {
-  // Setup math constants.
+function SetUpMath() {
+  %CheckIsBootstrapping();
+  // Set up math constants.
   // ECMA-262, section 15.8.1.1.
   %OptimizeObjectForAddingMultipleProperties($Math, 8);
   %SetProperty($Math,
@@ -236,7 +237,7 @@ function SetupMath() {
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
   %ToFastProperties($Math);
 
-  // Setup non-enumerable functions of the Math object and
+  // Set up non-enumerable functions of the Math object and
   // set their names.
   InstallFunctionsOnHiddenPrototype($Math, DONT_ENUM, $Array(
     "random", MathRandom,
@@ -258,7 +259,6 @@ function SetupMath() {
     "max", MathMax,
     "min", MathMin
   ));
-};
+}
 
-
-SetupMath();
+SetUpMath();

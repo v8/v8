@@ -80,7 +80,8 @@ function WeakMapDelete(key) {
 
 // -------------------------------------------------------------------
 
-function SetupWeakMap() {
+(function () {
+  %CheckIsBootstrapping();
   // Set up the WeakMap constructor function.
   %SetCode($WeakMap, WeakMapConstructor);
 
@@ -97,7 +98,4 @@ function SetupWeakMap() {
     "has", WeakMapHas,
     "delete", WeakMapDelete
   ));
-}
-
-
-SetupWeakMap();
+})();

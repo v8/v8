@@ -79,6 +79,7 @@ namespace internal {
   F(PreventExtensions, 1, 1)\
   \
   /* Utilities */ \
+  F(CheckIsBootstrapping, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
