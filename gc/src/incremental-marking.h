@@ -191,15 +191,9 @@ class IncrementalMarking {
     should_hurry_ = val;
   }
 
-  void ResetStepCounters() {
-    steps_count_ = 0;
-    steps_took_ = 0;
-    longest_step_ = 0.0;
-    steps_count_since_last_gc_ = 0;
-    steps_took_since_last_gc_ = 0;
-    bytes_rescanned_ = 0;
-    allocation_marking_factor_ = kInitialAllocationMarkingFactor;
-  }
+  int64_t SpaceLeftInOldSpace();
+
+  void ResetStepCounters();
 
   void StartMarking();
 
@@ -227,6 +221,8 @@ class IncrementalMarking {
   int steps_count_;
   double steps_took_;
   double longest_step_;
+  int64_t old_generation_space_available_at_start_of_incremental_;
+  int64_t old_generation_space_used_at_start_of_incremental_;
   int steps_count_since_last_gc_;
   double steps_took_since_last_gc_;
   int64_t bytes_rescanned_;

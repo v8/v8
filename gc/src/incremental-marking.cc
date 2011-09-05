@@ -43,6 +43,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       steps_count_(0),
       steps_took_(0),
       longest_step_(0.0),
+      old_generation_space_available_at_start_of_incremental_(0),
+      old_generation_space_used_at_start_of_incremental_(0),
       steps_count_since_last_gc_(0),
       steps_took_since_last_gc_(0),
       should_hurry_(false),
@@ -583,7 +585,32 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   steps_count_++;
   steps_count_since_last_gc_++;
 
-  if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
+  bool speed_up = false;
+
+  if (old_generation_space_available_at_start_of_incremental_ < 10 * MB ||
+      SpaceLeftInOldSpace() <
+          old_generation_space_available_at_start_of_incremental_ >> 1) {
+    // Half of the space that was available is gone while we were
+    // incrementally marking.
+    speed_up = true;
+    old_generation_space_available_at_start_of_incremental_ =
+        SpaceLeftInOldSpace();
+  }
+
+  if (heap_->PromotedTotalSize() >
+      old_generation_space_used_at_start_of_incremental_ << 1) {
+    // Size of old space doubled while we were incrementally marking.
+    speed_up = true;
+    old_generation_space_used_at_start_of_incremental_ =
+        heap_->PromotedTotalSize();
+  }
+
+  if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0 &&
+      allocation_marking_factor_ < kMaxAllocationMarkingFactor) {
+    speed_up = true;
+  }
+
+  if (speed_up && 0) {
     allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
     allocation_marking_factor_ =
         static_cast<int>(allocation_marking_factor_ * 1.3);
@@ -601,5 +628,24 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   }
 }
 
+
+void IncrementalMarking::ResetStepCounters() {
+  steps_count_ = 0;
+  steps_took_ = 0;
+  longest_step_ = 0.0;
+  old_generation_space_available_at_start_of_incremental_ =
+      SpaceLeftInOldSpace();
+  old_generation_space_used_at_start_of_incremental_ =
+      heap_->PromotedTotalSize();
+  steps_count_since_last_gc_ = 0;
+  steps_took_since_last_gc_ = 0;
+  bytes_rescanned_ = 0;
+  allocation_marking_factor_ = kInitialAllocationMarkingFactor;
+}
+
+
+int64_t IncrementalMarking::SpaceLeftInOldSpace() {
+  return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSize();
+}
 
 } }  // namespace v8::internal

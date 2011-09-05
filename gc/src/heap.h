@@ -1209,16 +1209,18 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
                                                      PretenureFlag pretenure);
 
+  inline intptr_t PromotedTotalSize() {
+    return PromotedSpaceSize() + PromotedExternalMemorySize();
+  }
+
   // True if we have reached the allocation limit in the old generation that
   // should force the next GC (caused normally) to be a full one.
   inline bool OldGenerationPromotionLimitReached() {
-    return (PromotedSpaceSize() + PromotedExternalMemorySize())
-           > old_gen_promotion_limit_;
+    return PromotedTotalSize() > old_gen_promotion_limit_;
   }
 
   inline intptr_t OldGenerationSpaceAvailable() {
-    return old_gen_allocation_limit_ -
-           (PromotedSpaceSize() + PromotedExternalMemorySize());
+    return old_gen_allocation_limit_ - PromotedTotalSize();
   }
 
   static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
@@ -1305,8 +1307,7 @@ class Heap {
   inline bool NextGCIsLikelyToBeFull() {
     if (FLAG_gc_global) return true;
 
-    intptr_t total_promoted =
-        PromotedSpaceSize() + PromotedExternalMemorySize();
+    intptr_t total_promoted = PromotedTotalSize();
 
     intptr_t adjusted_promotion_limit =
         old_gen_promotion_limit_ - new_space_.Capacity();
