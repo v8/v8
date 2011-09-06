@@ -851,7 +851,7 @@ void FullCodeGenerator::VisitInCurrentContext(Expression* expr) {
 
 void FullCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
-  Breakable nested_statement(this, stmt);
+  NestedBlock nested_block(this, stmt);
   SetStatementPosition(stmt);
 
   Scope* saved_scope = scope();
@@ -871,7 +871,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
   scope_ = saved_scope;
-  __ bind(nested_statement.break_label());
+  __ bind(nested_block.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 

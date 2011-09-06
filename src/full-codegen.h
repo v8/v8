@@ -191,6 +191,22 @@ class FullCodeGenerator: public AstVisitor {
     Label continue_label_;
   };
 
+  // A nested block statement.
+  class NestedBlock : public Breakable {
+   public:
+    NestedBlock(FullCodeGenerator* codegen, Block* block)
+        : Breakable(codegen, block) {
+    }
+    virtual ~NestedBlock() {}
+
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      if (statement()->AsBlock()->block_scope() != NULL) {
+        ++(*context_length);
+      }
+      return previous_;
+    };
+  };
+
   // The try block of a try/catch statement.
   class TryCatch : public NestedStatement {
    public:

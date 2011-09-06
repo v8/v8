@@ -1588,19 +1588,11 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   body->set_block_scope(block_scope);
 
   if (block_scope != NULL) {
-    // Create exit block.
-    Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
+    // Rewrite the block { B } to a block: { { B } ExitContext; }
+    Block* exit = new(zone()) Block(isolate(), NULL, 2, false);
+    exit->AddStatement(body);
     exit->AddStatement(new(zone()) ExitContextStatement());
-
-    // Create a try-finally statement.
-    TryFinallyStatement* try_finally =
-        new(zone()) TryFinallyStatement(body, exit);
-    try_finally->set_escaping_targets(collector.targets());
-
-    // Create a result block.
-    Block* result = new(zone()) Block(isolate(), NULL, 1, false);
-    result->AddStatement(try_finally);
-    return result;
+    return exit;
   } else {
     return body;
   }
