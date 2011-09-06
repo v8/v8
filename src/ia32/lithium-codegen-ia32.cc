@@ -3175,7 +3175,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Label have_value;
 
   __ ucomisd(value, value);
