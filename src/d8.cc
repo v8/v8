@@ -683,7 +683,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("lol_is_enabled"), False());
 #endif
 
-#ifndef V8_SHARED
+#if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
