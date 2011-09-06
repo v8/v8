@@ -4337,17 +4337,21 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (inlined_test_context() != NULL) {
     HBasicBlock* if_true = inlined_test_context()->if_true();
     HBasicBlock* if_false = inlined_test_context()->if_false();
-    if_true->SetJoinId(expr->id());
-    if_false->SetJoinId(expr->id());
     ASSERT(ast_context() == inlined_test_context());
     // Pop the return test context from the expression context stack.
     ClearInlinedTestContext();
 
     // Forward to the real test context.
-    HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-    HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-    if_true->Goto(true_target, false);
-    if_false->Goto(false_target, false);
+    if (if_true->HasPredecessor()) {
+      if_true->SetJoinId(expr->id());
+      HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
+      if_true->Goto(true_target, false);
+    }
+    if (if_false->HasPredecessor()) {
+      if_false->SetJoinId(expr->id());
+      HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
+      if_false->Goto(false_target, false);
+    }
 
     // TODO(kmillikin): Come up with a better way to handle this. It is too
     // subtle. NULL here indicates that the enclosing context has no control
