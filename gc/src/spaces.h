@@ -1462,12 +1462,20 @@ class PagedSpace : public Space {
     intptr_t sizes[4];
     free_list_.CountFreeListItems(p, sizes);
 
-    intptr_t ratio =
-        (sizes[0] * 5 + sizes[1]) * 100 / Page::kObjectAreaSize;
+    intptr_t ratio;
+    intptr_t ratio_threshold;
+    if (identity() == CODE_SPACE) {
+      ratio = (sizes[1] * 10 + sizes[2] * 2) * 100 / Page::kObjectAreaSize;
+      ratio_threshold = 10;
+    } else {
+      ratio = (sizes[0] * 5 + sizes[1]) * 100 / Page::kObjectAreaSize;
+      ratio_threshold = 15;
+    }
 
     if (FLAG_trace_fragmentation) {
-      PrintF("%p: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
+      PrintF("%p [%d]: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
              reinterpret_cast<void*>(p),
+             identity(),
              static_cast<int>(sizes[0]),
              static_cast<double>(sizes[0] * 100) / Page::kObjectAreaSize,
              static_cast<int>(sizes[1]),
@@ -1476,10 +1484,10 @@ class PagedSpace : public Space {
              static_cast<double>(sizes[2] * 100) / Page::kObjectAreaSize,
              static_cast<int>(sizes[3]),
              static_cast<double>(sizes[3] * 100) / Page::kObjectAreaSize,
-             (ratio > 15) ? "[fragmented]" : "");
+             (ratio > ratio_threshold) ? "[fragmented]" : "");
     }
 
-    return ratio > 15;
+    return (ratio > ratio_threshold) || FLAG_always_compact;
   }
 
   void EvictEvacuationCandidatesFromFreeLists();

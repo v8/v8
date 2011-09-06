@@ -120,8 +120,16 @@ class IncrementalMarking {
                                                Object** slot,
                                                Isolate* isolate);
 
+  inline bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value);
+
+
   inline void RecordWrite(HeapObject* obj, Object** slot, Object* value);
-  inline void RecordWriteOf(HeapObject* value);
+  inline void RecordWriteIntoCode(HeapObject* obj,
+                                  RelocInfo* rinfo,
+                                  Object* value);
+  void RecordCodeTargetPatch(Address pc, HeapObject* value);
+  void RecordWriteOfCodeEntry(JSFunction* host, Object** slot, Code* value);
+
   inline void RecordWrites(HeapObject* obj);
 
   inline void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);

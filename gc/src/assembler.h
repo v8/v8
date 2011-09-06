@@ -219,8 +219,9 @@ class RelocInfo BASE_EMBEDDED {
 
 
   RelocInfo() {}
-  RelocInfo(byte* pc, Mode rmode, intptr_t data)
-      : pc_(pc), rmode_(rmode), data_(data) {
+
+  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
+      : pc_(pc), rmode_(rmode), data_(data), host_(host) {
   }
 
   static inline bool IsConstructCall(Mode mode) {
@@ -261,6 +262,7 @@ class RelocInfo BASE_EMBEDDED {
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
+  Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
@@ -274,14 +276,14 @@ class RelocInfo BASE_EMBEDDED {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
   INLINE(Address target_address());
-  INLINE(void set_target_address(Address target, Code* host));
+  INLINE(void set_target_address(Address target));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
-  INLINE(void set_target_object(Object* target, Code* code));
+  INLINE(void set_target_object(Object* target));
   INLINE(JSGlobalPropertyCell* target_cell());
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
-  INLINE(void set_target_cell(JSGlobalPropertyCell* cell, Code* code));
+  INLINE(void set_target_cell(JSGlobalPropertyCell* cell));
 
 
   // Read the address of the word containing the target_address in an
@@ -356,6 +358,7 @@ class RelocInfo BASE_EMBEDDED {
   byte* pc_;
   Mode rmode_;
   intptr_t data_;
+  Code* host_;
 #ifdef V8_TARGET_ARCH_MIPS
   // Code and Embedded Object pointers in mips are stored split
   // across two consecutive 32-bit instructions. Heap management

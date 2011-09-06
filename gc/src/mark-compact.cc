@@ -237,9 +237,11 @@ bool MarkCompactCollector::StartCompaction() {
 
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
+    CollectEvacuationCandidates(heap()->code_space());
 
     heap()->old_pointer_space()->EvictEvacuationCandidatesFromFreeLists();
     heap()->old_data_space()->EvictEvacuationCandidatesFromFreeLists();
+    heap()->code_space()->EvictEvacuationCandidatesFromFreeLists();
 
     compacting_ = evacuation_candidates_.length() > 0;
   }
@@ -379,19 +381,45 @@ bool Marking::TransferMark(Address old_start, Address new_start) {
 }
 
 
+static const char* AllocationSpaceName(AllocationSpace space) {
+  switch (space) {
+    case NEW_SPACE: return "NEW_SPACE";
+    case OLD_POINTER_SPACE: return "OLD_POINTER_SPACE";
+    case OLD_DATA_SPACE: return "OLD_DATA_SPACE";
+    case CODE_SPACE: return "CODE_SPACE";
+    case MAP_SPACE: return "MAP_SPACE";
+    case CELL_SPACE: return "CELL_SPACE";
+    case LO_SPACE: return "LO_SPACE";
+    default:
+      UNREACHABLE();
+  }
+
+  return NULL;
+}
+
+
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   ASSERT(space->identity() == OLD_POINTER_SPACE ||
-         space->identity() == OLD_DATA_SPACE);
+         space->identity() == OLD_DATA_SPACE ||
+         space->identity() == CODE_SPACE);
 
   PageIterator it(space);
+  int count = 0;
   if (it.has_next()) it.next();  // Never compact the first page.
   while (it.has_next()) {
     Page* p = it.next();
     if (space->IsFragmented(p)) {
       AddEvacuationCandidate(p);
+      count++;
     } else {
       p->ClearEvacuationCandidate();
     }
+  }
+
+  if (count > 0 && FLAG_trace_fragmentation) {
+    PrintF("Collected %d evacuation candidates for space %s\n",
+           count,
+           AllocationSpaceName(space->identity()));
   }
 }
 
@@ -545,6 +573,12 @@ class CodeFlusher {
       } else {
         candidate->set_code(shared->unchecked_code());
       }
+
+      // We are in the middle of a GC cycle so the write barrier in the code
+      // setter did not record the slot update and we have to do that manually.
+      Address slot = candidate->address() + JSFunction::kCodeEntryOffset;
+      isolate_->heap()->mark_compact_collector()->
+          RecordCodeEntrySlot(slot, Code::cast(Memory::Object_at(slot)));
 
       candidate = next_candidate;
     }
@@ -744,28 +778,27 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
   }
 
+  static void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
+    ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(rinfo->target_cell());
+    MarkBit mark = Marking::MarkBitFrom(cell);
+    heap->mark_compact_collector()->MarkObject(cell, mark);
+  }
+
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_code_caches_at_gc && code->is_inline_cache_stub()) {
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
+      target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
-      MarkBit code_mark = Marking::MarkBitFrom(code);
-      heap->mark_compact_collector()->MarkObject(code, code_mark);
+      MarkBit code_mark = Marking::MarkBitFrom(target);
+      heap->mark_compact_collector()->MarkObject(target, code_mark);
     }
-  }
-
-  static void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
-    ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
-    Object* cell = rinfo->target_cell();
-    Object* old_cell = cell;
-    VisitPointer(heap, &cell);
-    if (cell != old_cell) {
-      rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell),
-                             NULL);
-    }
+    heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
   static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
@@ -773,9 +806,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
             rinfo->IsPatchedReturnSequence()) ||
            (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
             rinfo->IsPatchedDebugBreakSlotSequence()));
-    HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    MarkBit code_mark = Marking::MarkBitFrom(code);
-    heap->mark_compact_collector()->MarkObject(code, code_mark);
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+    MarkBit code_mark = Marking::MarkBitFrom(target);
+    heap->mark_compact_collector()->MarkObject(target, code_mark);
+    heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
   // Mark object pointed to by p.
@@ -1095,13 +1129,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   static void VisitCodeEntry(Heap* heap, Address entry_address) {
-    Object* code = Code::GetObjectFromEntryAddress(entry_address);
-    Object* old_code = code;
-    VisitPointer(heap, &code);
-    if (code != old_code) {
-      Memory::Address_at(entry_address) =
-          reinterpret_cast<Code*>(code)->entry();
-    }
+    Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+    MarkBit mark = Marking::MarkBitFrom(code);
+    heap->mark_compact_collector()->MarkObject(code, mark);
+    heap->mark_compact_collector()->
+        RecordCodeEntrySlot(entry_address, code);
   }
 
   static void VisitGlobalContext(Map* map, HeapObject* object) {
@@ -2268,11 +2300,6 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          Address src,
                                          int size,
                                          AllocationSpace dest) {
-  ASSERT(dest == OLD_POINTER_SPACE ||
-         dest == OLD_DATA_SPACE ||
-         dest == LO_SPACE ||
-         dest == NEW_SPACE);
-
   if (dest == OLD_POINTER_SPACE || dest == LO_SPACE) {
     Address src_slot = src;
     Address dst_slot = dst;
@@ -2285,8 +2312,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
 
       if (heap_->InNewSpace(value)) {
         heap_->store_buffer()->Mark(dst_slot);
-      } else if (value->IsHeapObject() &&
-                 MarkCompactCollector::IsOnEvacuationCandidate(value)) {
+      } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
         SlotsBuffer::AddTo(&slots_buffer_allocator_,
                            &migration_slots_buffer_,
                            reinterpret_cast<Object**>(dst_slot),
@@ -2296,8 +2322,31 @@ void MarkCompactCollector::MigrateObject(Address dst,
       src_slot += kPointerSize;
       dst_slot += kPointerSize;
     }
+
+    if (compacting_ && HeapObject::FromAddress(dst)->IsJSFunction()) {
+      Address code_entry_slot = dst + JSFunction::kCodeEntryOffset;
+      Address code_entry = Memory::Address_at(code_entry_slot);
+
+      if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
+        SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                           &migration_slots_buffer_,
+                           SlotsBuffer::CODE_ENTRY_SLOT,
+                           code_entry_slot,
+                           SlotsBuffer::IGNORE_OVERFLOW);
+      }
+    }
+  } else if (dest == CODE_SPACE) {
+    PROFILE(heap()->isolate(), CodeMoveEvent(src, dst));
+    heap()->MoveBlock(dst, src, size);
+    SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                       &migration_slots_buffer_,
+                       SlotsBuffer::RELOCATED_CODE_OBJECT,
+                       dst,
+                       SlotsBuffer::IGNORE_OVERFLOW);
+    Code::cast(HeapObject::FromAddress(dst))->Relocate(dst - src);
   } else {
-    heap_->CopyBlock(dst, src, size);
+    ASSERT(dest == OLD_DATA_SPACE || dest == NEW_SPACE);
+    heap()->MoveBlock(dst, src, size);
   }
   Memory::Address_at(src) = dst;
 }
@@ -2321,7 +2370,7 @@ class PointersUpdatingVisitor: public ObjectVisitor {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VisitPointer(&target);
-    rinfo->set_target_address(Code::cast(target)->instruction_start(), NULL);
+    rinfo->set_target_address(Code::cast(target)->instruction_start());
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
@@ -2584,6 +2633,41 @@ static inline void UpdateSlot(Object** slot) {
 }
 
 
+static inline void UpdateSlot(ObjectVisitor* v,
+                              SlotsBuffer::SlotType slot_type,
+                              Address addr) {
+  switch (slot_type) {
+    case SlotsBuffer::CODE_TARGET_SLOT: {
+      RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, NULL, NULL);
+      rinfo.Visit(v);
+      break;
+    }
+    case SlotsBuffer::CODE_ENTRY_SLOT: {
+      v->VisitCodeEntry(addr);
+      break;
+    }
+    case SlotsBuffer::RELOCATED_CODE_OBJECT: {
+      HeapObject* obj = HeapObject::FromAddress(addr);
+      Code::cast(obj)->CodeIterateBody(v);
+      break;
+    }
+    case SlotsBuffer::DEBUG_TARGET_SLOT: {
+      RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, NULL, NULL);
+      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(v);
+      break;
+    }
+    case SlotsBuffer::JS_RETURN_SLOT: {
+      RelocInfo rinfo(addr, RelocInfo::JS_RETURN, NULL, NULL);
+      if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(v);
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
 static inline void UpdateSlotsInRange(Object** start, Object** end) {
   for (Object** slot = start;
        slot < end;
@@ -2603,7 +2687,7 @@ static inline void UpdateSlotsInRange(Object** start, Object** end) {
 
 enum SweepingMode {
   SWEEP_ONLY,
-  SWEEP_AND_UPDATE_SLOTS
+  SWEEP_AND_VISIT_LIVE_OBJECTS
 };
 
 
@@ -2613,7 +2697,10 @@ enum SweepingMode {
 // over it.  Map space is swept precisely, because it is not compacted.
 // Slots in live objects pointing into evacuation candidates are updated
 // if requested.
-static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
+static void SweepPrecisely(PagedSpace* space,
+                           Page* p,
+                           SweepingMode mode,
+                           ObjectVisitor* v) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
   MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptPrecisely();
@@ -2645,10 +2732,10 @@ static void SweepPrecisely(PagedSpace* space, Page* p, SweepingMode mode) {
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
-      int size = live_object->Size();
-      if (mode == SWEEP_AND_UPDATE_SLOTS) {
-        UpdateSlotsInRange(HeapObject::RawField(live_object, kPointerSize),
-                           HeapObject::RawField(live_object, size));
+      Map* map = live_object->map();
+      int size = live_object->SizeFromMap(map);
+      if (mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
+        live_object->IterateBody(map->instance_type(), size, v);
       }
       free_start = free_end + size;
     }
@@ -2691,7 +2778,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
 
-  SlotsBuffer::UpdateSlotsRecordedIn(migration_slots_buffer_);
+  SlotsBuffer::UpdateSlotsRecordedIn(heap_, migration_slots_buffer_);
   if (FLAG_trace_fragmentation) {
     PrintF("  migration slots buffer: %d\n",
            SlotsBuffer::SizeOfChain(migration_slots_buffer_));
@@ -2704,7 +2791,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
 
     if (p->IsEvacuationCandidate()) {
-      SlotsBuffer::UpdateSlotsRecordedIn(p->slots_buffer());
+      SlotsBuffer::UpdateSlotsRecordedIn(heap_, p->slots_buffer());
       if (FLAG_trace_fragmentation) {
         PrintF("  page %p slots buffer: %d\n",
                reinterpret_cast<void*>(p),
@@ -2717,7 +2804,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       }
       PagedSpace* space = static_cast<PagedSpace*>(p->owner());
       p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
-      SweepPrecisely(space, p, SWEEP_AND_UPDATE_SLOTS);
+
+      SweepPrecisely(space,
+                     p,
+                     SWEEP_AND_VISIT_LIVE_OBJECTS,
+                     &updating_visitor);
     }
   }
 
@@ -3238,7 +3329,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
         break;
       }
       case PRECISE: {
-        SweepPrecisely(space, p, SWEEP_ONLY);
+        SweepPrecisely(space, p, SWEEP_ONLY, NULL);
         break;
       }
       default: {
@@ -3314,10 +3405,106 @@ void MarkCompactCollector::Initialize() {
 }
 
 
-void SlotsBuffer::UpdateSlots() {
-  for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
-    UpdateSlot(slots_[slot_idx]);
+bool SlotsBuffer::IsTypedSlot(ObjectSlot slot) {
+  return reinterpret_cast<uintptr_t>(slot) < NUMBER_OF_SLOT_TYPES;
+}
+
+
+bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
+                        SlotsBuffer** buffer_address,
+                        SlotType type,
+                        Address addr,
+                        AdditionMode mode) {
+  if(!AddTo(allocator,
+            buffer_address,
+            reinterpret_cast<ObjectSlot>(type),
+            mode)) {
+    return false;
   }
+  return AddTo(allocator,
+               buffer_address,
+               reinterpret_cast<ObjectSlot>(addr),
+               mode);
+}
+
+
+static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
+  if (RelocInfo::IsCodeTarget(rmode)) {
+    return SlotsBuffer::CODE_TARGET_SLOT;
+  } else if (RelocInfo::IsDebugBreakSlot(rmode)) {
+    return SlotsBuffer::DEBUG_TARGET_SLOT;
+  } else if (RelocInfo::IsJSReturn(rmode)) {
+    return SlotsBuffer::JS_RETURN_SLOT;
+  }
+  UNREACHABLE();
+  return SlotsBuffer::NONE;
+}
+
+
+void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Code* target) {
+  Page* target_page = Page::FromAddress(
+      reinterpret_cast<Address>(target));
+  if (target_page->IsEvacuationCandidate() &&
+      !ShouldSkipEvacuationSlotRecording(rinfo->host())) {
+    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                            target_page->slots_buffer_address(),
+                            SlotTypeForRMode(rinfo->rmode()),
+                            rinfo->pc(),
+                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
+      EvictEvacuationCandidate(target_page);
+    }
+  }
+}
+
+
+void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
+  Page* target_page = Page::FromAddress(
+      reinterpret_cast<Address>(target));
+  if (target_page->IsEvacuationCandidate() &&
+      !ShouldSkipEvacuationSlotRecording(reinterpret_cast<Object**>(slot))) {
+    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                            target_page->slots_buffer_address(),
+                            SlotsBuffer::CODE_ENTRY_SLOT,
+                            slot,
+                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
+      EvictEvacuationCandidate(target_page);
+    }
+  }
+}
+
+
+static inline SlotsBuffer::SlotType DecodeSlotType(
+    SlotsBuffer::ObjectSlot slot) {
+  return static_cast<SlotsBuffer::SlotType>(reinterpret_cast<intptr_t>(slot));
+}
+
+
+SlotsBuffer::SlotType SlotsBuffer::UpdateSlots(
+    Heap* heap,
+    SlotsBuffer::SlotType pending) {
+  PointersUpdatingVisitor v(heap);
+
+  if (pending != NONE) {
+    UpdateSlot(&v, pending, reinterpret_cast<Address>(slots_[0]));
+  }
+
+  for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
+    ObjectSlot slot = slots_[slot_idx];
+    if (!IsTypedSlot(slot)) {
+      UpdateSlot(slot);
+    } else {
+      ++slot_idx;
+      if (slot_idx < idx_) {
+        UpdateSlot(&v,
+                   DecodeSlotType(slot),
+                   reinterpret_cast<Address>(slots_[slot_idx]));
+      } else {
+        return DecodeSlotType(slot);
+      }
+    }
+  }
+
+  return SlotsBuffer::NONE;
 }
 
 

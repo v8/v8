@@ -34,9 +34,44 @@ namespace v8 {
 namespace internal {
 
 
+bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
+                                         Object** slot,
+                                         Object* value) {
+  if (IsMarking() && value->IsHeapObject()) {
+    MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
+    if (Marking::IsWhite(value_bit)) {
+      MarkBit obj_bit = Marking::MarkBitFrom(obj);
+      if (Marking::IsBlack(obj_bit)) {
+        BlackToGreyAndUnshift(obj, obj_bit);
+        RestartIfNotMarking();
+      }
+
+      // Object is either grey or white it will be scanned if survives.
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+
 void IncrementalMarking::RecordWrite(HeapObject* obj,
                                      Object** slot,
                                      Object* value) {
+  if (BaseRecordWrite(obj, slot, value) && is_compacting_ && slot != NULL) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      // Object is not going to be rescanned we need to record the slot.
+      heap_->mark_compact_collector()->RecordSlot(
+          HeapObject::RawField(obj, 0), slot, value);
+    }
+  }
+}
+
+
+void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj,
+                                             RelocInfo* rinfo,
+                                             Object* value) {
   if (IsMarking() && value->IsHeapObject()) {
     MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
     if (Marking::IsWhite(value_bit)) {
@@ -50,26 +85,13 @@ void IncrementalMarking::RecordWrite(HeapObject* obj,
       return;
     }
 
-    if (is_compacting_ && slot != NULL) {
+    if (is_compacting_) {
       MarkBit obj_bit = Marking::MarkBitFrom(obj);
       if (Marking::IsBlack(obj_bit)) {
         // Object is not going to be rescanned we need to record the slot.
-        heap_->mark_compact_collector()->RecordSlot(
-            HeapObject::RawField(obj, 0), slot, value);
+        heap_->mark_compact_collector()->RecordRelocSlot(rinfo,
+                                                         Code::cast(value));
       }
-    }
-  }
-}
-
-
-void IncrementalMarking::RecordWriteOf(HeapObject* value) {
-  if (IsMarking()) {
-    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(value));
-
-    MarkBit value_bit = Marking::MarkBitFrom(value);
-    if (Marking::IsWhite(value_bit)) {
-      WhiteToGreyAndPush(value, value_bit);
-      RestartIfNotMarking();
     }
   }
 }

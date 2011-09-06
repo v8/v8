@@ -518,6 +518,7 @@ void RelocIterator::next() {
 
 
 RelocIterator::RelocIterator(Code* code, int mode_mask) {
+  rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
   // Relocation info is read backwards.

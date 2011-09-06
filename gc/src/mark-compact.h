@@ -276,6 +276,18 @@ class SlotsBufferAllocator {
 };
 
 
+// SlotsBuffer records a sequence of slots that has to be updated
+// after live objects were relocated from evacuation candidates.
+// All slots are either untyped or typed:
+//    - Untyped slots are expected to contain a tagged object pointer.
+//      They are recorded by an address.
+//    - Typed slots are expected to contain an encoded pointer to a heap
+//      object where the way of encoding depends on the type of the slot.
+//      They are recorded as a pair (SlotType, slot address).
+// We assume that zero-page is never mapped this allows us to distinguish
+// untyped slots from typed slots during iteration by a simple comparison:
+// if element of slots buffer is less than NUMBER_OF_SLOT_TYPES then it
+// is the first element of typed slot's pair.
 class SlotsBuffer {
  public:
   typedef Object** ObjectSlot;
@@ -295,7 +307,26 @@ class SlotsBuffer {
     slots_[idx_++] = slot;
   }
 
-  void UpdateSlots();
+  enum SlotType {
+    NONE,
+    RELOCATED_CODE_OBJECT,
+    CODE_TARGET_SLOT,
+    CODE_ENTRY_SLOT,
+    DEBUG_TARGET_SLOT,
+    JS_RETURN_SLOT,
+    NUMBER_OF_SLOT_TYPES
+  };
+
+  // Typed slot might be splitted between two SlotsBuffers: slot's type
+  // is recorded in one buffer and type address is recorded as the first
+  // slot in the next buffer.
+  //
+  // If the first address recorded in this buffer is address of the typed
+  // slot then it's type will be passed as pending argument.
+  //
+  // If this buffer ends on slot's type and the next buffer is expected to
+  // contain address of a typed slot then the function returns that type.
+  SlotType UpdateSlots(Heap* heap, SlotType pending);
 
   SlotsBuffer* next() { return next_; }
 
@@ -309,9 +340,10 @@ class SlotsBuffer {
     return idx_ == kNumberOfElements;
   }
 
-  static void UpdateSlotsRecordedIn(SlotsBuffer* buffer) {
+  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer) {
+    SlotType pending = NONE;
     while (buffer != NULL) {
-      buffer->UpdateSlots();
+      pending = buffer->UpdateSlots(heap, pending);
       buffer = buffer->next();
     }
   }
@@ -339,6 +371,14 @@ class SlotsBuffer {
     buffer->Add(slot);
     return true;
   }
+
+  static bool IsTypedSlot(ObjectSlot slot);
+
+  static bool AddTo(SlotsBufferAllocator* allocator,
+                    SlotsBuffer** buffer_address,
+                    SlotType type,
+                    Address addr,
+                    AdditionMode mode);
 
   static const int kNumberOfElements = 1021;
 
@@ -455,39 +495,41 @@ class MarkCompactCollector {
         ShouldSkipEvacuationSlotRecording();
   }
 
+  INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
+    return Page::FromAddress(reinterpret_cast<Address>(host))->
+        ShouldSkipEvacuationSlotRecording();
+  }
+
   INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
     return Page::FromAddress(reinterpret_cast<Address>(obj))->
         IsEvacuationCandidate();
   }
 
-  INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object)) {
-    Page* object_page = Page::FromAddress(reinterpret_cast<Address>(object));
-    if (object_page->IsEvacuationCandidate() &&
-        !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
-      if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                              object_page->slots_buffer_address(),
-                              slot,
-                              SlotsBuffer::FAIL_ON_OVERFLOW)) {
-        if (FLAG_trace_fragmentation) {
-          PrintF("Page %p is too popular. Disabling evacuation.\n",
-                 reinterpret_cast<void*>(object_page));
-        }
-        // TODO(gc) If all evacuation candidates are too popular we
-        // should stop slots recording entirely.
-        object_page->ClearEvacuationCandidate();
+  void EvictEvacuationCandidate(Page* page) {
+    if (FLAG_trace_fragmentation) {
+      PrintF("Page %p is too popular. Disabling evacuation.\n",
+             reinterpret_cast<void*>(page));
+    }
 
-        // We were not collecting slots on this page that point
-        // to other evacuation candidates thus we have to
-        // rescan the page after evacuation to discover and update all
-        // pointers to evacuated objects.
-        if (object_page->owner()->identity() == OLD_DATA_SPACE) {
-          evacuation_candidates_.RemoveElement(object_page);
-        } else {
-          object_page->SetFlag(Page::RESCAN_ON_EVACUATION);
-        }
-      }
+    // TODO(gc) If all evacuation candidates are too popular we
+    // should stop slots recording entirely.
+    page->ClearEvacuationCandidate();
+
+    // We were not collecting slots on this page that point
+    // to other evacuation candidates thus we have to
+    // rescan the page after evacuation to discover and update all
+    // pointers to evacuated objects.
+    if (page->owner()->identity() == OLD_DATA_SPACE) {
+      evacuation_candidates_.RemoveElement(page);
+    } else {
+      page->SetFlag(Page::RESCAN_ON_EVACUATION);
     }
   }
+
+  void RecordRelocSlot(RelocInfo* rinfo, Code* target);
+  void RecordCodeEntrySlot(Address slot, Code* target);
+
+  INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object));
 
   void MigrateObject(Address dst,
                      Address src,

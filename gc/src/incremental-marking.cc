@@ -84,6 +84,38 @@ void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
 }
 
 
+void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
+  if (IsMarking()) {
+    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(value));
+
+    MarkBit value_bit = Marking::MarkBitFrom(value);
+    if (Marking::IsWhite(value_bit)) {
+      WhiteToGreyAndPush(value, value_bit);
+      RestartIfNotMarking();
+    }
+
+
+    if (is_compacting_) {
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, NULL, NULL);
+      heap_->mark_compact_collector()->RecordRelocSlot(&rinfo,
+                                                       Code::cast(value));
+    }
+  }
+}
+
+
+void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host,
+                                                Object** slot,
+                                                Code* value) {
+  if (BaseRecordWrite(host, slot, value) && is_compacting_) {
+    ASSERT(slot != NULL);
+    heap_->mark_compact_collector()->
+        RecordCodeEntrySlot(reinterpret_cast<Address>(slot), value);
+  }
+}
+
+
+
 class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
  public:
   IncrementalMarkingMarkingVisitor(Heap* heap,
@@ -92,34 +124,60 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
         incremental_marking_(incremental_marking) {
   }
 
+  void VisitCodeTarget(RelocInfo* rinfo) {
+    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
+    MarkObject(target);
+  }
+
+  void VisitDebugTarget(RelocInfo* rinfo) {
+    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+            rinfo->IsPatchedReturnSequence()) ||
+           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+            rinfo->IsPatchedDebugBreakSlotSequence()));
+    Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
+    MarkObject(target);
+  }
+
+  void VisitCodeEntry(Address entry_address) {
+    Object* target = Code::GetObjectFromEntryAddress(entry_address);
+    heap_->mark_compact_collector()->
+        RecordCodeEntrySlot(entry_address, Code::cast(target));
+    MarkObject(target);
+  }
+
   void VisitPointer(Object** p) {
-    MarkObjectByPointer(p, p);
+    Object* obj = *p;
+    if (obj->NonFailureIsHeapObject()) {
+      heap_->mark_compact_collector()->RecordSlot(p, p, obj);
+      MarkObject(obj);
+    }
   }
 
   void VisitPointers(Object** start, Object** end) {
-    for (Object** p = start; p < end; p++) MarkObjectByPointer(start, p);
+    for (Object** p = start; p < end; p++) {
+      Object* obj = *p;
+      if (obj->NonFailureIsHeapObject()) {
+        heap_->mark_compact_collector()->RecordSlot(start, p, obj);
+        MarkObject(obj);
+      }
+    }
   }
 
  private:
   // Mark object pointed to by p.
-  INLINE(void MarkObjectByPointer(Object** anchor, Object** p)) {
-    Object* obj = *p;
-    // Since we can be sure that the object is not tagged as a failure we can
-    // inline a slightly more efficient tag check here than IsHeapObject() would
-    // produce.
-    if (obj->NonFailureIsHeapObject()) {
-      HeapObject* heap_object = HeapObject::cast(obj);
-
-      heap_->mark_compact_collector()->RecordSlot(anchor, p, obj);
-      MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-      if (mark_bit.data_only()) {
-        if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
-          MemoryChunk::IncrementLiveBytes(heap_object->address(),
-                                          heap_object->Size());
-        }
-      } else if (Marking::IsWhite(mark_bit)) {
-        incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
+  INLINE(void MarkObject(Object* obj)) {
+    HeapObject* heap_object = HeapObject::cast(obj);
+    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+    if (mark_bit.data_only()) {
+      if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
+        MemoryChunk::IncrementLiveBytes(heap_object->address(),
+                                        heap_object->Size());
       }
+    } else if (Marking::IsWhite(mark_bit)) {
+      incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
     }
   }
 

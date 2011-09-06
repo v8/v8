@@ -410,9 +410,9 @@ void BreakLocationIterator::PrepareStepIn() {
     Handle<Code> stub = ComputeCallDebugPrepareStepIn(
         target_code->arguments_count(), target_code->kind());
     if (IsDebugBreak()) {
-      original_rinfo()->set_target_address(stub->entry(), code());
+      original_rinfo()->set_target_address(stub->entry());
     } else {
-      rinfo()->set_target_address(stub->entry(), code());
+      rinfo()->set_target_address(stub->entry());
     }
   } else {
 #ifdef DEBUG
@@ -469,7 +469,7 @@ bool BreakLocationIterator::IsDebugBreak() {
 void BreakLocationIterator::SetDebugBreakAtIC() {
   // Patch the original code with the current address as the current address
   // might have changed by the inline caching since the code was copied.
-  original_rinfo()->set_target_address(rinfo()->target_address(), code());
+  original_rinfo()->set_target_address(rinfo()->target_address());
 
   RelocInfo::Mode mode = rmode();
   if (RelocInfo::IsCodeTarget(mode)) {
@@ -479,14 +479,14 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
     // Patch the code to invoke the builtin debug break function matching the
     // calling convention used by the call site.
     Handle<Code> dbgbrk_code(Debug::FindDebugBreak(target_code, mode));
-    rinfo()->set_target_address(dbgbrk_code->entry(), code());
+    rinfo()->set_target_address(dbgbrk_code->entry());
   }
 }
 
 
 void BreakLocationIterator::ClearDebugBreakAtIC() {
   // Patch the code to the original invoke.
-  rinfo()->set_target_address(original_rinfo()->target_address(), code());
+  rinfo()->set_target_address(original_rinfo()->target_address());
 }
 
 

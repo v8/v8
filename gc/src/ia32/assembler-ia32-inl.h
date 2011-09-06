@@ -88,16 +88,13 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target, Code* code) {
+void RelocInfo::set_target_address(Address target) {
   Assembler::set_target_address_at(pc_, target);
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  if (code != NULL && IsCodeTarget(rmode_)) {
+  if (host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
-
-    // TODO(1550) We are passing NULL as a slot because code can never be on
-    // evacuation candidate.
-    code->GetHeap()->incremental_marking()->RecordWrite(
-        code, NULL, HeapObject::cast(target_code));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target_code));
   }
 }
 
@@ -120,13 +117,13 @@ Object** RelocInfo::target_object_address() {
 }
 
 
-void RelocInfo::set_target_object(Object* target, Code* code) {
+void RelocInfo::set_target_object(Object* target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
-  if (code != NULL && target->IsHeapObject()) {
-    code->GetHeap()->incremental_marking()->RecordWrite(
-        code, &Memory::Object_at(pc_), HeapObject::cast(target));
+  if (host() != NULL && target->IsHeapObject()) {
+    host()->GetHeap()->incremental_marking()->RecordWrite(
+        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
   }
 }
 
@@ -154,16 +151,16 @@ JSGlobalPropertyCell* RelocInfo::target_cell() {
 }
 
 
-void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
+void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
   ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
-  if (code != NULL) {
-    // TODO(1550) We are passing NULL as a slot because code can never be on
+  if (host() != NULL) {
+    // TODO(1550) We are passing NULL as a slot because cell can never be on
     // evacuation candidate.
-    code->GetHeap()->incremental_marking()->RecordWrite(
-        code, NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWrite(
+        host(), NULL, cell);
   }
 }
 
@@ -179,6 +176,11 @@ void RelocInfo::set_call_address(Address target) {
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   Assembler::set_target_address_at(pc_ + 1, target);
+  if (host() != NULL) {
+    Object* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target_code));
+  }
 }
 
 

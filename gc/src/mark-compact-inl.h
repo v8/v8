@@ -32,6 +32,7 @@
 #include "memory.h"
 #include "mark-compact.h"
 
+
 namespace v8 {
 namespace internal {
 
@@ -76,6 +77,22 @@ bool MarkCompactCollector::IsMarked(Object* obj) {
   ASSERT(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
   return Marking::MarkBitFrom(heap_object).Get();
+}
+
+
+void MarkCompactCollector::RecordSlot(Object** anchor_slot,
+                                      Object** slot,
+                                      Object* object) {
+  Page* object_page = Page::FromAddress(reinterpret_cast<Address>(object));
+  if (object_page->IsEvacuationCandidate() &&
+      !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
+    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                            object_page->slots_buffer_address(),
+                            slot,
+                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
+      EvictEvacuationCandidate(object_page);
+    }
+  }
 }
 
 

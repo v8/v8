@@ -3573,11 +3573,10 @@ Code* JSFunction::unchecked_code() {
 
 
 void JSFunction::set_code(Code* value) {
-  // Skip the write barrier because code is never in new space.
   ASSERT(!HEAP->InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
-  GetHeap()->incremental_marking()->RecordWrite(
+  GetHeap()->incremental_marking()->RecordWriteOfCodeEntry(
       this,
       HeapObject::RawField(this, kCodeEntryOffset),
       value);
