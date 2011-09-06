@@ -1936,12 +1936,26 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
+        if (FLAG_debug_code && op == Token::INIT_LET) {
+          // Check for an uninitialized let binding.
+          __ ldr(r1, MemOperand(fp, SlotOffset(slot)));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r1, ip);
+          __ Check(eq, "Let binding re-initialization.");
+        }
         // Perform the assignment.
         __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, r1);
+        if (FLAG_debug_code && op == Token::INIT_LET) {
+          // Check for an uninitialized let binding.
+          __ ldr(r3, target);
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ cmp(r3, ip);
+          __ Check(eq, "Let binding re-initialization.");
+        }
         // Perform the assignment and issue the write barrier.
         __ str(result_register(), target);
         // RecordWrite may destroy all its register arguments.
@@ -1952,6 +1966,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
 
       case Slot::LOOKUP:
+        ASSERT(op != Token::INIT_LET);
         // Call the runtime for the assignment.
         __ push(r0);  // Value.
         __ mov(r1, Operand(slot->var()->name()));

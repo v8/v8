@@ -1848,12 +1848,24 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
+        if (FLAG_debug_code && op == Token::INIT_LET) {
+          // Check for an uninitialized let binding.
+          __ movq(rdx, Operand(rbp, SlotOffset(slot)));
+          __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+          __ Check(equal, "Let binding re-initialization.");
+        }
         // Perform the assignment.
         __ movq(Operand(rbp, SlotOffset(slot)), rax);
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, rcx);
+        if (FLAG_debug_code && op == Token::INIT_LET) {
+          // Check for an uninitialized let binding.
+          __ movq(rdx, target);
+          __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+          __ Check(equal, "Let binding re-initialization.");
+        }
         // Perform the assignment and issue the write barrier.
         __ movq(target, rax);
         // The value of the assignment is in rax.  RecordWrite clobbers its
@@ -1865,6 +1877,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
 
       case Slot::LOOKUP:
+        ASSERT(op != Token::INIT_LET);
         // Call the runtime for the assignment.
         __ push(rax);  // Value.
         __ push(rsi);  // Context.
