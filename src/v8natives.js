@@ -54,15 +54,6 @@ function InstallFunctions(object, attributes, functions) {
     var f = functions[i + 1];
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
-    // We match firefox on this, but not Safari (which does not have the
-    // property at all).
-    %IgnoreAttributesAndSetProperty(f, "caller",
-                                    null,
-                                    DONT_ENUM | DONT_DELETE);
-    %IgnoreAttributesAndSetProperty(f, "arguments",
-                                    null,
-                                    DONT_ENUM | DONT_DELETE);
-
     %SetProperty(object, key, f, attributes);
     %SetNativeFlag(f);
   }
