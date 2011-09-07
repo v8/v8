@@ -3623,6 +3623,9 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
+  if (string.length() == 1) {
+    return Heap::LookupSingleCharacterStringFromCode(string[0]);
+  }
   Object* result;
   { MaybeObject* maybe_result =
         AllocateRawAsciiString(string.length(), pretenure);
