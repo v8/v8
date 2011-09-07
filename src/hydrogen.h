@@ -855,7 +855,6 @@ class HGraphBuilder: public AstVisitor {
                            TypeInfo info,
                            HValue* value,
                            Representation rep);
-  void AssumeRepresentation(HValue* value, Representation rep);
   static Representation ToRepresentation(TypeInfo info);
 
   void SetupScope(Scope* scope);
