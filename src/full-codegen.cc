@@ -1354,25 +1354,6 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
-    int* stack_depth,
-    int* context_length) {
-  // The macros used here must preserve the result register.
-  __ Drop(*stack_depth);
-  __ PopTryHandler();
-  *stack_depth = 0;
-
-  Register context = FullCodeGenerator::context_register();
-  while (*context_length > 0) {
-    codegen_->LoadContextField(context, Context::PREVIOUS_INDEX);
-    --(*context_length);
-  }
-
-  __ Call(finally_entry_);
-  return previous_;
-}
-
-
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
     int* stack_depth,
     int* context_length) {
