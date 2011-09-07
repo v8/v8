@@ -2274,7 +2274,7 @@ Object* StringSplitCache::Lookup(
   return Smi::FromInt(0);
 }
 
- 
+
 void StringSplitCache::Enter(Heap* heap,
                              FixedArray* cache,
                              String* string,
