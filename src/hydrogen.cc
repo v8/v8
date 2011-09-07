@@ -3135,7 +3135,8 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       LookupResult lookup;
-      GlobalPropertyAccess type = LookupGlobalProperty(variable, &lookup, false);
+      GlobalPropertyAccess type =
+          LookupGlobalProperty(variable, &lookup, false);
 
       if (type == kUseCell &&
           info()->global_object()->IsAccessCheckNeeded()) {
@@ -3172,7 +3173,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       return ast_context()->ReturnValue(value);
     }
 
-    case Variable::CONTEXT:{
+    case Variable::CONTEXT: {
       if (variable->mode() == Variable::CONST) {
         return Bailout("reference to const context slot");
       }
@@ -3634,7 +3635,8 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
           int count = info()->scope()->num_parameters();
           for (int i = 0; i < count; ++i) {
             if (var == info()->scope()->parameter(i)) {
-              Bailout("assignment to parameter, function uses arguments object");
+              Bailout(
+                  "assignment to parameter, function uses arguments object");
             }
           }
         }
