@@ -415,6 +415,28 @@ with_block_4();
 EndTest();
 
 
+// With block and a block local variable.
+BeginTest("With block 5");
+
+function with_block_5() {
+  with({a:1}) {
+    let a = 2;
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({a:2}, 0, exec_state);
+  CheckScopeContent({a:1}, 1, exec_state);
+};
+with_block_5();
+EndTest();
+
+
 // Simple closure formed by returning an inner function referering to an outer
 // block local variable and an outer function's parameter.
 BeginTest("Closure 1");

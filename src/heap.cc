@@ -842,6 +842,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   isolate_->keyed_lookup_cache()->Clear();
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
+  StringSplitCache::Clear(string_split_cache());
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
@@ -2223,6 +2224,13 @@ bool Heap::CreateInitialObjects() {
   }
   set_single_character_string_cache(FixedArray::cast(obj));
 
+  // Allocate cache for string split.
+  { MaybeObject* maybe_obj =
+        AllocateFixedArray(StringSplitCache::kStringSplitCacheSize, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_string_split_cache(FixedArray::cast(obj));
+
   // Allocate cache for external strings pointing to native source code.
   { MaybeObject* maybe_obj = AllocateFixedArray(Natives::GetBuiltinsCount());
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2245,6 +2253,75 @@ bool Heap::CreateInitialObjects() {
   isolate_->compilation_cache()->Clear();
 
   return true;
+}
+
+
+Object* StringSplitCache::Lookup(
+    FixedArray* cache, String* string, String* pattern) {
+  if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
+  uintptr_t hash = string->Hash();
+  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+      ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == string &&
+      cache->get(index + kPatternOffset) == pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  index = ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+  if (cache->get(index + kStringOffset) == string &&
+      cache->get(index + kPatternOffset) == pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  return Smi::FromInt(0);
+}
+
+
+void StringSplitCache::Enter(Heap* heap,
+                             FixedArray* cache,
+                             String* string,
+                             String* pattern,
+                             FixedArray* array) {
+  if (!string->IsSymbol() || !pattern->IsSymbol()) return;
+  uintptr_t hash = string->Hash();
+  array->set_map(heap->fixed_cow_array_map());
+  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+      ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
+    cache->set(index + kStringOffset, string);
+    cache->set(index + kPatternOffset, pattern);
+    cache->set(index + kArrayOffset, array);
+    return;
+  }
+  uintptr_t index2 =
+      ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+  if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+    cache->set(index2 + kStringOffset, string);
+    cache->set(index2 + kPatternOffset, pattern);
+    cache->set(index2 + kArrayOffset, array);
+    return;
+  }
+  cache->set(index2 + kStringOffset, Smi::FromInt(0));
+  cache->set(index2 + kPatternOffset, Smi::FromInt(0));
+  cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+  cache->set(index + kStringOffset, string);
+  cache->set(index + kPatternOffset, pattern);
+  cache->set(index + kArrayOffset, array);
+  if (array->length() < 100) {  // Limit how many new symbols we want to make.
+    for (int i = 0; i < array->length(); i++) {
+      String* str = String::cast(array->get(i));
+      Object* symbol;
+      MaybeObject* maybe_symbol = heap->LookupSymbol(str);
+      if (maybe_symbol->ToObject(&symbol)) {
+        array->set(i, symbol);
+      }
+    }
+  }
+}
+
+
+void StringSplitCache::Clear(FixedArray* cache) {
+  for (int i = 0; i < kStringSplitCacheSize; i++) {
+    cache->set(i, Smi::FromInt(0));
+  }
 }
 
 

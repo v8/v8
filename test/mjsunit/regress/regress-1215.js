@@ -25,13 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-[0].every(function(){ Object.seal(Array.prototype.every); });
+// Make sure that the "message" property on Error.prototype
+// has the following descriptor:
+// {writable: true, enumerable: false, and configurable: true}
 
-function testStrict(){
-  "use strict";
-  [0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-  [0].every(function(){ Object.seal(Array.prototype.every); });
-}
+var desc = Object.getOwnPropertyDescriptor(Error.prototype, 'message');
 
-testStrict();
+assertEquals(desc.writable, true);
+assertEquals(desc.enumerable, false);
+assertEquals(desc.configurable, true);

@@ -200,7 +200,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // Copy any necessary parameters into the context.
     int num_parameters = info->scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
+      Slot* slot = scope()->parameter(i)->rewrite();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
                                  (num_parameters - 1 - i) * kPointerSize;
@@ -252,7 +252,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
 
-    Move(arguments->AsSlot(), v0, a1, a2);
+    Move(arguments->rewrite(), v0, a1, a2);
   }
 
   if (FLAG_trace) {
@@ -633,6 +633,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       return ContextOperand(scratch, slot->index());
     }
     case Slot::LOOKUP:
+    case Slot::GLOBAL:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -691,12 +692,13 @@ void FullCodeGenerator::Move(Slot* dst,
 }
 
 
-void FullCodeGenerator::EmitDeclaration(Variable* variable,
+void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
                                         Variable::Mode mode,
                                         FunctionLiteral* function) {
   Comment cmnt(masm_, "[ Declaration");
+  Variable* variable = proxy->var();
   ASSERT(variable != NULL);  // Must have been resolved.
-  Slot* slot = variable->AsSlot();
+  Slot* slot = variable->rewrite();
   ASSERT(slot != NULL);
   switch (slot->type()) {
     case Slot::PARAMETER:
@@ -734,10 +736,12 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // We know that we have written a function, which is not a smi.
         __ mov(a1, cp);
         __ RecordWrite(a1, Operand(offset), a2, result_register());
+        PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       } else if (mode == Variable::CONST || mode == Variable::LET) {
           __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
           __ sw(at, ContextOperand(cp, slot->index()));
           // No write barrier since the_hole_value is in old space.
+          PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       }
       break;
 
@@ -769,12 +773,15 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       __ CallRuntime(Runtime::kDeclareContextSlot, 4);
       break;
     }
+
+    case Slot::GLOBAL:
+      UNREACHABLE();
   }
 }
 
 
 void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
-  EmitDeclaration(decl->proxy()->var(), decl->mode(), decl->fun());
+  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
 }
 
 
@@ -1189,7 +1196,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
     EmitLoadGlobalSlotCheckExtensions(slot, typeof_state, slow);
     __ Branch(done);
   } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-    Slot* potential_slot = slot->var()->local_if_not_shadowed()->AsSlot();
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->rewrite();
     Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
     if (potential_slot != NULL) {
       // Generate fast case for locals that rewrite to slots.
@@ -1215,7 +1222,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
           // variables. Then load the argument from the arguments
           // object using keyed load.
           __ lw(a1,
-                 ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->rewrite(),
                                                    slow));
           __ li(a0, Operand(key_literal->handle()));
           Handle<Code> ic =
@@ -1236,7 +1243,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 
   // Three cases: non-this global variables, lookup slots, and all other
   // types of slots.
-  Slot* slot = var->AsSlot();
+  Slot* slot = var->rewrite();
   ASSERT((var->is_global() && !var->is_this()) == (slot == NULL));
 
   if (slot == NULL) {
@@ -1833,7 +1840,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Token::Value op) {
   ASSERT(var != NULL);
-  ASSERT(var->is_global() || var->AsSlot() != NULL);
+  ASSERT(var->is_global() || var->rewrite() != NULL);
 
   if (var->is_global()) {
     ASSERT(!var->is_this());
@@ -1853,7 +1860,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // scope.  However, unlike var initializers, const initializers are able
     // to drill a hole to that function context, even from inside a 'with'
     // context.  We thus bypass the normal static scope lookup.
-    Slot* slot = var->AsSlot();
+    Slot* slot = var->rewrite();
     Label skip;
     switch (slot->type()) {
       case Slot::PARAMETER:
@@ -1874,6 +1881,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ Push(cp, a0);  // Context and name.
         __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
         break;
+      case Slot::GLOBAL:
+        UNREACHABLE();
     }
     __ bind(&skip);
   } else if (var->mode() == Variable::LET && op != Token::INIT_LET) {
@@ -1930,7 +1939,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
   } else if (var->mode() != Variable::CONST) {
     // Perform the assignment for non-const variables.  Const assignments
     // are simply skipped.
-    Slot* slot = var->AsSlot();
+    Slot* slot = var->rewrite();
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
@@ -1957,6 +1966,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ Push(cp, a1, a0);  // Context, name, strict mode.
         __ CallRuntime(Runtime::kStoreContextSlot, 4);
         break;
+
+      case Slot::GLOBAL:
+        UNREACHABLE();
     }
   }
 }
@@ -2224,9 +2236,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // in generated code. If we succeed, there is no need to perform a
       // context lookup in the runtime system.
       Label done;
-      if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      if (var->rewrite() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
         Label slow;
-        EmitLoadGlobalSlotCheckExtensions(var->AsSlot(),
+        EmitLoadGlobalSlotCheckExtensions(var->rewrite(),
                                           NOT_INSIDE_TYPEOF,
                                           &slow);
         // Push the function and resolve eval.
@@ -2264,15 +2276,15 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ lw(a0, GlobalObjectOperand());
     __ push(a0);
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
-  } else if (var != NULL && var->AsSlot() != NULL &&
-             var->AsSlot()->type() == Slot::LOOKUP) {
+  } else if (var != NULL && var->rewrite() != NULL &&
+             var->rewrite()->type() == Slot::LOOKUP) {
     // Call to a lookup slot (dynamically introduced variable).
     Label slow, done;
 
     { PreservePositionScope scope(masm()->positions_recorder());
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
-      EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
+      EmitDynamicLoadFromSlotFastCase(var->rewrite(),
                                       NOT_INSIDE_TYPEOF,
                                       &slow,
                                       &done);
@@ -3677,8 +3689,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ Push(a2, a1, a0);
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(v0);
-        } else if (var->AsSlot() != NULL &&
-                   var->AsSlot()->type() != Slot::LOOKUP) {
+        } else if (var->rewrite() != NULL &&
+                   var->rewrite()->type() != Slot::LOOKUP) {
           // Result of deleting non-global, non-dynamic variables is false.
           // The subexpression does not have side effects.
           context()->Plug(false);
@@ -3968,13 +3980,13 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     PrepareForBailout(expr, TOS_REG);
     context()->Plug(v0);
   } else if (proxy != NULL &&
-             proxy->var()->AsSlot() != NULL &&
-             proxy->var()->AsSlot()->type() == Slot::LOOKUP) {
+             proxy->var()->rewrite() != NULL &&
+             proxy->var()->rewrite()->type() == Slot::LOOKUP) {
     Label done, slow;
 
     // Generate code for loading from variables potentially shadowed
     // by eval-introduced variables.
-    Slot* slot = proxy->var()->AsSlot();
+    Slot* slot = proxy->var()->rewrite();
     EmitDynamicLoadFromSlotFastCase(slot, INSIDE_TYPEOF, &slow, &done);
 
     __ bind(&slow);
@@ -4285,6 +4297,34 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ sra(a1, a1, 1);  // Un-smi-tag value.
   __ Addu(at, a1, Operand(masm_->CodeObject()));
   __ Jump(at);
+}
+
+
+#undef __
+
+#define __ ACCESS_MASM(masm())
+
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
+    int* stack_depth,
+    int* context_length) {
+  // The macros used here must preserve the result register.
+
+  // Because the handler block contains the context of the finally
+  // code, we can restore it directly from there for the finally code
+  // rather than iteratively unwinding contexts via their previous
+  // links.
+  __ Drop(*stack_depth);  // Down to the handler block.
+  if (*context_length > 0) {
+    // Restore the context to its dedicated register and the stack.
+    __ lw(cp, MemOperand(sp, StackHandlerConstants::kContextOffset));
+    __ sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  }
+  __ PopTryHandler();
+  __ Call(finally_entry_);
+
+  *stack_depth = 0;
+  *context_length = 0;
+  return previous_;
 }
 
 

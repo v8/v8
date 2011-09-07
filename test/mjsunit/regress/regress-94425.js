@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,13 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-[0].every(function(){ Object.seal(Array.prototype.every); });
+// Flags: --expose-gc
 
-function testStrict(){
-  "use strict";
-  [0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-  [0].every(function(){ Object.seal(Array.prototype.every); });
-}
+var N = 2040 - 2 + 10;
+var arr = new Array(N);
 
-testStrict();
+gc();
+gc();
+gc();
+
+// arr is in the large object space now.
+// Write new space object into it.
+arr[arr.length - 2] = new Object;
+
+// Shift array multiple times to ensure that young
+// object crosses region boundary.
+for (var i = 0; i < 9; i++) arr.shift();
+
+// Do a GC to verify region dirty marks.
+gc();

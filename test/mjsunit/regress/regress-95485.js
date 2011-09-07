@@ -25,13 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-[0].every(function(){ Object.seal(Array.prototype.every); });
-
-function testStrict(){
-  "use strict";
-  [0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-  [0].every(function(){ Object.seal(Array.prototype.every); });
+function Test() {
+  var left  = 'XXX';
+  var right = 'YYY';
+  for (var i = 0; i < 3; i++) {
+    var cons = left + right;
+    var substring = cons.substring(2, 4);
+    try {
+      with ({Test: i})
+          continue;
+    } finally { }
+  }
+  return substring;
 }
 
-testStrict();
+assertEquals('XY', Test());

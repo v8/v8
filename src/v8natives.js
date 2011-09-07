@@ -41,7 +41,6 @@
 const $isNaN = GlobalIsNaN;
 const $isFinite = GlobalIsFinite;
 
-
 // ----------------------------------------------------------------------------
 
 
@@ -55,15 +54,6 @@ function InstallFunctions(object, attributes, functions) {
     var f = functions[i + 1];
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
-    // We match firefox on this, but not Safari (which does not have the
-    // property at all).
-    %IgnoreAttributesAndSetProperty(f, "caller",
-                                    null,
-                                    DONT_ENUM | DONT_DELETE);
-    %IgnoreAttributesAndSetProperty(f, "arguments",
-                                    null,
-                                    DONT_ENUM | DONT_DELETE);
-
     %SetProperty(object, key, f, attributes);
     %SetNativeFlag(f);
   }
@@ -107,13 +97,7 @@ function SetUpLockedPrototype(constructor, fields, methods) {
     %SetNativeFlag(f);
   }
   prototype.__proto__ = null;
-  %PreventExtensions(prototype);
   %ToFastProperties(prototype);
-
-  var desc = GetOwnProperty(constructor, "prototype");
-  desc.setWritable(false);
-  desc.setConfigurable(false);
-  DefineOwnProperty(constructor, "prototype", desc, false);
 }
 
 
@@ -122,17 +106,15 @@ function SetUpLockedPrototype(constructor, fields, methods) {
 
 // ECMA 262 - 15.1.4
 function GlobalIsNaN(number) {
-  var n = ToNumber(number);
-  return NUMBER_IS_NAN(n);
+  if (!IS_NUMBER(number)) number = NonNumberToNumber(number);
+  return NUMBER_IS_NAN(number);
 }
 
 
 // ECMA 262 - 15.1.5
 function GlobalIsFinite(number) {
   if (!IS_NUMBER(number)) number = NonNumberToNumber(number);
-
-  // NaN - NaN == NaN, Infinity - Infinity == NaN, -Infinity - -Infinity == NaN.
-  return %_IsSmi(number) || number - number == 0;
+  return NUMBER_IS_FINITE(number);
 }
 
 

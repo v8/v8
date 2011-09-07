@@ -25,13 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-[0].every(function(){ Object.seal(Array.prototype.every); });
+// Flags: --allow-natives-syntax
 
-function testStrict(){
-  "use strict";
-  [0].forEach(function(){ Object.freeze(Array.prototype.forEach); });
-  [0].every(function(){ Object.seal(Array.prototype.every); });
+function get_double_array() {
+  var a = new Array(100000);
+  var i = 0;
+  while (!%HasFastDoubleElements(a)) {
+    a[i] = i;
+    i++;
+  }
+  assertTrue(%HasFastDoubleElements(a));
+  a.length = 1;
+  a[0] = 1.5;
+  a.length = 2;
+  a[1] = 2.5;
+  assertEquals(a[0], 1.5);
+  assertEquals(a[1], 2.5);
+  assertTrue(%HasFastDoubleElements(a));
+  return a;
 }
 
-testStrict();
+var a = get_double_array();

@@ -1586,24 +1586,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
 
   block_scope = block_scope->FinalizeBlockScope();
   body->set_block_scope(block_scope);
-
-  if (block_scope != NULL) {
-    // Create exit block.
-    Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
-    exit->AddStatement(new(zone()) ExitContextStatement());
-
-    // Create a try-finally statement.
-    TryFinallyStatement* try_finally =
-        new(zone()) TryFinallyStatement(body, exit);
-    try_finally->set_escaping_targets(collector.targets());
-
-    // Create a result block.
-    Block* result = new(zone()) Block(isolate(), NULL, 1, false);
-    result->AddStatement(try_finally);
-    return result;
-  } else {
-    return body;
-  }
+  return body;
 }
 
 
@@ -1850,18 +1833,21 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       block->AddStatement(new(zone()) ExpressionStatement(initialize));
     }
 
-    // Add an assignment node to the initialization statement block if
-    // we still have a pending initialization value. We must distinguish
-    // between variables and constants: Variable initializations are simply
+    // Add an assignment node to the initialization statement block if we still
+    // have a pending initialization value. We must distinguish between
+    // different kinds of declarations: 'var' initializations are simply
     // assignments (with all the consequences if they are inside a 'with'
     // statement - they may change a 'with' object property). Constant
     // initializations always assign to the declared constant which is
     // always at the function scope level. This is only relevant for
     // dynamically looked-up variables and constants (the start context
     // for constant lookups is always the function context, while it is
-    // the top context for variables). Sigh...
+    // the top context for var declared variables). Sigh...
+    // For 'let' declared variables the initialization is in the same scope
+    // as the declaration. Thus dynamic lookups are unnecessary even if the
+    // block scope is inside a with.
     if (value != NULL) {
-      bool in_with = is_const ? false : inside_with();
+      bool in_with = mode == Variable::VAR ? inside_with() : false;
       VariableProxy* proxy =
           initialization_scope->NewUnresolved(name, in_with);
       Assignment* assignment =

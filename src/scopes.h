@@ -444,10 +444,6 @@ class Scope: public ZoneObject {
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
 
-  inline Slot* NewSlot(Variable* var, Slot::Type type, int index) {
-    return new(isolate_->zone()) Slot(isolate_, var, type, index);
-  }
-
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
       inner_scopes_.Add(inner_scope);

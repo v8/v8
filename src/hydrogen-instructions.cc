@@ -789,6 +789,13 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+void HJSArrayLength::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
+  typecheck()->PrintNameTo(stream);
+}
+
+
 HValue* HCheckInstanceType::Canonicalize() {
   if (check_ == IS_STRING &&
       !value()->type().IsUninitialized() &&
