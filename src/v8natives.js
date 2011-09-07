@@ -97,13 +97,7 @@ function SetUpLockedPrototype(constructor, fields, methods) {
     %SetNativeFlag(f);
   }
   prototype.__proto__ = null;
-  %PreventExtensions(prototype);
   %ToFastProperties(prototype);
-
-  var desc = GetOwnProperty(constructor, "prototype");
-  desc.setWritable(false);
-  desc.setConfigurable(false);
-  DefineOwnProperty(constructor, "prototype", desc, false);
 }
 
 

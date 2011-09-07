@@ -56,7 +56,6 @@ function checkConstructor(func, name) {
   assertFalse(proto_desc.configurable, name);
   var prototype = proto_desc.value;
   assertEquals(null, prototype.__proto__, name);
-  assertFalse(Object.isExtensible(prototype), name);
   for (var i = 0; i < propNames.length; i++) {
     var propName = propNames[i];
     if (propName == "constructor") continue;
