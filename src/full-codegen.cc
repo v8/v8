@@ -190,9 +190,9 @@ void BreakableStatementChecker::VisitArrayLiteral(ArrayLiteral* expr) {
 void BreakableStatementChecker::VisitAssignment(Assignment* expr) {
   // If assigning to a property (including a global property) the assignment is
   // breakable.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  VariableProxy* proxy = expr->target()->AsVariableProxy();
   Property* prop = expr->target()->AsProperty();
-  if (prop != NULL || (var != NULL && var->is_global())) {
+  if (prop != NULL || (proxy != NULL && proxy->var()->IsUnallocated())) {
     is_breakable_ = true;
     return;
   }
@@ -395,26 +395,6 @@ void FullCodeGenerator::RecordStackCheck(int ast_id) {
 }
 
 
-int FullCodeGenerator::SlotOffset(Slot* slot) {
-  ASSERT(slot != NULL);
-  // Offset is negative because higher indexes are at lower addresses.
-  int offset = -slot->index() * kPointerSize;
-  // Adjust by a (parameter or local) base offset.
-  switch (slot->type()) {
-    case Slot::PARAMETER:
-      offset += (info_->scope()->num_parameters() + 1) * kPointerSize;
-      break;
-    case Slot::LOCAL:
-      offset += JavaScriptFrameConstants::kLocal0Offset;
-      break;
-    case Slot::CONTEXT:
-    case Slot::LOOKUP:
-      UNREACHABLE();
-  }
-  return offset;
-}
-
-
 bool FullCodeGenerator::ShouldInlineSmiCase(Token::Value op) {
   // Inline smi case inside loops, but not division and modulo which
   // are too complicated and take up too much space.
@@ -529,34 +509,21 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
-  int globals = 0;
+  int global_count = 0;
   for (int i = 0; i < length; i++) {
     Declaration* decl = declarations->at(i);
-    Variable* var = decl->proxy()->var();
-    Slot* slot = var->AsSlot();
-
-    // If it was not possible to allocate the variable at compile
-    // time, we need to "declare" it at runtime to make sure it
-    // actually exists in the local context.
-    if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
-      VisitDeclaration(decl);
-    } else {
-      // Count global variables and functions for later processing
-      globals++;
-    }
+    EmitDeclaration(decl->proxy(), decl->mode(), decl->fun(), &global_count);
   }
 
-  // Compute array of global variable and function declarations.
-  // Do nothing in case of no declared global functions or variables.
-  if (globals > 0) {
+  // Batch declare global functions and variables.
+  if (global_count > 0) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * globals, TENURED);
+        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
-      Slot* slot = var->AsSlot();
 
-      if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
+      if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
         if (decl->fun() == NULL) {
           if (var->mode() == Variable::CONST) {
@@ -578,7 +545,7 @@ void FullCodeGenerator::VisitDeclarations(
       }
     }
     // Invoke the platform-dependent code generator to do the actual
-    // declaration the global variables and functions.
+    // declaration the global functions and variables.
     DeclareGlobals(array);
   }
 }

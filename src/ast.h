@@ -165,7 +165,6 @@ class AstNode: public ZoneObject {
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
-  virtual Slot* AsSlot() { return NULL; }
 
   // True if the node is simple enough for us to inline calls containing it.
   virtual bool IsInlineable() const = 0;
@@ -1112,9 +1111,6 @@ class VariableProxy: public Expression {
 
   DECLARE_NODE_TYPE(VariableProxy)
 
-  // Type testing & conversion
-  Variable* AsVariable() { return (this == NULL) ? NULL : var_; }
-
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
   }
@@ -1131,10 +1127,7 @@ class VariableProxy: public Expression {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool IsArguments() {
-    Variable* variable = AsVariable();
-    return (variable == NULL) ? false : variable->is_arguments();
-  }
+  bool IsArguments() { return var_ != NULL && var_->is_arguments(); }
 
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
@@ -1162,55 +1155,6 @@ class VariableProxy: public Expression {
                 int position = RelocInfo::kNoPosition);
 
   friend class Scope;
-};
-
-
-class Slot: public Expression {
- public:
-  enum Type {
-    // A slot in the parameter section on the stack. index() is
-    // the parameter index, counting left-to-right, starting at 0.
-    PARAMETER,
-
-    // A slot in the local section on the stack. index() is
-    // the variable index in the stack frame, starting at 0.
-    LOCAL,
-
-    // An indexed slot in a heap context. index() is the
-    // variable index in the context object on the heap,
-    // starting at 0. var()->scope() is the corresponding
-    // scope.
-    CONTEXT,
-
-    // A named slot in a heap context. var()->name() is the
-    // variable name in the context object on the heap,
-    // with lookup starting at the current context. index()
-    // is invalid.
-    LOOKUP
-  };
-
-  Slot(Isolate* isolate, Variable* var, Type type, int index)
-      : Expression(isolate), var_(var), type_(type), index_(index) {
-    ASSERT(var != NULL);
-  }
-
-  virtual void Accept(AstVisitor* v);
-
-  virtual Slot* AsSlot() { return this; }
-
-  bool IsStackAllocated() { return type_ == PARAMETER || type_ == LOCAL; }
-
-  // Accessors
-  Variable* var() const { return var_; }
-  Type type() const { return type_; }
-  int index() const { return index_; }
-  bool is_arguments() const { return var_->is_arguments(); }
-  virtual bool IsInlineable() const;
-
- private:
-  Variable* var_;
-  Type type_;
-  int index_;
 };
 
 
@@ -2193,9 +2137,6 @@ class AstVisitor BASE_EMBEDDED {
   // bails out without visiting more nodes.
   void SetStackOverflow() { stack_overflow_ = true; }
   void ClearStackOverflow() { stack_overflow_ = false; }
-
-  // Nodes not appearing in the AST, including slots.
-  virtual void VisitSlot(Slot* node) { UNREACHABLE(); }
 
   // Individual AST nodes.
 #define DEF_VISIT(type)                         \

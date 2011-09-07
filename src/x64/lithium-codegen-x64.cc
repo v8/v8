@@ -207,14 +207,14 @@ bool LCodeGen::GeneratePrologue() {
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
         __ movq(rax, Operand(rbp, parameter_offset));
         // Store it in the context.
-        int context_offset = Context::SlotOffset(slot->index());
+        int context_offset = Context::SlotOffset(var->index());
         __ movq(Operand(rsi, context_offset), rax);
         // Update the write barrier. This clobbers all involved
         // registers, so we have use a third register to avoid

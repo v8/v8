@@ -39,8 +39,6 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
 
-void Slot::Accept(AstVisitor* v) { v->VisitSlot(this); }
-
 #define DECL_ACCEPT(type)                                       \
   void type::Accept(AstVisitor* v) { v->Visit##type(this); }
 AST_NODE_LIST(DECL_ACCEPT)
@@ -396,12 +394,6 @@ bool TargetCollector::IsInlineable() const {
 }
 
 
-bool Slot::IsInlineable() const {
-  UNREACHABLE();
-  return false;
-}
-
-
 bool ForInStatement::IsInlineable() const {
   return false;
 }
@@ -542,7 +534,7 @@ bool Conditional::IsInlineable() const {
 
 
 bool VariableProxy::IsInlineable() const {
-  return var()->is_global() || var()->IsStackAllocated();
+  return var()->IsUnallocated() || var()->IsStackAllocated();
 }
 
 
