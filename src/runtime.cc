@@ -2507,7 +2507,7 @@ class ReplacementStringBuilder {
 class CompiledReplacement {
  public:
   CompiledReplacement()
-      : parts_(1), replacement_substrings_(0) {}
+      : parts_(1), replacement_substrings_(0), simple_hint_(false) {}
 
   void Compile(Handle<String> replacement,
                int capture_count,
@@ -2521,6 +2521,10 @@ class CompiledReplacement {
   // Number of distinct parts of the replacement pattern.
   int parts() {
     return parts_.length();
+  }
+
+  bool simple_hint() {
+    return simple_hint_;
   }
 
  private:
@@ -2581,15 +2585,17 @@ class CompiledReplacement {
   };
 
   template<typename Char>
-  static void ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+  static bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
                                       Vector<Char> characters,
                                       int capture_count,
                                       int subject_length) {
     int length = characters.length();
     int last = 0;
+    bool simple = true;
     for (int i = 0; i < length; i++) {
       Char c = characters[i];
       if (c == '$') {
+        simple = false;
         int next_index = i + 1;
         if (next_index == length) {  // No next character!
           break;
@@ -2682,10 +2688,12 @@ class CompiledReplacement {
         parts->Add(ReplacementPart::ReplacementSubString(last, length));
       }
     }
+    return simple;
   }
 
   ZoneList<ReplacementPart> parts_;
   ZoneList<Handle<String> > replacement_substrings_;
+  bool simple_hint_;
 };
 
 
@@ -2697,16 +2705,16 @@ void CompiledReplacement::Compile(Handle<String> replacement,
     String::FlatContent content = replacement->GetFlatContent();
     ASSERT(content.IsFlat());
     if (content.IsAscii()) {
-      ParseReplacementPattern(&parts_,
-                              content.ToAsciiVector(),
-                              capture_count,
-                              subject_length);
+      simple_hint_ = ParseReplacementPattern(&parts_,
+                                             content.ToAsciiVector(),
+                                             capture_count,
+                                             subject_length);
     } else {
       ASSERT(content.IsTwoByte());
-      ParseReplacementPattern(&parts_,
-                              content.ToUC16Vector(),
-                              capture_count,
-                              subject_length);
+      simple_hint_ = ParseReplacementPattern(&parts_,
+                                             content.ToUC16Vector(),
+                                             capture_count,
+                                             subject_length);
     }
   }
   Isolate* isolate = replacement->GetIsolate();
@@ -2901,7 +2909,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
         isolate->factory()->NewRawTwoByteString(result_len));
   }
 
-  for(int i = 0; i < matches; i++) {
+  for (int i = 0; i < matches; i++) {
     // Copy non-matched subject content.
     String::WriteToFlat(*subject,
                         result->GetChars() + result_pos,
@@ -2969,7 +2977,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   // Shortcut for simple non-regexp global replacements
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM &&
-      compiled_replacement.parts() == 1) {
+      compiled_replacement.simple_hint()) {
     if (subject_handle->HasOnlyAsciiChars() &&
         replacement_handle->HasOnlyAsciiChars()) {
       return StringReplaceStringWithString<SeqAsciiString>(
