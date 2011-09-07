@@ -1749,9 +1749,15 @@ bool FixedDoubleArray::is_the_hole(int index) {
 void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
   int old_length = from->length();
   ASSERT(old_length < length());
-  OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
-              FIELD_ADDR(from, kHeaderSize),
-              old_length * kDoubleSize);
+  if (old_length * kDoubleSize >= OS::kMinComplexMemCopy) {
+    OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
+                FIELD_ADDR(from, kHeaderSize),
+                old_length * kDoubleSize);
+  } else {
+    for (int i = 0; i < old_length; ++i) {
+      set(i, from->get_scalar(i));
+    }
+  }
   int offset = kHeaderSize + old_length * kDoubleSize;
   for (int current = from->length(); current < length(); ++current) {
     WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
