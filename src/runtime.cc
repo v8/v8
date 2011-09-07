@@ -2769,6 +2769,164 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 }
 
 
+void FindAsciiStringIndices(Vector<const char> subject,
+                            char pattern,
+                            ZoneList<int>* indices,
+                            unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject using memchr.
+  // Stop after finding at most limit values.
+  const char* subject_start = reinterpret_cast<const char*>(subject.start());
+  const char* subject_end = subject_start + subject.length();
+  const char* pos = subject_start;
+  while (limit > 0) {
+    pos = reinterpret_cast<const char*>(
+        memchr(pos, pattern, subject_end - pos));
+    if (pos == NULL) return;
+    indices->Add(static_cast<int>(pos - subject_start));
+    pos++;
+    limit--;
+  }
+}
+
+
+template <typename SubjectChar, typename PatternChar>
+void FindStringIndices(Isolate* isolate,
+                       Vector<const SubjectChar> subject,
+                       Vector<const PatternChar> pattern,
+                       ZoneList<int>* indices,
+                       unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject.
+  // Stop after finding at most limit values.
+  int pattern_length = pattern.length();
+  int index = 0;
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  while (limit > 0) {
+    index = search.Search(subject, index);
+    if (index < 0) return;
+    indices->Add(index);
+    index += pattern_length;
+    limit--;
+  }
+}
+
+
+void FindStringIndicesDispatch(Isolate* isolate,
+                               String* subject,
+                               String* pattern,
+                               ZoneList<int>* indices,
+                               unsigned int limit) {
+  {
+    AssertNoAllocation no_gc;
+    String::FlatContent subject_content = subject->GetFlatContent();
+    String::FlatContent pattern_content = pattern->GetFlatContent();
+    ASSERT(subject_content.IsFlat());
+    ASSERT(pattern_content.IsFlat());
+    if (subject_content.IsAscii()) {
+      Vector<const char> subject_vector = subject_content.ToAsciiVector();
+      if (pattern_content.IsAscii()) {
+        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
+        if (pattern_vector.length() == 1) {
+          FindAsciiStringIndices(subject_vector,
+                                 pattern_vector[0],
+                                 indices,
+                                 limit);
+        } else {
+          FindStringIndices(isolate,
+                            subject_vector,
+                            pattern_vector,
+                            indices,
+                            limit);
+        }
+      } else {
+        FindStringIndices(isolate,
+                          subject_vector,
+                          pattern_content.ToUC16Vector(),
+                          indices,
+                          limit);
+      }
+    } else {
+      Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
+      if (pattern->IsAsciiRepresentation()) {
+        FindStringIndices(isolate,
+                          subject_vector,
+                          pattern_content.ToAsciiVector(),
+                          indices,
+                          limit);
+      } else {
+        FindStringIndices(isolate,
+                          subject_vector,
+                          pattern_content.ToUC16Vector(),
+                          indices,
+                          limit);
+      }
+    }
+  }
+}
+
+
+template<typename ResultSeqString>
+MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
+    Isolate* isolate,
+    Handle<String> subject,
+    Handle<JSRegExp> pattern_regexp,
+    Handle<String> replacement = Handle<String>::null()) {
+  ASSERT(subject->IsFlat());
+  ASSERT(replacement->IsFlat());
+
+  ZoneScope zone_space(isolate, DELETE_ON_EXIT);
+  ZoneList<int> indices(8);
+  String* pattern =
+      String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
+  int subject_len = subject->length();
+  int pattern_len = pattern->length();
+  int replacement_len = (replacement.is_null()) ? 0 : replacement->length();
+
+  FindStringIndicesDispatch(isolate, *subject, pattern, &indices, 0xffffffff);
+
+  int matches = indices.length();
+  if (matches == 0) return *subject;
+
+  int result_len = (replacement_len - pattern_len) * matches + subject_len;
+  int subject_pos = 0;
+  int result_pos = 0;
+
+  Handle<ResultSeqString> result;
+  if (ResultSeqString::kHasAsciiEncoding) {
+    result = Handle<ResultSeqString>::cast(
+        isolate->factory()->NewRawAsciiString(result_len));
+  } else {
+    result = Handle<ResultSeqString>::cast(
+        isolate->factory()->NewRawTwoByteString(result_len));
+  }
+
+  for(int i = 0; i < matches; i++) {
+    // Copy non-matched subject content.
+    String::WriteToFlat(*subject,
+                        result->GetChars() + result_pos,
+                        subject_pos,
+                        indices.at(i));
+    result_pos += indices.at(i) - subject_pos;
+    // Replace match.
+
+    if (replacement_len > 0) {
+      String::WriteToFlat(*replacement,
+                          result->GetChars() + result_pos,
+                          0,
+                          replacement_len);
+      result_pos += replacement_len;
+    }
+
+    subject_pos = indices.at(i) + pattern_len;
+  }
+  String::WriteToFlat(*subject,
+                      result->GetChars() + result_pos,
+                      subject_pos,
+                      subject_len);
+  return *result;
+}
+
 
 MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
     Isolate* isolate,
@@ -2807,6 +2965,20 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
                                length);
 
   bool is_global = regexp_handle->GetFlags().is_global();
+
+  // Shortcut for simple non-regexp global replacements
+  if (is_global &&
+      regexp->TypeTag() == JSRegExp::ATOM &&
+      compiled_replacement.parts() == 1) {
+    if (subject_handle->HasOnlyAsciiChars() &&
+        replacement_handle->HasOnlyAsciiChars()) {
+      return StringReplaceStringWithString<SeqAsciiString>(
+          isolate, subject_handle, regexp_handle, replacement_handle);
+    } else {
+      return StringReplaceStringWithString<SeqTwoByteString>(
+          isolate, subject_handle, regexp_handle, replacement_handle);
+    }
+  }
 
   // Guessing the number of parts that the final result string is built
   // from. Global regexps can match any number of times, so we guess
@@ -2893,6 +3065,19 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 
   Handle<String> subject_handle(subject);
   Handle<JSRegExp> regexp_handle(regexp);
+
+  // Shortcut for simple non-regexp global replacements
+  if (regexp_handle->GetFlags().is_global() &&
+      regexp_handle->TypeTag() == JSRegExp::ATOM) {
+    if (subject_handle->HasOnlyAsciiChars()) {
+      return StringReplaceStringWithString<SeqAsciiString>(
+          isolate, subject_handle, regexp_handle);
+    } else {
+      return StringReplaceStringWithString<SeqTwoByteString>(
+          isolate, subject_handle, regexp_handle);
+    }
+  }
+
   Handle<JSArray> last_match_info_handle(last_match_info);
   Handle<Object> match = RegExpImpl::Exec(regexp_handle,
                                           subject_handle,
@@ -5930,49 +6115,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
 }
 
 
-void FindAsciiStringIndices(Vector<const char> subject,
-                            char pattern,
-                            ZoneList<int>* indices,
-                            unsigned int limit) {
-  ASSERT(limit > 0);
-  // Collect indices of pattern in subject using memchr.
-  // Stop after finding at most limit values.
-  const char* subject_start = reinterpret_cast<const char*>(subject.start());
-  const char* subject_end = subject_start + subject.length();
-  const char* pos = subject_start;
-  while (limit > 0) {
-    pos = reinterpret_cast<const char*>(
-        memchr(pos, pattern, subject_end - pos));
-    if (pos == NULL) return;
-    indices->Add(static_cast<int>(pos - subject_start));
-    pos++;
-    limit--;
-  }
-}
-
-
-template <typename SubjectChar, typename PatternChar>
-void FindStringIndices(Isolate* isolate,
-                       Vector<const SubjectChar> subject,
-                       Vector<const PatternChar> pattern,
-                       ZoneList<int>* indices,
-                       unsigned int limit) {
-  ASSERT(limit > 0);
-  // Collect indices of pattern in subject.
-  // Stop after finding at most limit values.
-  int pattern_length = pattern.length();
-  int index = 0;
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
-  while (limit > 0) {
-    index = search.Search(subject, index);
-    if (index < 0) return;
-    indices->Add(index);
-    index += pattern_length;
-    limit--;
-  }
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   ASSERT(args.length() == 3);
   HandleScope handle_scope(isolate);
@@ -6012,53 +6154,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   ZoneList<int> indices(initial_capacity);
   if (!pattern->IsFlat()) FlattenString(pattern);
 
-  // No allocation block.
-  {
-    AssertNoAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent();
-    String::FlatContent pattern_content = pattern->GetFlatContent();
-    ASSERT(subject_content.IsFlat());
-    ASSERT(pattern_content.IsFlat());
-    if (subject_content.IsAscii()) {
-      Vector<const char> subject_vector = subject_content.ToAsciiVector();
-      if (pattern_content.IsAscii()) {
-        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
-        if (pattern_vector.length() == 1) {
-          FindAsciiStringIndices(subject_vector,
-                                 pattern_vector[0],
-                                 &indices,
-                                 limit);
-        } else {
-          FindStringIndices(isolate,
-                            subject_vector,
-                            pattern_vector,
-                            &indices,
-                            limit);
-        }
-      } else {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern_content.ToUC16Vector(),
-                          &indices,
-                          limit);
-      }
-    } else {
-      Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
-      if (pattern->IsAsciiRepresentation()) {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern_content.ToAsciiVector(),
-                          &indices,
-                          limit);
-      } else {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern_content.ToUC16Vector(),
-                          &indices,
-                          limit);
-      }
-    }
-  }
+  FindStringIndicesDispatch(isolate, *subject, *pattern, &indices, limit);
 
   if (static_cast<uint32_t>(indices.length()) < limit) {
     indices.Add(subject_length);
