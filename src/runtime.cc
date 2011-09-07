@@ -5984,6 +5984,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   int pattern_length = pattern->length();
   RUNTIME_ASSERT(pattern_length > 0);
 
+  if (limit == 0xffffffffu) {
+    Handle<Object> cached_answer(StringSplitCache::Lookup(
+        isolate->heap()->string_split_cache(),
+        *subject,
+        *pattern));
+    if (*cached_answer != Smi::FromInt(0)) {
+      Handle<JSArray> result =
+          isolate->factory()->NewJSArrayWithElements(
+              Handle<FixedArray>::cast(cached_answer));
+      return *result;
+    }
+  }
+
   // The limit can be very large (0xffffffffu), but since the pattern
   // isn't empty, we can never create more parts than ~half the length
   // of the subject.
@@ -6075,6 +6088,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
         isolate->factory()->NewProperSubString(subject, part_start, part_end);
     elements->set(i, *substring);
     part_start = part_end + pattern_length;
+  }
+
+  if (limit == 0xffffffffu) {
+    StringSplitCache::Enter(isolate->heap(),
+                            isolate->heap()->string_split_cache(),
+                            *subject,
+                            *pattern,
+                            *elements);
   }
 
   return *result;
