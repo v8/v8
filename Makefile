@@ -70,6 +70,7 @@ else
 endif
 
 # ----------------- available targets: --------------------
+# - "dependencies": pulls in external dependencies (currently: GYP)
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
 # - every combination <arch>.<mode>, e.g. "ia32.release"
@@ -98,7 +99,7 @@ CHECKS = $(addsuffix .check,$(BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean $(ENVFILE).new \
+.PHONY: all check clean dependencies $(ENVFILE).new \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES))
 
@@ -170,3 +171,8 @@ $(ENVFILE): $(ENVFILE).new
 # Stores current GYPFLAGS in a file.
 $(ENVFILE).new:
 	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new;
+
+# Dependencies.
+dependencies:
+	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
+	    --revision 1026
