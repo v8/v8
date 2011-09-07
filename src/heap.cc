@@ -2259,8 +2259,8 @@ bool Heap::CreateInitialObjects() {
 Object* StringSplitCache::Lookup(
     FixedArray* cache, String* string, String* pattern) {
   if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
-  uintptr_t hash = string->Hash();
-  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == string &&
       cache->get(index + kPatternOffset) == pattern) {
@@ -2281,8 +2281,8 @@ void StringSplitCache::Enter(Heap* heap,
                              String* pattern,
                              FixedArray* array) {
   if (!string->IsSymbol() || !pattern->IsSymbol()) return;
-  uintptr_t hash = string->Hash();
-  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
     cache->set(index + kStringOffset, string);
@@ -2290,7 +2290,7 @@ void StringSplitCache::Enter(Heap* heap,
     cache->set(index + kArrayOffset, array);
     return;
   }
-  uintptr_t index2 =
+  uint32_t index2 =
       ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
   if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
     cache->set(index2 + kStringOffset, string);
