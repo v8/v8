@@ -2282,7 +2282,6 @@ void StringSplitCache::Enter(Heap* heap,
                              FixedArray* array) {
   if (!string->IsSymbol() || !pattern->IsSymbol()) return;
   uintptr_t hash = string->Hash();
-  array->set_map(heap->fixed_cow_array_map());
   uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
@@ -2315,6 +2314,7 @@ void StringSplitCache::Enter(Heap* heap,
       }
     }
   }
+  array->set_map(heap->fixed_cow_array_map());
 }
 
 
