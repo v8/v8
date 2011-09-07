@@ -125,6 +125,8 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       int flags,
                       double empty_string_val = 0);
 
+const int kDoubleToCStringMinBufferSize = 100;
+
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.
 // 100 characters is enough.
