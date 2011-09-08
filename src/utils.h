@@ -614,17 +614,7 @@ class Collector {
         new_capacity = min_capacity + growth;
       }
     }
-    Vector<T> new_chunk = Vector<T>::New(new_capacity);
-    int new_index = PrepareGrow(new_chunk);
-    if (index_ > 0) {
-      chunks_.Add(current_chunk_.SubVector(0, index_));
-    } else {
-      // Can happen if the call to PrepareGrow moves everything into
-      // the new chunk.
-      current_chunk_.Dispose();
-    }
-    current_chunk_ = new_chunk;
-    index_ = new_index;
+    NewChunk(new_capacity);
     ASSERT(index_ + min_capacity <= current_chunk_.length());
   }
 
@@ -632,8 +622,15 @@ class Collector {
   // some of the current data into the new chunk. The function may update
   // the current index_ value to represent data no longer in the current chunk.
   // Returns the initial index of the new chunk (after copied data).
-  virtual int PrepareGrow(Vector<T> new_chunk)  {
-    return 0;
+  virtual void NewChunk(int new_capacity)  {
+    Vector<T> new_chunk = Vector<T>::New(new_capacity);
+    if (index_ > 0) {
+      chunks_.Add(current_chunk_.SubVector(0, index_));
+    } else {
+      current_chunk_.Dispose();
+    }
+    current_chunk_ = new_chunk;
+    index_ = 0;
   }
 };
 
@@ -688,20 +685,26 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
   int sequence_start_;
 
   // Move the currently active sequence to the new chunk.
-  virtual int PrepareGrow(Vector<T> new_chunk) {
-    if (sequence_start_ != kNoSequence) {
-      int sequence_length = this->index_ - sequence_start_;
-      // The new chunk is always larger than the current chunk, so there
-      // is room for the copy.
-      ASSERT(sequence_length < new_chunk.length());
-      for (int i = 0; i < sequence_length; i++) {
-        new_chunk[i] = this->current_chunk_[sequence_start_ + i];
-      }
-      this->index_ = sequence_start_;
-      sequence_start_ = 0;
-      return sequence_length;
+  virtual void NewChunk(int new_capacity) {
+    if (sequence_start_ == kNoSequence) {
+      // Fall back on default behavior if no sequence has been started.
+      this->Collector<T, growth_factor, max_growth>::NewChunk(new_capacity);
+      return;
     }
-    return 0;
+    int sequence_length = this->index_ - sequence_start_;
+    Vector<T> new_chunk = Vector<T>::New(sequence_length + new_capacity);
+    ASSERT(sequence_length < new_chunk.length());
+    for (int i = 0; i < sequence_length; i++) {
+      new_chunk[i] = this->current_chunk_[sequence_start_ + i];
+    }
+    if (sequence_start_ > 0) {
+      this->chunks_.Add(this->current_chunk_.SubVector(0, sequence_start_));
+    } else {
+      this->current_chunk_.Dispose();
+    }
+    this->current_chunk_ = new_chunk;
+    this->index_ = sequence_length;
+    sequence_start_ = 0;
   }
 };
 

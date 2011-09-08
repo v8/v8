@@ -61,11 +61,7 @@ class DuplicateFinder {
   explicit DuplicateFinder(i::UnicodeCache* constants)
       : unicode_constants_(constants),
         backing_store_(16),
-        map_(new i::HashMap(&Match)) { }
-
-  ~DuplicateFinder() {
-    delete map_;
-  }
+        map_(&Match) { }
 
   int AddAsciiSymbol(i::Vector<const char> key, int value);
   int AddUC16Symbol(i::Vector<const uint16_t> key, int value);
@@ -101,7 +97,7 @@ class DuplicateFinder {
   i::UnicodeCache* unicode_constants_;
   // Backing store used to store strings used as hashmap keys.
   i::SequenceCollector<unsigned char> backing_store_;
-  i::HashMap* map_;
+  i::HashMap map_;
   // Buffer used for string->number->canonical string conversions.
   char number_buffer_[kBufferSize];
 };
