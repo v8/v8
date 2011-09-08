@@ -71,6 +71,13 @@
                     ],
                   },
                 }],
+                ['soname_version!=""', {
+                  # Ideally, we'd like to specify the full filename for the
+                  # library and set it to "libv8.so.<(soname_version)",
+                  # but currently the best we can do is use 'product_name' and
+                  # get "libv8-<(soname_version).so".
+                  'product_name': 'v8-<(soname_version)',
+                }],
               ],
             },
             {

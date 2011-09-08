@@ -68,6 +68,10 @@ ifeq ($(vfp3), off)
 else
   GYPFLAGS += -Dv8_can_use_vfp_instructions=true
 endif
+# soname_version=1.2.3
+ifdef soname_version
+  GYPFLAGS += -Dsoname_version=$(soname_version)
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
