@@ -252,6 +252,8 @@ DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
+DEFINE_bool(trace_fragmentation, false,
+            "report fragmentation for old pointer and data pages")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, false,
@@ -457,8 +459,6 @@ DEFINE_bool(debug_serialization, false,
 DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
-DEFINE_bool(trace_fragmentation, false,
-            "report fragmentation for old pointer and data pages")
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 

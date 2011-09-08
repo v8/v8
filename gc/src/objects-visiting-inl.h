@@ -99,13 +99,10 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
-  // Use the relocation info pointer before it is visited by
-  // the heap compaction in the next statement.
-  RelocIterator it(this, mode_mask);
-
   IteratePointer(v, kRelocationInfoOffset);
   IteratePointer(v, kDeoptimizationDataOffset);
 
+  RelocIterator it(this, mode_mask);
   for (; !it.done(); it.next()) {
     it.rinfo()->Visit(v);
   }
@@ -122,10 +119,6 @@ void Code::CodeIterateBody(Heap* heap) {
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
-  // Use the relocation info pointer before it is visited by
-  // the heap compaction in the next statement.
-  RelocIterator it(this, mode_mask);
-
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kRelocationInfoOffset));
@@ -133,6 +126,7 @@ void Code::CodeIterateBody(Heap* heap) {
       heap,
       reinterpret_cast<Object**>(this->address() + kDeoptimizationDataOffset));
 
+  RelocIterator it(this, mode_mask);
   for (; !it.done(); it.next()) {
     it.rinfo()->template Visit<StaticVisitor>(heap);
   }

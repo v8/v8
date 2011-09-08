@@ -308,7 +308,6 @@ class SlotsBuffer {
   }
 
   enum SlotType {
-    NONE,
     RELOCATED_CODE_OBJECT,
     CODE_TARGET_SLOT,
     CODE_ENTRY_SLOT,
@@ -317,16 +316,7 @@ class SlotsBuffer {
     NUMBER_OF_SLOT_TYPES
   };
 
-  // Typed slot might be splitted between two SlotsBuffers: slot's type
-  // is recorded in one buffer and type address is recorded as the first
-  // slot in the next buffer.
-  //
-  // If the first address recorded in this buffer is address of the typed
-  // slot then it's type will be passed as pending argument.
-  //
-  // If this buffer ends on slot's type and the next buffer is expected to
-  // contain address of a typed slot then the function returns that type.
-  SlotType UpdateSlots(Heap* heap, SlotType pending);
+  void UpdateSlots(Heap* heap);
 
   SlotsBuffer* next() { return next_; }
 
@@ -340,10 +330,13 @@ class SlotsBuffer {
     return idx_ == kNumberOfElements;
   }
 
+  inline bool HasSpaceForTypedSlot() {
+    return idx_ < kNumberOfElements - 1;
+  }
+
   static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer) {
-    SlotType pending = NONE;
     while (buffer != NULL) {
-      pending = buffer->UpdateSlots(heap, pending);
+      buffer->UpdateSlots(heap);
       buffer = buffer->next();
     }
   }
@@ -353,15 +346,17 @@ class SlotsBuffer {
     IGNORE_OVERFLOW
   };
 
+  static bool ChainLengthThresholdReached(SlotsBuffer* buffer) {
+    return buffer != NULL && buffer->chain_length_ >= kChainLengthThreshold;
+  }
+
   static bool AddTo(SlotsBufferAllocator* allocator,
                     SlotsBuffer** buffer_address,
                     ObjectSlot slot,
                     AdditionMode mode) {
     SlotsBuffer* buffer = *buffer_address;
     if (buffer == NULL || buffer->IsFull()) {
-      if (mode == FAIL_ON_OVERFLOW &&
-          buffer != NULL &&
-          buffer->chain_length_ >= kChainLengthThreshold) {
+      if (mode == FAIL_ON_OVERFLOW && ChainLengthThresholdReached(buffer)) {
         allocator->DeallocateChain(buffer_address);
         return false;
       }

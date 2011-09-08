@@ -426,7 +426,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
   FLAG_flush_code = false;
-  FLAG_always_compact = false;
 
   // Disable collection of maps if incremental marking is enabled.
   // Map collection algorithm relies on a special map transition tree traversal
@@ -3418,16 +3417,19 @@ bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
                         SlotType type,
                         Address addr,
                         AdditionMode mode) {
-  if (!AddTo(allocator,
-             buffer_address,
-             reinterpret_cast<ObjectSlot>(type),
-             mode)) {
-    return false;
+  SlotsBuffer* buffer = *buffer_address;
+  if (buffer == NULL || !buffer->HasSpaceForTypedSlot()) {
+    if (mode == FAIL_ON_OVERFLOW && ChainLengthThresholdReached(buffer)) {
+      allocator->DeallocateChain(buffer_address);
+      return false;
+    }
+    buffer = allocator->AllocateBuffer(buffer);
+    *buffer_address = buffer;
   }
-  return AddTo(allocator,
-               buffer_address,
-               reinterpret_cast<ObjectSlot>(addr),
-               mode);
+  ASSERT(buffer->HasSpaceForTypedSlot());
+  buffer->Add(reinterpret_cast<ObjectSlot>(type));
+  buffer->Add(reinterpret_cast<ObjectSlot>(addr));
+  return true;
 }
 
 
@@ -3440,7 +3442,7 @@ static inline SlotsBuffer::SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
     return SlotsBuffer::JS_RETURN_SLOT;
   }
   UNREACHABLE();
-  return SlotsBuffer::NONE;
+  return SlotsBuffer::NUMBER_OF_SLOT_TYPES;
 }
 
 
@@ -3448,7 +3450,8 @@ void MarkCompactCollector::RecordRelocSlot(RelocInfo* rinfo, Code* target) {
   Page* target_page = Page::FromAddress(
       reinterpret_cast<Address>(target));
   if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(rinfo->host())) {
+      (rinfo->host() == NULL ||
+       !ShouldSkipEvacuationSlotRecording(rinfo->host()))) {
     if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
                             target_page->slots_buffer_address(),
                             SlotTypeForRMode(rinfo->rmode()),
@@ -3482,14 +3485,8 @@ static inline SlotsBuffer::SlotType DecodeSlotType(
 }
 
 
-SlotsBuffer::SlotType SlotsBuffer::UpdateSlots(
-    Heap* heap,
-    SlotsBuffer::SlotType pending) {
+void SlotsBuffer::UpdateSlots(Heap* heap) {
   PointersUpdatingVisitor v(heap);
-
-  if (pending != NONE) {
-    UpdateSlot(&v, pending, reinterpret_cast<Address>(slots_[0]));
-  }
 
   for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
     ObjectSlot slot = slots_[slot_idx];
@@ -3497,17 +3494,12 @@ SlotsBuffer::SlotType SlotsBuffer::UpdateSlots(
       UpdateSlot(slot);
     } else {
       ++slot_idx;
-      if (slot_idx < idx_) {
-        UpdateSlot(&v,
-                   DecodeSlotType(slot),
-                   reinterpret_cast<Address>(slots_[slot_idx]));
-      } else {
-        return DecodeSlotType(slot);
-      }
+      ASSERT(slot_idx < idx_);
+      UpdateSlot(&v,
+                 DecodeSlotType(slot),
+                 reinterpret_cast<Address>(slots_[slot_idx]));
     }
   }
-
-  return SlotsBuffer::NONE;
 }
 
 

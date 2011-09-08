@@ -2020,8 +2020,13 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
   if (allocation_info_.top >= allocation_info_.limit) return;
 
   if (Page::FromAddress(allocation_info_.top)->IsEvacuationCandidate()) {
-      allocation_info_.top = NULL;
-      allocation_info_.limit = NULL;
+    // Create filler object to keep page iterable if it was iterable.
+    int remaining =
+        static_cast<int>(allocation_info_.limit - allocation_info_.top);
+    heap()->CreateFillerObjectAt(allocation_info_.top, remaining);
+
+    allocation_info_.top = NULL;
+    allocation_info_.limit = NULL;
   }
 }
 
