@@ -2288,22 +2288,22 @@ void StringSplitCache::Enter(Heap* heap,
     cache->set(index + kStringOffset, string);
     cache->set(index + kPatternOffset, pattern);
     cache->set(index + kArrayOffset, array);
-    return;
+  } else {
+    uint32_t index2 =
+        ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+      cache->set(index2 + kStringOffset, string);
+      cache->set(index2 + kPatternOffset, pattern);
+      cache->set(index2 + kArrayOffset, array);
+    } else {
+      cache->set(index2 + kStringOffset, Smi::FromInt(0));
+      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
+      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index + kStringOffset, string);
+      cache->set(index + kPatternOffset, pattern);
+      cache->set(index + kArrayOffset, array);
+    }
   }
-  uint32_t index2 =
-      ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
-  if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
-    cache->set(index2 + kStringOffset, string);
-    cache->set(index2 + kPatternOffset, pattern);
-    cache->set(index2 + kArrayOffset, array);
-    return;
-  }
-  cache->set(index2 + kStringOffset, Smi::FromInt(0));
-  cache->set(index2 + kPatternOffset, Smi::FromInt(0));
-  cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-  cache->set(index + kStringOffset, string);
-  cache->set(index + kPatternOffset, pattern);
-  cache->set(index + kArrayOffset, array);
   if (array->length() < 100) {  // Limit how many new symbols we want to make.
     for (int i = 0; i < array->length(); i++) {
       String* str = String::cast(array->get(i));
