@@ -31,7 +31,6 @@
 #ifndef V8_SHARED
 #include "allocation.h"
 #include "hashmap.h"
-#include "smart-pointer.h"
 #include "v8.h"
 #else
 #include "../include/v8.h"
@@ -122,10 +121,13 @@ class SourceGroup {
 #ifndef V8_SHARED
       next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
       done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+      thread_(NULL),
 #endif  // V8_SHARED
       argv_(NULL),
       begin_offset_(0),
       end_offset_(0) {}
+
+  ~SourceGroup();
 
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
@@ -157,9 +159,9 @@ class SourceGroup {
   static i::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::SmartPointer<i::Semaphore> next_semaphore_;
-  i::SmartPointer<i::Semaphore> done_semaphore_;
-  i::SmartPointer<i::Thread> thread_;
+  i::Semaphore* next_semaphore_;
+  i::Semaphore* done_semaphore_;
+  i::Thread* thread_;
 #endif  // V8_SHARED
 
   void ExitShell(int exit_code);
