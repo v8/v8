@@ -6195,11 +6195,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   }
 
   if (limit == 0xffffffffu) {
-    StringSplitCache::Enter(isolate->heap(),
-                            isolate->heap()->string_split_cache(),
-                            *subject,
-                            *pattern,
-                            *elements);
+    if (result->HasFastElements()) {
+      StringSplitCache::Enter(isolate->heap(),
+                              isolate->heap()->string_split_cache(),
+                              *subject,
+                              *pattern,
+                              *elements);
+    }
   }
 
   return *result;
