@@ -969,12 +969,14 @@ void ShellThread::Run() {
 
 
 SourceGroup::~SourceGroup() {
+#ifndef V8_SHARED
   delete next_semaphore_;
   next_semaphore_ = NULL;
   delete done_semaphore_;
   done_semaphore_ = NULL;
   delete thread_;
   thread_ = NULL;
+#endif  // V8_SHARED
 }
 
 
@@ -1078,7 +1080,6 @@ void SourceGroup::WaitForThread() {
   if (thread_ == NULL) return;
   if (Shell::options.last_run) {
     thread_->Join();
-    thread_ = NULL;
   } else {
     done_semaphore_->Wait();
   }
