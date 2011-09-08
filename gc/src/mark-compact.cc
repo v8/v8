@@ -2192,6 +2192,9 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       for (int i = new_number_of_transitions * step;
            i < number_of_transitions * step;
            i++) {
+        // The undefined object is on a page that is never compacted and never
+        // in new space so it is OK to skip the write barrier.  Also it's a
+        // root.
         prototype_transitions->set_unchecked(heap_,
                                              header + i,
                                              undefined,
@@ -3415,10 +3418,10 @@ bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
                         SlotType type,
                         Address addr,
                         AdditionMode mode) {
-  if(!AddTo(allocator,
-            buffer_address,
-            reinterpret_cast<ObjectSlot>(type),
-            mode)) {
+  if (!AddTo(allocator,
+             buffer_address,
+             reinterpret_cast<ObjectSlot>(type),
+             mode)) {
     return false;
   }
   return AddTo(allocator,

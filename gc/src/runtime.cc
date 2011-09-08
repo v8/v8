@@ -1782,7 +1782,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
     regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, multiline);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0),
-                                  SKIP_WRITE_BARRIER);
+                                  SKIP_WRITE_BARRIER);  // It's a Smi.
     return regexp;
   }
 
@@ -2187,9 +2187,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
       literals->set(JSFunction::kLiteralGlobalContextIndex,
                     context->global_context());
     }
-    // It's okay to skip the write barrier here because the literals
-    // are guaranteed to be in old space.
-    target->set_literals(*literals, SKIP_WRITE_BARRIER);
+    target->set_literals(*literals);
     target->set_next_function_link(isolate->heap()->undefined_value());
   }
 
@@ -6077,11 +6075,11 @@ static int CopyCachedAsciiCharsToArray(Heap* heap,
   FixedArray* ascii_cache = heap->single_character_string_cache();
   Object* undefined = heap->undefined_value();
   int i;
+  WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (i = 0; i < length; ++i) {
     Object* value = ascii_cache->get(chars[i]);
     if (value == undefined) break;
-    ASSERT(!heap->InNewSpace(value));
-    elements->set(i, value, SKIP_WRITE_BARRIER);
+    elements->set(i, value, mode);
   }
   if (i < length) {
     ASSERT(Smi::FromInt(0) == 0);

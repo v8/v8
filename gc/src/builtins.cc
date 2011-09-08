@@ -562,9 +562,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (!heap->lo_space()->Contains(elms)) {
-    // As elms still in the same space they used to be,
-    // there is no need to update region dirty mark.
-    array->set_elements(LeftTrimFixedArray(heap, elms, 1), SKIP_WRITE_BARRIER);
+    array->set_elements(LeftTrimFixedArray(heap, elms, 1));
   } else {
     // Shift the elements.
     AssertNoAllocation no_gc;
@@ -853,7 +851,7 @@ BUILTIN(ArraySplice) {
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
-      array->set_elements(elms, SKIP_WRITE_BARRIER);
+      array->set_elements(elms);
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,

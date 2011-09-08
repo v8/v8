@@ -83,7 +83,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
   type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
   void holder::set_##name(type* value, WriteBarrierMode mode) {         \
     WRITE_FIELD(this, offset, value);                                   \
-    WRITE_BARRIER(GetHeap(), this, offset, value);                       \
+    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);    \
   }
 
 
@@ -92,7 +92,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
   type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
   void holder::set_##name(type* value, WriteBarrierMode mode) {         \
     WRITE_FIELD(this, offset, value);                                   \
-    WRITE_BARRIER(HEAP, this, offset, value);                \
+    CONDITIONAL_WRITE_BARRIER(HEAP, this, offset, value, mode);         \
   }
 
 
@@ -921,6 +921,15 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
     heap->RecordWrite(object->address(), offset);                       \
   }
 
+#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)    \
+  if (mode == UPDATE_WRITE_BARRIER) {                                   \
+    heap->incremental_marking()->RecordWrite(                           \
+      object, HeapObject::RawField(object, offset), value);             \
+    if (heap->InNewSpace(value)) {                                      \
+      heap->RecordWrite(object->address(), offset);                     \
+    }                                                                   \
+  }
+
 #ifndef V8_TARGET_ARCH_MIPS
   #define READ_DOUBLE_FIELD(p, offset) \
     (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
@@ -1256,7 +1265,7 @@ void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
          value->IsFixedDoubleArray());
   ASSERT(value->HasValidElements());
   WRITE_FIELD(this, kElementsOffset, value);
-  WRITE_BARRIER(GetHeap(), this, kElementsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
 }
 
 
@@ -1437,7 +1446,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
   ASSERT(index < 0);
   int offset = map()->instance_size() + (index * kPointerSize);
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(GetHeap(), this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
   return value;
 }
 
@@ -1645,7 +1654,9 @@ void FixedDoubleArray::Initialize(NumberDictionary* from) {
 
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
-  if (GetHeap()->InNewSpace(this)) return SKIP_WRITE_BARRIER;
+  Heap* heap = GetHeap();
+  if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
+  if (heap->InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -1657,7 +1668,7 @@ void FixedArray::set(int index,
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(GetHeap(), this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
 
@@ -1722,7 +1733,7 @@ void FixedArray::set_unchecked(Heap* heap,
                                WriteBarrierMode mode) {
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(heap, this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, offset, value, mode);
 }
 
 
@@ -2185,7 +2196,7 @@ Object* ConsString::unchecked_first() {
 
 void ConsString::set_first(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  WRITE_BARRIER(GetHeap(), this, kFirstOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kFirstOffset, value, mode);
 }
 
 
@@ -2201,7 +2212,7 @@ Object* ConsString::unchecked_second() {
 
 void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  WRITE_BARRIER(GetHeap(), this, kSecondOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kSecondOffset, value, mode);
 }
 
 
@@ -3032,7 +3043,7 @@ Object* Map::prototype() {
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   ASSERT(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
 }
 
 
@@ -3120,7 +3131,8 @@ void Map::set_instance_descriptors(DescriptorArray* value,
   }
   ASSERT(!is_shared());
   WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
-  WRITE_BARRIER(heap, this, kInstanceDescriptorsOrBitField3Offset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kInstanceDescriptorsOrBitField3Offset, value, mode);
 }
 
 
@@ -3460,7 +3472,7 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
-  WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value);
+  CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
 }
 
 
@@ -3473,10 +3485,11 @@ SerializedScopeInfo* SharedFunctionInfo::scope_info() {
 void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
                                         WriteBarrierMode mode) {
   WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
-  WRITE_BARRIER(GetHeap(),
-                this,
-                kScopeInfoOffset,
-                reinterpret_cast<Object*>(value));
+  CONDITIONAL_WRITE_BARRIER(GetHeap(),
+                            this,
+                            kScopeInfoOffset,
+                            reinterpret_cast<Object*>(value),
+                            mode);
 }
 
 
@@ -3889,6 +3902,7 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
   if (value->IsSmi()) {
     fa->set_unchecked(index, Smi::cast(value));
   } else {
+    // We only do this during GC, so we don't need to notify the write barrier.
     fa->set_unchecked(heap, index, value, SKIP_WRITE_BARRIER);
   }
 }
@@ -4365,6 +4379,7 @@ void JSArray::EnsureSize(int required_size) {
 
 
 void JSArray::set_length(Smi* length) {
+  // Don't need a write barrier for a Smi.
   set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
 }
 
