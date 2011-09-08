@@ -2591,11 +2591,9 @@ class CompiledReplacement {
                                       int subject_length) {
     int length = characters.length();
     int last = 0;
-    bool simple = true;
     for (int i = 0; i < length; i++) {
       Char c = characters[i];
       if (c == '$') {
-        simple = false;
         int next_index = i + 1;
         if (next_index == length) {  // No next character!
           break;
@@ -2684,11 +2682,12 @@ class CompiledReplacement {
     if (length > last) {
       if (last == 0) {
         parts->Add(ReplacementPart::ReplacementString());
+        return true;
       } else {
         parts->Add(ReplacementPart::ReplacementSubString(last, length));
       }
     }
-    return simple;
+    return false;
   }
 
   ZoneList<ReplacementPart> parts_;
@@ -2879,17 +2878,18 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> pattern_regexp,
-    Handle<String> replacement = Handle<String>::null()) {
+    Handle<String> replacement) {
   ASSERT(subject->IsFlat());
-  ASSERT(replacement.is_null() || replacement->IsFlat());
+  ASSERT(replacement->IsFlat());
 
   ZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> indices(8);
+  ASSERT_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int subject_len = subject->length();
   int pattern_len = pattern->length();
-  int replacement_len = (replacement.is_null()) ? 0 : replacement->length();
+  int replacement_len = replacement->length();
 
   FindStringIndicesDispatch(isolate, *subject, pattern, &indices, 0xffffffff);
 
@@ -2911,13 +2911,15 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
 
   for (int i = 0; i < matches; i++) {
     // Copy non-matched subject content.
-    String::WriteToFlat(*subject,
-                        result->GetChars() + result_pos,
-                        subject_pos,
-                        indices.at(i));
-    result_pos += indices.at(i) - subject_pos;
-    // Replace match.
+    if (subject_pos < indices.at(i)) {
+      String::WriteToFlat(*subject,
+                          result->GetChars() + result_pos,
+                          subject_pos,
+                          indices.at(i));
+      result_pos += indices.at(i) - subject_pos;
+    }
 
+    // Replace match.
     if (replacement_len > 0) {
       String::WriteToFlat(*replacement,
                           result->GetChars() + result_pos,
@@ -2928,10 +2930,13 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
 
     subject_pos = indices.at(i) + pattern_len;
   }
-  String::WriteToFlat(*subject,
-                      result->GetChars() + result_pos,
-                      subject_pos,
-                      subject_len);
+  // Add remaining subject content at the end.
+  if (subject_pos < subject_len) {
+    String::WriteToFlat(*subject,
+                        result->GetChars() + result_pos,
+                        subject_pos,
+                        subject_len);
+  }
   return *result;
 }
 
@@ -3077,12 +3082,13 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   // Shortcut for simple non-regexp global replacements
   if (regexp_handle->GetFlags().is_global() &&
       regexp_handle->TypeTag() == JSRegExp::ATOM) {
+    Handle<String> empty_string_handle(HEAP->empty_string());
     if (subject_handle->HasOnlyAsciiChars()) {
       return StringReplaceStringWithString<SeqAsciiString>(
-          isolate, subject_handle, regexp_handle);
+          isolate, subject_handle, regexp_handle, empty_string_handle);
     } else {
       return StringReplaceStringWithString<SeqTwoByteString>(
-          isolate, subject_handle, regexp_handle);
+          isolate, subject_handle, regexp_handle, empty_string_handle);
     }
   }
 

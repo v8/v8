@@ -4979,18 +4979,12 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 
 void V8::PauseProfiler() {
-  ApiCheck(i::FLAG_prof,
-           "V8::ResumeProfiler",
-           "Profiling has to be enabled with --prof");
   i::Isolate* isolate = i::Isolate::Current();
   isolate->logger()->PauseProfiler();
 }
 
 
 void V8::ResumeProfiler() {
-  ApiCheck(i::FLAG_prof,
-           "V8::ResumeProfiler",
-           "Profiling has to be enabled with --prof");
   i::Isolate* isolate = i::Isolate::Current();
   isolate->logger()->ResumeProfiler();
 }
