@@ -1159,6 +1159,7 @@ class Assembler : public AssemblerBase {
       }
       return trampoline_slot;
     }
+
    private:
     int start_;
     int end_;

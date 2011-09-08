@@ -208,6 +208,7 @@ class Shell {
 #else
 class Shell : public i::AllStatic {
 #endif  // V8_SHARED
+
  public:
   static bool ExecuteString(Handle<String> source,
                             Handle<Value> name,

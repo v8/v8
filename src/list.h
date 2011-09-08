@@ -49,7 +49,6 @@ namespace internal {
 template <typename T, class P>
 class List {
  public:
-
   List() { Initialize(0); }
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
   INLINE(~List()) { DeleteData(data_); }

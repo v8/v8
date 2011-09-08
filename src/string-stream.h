@@ -93,6 +93,7 @@ class FmtElm {
   FmtElm(void* value) : type_(POINTER) {  // NOLINT
     data_.u_pointer_ = value;
   }
+
  private:
   friend class StringStream;
   enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };

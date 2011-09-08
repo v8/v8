@@ -3154,7 +3154,6 @@ class ByteArray: public FixedArrayBase {
 // raised rather than being silently ignored.
 class ExternalArray: public FixedArrayBase {
  public:
-
   inline bool is_the_hole(int index) { return false; }
 
   // [external_pointer]: The pointer to the external memory area backing this
@@ -6409,7 +6408,6 @@ class ConsString: public String {
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
 class SlicedString: public String {
  public:
-
   inline String* parent();
   inline void set_parent(String* parent);
   inline int offset();

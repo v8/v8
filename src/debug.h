@@ -1026,6 +1026,7 @@ class Debug_Address {
         return NULL;
     }
   }
+
  private:
   Debug::AddressId id_;
 };

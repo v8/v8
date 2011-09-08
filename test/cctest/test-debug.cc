@@ -157,6 +157,7 @@ class DebugLocalContext {
         Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM,
         ::v8::internal::kNonStrictMode);
   }
+
  private:
   v8::Persistent<v8::Context> context_;
 };

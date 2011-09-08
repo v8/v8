@@ -890,6 +890,7 @@ class SimpleStringBuilder {
   int position_;
 
   bool is_finalized() const { return position_ < 0; }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
 };
