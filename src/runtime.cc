@@ -2881,7 +2881,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
     Handle<JSRegExp> pattern_regexp,
     Handle<String> replacement = Handle<String>::null()) {
   ASSERT(subject->IsFlat());
-  ASSERT(replacement->IsFlat());
+  ASSERT(replacement.is_null() || replacement->IsFlat());
 
   ZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> indices(8);
