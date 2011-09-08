@@ -38,7 +38,6 @@
 #include "utils.h"
 #include "list.h"
 #include "hashmap.h"
-#include "scanner-base.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "preparser.h"

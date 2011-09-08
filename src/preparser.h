@@ -28,7 +28,15 @@
 #ifndef V8_PREPARSER_H
 #define V8_PREPARSER_H
 
+#include "token.h"
+#include "scanner.h"
+
 namespace v8 {
+
+namespace internal {
+class UnicodeCache;
+}
+
 namespace preparser {
 
 typedef uint8_t byte;
@@ -106,7 +114,7 @@ class PreParser {
     kPreParseSuccess
   };
 
-  ~PreParser() { }
+  ~PreParser() {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully

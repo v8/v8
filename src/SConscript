@@ -111,8 +111,8 @@ SOURCES = {
     runtime.cc
     runtime-profiler.cc
     safepoint-table.cc
-    scanner-base.cc
     scanner.cc
+    scanner-character-streams.cc
     scopeinfo.cc
     scopes.cc
     serialize.cc
@@ -245,7 +245,7 @@ PREPARSER_SOURCES = {
     preparse-data.cc
     preparser.cc
     preparser-api.cc
-    scanner-base.cc
+    scanner.cc
     strtod.cc
     token.cc
     unicode.cc

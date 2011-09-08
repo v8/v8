@@ -41,7 +41,6 @@
 #include "natives.h"
 #include "objects-visiting.h"
 #include "runtime-profiler.h"
-#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "v8threads.h"

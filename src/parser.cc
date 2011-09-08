@@ -39,6 +39,7 @@
 #include "platform.h"
 #include "preparser.h"
 #include "runtime.h"
+#include "scanner-character-streams.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 

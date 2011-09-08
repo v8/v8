@@ -30,10 +30,12 @@
 
 #include <limits>
 
-#include "scanner-base.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
+
+class UnicodeCache;
 
 // Maximum number of significant digits in decimal representation.
 // The longest possible double in decimal representation is

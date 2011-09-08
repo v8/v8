@@ -28,21 +28,19 @@
 #include <math.h>
 
 #include "../include/v8stdint.h"
-#include "unicode.h"
-#include "globals.h"
-#include "checks.h"
-#include "allocation.h"
-#include "utils.h"
-#include "list.h"
-#include "conversions.h"
-#include "hashmap.h"
 
-#include "scanner-base.h"
+#include "allocation.h"
+#include "checks.h"
+#include "conversions.h"
+#include "conversions-inl.h"
+#include "globals.h"
+#include "hashmap.h"
+#include "list.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "preparser.h"
-
-#include "conversions-inl.h"
+#include "unicode.h"
+#include "utils.h"
 
 namespace v8 {
 
