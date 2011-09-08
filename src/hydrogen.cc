@@ -2654,14 +2654,6 @@ void HGraphBuilder::VisitWithStatement(WithStatement* stmt) {
 }
 
 
-void HGraphBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
-  ASSERT(!HasStackOverflow());
-  ASSERT(current_block() != NULL);
-  ASSERT(current_block()->HasPredecessor());
-  return Bailout("ExitContextStatement");
-}
-
-
 void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
