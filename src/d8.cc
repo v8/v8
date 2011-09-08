@@ -210,6 +210,18 @@ Handle<Value> Shell::Write(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::EnableProfiler(const Arguments& args) {
+  V8::ResumeProfiler();
+  return Undefined();
+}
+
+
+Handle<Value> Shell::DisableProfiler(const Arguments& args) {
+  V8::PauseProfiler();
+  return Undefined();
+}
+
+
 Handle<Value> Shell::Read(const Arguments& args) {
   String::Utf8Value file(args[0]);
   if (*file == NULL) {
@@ -656,6 +668,12 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
+  if (i::FLAG_prof) {
+    global_template->Set(String::New("enableProfiler"),
+                         FunctionTemplate::New(EnableProfiler));
+    global_template->Set(String::New("disableProfiler"),
+                         FunctionTemplate::New(DisableProfiler));
+  }
 
   // Bind the handlers for external arrays.
   global_template->Set(String::New("Int8Array"),

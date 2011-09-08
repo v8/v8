@@ -248,6 +248,8 @@ class Shell : public i::AllStatic {
   static Handle<Value> Yield(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
+  static Handle<Value> EnableProfiler(const Arguments& args);
+  static Handle<Value> DisableProfiler(const Arguments& args);
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadLine(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
