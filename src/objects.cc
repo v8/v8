@@ -3414,6 +3414,17 @@ MaybeObject* JSObject::PreventExtensions() {
     return JSObject::cast(proto)->PreventExtensions();
   }
 
+  // It's not possible to seal objects with external array elements
+  if (HasExternalArrayElements()) {
+    HandleScope scope(isolate);
+    Handle<Object> object(this);
+    Handle<Object> error  =
+        isolate->factory()->NewTypeError(
+            "cant_prevent_ext_external_array_elements",
+            HandleVector(&object, 1));
+    return isolate->Throw(*error);
+  }
+
   // If there are fast elements we normalize.
   NumberDictionary* dictionary = NULL;
   { MaybeObject* maybe = NormalizeElements();

@@ -239,6 +239,8 @@ function FormatMessage(message) {
       "strict_poison_pill",           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       "strict_caller",                ["Illegal access to a strict mode caller function."],
       "unprotected_let",              ["Illegal let declaration in unprotected statement context."],
+      "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
+      "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
     ];
     var messages = { __proto__ : null };
     var desc = new PropertyDescriptor();

@@ -4293,6 +4293,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       if (proto->IsNull()) return *obj_value;
       js_object = Handle<JSObject>::cast(proto);
     }
+
+    // Don't allow element properties to be redefined on objects with external
+    // array elements.
+    if (js_object->HasExternalArrayElements()) {
+      Handle<Object> args[2] = { js_object, name };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("redef_external_array_element",
+                                           HandleVector(args, 2));
+      return isolate->Throw(*error);
+    }
+
     Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
