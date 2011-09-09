@@ -2209,6 +2209,13 @@ class HPhi: public HValue {
     is_convertible_to_integer_ = b;
   }
 
+  bool AllOperandsConvertibleToInteger() {
+    for (int i = 0; i < OperandCount(); ++i) {
+      if (!OperandAt(i)->IsConvertibleToInteger()) return false;
+    }
+    return true;
+  }
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {

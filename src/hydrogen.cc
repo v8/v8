@@ -1701,40 +1701,25 @@ void HInferRepresentation::Analyze() {
     }
   }
 
-  // (3) Sum up the non-phi use counts of all connected phis.  Don't include
-  // the non-phi uses of the phi itself.
+  // (3) Use the phi reachability information from step 2 to
+  //     (a) sum up the non-phi use counts of all connected phis.
+  //     (b) push information about values which can't be converted to integer
+  //         without deoptimization through the phi use-def chains, avoiding
+  //         unnecessary deoptimizations later.
   for (int i = 0; i < phi_count; ++i) {
     HPhi* phi = phi_list->at(i);
+    bool cti = phi->AllOperandsConvertibleToInteger();
     for (BitVector::Iterator it(connected_phis.at(i));
          !it.Done();
          it.Advance()) {
       int index = it.Current();
-      if (index != i) {
-        HPhi* it_use = phi_list->at(it.Current());
-        phi->AddNonPhiUsesFrom(it_use);
-      }
+      HPhi* it_use = phi_list->at(it.Current());
+      if (index != i) phi->AddNonPhiUsesFrom(it_use);  // Don't count twice!
+      if (!cti) it_use->set_is_convertible_to_integer(false);
     }
   }
 
-  // (4) Compute phis that definitely can't be converted to integer
-  // without deoptimization and mark them to avoid unnecessary deoptimization.
-  change = true;
-  while (change) {
-    change = false;
-    for (int i = 0; i < phi_count; ++i) {
-      HPhi* phi = phi_list->at(i);
-      for (int j = 0; j < phi->OperandCount(); ++j) {
-        if (phi->IsConvertibleToInteger() &&
-            !phi->OperandAt(j)->IsConvertibleToInteger()) {
-          phi->set_is_convertible_to_integer(false);
-          change = true;
-          break;
-        }
-      }
-    }
-  }
-
-
+  // Initialize work list
   for (int i = 0; i < graph_->blocks()->length(); ++i) {
     HBasicBlock* block = graph_->blocks()->at(i);
     const ZoneList<HPhi*>* phis = block->phis();
@@ -1749,6 +1734,7 @@ void HInferRepresentation::Analyze() {
     }
   }
 
+  // Do a fixed point iteration, trying to improve representations
   while (!worklist_.is_empty()) {
     HValue* current = worklist_.RemoveLast();
     in_worklist_.Remove(current->id());
