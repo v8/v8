@@ -2258,6 +2258,7 @@ class HConstant: public HTemplateInstruction<0> {
     if (*handle_ == heap->the_hole_value()) return true;
     if (*handle_ == heap->minus_zero_value()) return true;
     if (*handle_ == heap->nan_value()) return true;
+    if (*handle_ == heap->empty_string()) return true;
     return false;
   }
 
@@ -3342,9 +3343,6 @@ class HLoadContextSlot: public HUnaryOperation {
 
 
 static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  // TODO(gc) On bleeding edge we omit write barrier when we are
-  // storing old space constant. We can't allow such an optimization
-  // on GC branch.
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
       && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
