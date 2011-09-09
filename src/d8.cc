@@ -271,7 +271,7 @@ Handle<Value> Shell::Load(const Arguments& args) {
     if (source.IsEmpty()) {
       return ThrowException(String::New("Error loading file"));
     }
-    if (!ExecuteString(source, String::New(*file), false, false)) {
+    if (!ExecuteString(source, String::New(*file), false, true)) {
       return ThrowException(String::New("Error executing file"));
     }
   }
@@ -439,6 +439,7 @@ void Shell::ReportException(v8::TryCatch* try_catch) {
       printf("%s\n", stack_trace_string);
     }
   }
+  printf("\n");
 }
 
 
