@@ -174,7 +174,7 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
-    ASSERT(type != EXTERNAL_ARRAY_TRANSITION);
+    ASSERT(type != ELEMENTS_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
     ASSERT(StorageField::is_valid(index));
@@ -190,19 +190,19 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
-                  ExternalArrayType array_type) {
-    ASSERT(type == EXTERNAL_ARRAY_TRANSITION);
+                  ElementsKind elements_kind) {
+    ASSERT(type == ELEMENTS_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
-    ASSERT(StorageField::is_valid(static_cast<int>(array_type)));
+    ASSERT(StorageField::is_valid(static_cast<int>(elements_kind)));
 
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | StorageField::encode(static_cast<int>(array_type));
+        | StorageField::encode(static_cast<int>(elements_kind));
 
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
-    ASSERT(array_type == this->array_type());
+    ASSERT(elements_kind == this->elements_kind());
   }
 
   // Conversion for storing details as Object*.
@@ -215,7 +215,7 @@ class PropertyDetails BASE_EMBEDDED {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
     return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-        t == EXTERNAL_ARRAY_TRANSITION;
+        t == ELEMENTS_TRANSITION;
   }
 
   bool IsProperty() {
@@ -226,9 +226,9 @@ class PropertyDetails BASE_EMBEDDED {
 
   int index() { return StorageField::decode(value_); }
 
-  ExternalArrayType array_type() {
-    ASSERT(type() == EXTERNAL_ARRAY_TRANSITION);
-    return static_cast<ExternalArrayType>(StorageField::decode(value_));
+  ElementsKind elements_kind() {
+    ASSERT(type() == ELEMENTS_TRANSITION);
+    return static_cast<ElementsKind>(StorageField::decode(value_));
   }
 
   inline PropertyDetails AsDeleted();
@@ -4154,9 +4154,9 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
 
   // Returns a new map with all transitions dropped from the descriptors and the
-  // ElementsKind set to one of the value corresponding to array_type.
-  MUST_USE_RESULT MaybeObject* GetExternalArrayElementsMap(
-      ExternalArrayType array_type,
+  // ElementsKind set.
+  MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
+      ElementsKind elements_kind,
       bool safe_to_add_transition);
 
   // Returns the property index for name (only valid for FAST MODE).

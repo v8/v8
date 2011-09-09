@@ -465,13 +465,13 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetExternalArrayElementsMap(
+Handle<Map> Factory::GetElementsTransitionMap(
     Handle<Map> src,
-    ExternalArrayType array_type,
+    ElementsKind elements_kind,
     bool safe_to_add_transition) {
   CALL_HEAP_FUNCTION(isolate(),
-                     src->GetExternalArrayElementsMap(array_type,
-                                                      safe_to_add_transition),
+                     src->GetElementsTransitionMap(elements_kind,
+                                                   safe_to_add_transition),
                      Map);
 }
 
