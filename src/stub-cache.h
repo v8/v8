@@ -660,7 +660,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
       CodeList* handler_ics);
 
   static void GenerateLoadExternalArray(MacroAssembler* masm,
-                                        JSObject::ElementsKind elements_kind);
+                                        ElementsKind elements_kind);
 
   static void GenerateLoadFastElement(MacroAssembler* masm);
 
@@ -725,7 +725,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                              bool is_js_array);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         JSObject::ElementsKind elements_kind);
+                                         ElementsKind elements_kind);
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 

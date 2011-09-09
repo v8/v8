@@ -1989,39 +1989,39 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
-static JSObject::ElementsKind GetElementsKindFromExternalArrayType(
+static ElementsKind GetElementsKindFromExternalArrayType(
     ExternalArrayType array_type) {
   switch (array_type) {
     case kExternalByteArray:
-      return JSObject::EXTERNAL_BYTE_ELEMENTS;
+      return EXTERNAL_BYTE_ELEMENTS;
       break;
     case kExternalUnsignedByteArray:
-      return JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
       break;
     case kExternalShortArray:
-      return JSObject::EXTERNAL_SHORT_ELEMENTS;
+      return EXTERNAL_SHORT_ELEMENTS;
       break;
     case kExternalUnsignedShortArray:
-      return JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
       break;
     case kExternalIntArray:
-      return JSObject::EXTERNAL_INT_ELEMENTS;
+      return EXTERNAL_INT_ELEMENTS;
       break;
     case kExternalUnsignedIntArray:
-      return JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      return EXTERNAL_UNSIGNED_INT_ELEMENTS;
       break;
     case kExternalFloatArray:
-      return JSObject::EXTERNAL_FLOAT_ELEMENTS;
+      return EXTERNAL_FLOAT_ELEMENTS;
       break;
     case kExternalDoubleArray:
-      return JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      return EXTERNAL_DOUBLE_ELEMENTS;
       break;
     case kExternalPixelArray:
-      return JSObject::EXTERNAL_PIXEL_ELEMENTS;
+      return EXTERNAL_PIXEL_ELEMENTS;
       break;
   }
   UNREACHABLE();
-  return JSObject::DICTIONARY_ELEMENTS;
+  return DICTIONARY_ELEMENTS;
 }
 
 
@@ -7523,7 +7523,7 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
   if (maybe_smi_length->ToObject(&smi_length) && smi_length->IsSmi()) {
     const int value = Smi::cast(smi_length)->value();
     if (value < 0) return ArrayLengthRangeError(GetHeap());
-    JSObject::ElementsKind elements_kind = GetElementsKind();
+    ElementsKind elements_kind = GetElementsKind();
     switch (elements_kind) {
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS: {

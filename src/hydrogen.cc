@@ -3915,35 +3915,35 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
     HValue* external_elements,
     HValue* checked_key,
     HValue* val,
-    JSObject::ElementsKind elements_kind,
+    ElementsKind elements_kind,
     bool is_store) {
   if (is_store) {
     ASSERT(val != NULL);
     switch (elements_kind) {
-      case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+      case EXTERNAL_PIXEL_ELEMENTS: {
         HClampToUint8* clamp = new(zone()) HClampToUint8(val);
         AddInstruction(clamp);
         val = clamp;
         break;
       }
-      case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      case JSObject::EXTERNAL_INT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
         HToInt32* floor_val = new(zone()) HToInt32(val);
         AddInstruction(floor_val);
         val = floor_val;
         break;
       }
-      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
         break;
-      case JSObject::FAST_ELEMENTS:
-      case JSObject::FAST_DOUBLE_ELEMENTS:
-      case JSObject::DICTIONARY_ELEMENTS:
-      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -4027,7 +4027,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
-  static const int kNumElementTypes = JSObject::kElementsKindCount;
+  static const int kNumElementTypes = kElementsKindCount;
   bool type_todo[kNumElementTypes];
   for (int i = 0; i < kNumElementTypes; ++i) {
     type_todo[i] = false;
@@ -4037,7 +4037,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     ASSERT(maps->at(i)->IsMap());
     type_todo[maps->at(i)->elements_kind()] = true;
     if (maps->at(i)->elements_kind()
-        >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
+        >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
       todo_external_array = true;
     }
   }
@@ -4052,16 +4052,16 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   HInstruction* checked_key = NULL;
 
   // FAST_ELEMENTS is assumed to be the first case.
-  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 0);
 
-  for (JSObject::ElementsKind elements_kind = JSObject::FAST_ELEMENTS;
-       elements_kind <= JSObject::LAST_ELEMENTS_KIND;
-       elements_kind = JSObject::ElementsKind(elements_kind + 1)) {
+  for (ElementsKind elements_kind = FAST_ELEMENTS;
+       elements_kind <= LAST_ELEMENTS_KIND;
+       elements_kind = ElementsKind(elements_kind + 1)) {
     // After having handled FAST_ELEMENTS and DICTIONARY_ELEMENTS, we
     // need to add some code that's executed for all external array cases.
-    STATIC_ASSERT(JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
-                  JSObject::LAST_ELEMENTS_KIND);
-    if (elements_kind == JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
+    STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
+                  LAST_ELEMENTS_KIND);
+    if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
         && todo_external_array) {
       HInstruction* length =
           AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
@@ -4080,11 +4080,11 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
       set_current_block(if_true);
       HInstruction* access;
-      if (elements_kind == JSObject::FAST_ELEMENTS ||
-          elements_kind == JSObject::FAST_DOUBLE_ELEMENTS) {
+      if (elements_kind == FAST_ELEMENTS ||
+          elements_kind == FAST_DOUBLE_ELEMENTS) {
         bool fast_double_elements =
-            elements_kind == JSObject::FAST_DOUBLE_ELEMENTS;
-        if (is_store && elements_kind == JSObject::FAST_ELEMENTS) {
+            elements_kind == FAST_DOUBLE_ELEMENTS;
+        if (is_store && elements_kind == FAST_ELEMENTS) {
           AddInstruction(new(zone()) HCheckMap(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
@@ -4149,7 +4149,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                 new(zone()) HLoadKeyedFastElement(elements, checked_key));
           }
         }
-      } else if (elements_kind == JSObject::DICTIONARY_ELEMENTS) {
+      } else if (elements_kind == DICTIONARY_ELEMENTS) {
         if (is_store) {
           access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
         } else {

@@ -586,7 +586,7 @@ class DeepIterator BASE_EMBEDDED {
 };
 
 
-int ElementsKindToShiftSize(JSObject::ElementsKind elements_kind);
+int ElementsKindToShiftSize(ElementsKind elements_kind);
 
 
 } }  // namespace v8::internal

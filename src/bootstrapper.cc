@@ -1067,7 +1067,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
     new_map->set_pre_allocated_property_fields(2);
     Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
-    new_map->set_elements_kind(JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
     // Set up a well-formed parameter map to make assertions happy.
     Handle<FixedArray> elements = factory->NewFixedArray(2);
     elements->set_map(heap->non_strict_arguments_elements_map());

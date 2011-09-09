@@ -936,7 +936,7 @@ class HGraphBuilder: public AstVisitor {
       HValue* external_elements,
       HValue* checked_key,
       HValue* val,
-      JSObject::ElementsKind elements_kind,
+      ElementsKind elements_kind,
       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,

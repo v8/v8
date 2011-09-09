@@ -1902,15 +1902,15 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
 
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
   Representation representation(instr->representation());
   ASSERT(
       (representation.IsInteger32() &&
-       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
-       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
+       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
       (representation.IsDouble() &&
-       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
-       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
+       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
@@ -1920,7 +1920,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
   LInstruction* load_instr = DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
-  return (elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS)
+  return (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS)
       ? AssignEnvironment(load_instr)
       : load_instr;
 }
@@ -1972,23 +1972,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
 LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
   Representation representation(instr->value()->representation());
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
     ASSERT(
       (representation.IsInteger32() &&
-       (elements_kind != JSObject::EXTERNAL_FLOAT_ELEMENTS) &&
-       (elements_kind != JSObject::EXTERNAL_DOUBLE_ELEMENTS)) ||
+       (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
+       (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
       (representation.IsDouble() &&
-       ((elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) ||
-       (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS))));
+       ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
+       (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
-  if (elements_kind == JSObject::EXTERNAL_BYTE_ELEMENTS ||
-      elements_kind == JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
-      elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
+      elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
+      elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
     // We need a byte register in this case for the value.
     val = UseFixed(instr->value(), eax);
   } else {
