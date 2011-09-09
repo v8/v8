@@ -31,6 +31,7 @@
 #ifndef V8_SHARED
 #include "allocation.h"
 #include "hashmap.h"
+#include "smart-array-pointer.h"
 #include "v8.h"
 #else
 #include "../include/v8.h"
@@ -339,7 +340,7 @@ class LineEditor {
   LineEditor(Type type, const char* name);
   virtual ~LineEditor() { }
 
-  virtual i::SmartPointer<char> Prompt(const char* prompt) = 0;
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt) = 0;
   virtual bool Open() { return true; }
   virtual bool Close() { return true; }
   virtual void AddHistory(const char* str) { }

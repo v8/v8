@@ -1133,7 +1133,7 @@ void HDeoptimize::PrintDataTo(StringStream* stream) {
 
 
 void HEnterInlined::PrintDataTo(StringStream* stream) {
-  SmartPointer<char> name = function()->debug_name()->ToCString();
+  SmartArrayPointer<char> name = function()->debug_name()->ToCString();
   stream->Add("%s, id=%d", *name, function()->id());
 }
 

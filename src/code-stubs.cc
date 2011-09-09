@@ -61,7 +61,7 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 }
 
 
-SmartPointer<const char> CodeStub::GetName() {
+SmartArrayPointer<const char> CodeStub::GetName() {
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
                                         static_cast<unsigned>(sizeof(buffer)));
@@ -75,7 +75,7 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
   Isolate* isolate = masm->isolate();
-  SmartPointer<const char> name = GetName();
+  SmartArrayPointer<const char> name = GetName();
   PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
   GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();

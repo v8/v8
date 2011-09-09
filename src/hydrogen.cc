@@ -2200,7 +2200,8 @@ void TestContext::BuildBranch(HValue* value) {
 
 void HGraphBuilder::Bailout(const char* reason) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    SmartArrayPointer<char> name(
+        info()->shared_info()->DebugName()->ToCString());
     PrintF("Bailout in HGraphBuilder: @\"%s\": %s\n", *name, reason);
   }
   SetStackOverflow();
@@ -4430,8 +4431,10 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target,
                                 Handle<JSFunction> caller,
                                 const char* reason) {
   if (FLAG_trace_inlining) {
-    SmartPointer<char> target_name = target->shared()->DebugName()->ToCString();
-    SmartPointer<char> caller_name = caller->shared()->DebugName()->ToCString();
+    SmartArrayPointer<char> target_name =
+        target->shared()->DebugName()->ToCString();
+    SmartArrayPointer<char> caller_name =
+        caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
       PrintF("Inlined %s called from %s.\n", *target_name, *caller_name);
     } else {

@@ -31,7 +31,7 @@
 #include "allocation.h"
 #include "builtins.h"
 #include "list.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
@@ -5979,12 +5979,12 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartPointer<char> ToCString(AllowNullsFlag allow_nulls,
-                               RobustnessFlag robustness_flag,
-                               int offset,
-                               int length,
-                               int* length_output = 0);
-  SmartPointer<char> ToCString(
+  SmartArrayPointer<char> ToCString(AllowNullsFlag allow_nulls,
+                                    RobustnessFlag robustness_flag,
+                                    int offset,
+                                    int length,
+                                    int* length_output = 0);
+  SmartArrayPointer<char> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
@@ -5997,7 +5997,7 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartPointer<uc16> ToWideCString(
+  SmartArrayPointer<uc16> ToWideCString(
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
   // Tells whether the hash code has been computed.

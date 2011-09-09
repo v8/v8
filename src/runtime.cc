@@ -52,7 +52,7 @@
 #include "runtime-profiler.h"
 #include "runtime.h"
 #include "scopeinfo.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "string-search.h"
 #include "stub-cache.h"
 #include "v8threads.h"
@@ -7908,8 +7908,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
 }
 
 
-static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
-                                                   int* total_argc) {
+static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
+                                                        int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
@@ -7925,7 +7925,7 @@ static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
                                             &args_slots);
 
     *total_argc = bound_argc + args_count;
-    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = args_slots[i].GetValue();
       param_data[bound_argc + i] = val.location();
@@ -7937,7 +7937,7 @@ static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = bound_argc + args_count;
-    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i));
       param_data[bound_argc + i] = val.location();
@@ -7964,7 +7964,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   }
 
   int total_argc = 0;
-  SmartPointer<Object**> param_data =
+  SmartArrayPointer<Object**> param_data =
       GetNonBoundArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     Handle<Object> val = Handle<Object>(bound_args->get(i));
@@ -8883,7 +8883,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
 static void PrintString(String* str) {
   // not uncommon to have empty strings
   if (str->length() > 0) {
-    SmartPointer<char> s =
+    SmartArrayPointer<char> s =
         str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     PrintF("%s", *s);
   }
@@ -12435,7 +12435,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
 // Sets a v8 flag.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
   CONVERT_CHECKED(String, arg, args[0]);
-  SmartPointer<char> flags =
+  SmartArrayPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   FlagList::SetFlagsFromString(*flags, StrLength(*flags));
   return isolate->heap()->undefined_value();

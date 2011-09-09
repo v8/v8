@@ -5057,13 +5057,13 @@ String::FlatContent String::GetFlatContent() {
 }
 
 
-SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                     RobustnessFlag robust_flag,
-                                     int offset,
-                                     int length,
-                                     int* length_return) {
+SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int offset,
+                                          int length,
+                                          int* length_return) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartPointer<char>(NULL);
+    return SmartArrayPointer<char>(NULL);
   }
   Heap* heap = GetHeap();
 
@@ -5107,13 +5107,13 @@ SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
     character_position++;
   }
   result[utf8_byte_position] = 0;
-  return SmartPointer<char>(result);
+  return SmartArrayPointer<char>(result);
 }
 
 
-SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                     RobustnessFlag robust_flag,
-                                     int* length_return) {
+SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
@@ -5144,9 +5144,9 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
+SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartPointer<uc16>();
+    return SmartArrayPointer<uc16>();
   }
   Heap* heap = GetHeap();
 
@@ -5162,7 +5162,7 @@ SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return SmartPointer<uc16>(result);
+  return SmartArrayPointer<uc16>(result);
 }
 
 
@@ -6379,7 +6379,7 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 
 
 void JSFunction::PrintName(FILE* out) {
-  SmartPointer<char> name = shared()->DebugName()->ToCString();
+  SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", *name);
 }
 

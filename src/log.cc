@@ -617,7 +617,7 @@ void Logger::ApiEvent(const char* format, ...) {
 void Logger::ApiNamedSecurityCheck(Object* key) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   if (key->IsString()) {
-    SmartPointer<char> str =
+    SmartArrayPointer<char> str =
         String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,check-security,\"%s\"\n", *str);
   } else if (key->IsUndefined()) {
@@ -762,9 +762,9 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
   ASSERT(name->IsString());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  SmartPointer<char> class_name =
+  SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  SmartPointer<char> property_name =
+  SmartArrayPointer<char> property_name =
       String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
 }
@@ -774,7 +774,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
                                       uint32_t index) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  SmartPointer<char> class_name =
+  SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 }
@@ -782,7 +782,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = object->class_name();
-  SmartPointer<char> class_name =
+  SmartArrayPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
 }
@@ -836,7 +836,7 @@ void Logger::CallbackEventInternal(const char* prefix, const char* name,
 
 void Logger::CallbackEvent(String* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartPointer<char> str =
+  SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   CallbackEventInternal("", *str, entry_point);
 }
@@ -844,7 +844,7 @@ void Logger::CallbackEvent(String* name, Address entry_point) {
 
 void Logger::GetterCallbackEvent(String* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartPointer<char> str =
+  SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   CallbackEventInternal("get ", *str, entry_point);
 }
@@ -852,7 +852,7 @@ void Logger::GetterCallbackEvent(String* name, Address entry_point) {
 
 void Logger::SetterCallbackEvent(String* name, Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
-  SmartPointer<char> str =
+  SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   CallbackEventInternal("set ", *str, entry_point);
 }
@@ -957,7 +957,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     return;
 
   LogMessageBuilder msg(this);
-  SmartPointer<char> str =
+  SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,",
              kLogEventsNames[CODE_CREATION_EVENT],
@@ -998,9 +998,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  SmartPointer<char> name =
+  SmartArrayPointer<char> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  SmartPointer<char> sourcestr =
+  SmartArrayPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("%s,%s,",
              kLogEventsNames[CODE_CREATION_EVENT],

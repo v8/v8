@@ -95,19 +95,19 @@ LineEditor* LineEditor::Get() {
 class DumbLineEditor: public LineEditor {
  public:
   DumbLineEditor() : LineEditor(LineEditor::DUMB, "dumb") { }
-  virtual i::SmartPointer<char> Prompt(const char* prompt);
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt);
 };
 
 
 static DumbLineEditor dumb_line_editor;
 
 
-i::SmartPointer<char> DumbLineEditor::Prompt(const char* prompt) {
+i::SmartArrayPointer<char> DumbLineEditor::Prompt(const char* prompt) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   printf("%s", prompt);
   char* str = fgets(buffer, kBufferSize, stdin);
-  return i::SmartPointer<char>(str ? i::StrDup(str) : str);
+  return i::SmartArrayPointer<char>(str ? i::StrDup(str) : str);
 }
 
 
@@ -891,7 +891,7 @@ void Shell::RunShell() {
   }
   editor->Open();
   while (true) {
-    i::SmartPointer<char> input = editor->Prompt(Shell::kPrompt);
+    i::SmartArrayPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty()) break;
     editor->AddHistory(*input);
     HandleScope inner_scope;

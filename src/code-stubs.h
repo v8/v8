@@ -181,7 +181,7 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // Returns a name for logging/debugging purposes.
-  SmartPointer<const char> GetName();
+  SmartArrayPointer<const char> GetName();
   virtual void PrintName(StringStream* stream) {
     stream->Add("%s", MajorName(MajorKey(), false));
   }

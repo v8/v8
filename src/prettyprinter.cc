@@ -1105,7 +1105,7 @@ void JsonAstBuilder::AddAttributePrefix(const char* name) {
 
 
 void JsonAstBuilder::AddAttribute(const char* name, Handle<String> value) {
-  SmartPointer<char> value_string = value->ToCString();
+  SmartArrayPointer<char> value_string = value->ToCString();
   AddAttributePrefix(name);
   Print("\"%s\"", *value_string);
 }
