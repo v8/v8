@@ -220,6 +220,17 @@ bool HBasicBlock::Dominates(HBasicBlock* other) const {
 }
 
 
+int HBasicBlock::LoopNestingDepth() const {
+  const HBasicBlock* current = this;
+  int result  = (current->IsLoopHeader()) ? 1 : 0;
+  while (current->parent_loop_header() != NULL) {
+    current = current->parent_loop_header();
+    result++;
+  }
+  return result;
+}
+
+
 void HBasicBlock::PostProcessLoopHeader(IterationStatement* stmt) {
   ASSERT(IsLoopHeader());
 
@@ -6566,6 +6577,8 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
     if (current->dominator() != NULL) {
       PrintBlockProperty("dominator", current->dominator()->block_id());
     }
+
+    PrintIntProperty("loop_depth", current->LoopNestingDepth());
 
     if (chunk != NULL) {
       int first_index = current->first_instruction_index();
