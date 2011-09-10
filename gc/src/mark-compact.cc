@@ -2837,7 +2837,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       &UpdateReferenceInExternalStringTableEntry);
 
   // Update JSFunction pointers from the runtime profiler.
-  heap_->isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
+  heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
+      &updating_visitor);
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessWeakReferences(&evacuation_object_retainer);

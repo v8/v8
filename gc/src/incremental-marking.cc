@@ -86,20 +86,10 @@ void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
 
 void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
   if (IsMarking()) {
-    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(value));
-
-    MarkBit value_bit = Marking::MarkBitFrom(value);
-    if (Marking::IsWhite(value_bit)) {
-      WhiteToGreyAndPush(value, value_bit);
-      RestartIfNotMarking();
-    }
-
-
-    if (is_compacting_) {
-      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, NULL, NULL);
-      heap_->mark_compact_collector()->RecordRelocSlot(&rinfo,
-                                                       Code::cast(value));
-    }
+    Code* host =
+        heap_->isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(pc);
+    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, NULL, host);
+    RecordWriteIntoCode(host, &rinfo, value);
   }
 }
 

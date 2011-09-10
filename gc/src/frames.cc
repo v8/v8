@@ -1162,6 +1162,14 @@ Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
 }
 
 
+static int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
+  MapWord map_word = object->map_word();
+  Map* map = map_word.IsForwardingAddress() ?
+      map_word.ToForwardingAddress()->map() : map_word.ToMap();
+  return object->SizeFromMap(map);
+}
+
+
 Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   Heap* heap = isolate_->heap();
   // Check if the pc points into a large object chunk.
@@ -1171,7 +1179,7 @@ Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   // Iterate through the page until we reach the end or find an object starting
   // after the pc.
   Page* page = Page::FromAddress(pc);
-  HeapObjectIterator iterator(page, heap->GcSafeSizeOfOldObjectFunction());
+  HeapObjectIterator iterator(page, &GcSafeSizeOfCodeSpaceObject);
   HeapObject* previous = NULL;
   while (true) {
     HeapObject* next = iterator.Next();
