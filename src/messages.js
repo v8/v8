@@ -241,6 +241,8 @@ function FormatMessage(message) {
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
       strict_poison_pill:           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       strict_caller:                ["Illegal access to a strict mode caller function."],
+      cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
+      redef_external_array_element: ["Cannot redefine a property of an object with external array elements"],
     };
   }
   var message_type = %MessageGetType(message);
