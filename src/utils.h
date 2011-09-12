@@ -213,7 +213,7 @@ class BitField {
 
   // Tells whether the provided value fits into the bit field.
   static bool is_valid(T value) {
-    return (static_cast<uint32_t>(value) & ~kMax) == 0;
+    return (static_cast<uint32_t>(value) & ~static_cast<uint32_t>(kMax)) == 0;
   }
 
   // Returns a uint32_t with the bit field value encoded.
