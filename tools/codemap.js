@@ -79,6 +79,7 @@ CodeMap.PAGE_SIZE =
  * @param {CodeMap.CodeEntry} codeEntry Code entry object.
  */
 CodeMap.prototype.addCode = function(start, codeEntry) {
+  this.removeAllCoveredNodes_(this.dynamics_, start, start + codeEntry.size);
   this.dynamics_.insert(start, codeEntry);
 };
 
@@ -91,7 +92,9 @@ CodeMap.prototype.addCode = function(start, codeEntry) {
  * @param {number} to The destination address.
  */
 CodeMap.prototype.moveCode = function(from, to) {
+  if (from === to) return;
   var removedNode = this.dynamics_.remove(from);
+  this.removeAllCoveredNodes_(this.dynamics_, to, to + removedNode.value.size);
   this.dynamics_.insert(to, removedNode.value);
 };
 
@@ -148,6 +151,26 @@ CodeMap.prototype.markPages_ = function(start, end) {
  */
 CodeMap.prototype.isAddressBelongsTo_ = function(addr, node) {
   return addr >= node.key && addr < (node.key + node.value.size);
+};
+
+
+/**
+ * @private
+ */
+CodeMap.prototype.findAllCoveredNodes_ = function(tree, start, end) {
+  var result = [];
+  var addr = end - 1;
+  while (addr >= start) {
+    var node = tree.findGreatestLessThan(addr);
+    if (!node) break;
+    var start2 = node.key, end2 = node.key + node.value.size;
+    if (start2 < end && start < end2) {
+      // Node overlaps with the interval given
+      result.push(node);
+    }
+    addr = node.key - 1;
+  }
+  return result;
 };
 
 
@@ -231,6 +254,14 @@ CodeMap.prototype.getAllStaticEntries = function() {
  */
 CodeMap.prototype.getAllLibrariesEntries = function() {
   return this.libraries_.exportValues();
+};
+
+
+CodeMap.prototype.removeAllCoveredNodes_ = function(tree, start, end) {
+  var covered = this.findAllCoveredNodes_(tree, start, end);
+  for (var i = 0, l = covered.length; i < l; ++i) {
+    tree.remove(covered[i].key);
+  }
 };
 
 

@@ -77,8 +77,7 @@ function SnapshotLogProcessor() {
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt],
-          processor: this.processCodeDelete },
+      'code-delete': null,
       'function-creation': null,
       'function-move': null,
       'function-delete': null,
@@ -91,10 +90,6 @@ function SnapshotLogProcessor() {
     switch (operation) {
       case op.MOVE:
         print('Snapshot: Code move event for unknown code: 0x' +
-              addr.toString(16));
-        break;
-      case op.DELETE:
-        print('Snapshot: Code delete event for unknown code: 0x' +
               addr.toString(16));
         break;
     }
@@ -120,11 +115,6 @@ SnapshotLogProcessor.prototype.processCodeCreation = function(
 
 SnapshotLogProcessor.prototype.processCodeMove = function(from, to) {
   this.profile_.moveCode(from, to);
-};
-
-
-SnapshotLogProcessor.prototype.processCodeDelete = function(start) {
-  this.profile_.deleteCode(start);
 };
 
 
@@ -155,8 +145,7 @@ function TickProcessor(
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt],
-          processor: this.processCodeDelete },
+      'code-delete': null,
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
       'snapshot-pos': { parsers: [parseInt, parseInt],
@@ -194,9 +183,6 @@ function TickProcessor(
     switch (operation) {
       case op.MOVE:
         print('Code move event for unknown code: 0x' + addr.toString(16));
-        break;
-      case op.DELETE:
-        print('Code delete event for unknown code: 0x' + addr.toString(16));
         break;
       case op.TICK:
         // Only unknown PCs (the first frame) are reported as unaccounted,
@@ -315,11 +301,6 @@ TickProcessor.prototype.processCodeCreation = function(
 
 TickProcessor.prototype.processCodeMove = function(from, to) {
   this.profile_.moveCode(from, to);
-};
-
-
-TickProcessor.prototype.processCodeDelete = function(start) {
-  this.profile_.deleteCode(start);
 };
 
 
