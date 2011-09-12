@@ -650,8 +650,6 @@ void Deserializer::Deserialize() {
   isolate_ = Isolate::Current();
   ASSERT(isolate_ != NULL);
   // Don't GC while deserializing - just expand the heap.
-  Address* store_buffer_top =
-      reinterpret_cast<Address*>(isolate_->heap()->store_buffer_top());
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
   LinearAllocationScope allocate_linearly;
@@ -670,7 +668,6 @@ void Deserializer::Deserialize() {
 
   isolate_->heap()->set_global_contexts_list(
       isolate_->heap()->undefined_value());
-  isolate_->heap()->public_set_store_buffer_top(store_buffer_top);
 }
 
 
