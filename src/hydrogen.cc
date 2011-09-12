@@ -2451,6 +2451,14 @@ void HGraphBuilder::SetupScope(Scope* scope) {
     graph()->SetArgumentsObject(object);
     environment()->Bind(scope->arguments(), object);
   }
+  // Handle implicit declaration of the function name in named function
+  // expressions before other declarations.
+  if (scope->is_function_scope() && scope->function() != NULL) {
+    if (!scope->function()->IsStackAllocated()) {
+      return Bailout("unsupported declaration");
+    }
+    environment()->Bind(scope->function(), graph()->GetConstantHole());
+  }
 }
 
 
