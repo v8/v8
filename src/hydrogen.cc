@@ -1649,18 +1649,20 @@ Representation HInferRepresentation::TryChange(HValue* value) {
   int non_tagged_count = double_count + int32_count;
 
   // If a non-loop phi has tagged uses, don't convert it to untagged.
-  if (value->IsPhi() && !value->block()->IsLoopHeader()) {
-    if (tagged_count > 0) return Representation::None();
+  if (value->IsPhi() && !value->block()->IsLoopHeader() && tagged_count > 0) {
+    return Representation::None();
   }
 
-  if (non_tagged_count >= tagged_count) {
-    if (int32_count > 0) {
-      if (!value->IsPhi() || value->IsConvertibleToInteger()) {
-        return Representation::Integer32();
-      }
-    }
-    if (double_count > 0) return Representation::Double();
+  // Prefer unboxing over boxing, the latter is more expensive.
+  if (tagged_count > non_tagged_count) Representation::None();
+
+  // Prefer Integer32 over Double, if possible.
+  if (int32_count > 0 && value->IsConvertibleToInteger()) {
+    return Representation::Integer32();
   }
+
+  if (double_count > 0) return Representation::Double();
+
   return Representation::None();
 }
 
