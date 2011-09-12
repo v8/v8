@@ -1301,14 +1301,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
 
-  CONVERT_ARG_CHECKED(Context, context, 0);
+  // Declarations are always made in a function or global context.  In the
+  // case of eval code, the context passed is the context of the caller,
+  // which may be some nested context and not the declaration context.
+  RUNTIME_ASSERT(args[0]->IsContext());
+  Handle<Context> context(Context::cast(args[0])->declaration_context());
+
   Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode = static_cast<PropertyAttributes>(args.smi_at(2));
   RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
   Handle<Object> initial_value(args[3], isolate);
-
-  // Declarations are always done in a function or global context.
-  context = Handle<Context>(context->declaration_context());
 
   int index;
   PropertyAttributes attributes;
@@ -1318,9 +1320,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
       context->Lookup(name, flags, &index, &attributes, &binding_flags);
 
   if (attributes != ABSENT) {
-    // The name was declared before; check for conflicting
-    // re-declarations: This is similar to the code in parser.cc in
-    // the AstBuildingParser::Declare function.
+    // The name was declared before; check for conflicting re-declarations.
     if (((attributes & READ_ONLY) != 0) || (mode == READ_ONLY)) {
       // Functions are not read-only.
       ASSERT(mode != READ_ONLY || initial_value->IsTheHole());
@@ -1331,53 +1331,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     // Initialize it if necessary.
     if (*initial_value != NULL) {
       if (index >= 0) {
-        // The variable or constant context slot should always be in
-        // the function context or the arguments object.
-        if (holder->IsContext()) {
-          ASSERT(holder.is_identical_to(context));
-          if (((attributes & READ_ONLY) == 0) ||
-              context->get(index)->IsTheHole()) {
-            context->set(index, *initial_value);
-          }
-        } else {
-          // The holder is an arguments object.
-          Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          Handle<Object> result = SetElement(arguments, index, initial_value,
-                                             kNonStrictMode);
-          if (result.is_null()) return Failure::Exception();
+        ASSERT(holder.is_identical_to(context));
+        if (((attributes & READ_ONLY) == 0) ||
+            context->get(index)->IsTheHole()) {
+          context->set(index, *initial_value);
         }
       } else {
-        // Slow case: The property is not in the FixedArray part of the context.
-        Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
+        // Slow case: The property is in the context extension object of a
+        // function context or the global object of a global context.
+        Handle<JSObject> object = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
             isolate,
-            SetProperty(context_ext, name, initial_value,
-                        mode, kNonStrictMode));
+            SetProperty(object, name, initial_value, mode, kNonStrictMode));
       }
     }
 
   } else {
     // The property is not in the function context. It needs to be
-    // "declared" in the function context's extension context, or in the
-    // global context.
-    Handle<JSObject> context_ext;
+    // "declared" in the function context's extension context or as a
+    // property of the the global object.
+    Handle<JSObject> object;
     if (context->has_extension()) {
-      // The function context's extension context exists - use it.
-      context_ext = Handle<JSObject>(JSObject::cast(context->extension()));
+      object = Handle<JSObject>(JSObject::cast(context->extension()));
     } else {
-      // The function context's extension context does not exists - allocate
-      // it.
-      context_ext = isolate->factory()->NewJSObject(
+      // Context extension objects are allocated lazily.
+      ASSERT(context->IsFunctionContext());
+      object = isolate->factory()->NewJSObject(
           isolate->context_extension_function());
-      // And store it in the extension slot.
-      context->set_extension(*context_ext);
+      context->set_extension(*object);
     }
-    ASSERT(*context_ext != NULL);
+    ASSERT(*object != NULL);
 
     // Declare the property by setting it to the initial value if provided,
     // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
     // constant declarations).
-    ASSERT(!context_ext->HasLocalProperty(*name));
+    ASSERT(!object->HasLocalProperty(*name));
     Handle<Object> value(isolate->heap()->undefined_value(), isolate);
     if (*initial_value != NULL) value = initial_value;
     // Declaring a const context slot is a conflicting declaration if
@@ -1387,15 +1375,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     // SetProperty and no setters are invoked for those since they are
     // not real JSObjects.
     if (initial_value->IsTheHole() &&
-        !context_ext->IsJSContextExtensionObject()) {
+        !object->IsJSContextExtensionObject()) {
       LookupResult lookup;
-      context_ext->Lookup(*name, &lookup);
+      object->Lookup(*name, &lookup);
       if (lookup.IsProperty() && (lookup.type() == CALLBACKS)) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
     RETURN_IF_EMPTY_HANDLE(isolate,
-                           SetProperty(context_ext, name, value, mode,
+                           SetProperty(object, name, value, mode,
                                        kNonStrictMode));
   }
 
@@ -1593,11 +1581,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
 
   Handle<Object> value(args[0], isolate);
   ASSERT(!value->IsTheHole());
-  CONVERT_ARG_CHECKED(Context, context, 1);
-  Handle<String> name(String::cast(args[2]));
 
   // Initializations are always done in a function or global context.
-  context = Handle<Context>(context->declaration_context());
+  RUNTIME_ASSERT(args[1]->IsContext());
+  Handle<Context> context(Context::cast(args[1])->declaration_context());
+
+  Handle<String> name(String::cast(args[2]));
 
   int index;
   PropertyAttributes attributes;
@@ -1606,39 +1595,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes, &binding_flags);
 
-  // In most situations, the property introduced by the const
-  // declaration should be present in the context extension object.
-  // However, because declaration and initialization are separate, the
-  // property might have been deleted (if it was introduced by eval)
-  // before we reach the initialization point.
-  //
-  // Example:
-  //
-  //    function f() { eval("delete x; const x;"); }
-  //
-  // In that case, the initialization behaves like a normal assignment
-  // to property 'x'.
   if (index >= 0) {
-    if (holder->IsContext()) {
-      // Property was found in a context.  Perform the assignment if we
-      // found some non-constant or an uninitialized constant.
-      Handle<Context> context = Handle<Context>::cast(holder);
-      if ((attributes & READ_ONLY) == 0 || context->get(index)->IsTheHole()) {
-        context->set(index, *value);
-      }
-    } else {
-      // The holder is an arguments object.
-      ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-      RETURN_IF_EMPTY_HANDLE(
-          isolate,
-          SetElement(arguments, index, value, kNonStrictMode));
+    ASSERT(holder->IsContext());
+    // Property was found in a context.  Perform the assignment if we
+    // found some non-constant or an uninitialized constant.
+    Handle<Context> context = Handle<Context>::cast(holder);
+    if ((attributes & READ_ONLY) == 0 || context->get(index)->IsTheHole()) {
+      context->set(index, *value);
     }
     return *value;
   }
 
-  // The property could not be found, we introduce it in the global
-  // context.
+  // The property could not be found, we introduce it as a property of the
+  // global object.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(
         isolate->context()->global());
@@ -1649,29 +1618,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
     return *value;
   }
 
-  // The property was present in a context extension object.
-  Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
+  // The property was present in some function's context extension object,
+  // as a property on the subject of a with, or as a property of the global
+  // object.
+  //
+  // In most situations, eval-introduced consts should still be present in
+  // the context extension object.  However, because declaration and
+  // initialization are separate, the property might have been deleted
+  // before we reach the initialization point.
+  //
+  // Example:
+  //
+  //    function f() { eval("delete x; const x;"); }
+  //
+  // In that case, the initialization behaves like a normal assignment.
+  Handle<JSObject> object = Handle<JSObject>::cast(holder);
 
-  if (*context_ext == context->extension()) {
-    // This is the property that was introduced by the const
-    // declaration.  Set it if it hasn't been set before.  NOTE: We
-    // cannot use GetProperty() to get the current value as it
-    // 'unholes' the value.
+  if (*object == context->extension()) {
+    // This is the property that was introduced by the const declaration.
+    // Set it if it hasn't been set before.  NOTE: We cannot use
+    // GetProperty() to get the current value as it 'unholes' the value.
     LookupResult lookup;
-    context_ext->LocalLookupRealNamedProperty(*name, &lookup);
+    object->LocalLookupRealNamedProperty(*name, &lookup);
     ASSERT(lookup.IsProperty());  // the property was declared
     ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
 
     PropertyType type = lookup.type();
     if (type == FIELD) {
-      FixedArray* properties = context_ext->properties();
+      FixedArray* properties = object->properties();
       int index = lookup.GetFieldIndex();
       if (properties->get(index)->IsTheHole()) {
         properties->set(index, *value);
       }
     } else if (type == NORMAL) {
-      if (context_ext->GetNormalizedProperty(&lookup)->IsTheHole()) {
-        context_ext->SetNormalizedProperty(&lookup, *value);
+      if (object->GetNormalizedProperty(&lookup)->IsTheHole()) {
+        object->SetNormalizedProperty(&lookup, *value);
       }
     } else {
       // We should not reach here. Any real, named property should be
@@ -1679,13 +1660,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
       UNREACHABLE();
     }
   } else {
-    // The property was found in a different context extension object.
-    // Set it if it is not a read-only property.
+    // The property was found on some other object.  Set it if it is not a
+    // read-only property.
     if ((attributes & READ_ONLY) == 0) {
       // Strict mode not needed (const disallowed in strict mode).
       RETURN_IF_EMPTY_HANDLE(
           isolate,
-          SetProperty(context_ext, name, value, attributes, kNonStrictMode));
+          SetProperty(object, name, value, attributes, kNonStrictMode));
     }
   }
 
@@ -8563,18 +8544,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   }
 
   // The slot was found in a JSObject, either a context extension object,
-  // the global object, or an arguments object.  Try to delete it
-  // (respecting DONT_DELETE).  For consistency with V8's usual behavior,
-  // which allows deleting all parameters in functions that mention
-  // 'arguments', we do this even for the case of slots found on an
-  // arguments object.  The slot was found on an arguments object if the
-  // index is non-negative.
+  // the global object, or the subject of a with.  Try to delete it
+  // (respecting DONT_DELETE).
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
-  if (index >= 0) {
-    return object->DeleteElement(index, JSReceiver::NORMAL_DELETION);
-  } else {
-    return object->DeleteProperty(*name, JSReceiver::NORMAL_DELETION);
-  }
+  return object->DeleteProperty(*name, JSReceiver::NORMAL_DELETION);
 }
 
 
@@ -8659,24 +8632,19 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
                                           &attributes,
                                           &binding_flags);
 
-  // If the index is non-negative, the slot has been found in a local
-  // variable or a parameter. Read it from the context object or the
-  // arguments object.
+  // If the index is non-negative, the slot has been found in a context.
   if (index >= 0) {
-    // If the "property" we were looking for is a local variable or an
-    // argument in a context, the receiver is the global object; see
-    // ECMA-262, 3rd., 10.1.6 and 10.2.3.
+    ASSERT(holder->IsContext());
+    // If the "property" we were looking for is a local variable, the
+    // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     //
-    // Use the hole as the receiver to signal that the receiver is
-    // implicit and that the global receiver should be used.
+    // Use the hole as the receiver to signal that the receiver is implicit
+    // and that the global receiver should be used (as distinguished from an
+    // explicit receiver that happens to be a global object).
     Handle<Object> receiver = isolate->factory()->the_hole_value();
-    MaybeObject* value = (holder->IsContext())
-        ? Context::cast(*holder)->get(index)
-        : JSObject::cast(*holder)->GetElement(index);
+    Object* value = Context::cast(*holder)->get(index);
     // Check for uninitialized bindings.
-    if (holder->IsContext() &&
-        binding_flags == MUTABLE_CHECK_INITIALIZED &&
-        value->IsTheHole()) {
+    if (binding_flags == MUTABLE_CHECK_INITIALIZED && value->IsTheHole()) {
       Handle<Object> reference_error =
           isolate->factory()->NewReferenceError("not_defined",
                                                 HandleVector(&name, 1));
@@ -8686,25 +8654,18 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     }
   }
 
-  // If the holder is found, we read the property from it.
-  if (!holder.is_null() && holder->IsJSObject()) {
-    ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
+  // Otherwise, if the slot was found the holder is a context extension
+  // object, subject of a with, or a global object.  We read the named
+  // property from it.
+  if (!holder.is_null()) {
     JSObject* object = JSObject::cast(*holder);
-    Object* receiver;
-    if (object->IsGlobalObject()) {
-      receiver = GlobalObject::cast(object)->global_receiver();
-    } else if (context->is_exception_holder(*holder)) {
-      // Use the hole as the receiver to signal that the receiver is
-      // implicit and that the global receiver should be used.
-      receiver = isolate->heap()->the_hole_value();
-    } else {
-      receiver = ComputeReceiverForNonGlobal(isolate, object);
-    }
-
+    ASSERT(object->HasProperty(*name));
     // GetProperty below can cause GC.
-    Handle<Object> receiver_handle(receiver);
+    Handle<Object> receiver_handle(object->IsGlobalObject()
+        ? GlobalObject::cast(object)->global_receiver()
+        : ComputeReceiverForNonGlobal(isolate, object));
 
-    // No need to unhole the value here. This is taken care of by the
+    // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     MaybeObject* value = object->GetProperty(*name);
     return MakePair(value, *receiver_handle);
@@ -8757,45 +8718,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
                                           &binding_flags);
 
   if (index >= 0) {
-    if (holder->IsContext()) {
-      Handle<Context> context = Handle<Context>::cast(holder);
-      if (binding_flags == MUTABLE_CHECK_INITIALIZED &&
-          context->get(index)->IsTheHole()) {
-        Handle<Object> error =
-            isolate->factory()->NewReferenceError("not_defined",
-                                                  HandleVector(&name, 1));
-        return isolate->Throw(*error);
-      }
-      // Ignore if read_only variable.
-      if ((attributes & READ_ONLY) == 0) {
-        // Context is a fixed array and set cannot fail.
-        context->set(index, *value);
-      } else if (strict_mode == kStrictMode) {
-        // Setting read only property in strict mode.
-        Handle<Object> error =
-            isolate->factory()->NewTypeError("strict_cannot_assign",
-                                             HandleVector(&name, 1));
-        return isolate->Throw(*error);
-      }
-    } else {
-      ASSERT((attributes & READ_ONLY) == 0);
-      Handle<Object> result =
-          SetElement(Handle<JSObject>::cast(holder), index, value, strict_mode);
-      if (result.is_null()) {
-        ASSERT(isolate->has_pending_exception());
-        return Failure::Exception();
-      }
+    // The property was found in a context slot.
+    Handle<Context> context = Handle<Context>::cast(holder);
+    if (binding_flags == MUTABLE_CHECK_INITIALIZED &&
+        context->get(index)->IsTheHole()) {
+      Handle<Object> error =
+          isolate->factory()->NewReferenceError("not_defined",
+                                                HandleVector(&name, 1));
+      return isolate->Throw(*error);
+    }
+    // Ignore if read_only variable.
+    if ((attributes & READ_ONLY) == 0) {
+      // Context is a fixed array and set cannot fail.
+      context->set(index, *value);
+    } else if (strict_mode == kStrictMode) {
+      // Setting read only property in strict mode.
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("strict_cannot_assign",
+                                           HandleVector(&name, 1));
+      return isolate->Throw(*error);
     }
     return *value;
   }
 
-  // Slow case: The property is not in a FixedArray context.
-  // It is either in an JSObject extension context or it was not found.
-  Handle<JSObject> context_ext;
+  // Slow case: The property is not in a context slot.  It is either in a
+  // context extension object, a property of the subject of a with, or a
+  // property of the global object.
+  Handle<JSObject> object;
 
   if (!holder.is_null()) {
-    // The property exists in the extension context.
-    context_ext = Handle<JSObject>::cast(holder);
+    // The property exists on the holder.
+    object = Handle<JSObject>::cast(holder);
   } else {
     // The property was not found.
     ASSERT(attributes == ABSENT);
@@ -8803,22 +8756,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     if (strict_mode == kStrictMode) {
       // Throw in strict mode (assignment to undefined variable).
       Handle<Object> error =
-        isolate->factory()->NewReferenceError(
-            "not_defined", HandleVector(&name, 1));
+          isolate->factory()->NewReferenceError(
+              "not_defined", HandleVector(&name, 1));
       return isolate->Throw(*error);
     }
-    // In non-strict mode, the property is stored in the global context.
+    // In non-strict mode, the property is added to the global object.
     attributes = NONE;
-    context_ext = Handle<JSObject>(isolate->context()->global());
+    object = Handle<JSObject>(isolate->context()->global());
   }
 
-  // Set the property, but ignore if read_only variable on the context
-  // extension object itself.
+  // Set the property if it's not read only or doesn't yet exist.
   if ((attributes & READ_ONLY) == 0 ||
-      (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
+      (object->GetLocalPropertyAttribute(*name) == ABSENT)) {
     RETURN_IF_EMPTY_HANDLE(
         isolate,
-        SetProperty(context_ext, name, value, NONE, strict_mode));
+        SetProperty(object, name, value, NONE, strict_mode));
   } else if (strict_mode == kStrictMode && (attributes & READ_ONLY) != 0) {
     // Setting read only property in strict mode.
     Handle<Object> error =
@@ -9223,6 +9175,9 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   PropertyAttributes attributes = ABSENT;
   BindingFlags binding_flags;
   while (true) {
+    // Don't follow context chains in Context::Lookup and implement the loop
+    // up the context chain here, so that we can know the context where eval
+    // was found.
     receiver = context->Lookup(isolate->factory()->eval_symbol(),
                                FOLLOW_PROTOTYPE_CHAIN,
                                &index,

@@ -4924,7 +4924,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
   } else {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    // FIXME.
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
 
     if (global_call) {

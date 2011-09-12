@@ -330,12 +330,6 @@ class Context: public FixedArray {
   // Mark the global context with out of memory.
   inline void mark_out_of_memory();
 
-  // The exception holder is the object used as a with object in
-  // the implementation of a catch block.
-  bool is_exception_holder(Object* object) {
-    return IsCatchContext() && extension() == object;
-  }
-
   // A global context hold a list of all functions which have been optimized.
   void AddOptimizedFunction(JSFunction* function);
   void RemoveOptimizedFunction(JSFunction* function);
@@ -355,29 +349,25 @@ class Context: public FixedArray {
 #undef GLOBAL_CONTEXT_FIELD_ACCESSORS
 
   // Lookup the the slot called name, starting with the current context.
-  // There are 4 possible outcomes:
+  // There are three possibilities:
   //
-  // 1) index_ >= 0 && result->IsContext():
-  //    most common case, the result is a Context, and index is the
-  //    context slot index, and the slot exists.
-  //    attributes == READ_ONLY for the function name variable, NONE otherwise.
+  // 1) result->IsContext():
+  //    The binding was found in a context.  *index is always the
+  //    non-negative slot index.  *attributes is NONE for var and let
+  //    declarations, READ_ONLY for const declarations (never ABSENT).
   //
-  // 2) index_ >= 0 && result->IsJSObject():
-  //    the result is the JSObject arguments object, the index is the parameter
-  //    index, i.e., key into the arguments object, and the property exists.
-  //    attributes != ABSENT.
+  // 2) result->IsJSObject():
+  //    The binding was found as a named property in a context extension
+  //    object (i.e., was introduced via eval), as a property on the subject
+  //    of with, or as a property of the global object.  *index is -1 and
+  //    *attributes is not ABSENT.
   //
-  // 3) index_ < 0 && result->IsJSObject():
-  //    the result is the JSObject extension context or the global object,
-  //    and the name is the property name, and the property exists.
-  //    attributes != ABSENT.
-  //
-  // 4) index_ < 0 && result.is_null():
-  //    there was no context found with the corresponding property.
-  //    attributes == ABSENT.
+  // 3) result.is_null():
+  //    There was no binding found, *index is always -1 and *attributes is
+  //    always ABSENT.
   Handle<Object> Lookup(Handle<String> name,
                         ContextLookupFlags flags,
-                        int* index_,
+                        int* index,
                         PropertyAttributes* attributes,
                         BindingFlags* binding_flags);
 
