@@ -915,6 +915,8 @@ class HGoto: public HTemplateControlInstruction<1, 0> {
     return Representation::None();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(Goto)
 };
 

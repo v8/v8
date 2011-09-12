@@ -1307,6 +1307,12 @@ void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
   right()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HGoto::PrintDataTo(StringStream* stream) {
+  stream->Add("B%d", SuccessorAt(0)->block_id());
 }
 
 
