@@ -300,11 +300,11 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     if (number.IsEmpty() || !number->IsNumber()) {
       return ThrowException(String::New("Array length must be a number."));
     }
-    double raw_length = number->NumberValue();
+    int32_t raw_length = number->ToInt32()->Int32Value();
     if (raw_length < 0) {
       return ThrowException(String::New("Array length must not be negative."));
     }
-    if (raw_length > kMaxLength) {
+    if (raw_length > static_cast<int32_t>(kMaxLength)) {
       return ThrowException(
           String::New("Array length exceeds maximum length."));
     }
