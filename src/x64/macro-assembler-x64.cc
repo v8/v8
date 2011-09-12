@@ -3303,7 +3303,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
       NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
-       Smi::FromInt(PropertyDetails::TypeField::mask()));
+       Smi::FromInt(PropertyDetails::TypeField::kMask));
   j(not_zero, miss);
 
   // Get the value at the masked, scaled index.

@@ -74,7 +74,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
   // the bits are the least significant so they will be the ones
   // masked out.
   ASSERT(Code::ExtractICStateFromFlags(flags) == MONOMORPHIC);
-  ASSERT(Code::kFlagsICStateShift == 0);
+  STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
   // Make sure that the code type is not included in the hash.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);

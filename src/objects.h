@@ -3756,13 +3756,14 @@ class Code: public HeapObject {
       InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
-  static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
-  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
   static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
-  static inline int ExtractArgumentsCountFromFlags(Flags flags);
+  static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
+  static inline int ExtractArgumentsCountFromFlags(Flags flags);
+
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
   // Convert a target address into a code object.
@@ -3882,25 +3883,20 @@ class Code: public HeapObject {
   static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
   static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
-  // Flags layout.
-  static const int kFlagsICStateShift        = 0;
-  static const int kFlagsICInLoopShift       = 3;
-  static const int kFlagsTypeShift           = 4;
-  static const int kFlagsKindShift           = 8;
-  static const int kFlagsICHolderShift       = 12;
-  static const int kFlagsExtraICStateShift   = 13;
-  static const int kFlagsArgumentsCountShift = 15;
+  // Flags layout.  BitField<type, shift, size>.
+  class ICStateField: public BitField<InlineCacheState, 0, 3> {};
+  class ICInLoopField: public BitField<InLoopFlag, 3, 1> {};
+  class TypeField: public BitField<PropertyType, 4, 4> {};
+  class KindField: public BitField<Kind, 8, 4> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 12, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 13, 2> {};
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
-  static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
-  static const int kFlagsTypeMask           = 0x000000F0;  // 00001110000
-  static const int kFlagsKindMask           = 0x00000F00;  // 11110000000
-  static const int kFlagsCacheInPrototypeMapMask = 0x00001000;
-  static const int kFlagsExtraICStateMask   = 0x00006000;
-  static const int kFlagsArgumentsCountMask = 0xFFFF8000;
+  // Signed field cannot be encoded using the BitField class.
+  static const int kFlagsArgumentsCountShift = 15;
+  static const int kFlagsArgumentsCountMask = 0xffff8000;
 
   static const int kFlagsNotUsedInLookup =
-      (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
+      ICInLoopField::kMask | TypeField::kMask | CacheHolderField::kMask;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

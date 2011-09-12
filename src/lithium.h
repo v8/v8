@@ -165,8 +165,7 @@ class LUnallocated: public LOperand {
   }
   Policy policy() const { return PolicyField::decode(value_); }
   void set_policy(Policy policy) {
-    value_ &= ~PolicyField::mask();
-    value_ |= PolicyField::encode(policy);
+    value_ = PolicyField::update(value_, policy);
   }
   int fixed_index() const {
     return static_cast<int>(value_) >> kFixedIndexShift;
@@ -177,8 +176,7 @@ class LUnallocated: public LOperand {
   }
 
   void set_virtual_register(unsigned id) {
-    value_ &= ~VirtualRegisterField::mask();
-    value_ |= VirtualRegisterField::encode(id);
+    value_ = VirtualRegisterField::update(value_, id);
   }
 
   LUnallocated* CopyUnconstrained() {
