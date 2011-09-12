@@ -138,20 +138,6 @@ function assertNoEntry(codeMap, addr) {
 })();
 
 
-(function testDeadCodeCleanups() {
-  var codeMap = new CodeMap();
-  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code1'));
-  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code2'));
-  assertEntry(codeMap, 'code1', 0x1500);
-  assertEntry(codeMap, 'code2', 0x1700);
-  codeMap.moveCode(0x1500, 0x1700);  // Deprecate code2.
-  assertEntry(codeMap, 'code1', 0x1700);
-  codeMap.addCode(0x1750, newCodeEntry(0x100, 'code3'));
-  assertNoEntry(codeMap, 0x1700);
-  assertEntry(codeMap, 'code3', 0x1750);
-})();
-
-
 (function testDynamicNamesDuplicates() {
   var codeMap = new CodeMap();
   // Code entries with same names but different addresses.

@@ -58,7 +58,8 @@ Profile.prototype.skipThisFunction = function(name) {
  */
 Profile.Operation = {
   MOVE: 0,
-  TICK: 1
+  DELETE: 1,
+  TICK: 2
 };
 
 
@@ -162,13 +163,15 @@ Profile.prototype.addFuncCode = function(
     func.name = name;
   }
   var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
-  if (entry && entry.size === size && entry.func === func) {
-    // Entry state has changed.
-    entry.state = state;
-    return entry;
+  if (entry) {
+    if (entry.size === size && entry.func === func) {
+      // Entry state has changed.
+      entry.state = state;
+    }
+  } else {
+    entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
+    this.codeMap_.addCode(start, entry);
   }
-  entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
-  this.codeMap_.addCode(start, entry);
   return entry;
 };
 
@@ -184,6 +187,20 @@ Profile.prototype.moveCode = function(from, to) {
     this.codeMap_.moveCode(from, to);
   } catch (e) {
     this.handleUnknownCode(Profile.Operation.MOVE, from);
+  }
+};
+
+
+/**
+ * Reports about deletion of a dynamic code entry.
+ *
+ * @param {number} start Starting address.
+ */
+Profile.prototype.deleteCode = function(start) {
+  try {
+    this.codeMap_.deleteCode(start);
+  } catch (e) {
+    this.handleUnknownCode(Profile.Operation.DELETE, start);
   }
 };
 
