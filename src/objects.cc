@@ -84,7 +84,7 @@ MaybeObject* Object::ToObject(Context* global_context) {
 
 
 MaybeObject* Object::ToObject() {
-  if (IsJSObject()) {
+  if (IsJSReceiver()) {
     return this;
   } else if (IsNumber()) {
     Isolate* isolate = Isolate::Current();
@@ -627,6 +627,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         } else if (heap_object->IsBoolean()) {
           holder = global_context->boolean_function()->instance_prototype();
         } else if (heap_object->IsJSProxy()) {
+          // TODO(rossberg): do something
           return heap->undefined_value();  // For now...
         } else {
           // Undefined and null have no indexed properties.
@@ -1173,6 +1174,12 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
+    case JS_PROXY_TYPE:
+      accumulator->Add("<JSProxy>");
+      break;
+    case JS_FUNCTION_PROXY_TYPE:
+      accumulator->Add("<JSFunctionProxy>");
+      break;
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
@@ -1250,6 +1257,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
+      break;
+    case JS_FUNCTION_PROXY_TYPE:
+      JSFunctionProxy::BodyDescriptor::IterateBody(this, v);
       break;
     case FOREIGN_TYPE:
       reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
@@ -2337,9 +2347,13 @@ void JSProxy::Fix() {
   HandleScope scope(isolate);
   Handle<JSProxy> self(this);
 
-  isolate->factory()->BecomeJSObject(self);
+  if (IsJSFunctionProxy()) {
+    isolate->factory()->BecomeJSFunction(self);
+    // Code will be set on the JavaScript side.
+  } else {
+    isolate->factory()->BecomeJSObject(self);
+  }
   ASSERT(self->IsJSObject());
-  // TODO(rossberg): recognize function proxies.
 }
 
 

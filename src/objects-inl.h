@@ -3920,7 +3920,16 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
-ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
+ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)
+ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
+
+
+void JSProxy::InitializeBody(int object_size, Object* value) {
+  ASSERT(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
+    WRITE_FIELD(this, offset, value);
+  }
+}
 
 
 ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)

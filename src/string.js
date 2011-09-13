@@ -223,7 +223,7 @@ function StringReplace(search, replace) {
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
-    if (IS_FUNCTION(replace)) {
+    if (IS_SPEC_FUNCTION(replace)) {
       if (search.global) {
         return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
       } else {
@@ -250,7 +250,7 @@ function StringReplace(search, replace) {
   builder.addSpecialSlice(0, start);
 
   // Compute the string to replace with.
-  if (IS_FUNCTION(replace)) {
+  if (IS_SPEC_FUNCTION(replace)) {
     var receiver = %GetDefaultReceiver(replace);
     builder.add(%_CallFunction(receiver,
                                search,

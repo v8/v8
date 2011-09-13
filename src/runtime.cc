@@ -613,6 +613,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSFunctionProxy) {
+  ASSERT(args.length() == 4);
+  Object* handler = args[0];
+  Object* call_trap = args[1];
+  Object* construct_trap = args[2];
+  Object* prototype = args[3];
+  Object* used_prototype =
+      prototype->IsJSReceiver() ? prototype : isolate->heap()->null_value();
+  return isolate->heap()->AllocateJSFunctionProxy(
+      handler, call_trap, construct_trap, used_prototype);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
   ASSERT(args.length() == 1);
   Object* obj = args[0];
@@ -620,10 +633,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSFunctionProxy) {
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  return isolate->heap()->ToBoolean(obj->IsJSFunctionProxy());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSProxy, proxy, args[0]);
   return proxy->handler();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetCallTrap) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunctionProxy, proxy, args[0]);
+  return proxy->call_trap();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructTrap) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunctionProxy, proxy, args[0]);
+  return proxy->construct_trap();
 }
 
 
@@ -2154,7 +2188,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsBuiltin) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -5101,6 +5134,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
     case JS_FUNCTION_TYPE:
+    case JS_FUNCTION_PROXY_TYPE:
       return isolate->heap()->function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
@@ -8413,6 +8447,49 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 5);
+  CONVERT_CHECKED(JSReceiver, fun, args[0]);
+  Object* receiver = args[1];
+  CONVERT_CHECKED(JSObject, arguments, args[2]);
+  CONVERT_CHECKED(Smi, shift, args[3]);
+  CONVERT_CHECKED(Smi, arity, args[4]);
+
+  int offset = shift->value();
+  int argc = arity->value();
+  ASSERT(offset >= 0);
+  ASSERT(argc >= 0);
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+     MaybeObject* maybe = arguments->GetElement(offset + i);
+     Object* object;
+     if (!maybe->To<Object>(&object)) return maybe;
+     argv[i] = Handle<Object>(object);
+  }
+
+  bool threw = false;
+  Handle<JSReceiver> hfun(fun);
+  Handle<Object> hreceiver(receiver);
+  Handle<Object> result = Execution::Call(
+      hfun, hreceiver, argc, reinterpret_cast<Object***>(argv), &threw, true);
+
+  if (threw) return Failure::Exception();
+  return *result;
 }
 
 

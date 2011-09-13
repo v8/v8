@@ -4199,7 +4199,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -4224,7 +4224,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(edi, Operand(esp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(edi, &slow);
+  __ JumpIfSmi(edi, &non_function);
   // Goto slow case if we do not have a function.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &slow);
@@ -4251,15 +4251,32 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &non_function);
+  __ pop(ecx);
+  __ push(edi);  // put proxy as additional argument under return address
+  __ push(ecx);
+  __ Set(eax, Immediate(argc_ + 1));
+  __ Set(ebx, Immediate(0));
+  __ SetCallKind(ecx, CALL_AS_FUNCTION);
+  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
+  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 

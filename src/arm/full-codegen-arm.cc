@@ -2514,7 +2514,7 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
 

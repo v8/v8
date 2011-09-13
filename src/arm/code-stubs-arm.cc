@@ -4713,7 +4713,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -4739,7 +4739,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Check that the function is really a JavaScript function.
   // r1: pushed function (to be verified)
-  __ JumpIfSmi(r1, &slow);
+  __ JumpIfSmi(r1, &non_function);
   // Get the map of the function object.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &slow);
@@ -4767,8 +4767,23 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ cmp(r2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ b(ne, &non_function);
+  __ push(r1);  // put proxy as additional argument
+  __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE));
+  __ mov(r2, Operand(0, RelocInfo::NONE));
+  __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
+  __ SetCallKind(r5, CALL_AS_FUNCTION);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
   __ mov(r2, Operand(0, RelocInfo::NONE));

@@ -4740,7 +4740,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
   // Indicates whether the function is a native function.
-  // These needs special threatment in .call and .apply since
+  // These needs special treatment in .call and .apply since
   // null passed as the receiver should not be translated to the
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
@@ -5007,7 +5007,7 @@ class JSFunction: public JSObject {
   // [prototype_or_initial_map]:
   DECL_ACCESSORS(prototype_or_initial_map, Object)
 
-  // [shared_function_info]: The information about the function that
+  // [shared]: The information about the function that
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
@@ -6724,9 +6724,6 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
-  // [padding]: The padding slot (unused, see below).
-  DECL_ACCESSORS(padding, Object)
-
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
@@ -6750,6 +6747,9 @@ class JSProxy: public JSReceiver {
   // Turn this into an (empty) JSObject.
   void Fix();
 
+  // Initializes the body after the handler slot.
+  inline void InitializeBody(int object_size, Object* value);
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void JSProxyPrint() {
@@ -6766,9 +6766,11 @@ class JSProxy: public JSReceiver {
   // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
   static const int kPaddingOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kPaddingOffset + kPointerSize;
+  static const int kSize = JSObject::kHeaderSize;
+  static const int kHeaderSize = kPaddingOffset;
+  static const int kPaddingSize = kSize - kPaddingOffset;
 
-  STATIC_CHECK(kSize == JSObject::kHeaderSize);
+  STATIC_CHECK(kPaddingSize >= 0);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,
@@ -6779,11 +6781,40 @@ class JSProxy: public JSReceiver {
 };
 
 
-// TODO(rossberg): Only a stub for now.
 class JSFunctionProxy: public JSProxy {
  public:
+  // [call_trap]: The call trap.
+  DECL_ACCESSORS(call_trap, Object)
+
+  // [construct_trap]: The construct trap.
+  DECL_ACCESSORS(construct_trap, Object)
+
   // Casting.
   static inline JSFunctionProxy* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSFunctionProxyPrint() {
+    JSFunctionProxyPrint(stdout);
+  }
+  void JSFunctionProxyPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSFunctionProxyVerify();
+#endif
+
+  // Layout description.
+  static const int kCallTrapOffset = kHandlerOffset + kPointerSize;
+  static const int kConstructTrapOffset = kCallTrapOffset + kPointerSize;
+  static const int kPaddingOffset = kConstructTrapOffset + kPointerSize;
+  static const int kSize = JSFunction::kSize;
+  static const int kPaddingSize = kSize - kPaddingOffset;
+
+  STATIC_CHECK(kPaddingSize >= 0);
+
+  typedef FixedBodyDescriptor<kHandlerOffset,
+                              kConstructTrapOffset + kPointerSize,
+                              kSize> BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);
