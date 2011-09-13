@@ -191,6 +191,8 @@ class ShellOptions {
      num_isolates(1),
      isolate_sources(NULL) { }
 
+  ~ShellOptions();
+
 #ifndef V8_SHARED
   bool use_preemption;
   int preemption_interval;

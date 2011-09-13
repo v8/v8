@@ -1090,6 +1090,16 @@ void SourceGroup::WaitForThread() {
 #endif  // V8_SHARED
 
 
+ShellOptions::~ShellOptions() {
+  delete[] isolate_sources;
+  isolate_sources = NULL;
+#ifndef V8_SHARED
+  delete parallel_files;
+  parallel_files = NULL;
+#endif // V8_SHARED
+}
+
+
 bool Shell::SetOptions(int argc, char* argv[]) {
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
@@ -1198,7 +1208,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-  // set up isolated source groups
+  // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
   SourceGroup* current = options.isolate_sources;
   current->Begin(argv, 1);
