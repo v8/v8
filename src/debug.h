@@ -508,6 +508,9 @@ class Debug {
     // Frame pointer from last step next action.
     Address last_fp_;
 
+    // Number of queued steps left to perform before debug event.
+    int queued_step_count_;
+
     // Frame pointer for frame from which step in was performed.
     Address step_into_fp_;
 
