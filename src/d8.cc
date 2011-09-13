@@ -1160,10 +1160,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_SHARED
       options.num_isolates++;
     } else if (strcmp(argv[i], "-p") == 0) {
-      options.num_parallel_files++;
 #ifdef V8_SHARED
       printf("D8 with shared library does not support multi-threading\n");
       return false;
+#else
+      options.num_parallel_files++;
 #endif  // V8_SHARED
     }
 #ifdef V8_SHARED
