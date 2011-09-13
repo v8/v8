@@ -650,7 +650,10 @@ void Heap::ClearJSFunctionResultCaches() {
 
 
 void Heap::ClearNormalizedMapCaches() {
-  if (isolate_->bootstrapper()->IsActive()) return;
+  if (isolate_->bootstrapper()->IsActive() &&
+      !incremental_marking()->IsMarking()) {
+    return;
+  }
 
   Object* context = global_contexts_list_;
   while (!context->IsUndefined()) {

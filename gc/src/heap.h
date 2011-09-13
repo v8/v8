@@ -1412,6 +1412,10 @@ class Heap {
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FreeQueuedChunks();
 
+  // Completely clear the Instanceof cache (to stop it keeping objects alive
+  // around a GC).
+  inline void CompletelyClearInstanceofCache();
+
  private:
   Heap();
 
@@ -1654,10 +1658,6 @@ class Heap {
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
-
-  // Completely clear the Instanceof cache (to stop it keeping objects alive
-  // around a GC).
-  inline void CompletelyClearInstanceofCache();
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();

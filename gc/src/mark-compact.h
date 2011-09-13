@@ -119,6 +119,12 @@ class Marking {
     BlackToGrey(MarkBitFrom(obj));
   }
 
+  static inline void AnyToGrey(MarkBit markbit) {
+    markbit.Set();
+    markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
+  }
+
   // Returns true if the the object whose mark is transferred is marked black.
   bool TransferMark(Address old_start, Address new_start);
 

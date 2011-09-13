@@ -218,6 +218,8 @@ class IncrementalMarking {
 
   void EnsureMarkingDequeIsCommitted();
 
+  void VisitGlobalContext(Context* ctx, ObjectVisitor* v);
+
   Heap* heap_;
 
   State state_;
