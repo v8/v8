@@ -1492,6 +1492,8 @@ class PagedSpace : public Space {
 
   void EvictEvacuationCandidatesFromFreeLists();
 
+  bool CanExpand();
+
  protected:
   // Maximum capacity of this space.
   intptr_t max_capacity_;

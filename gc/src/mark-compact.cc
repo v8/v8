@@ -2576,10 +2576,16 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
 
-      // This should never fail as we are in always allocate scope.
-      Object* target = space->AllocateRaw(size)->ToObjectUnchecked();
+      MaybeObject* target = space->AllocateRaw(size);
+      if (target->IsFailure()) {
+        // OS refused to give us memory.
+        V8::FatalProcessOutOfMemory("Evacuation");
+        return;
+      }
 
-      MigrateObject(HeapObject::cast(target)->address(),
+      Object* target_object = target->ToObjectUnchecked();
+
+      MigrateObject(HeapObject::cast(target_object)->address(),
                     object_addr,
                     size,
                     space->identity());
@@ -2599,7 +2605,19 @@ void MarkCompactCollector::EvacuatePages() {
     ASSERT(p->IsEvacuationCandidate() ||
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
     if (p->IsEvacuationCandidate()) {
-      EvacuateLiveObjectsFromPage(p);
+      // During compaction we might have to request a new page.
+      // Check that space still have room for that.
+      if (static_cast<PagedSpace*>(p->owner())->CanExpand()) {
+        EvacuateLiveObjectsFromPage(p);
+      } else {
+        // Without room for expansion evacuation is not guaranteed to succeed.
+        // Pessimistically abandon unevacuated pages.
+        for (int j = i; j < npages; j++) {
+          evacuation_candidates_[j]->ClearEvacuationCandidate();
+          evacuation_candidates_[j]->SetFlag(Page::RESCAN_ON_EVACUATION);
+        }
+        return;
+      }
     }
   }
 }
@@ -2807,10 +2825,14 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       PagedSpace* space = static_cast<PagedSpace*>(p->owner());
       p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
 
-      SweepPrecisely(space,
-                     p,
-                     SWEEP_AND_VISIT_LIVE_OBJECTS,
-                     &updating_visitor);
+      if (space->identity() == OLD_DATA_SPACE) {
+        SweepConservatively(space, p);
+      } else {
+        SweepPrecisely(space,
+                       p,
+                       SWEEP_AND_VISIT_LIVE_OBJECTS,
+                       &updating_visitor);
+      }
     }
   }
 

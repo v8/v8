@@ -721,8 +721,7 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
   return Failure::Exception();
 }
 
-
-bool PagedSpace::Expand() {
+bool PagedSpace::CanExpand() {
   ASSERT(max_capacity_ % Page::kObjectAreaSize == 0);
   ASSERT(Capacity() % Page::kObjectAreaSize == 0);
 
@@ -732,6 +731,12 @@ bool PagedSpace::Expand() {
 
   // Are we going to exceed capacity for this space?
   if ((Capacity() + Page::kPageSize) > max_capacity_) return false;
+
+  return true;
+}
+
+bool PagedSpace::Expand() {
+  if (!CanExpand()) return false;
 
   Page* p = heap()->isolate()->memory_allocator()->
       AllocatePage(this, executable());
