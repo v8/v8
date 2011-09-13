@@ -823,7 +823,7 @@ static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
   void* ptr = v8::External::Unwrap(args.Data());
   CHECK_EQ(expected_ptr, ptr);
-  return v8::Boolean::New(true);
+  return v8::True();
 }
 
 
@@ -2623,7 +2623,7 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 
 
 v8::Handle<Value> CCatcher(const v8::Arguments& args) {
-  if (args.Length() < 1) return v8::Boolean::New(false);
+  if (args.Length() < 1) return v8::False();
   v8::HandleScope scope;
   v8::TryCatch try_catch;
   Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
@@ -4240,7 +4240,7 @@ template <typename T> static void USE(T) { }
 
 
 // This test is not intended to be run, just type checked.
-static void PersistentHandles() {
+static inline void PersistentHandles() {
   USE(PersistentHandles);
   Local<String> str = v8_str("foo");
   v8::Persistent<String> p_str = v8::Persistent<String>::New(str);
@@ -7310,7 +7310,7 @@ THREADED_TEST(ConstructorForObject) {
     CHECK(value->IsBoolean());
     CHECK_EQ(true, value->BooleanValue());
 
-    Handle<Value> args3[] = { v8::Boolean::New(true) };
+    Handle<Value> args3[] = { v8::True() };
     Local<Value> value_obj3 = instance->CallAsConstructor(1, args3);
     CHECK(value_obj3->IsObject());
     Local<Object> object3 = Local<Object>::Cast(value_obj3);
@@ -9581,10 +9581,7 @@ THREADED_TEST(Overriding) {
 
 static v8::Handle<Value> IsConstructHandler(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  if (args.IsConstructCall()) {
-    return v8::Boolean::New(true);
-  }
-  return v8::Boolean::New(false);
+  return v8::Boolean::New(args.IsConstructCall());
 }
 
 
@@ -11812,14 +11809,21 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(28, result->Int32Value());
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  i::Handle<i::Object> no_failure;
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(255,
            i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -14471,34 +14475,34 @@ TEST(RegExp) {
   v8::Handle<v8::RegExp> re = v8::RegExp::New(v8_str("foo"), v8::RegExp::kNone);
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("foo")));
-  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
   re = v8::RegExp::New(v8_str("bar"),
                        static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
                                                       v8::RegExp::kGlobal));
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("bar")));
-  CHECK_EQ(static_cast<int>(re->GetFlags()),
-           v8::RegExp::kIgnoreCase | v8::RegExp::kGlobal);
+  CHECK_EQ(v8::RegExp::kIgnoreCase | v8::RegExp::kGlobal,
+           static_cast<int>(re->GetFlags()));
 
   re = v8::RegExp::New(v8_str("baz"),
                        static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
                                                       v8::RegExp::kMultiline));
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("baz")));
-  CHECK_EQ(static_cast<int>(re->GetFlags()),
-           v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline);
+  CHECK_EQ(v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline,
+           static_cast<int>(re->GetFlags()));
 
   re = CompileRun("/quux/").As<v8::RegExp>();
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("quux")));
-  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
   re = CompileRun("/quux/gm").As<v8::RegExp>();
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("quux")));
-  CHECK_EQ(static_cast<int>(re->GetFlags()),
-           v8::RegExp::kGlobal | v8::RegExp::kMultiline);
+  CHECK_EQ(v8::RegExp::kGlobal | v8::RegExp::kMultiline,
+           static_cast<int>(re->GetFlags()));
 
   // Override the RegExp constructor and check the API constructor
   // still works.
@@ -14507,15 +14511,15 @@ TEST(RegExp) {
   re = v8::RegExp::New(v8_str("foobar"), v8::RegExp::kNone);
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("foobar")));
-  CHECK_EQ(re->GetFlags(), v8::RegExp::kNone);
+  CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
 
   re = v8::RegExp::New(v8_str("foobarbaz"),
                        static_cast<v8::RegExp::Flags>(v8::RegExp::kIgnoreCase |
                                                       v8::RegExp::kMultiline));
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("foobarbaz")));
-  CHECK_EQ(static_cast<int>(re->GetFlags()),
-           v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline);
+  CHECK_EQ(v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline,
+           static_cast<int>(re->GetFlags()));
 
   context->Global()->Set(v8_str("re"), re);
   ExpectTrue("re.test('FoobarbaZ')");
@@ -15064,4 +15068,108 @@ THREADED_TEST(Regress93759) {
   CHECK(result6->Equals(Undefined()));
 
   context.Dispose();
+}
+
+
+static void TestReceiver(Local<Value> expected_result,
+                         Local<Value> expected_receiver,
+                         const char* code) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->IsObject());
+  CHECK(expected_receiver->Equals(result->ToObject()->Get(1)));
+  CHECK(expected_result->Equals(result->ToObject()->Get(0)));
+}
+
+
+THREADED_TEST(ForeignFunctionReceiver) {
+  HandleScope scope;
+
+  // Create two contexts with different "id" properties ('i' and 'o').
+  // Call a function both from its own context and from a the foreign
+  // context, and see what "this" is bound to (returning both "this"
+  // and "this.id" for comparison).
+
+  Persistent<Context> foreign_context = v8::Context::New();
+  foreign_context->Enter();
+  Local<Value> foreign_function =
+    CompileRun("function func() { return { 0: this.id, "
+               "                           1: this, "
+               "                           toString: function() { "
+               "                               return this[0];"
+               "                           }"
+               "                         };"
+               "}"
+               "var id = 'i';"
+               "func;");
+  CHECK(foreign_function->IsFunction());
+  foreign_context->Exit();
+
+  LocalContext context;
+
+  Local<String> password = v8_str("Password");
+  // Don't get hit by security checks when accessing foreign_context's
+  // global receiver (aka. global proxy).
+  context->SetSecurityToken(password);
+  foreign_context->SetSecurityToken(password);
+
+  Local<String> i = v8_str("i");
+  Local<String> o = v8_str("o");
+  Local<String> id = v8_str("id");
+
+  CompileRun("function ownfunc() { return { 0: this.id, "
+             "                              1: this, "
+             "                              toString: function() { "
+             "                                  return this[0];"
+             "                              }"
+             "                             };"
+             "}"
+             "var id = 'o';"
+             "ownfunc");
+  context->Global()->Set(v8_str("func"), foreign_function);
+
+  // Sanity check the contexts.
+  CHECK(i->Equals(foreign_context->Global()->Get(id)));
+  CHECK(o->Equals(context->Global()->Get(id)));
+
+  // Checking local function's receiver.
+  // Calling function using its call/apply methods.
+  TestReceiver(o, context->Global(), "ownfunc.call()");
+  TestReceiver(o, context->Global(), "ownfunc.apply()");
+  // Making calls through built-in functions.
+  TestReceiver(o, context->Global(), "[1].map(ownfunc)[0]");
+  CHECK(o->Equals(CompileRun("'abcbd'.replace(/b/,ownfunc)[1]")));
+  CHECK(o->Equals(CompileRun("'abcbd'.replace(/b/g,ownfunc)[1]")));
+  CHECK(o->Equals(CompileRun("'abcbd'.replace(/b/g,ownfunc)[3]")));
+  // Calling with environment record as base.
+  TestReceiver(o, context->Global(), "ownfunc()");
+  // Calling with no base.
+  TestReceiver(o, context->Global(), "(1,ownfunc)()");
+
+  // Checking foreign function return value.
+  // Calling function using its call/apply methods.
+  TestReceiver(i, foreign_context->Global(), "func.call()");
+  TestReceiver(i, foreign_context->Global(), "func.apply()");
+  // Calling function using another context's call/apply methods.
+  TestReceiver(i, foreign_context->Global(),
+               "Function.prototype.call.call(func)");
+  TestReceiver(i, foreign_context->Global(),
+               "Function.prototype.call.apply(func)");
+  TestReceiver(i, foreign_context->Global(),
+               "Function.prototype.apply.call(func)");
+  TestReceiver(i, foreign_context->Global(),
+               "Function.prototype.apply.apply(func)");
+  // Making calls through built-in functions.
+  TestReceiver(i, foreign_context->Global(), "[1].map(func)[0]");
+  // ToString(func()) is func()[0], i.e., the returned this.id.
+  CHECK(i->Equals(CompileRun("'abcbd'.replace(/b/,func)[1]")));
+  CHECK(i->Equals(CompileRun("'abcbd'.replace(/b/g,func)[1]")));
+  CHECK(i->Equals(CompileRun("'abcbd'.replace(/b/g,func)[3]")));
+
+  // TODO(1547): Make the following also return "i".
+  // Calling with environment record as base.
+  TestReceiver(o, context->Global(), "func()");
+  // Calling with no base.
+  TestReceiver(o, context->Global(), "(1,func)()");
+
+  foreign_context.Dispose();
 }

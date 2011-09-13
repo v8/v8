@@ -1220,6 +1220,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       case kConsStringTag:
         ConsString::BodyDescriptor::IterateBody(this, v);
         break;
+      case kSlicedStringTag:
+        SlicedString::BodyDescriptor::IterateBody(this, v);
+        break;
       case kExternalStringTag:
         if ((type & kStringEncodingMask) == kAsciiStringTag) {
           reinterpret_cast<ExternalAsciiString*>(this)->
@@ -5061,6 +5064,7 @@ String::FlatContent String::GetFlatContent() {
   int length = this->length();
   StringShape shape(this);
   String* string = this;
+  int offset = 0;
   if (shape.representation_tag() == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
     if (cons->second()->length() != 0) {
@@ -5069,6 +5073,14 @@ String::FlatContent String::GetFlatContent() {
     string = cons->first();
     shape = StringShape(string);
   }
+  if (shape.representation_tag() == kSlicedStringTag) {
+    SlicedString* slice = SlicedString::cast(string);
+    offset = slice->offset();
+    string = slice->parent();
+    shape = StringShape(string);
+    ASSERT(shape.representation_tag() != kConsStringTag &&
+           shape.representation_tag() != kSlicedStringTag);
+  }
   if (shape.encoding_tag() == kAsciiStringTag) {
     const char* start;
     if (shape.representation_tag() == kSeqStringTag) {
@@ -5076,7 +5088,7 @@ String::FlatContent String::GetFlatContent() {
     } else {
       start = ExternalAsciiString::cast(string)->resource()->data();
     }
-    return FlatContent(Vector<const char>(start, length));
+    return FlatContent(Vector<const char>(start + offset, length));
   } else {
     ASSERT(shape.encoding_tag() == kTwoByteStringTag);
     const uc16* start;
@@ -5085,7 +5097,7 @@ String::FlatContent String::GetFlatContent() {
     } else {
       start = ExternalTwoByteString::cast(string)->resource()->data();
     }
-    return FlatContent(Vector<const uc16>(start, length));
+    return FlatContent(Vector<const uc16>(start + offset, length));
   }
 }
 
@@ -5157,13 +5169,17 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!IsAsciiRepresentation());
+  ASSERT(!IsAsciiRepresentationUnderneath());
   switch (StringShape(this).representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
     case kExternalStringTag:
       return ExternalTwoByteString::cast(this)->
         ExternalTwoByteStringGetData(start);
+    case kSlicedStringTag: {
+      SlicedString* slice = SlicedString::cast(this);
+      return slice->parent()->GetTwoByteData(start + slice->offset());
+    }
     case kConsStringTag:
       UNREACHABLE();
       return NULL;
@@ -5454,6 +5470,10 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                      max_chars);
         return rbb->util_buffer;
       }
+    case kSlicedStringTag:
+      return SlicedString::cast(input)->SlicedStringReadBlock(rbb,
+                                                              offset_ptr,
+                                                              max_chars);
     default:
       break;
   }
@@ -5597,6 +5617,11 @@ void String::ReadBlockIntoBuffer(String* input,
                                                      max_chars);
        }
        return;
+    case kSlicedStringTag:
+      SlicedString::cast(input)->SlicedStringReadBlockIntoBuffer(rbb,
+                                                                 offset_ptr,
+                                                                 max_chars);
+      return;
     default:
       break;
   }
@@ -5731,6 +5756,31 @@ uint16_t ConsString::ConsStringGet(int index) {
 }
 
 
+uint16_t SlicedString::SlicedStringGet(int index) {
+  return parent()->Get(offset() + index);
+}
+
+
+const unibrow::byte* SlicedString::SlicedStringReadBlock(
+    ReadBlockBuffer* buffer, unsigned* offset_ptr, unsigned chars) {
+  unsigned offset = this->offset();
+  *offset_ptr += offset;
+  const unibrow::byte* answer = String::ReadBlock(String::cast(parent()),
+                                                  buffer, offset_ptr, chars);
+  *offset_ptr -= offset;
+  return answer;
+}
+
+
+void SlicedString::SlicedStringReadBlockIntoBuffer(
+    ReadBlockBuffer* buffer, unsigned* offset_ptr, unsigned chars) {
+  unsigned offset = this->offset();
+  *offset_ptr += offset;
+  String::ReadBlockIntoBuffer(String::cast(parent()),
+                              buffer, offset_ptr, chars);
+  *offset_ptr -= offset;
+}
+
 template <typename sinkchar>
 void String::WriteToFlat(String* src,
                          sinkchar* sink,
@@ -5797,6 +5847,13 @@ void String::WriteToFlat(String* src,
           source = first;
         }
         break;
+      }
+      case kAsciiStringTag | kSlicedStringTag:
+      case kTwoByteStringTag | kSlicedStringTag: {
+        SlicedString* slice = SlicedString::cast(source);
+        unsigned offset = slice->offset();
+        WriteToFlat(slice->parent(), sink, from + offset, to + offset);
+        return;
       }
     }
   }
@@ -6973,7 +7030,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           JSFunction* function =
               JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
-          PrintF(out, "{ast_id=%d, \nfunction=", ast_id);
+          PrintF(out, "{ast_id=%d, function=", ast_id);
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
           break;

@@ -44,6 +44,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   ConsString::BodyDescriptor,
                   int>::Visit);
 
+  table_.Register(kVisitSlicedString,
+                  &FixedBodyVisitor<StaticVisitor,
+                  SlicedString::BodyDescriptor,
+                  int>::Visit);
+
   table_.Register(kVisitFixedArray,
                   &FlexibleBodyVisitor<StaticVisitor,
                   FixedArray::BodyDescriptor,

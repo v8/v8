@@ -100,6 +100,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitStructGeneric,
 
     kVisitConsString,
+    kVisitSlicedString,
     kVisitOddball,
     kVisitCode,
     kVisitMap,

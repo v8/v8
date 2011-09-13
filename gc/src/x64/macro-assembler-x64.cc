@@ -993,7 +993,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
 
 
 void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   if (!dst.is(src)) {
     movl(dst, src);
   }
@@ -1031,7 +1031,7 @@ void MacroAssembler::Integer64PlusConstantToSmi(Register dst,
 
 
 void MacroAssembler::SmiToInteger32(Register dst, Register src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   if (!dst.is(src)) {
     movq(dst, src);
   }
@@ -1045,7 +1045,7 @@ void MacroAssembler::SmiToInteger32(Register dst, const Operand& src) {
 
 
 void MacroAssembler::SmiToInteger64(Register dst, Register src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   if (!dst.is(src)) {
     movq(dst, src);
   }
@@ -1181,21 +1181,21 @@ void MacroAssembler::SmiOrIfSmis(Register dst, Register src1, Register src2,
 
 
 Condition MacroAssembler::CheckSmi(Register src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   testb(src, Immediate(kSmiTagMask));
   return zero;
 }
 
 
 Condition MacroAssembler::CheckSmi(const Operand& src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   testb(src, Immediate(kSmiTagMask));
   return zero;
 }
 
 
 Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   // Test that both bits of the mask 0x8000000000000001 are zero.
   movq(kScratchRegister, src);
   rol(kScratchRegister, Immediate(1));
@@ -1208,7 +1208,7 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
   if (first.is(second)) {
     return CheckSmi(first);
   }
-  ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
+  STATIC_ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
   leal(kScratchRegister, Operand(first, second, times_1, 0));
   testb(kScratchRegister, Immediate(0x03));
   return zero;
@@ -1364,7 +1364,7 @@ void MacroAssembler::SmiTryAddConstant(Register dst,
                                        Label::Distance near_jump) {
   // Does not assume that src is a smi.
   ASSERT_EQ(static_cast<int>(1), static_cast<int>(kSmiTagMask));
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src.is(kScratchRegister));
 
@@ -2068,7 +2068,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
     Check(not_both_smis, "Both registers were smis in SelectNonSmi.");
   }
 #endif
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   ASSERT_EQ(0, Smi::FromInt(0));
   movl(kScratchRegister, Immediate(kSmiTagMask));
   and_(kScratchRegister, src1);
@@ -2769,7 +2769,7 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register instance_type) {
   movq(map, FieldOperand(heap_object, HeapObject::kMapOffset));
   movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   testb(instance_type, Immediate(kIsNotStringMask));
   return zero;
 }
@@ -3693,7 +3693,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateConsString(Register result,
+void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Label* gc_required) {
@@ -3725,6 +3725,42 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 
   // Set the map. The other fields are left uninitialized.
   LoadRoot(kScratchRegister, Heap::kConsAsciiStringMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                          Register scratch1,
+                                          Register scratch2,
+                                          Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  LoadRoot(kScratchRegister, Heap::kSlicedStringMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  LoadRoot(kScratchRegister, Heap::kSlicedAsciiStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
@@ -3996,12 +4032,12 @@ void MacroAssembler::JumpIfDataObject(
   movq(scratch, FieldOperand(value, HeapObject::kMapOffset));
   CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
   j(equal, &is_data_object, Label::kNear);
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
   // If it's a string and it's not a cons string then it's an object containing
   // no GC pointers.
   testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-        Immediate(kIsConsStringMask | kIsNotStringMask));
+        Immediate(kIsIndirectStringMask | kIsNotStringMask));
   j(not_zero, not_data_object, not_data_object_distance);
   bind(&is_data_object);
 }
@@ -4082,15 +4118,15 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&not_heap_number);
   // Check for strings.
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
   // If it's a string and it's not a cons string then it's an object containing
   // no GC pointers.
   Register instance_type = rcx;
   movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  testb(instance_type, Immediate(kIsConsStringMask | kIsNotStringMask));
+  testb(instance_type, Immediate(kIsIndirectStringMask | kIsNotStringMask));
   j(not_zero, value_is_white_and_not_data);
-  // It's a non-cons string.
+  // It's a non-indirect (non-cons and non-slice) string.
   // If it's external, the length is just ExternalString::kSize.
   // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
   Label not_external;

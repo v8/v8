@@ -65,7 +65,7 @@ namespace internal {
   F(ToSlowProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
-  F(GetGlobalReceiver, 0, 1) \
+  F(GetDefaultReceiver, 1, 1) \
   \
   F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
@@ -79,6 +79,7 @@ namespace internal {
   F(PreventExtensions, 1, 1)\
   \
   /* Utilities */ \
+  F(CheckIsBootstrapping, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
@@ -317,7 +318,7 @@ namespace internal {
   F(StoreContextSlot, 4, 1) \
   \
   /* Declarations and initialization */ \
-  F(DeclareGlobals, 4, 1) \
+  F(DeclareGlobals, 3, 1) \
   F(DeclareContextSlot, 4, 1) \
   F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
@@ -491,8 +492,7 @@ namespace internal {
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
-  F(FastAsciiArrayJoin, 2, 1)                                                \
-  F(IsNativeOrStrictMode, 1, 1)
+  F(FastAsciiArrayJoin, 2, 1)
 
 
 // ----------------------------------------------------------------------------
@@ -662,6 +662,16 @@ class Runtime : public AllStatic {
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);
+};
+
+
+//---------------------------------------------------------------------------
+// Constants used by interface to runtime functions.
+
+enum kDeclareGlobalsFlags {
+  kDeclareGlobalsEvalFlag = 1 << 0,
+  kDeclareGlobalsStrictModeFlag = 1 << 1,
+  kDeclareGlobalsNativeFlag = 1 << 2
 };
 
 } }  // namespace v8::internal

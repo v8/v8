@@ -411,7 +411,7 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register instance_type) {
   mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
   movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   test(instance_type, Immediate(kIsNotStringMask));
   return zero;
 }
@@ -1257,7 +1257,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateConsString(Register result,
+void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Label* gc_required) {
@@ -1290,6 +1290,42 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(isolate()->factory()->cons_ascii_string_map()));
+}
+
+
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                          Register scratch1,
+                                          Register scratch2,
+                                          Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(isolate()->factory()->sliced_string_map()));
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(isolate()->factory()->sliced_ascii_string_map()));
 }
 
 
@@ -2251,7 +2287,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
                                                          Register scratch2,
                                                          Label* failure) {
   // Check that both objects are not smis.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   mov(scratch1, Operand(object1));
   and_(scratch1, Operand(object2));
   JumpIfSmi(scratch1, failure);
@@ -2485,15 +2521,15 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&not_heap_number);
   // Check for strings.
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
   // If it's a string and it's not a cons string then it's an object containing
   // no GC pointers.
   Register instance_type = ecx;
   movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  test_b(Operand(instance_type), kIsConsStringMask | kIsNotStringMask);
+  test_b(Operand(instance_type), kIsIndirectStringMask | kIsNotStringMask);
   j(not_zero, value_is_white_and_not_data);
-  // It's a non-cons string.
+  // It's a non-indirect (non-cons and non-slice) string.
   // If it's external, the length is just ExternalString::kSize.
   // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
   Label not_external;

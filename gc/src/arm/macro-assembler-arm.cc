@@ -1771,6 +1771,46 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                                 Register length,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedAsciiStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
@@ -3252,12 +3292,12 @@ void MacroAssembler::JumpIfDataObject(Register value,
   ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
   CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
   b(eq, &is_data_object);
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
   // If it's a string and it's not a cons string then it's an object containing
   // no GC pointers.
   ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  tst(scratch, Operand(kIsConsStringMask | kIsNotStringMask));
+  tst(scratch, Operand(kIsIndirectStringMask | kIsNotStringMask));
   b(ne, not_data_object);
   bind(&is_data_object);
 }
@@ -3323,15 +3363,15 @@ void MacroAssembler::EnsureNotWhite(
   b(eq, &is_data_object);
 
   // Check for strings.
-  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
   // If it's a string and it's not a cons string then it's an object containing
   // no GC pointers.
   Register instance_type = load_scratch;
   ldrb(instance_type, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  tst(instance_type, Operand(kIsConsStringMask | kIsNotStringMask));
+  tst(instance_type, Operand(kIsIndirectStringMask | kIsNotStringMask));
   b(ne, value_is_white_and_not_data);
-  // It's a non-cons string.
+  // It's a non-indirect (non-cons and non-slice) string.
   // If it's external, the length is just ExternalString::kSize.
   // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
   // External strings are the only ones with the kExternalStringTag bit

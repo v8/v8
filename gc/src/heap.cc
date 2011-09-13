@@ -82,7 +82,7 @@ Heap::Heap()
       reserved_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      max_old_generation_size_(1024ul * LUMP_OF_MEMORY),
+      max_old_generation_size_(1400ul * LUMP_OF_MEMORY),
       max_executable_size_(256l * LUMP_OF_MEMORY),
 
 // Variables set based on semispace_size_ and old_generation_size_ in
@@ -828,6 +828,7 @@ void Heap::MarkCompactPrologue() {
   isolate_->keyed_lookup_cache()->Clear();
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
+  StringSplitCache::Clear(string_split_cache());
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
@@ -1349,6 +1350,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitConsString,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<ConsString::kSize>);
+
+    table_.Register(kVisitSlicedString,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        template VisitSpecialized<SlicedString::kSize>);
 
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
@@ -2299,6 +2304,13 @@ bool Heap::CreateInitialObjects() {
   }
   set_single_character_string_cache(FixedArray::cast(obj));
 
+  // Allocate cache for string split.
+  { MaybeObject* maybe_obj =
+        AllocateFixedArray(StringSplitCache::kStringSplitCacheSize, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_string_split_cache(FixedArray::cast(obj));
+
   // Allocate cache for external strings pointing to native source code.
   { MaybeObject* maybe_obj = AllocateFixedArray(Natives::GetBuiltinsCount());
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2321,6 +2333,75 @@ bool Heap::CreateInitialObjects() {
   isolate_->compilation_cache()->Clear();
 
   return true;
+}
+
+
+Object* StringSplitCache::Lookup(
+    FixedArray* cache, String* string, String* pattern) {
+  if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+      ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == string &&
+      cache->get(index + kPatternOffset) == pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  index = ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+  if (cache->get(index + kStringOffset) == string &&
+      cache->get(index + kPatternOffset) == pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  return Smi::FromInt(0);
+}
+
+
+void StringSplitCache::Enter(Heap* heap,
+                             FixedArray* cache,
+                             String* string,
+                             String* pattern,
+                             FixedArray* array) {
+  if (!string->IsSymbol() || !pattern->IsSymbol()) return;
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+      ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
+    cache->set(index + kStringOffset, string);
+    cache->set(index + kPatternOffset, pattern);
+    cache->set(index + kArrayOffset, array);
+  } else {
+    uint32_t index2 =
+        ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+      cache->set(index2 + kStringOffset, string);
+      cache->set(index2 + kPatternOffset, pattern);
+      cache->set(index2 + kArrayOffset, array);
+    } else {
+      cache->set(index2 + kStringOffset, Smi::FromInt(0));
+      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
+      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index + kStringOffset, string);
+      cache->set(index + kPatternOffset, pattern);
+      cache->set(index + kArrayOffset, array);
+    }
+  }
+  if (array->length() < 100) {  // Limit how many new symbols we want to make.
+    for (int i = 0; i < array->length(); i++) {
+      String* str = String::cast(array->get(i));
+      Object* symbol;
+      MaybeObject* maybe_symbol = heap->LookupSymbol(str);
+      if (maybe_symbol->ToObject(&symbol)) {
+        array->set(i, symbol);
+      }
+    }
+  }
+  array->set_map(heap->fixed_cow_array_map());
+}
+
+
+void StringSplitCache::Clear(FixedArray* cache) {
+  for (int i = 0; i < kStringSplitCacheSize; i++) {
+    cache->set(i, Smi::FromInt(0));
+  }
 }
 
 
@@ -2644,6 +2725,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
+    // Note that neither of the two inputs can be a slice because:
+    STATIC_ASSERT(String::kMinNonFlatLength <= SlicedString::kMinLength);
     ASSERT(first->IsFlat());
     ASSERT(second->IsFlat());
     if (is_ascii) {
@@ -2735,24 +2818,69 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   // Make an attempt to flatten the buffer to reduce access time.
   buffer = buffer->TryFlattenGetString();
 
-  Object* result;
-  { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
-                   ? AllocateRawAsciiString(length, pretenure )
-                   : AllocateRawTwoByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  String* string_result = String::cast(result);
-  // Copy the characters into the new object.
-  if (buffer->IsAsciiRepresentation()) {
-    ASSERT(string_result->IsAsciiRepresentation());
-    char* dest = SeqAsciiString::cast(string_result)->GetChars();
-    String::WriteToFlat(buffer, dest, start, end);
-  } else {
-    ASSERT(string_result->IsTwoByteRepresentation());
-    uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
-    String::WriteToFlat(buffer, dest, start, end);
+  // TODO(1626): For now slicing external strings is not supported.  However,
+  // a flat cons string can have an external string as first part in some cases.
+  // Therefore we have to single out this case as well.
+  if (!FLAG_string_slices ||
+      (buffer->IsConsString() &&
+        (!buffer->IsFlat() ||
+         !ConsString::cast(buffer)->first()->IsSeqString())) ||
+      buffer->IsExternalString() ||
+      length < SlicedString::kMinLength ||
+      pretenure == TENURED) {
+    Object* result;
+    { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
+                     ? AllocateRawAsciiString(length, pretenure)
+                     : AllocateRawTwoByteString(length, pretenure);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+    String* string_result = String::cast(result);
+    // Copy the characters into the new object.
+    if (buffer->IsAsciiRepresentation()) {
+      ASSERT(string_result->IsAsciiRepresentation());
+      char* dest = SeqAsciiString::cast(string_result)->GetChars();
+      String::WriteToFlat(buffer, dest, start, end);
+    } else {
+      ASSERT(string_result->IsTwoByteRepresentation());
+      uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
+      String::WriteToFlat(buffer, dest, start, end);
+    }
+    return result;
   }
 
+  ASSERT(buffer->IsFlat());
+  ASSERT(!buffer->IsExternalString());
+#if DEBUG
+  buffer->StringVerify();
+#endif
+
+  Object* result;
+  { Map* map = buffer->IsAsciiRepresentation()
+                 ? sliced_ascii_string_map()
+                 : sliced_string_map();
+    MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+
+  AssertNoAllocation no_gc;
+  SlicedString* sliced_string = SlicedString::cast(result);
+  sliced_string->set_length(length);
+  sliced_string->set_hash_field(String::kEmptyHashField);
+  if (buffer->IsConsString()) {
+    ConsString* cons = ConsString::cast(buffer);
+    ASSERT(cons->second()->length() == 0);
+    sliced_string->set_parent(cons->first());
+    sliced_string->set_offset(start);
+  } else if (buffer->IsSlicedString()) {
+    // Prevent nesting sliced strings.
+    SlicedString* parent_slice = SlicedString::cast(buffer);
+    sliced_string->set_parent(parent_slice->parent());
+    sliced_string->set_offset(start + parent_slice->offset());
+  } else {
+    sliced_string->set_parent(buffer);
+    sliced_string->set_offset(start);
+  }
+  ASSERT(sliced_string->parent()->IsSeqString());
   return result;
 }
 
@@ -3575,6 +3703,9 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
+  if (string.length() == 1) {
+    return Heap::LookupSingleCharacterStringFromCode(string[0]);
+  }
   Object* result;
   { MaybeObject* maybe_result =
         AllocateRawAsciiString(string.length(), pretenure);
@@ -4114,10 +4245,9 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
                                         SerializedScopeInfo* scope_info) {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArray(scope_info->NumberOfContextSlots());
+        AllocateFixedArrayWithHoles(scope_info->NumberOfContextSlots());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  // TODO(keuchel): properly initialize context slots.
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(block_context_map());
   context->set_closure(function);

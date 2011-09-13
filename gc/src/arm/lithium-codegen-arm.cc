@@ -198,14 +198,14 @@ bool LCodeGen::GeneratePrologue() {
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        MemOperand target = ContextOperand(cp, slot->index());
+        MemOperand target = ContextOperand(cp, var->index());
         __ str(r0, target);
         // Update the write barrier. This clobbers r3 and r0.
         __ RecordWriteContextSlot(
@@ -3460,97 +3460,82 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     LStringCharCodeAt* instr_;
   };
 
-  Register scratch = scratch0();
   Register string = ToRegister(instr->string());
-  Register index = no_reg;
-  int const_index = -1;
-  if (instr->index()->IsConstantOperand()) {
-    const_index = ToInteger32(LConstantOperand::cast(instr->index()));
-    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-    if (!Smi::IsValid(const_index)) {
-      // Guaranteed to be out of bounds because of the assert above.
-      // So the bounds check that must dominate this instruction must
-      // have deoptimized already.
-      if (FLAG_debug_code) {
-        __ Abort("StringCharCodeAt: out of bounds index.");
-      }
-      // No code needs to be generated.
-      return;
-    }
-  } else {
-    index = ToRegister(instr->index());
-  }
+  Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
 
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(this, instr);
 
-  Label flat_string, ascii_string, done;
-
   // Fetch the instance type of the receiver into result register.
   __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
 
-  // We need special handling for non-flat strings.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ tst(result, Operand(kStringRepresentationMask));
-  __ b(eq, &flat_string);
+  // We need special handling for indirect strings.
+  Label check_sequential;
+  __ tst(result, Operand(kIsIndirectStringMask));
+  __ b(eq, &check_sequential);
 
-  // Handle non-flat strings.
-  __ tst(result, Operand(kIsConsStringMask));
-  __ b(eq, deferred->entry());
+  // Dispatch on the indirect string shape: slice or cons.
+  Label cons_string;
+  __ tst(result, Operand(kSlicedNotConsMask));
+  __ b(eq, &cons_string);
 
-  // ConsString.
+  // Handle slices.
+  Label indirect_string_loaded;
+  __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
+  __ add(index, index, Operand(result, ASR, kSmiTagSize));
+  __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
+  __ jmp(&indirect_string_loaded);
+
+  // Handle conses.
   // Check whether the right hand side is the empty string (i.e. if
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
   // the string.
-  __ ldr(scratch, FieldMemOperand(string, ConsString::kSecondOffset));
+  __ bind(&cons_string);
+  __ ldr(result, FieldMemOperand(string, ConsString::kSecondOffset));
   __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
-  __ cmp(scratch, ip);
+  __ cmp(result, ip);
   __ b(ne, deferred->entry());
   // Get the first of the two strings and load its instance type.
   __ ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
+
+  __ bind(&indirect_string_loaded);
   __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
+
+  // Check whether the string is sequential. The only non-sequential
+  // shapes we support have just been unwrapped above.
+  __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result, Operand(kStringRepresentationMask));
   __ b(ne, deferred->entry());
 
-  // Check for 1-byte or 2-byte string.
-  __ bind(&flat_string);
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  // Dispatch on the encoding: ASCII or two-byte.
+  Label ascii_string;
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ tst(result, Operand(kStringEncodingMask));
   __ b(ne, &ascii_string);
 
-  // 2-byte string.
-  // Load the 2-byte character code into the result register.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  if (instr->index()->IsConstantOperand()) {
-    __ ldrh(result,
-            FieldMemOperand(string,
-                            SeqTwoByteString::kHeaderSize + 2 * const_index));
-  } else {
-    __ add(scratch,
-           string,
-           Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-    __ ldrh(result, MemOperand(scratch, index, LSL, 1));
-  }
+  // Two-byte string.
+  // Load the two-byte character code into the result register.
+  Label done;
+  __ add(result,
+         string,
+         Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ ldrh(result, MemOperand(result, index, LSL, 1));
   __ jmp(&done);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  if (instr->index()->IsConstantOperand()) {
-    __ ldrb(result, FieldMemOperand(string,
-                                    SeqAsciiString::kHeaderSize + const_index));
-  } else {
-    __ add(scratch,
-           string,
-           Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-    __ ldrb(result, MemOperand(scratch, index));
-  }
+  __ add(result,
+         string,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ ldrb(result, MemOperand(result, index));
+
   __ bind(&done);
   __ bind(deferred->exit());
 }
@@ -3778,7 +3763,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   if (instr->needs_check()) {
-    ASSERT(kHeapObjectTag == 1);
+    STATIC_ASSERT(kHeapObjectTag == 1);
     // If the input is a HeapObject, SmiUntag will set the carry flag.
     __ SmiUntag(ToRegister(input), SetCC);
     DeoptimizeIf(cs, instr->environment());
@@ -3863,7 +3848,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // The input was optimistically untagged; revert it.
   // The carry flag is set when we reach this deferred code as we just executed
   // SmiUntag(heap_object, SetCC)
-  ASSERT(kHeapObjectTag == 1);
+  STATIC_ASSERT(kHeapObjectTag == 1);
   __ adc(input_reg, input_reg, Operand(input_reg));
 
   // Heap number map check.

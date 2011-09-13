@@ -349,6 +349,8 @@ class Scanner {
     return next_.literal_chars->length();
   }
 
+  UnicodeCache* unicode_cache() { return unicode_cache_; }
+
   static const int kCharacterLookaheadBufferSize = 1;
 
  protected:
@@ -362,7 +364,7 @@ class Scanner {
   // Call this after setting source_ to the input.
   void Init() {
     // Set c0_ (one character ahead)
-    ASSERT(kCharacterLookaheadBufferSize == 1);
+    STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
     // Initialize current_ to not refer to a literal.
     current_.literal_chars = NULL;

@@ -80,6 +80,7 @@ inline Heap* _inline_get_heap_();
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
   V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(Object, termination_exception, TerminationException)                       \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
@@ -91,6 +92,8 @@ inline Heap* _inline_get_heap_();
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, cons_string_map, ConsStringMap)                                       \
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
+  V(Map, sliced_string_map, SlicedStringMap)                                   \
+  V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
@@ -226,8 +229,7 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")                   \
-  V(block_scope_symbol, ".block")
+  V(anonymous_function_symbol, "(anonymous function)")
 
 // Forward declarations.
 class GCTracer;
@@ -2261,6 +2263,27 @@ class GCTracer BASE_EMBEDDED {
   double steps_took_since_last_gc_;
 
   Heap* heap_;
+};
+
+
+class StringSplitCache {
+ public:
+  static Object* Lookup(FixedArray* cache, String* string, String* pattern);
+  static void Enter(Heap* heap,
+                    FixedArray* cache,
+                    String* string,
+                    String* pattern,
+                    FixedArray* array);
+  static void Clear(FixedArray* cache);
+  static const int kStringSplitCacheSize = 0x100;
+
+ private:
+  static const int kArrayEntriesPerCacheEntry = 4;
+  static const int kStringOffset = 0;
+  static const int kPatternOffset = 1;
+  static const int kArrayOffset = 2;
+
+  static MaybeObject* WrapFixedArrayInJSArray(Object* fixed_array);
 };
 
 

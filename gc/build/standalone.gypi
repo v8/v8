@@ -79,15 +79,14 @@
                     '-fno-exceptions', '-pedantic' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
           [ 'OS=="linux"', {
             'cflags': [ '-ansi' ],
           }],
           [ 'visibility=="hidden"', {
             'cflags': [ '-fvisibility=hidden' ],
+          }],
+          [ 'component=="shared_library"', {
+            'cflags': [ '-fPIC', ],
           }],
         ],
       },
