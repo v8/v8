@@ -180,6 +180,7 @@ class ShellOptions {
 #ifndef V8_SHARED
      use_preemption(true),
      preemption_interval(10),
+     num_parallel_files(0),
      parallel_files(NULL),
 #endif  // V8_SHARED
      script_executed(false),
@@ -191,12 +192,18 @@ class ShellOptions {
      num_isolates(1),
      isolate_sources(NULL) { }
 
-  ~ShellOptions();
+  ~ShellOptions() {
+#ifndef V8_SHARED
+    delete[] parallel_files;
+#endif  // V8_SHARED
+    delete[] isolate_sources;
+  }
 
 #ifndef V8_SHARED
   bool use_preemption;
   int preemption_interval;
-  i::List< i::Vector<const char> >* parallel_files;
+  int num_parallel_files;
+  char** parallel_files;
 #endif  // V8_SHARED
   bool script_executed;
   bool last_run;
@@ -225,6 +232,7 @@ class Shell : public i::AllStatic {
   static Persistent<Context> CreateEvaluationContext();
   static int RunMain(int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
+  static void Exit(int exit_code);
 
 #ifndef V8_SHARED
   static Handle<Array> GetCompletions(Handle<String> text,

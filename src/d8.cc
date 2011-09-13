@@ -203,7 +203,7 @@ Handle<Value> Shell::Write(const Arguments& args) {
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      exit(1);
+      Exit(1);
     }
   }
   return Undefined();
@@ -521,7 +521,7 @@ void Shell::MapCounters(const char* name) {
       NULL : counters_file_->memory();
   if (memory == NULL) {
     printf("Could not map counters file %s\n", name);
-    exit(1);
+    Exit(1);
   }
   counters_ = static_cast<CounterCollection*>(memory);
   V8::SetCounterFunction(LookupCounter);
@@ -718,7 +718,7 @@ void Shell::Initialize() {
   int bz2_result = startup_data_decompressor.Decompress();
   if (bz2_result != BZ_OK) {
     fprintf(stderr, "bzip error code: %d\n", bz2_result);
-    exit(1);
+    Exit(1);
   }
 #endif
 
@@ -777,6 +777,15 @@ Persistent<Context> Shell::CreateEvaluationContext() {
                          Utils::ToLocal(arguments_jsarray));
 #endif  // V8_SHARED
   return context;
+}
+
+
+void Shell::Exit(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
 }
 
 
@@ -918,18 +927,24 @@ void Shell::RunShell() {
 #ifndef V8_SHARED
 class ShellThread : public i::Thread {
  public:
-  ShellThread(int no, i::Vector<const char> files)
+  // Takes ownership of the underlying char array of |files|.
+  ShellThread(int no, char* files)
       : Thread("d8:ShellThread"),
         no_(no), files_(files) { }
+
+  ~ShellThread() {
+    delete[] files_;
+  }
+
   virtual void Run();
  private:
   int no_;
-  i::Vector<const char> files_;
+  char* files_;
 };
 
 
 void ShellThread::Run() {
-  char* ptr = const_cast<char*>(files_.start());
+  char* ptr = files_;
   while ((ptr != NULL) && (*ptr != '\0')) {
     // For each newline-separated line.
     char* next_line = ReadLine(ptr);
@@ -942,23 +957,24 @@ void ShellThread::Run() {
 
     // Prepare the context for this thread.
     Locker locker;
-    HandleScope scope;
+    HandleScope outer_scope;
     Persistent<Context> thread_context = Shell::CreateEvaluationContext();
     Context::Scope context_scope(thread_context);
 
     while ((ptr != NULL) && (*ptr != '\0')) {
+      HandleScope inner_scope;
       char* filename = ptr;
       ptr = ReadWord(ptr);
 
       // Skip empty strings.
       if (strlen(filename) == 0) {
-        break;
+        continue;
       }
 
       Handle<String> str = Shell::ReadFile(filename);
       if (str.IsEmpty()) {
-        printf("WARNING: %s not found\n", filename);
-        break;
+        printf("File '%s' not found\n", filename);
+        Shell::Exit(1);
       }
 
       Shell::ExecuteString(str, String::New(filename), false, false);
@@ -983,15 +999,6 @@ SourceGroup::~SourceGroup() {
 }
 
 
-void SourceGroup::ExitShell(int exit_code) {
-  // Use _exit instead of exit to avoid races between isolate
-  // threads and static destructors.
-  fflush(stdout);
-  fflush(stderr);
-  _exit(exit_code);
-}
-
-
 void SourceGroup::Execute() {
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
@@ -1001,8 +1008,7 @@ void SourceGroup::Execute() {
       Handle<String> file_name = String::New("unnamed");
       Handle<String> source = String::New(argv_[i + 1]);
       if (!Shell::ExecuteString(source, file_name, false, true)) {
-        ExitShell(1);
-        return;
+        Shell::Exit(1);
       }
       ++i;
     } else if (arg[0] == '-') {
@@ -1014,12 +1020,10 @@ void SourceGroup::Execute() {
       Handle<String> source = ReadFile(arg);
       if (source.IsEmpty()) {
         printf("Error reading '%s'\n", arg);
-        ExitShell(1);
-        return;
+        Shell::Exit(1);
       }
       if (!Shell::ExecuteString(source, file_name, false, true)) {
-        ExitShell(1);
-        return;
+        Shell::Exit(1);
       }
     }
   }
@@ -1090,16 +1094,6 @@ void SourceGroup::WaitForThread() {
 #endif  // V8_SHARED
 
 
-ShellOptions::~ShellOptions() {
-  delete[] isolate_sources;
-  isolate_sources = NULL;
-#ifndef V8_SHARED
-  delete parallel_files;
-  parallel_files = NULL;
-#endif  // V8_SHARED
-}
-
-
 bool Shell::SetOptions(int argc, char* argv[]) {
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
@@ -1165,13 +1159,16 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       return false;
 #endif  // V8_SHARED
       options.num_isolates++;
+    } else if (strcmp(argv[i], "-p") == 0) {
+      options.num_parallel_files++;
+#ifdef V8_SHARED
+      printf("D8 with shared library does not support multi-threading\n");
+      return false;
+#endif  // V8_SHARED
     }
 #ifdef V8_SHARED
     else if (strcmp(argv[i], "--dump-counters") == 0) {
       printf("D8 with shared library does not include counters\n");
-      return false;
-    } else if (strcmp(argv[i], "-p") == 0) {
-      printf("D8 with shared library does not support multi-threading\n");
       return false;
     } else if (strcmp(argv[i], "--debugger") == 0) {
       printf("Javascript debugger not included\n");
@@ -1182,6 +1179,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
 #ifndef V8_SHARED
   // Run parallel threads if we are not using --isolate
+  options.parallel_files = new char*[options.num_parallel_files];
+  int parallel_files_set = 0;
   for (int i = 1; i < argc; i++) {
     if (argv[i] == NULL) continue;
     if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
@@ -1190,19 +1189,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         return false;
       }
       argv[i] = NULL;
-      if (options.parallel_files == NULL) {
-        options.parallel_files = new i::List<i::Vector<const char> >();
-      }
-      int size = 0;
-      const char* files = ReadChars(argv[++i], &size);
-      if (files == NULL) {
-        printf("-p option incomplete\n");
-        return false;
-      }
+      i++;
+      options.parallel_files[parallel_files_set] = argv[i];
+      parallel_files_set++;
       argv[i] = NULL;
-      options.parallel_files->Add(i::Vector<const char>(files, size));
-      delete[] files;
     }
+  }
+  if (parallel_files_set != options.num_parallel_files) {
+    printf("-p requires a file containing a list of files as parameter\n");
+    return false;
   }
 #endif  // V8_SHARED
 
@@ -1231,14 +1226,22 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 int Shell::RunMain(int argc, char* argv[]) {
 #ifndef V8_SHARED
   i::List<i::Thread*> threads(1);
-  if (options.parallel_files != NULL)
-    for (int i = 0; i < options.parallel_files->length(); i++) {
-      i::Vector<const char> files = options.parallel_files->at(i);
+  if (options.parallel_files != NULL) {
+    for (int i = 0; i < options.num_parallel_files; i++) {
+      char* files = NULL;
+      { Locker lock(Isolate::GetCurrent());
+        int size = 0;
+        files = ReadChars(options.parallel_files[i], &size);
+      }
+      if (files == NULL) {
+        printf("File list '%s' not found\n", options.parallel_files[i]);
+        Exit(1);
+      }
       ShellThread* thread = new ShellThread(threads.length(), files);
       thread->Start();
       threads.Add(thread);
     }
-
+  }
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
@@ -1260,8 +1263,7 @@ int Shell::RunMain(int argc, char* argv[]) {
 
 #ifndef V8_SHARED
     // Start preemption if threads have been created and preemption is enabled.
-    if (options.parallel_files != NULL
-        && threads.length() > 0
+    if (threads.length() > 0
         && options.use_preemption) {
       Locker::StartPreemption(options.preemption_interval);
     }
@@ -1273,12 +1275,16 @@ int Shell::RunMain(int argc, char* argv[]) {
     options.isolate_sources[i].WaitForThread();
   }
 
-  if (options.parallel_files != NULL)
-    for (int i = 0; i < threads.length(); i++) {
-      i::Thread* thread = threads[i];
-      thread->Join();
-      delete thread;
-    }
+  for (int i = 0; i < threads.length(); i++) {
+    i::Thread* thread = threads[i];
+    thread->Join();
+    delete thread;
+  }
+
+  if (threads.length() > 0 && options.use_preemption) {
+    Locker lock;
+    Locker::StopPreemption();
+  }
 #endif  // V8_SHARED
   return 0;
 }
