@@ -161,10 +161,11 @@ Handle<Object> Execution::Call(Handle<Object> callable,
   if (convert_receiver && !receiver->IsJSReceiver() &&
       !func->shared()->native() && !func->shared()->strict_mode()) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
-      // Careful, func->context()->global()->global_receiver() gives
-      // the JSBuiltinsObject if func is a builtin. Not what we want here.
-      receiver =
-          Handle<Object>(func->GetIsolate()->global()->global_receiver());
+      Object* global = func->context()->global()->global_receiver();
+      // For reasons that escape me, 'global' can be the JSBuiltinsObject
+      // under some circumstances.  In that case, don't rewrite.
+      // FWIW, the same holds for GetIsolate()->global()->global_receiver().
+      if (!global->IsJSBuiltinsObject()) receiver = Handle<Object>(global);
     } else {
       receiver = ToObject(receiver, pending_exception);
     }
