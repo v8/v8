@@ -3683,6 +3683,11 @@ class Code: public HeapObject {
   inline bool has_deoptimization_support();
   inline void set_has_deoptimization_support(bool value);
 
+  // [has_debug_break_slots]: For FUNCTION kind, tells if it has
+  // been compiled with debug break slots.
+  inline bool has_debug_break_slots();
+  inline void set_has_debug_break_slots(bool value);
+
   // [allow_osr_at_loop_nesting_level]: For FUNCTION kind, tells for
   // how long the function has been marked for OSR and therefore which
   // level of loop nesting we are willing to do on-stack replacement
@@ -3874,11 +3879,15 @@ class Code: public HeapObject {
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kHasDeoptimizationSupportOffset = kOptimizableOffset + 1;
+
+  static const int kFullCodeFlags = kOptimizableOffset + 1;
+  class FullCodeFlagsHasDeoptimizationSupportField:
+      public BitField<bool, 0, 1> {};  // NOLINT
+  class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
-  static const int kAllowOSRAtLoopNestingLevelOffset =
-      kHasDeoptimizationSupportOffset + 1;
+
+  static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
 
   static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
   static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;

@@ -247,6 +247,8 @@ class Debug {
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
+  void PrepareForBreakPoints();
+
   // Returns whether the operation succeeded.
   bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 

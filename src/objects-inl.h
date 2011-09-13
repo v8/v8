@@ -2951,13 +2951,31 @@ void Code::set_optimizable(bool value) {
 
 bool Code::has_deoptimization_support() {
   ASSERT(kind() == FUNCTION);
-  return READ_BYTE_FIELD(this, kHasDeoptimizationSupportOffset) == 1;
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
   ASSERT(kind() == FUNCTION);
-  WRITE_BYTE_FIELD(this, kHasDeoptimizationSupportOffset, value ? 1 : 0);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
+bool Code::has_debug_break_slots() {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
+}
+
+
+void Code::set_has_debug_break_slots(bool value) {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 

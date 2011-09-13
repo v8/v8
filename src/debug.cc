@@ -40,6 +40,7 @@
 #include "global-handles.h"
 #include "ic.h"
 #include "ic-inl.h"
+#include "list.h"
 #include "messages.h"
 #include "natives.h"
 #include "stub-cache.h"
@@ -1105,6 +1106,8 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
                           int* source_position) {
   HandleScope scope(isolate_);
 
+  PrepareForBreakPoints();
+
   if (!EnsureDebugInfo(shared)) {
     // Return if retrieving debug info failed.
     return;
@@ -1178,6 +1181,7 @@ void Debug::ClearAllBreakPoints() {
 
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
+  PrepareForBreakPoints();
   // Make sure the function has setup the debug info.
   if (!EnsureDebugInfo(shared)) {
     // Return if we failed to retrieve the debug info.
@@ -1234,6 +1238,9 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 
 void Debug::PrepareStep(StepAction step_action, int step_count) {
   HandleScope scope(isolate_);
+
+  PrepareForBreakPoints();
+
   ASSERT(Debug::InDebugger());
 
   // Remember this step action and count.
@@ -1676,19 +1683,63 @@ void Debug::ClearStepNext() {
 }
 
 
-// Ensures the debug information is present for shared.
-bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Return if we already have the debug info for shared.
-  if (HasDebugInfo(shared)) return true;
-
-  // Ensure shared in compiled. Return false if this failed.
-  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
-
+void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     Deoptimizer::DeoptimizeAll();
+
+    AssertNoAllocation no_allocation;
+    Builtins* builtins = isolate_->builtins();
+    Code* lazy_compile = builtins->builtin(Builtins::kLazyCompile);
+
+    // Find all non-optimized code functions with activation frames on
+    // the stack.
+    List<JSFunction*> active_functions(100);
+    for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->function()->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(frame->function());
+        if (function->code()->kind() == Code::FUNCTION)
+          active_functions.Add(function);
+      }
+    }
+    active_functions.Sort();
+
+    // Scan the heap for all non-optimized functions which has no
+    // debug break slots.
+    HeapIterator iterator;
+    HeapObject* obj = NULL;
+    while (((obj = iterator.next()) != NULL)) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        if (function->shared()->allows_lazy_compilation() &&
+            function->shared()->script()->IsScript() &&
+            function->code()->kind() == Code::FUNCTION &&
+            !function->code()->has_debug_break_slots()) {
+          bool has_activation =
+              SortedListBSearch<JSFunction*>(active_functions, function) != -1;
+          if (!has_activation) {
+            function->set_code(lazy_compile);
+            function->shared()->set_code(lazy_compile);
+          }
+        }
+      }
+    }
   }
+}
+
+
+// Ensures the debug information is present for shared.
+bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
+  // Return if we already have the debug info for shared.
+  if (HasDebugInfo(shared)) {
+    ASSERT(shared->is_compiled());
+    return true;
+  }
+
+  // Ensure shared in compiled. Return false if this failed.
+  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);
@@ -1738,6 +1789,8 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
+
+  PrepareForBreakPoints();
 
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
@@ -1828,6 +1881,8 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   if (!has_break_points_) {
     return false;
   }
+
+  PrepareForBreakPoints();
 
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =

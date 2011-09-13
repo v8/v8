@@ -8127,6 +8127,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
+
+  // If the function is not compiled ignore the lazy
+  // recompilation. This can happen if the debugger is activated and
+  // the function is returned to the not compiled state.
+  if (!function->shared()->is_compiled()) {
+    function->ReplaceCode(function->shared()->code());
+    return function->code();
+  }
+
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
