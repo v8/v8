@@ -237,6 +237,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     // Get the derived `get' property.
     trap = isolate->derived_get_trap();
@@ -2222,6 +2223,7 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("has");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_has_trap();
   }
@@ -2252,6 +2254,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_set_trap();
   }
@@ -2279,6 +2282,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2321,6 +2325,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   Handle<String> trap_name =
       isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return NONE;
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
