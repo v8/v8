@@ -8139,15 +8139,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyCompile) {
   }
 #endif
 
-  // Compile the target function.  Here we compile using CompileLazyInLoop in
-  // order to get the optimized version.  This helps code like delta-blue
-  // that calls performance-critical routines through constructors.  A
-  // constructor call doesn't use a CallIC, it uses a LoadIC followed by a
-  // direct call.  Since the in-loop tracking takes place through CallICs
-  // this means that things called through constructors are never known to
-  // be in loops.  We compile them as if they are in loops here just in case.
+  // Compile the target function.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
+  if (!CompileLazy(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 

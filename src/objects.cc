@@ -7161,7 +7161,6 @@ void Code::Disassemble(const char* name, FILE* out) {
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), extra_ic_state());
-    PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
     }

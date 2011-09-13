@@ -649,8 +649,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info) {
       PrintF("Crankshaft Compiler - ");
     }
     CodeGenerator::MakeCodePrologue(info);
-    Code::Flags flags =
-        Code::ComputeFlags(Code::OPTIMIZED_FUNCTION, NOT_IN_LOOP);
+    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info);
     generator.FinishCode(code);

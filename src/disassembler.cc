@@ -247,9 +247,6 @@ static int DecodeIt(FILE* f,
             PropertyType type = code->type();
             out.AddFormatted(", %s", Code::PropertyType2String(type));
           }
-          if (code->ic_in_loop() == IN_LOOP) {
-            out.AddFormatted(", in_loop");
-          }
           if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
             out.AddFormatted(", argc = %d", code->arguments_count());
           }

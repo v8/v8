@@ -3653,7 +3653,6 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
-  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs.
   inline PropertyType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -3746,7 +3745,6 @@ class Code: public HeapObject {
   // Flags operations.
   static inline Flags ComputeFlags(
       Kind kind,
-      InLoopFlag in_loop = NOT_IN_LOOP,
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       PropertyType type = NORMAL,
@@ -3758,11 +3756,9 @@ class Code: public HeapObject {
       PropertyType type,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
-      InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
-  static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
@@ -3894,18 +3890,17 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class ICInLoopField: public BitField<InLoopFlag, 3, 1> {};
-  class TypeField: public BitField<PropertyType, 4, 4> {};
-  class KindField: public BitField<Kind, 8, 4> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 12, 1> {};
-  class ExtraICStateField: public BitField<ExtraICState, 13, 2> {};
+  class TypeField: public BitField<PropertyType, 3, 4> {};
+  class KindField: public BitField<Kind, 7, 4> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 11, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kFlagsArgumentsCountShift = 15;
-  static const int kFlagsArgumentsCountMask = 0xffff8000;
+  static const int kArgumentsCountShift = 14;
+  static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   static const int kFlagsNotUsedInLookup =
-      ICInLoopField::kMask | TypeField::kMask | CacheHolderField::kMask;
+      TypeField::kMask | CacheHolderField::kMask;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

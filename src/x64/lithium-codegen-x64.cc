@@ -2953,8 +2953,8 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(
-    arity, NOT_IN_LOOP);
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
@@ -2966,7 +2966,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ Move(rcx, instr->name());
   CallCode(ic, mode, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2977,7 +2977,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
+  CallFunctionStub stub(arity, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ Drop(1);
@@ -2989,7 +2989,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ Move(rcx, instr->name());
   CallCode(ic, mode, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));

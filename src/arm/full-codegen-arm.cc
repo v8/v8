@@ -2028,9 +2028,8 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
   __ Call(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2061,9 +2060,8 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count);
   __ ldr(r2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
   __ Call(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
@@ -2084,8 +2082,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   }
   // Record source position for debugger.
   SetSourcePosition(expr->position());
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub stub(arg_count, in_loop, flags);
+  CallFunctionStub stub(arg_count, flags);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2184,8 +2181,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
     // Record source position for debugger.
     SetSourcePosition(expr->position());
-    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_IMPLICIT);
+    CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3553,9 +3549,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ mov(r2, Operand(expr->name()));
     RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count,
-                                                       NOT_IN_LOOP,
-                                                       mode);
+        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
     __ Call(ic, mode, expr->id());
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

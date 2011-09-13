@@ -286,7 +286,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   unsigned table_offset = cgen.EmitStackCheckTable();
 
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
