@@ -1096,7 +1096,7 @@ ShellOptions::~ShellOptions() {
 #ifndef V8_SHARED
   delete parallel_files;
   parallel_files = NULL;
-#endif // V8_SHARED
+#endif  // V8_SHARED
 }
 
 
