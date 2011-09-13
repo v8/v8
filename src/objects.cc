@@ -591,7 +591,7 @@ MaybeObject* Object::GetProperty(Object* receiver,
       return holder->GetPropertyWithInterceptor(recvr, name, attributes);
     }
     case MAP_TRANSITION:
-    case EXTERNAL_ARRAY_TRANSITION:
+    case ELEMENTS_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       break;
@@ -1435,13 +1435,12 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // it's unrelated to properties.
   int descriptor_index = old_descriptors->Search(name);
 
-  // External array transitions are stored in the descriptor for property "",
-  // which is not a identifier and should have forced a switch to slow
-  // properties above.
+  // Element transitions are stored in the descriptor for property "", which is
+  // not a identifier and should have forced a switch to slow properties above.
   ASSERT(descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) != EXTERNAL_ARRAY_TRANSITION);
+      old_descriptors->GetType(descriptor_index) != ELEMENTS_TRANSITION);
   bool can_insert_transition = descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) == EXTERNAL_ARRAY_TRANSITION;
+      old_descriptors->GetType(descriptor_index) == ELEMENTS_TRANSITION;
   bool allow_map_transition =
       can_insert_transition &&
       (isolate->context()->global_context()->object_function()->map() != map());
@@ -1989,61 +1988,25 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
-static JSObject::ElementsKind GetElementsKindFromExternalArrayType(
-    ExternalArrayType array_type) {
-  switch (array_type) {
-    case kExternalByteArray:
-      return JSObject::EXTERNAL_BYTE_ELEMENTS;
-      break;
-    case kExternalUnsignedByteArray:
-      return JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-      break;
-    case kExternalShortArray:
-      return JSObject::EXTERNAL_SHORT_ELEMENTS;
-      break;
-    case kExternalUnsignedShortArray:
-      return JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-      break;
-    case kExternalIntArray:
-      return JSObject::EXTERNAL_INT_ELEMENTS;
-      break;
-    case kExternalUnsignedIntArray:
-      return JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS;
-      break;
-    case kExternalFloatArray:
-      return JSObject::EXTERNAL_FLOAT_ELEMENTS;
-      break;
-    case kExternalDoubleArray:
-      return JSObject::EXTERNAL_DOUBLE_ELEMENTS;
-      break;
-    case kExternalPixelArray:
-      return JSObject::EXTERNAL_PIXEL_ELEMENTS;
-      break;
-  }
-  UNREACHABLE();
-  return JSObject::DICTIONARY_ELEMENTS;
-}
-
-
-MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
-                                              bool safe_to_add_transition) {
+MaybeObject* Map::GetElementsTransitionMap(ElementsKind elements_kind,
+                                           bool safe_to_add_transition) {
   Heap* current_heap = heap();
   DescriptorArray* descriptors = instance_descriptors();
-  String* external_array_sentinel_name = current_heap->empty_symbol();
+  String* elements_transition_sentinel_name = current_heap->empty_symbol();
 
   if (safe_to_add_transition) {
     // It's only safe to manipulate the descriptor array if it would be
     // safe to add a transition.
 
     ASSERT(!is_shared());  // no transitions can be added to shared maps.
-    // Check if the external array transition already exists.
+    // Check if the elements transition already exists.
     DescriptorLookupCache* cache =
         current_heap->isolate()->descriptor_lookup_cache();
-    int index = cache->Lookup(descriptors, external_array_sentinel_name);
+    int index = cache->Lookup(descriptors, elements_transition_sentinel_name);
     if (index == DescriptorLookupCache::kAbsent) {
-      index = descriptors->Search(external_array_sentinel_name);
+      index = descriptors->Search(elements_transition_sentinel_name);
       cache->Update(descriptors,
-                    external_array_sentinel_name,
+                    elements_transition_sentinel_name,
                     index);
     }
 
@@ -2051,8 +2014,8 @@ MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
     // return it.
     if (index != DescriptorArray::kNotFound) {
       PropertyDetails details(PropertyDetails(descriptors->GetDetails(index)));
-      if (details.type() == EXTERNAL_ARRAY_TRANSITION &&
-          details.array_type() == array_type) {
+      if (details.type() == ELEMENTS_TRANSITION &&
+          details.elements_kind() == elements_kind) {
         return descriptors->GetValue(index);
       } else {
         safe_to_add_transition = false;
@@ -2060,28 +2023,29 @@ MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
     }
   }
 
-  // No transition to an existing external array map. Make a new one.
+  // No transition to an existing map for the given ElementsKind. Make a new
+  // one.
   Object* obj;
   { MaybeObject* maybe_map = CopyDropTransitions();
     if (!maybe_map->ToObject(&obj)) return maybe_map;
   }
   Map* new_map = Map::cast(obj);
 
-  new_map->set_elements_kind(GetElementsKindFromExternalArrayType(array_type));
+  new_map->set_elements_kind(elements_kind);
   GetIsolate()->counters()->map_to_external_array_elements()->Increment();
 
   // Only remember the map transition if the object's map is NOT equal to the
   // global object_function's map and there is not an already existing
-  // non-matching external array transition.
+  // non-matching element transition.
   bool allow_map_transition =
       safe_to_add_transition &&
       (GetIsolate()->context()->global_context()->object_function()->map() !=
        map());
   if (allow_map_transition) {
     // Allocate new instance descriptors for the old map with map transition.
-    ExternalArrayTransitionDescriptor desc(external_array_sentinel_name,
-                                           Map::cast(new_map),
-                                           array_type);
+    ElementsTransitionDescriptor desc(elements_transition_sentinel_name,
+                                      Map::cast(new_map),
+                                      elements_kind);
     Object* new_descriptors;
     MaybeObject* maybe_new_descriptors = descriptors->CopyInsert(
         &desc,
@@ -2498,7 +2462,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     }
     case NULL_DESCRIPTOR:
-    case EXTERNAL_ARRAY_TRANSITION:
+    case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
@@ -2586,7 +2550,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       // if the value is a function.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-    case EXTERNAL_ARRAY_TRANSITION:
+    case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
@@ -2867,7 +2831,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       case CONSTANT_TRANSITION:
       case NULL_DESCRIPTOR:
       case INTERCEPTOR:
-      case EXTERNAL_ARRAY_TRANSITION:
+      case ELEMENTS_TRANSITION:
         break;
       default:
         UNREACHABLE();
@@ -3412,6 +3376,17 @@ MaybeObject* JSObject::PreventExtensions() {
     if (proto->IsNull()) return this;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->PreventExtensions();
+  }
+
+  // It's not possible to seal objects with external array elements
+  if (HasExternalArrayElements()) {
+    HandleScope scope(isolate);
+    Handle<Object> object(this);
+    Handle<Object> error  =
+        isolate->factory()->NewTypeError(
+            "cant_prevent_ext_external_array_elements",
+            HandleVector(&object, 1));
+    return isolate->Throw(*error);
   }
 
   // If there are fast elements we normalize.
@@ -5082,13 +5057,13 @@ String::FlatContent String::GetFlatContent() {
 }
 
 
-SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                     RobustnessFlag robust_flag,
-                                     int offset,
-                                     int length,
-                                     int* length_return) {
+SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int offset,
+                                          int length,
+                                          int* length_return) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartPointer<char>(NULL);
+    return SmartArrayPointer<char>(NULL);
   }
   Heap* heap = GetHeap();
 
@@ -5132,13 +5107,13 @@ SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
     character_position++;
   }
   result[utf8_byte_position] = 0;
-  return SmartPointer<char>(result);
+  return SmartArrayPointer<char>(result);
 }
 
 
-SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                     RobustnessFlag robust_flag,
-                                     int* length_return) {
+SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
@@ -5169,9 +5144,9 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
+SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return SmartPointer<uc16>();
+    return SmartArrayPointer<uc16>();
   }
   Heap* heap = GetHeap();
 
@@ -5187,7 +5162,7 @@ SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return SmartPointer<uc16>(result);
+  return SmartArrayPointer<uc16>(result);
 }
 
 
@@ -6201,7 +6176,7 @@ void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
     if (descriptors->GetType(i) == MAP_TRANSITION ||
-        descriptors->GetType(i) == EXTERNAL_ARRAY_TRANSITION ||
+        descriptors->GetType(i) == ELEMENTS_TRANSITION ||
         descriptors->GetType(i) == CONSTANT_TRANSITION) {
       // Get target.
       Map* target = Map::cast(descriptors->GetValue(i));
@@ -6244,7 +6219,7 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
     // non-live object.
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
     if (details.type() == MAP_TRANSITION ||
-        details.type() == EXTERNAL_ARRAY_TRANSITION ||
+        details.type() == ELEMENTS_TRANSITION ||
         details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
@@ -6404,7 +6379,7 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 
 
 void JSFunction::PrintName(FILE* out) {
-  SmartPointer<char> name = shared()->DebugName()->ToCString();
+  SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", *name);
 }
 
@@ -7133,7 +7108,7 @@ const char* Code::PropertyType2String(PropertyType type) {
     case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
-    case EXTERNAL_ARRAY_TRANSITION: return "EXTERNAL_ARRAY_TRANSITION";
+    case ELEMENTS_TRANSITION: return "ELEMENTS_TRANSITION";
     case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
     case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
   }
@@ -7523,7 +7498,7 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
   if (maybe_smi_length->ToObject(&smi_length) && smi_length->IsSmi()) {
     const int value = Smi::cast(smi_length)->value();
     if (value < 0) return ArrayLengthRangeError(GetHeap());
-    JSObject::ElementsKind elements_kind = GetElementsKind();
+    ElementsKind elements_kind = GetElementsKind();
     switch (elements_kind) {
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS: {

@@ -95,19 +95,19 @@ LineEditor* LineEditor::Get() {
 class DumbLineEditor: public LineEditor {
  public:
   DumbLineEditor() : LineEditor(LineEditor::DUMB, "dumb") { }
-  virtual i::SmartPointer<char> Prompt(const char* prompt);
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt);
 };
 
 
 static DumbLineEditor dumb_line_editor;
 
 
-i::SmartPointer<char> DumbLineEditor::Prompt(const char* prompt) {
+i::SmartArrayPointer<char> DumbLineEditor::Prompt(const char* prompt) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   printf("%s", prompt);
   char* str = fgets(buffer, kBufferSize, stdin);
-  return i::SmartPointer<char>(str ? i::StrDup(str) : str);
+  return i::SmartArrayPointer<char>(str ? i::StrDup(str) : str);
 }
 
 
@@ -271,7 +271,7 @@ Handle<Value> Shell::Load(const Arguments& args) {
     if (source.IsEmpty()) {
       return ThrowException(String::New("Error loading file"));
     }
-    if (!ExecuteString(source, String::New(*file), false, false)) {
+    if (!ExecuteString(source, String::New(*file), false, true)) {
       return ThrowException(String::New("Error executing file"));
     }
   }
@@ -295,18 +295,20 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   size_t length = 0;
   if (args[0]->IsUint32()) {
     length = args[0]->Uint32Value();
-  } else if (args[0]->IsNumber()) {
-    double raw_length = args[0]->NumberValue();
+  } else {
+    Local<Number> number = args[0]->ToNumber();
+    if (number.IsEmpty() || !number->IsNumber()) {
+      return ThrowException(String::New("Array length must be a number."));
+    }
+    int32_t raw_length = number->ToInt32()->Int32Value();
     if (raw_length < 0) {
       return ThrowException(String::New("Array length must not be negative."));
     }
-    if (raw_length > kMaxLength) {
+    if (raw_length > static_cast<int32_t>(kMaxLength)) {
       return ThrowException(
           String::New("Array length exceeds maximum length."));
     }
     length = static_cast<size_t>(raw_length);
-  } else {
-    return ThrowException(String::New("Array length must be a number."));
   }
   if (length > static_cast<size_t>(kMaxLength)) {
     return ThrowException(String::New("Array length exceeds maximum length."));
@@ -439,6 +441,7 @@ void Shell::ReportException(v8::TryCatch* try_catch) {
       printf("%s\n", stack_trace_string);
     }
   }
+  printf("\n");
 }
 
 
@@ -890,7 +893,7 @@ void Shell::RunShell() {
   }
   editor->Open();
   while (true) {
-    i::SmartPointer<char> input = editor->Prompt(Shell::kPrompt);
+    i::SmartArrayPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty()) break;
     editor->AddHistory(*input);
     HandleScope inner_scope;
@@ -968,6 +971,18 @@ void ShellThread::Run() {
 #endif  // V8_SHARED
 
 
+SourceGroup::~SourceGroup() {
+#ifndef V8_SHARED
+  delete next_semaphore_;
+  next_semaphore_ = NULL;
+  delete done_semaphore_;
+  done_semaphore_ = NULL;
+  delete thread_;
+  thread_ = NULL;
+#endif  // V8_SHARED
+}
+
+
 void SourceGroup::ExitShell(int exit_code) {
   // Use _exit instead of exit to avoid races between isolate
   // threads and static destructors.
@@ -1037,7 +1052,7 @@ i::Thread::Options SourceGroup::GetThreadOptions() {
 void SourceGroup::ExecuteInThread() {
   Isolate* isolate = Isolate::New();
   do {
-    if (!next_semaphore_.is_empty()) next_semaphore_->Wait();
+    if (next_semaphore_ != NULL) next_semaphore_->Wait();
     {
       Isolate::Scope iscope(isolate);
       Locker lock(isolate);
@@ -1049,15 +1064,15 @@ void SourceGroup::ExecuteInThread() {
       }
       context.Dispose();
     }
-    if (!done_semaphore_.is_empty()) done_semaphore_->Signal();
+    if (done_semaphore_ != NULL) done_semaphore_->Signal();
   } while (!Shell::options.last_run);
   isolate->Dispose();
 }
 
 
 void SourceGroup::StartExecuteInThread() {
-  if (thread_.is_empty()) {
-    thread_ = i::SmartPointer<i::Thread>(new IsolateThread(this));
+  if (thread_ == NULL) {
+    thread_ = new IsolateThread(this);
     thread_->Start();
   }
   next_semaphore_->Signal();
@@ -1065,7 +1080,7 @@ void SourceGroup::StartExecuteInThread() {
 
 
 void SourceGroup::WaitForThread() {
-  if (thread_.is_empty()) return;
+  if (thread_ == NULL) return;
   if (Shell::options.last_run) {
     thread_->Join();
   } else {

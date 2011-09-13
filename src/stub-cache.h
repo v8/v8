@@ -382,7 +382,7 @@ class StubCache {
     // We always set the in_loop bit to zero when generating the lookup code
     // so do it here too so the hash codes match.
     uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsICInLoopMask);
+        (static_cast<uint32_t>(flags) & ~Code::ICInLoopField::kMask);
     uint32_t key = seed - string_low32bits + iflags;
     return key & ((kSecondaryTableSize - 1) << kHeapObjectTagSize);
   }
@@ -660,7 +660,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
       CodeList* handler_ics);
 
   static void GenerateLoadExternalArray(MacroAssembler* masm,
-                                        JSObject::ElementsKind elements_kind);
+                                        ElementsKind elements_kind);
 
   static void GenerateLoadFastElement(MacroAssembler* masm);
 
@@ -725,7 +725,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                              bool is_js_array);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         JSObject::ElementsKind elements_kind);
+                                         ElementsKind elements_kind);
 
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 

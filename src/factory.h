@@ -219,9 +219,9 @@ class Factory {
 
   Handle<Map> GetSlowElementsMap(Handle<Map> map);
 
-  Handle<Map> GetExternalArrayElementsMap(Handle<Map> map,
-                                          ExternalArrayType array_type,
-                                          bool safe_to_add_transition);
+  Handle<Map> GetElementsTransitionMap(Handle<Map> map,
+                                       ElementsKind elements_kind,
+                                       bool safe_to_add_transition);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 

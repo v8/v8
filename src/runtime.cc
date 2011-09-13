@@ -52,7 +52,7 @@
 #include "runtime-profiler.h"
 #include "runtime.h"
 #include "scopeinfo.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "string-search.h"
 #include "stub-cache.h"
 #include "v8threads.h"
@@ -177,7 +177,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
   // Pixel elements cannot be created using an object literal.
   ASSERT(!copy->HasExternalArrayElements());
   switch (copy->GetElementsKind()) {
-    case JSObject::FAST_ELEMENTS: {
+    case FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
       if (elements->map() == heap->fixed_cow_array_map()) {
         isolate->counters()->cow_arrays_created_runtime()->Increment();
@@ -201,7 +201,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
       }
       break;
     }
-    case JSObject::DICTIONARY_ELEMENTS: {
+    case DICTIONARY_ELEMENTS: {
       NumberDictionary* element_dictionary = copy->element_dictionary();
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
@@ -220,19 +220,19 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
       }
       break;
     }
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNIMPLEMENTED();
       break;
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
       // No contained objects, nothing to do.
       break;
   }
@@ -4293,6 +4293,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       if (proto->IsNull()) return *obj_value;
       js_object = Handle<JSObject>::cast(proto);
     }
+
+    // Don't allow element properties to be redefined on objects with external
+    // array elements.
+    if (js_object->HasExternalArrayElements()) {
+      Handle<Object> args[2] = { js_object, name };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("redef_external_array_element",
+                                           HandleVector(args, 2));
+      return isolate->Throw(*error);
+    }
+
     Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
@@ -4300,8 +4311,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     Handle<NumberDictionary> extended_dictionary =
         NumberDictionarySet(dictionary, index, obj_value, details);
     if (*extended_dictionary != *dictionary) {
-      if (js_object->GetElementsKind() ==
-          JSObject::NON_STRICT_ARGUMENTS_ELEMENTS) {
+      if (js_object->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
       } else {
         js_object->set_elements(*extended_dictionary);
@@ -7770,7 +7780,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewArgumentsFast) {
       Handle<Map> old_map(result->map());
       Handle<Map> new_map =
           isolate->factory()->CopyMapDropTransitions(old_map);
-      new_map->set_elements_kind(JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+      new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
 
       result->set_map(*new_map);
       result->set_elements(*parameter_map);
@@ -7898,8 +7908,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
 }
 
 
-static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
-                                                   int* total_argc) {
+static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
+                                                        int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
@@ -7915,7 +7925,7 @@ static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
                                             &args_slots);
 
     *total_argc = bound_argc + args_count;
-    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = args_slots[i].GetValue();
       param_data[bound_argc + i] = val.location();
@@ -7927,7 +7937,7 @@ static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = bound_argc + args_count;
-    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i));
       param_data[bound_argc + i] = val.location();
@@ -7954,7 +7964,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   }
 
   int total_argc = 0;
-  SmartPointer<Object**> param_data =
+  SmartArrayPointer<Object**> param_data =
       GetNonBoundArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     Handle<Object> val = Handle<Object>(bound_args->get(i));
@@ -8873,7 +8883,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
 static void PrintString(String* str) {
   // not uncommon to have empty strings
   if (str->length() > 0) {
-    SmartPointer<char> s =
+    SmartArrayPointer<char> s =
         str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     PrintF("%s", *s);
   }
@@ -9468,7 +9478,7 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
-    case JSObject::FAST_ELEMENTS: {
+    case FAST_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       ASSERT(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
@@ -9479,7 +9489,7 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case JSObject::DICTIONARY_ELEMENTS: {
+    case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dictionary(
           NumberDictionary::cast(array->elements()));
       int capacity = dictionary->Capacity();
@@ -9555,9 +9565,9 @@ static int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
 static void CollectElementIndices(Handle<JSObject> object,
                                   uint32_t range,
                                   List<uint32_t>* indices) {
-  JSObject::ElementsKind kind = object->GetElementsKind();
+  ElementsKind kind = object->GetElementsKind();
   switch (kind) {
-    case JSObject::FAST_ELEMENTS: {
+    case FAST_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(object->elements()));
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
@@ -9568,7 +9578,7 @@ static void CollectElementIndices(Handle<JSObject> object,
       }
       break;
     }
-    case JSObject::DICTIONARY_ELEMENTS: {
+    case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dict(NumberDictionary::cast(object->elements()));
       uint32_t capacity = dict->Capacity();
       for (uint32_t j = 0; j < capacity; j++) {
@@ -9587,47 +9597,47 @@ static void CollectElementIndices(Handle<JSObject> object,
     default: {
       int dense_elements_length;
       switch (kind) {
-        case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+        case EXTERNAL_PIXEL_ELEMENTS: {
           dense_elements_length =
               ExternalPixelArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_BYTE_ELEMENTS: {
+        case EXTERNAL_BYTE_ELEMENTS: {
           dense_elements_length =
               ExternalByteArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+        case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
           dense_elements_length =
               ExternalUnsignedByteArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_SHORT_ELEMENTS: {
+        case EXTERNAL_SHORT_ELEMENTS: {
           dense_elements_length =
               ExternalShortArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+        case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
           dense_elements_length =
               ExternalUnsignedShortArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_INT_ELEMENTS: {
+        case EXTERNAL_INT_ELEMENTS: {
           dense_elements_length =
               ExternalIntArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+        case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
           dense_elements_length =
               ExternalUnsignedIntArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
+        case EXTERNAL_FLOAT_ELEMENTS: {
           dense_elements_length =
               ExternalFloatArray::cast(object->elements())->length();
           break;
         }
-        case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+        case EXTERNAL_DOUBLE_ELEMENTS: {
           dense_elements_length =
               ExternalDoubleArray::cast(object->elements())->length();
           break;
@@ -9676,7 +9686,7 @@ static bool IterateElements(Isolate* isolate,
                             ArrayConcatVisitor* visitor) {
   uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
   switch (receiver->GetElementsKind()) {
-    case JSObject::FAST_ELEMENTS: {
+    case FAST_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
@@ -9697,7 +9707,7 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
-    case JSObject::DICTIONARY_ELEMENTS: {
+    case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dict(receiver->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
       // Collect all indices in the object and the prototypes less
@@ -9719,7 +9729,7 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+    case EXTERNAL_PIXEL_ELEMENTS: {
       Handle<ExternalPixelArray> pixels(ExternalPixelArray::cast(
           receiver->elements()));
       for (uint32_t j = 0; j < length; j++) {
@@ -9728,42 +9738,42 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
-    case JSObject::EXTERNAL_BYTE_ELEMENTS: {
+    case EXTERNAL_BYTE_ELEMENTS: {
       IterateExternalArrayElements<ExternalByteArray, int8_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
       IterateExternalArrayElements<ExternalUnsignedByteArray, uint8_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case JSObject::EXTERNAL_SHORT_ELEMENTS: {
+    case EXTERNAL_SHORT_ELEMENTS: {
       IterateExternalArrayElements<ExternalShortArray, int16_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
       IterateExternalArrayElements<ExternalUnsignedShortArray, uint16_t>(
           isolate, receiver, true, true, visitor);
       break;
     }
-    case JSObject::EXTERNAL_INT_ELEMENTS: {
+    case EXTERNAL_INT_ELEMENTS: {
       IterateExternalArrayElements<ExternalIntArray, int32_t>(
           isolate, receiver, true, false, visitor);
       break;
     }
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
       IterateExternalArrayElements<ExternalUnsignedIntArray, uint32_t>(
           isolate, receiver, true, false, visitor);
       break;
     }
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS: {
       IterateExternalArrayElements<ExternalFloatArray, float>(
           isolate, receiver, false, false, visitor);
       break;
     }
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       IterateExternalArrayElements<ExternalDoubleArray, double>(
           isolate, receiver, false, false, visitor);
       break;
@@ -10135,7 +10145,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     }
     case INTERCEPTOR:
     case MAP_TRANSITION:
-    case EXTERNAL_ARRAY_TRANSITION:
+    case ELEMENTS_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       return heap->undefined_value();
@@ -12425,7 +12435,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
 // Sets a v8 flag.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
   CONVERT_CHECKED(String, arg, args[0]);
-  SmartPointer<char> flags =
+  SmartArrayPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   FlagList::SetFlagsFromString(*flags, StrLength(*flags));
   return isolate->heap()->undefined_value();

@@ -61,7 +61,7 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 }
 
 
-SmartPointer<const char> CodeStub::GetName() {
+SmartArrayPointer<const char> CodeStub::GetName() {
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
                                         static_cast<unsigned>(sizeof(buffer)));
@@ -75,7 +75,7 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
   Isolate* isolate = masm->isolate();
-  SmartPointer<const char> name = GetName();
+  SmartArrayPointer<const char> name = GetName();
   PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
   GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();
@@ -246,27 +246,27 @@ void InstanceofStub::PrintName(StringStream* stream) {
 
 void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
-    case JSObject::FAST_ELEMENTS:
+    case FAST_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
-    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(masm);
       break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, elements_kind_);
       break;
-    case JSObject::DICTIONARY_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
       break;
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -275,28 +275,28 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
 
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
-    case JSObject::FAST_ELEMENTS:
+    case FAST_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
       break;
-    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
                                                              is_js_array_);
       break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
       break;
-    case JSObject::DICTIONARY_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
       break;
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }

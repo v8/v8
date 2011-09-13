@@ -2000,7 +2000,7 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 bool DescriptorArray::IsTransition(int descriptor_number) {
   PropertyType t = GetType(descriptor_number);
   return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-      t == EXTERNAL_ARRAY_TRANSITION;
+      t == ELEMENTS_TRANSITION;
 }
 
 
@@ -2867,7 +2867,7 @@ Code::Flags Code::flags() {
 
 
 void Code::set_flags(Code::Flags flags) {
-  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
+  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.
   ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
           ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
@@ -3104,22 +3104,14 @@ Code::Flags Code::ComputeFlags(Kind kind,
          (kind == STORE_IC) ||
          (kind == KEYED_STORE_IC));
   // Compute the bit mask.
-  int bits = kind << kFlagsKindShift;
-  if (in_loop) bits |= kFlagsICInLoopMask;
-  bits |= ic_state << kFlagsICStateShift;
-  bits |= type << kFlagsTypeShift;
-  bits |= extra_ic_state << kFlagsExtraICStateShift;
-  bits |= argc << kFlagsArgumentsCountShift;
-  if (holder == PROTOTYPE_MAP) bits |= kFlagsCacheInPrototypeMapMask;
-  // Cast to flags and validate result before returning it.
-  Flags result = static_cast<Flags>(bits);
-  ASSERT(ExtractKindFromFlags(result) == kind);
-  ASSERT(ExtractICStateFromFlags(result) == ic_state);
-  ASSERT(ExtractICInLoopFromFlags(result) == in_loop);
-  ASSERT(ExtractTypeFromFlags(result) == type);
-  ASSERT(ExtractExtraICStateFromFlags(result) == extra_ic_state);
-  ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
-  return result;
+  int bits = KindField::encode(kind)
+      | ICInLoopField::encode(in_loop)
+      | ICStateField::encode(ic_state)
+      | TypeField::encode(type)
+      | ExtraICStateField::encode(extra_ic_state)
+      | (argc << kFlagsArgumentsCountShift)
+      | CacheHolderField::encode(holder);
+  return static_cast<Flags>(bits);
 }
 
 
@@ -3135,32 +3127,27 @@ Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
 
 
 Code::Kind Code::ExtractKindFromFlags(Flags flags) {
-  int bits = (flags & kFlagsKindMask) >> kFlagsKindShift;
-  return static_cast<Kind>(bits);
+  return KindField::decode(flags);
 }
 
 
 InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
-  int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
-  return static_cast<InlineCacheState>(bits);
+  return ICStateField::decode(flags);
 }
 
 
 Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
-  int bits = (flags & kFlagsExtraICStateMask) >> kFlagsExtraICStateShift;
-  return static_cast<ExtraICState>(bits);
+  return ExtraICStateField::decode(flags);
 }
 
 
 InLoopFlag Code::ExtractICInLoopFromFlags(Flags flags) {
-  int bits = (flags & kFlagsICInLoopMask);
-  return bits != 0 ? IN_LOOP : NOT_IN_LOOP;
+  return ICInLoopField::decode(flags);
 }
 
 
 PropertyType Code::ExtractTypeFromFlags(Flags flags) {
-  int bits = (flags & kFlagsTypeMask) >> kFlagsTypeShift;
-  return static_cast<PropertyType>(bits);
+  return TypeField::decode(flags);
 }
 
 
@@ -3170,13 +3157,12 @@ int Code::ExtractArgumentsCountFromFlags(Flags flags) {
 
 
 InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
-  int bits = (flags & kFlagsCacheInPrototypeMapMask);
-  return bits != 0 ? PROTOTYPE_MAP : OWN_MAP;
+  return CacheHolderField::decode(flags);
 }
 
 
 Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
-  int bits = flags & ~kFlagsTypeMask;
+  int bits = flags & ~TypeField::kMask;
   return static_cast<Flags>(bits);
 }
 
@@ -3259,7 +3245,7 @@ MaybeObject* Map::GetFastElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::FAST_ELEMENTS);
+  new_map->set_elements_kind(FAST_ELEMENTS);
   isolate()->counters()->map_to_fast_elements()->Increment();
   return new_map;
 }
@@ -3272,7 +3258,7 @@ MaybeObject* Map::GetFastDoubleElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::FAST_DOUBLE_ELEMENTS);
+  new_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
   isolate()->counters()->map_to_fast_double_elements()->Increment();
   return new_map;
 }
@@ -3285,7 +3271,7 @@ MaybeObject* Map::GetSlowElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::DICTIONARY_ELEMENTS);
+  new_map->set_elements_kind(DICTIONARY_ELEMENTS);
   isolate()->counters()->map_to_slow_elements()->Increment();
   return new_map;
 }
@@ -4098,7 +4084,7 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
 }
 
 
-JSObject::ElementsKind JSObject::GetElementsKind() {
+ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
   ASSERT((kind == FAST_ELEMENTS &&
           (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -4437,9 +4423,7 @@ PropertyAttributes AccessorInfo::property_attributes() {
 
 
 void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
-  ASSERT(AttributesField::is_valid(attributes));
-  int rest_value = flag()->value() & ~AttributesField::mask();
-  set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
+  set_flag(Smi::FromInt(AttributesField::update(flag()->value(), attributes)));
 }
 
 

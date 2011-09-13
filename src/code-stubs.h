@@ -181,7 +181,7 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // Returns a name for logging/debugging purposes.
-  SmartPointer<const char> GetName();
+  SmartArrayPointer<const char> GetName();
   virtual void PrintName(StringStream* stream) {
     stream->Add("%s", MajorName(MajorKey(), false));
   }
@@ -860,7 +860,7 @@ class AllowStubCallsScope {
 
 class KeyedLoadElementStub : public CodeStub {
  public:
-  explicit KeyedLoadElementStub(JSObject::ElementsKind elements_kind)
+  explicit KeyedLoadElementStub(ElementsKind elements_kind)
       : elements_kind_(elements_kind)
   { }
 
@@ -870,7 +870,7 @@ class KeyedLoadElementStub : public CodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadElementStub);
 };
@@ -879,20 +879,20 @@ class KeyedLoadElementStub : public CodeStub {
 class KeyedStoreElementStub : public CodeStub {
  public:
   KeyedStoreElementStub(bool is_js_array,
-                        JSObject::ElementsKind elements_kind)
+                        ElementsKind elements_kind)
     : is_js_array_(is_js_array),
     elements_kind_(elements_kind) { }
 
   Major MajorKey() { return KeyedStoreElement; }
   int MinorKey() {
-    return (is_js_array_ ? 0 : JSObject::kElementsKindCount) + elements_kind_;
+    return (is_js_array_ ? 0 : kElementsKindCount) + elements_kind_;
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
   bool is_js_array_;
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedStoreElementStub);
 };

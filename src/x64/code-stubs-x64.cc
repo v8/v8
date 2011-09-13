@@ -2712,7 +2712,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address, isolate);
+      Isolate::kPendingExceptionAddress, isolate);
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address, rbx);
   __ movq(rax, pending_exception_operand);
@@ -3428,7 +3428,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address, masm->isolate());
+      Isolate::kPendingExceptionAddress, masm->isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address);
   __ movq(rax, pending_exception_operand);
@@ -3568,14 +3568,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Isolate* isolate = masm->isolate();
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, isolate);
+  ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, isolate);
   {
     Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
     __ push(c_entry_fp_operand);
   }
 
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
   __ Load(rax, js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
@@ -3593,7 +3593,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);

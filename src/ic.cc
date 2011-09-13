@@ -1093,7 +1093,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 MaybeObject* KeyedLoadIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   return KeyedLoadElementStub(elements_kind).TryGetCode();
 }
 
@@ -1721,7 +1721,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 
 MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   return KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
 }
 

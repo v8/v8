@@ -144,7 +144,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
-          Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
+          Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
   __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
@@ -198,9 +198,9 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
-  const int kTypeAndReadOnlyMask
-      = (PropertyDetails::TypeField::mask() |
-         PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+  const int kTypeAndReadOnlyMask =
+      (PropertyDetails::TypeField::kMask |
+       PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(kTypeAndReadOnlyMask));
   __ j(not_zero, miss_label);

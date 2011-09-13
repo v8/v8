@@ -663,7 +663,7 @@ static void Indent(int n, const char* str) {
 
 
 static void PrintName(Handle<String> name) {
-  SmartPointer<char> s = name->ToCString(DISALLOW_NULLS);
+  SmartArrayPointer<char> s = name->ToCString(DISALLOW_NULLS);
   PrintF("%s", *s);
 }
 
