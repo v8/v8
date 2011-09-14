@@ -395,6 +395,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
                                          MONOMORPHIC,
                                          extra_ic_state,
                                          NORMAL,
@@ -731,7 +732,9 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, a0, a2, a3, t0, t1);
 
@@ -1392,8 +1395,10 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags =
-      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC,
+                                         strict_mode);
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, a1, a2, a3, t0, t1);
 

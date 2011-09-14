@@ -1211,17 +1211,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       LookupResult lookup;
       global->Lookup(*name, &lookup);
       if (lookup.IsProperty()) {
-        // We found an existing property. Unless it was an interceptor
-        // that claims the property is absent, skip this declaration.
-        if (lookup.type() != INTERCEPTOR) {
-          continue;
-        }
+        // Determine if the property is local by comparing the holder
+        // against the global object. The information will be used to
+        // avoid throwing re-declaration errors when declaring
+        // variables or constants that exist in the prototype chain.
+        bool is_local = (*global == lookup.holder());
+        // Get the property attributes and determine if the property is
+        // read-only.
         PropertyAttributes attributes = global->GetPropertyAttribute(*name);
-        if (attributes != ABSENT) {
+        bool is_read_only = (attributes & READ_ONLY) != 0;
+        if (lookup.type() == INTERCEPTOR) {
+          // If the interceptor says the property is there, we
+          // just return undefined without overwriting the property.
+          // Otherwise, we continue to setting the property.
+          if (attributes != ABSENT) {
+            // Check if the existing property conflicts with regards to const.
+            if (is_local && (is_read_only || is_const_property)) {
+              const char* type = (is_read_only) ? "const" : "var";
+              return ThrowRedeclarationError(isolate, type, name);
+            };
+            // The property already exists without conflicting: Go to
+            // the next declaration.
+            continue;
+          }
+          // Fall-through and introduce the absent property by using
+          // SetProperty.
+        } else {
+          // For const properties, we treat a callback with this name
+          // even in the prototype as a conflicting declaration.
+          if (is_const_property && (lookup.type() == CALLBACKS)) {
+            return ThrowRedeclarationError(isolate, "const", name);
+          }
+          // Otherwise, we check for locally conflicting declarations.
+          if (is_local && (is_read_only || is_const_property)) {
+            const char* type = (is_read_only) ? "const" : "var";
+            return ThrowRedeclarationError(isolate, type, name);
+          }
+          // The property already exists without conflicting: Go to
+          // the next declaration.
           continue;
         }
-        // Fall-through and introduce the absent property by using
-        // SetProperty.
       }
     } else {
       is_function_declaration = true;
@@ -1237,6 +1266,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
 
     LookupResult lookup;
     global->LocalLookup(*name, &lookup);
+
+    // There's a local property that we need to overwrite because
+    // we're either declaring a function or there's an interceptor
+    // that claims the property is absent.
+    //
+    // Check for conflicting re-declarations. We cannot have
+    // conflicting types in case of intercepted properties because
+    // they are absent.
+    if (lookup.IsProperty() &&
+        (lookup.type() != INTERCEPTOR) &&
+        (lookup.IsReadOnly() || is_const_property)) {
+      const char* type = (lookup.IsReadOnly()) ? "const" : "var";
+      return ThrowRedeclarationError(isolate, type, name);
+    }
 
     // Compute the property attributes. According to ECMA-262, section
     // 13, page 71, the property must be read-only and
@@ -1422,32 +1465,64 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // to assign to the property.
   // Note that objects can have hidden prototypes, so we need to traverse
   // the whole chain of hidden prototypes to do a 'local' lookup.
-  Object* object = global;
+  JSObject* real_holder = global;
   LookupResult lookup;
-  while (object->IsJSObject() &&
-         JSObject::cast(object)->map()->is_hidden_prototype()) {
-    JSObject* raw_holder = JSObject::cast(object);
-    raw_holder->LocalLookup(*name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
-      HandleScope handle_scope(isolate);
-      Handle<JSObject> holder(raw_holder);
-      PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
-      // Update the raw pointer in case it's changed due to GC.
-      raw_holder = *holder;
-      if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
-        // Found an interceptor that's not read only.
-        if (assign) {
-          return raw_holder->SetProperty(
-              &lookup, *name, args[2], attributes, strict_mode);
-        } else {
-          return isolate->heap()->undefined_value();
+  while (true) {
+    real_holder->LocalLookup(*name, &lookup);
+    if (lookup.IsProperty()) {
+      // Determine if this is a redeclaration of something read-only.
+      if (lookup.IsReadOnly()) {
+        // If we found readonly property on one of hidden prototypes,
+        // just shadow it.
+        if (real_holder != isolate->context()->global()) break;
+        return ThrowRedeclarationError(isolate, "const", name);
+      }
+
+      // Determine if this is a redeclaration of an intercepted read-only
+      // property and figure out if the property exists at all.
+      bool found = true;
+      PropertyType type = lookup.type();
+      if (type == INTERCEPTOR) {
+        HandleScope handle_scope(isolate);
+        Handle<JSObject> holder(real_holder);
+        PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
+        real_holder = *holder;
+        if (intercepted == ABSENT) {
+          // The interceptor claims the property isn't there. We need to
+          // make sure to introduce it.
+          found = false;
+        } else if ((intercepted & READ_ONLY) != 0) {
+          // The property is present, but read-only. Since we're trying to
+          // overwrite it with a variable declaration we must throw a
+          // re-declaration error.  However if we found readonly property
+          // on one of hidden prototypes, just shadow it.
+          if (real_holder != isolate->context()->global()) break;
+          return ThrowRedeclarationError(isolate, "const", name);
         }
       }
+
+      if (found && !assign) {
+        // The global property is there and we're not assigning any value
+        // to it. Just return.
+        return isolate->heap()->undefined_value();
+      }
+
+      // Assign the value (or undefined) to the property.
+      Object* value = (assign) ? args[2] : isolate->heap()->undefined_value();
+      return real_holder->SetProperty(
+          &lookup, *name, value, attributes, strict_mode);
     }
-    object = raw_holder->GetPrototype();
+
+    Object* proto = real_holder->GetPrototype();
+    if (!proto->IsJSObject())
+      break;
+
+    if (!JSObject::cast(proto)->map()->is_hidden_prototype())
+      break;
+
+    real_holder = JSObject::cast(proto);
   }
 
-  // Reload global in case the loop above performed a GC.
   global = isolate->context()->global();
   if (assign) {
     return global->SetProperty(*name, args[2], attributes, strict_mode);
@@ -1485,16 +1560,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
                                                     attributes);
   }
 
-  // Determine if this is a re-initialization of something not
+  // Determine if this is a redeclaration of something not
   // read-only. In case the result is hidden behind an interceptor we
   // need to ask it for the property attributes.
-  if (!lookup.IsReadOnly() && lookup.type() == INTERCEPTOR) {
+  if (!lookup.IsReadOnly()) {
+    if (lookup.type() != INTERCEPTOR) {
+      return ThrowRedeclarationError(isolate, "var", name);
+    }
+
     PropertyAttributes intercepted = global->GetPropertyAttribute(*name);
 
-    // Ignore the re-initialization if the intercepted property is present
+    // Throw re-declaration error if the intercepted property is present
     // but not read-only.
     if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
-      return isolate->heap()->undefined_value();
+      return ThrowRedeclarationError(isolate, "var", name);
     }
 
     // Restore global object from context (in case of GC) and continue
@@ -1524,12 +1603,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   if (type == FIELD) {
     FixedArray* properties = global->properties();
     int index = lookup.GetFieldIndex();
-    if (properties->get(index)->IsTheHole() || !lookup.IsReadOnly()) {
+    if (properties->get(index)->IsTheHole()) {
       properties->set(index, *value);
     }
   } else if (type == NORMAL) {
-    if (global->GetNormalizedProperty(&lookup)->IsTheHole() ||
-        !lookup.IsReadOnly()) {
+    if (global->GetNormalizedProperty(&lookup)->IsTheHole()) {
       global->SetNormalizedProperty(&lookup, *value);
     }
   } else {

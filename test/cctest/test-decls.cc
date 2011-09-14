@@ -285,18 +285,18 @@ TEST(Present) {
 
   { PresentPropertyContext context;
     context.Check("const x; x",
-                  1,  // access
                   0,
-                  2,  // (re-)declaration + initialization
-                  EXPECT_EXCEPTION);  // x is not defined!
+                  0,
+                  1,  // (re-)declaration
+                  EXPECT_EXCEPTION);  // x has already been declared!
   }
 
   { PresentPropertyContext context;
     context.Check("const x = 0; x",
-                  1,  // access
                   0,
-                  2,  // (re-)declaration + initialization
-                  EXPECT_EXCEPTION);  // x is not defined!
+                  0,
+                  1,  // (re-)declaration
+                  EXPECT_EXCEPTION);  // x has already been declared!
   }
 }
 
@@ -429,20 +429,18 @@ TEST(Appearing) {
 
   { AppearingPropertyContext context;
     context.Check("const x; x",
-                  1,  // access
+                  0,
                   1,  // declaration
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_EXCEPTION);  // x has already been declared!
   }
 
   { AppearingPropertyContext context;
     context.Check("const x = 0; x",
-                  1,  // access
+                  0,
                   1,  // declaration
                   2,  // declaration + initialization
-                  EXPECT_RESULT, Undefined());
-                  // Result is undefined because declaration succeeded but
-                  // initialization to 0 failed (due to context behavior).
+                  EXPECT_EXCEPTION);  //  x has already been declared!
   }
 }
 
@@ -498,9 +496,9 @@ TEST(Reappearing) {
   { ReappearingPropertyContext context;
     context.Check("const x; var x = 0",
                   0,
-                  3,  // const declaration+initialization, var initialization
+                  2,  // var declaration + const initialization
                   4,  // 2 x declaration + 2 x initialization
-                  EXPECT_RESULT, Undefined());
+                  EXPECT_EXCEPTION);  // x has already been declared!
   }
 }
 

@@ -193,14 +193,13 @@ function GlobalEval(x) {
 function SetUpGlobal() {
   %CheckIsBootstrapping();
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
