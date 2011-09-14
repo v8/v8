@@ -162,9 +162,9 @@ Handle<Object> Execution::Call(Handle<Object> callable,
       !func->shared()->native() && !func->shared()->strict_mode()) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       Object* global = func->context()->global()->global_receiver();
-      // For reasons that escape me, 'global' can be the JSBuiltinsObject
-      // under some circumstances.  In that case, don't rewrite.
-      // FWIW, the same holds for GetIsolate()->global()->global_receiver().
+      // Under some circumstances, 'global' can be the JSBuiltinsObject
+      // In that case, don't rewrite.
+      // (FWIW, the same holds for GetIsolate()->global()->global_receiver().)
       if (!global->IsJSBuiltinsObject()) receiver = Handle<Object>(global);
     } else {
       receiver = ToObject(receiver, pending_exception);
