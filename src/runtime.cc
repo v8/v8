@@ -8234,8 +8234,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());
-  } else {
-    RUNTIME_ASSERT(!function->IsOptimized());
   }
 
   // Avoid doing too much work when running with --always-opt and keep
@@ -8254,8 +8252,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     it.Advance();
   }
 
-  // TODO(kasperl): For now, we cannot support removing the optimized
-  // code when we have recursive invocations of the same function.
   if (activations == 0) {
     if (FLAG_trace_deopt) {
       PrintF("[removing optimized code for: ");
@@ -8263,6 +8259,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       PrintF("]\n");
     }
     function->ReplaceCode(function->shared()->code());
+  } else {
+    Deoptimizer::DeoptimizeFunction(*function);
   }
   return isolate->heap()->undefined_value();
 }
