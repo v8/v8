@@ -11031,15 +11031,16 @@ class ScopeIterator {
       at_local_(false) {
 
     // Check whether the first scope is actually a local scope.
-    if (context_->IsGlobalContext()) {
-      // If there is a stack slot for .result then this local scope has been
-      // created for evaluating top level code and it is not a real local scope.
-      // Checking for the existence of .result seems fragile, but the scope info
-      // saved with the code object does not otherwise have that information.
-      int index = function_->shared()->scope_info()->
-          StackSlotIndex(isolate_->heap()->result_symbol());
-      at_local_ = index < 0;
-    } else if (context_->IsFunctionContext()) {
+    // If there is a stack slot for .result then this local scope has been
+    // created for evaluating top level code and it is not a real local scope.
+    // Checking for the existence of .result seems fragile, but the scope info
+    // saved with the code object does not otherwise have that information.
+    int index = function_->shared()->scope_info()->
+        StackSlotIndex(isolate_->heap()->result_symbol());
+    if (index >= 0) {
+      local_done_ = true;
+    } else if (context_->IsGlobalContext() ||
+               context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
       // The context_ is a block or with or catch block from the outer function.
@@ -11086,7 +11087,7 @@ class ScopeIterator {
   }
 
   // Return the type of the current scope.
-  int Type() {
+  ScopeType Type() {
     if (at_local_) {
       return ScopeTypeLocal;
     }
