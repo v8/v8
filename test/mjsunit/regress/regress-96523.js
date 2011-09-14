@@ -25,58 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#include "ast.h"
-#include "scopes.h"
-#include "variables.h"
-
-namespace v8 {
-namespace internal {
-
-// ----------------------------------------------------------------------------
-// Implementation Variable.
-
-const char* Variable::Mode2String(Mode mode) {
-  switch (mode) {
-    case VAR: return "VAR";
-    case CONST: return "CONST";
-    case LET: return "LET";
-    case DYNAMIC: return "DYNAMIC";
-    case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
-    case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
-    case INTERNAL: return "INTERNAL";
-    case TEMPORARY: return "TEMPORARY";
-  }
-  UNREACHABLE();
-  return NULL;
+with ({x:'outer'}) {
+  (function() {
+    var x = 'inner';
+    try {
+      throw 'Exception';
+    } catch (e) {
+      assertEquals('inner', x);
+    }
+  })()
 }
-
-
-Variable::Variable(Scope* scope,
-                   Handle<String> name,
-                   Mode mode,
-                   bool is_valid_LHS,
-                   Kind kind)
-  : scope_(scope),
-    name_(name),
-    mode_(mode),
-    kind_(kind),
-    location_(UNALLOCATED),
-    index_(-1),
-    local_if_not_shadowed_(NULL),
-    is_valid_LHS_(is_valid_LHS),
-    is_accessed_from_inner_scope_(false),
-    is_used_(false) {
-  // names must be canonicalized for fast equality checks
-  ASSERT(name->IsSymbol());
-}
-
-
-bool Variable::is_global() const {
-  // Temporaries are never global, they must always be allocated in the
-  // activation frame.
-  return mode_ != TEMPORARY && scope_ != NULL && scope_->is_global_scope();
-}
-
-} }  // namespace v8::internal
