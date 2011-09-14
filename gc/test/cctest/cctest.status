@@ -53,8 +53,6 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 test-weakmaps/Shrinking: FAIL
 
 # Known failures after merge from the bleeding edge (issue 1672)
-ScriptMakingExternalString: SKIP
-ScriptMakingExternalAsciiString: SKIP
 StressJS: SKIP
 
 ##############################################################################

@@ -445,7 +445,8 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllGarbage(false);
+  // TODO(1608): This should use kAbortIncrementalMarking.
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -471,7 +472,8 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllGarbage(false);
+  // TODO(1608): This should use kAbortIncrementalMarking.
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   CHECK_EQ(1, dispose_count);
 }
 
