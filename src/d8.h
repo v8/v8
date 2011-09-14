@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -112,6 +112,29 @@ class CounterMap {
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
   i::HashMap hash_map_;
+};
+#endif  // V8_SHARED
+
+
+#ifndef V8_SHARED
+class LineEditor {
+ public:
+  enum Type { DUMB = 0, READLINE = 1 };
+  LineEditor(Type type, const char* name);
+  virtual ~LineEditor() { }
+
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt) = 0;
+  virtual bool Open() { return true; }
+  virtual bool Close() { return true; }
+  virtual void AddHistory(const char* str) { }
+
+  const char* name() { return name_; }
+  static LineEditor* Get();
+ private:
+  Type type_;
+  const char* name_;
+  LineEditor* next_;
+  static LineEditor* first_;
 };
 #endif  // V8_SHARED
 
@@ -313,6 +336,7 @@ class Shell : public i::AllStatic {
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 #ifndef V8_SHARED
   static const char* kHistoryFileName;
+  static LineEditor* console;
 #endif  // V8_SHARED
   static const char* kPrompt;
   static ShellOptions options;
@@ -341,29 +365,6 @@ class Shell : public i::AllStatic {
                                            size_t element_size);
   static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
-
-
-#ifndef V8_SHARED
-class LineEditor {
- public:
-  enum Type { DUMB = 0, READLINE = 1 };
-  LineEditor(Type type, const char* name);
-  virtual ~LineEditor() { }
-
-  virtual i::SmartArrayPointer<char> Prompt(const char* prompt) = 0;
-  virtual bool Open() { return true; }
-  virtual bool Close() { return true; }
-  virtual void AddHistory(const char* str) { }
-
-  const char* name() { return name_; }
-  static LineEditor* Get();
- private:
-  Type type_;
-  const char* name_;
-  LineEditor* next_;
-  static LineEditor* first_;
-};
-#endif  // V8_SHARED
 
 
 }  // namespace v8
