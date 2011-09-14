@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,6 +72,7 @@ bool ReadLineEditor::Open() {
   rl_completer_word_break_characters = kWordBreakCharacters;
   rl_bind_key('\t', rl_complete);
   using_history();
+  stifle_history(Shell::kMaxHistoryEntries);
   return read_history(Shell::kHistoryFileName) == 0;
 }
 
@@ -88,6 +89,18 @@ i::SmartArrayPointer<char> ReadLineEditor::Prompt(const char* prompt) {
 
 
 void ReadLineEditor::AddHistory(const char* str) {
+  // Do not record empty input.
+  if (strlen(str) == 0) return;
+  // Remove duplicate history entry.
+  history_set_pos(history_length-1);
+  if (current_history()) {
+    do {
+      if (strcmp(current_history()->line, str) == 0) {
+        remove_history(where_history());
+        break;
+      }
+    } while (previous_history());
+  }
   add_history(str);
 }
 
