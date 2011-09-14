@@ -117,7 +117,6 @@ CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
 Persistent<Context> Shell::utility_context_;
-LineEditor* Shell::console = NULL;
 #endif  // V8_SHARED
 
 Persistent<Context> Shell::evaluation_context_;
@@ -792,7 +791,6 @@ void Shell::Exit(int exit_code) {
 
 #ifndef V8_SHARED
 void Shell::OnExit() {
-  console->Close();
   if (i::FLAG_dump_counters) {
     printf("+----------------------------------------+-------------+\n");
     printf("| Name                                   | Value       |\n");
@@ -897,20 +895,20 @@ void Shell::RunShell() {
   HandleScope outer_scope;
   Handle<String> name = String::New("(d8)");
 #ifndef V8_SHARED
-  console = LineEditor::Get();
-  printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
+  LineEditor* editor = LineEditor::Get();
+  printf("V8 version %s [console: %s]\n", V8::GetVersion(), editor->name());
   if (i::FLAG_debugger) {
     printf("JavaScript debugger enabled\n");
   }
-  console->Open();
+  editor->Open();
   while (true) {
-    i::SmartArrayPointer<char> input = console->Prompt(Shell::kPrompt);
+    i::SmartArrayPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty()) break;
-    console->AddHistory(*input);
+    editor->AddHistory(*input);
     HandleScope inner_scope;
     ExecuteString(String::New(*input), name, true, true);
   }
-  console->Close();
+  editor->Close();
 #else
   printf("V8 version %s [D8 light using shared library]\n", V8::GetVersion());
   static const int kBufferSize = 256;
