@@ -2243,6 +2243,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     // are guaranteed to be in old space.
     target->set_literals(*literals, SKIP_WRITE_BARRIER);
     target->set_next_function_link(isolate->heap()->undefined_value());
+
+    if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
+      isolate->logger()->LogExistingFunction(
+          shared, Handle<Code>(shared->code()));
+    }
   }
 
   target->set_context(*context);
