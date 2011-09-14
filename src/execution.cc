@@ -227,7 +227,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a function.
 
-  // If object is a function proxies, get its handler. Iterate if necessary.
+  // If object is a function proxy, get its handler. Iterate if necessary.
   Object* fun = *object;
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
@@ -251,7 +251,7 @@ Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
   ASSERT(!object->IsJSFunction());
   Isolate* isolate = Isolate::Current();
 
-  // If object is a function proxies, get its handler. Iterate if necessary.
+  // If object is a function proxy, get its handler. Iterate if necessary.
   Object* fun = *object;
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();

@@ -408,7 +408,7 @@ function CALL_NON_FUNCTION() {
   if (!IS_FUNCTION(delegate)) {
     throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-  return delegate.apply(this, arguments);
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
 
 
@@ -417,7 +417,7 @@ function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   if (!IS_FUNCTION(delegate)) {
     throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-  return delegate.apply(this, arguments);
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
 
 
