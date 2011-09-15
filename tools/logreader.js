@@ -135,7 +135,7 @@ LogReader.prototype.dispatchLogRow_ = function(fields) {
   // Obtain the dispatch.
   var command = fields[0];
   if (!(command in this.dispatchTable_)) return;
-  
+
   var dispatch = this.dispatchTable_[command];
 
   if (dispatch === null || this.skipDispatch(dispatch)) {
