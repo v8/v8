@@ -114,7 +114,6 @@ Handle<Code> CodeStub::GetCode() {
     // Copy the generated code into a heap object.
     Code::Flags flags = Code::ComputeFlags(
         static_cast<Code::Kind>(GetCodeKind()),
-        InLoop(),
         GetICState());
     Handle<Code> new_object = factory->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
@@ -152,7 +151,6 @@ MaybeObject* CodeStub::TryGetCode() {
     // Try to copy the generated code into a heap object.
     Code::Flags flags = Code::ComputeFlags(
         static_cast<Code::Kind>(GetCodeKind()),
-        InLoop(),
         GetICState());
     Object* new_object;
     { MaybeObject* maybe_new_object =
@@ -316,17 +314,12 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 
 
 void CallFunctionStub::PrintName(StringStream* stream) {
-  const char* in_loop_name = NULL;  // Make g++ happy.
-  switch (in_loop_) {
-    case NOT_IN_LOOP: in_loop_name = ""; break;
-    case IN_LOOP: in_loop_name = "_InLoop"; break;
-  }
   const char* flags_name = NULL;  // Make g++ happy.
   switch (flags_) {
     case NO_CALL_FUNCTION_FLAGS: flags_name = ""; break;
     case RECEIVER_MIGHT_BE_IMPLICIT: flags_name = "_Implicit"; break;
   }
-  stream->Add("CallFunctionStub_Args%d%s%s", argc_, in_loop_name, flags_name);
+  stream->Add("CallFunctionStub_Args%d%s", argc_, flags_name);
 }
 
 

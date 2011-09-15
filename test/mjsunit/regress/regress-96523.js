@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CPU_PROFILER_INL_H_
-#define V8_CPU_PROFILER_INL_H_
-
-#include "cpu-profiler.h"
-
-#include <new>
-#include "circular-queue-inl.h"
-#include "profile-generator-inl.h"
-#include "unbound-queue-inl.h"
-
-namespace v8 {
-namespace internal {
-
-void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddCode(start, entry, size);
-  if (shared != NULL) {
-    entry->set_shared_id(code_map->GetSharedId(shared));
-  }
+with ({x:'outer'}) {
+  (function() {
+    var x = 'inner';
+    try {
+      throw 'Exception';
+    } catch (e) {
+      assertEquals('inner', x);
+    }
+  })()
 }
-
-
-void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
-}
-
-
-void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
-}
-
-
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
-  generator_->Tick();
-  TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
-  return &evt->sample;
-}
-
-
-bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
-    Logger::LogEventsAndTags tag) {
-  return FLAG_prof_browser_mode
-      && (tag != Logger::CALLBACK_TAG
-          && tag != Logger::FUNCTION_TAG
-          && tag != Logger::LAZY_COMPILE_TAG
-          && tag != Logger::REG_EXP_TAG
-          && tag != Logger::SCRIPT_TAG);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_CPU_PROFILER_INL_H_

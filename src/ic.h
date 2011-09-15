@@ -149,8 +149,7 @@ class IC {
   void TraceIC(const char* type,
                Handle<Object> name,
                State old_state,
-               Code* new_target,
-               const char* extra_info = "");
+               Code* new_target);
 #endif
 
   Failure* TypeError(const char* type,

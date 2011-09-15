@@ -302,12 +302,6 @@ enum CheckType {
 };
 
 
-enum InLoopFlag {
-  NOT_IN_LOOP,
-  IN_LOOP
-};
-
-
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
   // Receiver might implicitly be the global objects. If it is, the

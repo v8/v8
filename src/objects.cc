@@ -84,7 +84,7 @@ MaybeObject* Object::ToObject(Context* global_context) {
 
 
 MaybeObject* Object::ToObject() {
-  if (IsJSObject()) {
+  if (IsJSReceiver()) {
     return this;
   } else if (IsNumber()) {
     Isolate* isolate = Isolate::Current();
@@ -237,6 +237,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     // Get the derived `get' property.
     trap = isolate->derived_get_trap();
@@ -627,6 +628,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         } else if (heap_object->IsBoolean()) {
           holder = global_context->boolean_function()->instance_prototype();
         } else if (heap_object->IsJSProxy()) {
+          // TODO(rossberg): do something
           return heap->undefined_value();  // For now...
         } else {
           // Undefined and null have no indexed properties.
@@ -1173,6 +1175,12 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
+    case JS_PROXY_TYPE:
+      accumulator->Add("<JSProxy>");
+      break;
+    case JS_FUNCTION_PROXY_TYPE:
+      accumulator->Add("<JSFunctionProxy>");
+      break;
     case FOREIGN_TYPE:
       accumulator->Add("<Foreign>");
       break;
@@ -1250,6 +1258,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
+      break;
+    case JS_FUNCTION_PROXY_TYPE:
+      JSFunctionProxy::BodyDescriptor::IterateBody(this, v);
       break;
     case FOREIGN_TYPE:
       reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
@@ -2212,6 +2223,7 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("has");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_has_trap();
   }
@@ -2242,6 +2254,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     trap = isolate->derived_set_trap();
   }
@@ -2269,6 +2282,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   // Extract trap function.
   Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return Failure::Exception();
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2311,6 +2325,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   Handle<String> trap_name =
       isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return NONE;
   if (trap->IsUndefined()) {
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2337,9 +2352,13 @@ void JSProxy::Fix() {
   HandleScope scope(isolate);
   Handle<JSProxy> self(this);
 
-  isolate->factory()->BecomeJSObject(self);
+  if (IsJSFunctionProxy()) {
+    isolate->factory()->BecomeJSFunction(self);
+    // Code will be set on the JavaScript side.
+  } else {
+    isolate->factory()->BecomeJSObject(self);
+  }
   ASSERT(self->IsJSObject());
-  // TODO(rossberg): recognize function proxies.
 }
 
 
@@ -7147,7 +7166,6 @@ void Code::Disassemble(const char* name, FILE* out) {
   if (is_inline_cache_stub()) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), extra_ic_state());
-    PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
     }

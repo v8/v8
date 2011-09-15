@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CPU_PROFILER_INL_H_
-#define V8_CPU_PROFILER_INL_H_
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
+var breaks = 0;
 
-#include "cpu-profiler.h"
+function sendCommand(state, cmd) {
+  // Get the debug command processor in paused state.
+  var dcp = state.debugCommandProcessor(false);
+  var request = JSON.stringify(cmd);
+  var response = dcp.processDebugJSONRequest(request);
+}
 
-#include <new>
-#include "circular-queue-inl.h"
-#include "profile-generator-inl.h"
-#include "unbound-queue-inl.h"
+function listener(event, exec_state, event_data, data) {
+  try {
+    if (event == Debug.DebugEvent.Break) {
+      var line = event_data.sourceLineText();
+      print('break: ' + line);
 
-namespace v8 {
-namespace internal {
-
-void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddCode(start, entry, size);
-  if (shared != NULL) {
-    entry->set_shared_id(code_map->GetSharedId(shared));
+      assertEquals(-1, line.indexOf('NOBREAK'),
+                   "should not break on unexpected lines")
+      assertEquals('BREAK ' + breaks, line.substr(-7));
+      breaks++;
+      sendCommand(exec_state, {
+        seq: 0,
+        type: "request",
+        command: "continue",
+        arguments: { stepaction: "next" }
+      });
+    }
+  } catch (e) {
+    print(e);
   }
 }
 
+// Add the debug event listener.
+Debug.setListener(listener);
 
-void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
+function a(f) {
+  if (f) {  // NOBREAK: should not break here!
+    try {
+      f();
+    } catch(e) {
+    }
+  }
+}  // BREAK 2
+
+function b() {
+  c();  // BREAK 0
+}  // BREAK 1
+
+function c() {
+  a();
 }
 
-
-void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
-}
-
-
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
-  generator_->Tick();
-  TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
-  return &evt->sample;
-}
-
-
-bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
-    Logger::LogEventsAndTags tag) {
-  return FLAG_prof_browser_mode
-      && (tag != Logger::CALLBACK_TAG
-          && tag != Logger::FUNCTION_TAG
-          && tag != Logger::LAZY_COMPILE_TAG
-          && tag != Logger::REG_EXP_TAG
-          && tag != Logger::SCRIPT_TAG);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_CPU_PROFILER_INL_H_
+// Set a break point and call to invoke the debug event listener.
+Debug.setBreakPoint(b, 0, 0);
+a(b);
+// BREAK 3

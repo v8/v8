@@ -613,6 +613,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSFunctionProxy) {
+  ASSERT(args.length() == 4);
+  Object* handler = args[0];
+  Object* call_trap = args[1];
+  Object* construct_trap = args[2];
+  Object* prototype = args[3];
+  Object* used_prototype =
+      prototype->IsJSReceiver() ? prototype : isolate->heap()->null_value();
+  return isolate->heap()->AllocateJSFunctionProxy(
+      handler, call_trap, construct_trap, used_prototype);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
   ASSERT(args.length() == 1);
   Object* obj = args[0];
@@ -620,10 +633,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSFunctionProxy) {
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  return isolate->heap()->ToBoolean(obj->IsJSFunctionProxy());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSProxy, proxy, args[0]);
   return proxy->handler();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetCallTrap) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunctionProxy, proxy, args[0]);
+  return proxy->call_trap();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructTrap) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunctionProxy, proxy, args[0]);
+  return proxy->construct_trap();
 }
 
 
@@ -2154,7 +2188,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionIsBuiltin) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -2210,6 +2243,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     // are guaranteed to be in old space.
     target->set_literals(*literals, SKIP_WRITE_BARRIER);
     target->set_next_function_link(isolate->heap()->undefined_value());
+
+    if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
+      isolate->logger()->LogExistingFunction(
+          shared, Handle<Code>(shared->code()));
+    }
   }
 
   target->set_context(*context);
@@ -5101,6 +5139,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
     case JS_FUNCTION_TYPE:
+    case JS_FUNCTION_PROXY_TYPE:
       return isolate->heap()->function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
@@ -8105,15 +8144,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyCompile) {
   }
 #endif
 
-  // Compile the target function.  Here we compile using CompileLazyInLoop in
-  // order to get the optimized version.  This helps code like delta-blue
-  // that calls performance-critical routines through constructors.  A
-  // constructor call doesn't use a CallIC, it uses a LoadIC followed by a
-  // direct call.  Since the in-loop tracking takes place through CallICs
-  // this means that things called through constructors are never known to
-  // be in loops.  We compile them as if they are in loops here just in case.
+  // Compile the target function.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
+  if (!CompileLazy(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -8127,6 +8160,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
+
+  // If the function is not compiled ignore the lazy
+  // recompilation. This can happen if the debugger is activated and
+  // the function is returned to the not compiled state.
+  if (!function->shared()->is_compiled()) {
+    function->ReplaceCode(function->shared()->code());
+    return function->code();
+  }
+
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
@@ -8192,8 +8234,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
 
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());
-  } else {
-    RUNTIME_ASSERT(!function->IsOptimized());
   }
 
   // Avoid doing too much work when running with --always-opt and keep
@@ -8212,8 +8252,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     it.Advance();
   }
 
-  // TODO(kasperl): For now, we cannot support removing the optimized
-  // code when we have recursive invocations of the same function.
   if (activations == 0) {
     if (FLAG_trace_deopt) {
       PrintF("[removing optimized code for: ");
@@ -8221,6 +8259,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       PrintF("]\n");
     }
     function->ReplaceCode(function->shared()->code());
+  } else {
+    Deoptimizer::DeoptimizeFunction(*function);
   }
   return isolate->heap()->undefined_value();
 }
@@ -8404,6 +8444,49 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 5);
+  CONVERT_CHECKED(JSReceiver, fun, args[0]);
+  Object* receiver = args[1];
+  CONVERT_CHECKED(JSObject, arguments, args[2]);
+  CONVERT_CHECKED(Smi, shift, args[3]);
+  CONVERT_CHECKED(Smi, arity, args[4]);
+
+  int offset = shift->value();
+  int argc = arity->value();
+  ASSERT(offset >= 0);
+  ASSERT(argc >= 0);
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+     MaybeObject* maybe = arguments->GetElement(offset + i);
+     Object* object;
+     if (!maybe->To<Object>(&object)) return maybe;
+     argv[i] = Handle<Object>(object);
+  }
+
+  bool threw = false;
+  Handle<JSReceiver> hfun(fun);
+  Handle<Object> hreceiver(receiver);
+  Handle<Object> result = Execution::Call(
+      hfun, hreceiver, argc, reinterpret_cast<Object***>(argv), &threw, true);
+
+  if (threw) return Failure::Exception();
+  return *result;
 }
 
 
@@ -10951,15 +11034,16 @@ class ScopeIterator {
       at_local_(false) {
 
     // Check whether the first scope is actually a local scope.
-    if (context_->IsGlobalContext()) {
-      // If there is a stack slot for .result then this local scope has been
-      // created for evaluating top level code and it is not a real local scope.
-      // Checking for the existence of .result seems fragile, but the scope info
-      // saved with the code object does not otherwise have that information.
-      int index = function_->shared()->scope_info()->
-          StackSlotIndex(isolate_->heap()->result_symbol());
-      at_local_ = index < 0;
-    } else if (context_->IsFunctionContext()) {
+    // If there is a stack slot for .result then this local scope has been
+    // created for evaluating top level code and it is not a real local scope.
+    // Checking for the existence of .result seems fragile, but the scope info
+    // saved with the code object does not otherwise have that information.
+    int index = function_->shared()->scope_info()->
+        StackSlotIndex(isolate_->heap()->result_symbol());
+    if (index >= 0) {
+      local_done_ = true;
+    } else if (context_->IsGlobalContext() ||
+               context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
       // The context_ is a block or with or catch block from the outer function.
@@ -11006,7 +11090,7 @@ class ScopeIterator {
   }
 
   // Return the type of the current scope.
-  int Type() {
+  ScopeType Type() {
     if (at_local_) {
       return ScopeTypeLocal;
     }

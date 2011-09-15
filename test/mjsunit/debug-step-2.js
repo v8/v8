@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CPU_PROFILER_INL_H_
-#define V8_CPU_PROFILER_INL_H_
+// Flags: --expose-debug-as debug
 
-#include "cpu-profiler.h"
+// This test tests that full code compiled without debug break slots
+// is recompiled with debug break slots when debugging is started.
 
-#include <new>
-#include "circular-queue-inl.h"
-#include "profile-generator-inl.h"
-#include "unbound-queue-inl.h"
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
 
-namespace v8 {
-namespace internal {
+var bp;
+var done = false;
+var step_count = 0;
 
-void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddCode(start, entry, size);
-  if (shared != NULL) {
-    entry->set_shared_id(code_map->GetSharedId(shared));
+// Debug event listener which steps until the global variable done is true.
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    if (!done) exec_state.prepareStep(Debug.StepAction.StepNext);
+    step_count++;
   }
+};
+
+// Set the global variables state to prpare the stepping test.
+function prepare_step_test() {
+  done = false;
+  step_count = 0;
 }
 
+// Test function to step through.
+function f() {
+  var i = 1;
+  var j = 2;
+  done = true;
+};
 
-void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
-}
+prepare_step_test();
+f();
 
+// Add the debug event listener.
+Debug.setListener(listener);
 
-void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
-}
+bp = Debug.setBreakPoint(f, 1);
 
+prepare_step_test();
+f();
+assertEquals(4, step_count);
+Debug.clearBreakPoint(bp);
 
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
-  generator_->Tick();
-  TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
-  return &evt->sample;
-}
+// Set a breakpoint on the first var statement (line 1).
+bp = Debug.setBreakPoint(f, 1);
 
+// Step through the function ensuring that the var statements are hit as well.
+prepare_step_test();
+f();
+assertEquals(4, step_count);
 
-bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
-    Logger::LogEventsAndTags tag) {
-  return FLAG_prof_browser_mode
-      && (tag != Logger::CALLBACK_TAG
-          && tag != Logger::FUNCTION_TAG
-          && tag != Logger::LAZY_COMPILE_TAG
-          && tag != Logger::REG_EXP_TAG
-          && tag != Logger::SCRIPT_TAG);
-}
+// Clear the breakpoint and check that no stepping happens.
+Debug.clearBreakPoint(bp);
+prepare_step_test();
+f();
+assertEquals(0, step_count);
 
-} }  // namespace v8::internal
-
-#endif  // V8_CPU_PROFILER_INL_H_
+// Get rid of the debug event listener.
+Debug.setListener(null);

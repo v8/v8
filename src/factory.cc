@@ -922,10 +922,19 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 }
 
 
-void Factory::BecomeJSObject(Handle<JSProxy> object) {
+void Factory::BecomeJSObject(Handle<JSReceiver> object) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
-      isolate()->heap()->ReinitializeJSProxyAsJSObject(*object));
+      isolate()->heap()->ReinitializeJSReceiver(
+          *object, JS_OBJECT_TYPE, JSObject::kHeaderSize));
+}
+
+
+void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      isolate()->heap()->ReinitializeJSReceiver(
+          *object, JS_FUNCTION_TYPE, JSFunction::kSize));
 }
 
 

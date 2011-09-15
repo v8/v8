@@ -2881,11 +2881,6 @@ Code::Kind Code::kind() {
 }
 
 
-InLoopFlag Code::ic_in_loop() {
-  return ExtractICInLoopFromFlags(flags());
-}
-
-
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
@@ -2951,13 +2946,31 @@ void Code::set_optimizable(bool value) {
 
 bool Code::has_deoptimization_support() {
   ASSERT(kind() == FUNCTION);
-  return READ_BYTE_FIELD(this, kHasDeoptimizationSupportOffset) == 1;
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
   ASSERT(kind() == FUNCTION);
-  WRITE_BYTE_FIELD(this, kHasDeoptimizationSupportOffset, value ? 1 : 0);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
+bool Code::has_debug_break_slots() {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
+}
+
+
+void Code::set_has_debug_break_slots(bool value) {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 
@@ -3091,7 +3104,6 @@ bool Code::is_inline_cache_stub() {
 
 
 Code::Flags Code::ComputeFlags(Kind kind,
-                               InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
                                PropertyType type,
@@ -3100,16 +3112,15 @@ Code::Flags Code::ComputeFlags(Kind kind,
   // Extra IC state is only allowed for call IC stubs or for store IC
   // stubs.
   ASSERT(extra_ic_state == kNoExtraICState ||
-         (kind == CALL_IC) ||
-         (kind == STORE_IC) ||
-         (kind == KEYED_STORE_IC));
+         kind == CALL_IC ||
+         kind == STORE_IC ||
+         kind == KEYED_STORE_IC);
   // Compute the bit mask.
   int bits = KindField::encode(kind)
-      | ICInLoopField::encode(in_loop)
       | ICStateField::encode(ic_state)
       | TypeField::encode(type)
       | ExtraICStateField::encode(extra_ic_state)
-      | (argc << kFlagsArgumentsCountShift)
+      | (argc << kArgumentsCountShift)
       | CacheHolderField::encode(holder);
   return static_cast<Flags>(bits);
 }
@@ -3119,10 +3130,8 @@ Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
-                                          InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(
-      kind, in_loop, MONOMORPHIC, extra_ic_state, type, argc, holder);
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
 
@@ -3141,18 +3150,13 @@ Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 }
 
 
-InLoopFlag Code::ExtractICInLoopFromFlags(Flags flags) {
-  return ICInLoopField::decode(flags);
-}
-
-
 PropertyType Code::ExtractTypeFromFlags(Flags flags) {
   return TypeField::decode(flags);
 }
 
 
 int Code::ExtractArgumentsCountFromFlags(Flags flags) {
-  return (flags & kFlagsArgumentsCountMask) >> kFlagsArgumentsCountShift;
+  return (flags & kArgumentsCountMask) >> kArgumentsCountShift;
 }
 
 
@@ -3902,7 +3906,16 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
-ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
+ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)
+ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
+
+
+void JSProxy::InitializeBody(int object_size, Object* value) {
+  ASSERT(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
+    WRITE_FIELD(this, offset, value);
+  }
+}
 
 
 ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
