@@ -72,11 +72,29 @@ static MaybeObject* AllocateAfterFailures() {
   }
   CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
 
-  // Large object space.
-  while (!heap->OldGenerationAllocationLimitReached()) {
-    CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  // Old pointer space.
+  OldSpace* old_pointer_space = heap->old_pointer_space();
+  static const int kOldPointerSpaceFillerLength = 10000;
+  static const int kOldPointerSpaceFillerSize = FixedArray::SizeFor(
+      kOldPointerSpaceFillerLength);
+  while (old_pointer_space->Available() > kOldPointerSpaceFillerSize) {
+    CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
+          IsFailure());
   }
-  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
+        IsFailure());
+
+  // Large object space.
+  static const int kLargeObjectSpaceFillerLength = 300000;
+  static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
+      kLargeObjectSpaceFillerLength);
+  ASSERT(kLargeObjectSpaceFillerSize > heap->MaxObjectSizeInPagedSpace());
+  while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
+    CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
+          IsFailure());
+  }
+  CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
+        IsFailure());
 
   // Map space.
   MapSpace* map_space = heap->map_space();
