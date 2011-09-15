@@ -4109,20 +4109,16 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  Comment cmnt(masm_, "[ CompareToNull");
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  VisitForAccumulatorValue(expr->expression());
+void FullCodeGenerator::EmitLiteralCompareNull(Expression* expr,
+                                               bool is_strict,
+                                               Label* if_true,
+                                               Label* if_false,
+                                               Label* fall_through) {
+  VisitForAccumulatorValue(expr);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   __ mov(a0, result_register());
   __ LoadRoot(a1, Heap::kNullValueRootIndex);
-  if (expr->is_strict()) {
+  if (is_strict) {
     Split(eq, a0, Operand(a1), if_true, if_false, fall_through);
   } else {
     __ Branch(if_true, eq, a0, Operand(a1));
@@ -4136,7 +4132,6 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
     __ And(a1, a1, Operand(1 << Map::kIsUndetectable));
     Split(ne, a1, Operand(zero_reg), if_true, if_false, fall_through);
   }
-  context()->Plug(if_true, if_false);
 }
 
 

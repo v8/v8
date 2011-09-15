@@ -380,6 +380,27 @@ bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
 }
 
 
+bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
+  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
+
+  // Check for the pattern: <expression> equals null.
+  Literal* right_literal = right_->AsLiteral();
+  if (right_literal != NULL && right_literal->handle()->IsNull()) {
+    *expr = left_;
+    return true;
+  }
+
+  // Check for the pattern: null equals <expression>.
+  Literal* left_literal = left_->AsLiteral();
+  if (left_literal != NULL && left_literal->handle()->IsNull()) {
+    *expr = right_;
+    return true;
+  }
+
+  return false;
+}
+
+
 // ----------------------------------------------------------------------------
 // Inlining support
 
@@ -595,11 +616,6 @@ bool BinaryOperation::IsInlineable() const {
 
 bool CompareOperation::IsInlineable() const {
   return left()->IsInlineable() && right()->IsInlineable();
-}
-
-
-bool CompareToNull::IsInlineable() const {
-  return expression()->IsInlineable();
 }
 
 

@@ -244,11 +244,6 @@ void BreakableStatementChecker::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
-void BreakableStatementChecker::VisitCompareToNull(CompareToNull* expr) {
-  Visit(expr->expression());
-}
-
-
 void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
@@ -1325,6 +1320,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
                                           Label* if_true,
                                           Label* if_false,
                                           Label* fall_through) {
+  bool is_strict = compare->op() == Token::EQ_STRICT;
   Expression *expr;
   Handle<String> check;
   if (compare->IsLiteralCompareTypeof(&expr, &check)) {
@@ -1334,6 +1330,11 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
 
   if (compare->IsLiteralCompareUndefined(&expr)) {
     EmitLiteralCompareUndefined(expr, if_true, if_false, fall_through);
+    return true;
+  }
+
+  if (compare->IsLiteralCompareNull(&expr)) {
+    EmitLiteralCompareNull(expr, is_strict, if_true, if_false, fall_through);
     return true;
   }
 

@@ -2614,7 +2614,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y, position);
+        x = new(zone()) CompareOperation(isolate(), cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = new(zone()) UnaryOperation(isolate(), Token::NOT, x, position);
@@ -2627,27 +2627,6 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
-}
-
-
-Expression* Parser::NewCompareNode(Token::Value op,
-                                   Expression* x,
-                                   Expression* y,
-                                   int position) {
-  ASSERT(op != Token::NE && op != Token::NE_STRICT);
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool is_strict = (op == Token::EQ_STRICT);
-    Literal* x_literal = x->AsLiteral();
-    if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, y);
-    }
-
-    Literal* y_literal = y->AsLiteral();
-    if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, x);
-    }
-  }
-  return new(zone()) CompareOperation(isolate(), op, x, y, position);
 }
 
 

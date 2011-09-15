@@ -5721,6 +5721,11 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return;
   }
 
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    HandleLiteralCompareNull(expr, sub_expr);
+    return;
+  }
+
   TypeInfo type_info = oracle()->CompareType(expr);
   // Check if this expression was ever executed according to type feedback.
   if (type_info.IsUninitialized()) {
@@ -5824,15 +5829,16 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void HGraphBuilder::VisitCompareToNull(CompareToNull* expr) {
+void HGraphBuilder::HandleLiteralCompareNull(CompareOperation* compare_expr,
+                                             Expression* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  CHECK_ALIVE(VisitForValue(expr->expression()));
+  CHECK_ALIVE(VisitForValue(expr));
   HValue* value = Pop();
-  HIsNullAndBranch* instr =
-      new(zone()) HIsNullAndBranch(value, expr->is_strict());
-  return ast_context()->ReturnControl(instr, expr->id());
+  bool is_strict = compare_expr->op() == Token::EQ_STRICT;
+  HIsNullAndBranch* instr = new(zone()) HIsNullAndBranch(value, is_strict);
+  return ast_context()->ReturnControl(instr, compare_expr->id());
 }
 
 

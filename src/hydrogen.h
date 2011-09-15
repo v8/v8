@@ -915,6 +915,8 @@ class HGraphBuilder: public AstVisitor {
                                   Handle<String> check);
   void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
                                      Expression* expr);
+  void HandleLiteralCompareNull(CompareOperation* compare_expr,
+                                Expression* expr);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
                                            HValue* string,

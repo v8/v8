@@ -411,6 +411,12 @@ class FullCodeGenerator: public AstVisitor {
                                    Label* if_false,
                                    Label* fall_through);
 
+  // Platform-specific code for equality comparison with the null value.
+  void EmitLiteralCompareNull(Expression* expr,
+                              bool is_strict,
+                              Label* if_true,
+                              Label* if_false,
+                              Label* fall_through);
   // Bailout support.
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(int id, State state);

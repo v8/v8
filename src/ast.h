@@ -90,7 +90,6 @@ namespace internal {
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
-  V(CompareToNull)                              \
   V(ThisFunction)
 
 #define AST_NODE_LIST(V)                        \
@@ -1465,6 +1464,7 @@ class CompareOperation: public Expression {
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
   bool IsLiteralCompareUndefined(Expression** expr);
+  bool IsLiteralCompareNull(Expression** expr);
 
  private:
   Token::Value op_;
@@ -1474,25 +1474,6 @@ class CompareOperation: public Expression {
 
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
-};
-
-
-class CompareToNull: public Expression {
- public:
-  CompareToNull(Isolate* isolate, bool is_strict, Expression* expression)
-      : Expression(isolate), is_strict_(is_strict), expression_(expression) { }
-
-  DECLARE_NODE_TYPE(CompareToNull)
-
-  virtual bool IsInlineable() const;
-
-  bool is_strict() const { return is_strict_; }
-  Token::Value op() const { return is_strict_ ? Token::EQ_STRICT : Token::EQ; }
-  Expression* expression() const { return expression_; }
-
- private:
-  bool is_strict_;
-  Expression* expression_;
 };
 
 
