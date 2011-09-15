@@ -37,6 +37,9 @@ S15.3.4.5_A2: FAIL
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
+# Assert is triggered by this test: http://code.google.com/p/v8/issues/detail?id=1689
+S13_A18: SKIP
+
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # This tests precision of trignometric functions.  We're slightly off

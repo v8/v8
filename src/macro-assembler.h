@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -96,8 +96,7 @@ namespace internal {
 class FrameScope {
  public:
   explicit FrameScope(MacroAssembler* masm, StackFrame::Type type)
-      : masm_(masm), type_(type) {
-    ASSERT(!masm->has_frame());
+      : masm_(masm), type_(type), old_has_frame_(masm->has_frame()) {
     masm->set_has_frame(true);
     if (type != StackFrame::MANUAL && type_ != StackFrame::NONE) {
       masm->EnterFrame(type);
@@ -108,7 +107,7 @@ class FrameScope {
     if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
       masm_->LeaveFrame(type_);
     }
-    masm_->set_has_frame(false);
+    masm_->set_has_frame(old_has_frame_);
   }
 
   // Normally we generate the leave-frame code when this object goes
@@ -123,6 +122,7 @@ class FrameScope {
  private:
   MacroAssembler* masm_;
   StackFrame::Type type_;
+  bool old_has_frame_;
 };
 
 

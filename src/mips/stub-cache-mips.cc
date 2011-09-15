@@ -596,6 +596,7 @@ static MaybeObject* GenerateFastApiDirectCall(
 
   const int kApiStackSpace = 4;
 
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
@@ -1260,7 +1261,9 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 
   const int kApiStackSpace = 1;
 
+  FrameScope frame_scope(masm(), StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
+
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));

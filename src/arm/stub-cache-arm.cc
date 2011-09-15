@@ -592,6 +592,8 @@ static MaybeObject* GenerateFastApiDirectCall(
   ApiFunction fun(api_function_address);
 
   const int kApiStackSpace = 4;
+
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   // r0 = v8::Arguments&
@@ -1233,7 +1235,10 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   ApiFunction fun(getter_address);
 
   const int kApiStackSpace = 1;
+
+  FrameScope frame_scope(masm(), StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
+
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
