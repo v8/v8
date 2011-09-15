@@ -215,13 +215,8 @@ class Factory {
 
   Handle<Map> CopyMapDropTransitions(Handle<Map> map);
 
-  Handle<Map> GetFastElementsMap(Handle<Map> map);
-
-  Handle<Map> GetSlowElementsMap(Handle<Map> map);
-
-  Handle<Map> GetElementsTransitionMap(Handle<Map> map,
-                                       ElementsKind elements_kind,
-                                       bool safe_to_add_transition);
+  Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
+                                       ElementsKind elements_kind);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 

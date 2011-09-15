@@ -455,23 +455,11 @@ Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetFastElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->GetFastElementsMap(), Map);
-}
-
-
-Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->GetSlowElementsMap(), Map);
-}
-
-
 Handle<Map> Factory::GetElementsTransitionMap(
-    Handle<Map> src,
-    ElementsKind elements_kind,
-    bool safe_to_add_transition) {
+    Handle<JSObject> src,
+    ElementsKind elements_kind) {
   CALL_HEAP_FUNCTION(isolate(),
-                     src->GetElementsTransitionMap(elements_kind,
-                                                   safe_to_add_transition),
+                     src->GetElementsTransitionMap(elements_kind),
                      Map);
 }
 

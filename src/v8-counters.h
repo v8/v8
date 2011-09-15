@@ -126,10 +126,6 @@ namespace internal {
      V8.GCCompactorCausedByWeakHandles)                               \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                   \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
-  SC(map_to_fast_elements, V8.MapToFastElements)                      \
-  SC(map_to_fast_double_elements, V8.MapToFastDoubleElements)         \
-  SC(map_to_slow_elements, V8.MapToSlowElements)                      \
-  SC(map_to_external_array_elements, V8.MapToExternalArrayElements)   \
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \

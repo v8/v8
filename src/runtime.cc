@@ -9414,9 +9414,11 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map;
     if (fast_elements_) {
-      map = isolate_->factory()->GetFastElementsMap(Handle<Map>(array->map()));
+      map = isolate_->factory()->GetElementsTransitionMap(array,
+                                                          FAST_ELEMENTS);
     } else {
-      map = isolate_->factory()->GetSlowElementsMap(Handle<Map>(array->map()));
+      map = isolate_->factory()->GetElementsTransitionMap(array,
+                                                          DICTIONARY_ELEMENTS);
     }
     array->set_map(*map);
     array->set_length(*length);
@@ -9907,15 +9909,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   CONVERT_CHECKED(JSArray, to, args[1]);
   FixedArrayBase* new_elements = from->elements();
   MaybeObject* maybe_new_map;
+  ElementsKind elements_kind;
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
-    maybe_new_map = to->map()->GetFastElementsMap();
+    elements_kind = FAST_ELEMENTS;
   } else if (new_elements->map() ==
              isolate->heap()->fixed_double_array_map()) {
-    maybe_new_map = to->map()->GetFastDoubleElementsMap();
+    elements_kind = FAST_DOUBLE_ELEMENTS;
   } else {
-    maybe_new_map = to->map()->GetSlowElementsMap();
+    elements_kind = DICTIONARY_ELEMENTS;
   }
+  maybe_new_map = to->GetElementsTransitionMap(elements_kind);
   Object* new_map;
   if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
   to->set_map(Map::cast(new_map));

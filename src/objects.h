@@ -1860,6 +1860,11 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes);
 
+  // Returns a new map with all transitions dropped from the object's current
+  // map and the ElementsKind set.
+  MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
+      ElementsKind elements_kind);
+
   // Converts a descriptor of any other type to a real field,
   // backed by the properties array.  Descriptors of visible
   // types, such as CONSTANT_FUNCTION, keep their enumeration order.
@@ -4137,27 +4142,6 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   MUST_USE_RESULT MaybeObject* CopyDropTransitions();
-
-  // Returns this map if it already has elements that are fast, otherwise
-  // returns a copy of the map, with all transitions dropped from the
-  // descriptors and the ElementsKind set to FAST_ELEMENTS.
-  MUST_USE_RESULT inline MaybeObject* GetFastElementsMap();
-
-  // Returns this map if it already has fast elements that are doubles,
-  // otherwise returns a copy of the map, with all transitions dropped from the
-  // descriptors and the ElementsKind set to FAST_DOUBLE_ELEMENTS.
-  MUST_USE_RESULT inline MaybeObject* GetFastDoubleElementsMap();
-
-  // Returns this map if already has dictionary elements, otherwise returns a
-  // copy of the map, with all transitions dropped from the descriptors and the
-  // ElementsKind set to DICTIONARY_ELEMENTS.
-  MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
-
-  // Returns a new map with all transitions dropped from the descriptors and the
-  // ElementsKind set.
-  MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
-      ElementsKind elements_kind,
-      bool safe_to_add_transition);
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);

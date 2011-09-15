@@ -1428,7 +1428,7 @@ void JSObject::initialize_elements() {
 
 MaybeObject* JSObject::ResetElements() {
   Object* obj;
-  { MaybeObject* maybe_obj = map()->GetFastElementsMap();
+  { MaybeObject* maybe_obj = GetElementsTransitionMap(FAST_ELEMENTS);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   set_map(Map::cast(obj));
@@ -3239,45 +3239,6 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   ASSERT(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, mode);
-}
-
-
-MaybeObject* Map::GetFastElementsMap() {
-  if (has_fast_elements()) return this;
-  Object* obj;
-  { MaybeObject* maybe_obj = CopyDropTransitions();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(FAST_ELEMENTS);
-  isolate()->counters()->map_to_fast_elements()->Increment();
-  return new_map;
-}
-
-
-MaybeObject* Map::GetFastDoubleElementsMap() {
-  if (has_fast_double_elements()) return this;
-  Object* obj;
-  { MaybeObject* maybe_obj = CopyDropTransitions();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
-  isolate()->counters()->map_to_fast_double_elements()->Increment();
-  return new_map;
-}
-
-
-MaybeObject* Map::GetSlowElementsMap() {
-  if (!has_fast_elements() && !has_fast_double_elements()) return this;
-  Object* obj;
-  { MaybeObject* maybe_obj = CopyDropTransitions();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(DICTIONARY_ELEMENTS);
-  isolate()->counters()->map_to_slow_elements()->Increment();
-  return new_map;
 }
 
 

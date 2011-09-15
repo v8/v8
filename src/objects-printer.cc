@@ -256,6 +256,9 @@ void JSObject::PrintProperties(FILE* out) {
           descs->GetCallbacksObject(i)->ShortPrint(out);
           PrintF(out, " (callback)\n");
           break;
+        case ELEMENTS_TRANSITION:
+          PrintF(out, " (elements transition)\n");
+          break;
         case MAP_TRANSITION:
           PrintF(out, " (map transition)\n");
           break;

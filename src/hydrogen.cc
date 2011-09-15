@@ -3951,14 +3951,14 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            bool is_store) {
   ASSERT(expr->IsMonomorphic());
   Handle<Map> map = expr->GetMonomorphicReceiverType();
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
   if (!map->has_fast_elements() &&
       !map->has_fast_double_elements() &&
       !map->has_external_array_elements()) {
     return is_store ? BuildStoreKeyedGeneric(object, key, val)
                     : BuildLoadKeyedGeneric(object, key);
   }
-  AddInstruction(new(zone()) HCheckNonSmi(object));
-  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
   bool fast_double_elements = map->has_fast_double_elements();
   if (is_store && map->has_fast_elements()) {
