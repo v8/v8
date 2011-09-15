@@ -2336,7 +2336,7 @@ String* SlicedString::parent() {
 
 
 void SlicedString::set_parent(String* parent) {
-  ASSERT(parent->IsSeqString());
+  ASSERT(parent->IsSeqString() || parent->IsExternalString());
   WRITE_FIELD(this, kParentOffset, parent);
 }
 

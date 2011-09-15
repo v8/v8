@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // Check that we can traverse very deep stacks of ConsStrings using
 // StringInputBuffer.  Check that Get(int) works on very deep stacks
