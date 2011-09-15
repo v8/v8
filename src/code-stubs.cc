@@ -52,11 +52,12 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   masm->isolate()->counters()->code_stubs()->Increment();
 
-  // Nested stubs are not allowed for leafs.
-  AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
+  // Nested stubs are not allowed for leaves.
+  AllowStubCallsScope allow_scope(masm, false);
 
   // Generate the code for the stub.
   masm->set_generating_stub(true);
+  NoCurrentFrameScope scope(masm);
   Generate(masm);
 }
 

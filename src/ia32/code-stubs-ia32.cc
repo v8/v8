@@ -239,6 +239,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 // The stub expects its argument on the stack and returns its result in tos_:
 // zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   Label patch;
   Factory* factory = masm->isolate()->factory();
   const Register argument = eax;
@@ -768,11 +770,12 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated, Label::kNear);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(edx);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(edx);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(edx);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ pop(edx);
+    }
 
     __ bind(&heapnumber_allocated);
     // eax: allocated 'empty' number
@@ -815,15 +818,16 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    // Push the original HeapNumber on the stack. The integer value can't
-    // be stored since it's untagged and not in the smi range (so we can't
-    // smi-tag it). We'll recalculate the value after the GC instead.
-    __ push(ebx);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    // New HeapNumber is in eax.
-    __ pop(edx);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Push the original HeapNumber on the stack. The integer value can't
+      // be stored since it's untagged and not in the smi range (so we can't
+      // smi-tag it). We'll recalculate the value after the GC instead.
+      __ push(ebx);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      // New HeapNumber is in eax.
+      __ pop(edx);
+    }
     // IntegerConvert uses ebx and edi as scratch registers.
     // This conversion won't go slow-case.
     IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
@@ -2308,11 +2312,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ add(Operand(esp), Immediate(kDoubleSize));
     // We return the value in xmm1 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
-    // Allocate an unused object bigger than a HeapNumber.
-    __ push(Immediate(Smi::FromInt(2 * kDoubleSize)));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Allocate an unused object bigger than a HeapNumber.
+      __ push(Immediate(Smi::FromInt(2 * kDoubleSize)));
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 
@@ -2329,10 +2334,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
-    __ EnterInternalFrame();
-    __ push(eax);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(eax);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -4788,11 +4794,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
     // Call the builtin and convert 0/1 to true/false.
-    __ EnterInternalFrame();
-    __ push(object);
-    __ push(function);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(object);
+      __ push(function);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    }
     Label true_value, done;
     __ test(eax, Operand(eax));
     __ j(zero, &true_value, Label::kNear);
@@ -6274,15 +6281,16 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ push(eax);
   __ push(ecx);
 
-  // Call the runtime system in a fresh internal frame.
-  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
-                                             masm->isolate());
-  __ EnterInternalFrame();
-  __ push(edx);
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(op_)));
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    // Call the runtime system in a fresh internal frame.
+    ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
+                                               masm->isolate());
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    __ push(Immediate(Smi::FromInt(op_)));
+    __ CallExternalReference(miss, 3);
+  }
 
   // Compute the entry point of the rewritten stub.
   __ lea(edi, FieldOperand(eax, Code::kHeaderSize));
@@ -6423,6 +6431,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
   //  esp[0 * kPointerSize]: return address.
   //  esp[1 * kPointerSize]: key's hash.

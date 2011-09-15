@@ -881,9 +881,11 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
     __ Move(f12, a0, a1);
     __ Move(f14, a2, a3);
   }
-  // Call C routine that may not cause GC or other trouble.
-  __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
-                   4);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(
+        ExternalReference::double_fp_operation(op, masm->isolate()), 4);
+  }
   // Store answer in the overwritable heap number.
   if (!IsMipsSoftFloatABI) {
     CpuFeatures::Scope scope(FPU);
@@ -1951,12 +1953,13 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(a0);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(a1, v0);
-    __ pop(a0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(a0);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(a1, v0);
+      __ pop(a0);
+    }
 
     __ bind(&heapnumber_allocated);
     __ lw(a3, FieldMemOperand(a0, HeapNumber::kMantissaOffset));
@@ -1998,13 +2001,14 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(v0);  // Push the heap number, not the untagged int32.
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(a2, v0);  // Move the new heap number into a2.
-    // Get the heap number into v0, now that the new heap number is in a2.
-    __ pop(v0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(v0);  // Push the heap number, not the untagged int32.
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(a2, v0);  // Move the new heap number into a2.
+      // Get the heap number into v0, now that the new heap number is in a2.
+      __ pop(v0);
+    }
 
     // Convert the heap number in v0 to an untagged integer in a1.
     // This can't go slow-case because it's the same number we already
@@ -3283,10 +3287,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(a0, scratch0, scratch1, t1, &skip_cache);
     __ sdc1(f4, FieldMemOperand(a0, HeapNumber::kValueOffset));
-    __ EnterInternalFrame();
-    __ push(a0);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(a0);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ ldc1(f4, FieldMemOperand(v0, HeapNumber::kValueOffset));
     __ Ret();
 
@@ -3299,14 +3304,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // We return the value in f4 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Allocate an aligned object larger than a HeapNumber.
-    ASSERT(4 * kPointerSize >= HeapNumber::kSize);
-    __ li(scratch0, Operand(4 * kPointerSize));
-    __ push(scratch0);
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+      // Allocate an aligned object larger than a HeapNumber.
+      ASSERT(4 * kPointerSize >= HeapNumber::kSize);
+      __ li(scratch0, Operand(4 * kPointerSize));
+      __ push(scratch0);
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 }
@@ -3417,10 +3423,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ push(ra);
     __ PrepareCallCFunction(3, scratch);
     __ SetCallCDoubleArguments(double_base, exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()), 3);
-    __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_int_function(masm->isolate()), 3);
+      __ pop(ra);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ sdc1(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(v0, heapnumber);
@@ -3448,10 +3457,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     ASSERT(double_base.is(f12));
     ASSERT(double_exponent.is(f14));
     __ SetCallCDoubleArguments(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 4);
-    __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()), 4);
+      __ pop(ra);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ sdc1(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(v0, heapnumber);
@@ -3628,6 +3640,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Subu(s1, s1, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
   // Setup argc and the builtin function in callee-saved registers.
@@ -3986,10 +3999,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
-    __ EnterInternalFrame();
-    __ Push(a0, a1);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(a0, a1);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    }
     __ mov(a0, v0);
     __ LoadRoot(v0, Heap::kTrueValueRootIndex);
     __ DropAndRet(HasArgsInRegisters() ? 0 : 2, eq, a0, Operand(zero_reg));
@@ -6646,12 +6660,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   // Call the runtime system in a fresh internal frame.
   ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
                                              masm->isolate());
-  __ EnterInternalFrame();
-  __ Push(a1, a0);
-  __ li(t0, Operand(Smi::FromInt(op_)));
-  __ push(t0);
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(a1, a0);
+    __ li(t0, Operand(Smi::FromInt(op_)));
+    __ push(t0);
+    __ CallExternalReference(miss, 3);
+  }
   // Compute the entry point of the rewritten stub.
   __ Addu(a2, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
   // Restore registers.
@@ -6867,6 +6882,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Registers:
   //  result: StringDictionary to probe
   //  a1: key

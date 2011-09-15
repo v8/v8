@@ -713,7 +713,10 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   Isolate* isolate = masm()->isolate();
 
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm());
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+  }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
   __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
@@ -759,8 +762,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ PrepareCallCFunction(2);
   __ movq(arg1, rax);
   __ LoadAddress(arg2, ExternalReference::isolate_address());
-  __ CallCFunction(
-      ExternalReference::compute_output_frames_function(isolate), 2);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm());
+    __ CallCFunction(
+        ExternalReference::compute_output_frames_function(isolate), 2);
+  }
   __ pop(rax);
 
   // Replace the current frame with the output frames.

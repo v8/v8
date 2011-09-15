@@ -1621,6 +1621,7 @@ void Builtins::Setup(bool create_heap_objects) {
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
+      ASSERT(!masm.has_frame());
       g(&masm, functions[i].name, functions[i].extra_args);
       // Move the code into the object heap.
       CodeDesc desc;

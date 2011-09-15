@@ -73,7 +73,7 @@ namespace internal {
   V(KeyedLoadElement)                    \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryNegativeLookup)
+  V(StringDictionaryLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -142,6 +142,19 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
+  // See comment above, where Instanceof is defined.
+  virtual bool CompilingCallsToThisStubIsGCSafe() {
+    return MajorKey() <= Instanceof;
+  }
+
+  // Some stubs put untagged junk on the stack that cannot be scanned by the
+  // GC.  This means that we must be statically sure that no GC can occur while
+  // they are running.  If that is the case they should override this to return
+  // true, which will cause an assertion if we try to call something that can
+  // GC or if we try to put a stack frame on top of the junk, which would not
+  // result in a traversable stack.
+  virtual bool SometimesSetsUpAFrame() { return true; }
+
  protected:
   static const int kMajorBits = 6;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
@@ -192,9 +205,6 @@ class CodeStub BASE_EMBEDDED {
     return MinorKeyBits::encode(MinorKey()) |
            MajorKeyBits::encode(MajorKey());
   }
-
-  // See comment above, where Instanceof is defined.
-  bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
@@ -536,6 +546,11 @@ class CEntryStub : public CodeStub {
 
   void Generate(MacroAssembler* masm);
   void SaveDoubles() { save_doubles_ = true; }
+
+  // The version of this stub that doesn't save doubles is generated ahead of
+  // time, so it's OK to call it from other stubs that can't cope with GC during
+  // their code generation.
+  virtual bool CompilingCallsToThisStubIsGCSafe() { return !save_doubles_; }
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -933,6 +948,8 @@ class ToBooleanStub: public CodeStub {
   void Generate(MacroAssembler* masm);
   virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
   virtual void PrintName(StringStream* stream);
+
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
   Major MajorKey() { return ToBoolean; }

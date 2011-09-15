@@ -377,9 +377,12 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     // Isolate.
     __ li(a3, Operand(ExternalReference::isolate_address()));
 
-    ExternalReference function =
-        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
-    __ CallCFunction(function, argument_count);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm_);
+      ExternalReference function =
+          ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+      __ CallCFunction(function, argument_count);
+    }
 
     // Restore regexp engine registers.
     __ MultiPop(regexp_registers_to_retain);
@@ -607,6 +610,12 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
     // Entry code:
     __ bind(&entry_label_);
+
+    // Tell the system that we have a stack frame.  Because the type is MANUAL,
+    // no is generated.
+    FrameScope scope(masm_, StackFrame::MANUAL);
+
+    // Actually emit code to start a new stack frame.
     // Push arguments
     // Save callee-save registers.
     // Start new stack frame.

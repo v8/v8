@@ -579,15 +579,6 @@ class MacroAssembler: public Assembler {
                         Register scratch2,
                         Register scratch3);
 
-  // -------------------------------------------------------------------------
-  // Activation frames.
-
-  void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
-  void LeaveInternalFrame() { LeaveFrame(StackFrame::INTERNAL); }
-
-  void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
-  void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
-
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
@@ -976,6 +967,9 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
+  void set_has_frame(bool value) { has_frame_ = value; }
+  bool has_frame() { return has_frame_; }
+  inline bool AllowThisStubCall(CodeStub* stub);
 
   // ---------------------------------------------------------------------------
   // Number utilities.
@@ -1092,6 +1086,10 @@ class MacroAssembler: public Assembler {
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
 
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
+
  private:
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,
@@ -1132,10 +1130,6 @@ class MacroAssembler: public Assembler {
   // the function in the 'resolved' flag.
   Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
-
   void InitializeNewString(Register string,
                            Register length,
                            Heap::RootListIndex map_index,
@@ -1151,6 +1145,7 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool allow_stub_calls_;
+  bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 
