@@ -11966,6 +11966,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   Handle<Object> result =
     Execution::Call(compiled_function, receiver, 0, NULL,
                     &has_pending_exception);
+  // Clear the oneshot breakpoints so that the debugger does not step further.
+  isolate->debug()->ClearStepping();
   if (has_pending_exception) return Failure::Exception();
   return *result;
 }
