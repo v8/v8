@@ -2737,25 +2737,23 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   // Make an attempt to flatten the buffer to reduce access time.
   buffer = buffer->TryFlattenGetString();
 
-  // TODO(1626): For now slicing external strings is not supported.  However,
-  // a flat cons string can have an external string as first part in some cases.
-  // Therefore we have to single out this case as well.
   if (!FLAG_string_slices ||
-      (buffer->IsConsString() &&
-        (!buffer->IsFlat() ||
-         !ConsString::cast(buffer)->first()->IsSeqString())) ||
-      buffer->IsExternalString() ||
+      !buffer->IsFlat() ||
       length < SlicedString::kMinLength ||
       pretenure == TENURED) {
     Object* result;
-    { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
-                     ? AllocateRawAsciiString(length, pretenure)
-                     : AllocateRawTwoByteString(length, pretenure);
+    // WriteToFlat takes care of the case when an indirect string has a
+    // different encoding from its underlying string.  These encodings may
+    // differ because of externalization.
+    bool is_ascii = buffer->IsAsciiRepresentation();
+    { MaybeObject* maybe_result = is_ascii
+                                  ? AllocateRawAsciiString(length, pretenure)
+                                  : AllocateRawTwoByteString(length, pretenure);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     String* string_result = String::cast(result);
     // Copy the characters into the new object.
-    if (buffer->IsAsciiRepresentation()) {
+    if (is_ascii) {
       ASSERT(string_result->IsAsciiRepresentation());
       char* dest = SeqAsciiString::cast(string_result)->GetChars();
       String::WriteToFlat(buffer, dest, start, end);
@@ -2768,12 +2766,17 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   }
 
   ASSERT(buffer->IsFlat());
-  ASSERT(!buffer->IsExternalString());
 #if DEBUG
   buffer->StringVerify();
 #endif
 
   Object* result;
+  // When slicing an indirect string we use its encoding for a newly created
+  // slice and don't check the encoding of the underlying string.  This is safe
+  // even if the encodings are different because of externalization.  If an
+  // indirect ASCII string is pointing to a two-byte string, the two-byte char
+  // codes of the underlying string must still fit into ASCII (because
+  // externalization must not change char codes).
   { Map* map = buffer->IsAsciiRepresentation()
                  ? sliced_ascii_string_map()
                  : sliced_string_map();
@@ -2799,7 +2802,8 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     sliced_string->set_parent(buffer);
     sliced_string->set_offset(start);
   }
-  ASSERT(sliced_string->parent()->IsSeqString());
+  ASSERT(sliced_string->parent()->IsSeqString() ||
+         sliced_string->parent()->IsExternalString());
   return result;
 }
 

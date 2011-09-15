@@ -502,6 +502,35 @@ TEST(SliceFromCons) {
 }
 
 
+class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit AsciiVectorResource(i::Vector<const char> vector)
+      : data_(vector) {}
+  virtual ~AsciiVectorResource() {}
+  virtual size_t length() const { return data_.length(); }
+  virtual const char* data() const { return data_.start(); }
+ private:
+  i::Vector<const char> data_;
+};
+
+
+TEST(SliceFromExternal) {
+  FLAG_string_slices = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  AsciiVectorResource resource(
+      i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
+  Handle<String> string = FACTORY->NewExternalStringFromAscii(&resource);
+  CHECK(string->IsExternalString());
+  Handle<String> slice = FACTORY->NewSubString(string, 1, 25);
+  CHECK(slice->IsSlicedString());
+  CHECK(string->IsExternalString());
+  CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
+  CHECK(SlicedString::cast(*slice)->parent()->IsExternalString());
+  CHECK(slice->IsFlat());
+}
+
+
 TEST(TrivialSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
