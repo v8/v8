@@ -1397,21 +1397,54 @@ void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
 }
 
 
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 
-VirtualMemory::VirtualMemory(size_t size) {
-  address_ = ReserveRegion(size);
-  size_ = size;
+VirtualMemory::VirtualMemory(size_t size)
+    : address_(ReserveRegion(size)), size_(size) { }
+
+
+VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+    : address_(NULL), size_(0) {
+  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  size_t request_size = RoundUp(size + alignment,
+                                static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* address = ReserveRegion(request_size);
+  if (address == NULL) return;
+  Address base = RoundUp(static_cast<Address>(address), alignment);
+  // Try reducing the size by freeing and then reallocating a specific area.
+  ReleaseRegion(address, request_size);
+  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
+  if (address != NULL) {
+    request_size = size;
+    ASSERT(base == static_cast<Address>(address));
+  } else {
+    // Resizing failed, just go with a bigger area.
+    address = ReserveRegion(request_size);
+    if (address == NULL) return;
+  }
+  address_ = address;
+  size_ = request_size;
 }
 
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (0 == VirtualFree(address(), 0, MEM_RELEASE)) address_ = NULL;
+    bool result = ReleaseRegion(address_, size_);
+    ASSERT(result);
+    USE(result);
   }
+}
+
+
+bool VirtualMemory::IsReserved() {
+  return address_ != NULL;
+}
+
+
+void VirtualMemory::Reset() {
+  address_ = NULL;
+  size_ = 0;
 }
 
 
@@ -1447,12 +1480,12 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
 
 
 bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != false;
+  return VirtualFree(base, size, MEM_DECOMMIT) != 0;
 }
 
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != false;
+  return VirtualFree(base, 0, MEM_RELEASE) != 0;
 }
 
 

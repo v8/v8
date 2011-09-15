@@ -331,6 +331,19 @@ class MemoryChunk {
            kFailureTag);
   }
 
+  VirtualMemory* reserved_memory() {
+    return &reservation_;
+  }
+
+  void InitializeReservedMemory() {
+    reservation_.Reset();
+  }
+
+  void set_reserved_memory(VirtualMemory* reservation) {
+    ASSERT_NOT_NULL(reservation);
+    reservation_.TakeControl(reservation);
+  }
+
   bool scan_on_scavenge() { return IsFlagSet(SCAN_ON_SCAVENGE); }
   void initialize_scan_on_scavenge(bool scan) {
     if (scan) {
@@ -454,7 +467,8 @@ class MemoryChunk {
 
   static const intptr_t kLiveBytesOffset =
       kPointerSize + kPointerSize + kPointerSize + kPointerSize +
-      kPointerSize + kPointerSize + kIntSize;
+      kPointerSize + kPointerSize + kPointerSize + kPointerSize +
+      kIntSize;
 
   static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
 
@@ -553,6 +567,8 @@ class MemoryChunk {
   MemoryChunk* prev_chunk_;
   size_t size_;
   intptr_t flags_;
+  // If the chunk needs to remember its memory reservation, it is stored here.
+  VirtualMemory reservation_;
   // The identity of the owning space.  This is tagged as a failure pointer, but
   // no failure can be in an object, so this can be distinguished from any entry
   // in a fixed array.
@@ -885,15 +901,15 @@ class MemoryAllocator {
                              Executability executable,
                              Space* space);
 
-  Address AllocateAlignedMemory(const size_t requested,
+  Address ReserveAlignedMemory(size_t requested,
+                               size_t alignment,
+                               VirtualMemory* controller);
+  Address AllocateAlignedMemory(size_t requested,
                                 size_t alignment,
                                 Executability executable,
-                                size_t* allocated_size);
+                                VirtualMemory* controller);
 
-  Address ReserveAlignedMemory(const size_t requested,
-                               size_t alignment,
-                               size_t* allocated_size);
-
+  void FreeMemory(VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
@@ -1934,6 +1950,7 @@ class NewSpace : public Space {
     : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace),
+      reservation_(),
       inline_allocation_limit_step_(0) {}
 
   // Sets up the new space using the given chunk.
@@ -2154,6 +2171,7 @@ class NewSpace : public Space {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
+  VirtualMemory reservation_;
   int pages_used_;
 
   // Start address and bit mask for containment testing.

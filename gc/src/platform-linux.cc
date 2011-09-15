@@ -601,6 +601,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;
 
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 VirtualMemory::VirtualMemory(size_t size) {
   address_ = ReserveRegion(size);
@@ -608,15 +609,53 @@ VirtualMemory::VirtualMemory(size_t size) {
 }
 
 
+VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+    : address_(NULL), size_(0) {
+  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  size_t request_size = RoundUp(size + alignment,
+                                static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* reservation = mmap(GetRandomMmapAddr(),
+                           request_size,
+                           PROT_NONE,
+                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                           kMmapFd,
+                           kMmapFdOffset);
+  if (reservation == MAP_FAILED) return;
+  Address base = static_cast<Address>(reservation);
+  Address aligned_base = RoundUp(base, alignment);
+  ASSERT(base <= aligned_base);
+
+  // Unmap extra memory reserved before and after the desired block.
+  size_t bytes_prior = static_cast<size_t>(aligned_base - base);
+  if (bytes_prior > 0) {
+    munmap(base, bytes_prior);
+  }
+  if (static_cast<size_t>(aligned_base - base) < request_size - size) {
+    munmap(aligned_base + size, request_size - size - bytes_prior);
+  }
+
+  address_ = static_cast<void*>(aligned_base);
+  size_ = size;
+}
+
+
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (ReleaseRegion(address(), size())) address_ = NULL;
+    bool result = ReleaseRegion(address(), size());
+    ASSERT(result);
+    USE(result);
   }
 }
 
 
 bool VirtualMemory::IsReserved() {
   return address_ != NULL;
+}
+
+
+void VirtualMemory::Reset() {
+  address_ = NULL;
+  size_ = 0;
 }
 
 

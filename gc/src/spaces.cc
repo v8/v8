@@ -292,12 +292,34 @@ bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
 
 
 void MemoryAllocator::TearDown() {
-  // Check that spaces were teared down before MemoryAllocator.
+  // Check that spaces were torn down before MemoryAllocator.
   ASSERT(size_ == 0);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // ASSERT(size_executable_ == 0);
   capacity_ = 0;
   capacity_executable_ = 0;
+}
+
+
+void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
+                                 Executability executable) {
+  // TODO(gc) make code_range part of memory allocator?
+  ASSERT(reservation->IsReserved());
+  size_t size = reservation->size();
+  ASSERT(size_ >= size);
+  size_ -= size;
+
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
+
+  if (executable == EXECUTABLE) {
+    ASSERT(size_executable_ >= size);
+    size_executable_ -= size;
+  }
+  // Code which is part of the code-range does not have its own VirtualMemory.
+  ASSERT(!isolate_->code_range()->contains(
+      static_cast<Address>(reservation->address())));
+  ASSERT(executable == NOT_EXECUTABLE || !isolate_->code_range()->exists());
+  reservation->Release();
 }
 
 
@@ -324,73 +346,33 @@ void MemoryAllocator::FreeMemory(Address base,
 }
 
 
-Address MemoryAllocator::ReserveAlignedMemory(const size_t requested,
+Address MemoryAllocator::ReserveAlignedMemory(size_t size,
                                               size_t alignment,
-                                              size_t* allocated_size) {
-  ASSERT(IsAligned(alignment, OS::AllocateAlignment()));
-  if (size_ + requested > capacity_) return NULL;
+                                              VirtualMemory* controller) {
+  VirtualMemory reservation(size, alignment);
 
-  size_t allocated = RoundUp(requested + alignment,
-                             static_cast<intptr_t>(OS::AllocateAlignment()));
-
-  Address base = reinterpret_cast<Address>(
-      VirtualMemory::ReserveRegion(allocated));
-
-  Address end = base + allocated;
-
-  if (base == 0) return NULL;
-
-  Address aligned_base = RoundUp(base, alignment);
-
-  ASSERT(aligned_base + requested <= base + allocated);
-
-  // The difference between re-aligned base address and base address is
-  // multiple of OS::AllocateAlignment().
-  if (aligned_base != base) {
-    ASSERT(aligned_base > base);
-    // TODO(gc) check result of operation?
-    VirtualMemory::ReleaseRegion(reinterpret_cast<void*>(base),
-                                 aligned_base - base);
-    allocated -= (aligned_base - base);
-    base = aligned_base;
-  }
-
-  ASSERT(base + allocated == end);
-
-  Address requested_end = base + requested;
-  Address aligned_requested_end =
-      RoundUp(requested_end, OS::AllocateAlignment());
-
-  if (aligned_requested_end < end) {
-    // TODO(gc) check result of operation?
-    VirtualMemory::ReleaseRegion(reinterpret_cast<void*>(aligned_requested_end),
-                                 end - aligned_requested_end);
-    allocated = aligned_requested_end - base;
-  }
-
-  size_ += allocated;
-  *allocated_size = allocated;
+  if (!reservation.IsReserved()) return NULL;
+  size_ += reservation.size();
+  Address base = RoundUp(static_cast<Address>(reservation.address()),
+                         alignment);
+  controller->TakeControl(&reservation);
   return base;
 }
 
 
-Address MemoryAllocator::AllocateAlignedMemory(const size_t requested,
+Address MemoryAllocator::AllocateAlignedMemory(size_t size,
                                                size_t alignment,
                                                Executability executable,
-                                               size_t* allocated_size) {
-  Address base =
-      ReserveAlignedMemory(requested, Page::kPageSize, allocated_size);
-
+                                               VirtualMemory* controller) {
+  VirtualMemory reservation;
+  Address base = ReserveAlignedMemory(size, alignment, &reservation);
   if (base == NULL) return NULL;
-
-  if (!VirtualMemory::CommitRegion(base,
-                                   *allocated_size,
-                                   executable == EXECUTABLE)) {
-    VirtualMemory::ReleaseRegion(base, *allocated_size);
-    size_ -= *allocated_size;
+  if (!reservation.Commit(base,
+                          size,
+                          executable == EXECUTABLE)) {
     return NULL;
   }
-
+  controller->TakeControl(&reservation);
   return base;
 }
 
@@ -447,6 +429,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->size_ = size;
   chunk->flags_ = 0;
   chunk->set_owner(owner);
+  chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = NULL;
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
@@ -488,6 +471,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
   size_t chunk_size = MemoryChunk::kObjectStartOffset + body_size;
   Heap* heap = isolate_->heap();
   Address base = NULL;
+  VirtualMemory reservation;
   if (executable == EXECUTABLE) {
     // Check executable memory limit.
     if (size_executable_ + chunk_size > capacity_executable_) {
@@ -503,23 +487,24 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
       base = isolate_->code_range()->AllocateRawMemory(chunk_size, &chunk_size);
       ASSERT(IsAligned(reinterpret_cast<intptr_t>(base),
                        MemoryChunk::kAlignment));
+      if (base == NULL) return NULL;
       size_ += chunk_size;
+      // Update executable memory size.
+      size_executable_ += chunk_size;
     } else {
       base = AllocateAlignedMemory(chunk_size,
                                    MemoryChunk::kAlignment,
                                    executable,
-                                   &chunk_size);
+                                   &reservation);
+      if (base == NULL) return NULL;
+      // Update executable memory size.
+      size_executable_ += reservation.size();
     }
-
-    if (base == NULL) return NULL;
-
-    // Update executable memory size.
-    size_executable_ += chunk_size;
   } else {
     base = AllocateAlignedMemory(chunk_size,
                                  MemoryChunk::kAlignment,
                                  executable,
-                                 &chunk_size);
+                                 &reservation);
 
     if (base == NULL) return NULL;
   }
@@ -536,11 +521,13 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
     PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
   }
 
-  return MemoryChunk::Initialize(heap,
-                                 base,
-                                 chunk_size,
-                                 executable,
-                                 owner);
+  MemoryChunk* result = MemoryChunk::Initialize(heap,
+                                                base,
+                                                chunk_size,
+                                                executable,
+                                                owner);
+  result->set_reserved_memory(&reservation);
+  return result;
 }
 
 
@@ -571,9 +558,14 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
 
-  FreeMemory(chunk->address(),
-             chunk->size(),
-             chunk->executable());
+  VirtualMemory* reservation = chunk->reserved_memory();
+  if (reservation->IsReserved()) {
+    FreeMemory(reservation, chunk->executable());
+  } else {
+    FreeMemory(chunk->address(),
+               chunk->size(),
+               chunk->executable());
+  }
 }
 
 
@@ -845,13 +837,10 @@ bool NewSpace::Setup(int reserved_semispace_capacity,
   // this chunk must be a power of two and it must be aligned to its size.
   int initial_semispace_capacity = heap()->InitialSemiSpaceSize();
 
-  size_t size = 0;
+  size_t size = 2 * reserved_semispace_capacity;
   Address base =
       heap()->isolate()->memory_allocator()->ReserveAlignedMemory(
-          2 * reserved_semispace_capacity,
-          2 * reserved_semispace_capacity,
-          &size);
-
+          size, size, &reservation_);
   if (base == NULL) return false;
 
   chunk_base_ = base;
@@ -915,10 +904,10 @@ void NewSpace::TearDown() {
   from_space_.TearDown();
 
   LOG(heap()->isolate(), DeleteEvent("InitialChunk", chunk_base_));
-  heap()->isolate()->memory_allocator()->FreeMemory(
-      chunk_base_,
-      static_cast<size_t>(chunk_size_),
-      NOT_EXECUTABLE);
+
+  ASSERT(reservation_.IsReserved());
+  heap()->isolate()->memory_allocator()->FreeMemory(&reservation_,
+                                                    NOT_EXECUTABLE);
   chunk_base_ = NULL;
   chunk_size_ = 0;
 }
