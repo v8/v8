@@ -80,12 +80,12 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- edi: constructor function
   // -----------------------------------
 
-  Label non_function_call;
+  Label slow, non_function_call;
   // Check that function is not a smi.
   __ JumpIfSmi(edi, &non_function_call);
   // Check that function is a JSFunction.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &non_function_call);
+  __ j(not_equal, &slow);
 
   // Jump to the function-specific construct stub.
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -95,10 +95,19 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // edi: called object
   // eax: number of arguments
+  // ecx: object map
+  Label do_call;
+  __ bind(&slow);
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &non_function_call);
+  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ jmp(&do_call);
+
   __ bind(&non_function_call);
+  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ bind(&do_call);
   // Set expected number of arguments to zero (not changing eax).
   __ Set(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   Handle<Code> arguments_adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
   __ SetCallKind(ecx, CALL_AS_METHOD);
@@ -751,156 +760,156 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   static const int kArgumentsOffset = 2 * kPointerSize;
   static const int kReceiverOffset = 3 * kPointerSize;
   static const int kFunctionOffset = 4 * kPointerSize;
-{
-  FrameScope frame_scope(masm, StackFrame::INTERNAL);
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
 
-  __ push(Operand(ebp, kFunctionOffset));  // push this
-  __ push(Operand(ebp, kArgumentsOffset));  // push arguments
-  __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    __ push(Operand(ebp, kFunctionOffset));  // push this
+    __ push(Operand(ebp, kArgumentsOffset));  // push arguments
+    __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(edi, Operand::StaticVariable(real_stack_limit));
-  // Make ecx the space we have left. The stack might already be overflowed
-  // here which will cause ecx to become negative.
-  __ mov(ecx, Operand(esp));
-  __ sub(ecx, Operand(edi));
-  // Make edx the space we need for the array when it is unrolled onto the
-  // stack.
-  __ mov(edx, Operand(eax));
-  __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-  // Check if the arguments will overflow the stack.
-  __ cmp(ecx, Operand(edx));
-  __ j(greater, &okay);  // Signed comparison.
+    // Check the stack for overflow. We are not trying to catch
+    // interruptions (e.g. debug break and preemption) here, so the "real stack
+    // limit" is checked.
+    Label okay;
+    ExternalReference real_stack_limit =
+        ExternalReference::address_of_real_stack_limit(masm->isolate());
+    __ mov(edi, Operand::StaticVariable(real_stack_limit));
+    // Make ecx the space we have left. The stack might already be overflowed
+    // here which will cause ecx to become negative.
+    __ mov(ecx, Operand(esp));
+    __ sub(ecx, Operand(edi));
+    // Make edx the space we need for the array when it is unrolled onto the
+    // stack.
+    __ mov(edx, Operand(eax));
+    __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
+    // Check if the arguments will overflow the stack.
+    __ cmp(ecx, Operand(edx));
+    __ j(greater, &okay);  // Signed comparison.
 
-  // Out of stack space.
-  __ push(Operand(ebp, 4 * kPointerSize));  // push this
-  __ push(eax);
-  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
-  __ bind(&okay);
-  // End of stack check.
+    // Out of stack space.
+    __ push(Operand(ebp, 4 * kPointerSize));  // push this
+    __ push(eax);
+    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ bind(&okay);
+    // End of stack check.
 
-  // Push current index and limit.
-  const int kLimitOffset =
-      StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
-  const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
-  __ push(eax);  // limit
-  __ push(Immediate(0));  // index
+    // Push current index and limit.
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
+    __ push(eax);  // limit
+    __ push(Immediate(0));  // index
 
-  // Get the receiver.
-  __ mov(ebx, Operand(ebp, kReceiverOffset));
+    // Get the receiver.
+    __ mov(ebx, Operand(ebp, kReceiverOffset));
 
-  // Check that the function is a JS function (otherwise it must be a proxy).
-  Label push_receiver;
-  __ mov(edi, Operand(ebp, kFunctionOffset));
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &push_receiver);
+    // Check that the function is a JS function (otherwise it must be a proxy).
+    Label push_receiver;
+    __ mov(edi, Operand(ebp, kFunctionOffset));
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &push_receiver);
 
-  // Change context eagerly to get the right global object if necessary.
-  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+    // Change context eagerly to get the right global object if necessary.
+    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // Compute the receiver.
-  // Do not transform the receiver for strict mode functions.
-  Label call_to_object, use_global_receiver;
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
-            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
-  __ j(not_equal, &push_receiver);
+    // Compute the receiver.
+    // Do not transform the receiver for strict mode functions.
+    Label call_to_object, use_global_receiver;
+    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
+              1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+    __ j(not_equal, &push_receiver);
 
-  Factory* factory = masm->isolate()->factory();
+    Factory* factory = masm->isolate()->factory();
 
-  // Do not transform the receiver for natives (shared already in ecx).
-  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
-            1 << SharedFunctionInfo::kNativeBitWithinByte);
-  __ j(not_equal, &push_receiver);
+    // Do not transform the receiver for natives (shared already in ecx).
+    __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+              1 << SharedFunctionInfo::kNativeBitWithinByte);
+    __ j(not_equal, &push_receiver);
 
-  // Compute the receiver in non-strict mode.
-  // Call ToObject on the receiver if it is not an object, or use the
-  // global object if it is null or undefined.
-  __ JumpIfSmi(ebx, &call_to_object);
-  __ cmp(ebx, factory->null_value());
-  __ j(equal, &use_global_receiver);
-  __ cmp(ebx, factory->undefined_value());
-  __ j(equal, &use_global_receiver);
-  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-  __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
-  __ j(above_equal, &push_receiver);
+    // Compute the receiver in non-strict mode.
+    // Call ToObject on the receiver if it is not an object, or use the
+    // global object if it is null or undefined.
+    __ JumpIfSmi(ebx, &call_to_object);
+    __ cmp(ebx, factory->null_value());
+    __ j(equal, &use_global_receiver);
+    __ cmp(ebx, factory->undefined_value());
+    __ j(equal, &use_global_receiver);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
+    __ j(above_equal, &push_receiver);
 
-  __ bind(&call_to_object);
-  __ push(ebx);
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-  __ mov(ebx, Operand(eax));
-  __ jmp(&push_receiver);
+    __ bind(&call_to_object);
+    __ push(ebx);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ mov(ebx, Operand(eax));
+    __ jmp(&push_receiver);
 
-  // Use the current global receiver object as the receiver.
-  __ bind(&use_global_receiver);
-  const int kGlobalOffset =
-      Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
-  __ mov(ebx, FieldOperand(esi, kGlobalOffset));
-  __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
-  __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
-  __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+    // Use the current global receiver object as the receiver.
+    __ bind(&use_global_receiver);
+    const int kGlobalOffset =
+        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+    __ mov(ebx, FieldOperand(esi, kGlobalOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
-  // Push the receiver.
-  __ bind(&push_receiver);
-  __ push(ebx);
+    // Push the receiver.
+    __ bind(&push_receiver);
+    __ push(ebx);
 
-  // Copy all arguments from the array to the stack.
-  Label entry, loop;
-  __ mov(eax, Operand(ebp, kIndexOffset));
-  __ jmp(&entry);
-  __ bind(&loop);
-  __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
+    // Copy all arguments from the array to the stack.
+    Label entry, loop;
+    __ mov(eax, Operand(ebp, kIndexOffset));
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
 
-  // Use inline caching to speed up access to arguments.
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
-  __ call(ic, RelocInfo::CODE_TARGET);
-  // It is important that we do not have a test instruction after the
-  // call.  A test instruction after the call is used to indicate that
-  // we have generated an inline version of the keyed load.  In this
-  // case, we know that we are not generating a test instruction next.
+    // Use inline caching to speed up access to arguments.
+    Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // It is important that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to indicate that
+    // we have generated an inline version of the keyed load.  In this
+    // case, we know that we are not generating a test instruction next.
 
-  // Push the nth argument.
-  __ push(eax);
+    // Push the nth argument.
+    __ push(eax);
 
-  // Update the index on the stack and in register eax.
-  __ mov(eax, Operand(ebp, kIndexOffset));
-  __ add(Operand(eax), Immediate(1 << kSmiTagSize));
-  __ mov(Operand(ebp, kIndexOffset), eax);
+    // Update the index on the stack and in register eax.
+    __ mov(eax, Operand(ebp, kIndexOffset));
+    __ add(Operand(eax), Immediate(1 << kSmiTagSize));
+    __ mov(Operand(ebp, kIndexOffset), eax);
 
-  __ bind(&entry);
-  __ cmp(eax, Operand(ebp, kLimitOffset));
-  __ j(not_equal, &loop);
+    __ bind(&entry);
+    __ cmp(eax, Operand(ebp, kLimitOffset));
+    __ j(not_equal, &loop);
 
-  // Invoke the function.
-  Label call_proxy;
-  ParameterCount actual(eax);
-  __ SmiUntag(eax);
-  __ mov(edi, Operand(ebp, kFunctionOffset));
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &call_proxy);
-  __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
+    // Invoke the function.
+    Label call_proxy;
+    ParameterCount actual(eax);
+    __ SmiUntag(eax);
+    __ mov(edi, Operand(ebp, kFunctionOffset));
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+    __ j(not_equal, &call_proxy);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
 
-  frame_scope.GenerateLeaveFrame();
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+    frame_scope.GenerateLeaveFrame();
+    __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 
-  // Invoke the function proxy.
-  __ bind(&call_proxy);
-  __ push(edi);  // add function proxy as last argument
-  __ inc(eax);
-  __ Set(ebx, Immediate(0));
-  __ SetCallKind(ecx, CALL_AS_METHOD);
-  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
-  __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+    // Invoke the function proxy.
+    __ bind(&call_proxy);
+    __ push(edi);  // add function proxy as last argument
+    __ inc(eax);
+    __ Set(ebx, Immediate(0));
+    __ SetCallKind(ecx, CALL_AS_METHOD);
+    __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+    __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+            RelocInfo::CODE_TARGET);
 
-  // Leave internal frame.
-}
+    // Leave internal frame.
+  }
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
 

@@ -1049,6 +1049,15 @@ function ProxyFix(obj) {
     var code = DelegateCallAndConstruct(callTrap, constructTrap);
     %Fix(obj);  // becomes a regular function
     %SetCode(obj, code);
+    // TODO(rossberg): What about length and other properties? Not specified.
+    // We just put in some half-reasonable defaults for now.
+    var prototype = new $Object();
+    $Object.defineProperty(prototype, "constructor",
+      {value: obj, writable: true, enumerable: false, configrable: true});
+    $Object.defineProperty(obj, "prototype",
+      {value: prototype, writable: true, enumerable: false, configrable: false})
+    $Object.defineProperty(obj, "length",
+      {value: 0, writable: true, enumerable: false, configrable: false});
   } else {
     %Fix(obj);
   }

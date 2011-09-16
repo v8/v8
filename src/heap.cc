@@ -3634,6 +3634,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
 
   // Functions require some minimal initialization.
   if (type == JS_FUNCTION_TYPE) {
+    map->set_function_with_prototype(true);
     String* name;
     MaybeObject* maybe_name = LookupAsciiSymbol("<freezing call trap>");
     if (!maybe_name->To<String>(&name)) return maybe_name;
