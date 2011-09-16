@@ -147,6 +147,9 @@ class CodeStub BASE_EMBEDDED {
     return MajorKey() <= Instanceof;
   }
 
+
+  static void GenerateStubsAheadOfTime();
+
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
   // they are running.  If that is the case they should override this to return
@@ -549,8 +552,9 @@ class CEntryStub : public CodeStub {
 
   // The version of this stub that doesn't save doubles is generated ahead of
   // time, so it's OK to call it from other stubs that can't cope with GC during
-  // their code generation.
-  virtual bool CompilingCallsToThisStubIsGCSafe() { return !save_doubles_; }
+  // their code generation.  On machines that always have gp registers (x64) we
+  // can generate both variants ahead of time.
+  virtual bool CompilingCallsToThisStubIsGCSafe();
 
  private:
   void GenerateCore(MacroAssembler* masm,

@@ -4292,6 +4292,15 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
+bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+  return !save_doubles_ && result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ Throw(eax);
 }

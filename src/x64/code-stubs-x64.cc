@@ -3324,6 +3324,18 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
+bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+  return result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+  CEntryStub save_doubles(1);
+  save_doubles.SaveDoubles();
+  save_doubles.GetCode();
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Throw exception in eax.
   __ Throw(rax);
