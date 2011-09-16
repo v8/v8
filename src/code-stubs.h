@@ -147,8 +147,8 @@ class CodeStub BASE_EMBEDDED {
     return MajorKey() <= Instanceof;
   }
 
-
   static void GenerateStubsAheadOfTime();
+  static void GenerateFPStubs();
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while

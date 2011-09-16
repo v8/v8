@@ -879,6 +879,12 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
+  void set_fp_stubs_generated(bool value) {
+    fp_stubs_generated_ = value;
+  }
+
+  bool fp_stubs_generated() { return fp_stubs_generated_; }
+
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
     return &compiler_safe_string_input_buffer_;
   }
@@ -1136,6 +1142,7 @@ class Isolate {
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
+  bool fp_stubs_generated_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   StringTracker* string_tracker_;

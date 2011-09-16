@@ -3318,6 +3318,7 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
   } else {
     __ mov_d(f12, f4);
   }
+  AllowExternalCallThatCantCauseGC scope(masm);
   switch (type_) {
     case TranscendentalCache::SIN:
       __ CallCFunction(
@@ -3477,11 +3478,20 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
-  return !save_doubles_ && result_size_ == 1;
+  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+          result_size_ == 1;
 }
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
+}
+
+
+void CodeStub::GenerateFPStubs() {
+  CEntryStub save_doubles(1);
+  save_doubles.SaveDoubles();
+  Handle<Code> code = save_doubles.GetCode();
+  code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
 

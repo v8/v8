@@ -69,9 +69,6 @@ js1_5/Array/regress-465980-02: SKIP
 ecma_3/Date/15.9.3.2-1: SKIP
 js1_2/function/Number: SKIP
 
-# Causes assert to be triggered: http://code.google.com/p/v8/issues/detail?id=1689
-js1_5/GC/regress-311497: SKIP
-
 ##################### SLOW TESTS #####################
 
 # This takes a long time to run (~100 seconds). It should only be run
