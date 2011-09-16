@@ -907,9 +907,6 @@ class Object : public MaybeObject {
                                                        Object* structure,
                                                        String* name,
                                                        Object* holder);
-  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(Object* receiver,
-                                                      String* name,
-                                                      Object* handler);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSFunction* getter);
 
@@ -1448,6 +1445,8 @@ class JSReceiver: public HeapObject {
                                            Object* value,
                                            PropertyAttributes attributes,
                                            StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
+                                                            Object* value);
 
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
 
@@ -1554,6 +1553,7 @@ class JSObject: public JSReceiver {
   // a dictionary, and it will stay a dictionary.
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetPropertyForResult(LookupResult* result,
                                            String* key,
                                            Object* value,
@@ -1571,8 +1571,6 @@ class JSObject: public JSReceiver {
       Object* value,
       JSObject* holder,
       StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
-                                                            Object* value);
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
       String* name,
       Object* value,
@@ -1800,10 +1798,6 @@ class JSObject: public JSReceiver {
   inline int GetInternalFieldOffset(int index);
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
-
-  // Lookup a property.  If found, the result is valid and has
-  // detailed information.
-  void LocalLookup(String* name, LookupResult* result);
 
   // The following lookup functions skip interceptors.
   void LocalLookupRealNamedProperty(String* name, LookupResult* result);
@@ -6708,6 +6702,10 @@ class JSProxy: public JSReceiver {
 
   bool HasPropertyWithHandler(String* name);
 
+  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(
+      Object* receiver,
+      String* name);
+
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
       String* name,
       Object* value,
@@ -6720,14 +6718,20 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
-      String* name,
-      bool* has_exception);
+      String* name);
 
   // Turn this into an (empty) JSObject.
   void Fix();
 
   // Initializes the body after the handler slot.
   inline void InitializeBody(int object_size, Object* value);
+
+  // Invoke a trap by name. If the trap does not exist on this's handler,
+  // but derived_trap is non-NULL, invoke that instead.  May cause GC.
+  Handle<Object> CallTrap(const char* name,
+                          Handle<Object> derived_trap,
+                          int argc,
+                          Handle<Object> args[]);
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT

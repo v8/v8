@@ -4645,7 +4645,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   if (args[0]->IsJSReceiver()) {
     JSReceiver* receiver = JSReceiver::cast(args[0]);
     CONVERT_CHECKED(String, key, args[1]);
-    if (receiver->HasProperty(key)) return isolate->heap()->true_value();
+    bool result = receiver->HasProperty(key);
+    if (isolate->has_pending_exception()) return Failure::Exception();
+    return isolate->heap()->ToBoolean(result);
   }
   return isolate->heap()->false_value();
 }

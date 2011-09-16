@@ -202,9 +202,9 @@ class LookupResult BASE_EMBEDDED {
     number_ = entry;
   }
 
-  void HandlerResult() {
+  void HandlerResult(JSProxy* proxy) {
     lookup_type_ = HANDLER_TYPE;
-    holder_ = NULL;
+    holder_ = proxy;
     details_ = PropertyDetails(NONE, HANDLER);
     cacheable_ = false;
   }
@@ -221,7 +221,12 @@ class LookupResult BASE_EMBEDDED {
 
   JSObject* holder() {
     ASSERT(IsFound());
-    return holder_;
+    return JSObject::cast(holder_);
+  }
+
+  JSProxy* proxy() {
+    ASSERT(IsFound());
+    return JSProxy::cast(holder_);
   }
 
   PropertyType type() {
@@ -354,7 +359,7 @@ class LookupResult BASE_EMBEDDED {
     CONSTANT_TYPE
   } lookup_type_;
 
-  JSObject* holder_;
+  JSReceiver* holder_;
   int number_;
   bool cacheable_;
   PropertyDetails details_;

@@ -132,27 +132,20 @@ Object* Object::ToBoolean() {
 
 void Object::Lookup(String* name, LookupResult* result) {
   Object* holder = NULL;
-  if (IsSmi()) {
-    Context* global_context = Isolate::Current()->context()->global_context();
-    holder = global_context->number_function()->instance_prototype();
+  if (IsJSReceiver()) {
+    holder = this;
   } else {
-    HeapObject* heap_object = HeapObject::cast(this);
-    if (heap_object->IsJSObject()) {
-      return JSObject::cast(this)->Lookup(name, result);
-    } else if (heap_object->IsJSProxy()) {
-      return result->HandlerResult();
-    }
     Context* global_context = Isolate::Current()->context()->global_context();
-    if (heap_object->IsString()) {
-      holder = global_context->string_function()->instance_prototype();
-    } else if (heap_object->IsHeapNumber()) {
+    if (IsNumber()) {
       holder = global_context->number_function()->instance_prototype();
-    } else if (heap_object->IsBoolean()) {
+    } else if (IsString()) {
+      holder = global_context->string_function()->instance_prototype();
+    } else if (IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
-  JSObject::cast(holder)->Lookup(name, result);
+  JSReceiver::cast(holder)->Lookup(name, result);
 }
 
 
@@ -225,30 +218,17 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
 }
 
 
-MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
-                                            String* name_raw,
-                                            Object* handler_raw) {
-  Isolate* isolate = name_raw->GetIsolate();
+MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
+                                             String* name_raw) {
+  Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> receiver(receiver_raw);
   Handle<Object> name(name_raw);
-  Handle<Object> handler(handler_raw);
 
-  // Extract trap function.
-  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
-  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  Handle<Object> args[] = { receiver, name };
+  Handle<Object> result = CallTrap(
+    "get", isolate->derived_get_trap(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
-  if (trap->IsUndefined()) {
-    // Get the derived `get' property.
-    trap = isolate->derived_get_trap();
-  }
-
-  // Call trap function.
-  Object** args[] = { receiver.location(), name.location() };
-  bool has_exception;
-  Handle<Object> result =
-      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
-  if (has_exception) return Failure::Exception();
 
   return *result;
 }
@@ -566,14 +546,13 @@ MaybeObject* Object::GetProperty(Object* receiver,
   }
   *attributes = result->GetAttributes();
   Object* value;
-  JSObject* holder = result->holder();
   switch (result->type()) {
     case NORMAL:
-      value = holder->GetNormalizedProperty(result);
+      value = result->holder()->GetNormalizedProperty(result);
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
     case FIELD:
-      value = holder->FastPropertyAt(result->GetFieldIndex());
+      value = result->holder()->FastPropertyAt(result->GetFieldIndex());
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
     case CONSTANT_FUNCTION:
@@ -582,14 +561,13 @@ MaybeObject* Object::GetProperty(Object* receiver,
       return GetPropertyWithCallback(receiver,
                                      result->GetCallbackObject(),
                                      name,
-                                     holder);
-    case HANDLER: {
-      JSProxy* proxy = JSProxy::cast(this);
-      return GetPropertyWithHandler(receiver, name, proxy->handler());
-    }
+                                     result->holder());
+    case HANDLER:
+      return result->proxy()->GetPropertyWithHandler(receiver, name);
     case INTERCEPTOR: {
       JSObject* recvr = JSObject::cast(receiver);
-      return holder->GetPropertyWithInterceptor(recvr, name, attributes);
+      return result->holder()->GetPropertyWithInterceptor(
+          recvr, name, attributes);
     }
     case MAP_TRANSITION:
     case ELEMENTS_TRANSITION:
@@ -1900,12 +1878,12 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
 }
 
 
-MaybeObject* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
-                                                    Object* value) {
+MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSFunction* setter,
+                                                      Object* value) {
   Isolate* isolate = GetIsolate();
   Handle<Object> value_handle(value, isolate);
   Handle<JSFunction> fun(JSFunction::cast(setter), isolate);
-  Handle<JSObject> self(this, isolate);
+  Handle<JSReceiver> self(this, isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
@@ -1928,6 +1906,9 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
        pt = pt->GetPrototype()) {
+    if (pt->IsJSProxy()) {
+      return result->HandlerResult(JSProxy::cast(pt));
+    }
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty()) {
       if (result->type() == CALLBACKS && !result->IsReadOnly()) return;
@@ -2092,6 +2073,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
     ASSERT(proto->IsJSGlobalObject());
+    // A GlobalProxy's prototype should always be a proper JSObject.
     return JSObject::cast(proto)->LocalLookupRealNamedProperty(name, result);
   }
 
@@ -2218,7 +2200,7 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
                                      PropertyAttributes attributes,
                                      StrictModeFlag strict_mode) {
   if (result->IsFound() && result->type() == HANDLER) {
-    return JSProxy::cast(this)->SetPropertyWithHandler(
+    return result->proxy()->SetPropertyWithHandler(
         key, value, attributes, strict_mode);
   } else {
     return JSObject::cast(this)->SetPropertyForResult(
@@ -2232,22 +2214,11 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   HandleScope scope(isolate);
   Handle<Object> receiver(this);
   Handle<Object> name(name_raw);
-  Handle<Object> handler(this->handler());
 
-  // Extract trap function.
-  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("has");
-  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  Handle<Object> args[] = { name };
+  Handle<Object> result = CallTrap(
+    "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
-  if (trap->IsUndefined()) {
-    trap = isolate->derived_has_trap();
-  }
-
-  // Call trap function.
-  Object** args[] = { name.location() };
-  bool has_exception;
-  Handle<Object> result =
-      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
-  if (has_exception) return Failure::Exception();
 
   return result->ToBoolean()->IsTrue();
 }
@@ -2263,23 +2234,10 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
   Handle<Object> receiver(this);
   Handle<Object> name(name_raw);
   Handle<Object> value(value_raw);
-  Handle<Object> handler(this->handler());
 
-  // Extract trap function.
-  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
-  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  Handle<Object> args[] = { receiver, name, value };
+  CallTrap("set", isolate->derived_set_trap(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
-  if (trap->IsUndefined()) {
-    trap = isolate->derived_set_trap();
-  }
-
-  // Call trap function.
-  Object** args[] = {
-      receiver.location(), name.location(), value.location()
-  };
-  bool has_exception;
-  Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
-  if (has_exception) return Failure::Exception();
 
   return *value;
 }
@@ -2291,31 +2249,16 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   HandleScope scope(isolate);
   Handle<Object> receiver(this);
   Handle<Object> name(name_raw);
-  Handle<Object> handler(this->handler());
 
-  // Extract trap function.
-  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
-  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  Handle<Object> args[] = { name };
+  Handle<Object> result = CallTrap(
+    "delete", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
-  if (trap->IsUndefined()) {
-    Handle<Object> args[] = { handler, trap_name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Failure::Exception();
-  }
-
-  // Call trap function.
-  Object** args[] = { name.location() };
-  bool has_exception;
-  Handle<Object> result =
-      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
-  if (has_exception) return Failure::Exception();
 
   Object* bool_result = result->ToBoolean();
-  if (mode == STRICT_DELETION &&
-      bool_result == isolate->heap()->false_value()) {
-    Handle<Object> args[] = { handler, trap_name };
+  if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+    Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
+    Handle<Object> args[] = { Handle<Object>(handler()), trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
     isolate->Throw(*error);
@@ -2327,36 +2270,20 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
 
 MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     JSReceiver* receiver_raw,
-    String* name_raw,
-    bool* has_exception) {
+    String* name_raw) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
-  Handle<Object> handler(this->handler());
 
-  // Extract trap function.
-  Handle<String> trap_name =
-      isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
-  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  Handle<Object> args[] = { name };
+  Handle<Object> result = CallTrap(
+    "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return NONE;
-  if (trap->IsUndefined()) {
-    Handle<Object> args[] = { handler, trap_name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    *has_exception = true;
-    return NONE;
-  }
 
-  // Call trap function.
-  Object** args[] = { name.location() };
-  Handle<Object> result =
-      Execution::Call(trap, handler, ARRAY_SIZE(args), args, has_exception);
-  if (has_exception) return NONE;
+  if (result->IsUndefined()) return ABSENT;
 
   // TODO(rossberg): convert result to PropertyAttributes
-  USE(result);
   return NONE;
 }
 
@@ -2375,6 +2302,34 @@ void JSProxy::Fix() {
   ASSERT(self->IsJSObject());
 }
 
+
+MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
+    const char* name,
+    Handle<Object> derived,
+    int argc,
+    Handle<Object> args[]) {
+  Isolate* isolate = GetIsolate();
+  Handle<Object> handler(this->handler());
+
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (isolate->has_pending_exception()) return trap;
+
+  if (trap->IsUndefined()) {
+    if (*derived == NULL) {
+      Handle<Object> args[] = { handler, trap_name };
+      Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+      isolate->Throw(*error);
+      return Handle<Object>();
+    }
+    trap = Handle<Object>(derived);
+  }
+
+  Object*** argv = reinterpret_cast<Object***>(args);
+  bool threw = false;
+  return Execution::Call(trap, handler, argc, argv, &threw);
+}
 
 
 MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
@@ -2400,20 +2355,18 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   }
 
   // Check access rights if needed.
-  if (IsAccessCheckNeeded()
-      && !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result,
-                                            name,
-                                            value,
-                                            true,
-                                            strict_mode);
+  if (IsAccessCheckNeeded()) {
+    if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
+      return SetPropertyWithFailedAccessCheck(
+          result, name, value, true, strict_mode);
+    }
   }
 
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetProperty(
+    return JSObject::cast(proto)->SetPropertyForResult(
         result, name, value, attributes, strict_mode);
   }
 
@@ -2422,26 +2375,81 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
     // accessor that wants to handle the property.
     LookupResult accessor_result;
     LookupCallbackSetterInPrototypes(name, &accessor_result);
-    if (accessor_result.IsProperty()) {
-      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                     name,
-                                     value,
-                                     accessor_result.holder(),
-                                     strict_mode);
+    if (accessor_result.IsFound()) {
+      if (accessor_result.type() == CALLBACKS) {
+        return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
+                                       name,
+                                       value,
+                                       accessor_result.holder(),
+                                       strict_mode);
+      } else if (accessor_result.type() == HANDLER) {
+        // There is a proxy in the prototype chain. Invoke its
+        // getOwnPropertyDescriptor trap.
+        Isolate* isolate = heap->isolate();
+        Handle<JSObject> self(this);
+        Handle<String> hname(name);
+        Handle<Object> hvalue(value);
+        Handle<JSProxy> proxy(accessor_result.proxy());
+        Handle<Object> args[] = { hname };
+        Handle<Object> result = proxy->CallTrap(
+          "getOwnPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
+        if (isolate->has_pending_exception()) return Failure::Exception();
+
+        if (!result->IsUndefined()) {
+          // The proxy handler cares about this property.
+          // Check whether it is virtualized as an accessor.
+          Handle<String> getter_name =
+              isolate->factory()->LookupAsciiSymbol("get");
+          Handle<Object> getter(
+              v8::internal::GetProperty(result, getter_name));
+          if (isolate->has_pending_exception()) return Failure::Exception();
+          Handle<String> setter_name =
+              isolate->factory()->LookupAsciiSymbol("set");
+          Handle<Object> setter(
+              v8::internal::GetProperty(result, setter_name));
+          if (isolate->has_pending_exception()) return Failure::Exception();
+
+          if (!setter->IsUndefined()) {
+            // We have a setter -- invoke it.
+            if (setter->IsJSFunction()) {
+              return proxy->SetPropertyWithDefinedSetter(
+                  JSFunction::cast(*setter), *hvalue);
+            }
+            Handle<Object> args[] = { setter };
+            Handle<Object> error = isolate->factory()->NewTypeError(
+               "setter_must_be_callable", HandleVector(args, ARRAY_SIZE(args)));
+            return isolate->Throw(*error);
+          } else if (!getter->IsUndefined()) {
+            // We have a getter but no setter -- the property may not be
+            // written. In strict mode, throw an error.
+            if (strict_mode == kNonStrictMode) return *hvalue;
+            Handle<Object> args[] = { hname, proxy };
+            Handle<Object> error = isolate->factory()->NewTypeError(
+                "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
+            return isolate->Throw(*error);
+          }
+          // The proxy does not define the property as an accessor.
+          // Consequently, it has no effect on setting the receiver.
+          return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
+        }
+      }
     }
   }
+
+  // At this point, no GC should have happened, as this would invalidate
+  // 'result', which we cannot handlify!
+
   if (!result->IsFound()) {
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes, strict_mode);
   }
   if (result->IsReadOnly() && result->IsProperty()) {
     if (strict_mode == kStrictMode) {
-      HandleScope scope(heap->isolate());
-      Handle<String> key(name);
-      Handle<Object> holder(this);
-      Handle<Object> args[2] = { key, holder };
+      Handle<JSObject> self(this);
+      Handle<String> hname(name);
+      Handle<Object> args[] = { hname, self };
       return heap->isolate()->Throw(*heap->isolate()->factory()->NewTypeError(
-          "strict_read_only_property", HandleVector(args, 2)));
+          "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
     } else {
       return value;
     }
@@ -2702,10 +2710,8 @@ PropertyAttributes JSReceiver::GetPropertyAttribute(JSReceiver* receiver,
       case CALLBACKS:
         return result->GetAttributes();
       case HANDLER: {
-        // TODO(rossberg): propagate exceptions properly.
-        bool has_exception = false;
-        return JSProxy::cast(this)->GetPropertyAttributeWithHandler(
-            receiver, name, &has_exception);
+        return JSProxy::cast(result->proxy())->GetPropertyAttributeWithHandler(
+            receiver, name);
       }
       case INTERCEPTOR:
         return result->holder()->GetPropertyAttributeWithInterceptor(
@@ -3516,15 +3522,6 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 
 
 void JSReceiver::LocalLookup(String* name, LookupResult* result) {
-  if (IsJSProxy()) {
-    result->HandlerResult();
-  } else {
-    JSObject::cast(this)->LocalLookup(name, result);
-  }
-}
-
-
-void JSObject::LocalLookup(String* name, LookupResult* result) {
   ASSERT(name->IsString());
 
   Heap* heap = GetHeap();
@@ -3533,28 +3530,36 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->LocalLookup(name, result);
+    return JSReceiver::cast(proto)->LocalLookup(name, result);
+  }
+
+  if (IsJSProxy()) {
+    result->HandlerResult(JSProxy::cast(this));
+    return;
   }
 
   // Do not use inline caching if the object is a non-global object
   // that requires access checks.
-  if (!IsJSGlobalProxy() && IsAccessCheckNeeded()) {
+  if (IsAccessCheckNeeded()) {
     result->DisallowCaching();
   }
 
+  JSObject* js_object = JSObject::cast(this);
+
   // Check __proto__ before interceptor.
   if (name->Equals(heap->Proto_symbol()) && !IsJSContextExtensionObject()) {
-    result->ConstantResult(this);
+    result->ConstantResult(js_object);
     return;
   }
 
   // Check for lookup interceptor except when bootstrapping.
-  if (HasNamedInterceptor() && !heap->isolate()->bootstrapper()->IsActive()) {
-    result->InterceptorResult(this);
+  if (js_object->HasNamedInterceptor() &&
+      !heap->isolate()->bootstrapper()->IsActive()) {
+    result->InterceptorResult(js_object);
     return;
   }
 
-  LocalLookupRealNamedProperty(name, result);
+  js_object->LocalLookupRealNamedProperty(name, result);
 }
 
 
@@ -3564,7 +3569,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
   for (Object* current = this;
        current != heap->null_value();
        current = JSObject::cast(current)->GetPrototype()) {
-    JSObject::cast(current)->LocalLookup(name, result);
+    JSReceiver::cast(current)->LocalLookup(name, result);
     if (result->IsProperty()) return;
   }
   result->NotFound();
@@ -6217,10 +6222,10 @@ void Map::CreateBackPointers() {
       // Verify target.
       Object* source_prototype = prototype();
       Object* target_prototype = target->prototype();
-      ASSERT(source_prototype->IsJSObject() ||
+      ASSERT(source_prototype->IsJSReceiver() ||
              source_prototype->IsMap() ||
              source_prototype->IsNull());
-      ASSERT(target_prototype->IsJSObject() ||
+      ASSERT(target_prototype->IsJSReceiver() ||
              target_prototype->IsNull());
       ASSERT(source_prototype->IsMap() ||
              source_prototype == target_prototype);
@@ -7754,7 +7759,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
   for (Object* pt = value; pt != heap->null_value(); pt = pt->GetPrototype()) {
-    if (JSObject::cast(pt) == this) {
+    if (JSReceiver::cast(pt) == this) {
       // Cycle detected.
       HandleScope scope(heap->isolate());
       return heap->isolate()->Throw(
@@ -7769,8 +7774,8 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
     // hidden and set the new prototype on that object.
     Object* current_proto = real_receiver->GetPrototype();
     while (current_proto->IsJSObject() &&
-          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
-      real_receiver = JSObject::cast(current_proto);
+          JSReceiver::cast(current_proto)->map()->is_hidden_prototype()) {
+      real_receiver = JSReceiver::cast(current_proto);
       current_proto = current_proto->GetPrototype();
     }
   }
