@@ -795,10 +795,15 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(FILE* out) {
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ObjectTemplateInfo");
+  PrintF(out, " - tag: ");
+  tag()->ShortPrint(out);
+  PrintF(out, "\n - property_list: ");
+  property_list()->ShortPrint(out);
   PrintF(out, "\n - constructor: ");
   constructor()->ShortPrint(out);
   PrintF(out, "\n - internal_field_count: ");
   internal_field_count()->ShortPrint(out);
+  PrintF(out, "\n");
 }
 
 

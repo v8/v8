@@ -509,7 +509,7 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
     // garbage section which can contain anything.
     if (o == free_space_map ||
         o == two_pointer_filler_map ||
-        visitable_end == space->top()) {
+        (visitable_end == space->top() && visitable_end != space->limit())) {
       if (visitable_start != visitable_end) {
         // After calling this the special garbage section may have moved.
         (this->*region_callback)(visitable_start,
