@@ -1253,13 +1253,14 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
   if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
   // Stack is already aligned for call, so decrement by alignment
   // to make room for storing the return address.
-  __ Subu(sp, sp, Operand(stack_alignment));
-  __ sw(ra, MemOperand(sp, 0));
-  __ mov(a0, sp);
+  __ Subu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
+  const int return_address_offset = kCArgsSlotsSize;
+  __ Addu(a0, sp, return_address_offset);
+  __ sw(ra, MemOperand(a0, 0));
   __ mov(t9, t1);
   __ Call(t9);
-  __ lw(ra, MemOperand(sp, 0));
-  __ Addu(sp, sp, Operand(stack_alignment));
+  __ lw(ra, MemOperand(sp, return_address_offset));
+  __ Addu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
   __ Jump(ra);
 }
 

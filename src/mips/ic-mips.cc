@@ -1574,7 +1574,8 @@ void PatchInlinedSmiCode(Address address) {
   // If the instruction following the call is not a andi at, rx, #yyy, nothing
   // was inlined.
   Instr instr = Assembler::instr_at(andi_instruction_address);
-  if (!Assembler::IsAndImmediate(instr)) {
+  if (!(Assembler::IsAndImmediate(instr) &&
+        Assembler::GetRt(instr) == (uint32_t)zero_reg.code())) {
     return;
   }
 
