@@ -4487,7 +4487,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   HEnvironment* env = environment();
   int current_level = 1;
   while (env->outer() != NULL) {
-    if (current_level == Compiler::kMaxInliningLevels) {
+    if (FLAG_limit_inlining && current_level == Compiler::kMaxInliningLevels) {
       TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
