@@ -334,7 +334,7 @@ int OS::StackWalk(Vector<StackFrame> frames) {
 }
 
 
-VirtualMemory::VirtualMemory() : address_(NULL), size_(size) { }
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 
 VirtualMemory::VirtualMemory(size_t size)
@@ -346,10 +346,10 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(GetRandomMmapAddr(),
+  void* reservation = mmap(NULL,
                            request_size,
                            PROT_NONE,
-                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                            kMmapFd,
                            kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
