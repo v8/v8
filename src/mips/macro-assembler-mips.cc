@@ -821,6 +821,7 @@ void MacroAssembler::MultiPopReversedFPU(RegList regs) {
 void MacroAssembler::FlushICache(Register address, unsigned instructions) {
   RegList saved_regs = kJSCallerSaved | ra.bit();
   MultiPush(saved_regs);
+  AllowExternalCallThatCantCauseGC scope(this);
 
   // Save to a0 in case address == t0.
   Move(a0, address);
