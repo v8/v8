@@ -1292,7 +1292,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&slow);
   __ li(t0, Operand(1, RelocInfo::NONE));  // Indicate function proxy.
   __ Branch(&shift_arguments, eq, a2, Operand(JS_FUNCTION_PROXY_TYPE));
-  
+
   __ bind(&non_function);
   __ li(t0, Operand(2, RelocInfo::NONE));  // Indicate non-function.
 
@@ -1514,7 +1514,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ lw(a1, MemOperand(fp, kFunctionOffset));
     __ GetObjectType(a1, a2, a2);
     __ Branch(&call_proxy, ne, a2, Operand(JS_FUNCTION_TYPE));
-  
+
     __ InvokeFunction(a1, actual, CALL_FUNCTION,
                       NullCallWrapper(), CALL_AS_METHOD);
 
