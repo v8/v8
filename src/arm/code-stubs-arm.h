@@ -323,6 +323,9 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch) { }
 
+  bool CompilingCallsToThisStubIsGCSafe();
+  static void GenerateStubsAheadOfTime();
+
  private:
   Register the_int_;
   Register the_heap_number_;

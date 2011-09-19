@@ -859,6 +859,29 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 }
 
 
+bool WriteInt32ToHeapNumberStub::CompilingCallsToThisStubIsGCSafe() {
+  // These variants are compiled ahead of time.  See next method.
+  if (the_int_.is(r1) && the_heap_number_.is(r0) && scratch_.is(r2)) {
+    return true;
+  }
+  if (the_int_.is(r2) && the_heap_number_.is(r0) && scratch_.is(r3)) {
+    return true;
+  }
+  // Other register combinations are generated as and when they are needed,
+  // so it is unsafe to call them from stubs (we can't generate a stub while
+  // we are generating a stub).
+  return false;
+}
+
+
+void WriteInt32ToHeapNumberStub::GenerateStubsAheadOfTime() {
+  WriteInt32ToHeapNumberStub stub1(r1, r0, r2);
+  WriteInt32ToHeapNumberStub stub2(r2, r0, r3);
+  Handle<Code> code1 = stub1.GetCode();
+  Handle<Code> code2 = stub2.GetCode();
+}
+
+
 // See comment for class.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   Label max_negative_int;
@@ -1199,6 +1222,8 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
       __ vmov(d0, r0, r1);
       __ vmov(d1, r2, r3);
     }
+
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
                      0, 2);
     __ pop(pc);  // Return.
@@ -3341,6 +3366,7 @@ bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
+  WriteInt32ToHeapNumberStub::GenerateStubsAheadOfTime();
 }
 
 
