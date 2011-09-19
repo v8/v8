@@ -624,13 +624,13 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  Label non_function_call;
+  Label slow, non_function_call;
   // Check that the function is not a smi.
   __ And(t0, a1, Operand(kSmiTagMask));
   __ Branch(&non_function_call, eq, t0, Operand(zero_reg));
   // Check that the function is a JSFunction.
   __ GetObjectType(a1, a2, a2);
-  __ Branch(&non_function_call, ne, a2, Operand(JS_FUNCTION_TYPE));
+  __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
 
   // Jump to the function-specific construct stub.
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
@@ -640,13 +640,21 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // a0: number of arguments
   // a1: called object
+  // a2: object type
+  Label do_call;
+  __ bind(&slow);
+  __ Branch(&non_function_call, ne, a2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ jmp(&do_call);
+
   __ bind(&non_function_call);
+  __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ bind(&do_call);
   // CALL_NON_FUNCTION expects the non-function constructor as receiver
   // (instead of the original receiver from the call site). The receiver is
   // stack element argc.
   // Set expected number of arguments to zero (not changing a0).
   __ mov(a2, zero_reg);
-  __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
