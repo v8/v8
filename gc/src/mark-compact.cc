@@ -576,8 +576,9 @@ class CodeFlusher {
       // We are in the middle of a GC cycle so the write barrier in the code
       // setter did not record the slot update and we have to do that manually.
       Address slot = candidate->address() + JSFunction::kCodeEntryOffset;
+      Code* target = Code::cast(Code::GetObjectFromEntryAddress(slot));
       isolate_->heap()->mark_compact_collector()->
-          RecordCodeEntrySlot(slot, Code::cast(Memory::Object_at(slot)));
+          RecordCodeEntrySlot(slot, target);
 
       candidate = next_candidate;
     }

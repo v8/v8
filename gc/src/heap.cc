@@ -1367,9 +1367,13 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 
-    table_.Register(kVisitJSFunction,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        template VisitSpecialized<JSFunction::kSize>);
+    if (marks_handling == IGNORE_MARKS) {
+      table_.Register(kVisitJSFunction,
+                      &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                          template VisitSpecialized<JSFunction::kSize>);
+    } else {
+      table_.Register(kVisitJSFunction, &EvacuateJSFunction);
+    }
 
     table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
                                    kVisitDataObject,
@@ -1486,6 +1490,28 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
     return;
+  }
+
+
+  static inline void EvacuateJSFunction(Map* map,
+                                        HeapObject** slot,
+                                        HeapObject* object) {
+    ObjectEvacuationStrategy<POINTER_OBJECT>::
+        template VisitSpecialized<JSFunction::kSize>(map, slot, object);
+
+    HeapObject* target = *slot;
+    MarkBit mark_bit = Marking::MarkBitFrom(target);
+    if (Marking::IsBlack(mark_bit)) {
+      // This object is black and it might not be rescanned by marker.
+      // We should explicitly record code entry slot for compaction because
+      // promotion queue processing (IterateAndMarkPointersToFromSpace) will
+      // miss it as it is not HeapObject-tagged.
+      Address code_entry_slot =
+          target->address() + JSFunction::kCodeEntryOffset;
+      Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
+      map->GetHeap()->mark_compact_collector()->
+          RecordCodeEntrySlot(code_entry_slot, code);
+    }
   }
 
 
@@ -4635,6 +4661,19 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
                                              Address end,
                                              ObjectSlotCallback callback) {
   Address slot_address = start;
+
+  // We are not collecting slots on new space objects during mutation
+  // thus we have to scan for pointers to evacuation candidates when we
+  // promote objects. But we should not record any slots in non-black
+  // objects. Grey object's slots would be rescanned.
+  // White object might not survive until the end of collection
+  // it would be a violation of the invariant to record it's slots.
+  bool record_slots = false;
+  if (incremental_marking()->IsCompacting()) {
+    MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::FromAddress(start));
+    record_slots = Marking::IsBlack(mark_bit);
+  }
+
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* object = *slot;
@@ -4654,10 +4693,8 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
               reinterpret_cast<Address>(slot));
         }
         ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_object));
-      } else if (MarkCompactCollector::IsOnEvacuationCandidate(object)) {
-        // We are not collecting slots on new space objects during mutation
-        // thus we have to scan for pointers to evacuation candidates when we
-        // promote objects.
+      } else if (record_slots &&
+                 MarkCompactCollector::IsOnEvacuationCandidate(object)) {
         mark_compact_collector()->RecordSlot(slot, slot, object);
       }
     }
