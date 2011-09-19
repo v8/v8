@@ -283,7 +283,7 @@ class HGraph: public ZoneObject {
   }
 
 #ifdef DEBUG
-  void Verify() const;
+  void Verify(bool do_full_verify) const;
 #endif
 
  private:
@@ -910,13 +910,13 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
-  void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
-                                  Expression* expr,
+  bool TryLiteralCompare(CompareOperation* expr);
+  void HandleLiteralCompareTypeof(CompareOperation* expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
-  void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
-                                     Expression* expr);
-  void HandleLiteralCompareNull(CompareOperation* compare_expr,
-                                Expression* expr);
+  void HandleLiteralCompareNil(CompareOperation* expr,
+                               Expression* sub_expr,
+                               NilValue nil);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
                                            HValue* string,

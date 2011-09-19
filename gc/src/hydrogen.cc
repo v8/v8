@@ -422,7 +422,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 };
 
 
-void HGraph::Verify() const {
+void HGraph::Verify(bool do_full_verify) const {
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -473,25 +473,27 @@ void HGraph::Verify() const {
   // Check special property of first block to have no predecessors.
   ASSERT(blocks_.at(0)->predecessors()->is_empty());
 
-  // Check that the graph is fully connected.
-  ReachabilityAnalyzer analyzer(entry_block_, blocks_.length(), NULL);
-  ASSERT(analyzer.visited_count() == blocks_.length());
+  if (do_full_verify) {
+    // Check that the graph is fully connected.
+    ReachabilityAnalyzer analyzer(entry_block_, blocks_.length(), NULL);
+    ASSERT(analyzer.visited_count() == blocks_.length());
 
-  // Check that entry block dominator is NULL.
-  ASSERT(entry_block_->dominator() == NULL);
+    // Check that entry block dominator is NULL.
+    ASSERT(entry_block_->dominator() == NULL);
 
-  // Check dominators.
-  for (int i = 0; i < blocks_.length(); ++i) {
-    HBasicBlock* block = blocks_.at(i);
-    if (block->dominator() == NULL) {
-      // Only start block may have no dominator assigned to.
-      ASSERT(i == 0);
-    } else {
-      // Assert that block is unreachable if dominator must not be visited.
-      ReachabilityAnalyzer dominator_analyzer(entry_block_,
-                                              blocks_.length(),
-                                              block->dominator());
-      ASSERT(!dominator_analyzer.reachable()->Contains(block->block_id()));
+    // Check dominators.
+    for (int i = 0; i < blocks_.length(); ++i) {
+      HBasicBlock* block = blocks_.at(i);
+      if (block->dominator() == NULL) {
+        // Only start block may have no dominator assigned to.
+        ASSERT(i == 0);
+      } else {
+        // Assert that block is unreachable if dominator must not be visited.
+        ReachabilityAnalyzer dominator_analyzer(entry_block_,
+                                                blocks_.length(),
+                                                block->dominator());
+        ASSERT(!dominator_analyzer.reachable()->Contains(block->block_id()));
+      }
     }
   }
 }
@@ -2320,6 +2322,12 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->OrderBlocks();
   graph()->AssignDominators();
+
+#ifdef DEBUG
+  // Do a full verify after building the graph and computing dominators.
+  graph()->Verify(true);
+#endif
+
   graph()->PropagateDeoptimizingMark();
   graph()->EliminateRedundantPhis();
   if (!graph()->CheckPhis()) {
@@ -5668,26 +5676,36 @@ Representation HGraphBuilder::ToRepresentation(TypeInfo info) {
 }
 
 
-void HGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* compare_expr,
-                                               Expression* expr,
+void HGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
+                                               Expression* sub_expr,
                                                Handle<String> check) {
-  CHECK_ALIVE(VisitForTypeOf(expr));
-  HValue* expr_value = Pop();
-  HTypeofIsAndBranch* instr = new(zone()) HTypeofIsAndBranch(expr_value, check);
-  instr->set_position(compare_expr->position());
-  return ast_context()->ReturnControl(instr, compare_expr->id());
+  CHECK_ALIVE(VisitForTypeOf(sub_expr));
+  HValue* value = Pop();
+  HTypeofIsAndBranch* instr = new(zone()) HTypeofIsAndBranch(value, check);
+  instr->set_position(expr->position());
+  return ast_context()->ReturnControl(instr, expr->id());
 }
 
 
-void HGraphBuilder::HandleLiteralCompareUndefined(
-    CompareOperation* compare_expr, Expression* expr) {
-  CHECK_ALIVE(VisitForValue(expr));
-  HValue* lhs = Pop();
-  HValue* rhs = graph()->GetConstantUndefined();
-  HCompareObjectEqAndBranch* instr =
-      new(zone()) HCompareObjectEqAndBranch(lhs, rhs);
-  instr->set_position(compare_expr->position());
-  return ast_context()->ReturnControl(instr, compare_expr->id());
+bool HGraphBuilder::TryLiteralCompare(CompareOperation* expr) {
+  Expression *sub_expr;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    HandleLiteralCompareTypeof(expr, sub_expr, check);
+    return true;
+  }
+
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
+    return true;
+  }
+
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    HandleLiteralCompareNil(expr, sub_expr, kNullValue);
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -5709,22 +5727,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
 
   // Check for special cases that compare against literals.
-  Expression *sub_expr;
-  Handle<String> check;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    HandleLiteralCompareTypeof(expr, sub_expr, check);
-    return;
-  }
-
-  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
-    HandleLiteralCompareUndefined(expr, sub_expr);
-    return;
-  }
-
-  if (expr->IsLiteralCompareNull(&sub_expr)) {
-    HandleLiteralCompareNull(expr, sub_expr);
-    return;
-  }
+  if (TryLiteralCompare(expr)) return;
 
   TypeInfo type_info = oracle()->CompareType(expr);
   // Check if this expression was ever executed according to type feedback.
@@ -5829,16 +5832,19 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void HGraphBuilder::HandleLiteralCompareNull(CompareOperation* compare_expr,
-                                             Expression* expr) {
+void HGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
+                                            Expression* sub_expr,
+                                            NilValue nil) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  CHECK_ALIVE(VisitForValue(expr));
+  CHECK_ALIVE(VisitForValue(sub_expr));
   HValue* value = Pop();
-  bool is_strict = compare_expr->op() == Token::EQ_STRICT;
-  HIsNullAndBranch* instr = new(zone()) HIsNullAndBranch(value, is_strict);
-  return ast_context()->ReturnControl(instr, compare_expr->id());
+  EqualityKind kind =
+      expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
+  HIsNilAndBranch* instr = new(zone()) HIsNilAndBranch(value, kind, nil);
+  instr->set_position(expr->position());
+  return ast_context()->ReturnControl(instr, expr->id());
 }
 
 
@@ -6822,7 +6828,7 @@ void HPhase::End() const {
   }
 
 #ifdef DEBUG
-  if (graph_ != NULL) graph_->Verify();
+  if (graph_ != NULL) graph_->Verify(false);  // No full verify.
   if (allocator_ != NULL) allocator_->Verify();
 #endif
 }
