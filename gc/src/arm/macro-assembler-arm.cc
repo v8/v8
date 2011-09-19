@@ -42,7 +42,8 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true) {
+      allow_stub_calls_(true),
+      has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
@@ -806,9 +807,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   str(ip, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(fp, MemOperand(ip));
-  mov(ip, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   str(cp, MemOperand(ip));
 
   // Optionally save all double registers.
@@ -884,11 +885,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 
   // Clear top frame.
   mov(r3, Operand(0, RelocInfo::NONE));
-  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   ldr(cp, MemOperand(ip));
 #ifdef DEBUG
   str(r3, MemOperand(ip));
@@ -1007,6 +1008,9 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -1034,6 +1038,9 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
 
   InvokePrologue(expected, actual, code, no_reg, &done, flag,
@@ -1057,6 +1064,9 @@ void MacroAssembler::InvokeFunction(Register fun,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   // Contract with called JS functions requires that function is passed in r1.
   ASSERT(fun.is(r1));
 
@@ -1081,6 +1091,9 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   ASSERT(function->is_compiled());
 
   // Get the function and setup the context.
@@ -1136,10 +1149,10 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
-  ASSERT(allow_stub_calls());
   mov(r0, Operand(0, RelocInfo::NONE));
   mov(r1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
+  ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
@@ -1164,7 +1177,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     }
     stm(db_w, sp, r3.bit() | cp.bit() | fp.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
     ldr(r1, MemOperand(r3));
     push(r1);
     // Link this handler as the new current one.
@@ -1180,7 +1193,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     mov(r7, Operand(0, RelocInfo::NONE));  // NULL frame pointer.
     stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r7, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    mov(r7, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
     ldr(r6, MemOperand(r7));
     push(r6);
     // Link this handler as the new current one.
@@ -1192,7 +1205,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r1);
-  mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(ip, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
 }
@@ -1212,7 +1225,7 @@ void MacroAssembler::Throw(Register value) {
   }
 
   // Drop the sp to the top of the handler.
-  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));
 
   // Restore the next handler.
@@ -1252,7 +1265,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   }
 
   // Drop sp to the top stack handler.
-  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
@@ -1276,7 +1289,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(
-        Isolate::k_external_caught_exception_address, isolate());
+        Isolate::kExternalCaughtExceptionAddress, isolate());
     mov(r0, Operand(false, RelocInfo::NONE));
     mov(r2, Operand(external_caught));
     str(r0, MemOperand(r2));
@@ -1284,7 +1297,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+    mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate())));
     str(r0, MemOperand(r2));
   }
@@ -1467,7 +1480,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   const int kDetailsOffset =
       NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ldr(t1, FieldMemOperand(t2, kDetailsOffset));
-  tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
@@ -1839,7 +1852,7 @@ void MacroAssembler::CompareRoot(Register obj,
 void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
-  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 0);
   ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
   cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
   b(hi, fail);
@@ -1941,14 +1954,13 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  // TODO(1599): Do not call stubs from stubs that do not allow stub calls.
-  // ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond);
 }
 
 
 MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Object* result;
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -1960,13 +1972,12 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_);
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 
 MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Object* result;
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -2066,6 +2077,12 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   jmp(&leave_exit_frame);
 
   return result;
+}
+
+
+bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
+  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
+  return stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_;
 }
 
 
@@ -2537,6 +2554,9 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
+  // You can't call a builtin without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   GetBuiltinEntry(r2, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(r2));
@@ -2668,14 +2688,20 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
-  // Disable stub call restrictions to always allow calls to abort.
-  AllowStubCallsScope allow_scope(this, true);
 
   mov(r0, Operand(p0));
   push(r0);
   mov(r0, Operand(Smi::FromInt(p1 - p0)));
   push(r0);
-  CallRuntime(Runtime::kAbort, 2);
+  // Disable stub call restrictions to always allow calls to abort.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kAbort, 2);
+  } else {
+    CallRuntime(Runtime::kAbort, 2);
+  }
   // will not return here
   if (is_const_pool_blocked()) {
     // If the calling code cares about the exact number of
@@ -3173,6 +3199,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          Register scratch,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  ASSERT(has_frame());
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.

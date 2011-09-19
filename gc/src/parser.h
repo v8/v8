@@ -30,10 +30,9 @@
 
 #include "allocation.h"
 #include "ast.h"
-#include "scanner.h"
-#include "scopes.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -533,11 +532,6 @@ class Parser {
   Expression* ParseObjectLiteral(bool* ok);
   ObjectLiteral::Property* ParseObjectLiteralGetSet(bool is_getter, bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
-
-  Expression* NewCompareNode(Token::Value op,
-                             Expression* x,
-                             Expression* y,
-                             int position);
 
   // Populate the constant properties fixed array for a materialized object
   // literal.

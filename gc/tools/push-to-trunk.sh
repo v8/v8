@@ -74,11 +74,11 @@ confirm() {
 }
 
 delete_branch() {
-  local MATCH=$(git branch | grep $1)
+  local MATCH=$(git branch | grep $1 | awk '{print $NF}' )
   if [ "$MATCH" == "$1" ] ; then
     confirm "Branch $1 exists, do you want to delete it?"
     if [ $? -eq 0 ] ; then
-      git branch -D $1
+      git branch -D $1 || die "Deleting branch '$1' failed."
       echo "Branch $1 deleted."
     else
       die "Can't continue. Please delete branch $1 and try again."
@@ -202,10 +202,14 @@ if [ $STEP -le 4 ] ; then
   for commit in $COMMITS ; do
     # Get the commit's title line.
     git log -1 $commit --format="%w(80,8,8)%s" >> "$CHANGELOG_ENTRY_FILE"
-    # Grep for "BUG=xxxx" lines in the commit message.
-    git log -1 $commit --format="%b" | grep BUG= | grep -v "BUG=$" \
-                                     | sed -e 's/^/        /' \
-                                     >> "$CHANGELOG_ENTRY_FILE"
+    # Grep for "BUG=xxxx" lines in the commit message and convert them to
+    # "(issue xxxx)".
+    git log -1 $commit --format="%B" \
+        | grep "^BUG=" | grep -v "BUG=$" \
+        | sed -e 's/^/        /' \
+        | sed -e 's/BUG=v8:\(.*\)$/(issue \1)/' \
+        | sed -e 's/BUG=\(.*\)$/(Chromium issue \1)/' \
+        >> "$CHANGELOG_ENTRY_FILE"
     # Append the commit's author for reference.
     git log -1 $commit --format="%w(80,8,8)(%an)" >> "$CHANGELOG_ENTRY_FILE"
     echo "" >> "$CHANGELOG_ENTRY_FILE"
@@ -352,9 +356,16 @@ if [ $STEP -le 13 ] ; then
   echo ">>> Step 13: Apply squashed changes."
   patch -p1 < "$PATCH_FILE" | tee >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
   [[ $? -eq 0 ]] || die "Applying the patch to trunk failed."
+  # Stage added and modified files.
   TOUCHED_FILES=$(cat "$TOUCHED_FILES_FILE")
   for FILE in $TOUCHED_FILES ; do
     git add "$FILE"
+  done
+  # Stage deleted files.
+  DELETED_FILES=$(git status -s -uno --porcelain | grep "^ D" \
+                                                 | awk '{print $NF}')
+  for FILE in $DELETED_FILES ; do
+    git rm "$FILE"
   done
   rm -f "$PATCH_FILE"
   rm -f "$TOUCHED_FILES_FILE"

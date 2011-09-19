@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -112,14 +112,14 @@ class MapTransitionDescriptor: public Descriptor {
       : Descriptor(key, map, attributes, MAP_TRANSITION) { }
 };
 
-class ExternalArrayTransitionDescriptor: public Descriptor {
+class ElementsTransitionDescriptor: public Descriptor {
  public:
-  ExternalArrayTransitionDescriptor(String* key,
-                                    Map* map,
-                                    ExternalArrayType array_type)
+  ElementsTransitionDescriptor(String* key,
+                               Map* map,
+                               ElementsKind elements_kind)
       : Descriptor(key, map, PropertyDetails(NONE,
-                                             EXTERNAL_ARRAY_TRANSITION,
-                                             array_type)) { }
+                                             ELEMENTS_TRANSITION,
+                                             elements_kind)) { }
 };
 
 // Marks a field name in a map so that adding the field is guaranteed
@@ -202,9 +202,9 @@ class LookupResult BASE_EMBEDDED {
     number_ = entry;
   }
 
-  void HandlerResult() {
+  void HandlerResult(JSProxy* proxy) {
     lookup_type_ = HANDLER_TYPE;
-    holder_ = NULL;
+    holder_ = proxy;
     details_ = PropertyDetails(NONE, HANDLER);
     cacheable_ = false;
   }
@@ -221,7 +221,12 @@ class LookupResult BASE_EMBEDDED {
 
   JSObject* holder() {
     ASSERT(IsFound());
-    return holder_;
+    return JSObject::cast(holder_);
+  }
+
+  JSProxy* proxy() {
+    ASSERT(IsFound());
+    return JSProxy::cast(holder_);
   }
 
   PropertyType type() {
@@ -281,7 +286,7 @@ class LookupResult BASE_EMBEDDED {
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION ||
-           type() == EXTERNAL_ARRAY_TRANSITION);
+           type() == ELEMENTS_TRANSITION);
     return Map::cast(GetValue());
   }
 
@@ -354,7 +359,7 @@ class LookupResult BASE_EMBEDDED {
     CONSTANT_TYPE
   } lookup_type_;
 
-  JSObject* holder_;
+  JSReceiver* holder_;
   int number_;
   bool cacheable_;
   PropertyDetails details_;

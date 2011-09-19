@@ -29,6 +29,7 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "assembler.h"
+#include "frames.h"
 #include "v8globals.h"
 
 namespace v8 {
@@ -411,16 +412,6 @@ class MacroAssembler: public Assembler {
             const double imm,
             const Condition cond = al);
 
-
-  // ---------------------------------------------------------------------------
-  // Activation frames
-
-  void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
-  void LeaveInternalFrame() { LeaveFrame(StackFrame::INTERNAL); }
-
-  void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
-  void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
-
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
   void EnterExitFrame(bool save_doubles, int stack_space = 0);
@@ -689,9 +680,7 @@ class MacroAssembler: public Assembler {
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
-  // sets the flags and leaves the object type in the type_reg register.  It
-  // leaves the heap object in the heap_object register unless the heap_object
-  // register is the same register as type_reg.
+  // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
@@ -997,6 +986,9 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
+  void set_has_frame(bool value) { has_frame_ = value; }
+  bool has_frame() { return has_frame_; }
+  inline bool AllowThisStubCall(CodeStub* stub);
 
   // EABI variant for double arguments in use.
   bool use_eabi_hardfloat() {
@@ -1143,6 +1135,10 @@ class MacroAssembler: public Assembler {
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
 
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
+
  private:
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,
@@ -1161,10 +1157,6 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
                       CallKind call_kind);
-
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
 
   void InitializeNewString(Register string,
                            Register length,
@@ -1192,6 +1184,7 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool allow_stub_calls_;
+  bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 

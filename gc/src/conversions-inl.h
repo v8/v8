@@ -38,9 +38,10 @@
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
 #include "conversions.h"
-#include "strtod.h"
-#include "platform.h"
 #include "double.h"
+#include "platform.h"
+#include "scanner.h"
+#include "strtod.h"
 
 namespace v8 {
 namespace internal {

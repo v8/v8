@@ -65,6 +65,10 @@ class StoreBufferOverflowStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  virtual bool CompilingCallsToThisStubIsGCSafe() { return true; }
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
  private:
   SaveFPRegsMode save_doubles_;
 
@@ -338,6 +342,9 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch) { }
 
+  bool CompilingCallsToThisStubIsGCSafe();
+  static void GenerateFixedRegStubsAheadOfTime();
+
  private:
   Register the_int_;
   Register the_heap_number_;
@@ -408,6 +415,10 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL,
     INCREMENTAL_COMPACTION
   };
+
+  virtual bool CompilingCallsToThisStubIsGCSafe();
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
     masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
@@ -805,6 +816,8 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register r0,
                                      Register r1);
 
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
  private:
   static const int kInlinedProbes = 4;
   static const int kTotalProbes = 20;
@@ -817,7 +830,7 @@ class StringDictionaryLookupStub: public CodeStub {
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryNegativeLookup; }
+  Major MajorKey() { return StringDictionaryLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

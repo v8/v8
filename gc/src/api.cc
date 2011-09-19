@@ -44,6 +44,7 @@
 #include "platform.h"
 #include "profile-generator-inl.h"
 #include "runtime-profiler.h"
+#include "scanner-character-streams.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
@@ -3265,6 +3266,42 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 
 namespace {
 
+static i::ElementsKind GetElementsKindFromExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return i::EXTERNAL_BYTE_ELEMENTS;
+      break;
+    case kExternalUnsignedByteArray:
+      return i::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      break;
+    case kExternalShortArray:
+      return i::EXTERNAL_SHORT_ELEMENTS;
+      break;
+    case kExternalUnsignedShortArray:
+      return i::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      break;
+    case kExternalIntArray:
+      return i::EXTERNAL_INT_ELEMENTS;
+      break;
+    case kExternalUnsignedIntArray:
+      return i::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      break;
+    case kExternalFloatArray:
+      return i::EXTERNAL_FLOAT_ELEMENTS;
+      break;
+    case kExternalDoubleArray:
+      return i::EXTERNAL_DOUBLE_ELEMENTS;
+      break;
+    case kExternalPixelArray:
+      return i::EXTERNAL_PIXEL_ELEMENTS;
+      break;
+  }
+  UNREACHABLE();
+  return i::DICTIONARY_ELEMENTS;
+}
+
+
 void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
                                   void* data,
                                   ExternalArrayType array_type,
@@ -3273,22 +3310,12 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
   i::Handle<i::ExternalArray> array =
       isolate->factory()->NewExternalArray(length, array_type, data);
 
-  // If the object already has external elements, create a new, unique
-  // map if the element type is now changing, because assumptions about
-  // generated code based on the receiver's map will be invalid.
-  i::Handle<i::HeapObject> elements(object->elements());
-  bool cant_reuse_map =
-      elements->map()->IsUndefined() ||
-      !elements->map()->has_external_array_elements() ||
-      elements->map() != isolate->heap()->MapForExternalArrayType(array_type);
-  if (cant_reuse_map) {
-    i::Handle<i::Map> external_array_map =
-        isolate->factory()->GetExternalArrayElementsMap(
-            i::Handle<i::Map>(object->map()),
-            array_type,
-            object->HasFastProperties());
-    object->set_map(*external_array_map);
-  }
+  i::Handle<i::Map> external_array_map =
+      isolate->factory()->GetElementsTransitionMap(
+          object,
+          GetElementsKindFromExternalArrayType(array_type));
+
+  object->set_map(*external_array_map);
   object->set_elements(*array);
 }
 
@@ -3346,6 +3373,7 @@ int v8::Object::GetIndexedPropertiesPixelDataLength() {
     return -1;
   }
 }
+
 
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,

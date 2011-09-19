@@ -145,7 +145,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ Test(Operand(elements, r1, times_pointer_size,
                   kDetailsOffset - kHeapObjectTag),
-          Smi::FromInt(PropertyDetails::TypeField::mask()));
+          Smi::FromInt(PropertyDetails::TypeField::kMask));
   __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
@@ -201,9 +201,9 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
-  const int kTypeAndReadOnlyMask
-      = (PropertyDetails::TypeField::mask() |
-         PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+  const int kTypeAndReadOnlyMask =
+      (PropertyDetails::TypeField::kMask |
+       PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
   __ Test(Operand(elements,
                   scratch1,
                   times_pointer_size,
@@ -723,7 +723,6 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
-                                         NOT_IN_LOOP,
                                          MONOMORPHIC,
                                          extra_ic_state,
                                          NORMAL,
@@ -850,21 +849,22 @@ static void GenerateCallMiss(MacroAssembler* masm,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push the receiver and the name of the function.
-  __ push(rdx);
-  __ push(rcx);
+    // Push the receiver and the name of the function.
+    __ push(rdx);
+    __ push(rcx);
 
-  // Call the entry.
-  CEntryStub stub(1);
-  __ Set(rax, 2);
-  __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
-  __ CallStub(&stub);
+    // Call the entry.
+    CEntryStub stub(1);
+    __ Set(rax, 2);
+    __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
+    __ CallStub(&stub);
 
-  // Move result to rdi and exit the internal frame.
-  __ movq(rdi, rax);
-  __ LeaveInternalFrame();
+    // Move result to rdi and exit the internal frame.
+    __ movq(rdi, rax);
+  }
 
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
@@ -1006,13 +1006,14 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // This branch is taken when calling KeyedCallIC_Miss is neither required
   // nor beneficial.
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1);
-  __ EnterInternalFrame();
-  __ push(rcx);  // save the key
-  __ push(rdx);  // pass the receiver
-  __ push(rcx);  // pass the key
-  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-  __ pop(rcx);  // restore the key
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rcx);  // save the key
+    __ push(rdx);  // pass the receiver
+    __ push(rcx);  // pass the key
+    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+    __ pop(rcx);  // restore the key
+  }
   __ movq(rdi, rax);
   __ jmp(&do_call);
 
@@ -1280,9 +1281,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // -----------------------------------
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
-                                         NOT_IN_LOOP,
-                                         MONOMORPHIC);
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rax, rcx, rbx,
                                                   rdx);
 
@@ -1385,10 +1384,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
-                                         NOT_IN_LOOP,
-                                         MONOMORPHIC,
-                                         strict_mode);
+  Code::Flags flags =
+      Code::ComputeFlags(Code::STORE_IC, MONOMORPHIC, strict_mode);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
                                                   no_reg);
 

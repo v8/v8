@@ -239,6 +239,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 // The stub expects its argument on the stack and returns its result in tos_:
 // zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   Label patch;
   Factory* factory = masm->isolate()->factory();
   const Register argument = eax;
@@ -350,6 +352,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
     }
   }
   const int argument_count = 1;
+
+  AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(argument_count, ecx);
   __ mov(Operand(esp, 0 * kPointerSize),
          Immediate(ExternalReference::isolate_address()));
@@ -801,11 +805,12 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated, Label::kNear);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(edx);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(edx);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(edx);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ pop(edx);
+    }
 
     __ bind(&heapnumber_allocated);
     // eax: allocated 'empty' number
@@ -848,15 +853,16 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    // Push the original HeapNumber on the stack. The integer value can't
-    // be stored since it's untagged and not in the smi range (so we can't
-    // smi-tag it). We'll recalculate the value after the GC instead.
-    __ push(ebx);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    // New HeapNumber is in eax.
-    __ pop(edx);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Push the original HeapNumber on the stack. The integer value can't
+      // be stored since it's untagged and not in the smi range (so we can't
+      // smi-tag it). We'll recalculate the value after the GC instead.
+      __ push(ebx);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      // New HeapNumber is in eax.
+      __ pop(edx);
+    }
     // IntegerConvert uses ebx and edi as scratch registers.
     // This conversion won't go slow-case.
     IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
@@ -2341,11 +2347,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ add(Operand(esp), Immediate(kDoubleSize));
     // We return the value in xmm1 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
-    // Allocate an unused object bigger than a HeapNumber.
-    __ push(Immediate(Smi::FromInt(2 * kDoubleSize)));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Allocate an unused object bigger than a HeapNumber.
+      __ push(Immediate(Smi::FromInt(2 * kDoubleSize)));
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 
@@ -2362,10 +2369,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm1);
-    __ EnterInternalFrame();
-    __ push(eax);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(eax);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -3584,7 +3592,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
   __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location(
@@ -4238,7 +4246,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -4263,7 +4271,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(edi, Operand(esp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(edi, &slow);
+  __ JumpIfSmi(edi, &non_function);
   // Goto slow case if we do not have a function.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &slow);
@@ -4290,21 +4298,55 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &non_function);
+  __ pop(ecx);
+  __ push(edi);  // put proxy as additional argument under return address
+  __ push(ecx);
+  __ Set(eax, Immediate(argc_ + 1));
+  __ Set(ebx, Immediate(0));
+  __ SetCallKind(ecx, CALL_AS_FUNCTION);
+  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
+  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
-  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
 bool CEntryStub::NeedsImmovableCode() {
   return false;
+}
+
+
+bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+          result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+}
+
+
+void CodeStub::GenerateFPStubs() {
+  CEntryStub save_doubles(1, kSaveFPRegs);
+  Handle<Code> code = save_doubles.GetCode();
+  code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
 
@@ -4380,7 +4422,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned);
 
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address, masm->isolate());
+      Isolate::kPendingExceptionAddress, masm->isolate());
 
   // Check that there is no pending exception, otherwise we
   // should have returned some failure value.
@@ -4521,11 +4563,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(ebx);
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, masm->isolate());
+  ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, masm->isolate());
   __ push(Operand::StaticVariable(c_entry_fp));
 
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress,
                                 masm->isolate());
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ j(not_equal, &not_outermost_js, Label::kNear);
@@ -4542,7 +4584,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
   __ mov(Operand::StaticVariable(pending_exception), eax);
   __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
@@ -4593,7 +4635,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptor from the stack.
   __ pop(Operand::StaticVariable(ExternalReference(
-      Isolate::k_c_entry_fp_address,
+      Isolate::kCEntryFPAddress,
       masm->isolate())));
 
   // Restore callee-saved registers (C calling conventions).
@@ -4810,11 +4852,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
     // Call the builtin and convert 0/1 to true/false.
-    __ EnterInternalFrame();
-    __ push(object);
-    __ push(function);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(object);
+      __ push(function);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    }
     Label true_value, done;
     __ test(eax, Operand(eax));
     __ j(zero, &true_value, Label::kNear);
@@ -6296,15 +6339,16 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ push(eax);
   __ push(ecx);
 
-  // Call the runtime system in a fresh internal frame.
-  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
-                                             masm->isolate());
-  __ EnterInternalFrame();
-  __ push(edx);
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(op_)));
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    // Call the runtime system in a fresh internal frame.
+    ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
+                                               masm->isolate());
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(edx);
+    __ push(eax);
+    __ push(Immediate(Smi::FromInt(op_)));
+    __ CallExternalReference(miss, 3);
+  }
 
   // Compute the entry point of the rewritten stub.
   __ lea(edi, FieldOperand(eax, Code::kHeaderSize));
@@ -6445,6 +6489,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
   //  esp[0 * kPointerSize]: return address.
   //  esp[1 * kPointerSize]: key's hash.
@@ -6529,6 +6575,74 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ mov(result_, Immediate(0));
   __ Drop(1);
   __ ret(2 * kPointerSize);
+}
+
+
+struct AheadOfTimeWriteBarrierStubList {
+  Register object, value, address;
+  RememberedSetAction action;
+};
+
+
+struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+  // Used in RegExpExecStub.
+  { ebx, eax, edi, EMIT_REMEMBERED_SET },
+  // Used in CompileArrayPushCall.
+  { ebx, ecx, edx, EMIT_REMEMBERED_SET },
+  // Used in CompileStoreGlobal.
+  { ebx, ecx, edx, OMIT_REMEMBERED_SET },
+  // Used in StoreStubCompiler::CompileStoreField and
+  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { edx, ecx, ebx, EMIT_REMEMBERED_SET },
+  // GenerateStoreField calls the stub with two different permutations of
+  // registers.  This is the second.
+  { ebx, ecx, edx, EMIT_REMEMBERED_SET },
+  // StoreIC::GenerateNormal via GenerateDictionaryStore.
+  { ebx, edi, edx, EMIT_REMEMBERED_SET },
+  // KeyedStoreIC::GenerateGeneric.
+  { ebx, edx, ecx, EMIT_REMEMBERED_SET},
+  // KeyedStoreStubCompiler::GenerateStoreFastElement.
+  { edi, edx, ecx, EMIT_REMEMBERED_SET},
+  // Null termination.
+  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+};
+
+
+bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    if (object_.is(entry->object) &&
+        value_.is(entry->value) &&
+        address_.is(entry->address) &&
+        remembered_set_action_ == entry->action &&
+        save_fp_regs_mode_ == kDontSaveFPRegs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreBufferOverflowStub stub2(kSaveFPRegs);
+  stub2.GetCode();
+}
+
+
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    RecordWriteStub stub(entry->object,
+                         entry->value,
+                         entry->address,
+                         entry->action,
+                         kDontSaveFPRegs);
+    stub.GetCode();
+  }
 }
 
 
@@ -6623,6 +6737,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   __ mov(Operand(esp, 2 * kPointerSize),
          Immediate(ExternalReference::isolate_address()));
 
+  AllowExternalCallThatCantCauseGC scope(masm);
   if (mode == INCREMENTAL_COMPACTION) {
     __ CallCFunction(
         ExternalReference::incremental_evacuation_record_write_function(

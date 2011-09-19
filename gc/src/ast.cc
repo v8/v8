@@ -380,6 +380,27 @@ bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
 }
 
 
+bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
+  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
+
+  // Check for the pattern: <expression> equals null.
+  Literal* right_literal = right_->AsLiteral();
+  if (right_literal != NULL && right_literal->handle()->IsNull()) {
+    *expr = left_;
+    return true;
+  }
+
+  // Check for the pattern: null equals <expression>.
+  Literal* left_literal = left_->AsLiteral();
+  if (left_literal != NULL && left_literal->handle()->IsNull()) {
+    *expr = right_;
+    return true;
+  }
+
+  return false;
+}
+
+
 // ----------------------------------------------------------------------------
 // Inlining support
 
@@ -529,7 +550,9 @@ bool Conditional::IsInlineable() const {
 
 
 bool VariableProxy::IsInlineable() const {
-  return var()->IsUnallocated() || var()->IsStackAllocated();
+  return var()->IsUnallocated()
+      || var()->IsStackAllocated()
+      || var()->IsContextSlot();
 }
 
 
@@ -595,11 +618,6 @@ bool BinaryOperation::IsInlineable() const {
 
 bool CompareOperation::IsInlineable() const {
   return left()->IsInlineable() && right()->IsInlineable();
-}
-
-
-bool CompareToNull::IsInlineable() const {
-  return expression()->IsInlineable();
 }
 
 
@@ -969,7 +987,7 @@ class RegExpUnparser: public RegExpVisitor {
  public:
   RegExpUnparser();
   void VisitCharacterRange(CharacterRange that);
-  SmartPointer<const char> ToString() { return stream_.ToCString(); }
+  SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
@@ -1124,7 +1142,7 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
 }
 
 
-SmartPointer<const char> RegExpTree::ToString() {
+SmartArrayPointer<const char> RegExpTree::ToString() {
   RegExpUnparser unparser;
   Accept(&unparser, NULL);
   return unparser.ToString();

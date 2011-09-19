@@ -29,36 +29,6 @@ global.Proxy = new $Object();
 
 var $Proxy = global.Proxy
 
-var fundamentalTraps = [
-  "getOwnPropertyDescriptor",
-  "getPropertyDescriptor",
-  "getOwnPropertyNames",
-  "getPropertyNames",
-  "defineProperty",
-  "delete",
-  "fix",
-]
-
-var derivedTraps = [
-  "has",
-  "hasOwn",
-  "get",
-  "set",
-  "enumerate",
-  "keys",
-]
-
-var functionTraps = [
-  "callTrap",
-  "constructTrap",
-]
-
-$Proxy.createFunction = function(handler, callTrap, constructTrap) {
-  handler.callTrap = callTrap
-  handler.constructTrap = constructTrap
-  $Proxy.create(handler)
-}
-
 $Proxy.create = function(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError("handler_non_object", ["create"])
@@ -66,12 +36,50 @@ $Proxy.create = function(handler, proto) {
   return %CreateJSProxy(handler, proto)
 }
 
+$Proxy.createFunction = function(handler, callTrap, constructTrap) {
+  if (!IS_SPEC_OBJECT(handler))
+    throw MakeTypeError("handler_non_object", ["create"])
+  if (!IS_SPEC_FUNCTION(callTrap))
+    throw MakeTypeError("trap_function_expected", ["createFunction", "call"])
+  var construct
+  if (IS_UNDEFINED(constructTrap)) {
+    construct = DerivedConstructTrap(callTrap)
+  } else if (IS_SPEC_FUNCTION(constructTrap)) {
+    construct = function() {
+      // Make sure the trap receives 'undefined' as this.
+      return $Function.prototype.apply.call(constructTrap, void 0, arguments)
+    }
+  } else {
+    throw MakeTypeError("trap_function_expected",
+                        ["createFunction", "construct"])
+  }
+  return %CreateJSFunctionProxy(
+    handler, callTrap, construct, $Function.prototype)
+}
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builtins
 ////////////////////////////////////////////////////////////////////////////////
+
+function DerivedConstructTrap(callTrap) {
+  return function() {
+    var proto = this.prototype
+    if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+    var obj = new $Object()
+    obj.__proto__ = proto
+    var result = $Function.prototype.apply.call(callTrap, obj, arguments)
+    return IS_SPEC_OBJECT(result) ? result : obj
+  }
+}
+
+function DelegateCallAndConstruct(callTrap, constructTrap) {
+  return function() {
+    return %Apply(%_IsConstructCall() ? constructTrap : callTrap,
+                  this, arguments, 0, %_ArgumentsLength())
+  }
+}
 
 function DerivedGetTrap(receiver, name) {
   var desc = this.getPropertyDescriptor(name)

@@ -28,21 +28,19 @@
 #include <math.h>
 
 #include "../include/v8stdint.h"
-#include "unicode.h"
-#include "globals.h"
-#include "checks.h"
-#include "allocation.h"
-#include "utils.h"
-#include "list.h"
-#include "conversions.h"
-#include "hashmap.h"
 
-#include "scanner-base.h"
+#include "allocation.h"
+#include "checks.h"
+#include "conversions.h"
+#include "conversions-inl.h"
+#include "globals.h"
+#include "hashmap.h"
+#include "list.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "preparser.h"
-
-#include "conversions-inl.h"
+#include "unicode.h"
+#include "utils.h"
 
 namespace v8 {
 
@@ -1559,7 +1557,7 @@ int DuplicateFinder::AddSymbol(i::Vector<const byte> key,
                                int value) {
   uint32_t hash = Hash(key, is_ascii);
   byte* encoding = BackupKey(key, is_ascii);
-  i::HashMap::Entry* entry = map_->Lookup(encoding, hash, true);
+  i::HashMap::Entry* entry = map_.Lookup(encoding, hash, true);
   int old_value = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   entry->value =
     reinterpret_cast<void*>(static_cast<intptr_t>(value | old_value));
@@ -1586,7 +1584,8 @@ int DuplicateFinder::AddNumber(i::Vector<const char> key, int value) {
                              i::Vector<char>(number_buffer_, kBufferSize));
     length = i::StrLength(string);
   }
-  return AddAsciiSymbol(i::Vector<const char>(string, length), value);
+  return AddSymbol(i::Vector<const byte>(reinterpret_cast<const byte*>(string),
+                                         length), true, value);
 }
 
 

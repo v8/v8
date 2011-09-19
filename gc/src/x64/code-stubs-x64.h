@@ -66,6 +66,10 @@ class StoreBufferOverflowStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  virtual bool CompilingCallsToThisStubIsGCSafe() { return true; }
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
  private:
   SaveFPRegsMode save_doubles_;
 
@@ -435,6 +439,8 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register r0,
                                      Register r1);
 
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
  private:
   static const int kInlinedProbes = 4;
   static const int kTotalProbes = 20;
@@ -447,7 +453,7 @@ class StringDictionaryLookupStub: public CodeStub {
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryNegativeLookup; }
+  Major MajorKey() { return StringDictionaryLookup; }
 
   int MinorKey() {
     return DictionaryBits::encode(dictionary_.code()) |
@@ -490,6 +496,10 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL,
     INCREMENTAL_COMPACTION
   };
+
+  virtual bool CompilingCallsToThisStubIsGCSafe();
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
   static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.
   static const byte kTwoByteJumpInstruction = 0xeb;  // Jmp #imm8.

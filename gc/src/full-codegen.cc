@@ -244,11 +244,6 @@ void BreakableStatementChecker::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
-void BreakableStatementChecker::VisitCompareToNull(CompareToNull* expr) {
-  Visit(expr->expression());
-}
-
-
 void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
@@ -286,11 +281,13 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   unsigned table_offset = cgen.EmitStackCheckTable();
 
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
+  code->set_has_debug_break_slots(
+      info->isolate()->debugger()->IsDebuggerActive());
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
@@ -1323,6 +1320,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
                                           Label* if_true,
                                           Label* if_false,
                                           Label* fall_through) {
+  bool is_strict = compare->op() == Token::EQ_STRICT;
   Expression *expr;
   Handle<String> check;
   if (compare->IsLiteralCompareTypeof(&expr, &check)) {
@@ -1332,6 +1330,11 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
 
   if (compare->IsLiteralCompareUndefined(&expr)) {
     EmitLiteralCompareUndefined(expr, if_true, if_false, fall_through);
+    return true;
+  }
+
+  if (compare->IsLiteralCompareNull(&expr)) {
+    EmitLiteralCompareNull(expr, is_strict, if_true, if_false, fall_through);
     return true;
   }
 

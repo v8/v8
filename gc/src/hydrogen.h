@@ -102,6 +102,7 @@ class HBasicBlock: public ZoneObject {
   void RemovePhi(HPhi* phi);
   void AddInstruction(HInstruction* instr);
   bool Dominates(HBasicBlock* other) const;
+  int LoopNestingDepth() const;
 
   void SetInitialEnvironment(HEnvironment* env);
   void ClearEnvironment() { last_environment_ = NULL; }
@@ -914,6 +915,8 @@ class HGraphBuilder: public AstVisitor {
                                   Handle<String> check);
   void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
                                      Expression* expr);
+  void HandleLiteralCompareNull(CompareOperation* compare_expr,
+                                Expression* expr);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
                                            HValue* string,
@@ -935,7 +938,7 @@ class HGraphBuilder: public AstVisitor {
       HValue* external_elements,
       HValue* checked_key,
       HValue* val,
-      JSObject::ElementsKind elements_kind,
+      ElementsKind elements_kind,
       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,

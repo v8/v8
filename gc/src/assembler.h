@@ -573,6 +573,7 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
+  static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
   static ExternalReference fill_heap_number_with_random_function(
       Isolate* isolate);

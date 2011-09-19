@@ -651,7 +651,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                         scratch1, scratch2, scratch3, name,
                                         miss_label);
 
-    __ EnterInternalFrame();
+    FrameScope scope(masm, StackFrame::INTERNAL);
     // Save the name_ register across the call.
     __ push(name_);
 
@@ -668,7 +668,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Restore the name_ register.
     __ pop(name_);
-    __ LeaveInternalFrame();
+
+    // Leave the internal frame.
   }
 
   void LoadWithInterceptor(MacroAssembler* masm,
@@ -676,19 +677,21 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Register holder,
                            JSObject* holder_obj,
                            Label* interceptor_succeeded) {
-    __ EnterInternalFrame();
-    __ push(holder);  // Save the holder.
-    __ push(name_);  // Save the name.
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(holder);  // Save the holder.
+      __ push(name_);  // Save the name.
 
-    CompileCallLoadPropertyWithInterceptor(masm,
-                                           receiver,
-                                           holder,
-                                           name_,
-                                           holder_obj);
+      CompileCallLoadPropertyWithInterceptor(masm,
+                                             receiver,
+                                             holder,
+                                             name_,
+                                             holder_obj);
 
-    __ pop(name_);  // Restore the name.
-    __ pop(receiver);  // Restore the holder.
-    __ LeaveInternalFrame();
+      __ pop(name_);  // Restore the name.
+      __ pop(receiver);  // Restore the holder.
+      // Leave the internal frame.
+    }
 
     __ cmp(eax, masm->isolate()->factory()->no_interceptor_result_sentinel());
     __ j(not_equal, interceptor_succeeded);
@@ -1166,40 +1169,42 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
-    __ EnterInternalFrame();
+    {
+      FrameScope frame_scope(masm(), StackFrame::INTERNAL);
 
-    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-      // CALLBACKS case needs a receiver to be passed into C++ callback.
-      __ push(receiver);
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+        // CALLBACKS case needs a receiver to be passed into C++ callback.
+        __ push(receiver);
+      }
+      __ push(holder_reg);
+      __ push(name_reg);
+
+      // Invoke an interceptor.  Note: map checks from receiver to
+      // interceptor's holder has been compiled before (see a caller
+      // of this method.)
+      CompileCallLoadPropertyWithInterceptor(masm(),
+                                             receiver,
+                                             holder_reg,
+                                             name_reg,
+                                             interceptor_holder);
+
+      // Check if interceptor provided a value for property.  If it's
+      // the case, return immediately.
+      Label interceptor_failed;
+      __ cmp(eax, factory()->no_interceptor_result_sentinel());
+      __ j(equal, &interceptor_failed);
+      frame_scope.GenerateLeaveFrame();
+      __ ret(0);
+
+      __ bind(&interceptor_failed);
+      __ pop(name_reg);
+      __ pop(holder_reg);
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+        __ pop(receiver);
+      }
+
+      // Leave the internal frame.
     }
-    __ push(holder_reg);
-    __ push(name_reg);
-
-    // Invoke an interceptor.  Note: map checks from receiver to
-    // interceptor's holder has been compiled before (see a caller
-    // of this method.)
-    CompileCallLoadPropertyWithInterceptor(masm(),
-                                           receiver,
-                                           holder_reg,
-                                           name_reg,
-                                           interceptor_holder);
-
-    // Check if interceptor provided a value for property.  If it's
-    // the case, return immediately.
-    Label interceptor_failed;
-    __ cmp(eax, factory()->no_interceptor_result_sentinel());
-    __ j(equal, &interceptor_failed);
-    __ LeaveInternalFrame();
-    __ ret(0);
-
-    __ bind(&interceptor_failed);
-    __ pop(name_reg);
-    __ pop(holder_reg);
-    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-      __ pop(receiver);
-    }
-
-    __ LeaveInternalFrame();
 
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into holder_reg.
@@ -2713,7 +2718,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- esp[0] : return address
   // -----------------------------------
   Code* stub;
-  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   MaybeObject* maybe_stub =
       KeyedStoreElementStub(is_jsarray, elements_kind).TryGetCode();
@@ -3174,7 +3179,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- esp[0] : return address
   // -----------------------------------
   Code* stub;
-  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  ElementsKind elements_kind = receiver_map->elements_kind();
   MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(edx,
@@ -3419,7 +3424,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3441,29 +3446,29 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   __ mov(ebx, FieldOperand(ebx, ExternalArray::kExternalPointerOffset));
   // ebx: base pointer of external storage
   switch (elements_kind) {
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
       __ SmiUntag(eax);  // Untag the index.
       __ movsx_b(eax, Operand(ebx, eax, times_1, 0));
       break;
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       __ SmiUntag(eax);  // Untag the index.
       __ movzx_b(eax, Operand(ebx, eax, times_1, 0));
       break;
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
       __ movsx_w(eax, Operand(ebx, eax, times_1, 0));
       break;
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ movzx_w(eax, Operand(ebx, eax, times_1, 0));
       break;
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
       __ mov(ecx, Operand(ebx, eax, times_2, 0));
       break;
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
       __ fld_s(Operand(ebx, eax, times_2, 0));
       break;
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       __ fld_d(Operand(ebx, eax, times_4, 0));
       break;
     default:
@@ -3476,17 +3481,17 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // For floating-point array type:
   // FP(0): value
 
-  if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS ||
-      elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_INT_ELEMENTS ||
+      elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
     Label box_int;
-    if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_INT_ELEMENTS) {
       __ cmp(ecx, 0xC0000000);
       __ j(sign, &box_int);
     } else {
-      ASSERT_EQ(JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
+      ASSERT_EQ(EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
       // The test is different for unsigned int values. Since we need
       // the value to be in the range of a positive smi, we can't
       // handle either of the top two bits being set in the value.
@@ -3502,12 +3507,12 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
     // Allocate a HeapNumber for the int and perform int-to-double
     // conversion.
-    if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_INT_ELEMENTS) {
       __ push(ecx);
       __ fild_s(Operand(esp, 0));
       __ pop(ecx);
     } else {
-      ASSERT_EQ(JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
+      ASSERT_EQ(EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
       // Need to zero-extend the value.
       // There's no fild variant for unsigned values, so zero-extend
       // to a 64-bit int manually.
@@ -3523,8 +3528,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     __ mov(eax, ecx);
     __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
     __ ret(0);
-  } else if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
-             elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+             elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
     __ AllocateHeapNumber(ecx, ebx, edi, &failed_allocation);
@@ -3574,7 +3579,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
 void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3600,7 +3605,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // edx: receiver
   // ecx: key
   // edi: elements array
-  if (elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
     __ JumpIfNotSmi(eax, &slow);
   } else {
     __ JumpIfNotSmi(eax, &check_heap_number);
@@ -3612,33 +3617,33 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
   // edi: base pointer of external storage
   switch (elements_kind) {
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       __ ClampUint8(ebx);
       __ SmiUntag(ecx);
       __ mov_b(Operand(edi, ecx, times_1, 0), ebx);
       break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       __ SmiUntag(ecx);
       __ mov_b(Operand(edi, ecx, times_1, 0), ebx);
       break;
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ mov_w(Operand(edi, ecx, times_1, 0), ebx);
       break;
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       __ mov(Operand(edi, ecx, times_2, 0), ebx);
       break;
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       // Need to perform int-to-float conversion.
       __ push(ebx);
       __ fild_s(Operand(esp, 0));
       __ pop(ebx);
-      if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         __ fstp_s(Operand(edi, ecx, times_2, 0));
-      } else {  // elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS.
+      } else {  // elements_kind == EXTERNAL_DOUBLE_ELEMENTS.
         __ fstp_d(Operand(edi, ecx, times_4, 0));
       }
       break;
@@ -3649,7 +3654,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ ret(0);  // Return the original value.
 
   // TODO(danno): handle heap number -> pixel array conversion
-  if (elements_kind != JSObject::EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind != EXTERNAL_PIXEL_ELEMENTS) {
     __ bind(&check_heap_number);
     // eax: value
     // edx: receiver
@@ -3664,11 +3669,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // reproducible behavior, convert these to zero.
     __ mov(edi, FieldOperand(edi, ExternalArray::kExternalPointerOffset));
     // edi: base pointer of external storage
-    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ fstp_s(Operand(edi, ecx, times_2, 0));
       __ ret(0);
-    } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+    } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
       __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ fstp_d(Operand(edi, ecx, times_4, 0));
       __ ret(0);
@@ -3681,23 +3686,23 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // (code-stubs-ia32.cc) is roughly what is needed here though the
       // conversion failure case does not need to be handled.
       if (CpuFeatures::IsSupported(SSE2)) {
-        if (elements_kind != JSObject::EXTERNAL_INT_ELEMENTS &&
-            elements_kind != JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+        if (elements_kind != EXTERNAL_INT_ELEMENTS &&
+            elements_kind != EXTERNAL_UNSIGNED_INT_ELEMENTS) {
           ASSERT(CpuFeatures::IsSupported(SSE2));
           CpuFeatures::Scope scope(SSE2);
           __ cvttsd2si(ebx, FieldOperand(eax, HeapNumber::kValueOffset));
           // ecx: untagged integer value
           switch (elements_kind) {
-            case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+            case EXTERNAL_PIXEL_ELEMENTS:
               __ ClampUint8(ebx);
               // Fall through.
-            case JSObject::EXTERNAL_BYTE_ELEMENTS:
-            case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+            case EXTERNAL_BYTE_ELEMENTS:
+            case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
               __ SmiUntag(ecx);
               __ mov_b(Operand(edi, ecx, times_1, 0), ebx);
               break;
-            case JSObject::EXTERNAL_SHORT_ELEMENTS:
-            case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+            case EXTERNAL_SHORT_ELEMENTS:
+            case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
               __ mov_w(Operand(edi, ecx, times_1, 0), ebx);
               break;
             default:

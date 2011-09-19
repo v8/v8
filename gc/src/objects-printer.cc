@@ -154,6 +154,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(out);
       break;
+    case JS_FUNCTION_PROXY_TYPE:
+      JSFunctionProxy::cast(this)->JSFunctionProxyPrint(out);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(out);
       break;
@@ -260,6 +263,9 @@ void JSObject::PrintProperties(FILE* out) {
         case CALLBACKS:
           descs->GetCallbacksObject(i)->ShortPrint(out);
           PrintF(out, " (callback)\n");
+          break;
+        case ELEMENTS_TRANSITION:
+          PrintF(out, " (elements transition)\n");
           break;
         case MAP_TRANSITION:
           PrintF(out, " (map transition)\n");
@@ -593,6 +599,19 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
+  PrintF(out, "\n");
+}
+
+
+void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSFunctionProxy");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - handler = ");
+  handler()->Print(out);
+  PrintF(out, " - call_trap = ");
+  call_trap()->Print(out);
+  PrintF(out, " - construct_trap = ");
+  construct_trap()->Print(out);
   PrintF(out, "\n");
 }
 

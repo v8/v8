@@ -39,6 +39,7 @@
 #include "platform.h"
 #include "preparser.h"
 #include "runtime.h"
+#include "scanner-character-streams.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 
@@ -1368,7 +1369,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
         if (harmony_block_scoping_) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
-          SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+          SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
           const char* elms[2] = { "Variable", *c_string };
           Vector<const char*> args(elms, 2);
           ReportMessage("redeclaration", args);
@@ -1901,7 +1902,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     // structured.  However, these are probably changes we want to
     // make later anyway so we should go back and fix this then.
     if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
-      SmartPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
+      SmartArrayPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
       const char* elms[2] = { "Label", *c_string };
       Vector<const char*> args(elms, 2);
       ReportMessage("redeclaration", args);
@@ -2613,7 +2614,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y, position);
+        x = new(zone()) CompareOperation(isolate(), cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = new(zone()) UnaryOperation(isolate(), Token::NOT, x, position);
@@ -2626,27 +2627,6 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
-}
-
-
-Expression* Parser::NewCompareNode(Token::Value op,
-                                   Expression* x,
-                                   Expression* y,
-                                   int position) {
-  ASSERT(op != Token::NE && op != Token::NE_STRICT);
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool is_strict = (op == Token::EQ_STRICT);
-    Literal* x_literal = x->AsLiteral();
-    if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, y);
-    }
-
-    Literal* y_literal = y->AsLiteral();
-    if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, x);
-    }
-  }
-  return new(zone()) CompareOperation(isolate(), op, x, y, position);
 }
 
 
@@ -3005,7 +2985,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
 
 
 void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
-  SmartPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
+  SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
   const char* element[1] = { *name_string };
   ReportMessage("invalid_preparser_data",
                 Vector<const char*>(element, 1));
@@ -4095,7 +4075,7 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     // In harmony mode we treat conflicting variable bindinds as early
     // errors. See ES5 16 for a definition of early errors.
     Handle<String> name = decl->proxy()->name();
-    SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+    SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
     const char* elms[2] = { "Variable", *c_string };
     Vector<const char*> args(elms, 2);
     int position = decl->proxy()->position();

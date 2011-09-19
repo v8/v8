@@ -43,7 +43,6 @@
 #include "messages.h"
 #include "regexp-stack.h"
 #include "runtime-profiler.h"
-#include "scanner.h"
 #include "scopeinfo.h"
 #include "serialize.h"
 #include "simulator.h"
@@ -1409,13 +1408,14 @@ Isolate::Isolate()
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
+      fp_stubs_generated_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       embedder_data_(NULL) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
-      sizeof(isolate_addresses_[0]) * (k_isolate_address_count + 1));
+      sizeof(isolate_addresses_[0]) * (kIsolateAddressCount + 1));
 
   heap_.isolate_ = this;
   zone_.isolate_ = this;
@@ -1687,9 +1687,10 @@ bool Isolate::Init(Deserializer* des) {
   // ensuring that Isolate::Current() == this.
   heap_.SetStackLimits();
 
-#define C(name) isolate_addresses_[Isolate::k_##name] =                        \
-    reinterpret_cast<Address>(name());
-  ISOLATE_ADDRESS_LIST(C)
+#define ASSIGN_ELEMENT(CamelName, hacker_name)                  \
+  isolate_addresses_[Isolate::k##CamelName##Address] =          \
+      reinterpret_cast<Address>(hacker_name##_address());
+  FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
 #undef C
 
   string_tracker_ = new StringTracker();

@@ -838,9 +838,11 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
     __ vmov(d0, r0, r1);
     __ vmov(d1, r2, r3);
   }
-  // Call C routine that may not cause GC or other trouble.
-  __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
-                   0, 2);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(
+        ExternalReference::double_fp_operation(op, masm->isolate()), 0, 2);
+  }
   // Store answer in the overwritable heap number. Double returned in
   // registers r0 and r1 or in d0.
   if (masm->use_eabi_hardfloat()) {
@@ -854,6 +856,29 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Place heap_number_result in r0 and return to the pushed return address.
   __ mov(r0, Operand(heap_number_result));
   __ pop(pc);
+}
+
+
+bool WriteInt32ToHeapNumberStub::CompilingCallsToThisStubIsGCSafe() {
+  // These variants are compiled ahead of time.  See next method.
+  if (the_int_.is(r1) && the_heap_number_.is(r0) && scratch_.is(r2)) {
+    return true;
+  }
+  if (the_int_.is(r2) && the_heap_number_.is(r0) && scratch_.is(r3)) {
+    return true;
+  }
+  // Other register combinations are generated as and when they are needed,
+  // so it is unsafe to call them from stubs (we can't generate a stub while
+  // we are generating a stub).
+  return false;
+}
+
+
+void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime() {
+  WriteInt32ToHeapNumberStub stub1(r1, r0, r2);
+  WriteInt32ToHeapNumberStub stub2(r2, r0, r3);
+  Handle<Code> code1 = stub1.GetCode();
+  Handle<Code> code2 = stub2.GetCode();
 }
 
 
@@ -1197,6 +1222,8 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
       __ vmov(d0, r0, r1);
       __ vmov(d1, r2, r3);
     }
+
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
                      0, 2);
     __ pop(pc);  // Return.
@@ -1606,6 +1633,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // The stub expects its argument in the tos_ register and returns its result in
 // it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // This stub uses VFP3 instructions.
   CpuFeatures::Scope scope(VFP3);
 
@@ -1729,6 +1758,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   const int argument_count = 1;
   const int fp_argument_count = 0;
   const Register scratch = r1;
+
+  AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
   __ mov(r0, Operand(ExternalReference::isolate_address()));
   __ CallCFunction(
@@ -1899,12 +1930,13 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(r0);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(r1, Operand(r0));
-    __ pop(r0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(r0);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(r1, Operand(r0));
+      __ pop(r0);
+    }
 
     __ bind(&heapnumber_allocated);
     __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
@@ -1945,13 +1977,14 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(r0);  // Push the heap number, not the untagged int32.
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(r2, r0);  // Move the new heap number into r2.
-    // Get the heap number into r0, now that the new heap number is in r2.
-    __ pop(r0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(r0);  // Push the heap number, not the untagged int32.
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(r2, r0);  // Move the new heap number into r2.
+      // Get the heap number into r0, now that the new heap number is in r2.
+      __ pop(r0);
+    }
 
     // Convert the heap number in r0 to an untagged integer in r1.
     // This can't go slow-case because it's the same number we already
@@ -3166,10 +3199,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(r0, scratch0, scratch1, r5, &skip_cache);
     __ vstr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
-    __ EnterInternalFrame();
-    __ push(r0);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(r0);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ vldr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
     __ Ret();
 
@@ -3182,14 +3216,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // We return the value in d2 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Allocate an aligned object larger than a HeapNumber.
-    ASSERT(4 * kPointerSize >= HeapNumber::kSize);
-    __ mov(scratch0, Operand(4 * kPointerSize));
-    __ push(scratch0);
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+      // Allocate an aligned object larger than a HeapNumber.
+      ASSERT(4 * kPointerSize >= HeapNumber::kSize);
+      __ mov(scratch0, Operand(4 * kPointerSize));
+      __ push(scratch0);
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 }
@@ -3206,6 +3241,7 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
   } else {
     __ vmov(r0, r1, d2);
   }
+  AllowExternalCallThatCantCauseGC scope(masm);
   switch (type_) {
     case TranscendentalCache::SIN:
       __ CallCFunction(ExternalReference::math_sin_double_function(isolate),
@@ -3301,11 +3337,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ push(lr);
     __ PrepareCallCFunction(1, 1, scratch);
     __ SetCallCDoubleArguments(double_base, exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()),
-        1, 1);
-    __ pop(lr);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_int_function(masm->isolate()),
+          1, 1);
+      __ pop(lr);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ vstr(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(r0, heapnumber);
@@ -3331,11 +3370,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ push(lr);
     __ PrepareCallCFunction(0, 2, scratch);
     __ SetCallCDoubleArguments(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()),
-        0, 2);
-    __ pop(lr);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0, 2);
+      __ pop(lr);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ vstr(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(r0, heapnumber);
@@ -3349,6 +3391,24 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 bool CEntryStub::NeedsImmovableCode() {
   return true;
+}
+
+
+bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+          result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+  WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime();
+}
+
+
+void CodeStub::GenerateFPStubs() {
+  CEntryStub save_doubles(1, kSaveFPRegs);
+  Handle<Code> code = save_doubles.GetCode();
+  code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
 
@@ -3465,7 +3525,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Retrieve the pending exception and clear the variable.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ ldr(r0, MemOperand(ip));
   __ str(r3, MemOperand(ip));
@@ -3502,6 +3562,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ sub(r6, r6, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
   // Setup argc and the builtin function in callee-saved registers.
@@ -3600,7 +3661,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5,
-         Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+         Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate)));
   __ ldr(r5, MemOperand(r5));
   __ Push(r8, r7, r6, r5);
 
@@ -3609,7 +3670,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
   __ cmp(r6, Operand::Zero());
@@ -3630,7 +3691,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
@@ -3648,7 +3709,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Clear any pending exceptions.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r5, MemOperand(ip));
 
@@ -3695,7 +3756,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
   __ mov(ip,
-         Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+         Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate)));
   __ str(r3, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
@@ -3884,10 +3945,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
-    __ EnterInternalFrame();
-    __ Push(r0, r1);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(r0, r1);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    }
     __ cmp(r0, Operand::Zero());
     __ LoadRoot(r0, Heap::kTrueValueRootIndex, eq);
     __ LoadRoot(r0, Heap::kFalseValueRootIndex, ne);
@@ -4567,7 +4629,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   __ mov(r1, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r1, MemOperand(r1, 0));
-  __ mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ ldr(r0, MemOperand(r2, 0));
   __ cmp(r0, r1);
@@ -4755,7 +4817,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -4781,7 +4843,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Check that the function is really a JavaScript function.
   // r1: pushed function (to be verified)
-  __ JumpIfSmi(r1, &slow);
+  __ JumpIfSmi(r1, &non_function);
   // Get the map of the function object.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &slow);
@@ -4809,8 +4871,23 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ cmp(r2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ b(ne, &non_function);
+  __ push(r1);  // put proxy as additional argument
+  __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE));
+  __ mov(r2, Operand(0, RelocInfo::NONE));
+  __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
+  __ SetCallKind(r5, CALL_AS_FUNCTION);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
   __ mov(r2, Operand(0, RelocInfo::NONE));
@@ -6452,12 +6529,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   // Call the runtime system in a fresh internal frame.
   ExternalReference miss =
       ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
-  __ EnterInternalFrame();
-  __ Push(r1, r0);
-  __ mov(ip, Operand(Smi::FromInt(op_)));
-  __ push(ip);
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r1, r0);
+    __ mov(ip, Operand(Smi::FromInt(op_)));
+    __ push(ip);
+    __ CallExternalReference(miss, 3);
+  }
   // Compute the entry point of the rewritten stub.
   __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
   // Restore registers.
@@ -6640,6 +6718,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Registers:
   //  result: StringDictionary to probe
   //  r1: key
@@ -6726,6 +6806,57 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ bind(&not_in_dictionary);
   __ mov(result, Operand::Zero());
   __ Ret();
+}
+
+
+struct AheadOfTimeWriteBarrierStubList {
+  Register object, value, address;
+  RememberedSetAction action;
+};
+
+
+struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+  // TODO(1696): Fill this in for ARM.
+  // Null termination.
+  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+};
+
+
+bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    if (object_.is(entry->object) &&
+        value_.is(entry->value) &&
+        address_.is(entry->address) &&
+        remembered_set_action_ == entry->action &&
+        save_fp_regs_mode_ == kDontSaveFPRegs) {
+      return true;
+    }
+  }
+  return true;  // TODO(1696): Should be false.
+}
+
+
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreBufferOverflowStub stub2(kSaveFPRegs);
+  stub2.GetCode();
+}
+
+
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    RecordWriteStub stub(entry->object,
+                         entry->value,
+                         entry->address,
+                         entry->action,
+                         kDontSaveFPRegs);
+    stub.GetCode();
+  }
 }
 
 
@@ -6821,6 +6952,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   }
   __ mov(r2, Operand(ExternalReference::isolate_address()));
 
+  AllowExternalCallThatCantCauseGC scope(masm);
   if (mode == INCREMENTAL_COMPACTION) {
     __ CallCFunction(
         ExternalReference::incremental_evacuation_record_write_function(

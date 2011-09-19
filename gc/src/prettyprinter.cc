@@ -372,13 +372,6 @@ void PrettyPrinter::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void PrettyPrinter::VisitCompareToNull(CompareToNull* node) {
-  Print("(");
-  Visit(node->expression());
-  Print("%s null)", Token::String(node->op()));
-}
-
-
 void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
   Print("<this-function>");
 }
@@ -633,17 +626,14 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
 
 void AstPrinter::PrintLabelsIndented(const char* info, ZoneStringList* labels) {
   if (labels != NULL && labels->length() > 0) {
-    if (info == NULL) {
-      PrintIndented("LABELS ");
-    } else {
-      PrintIndented(info);
-      Print(" ");
-    }
+    PrintIndented(info == NULL ? "LABELS" : info);
+    Print(" ");
     PrintLabels(labels);
+    Print("\n");
   } else if (info != NULL) {
     PrintIndented(info);
+    Print("\n");
   }
-  Print("\n");
 }
 
 
@@ -929,25 +919,25 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   Variable* var = node->var();
-  PrintLiteralWithModeIndented("VAR PROXY", var, node->name());
-  { IndentedScope indent(this);
-    switch (var->location()) {
-      case Variable::UNALLOCATED:
-        break;
-      case Variable::PARAMETER:
-        Print("parameter[%d]", var->index());
-        break;
-      case Variable::LOCAL:
-        Print("local[%d]", var->index());
-        break;
-      case Variable::CONTEXT:
-        Print("context[%d]", var->index());
-        break;
-      case Variable::LOOKUP:
-        Print("lookup");
-        break;
-    }
+  EmbeddedVector<char, 128> buf;
+  int pos = OS::SNPrintF(buf, "VAR PROXY");
+  switch (var->location()) {
+    case Variable::UNALLOCATED:
+      break;
+    case Variable::PARAMETER:
+      OS::SNPrintF(buf + pos, " parameter[%d]", var->index());
+      break;
+    case Variable::LOCAL:
+      OS::SNPrintF(buf + pos, " local[%d]", var->index());
+      break;
+    case Variable::CONTEXT:
+      OS::SNPrintF(buf + pos, " context[%d]", var->index());
+      break;
+    case Variable::LOOKUP:
+      OS::SNPrintF(buf + pos, " lookup");
+      break;
   }
+  PrintLiteralWithModeIndented(buf.start(), var, node->name());
 }
 
 
@@ -1020,15 +1010,6 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
   IndentedScope indent(this, Token::Name(node->op()), node);
   Visit(node->left());
   Visit(node->right());
-}
-
-
-void AstPrinter::VisitCompareToNull(CompareToNull* node) {
-  const char* name = node->is_strict()
-      ? "COMPARE-TO-NULL-STRICT"
-      : "COMPARE-TO-NULL";
-  IndentedScope indent(this, name, node);
-  Visit(node->expression());
 }
 
 
@@ -1105,7 +1086,7 @@ void JsonAstBuilder::AddAttributePrefix(const char* name) {
 
 
 void JsonAstBuilder::AddAttribute(const char* name, Handle<String> value) {
-  SmartPointer<char> value_string = value->ToCString();
+  SmartArrayPointer<char> value_string = value->ToCString();
   AddAttributePrefix(name);
   Print("\"%s\"", *value_string);
 }
@@ -1404,16 +1385,6 @@ void JsonAstBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   Visit(expr->left());
   Visit(expr->right());
-}
-
-
-void JsonAstBuilder::VisitCompareToNull(CompareToNull* expr) {
-  TagScope tag(this, "CompareToNull");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("is_strict", expr->is_strict());
-  }
-  Visit(expr->expression());
 }
 
 

@@ -763,6 +763,11 @@ ExternalReference ExternalReference::
 }
 
 
+ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CPU::FlushICache)));
+}
+
+
 ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
   return
       ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::PerformGC)));

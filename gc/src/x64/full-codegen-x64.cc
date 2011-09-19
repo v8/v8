@@ -147,6 +147,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ bind(&ok);
   }
 
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm_, StackFrame::MANUAL);
+
   __ push(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.
@@ -1933,9 +1938,8 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      ISOLATE->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
   __ call(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -1966,9 +1970,8 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      ISOLATE->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count);
   __ movq(rcx, Operand(rsp, (arg_count + 1) * kPointerSize));  // Key.
   __ call(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
@@ -1989,8 +1992,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   }
   // Record source position for debugger.
   SetSourcePosition(expr->position());
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub stub(arg_count, in_loop, flags);
+  CallFunctionStub stub(arg_count, flags);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2082,8 +2084,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
-    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_IMPLICIT);
+    CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3497,10 +3498,9 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Call the JS runtime function using a call IC.
     __ Move(rcx, expr->name());
-    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
     RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic =
-        ISOLATE->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
+        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
     __ call(ic, mode, expr->id());
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -4043,19 +4043,15 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  Comment cmnt(masm_, "[ CompareToNull");
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  VisitForAccumulatorValue(expr->expression());
+void FullCodeGenerator::EmitLiteralCompareNull(Expression* expr,
+                                               bool is_strict,
+                                               Label* if_true,
+                                               Label* if_false,
+                                               Label* fall_through) {
+  VisitForAccumulatorValue(expr);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
-  if (expr->is_strict()) {
+  if (is_strict) {
     Split(equal, if_true, if_false, fall_through);
   } else {
     __ j(equal, if_true);
@@ -4068,7 +4064,6 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
              Immediate(1 << Map::kIsUndetectable));
     Split(not_zero, if_true, if_false, fall_through);
   }
-  context()->Plug(if_true, if_false);
 }
 
 

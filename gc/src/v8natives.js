@@ -193,13 +193,14 @@ function GlobalEval(x) {
 function SetUpGlobal() {
   %CheckIsBootstrapping();
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
+  %SetProperty(global, "undefined", void 0,
+               DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -298,7 +299,7 @@ function ObjectDefineGetter(name, fun) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalReceiver(global);
   }
-  if (!IS_FUNCTION(fun)) {
+  if (!IS_SPEC_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
   var desc = new PropertyDescriptor();
@@ -323,7 +324,7 @@ function ObjectDefineSetter(name, fun) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalReceiver(global);
   }
-  if (!IS_FUNCTION(fun)) {
+  if (!IS_SPEC_FUNCTION(fun)) {
     throw new $TypeError(
         'Object.prototype.__defineSetter__: Expecting function');
   }
@@ -453,7 +454,7 @@ function ToPropertyDescriptor(obj) {
 
   if ("get" in obj) {
     var get = obj.get;
-    if (!IS_UNDEFINED(get) && !IS_FUNCTION(get)) {
+    if (!IS_UNDEFINED(get) && !IS_SPEC_FUNCTION(get)) {
       throw MakeTypeError("getter_must_be_callable", [get]);
     }
     desc.setGet(get);
@@ -461,7 +462,7 @@ function ToPropertyDescriptor(obj) {
 
   if ("set" in obj) {
     var set = obj.set;
-    if (!IS_UNDEFINED(set) && !IS_FUNCTION(set)) {
+    if (!IS_UNDEFINED(set) && !IS_SPEC_FUNCTION(set)) {
       throw MakeTypeError("setter_must_be_callable", [set]);
     }
     desc.setSet(set);
@@ -623,7 +624,7 @@ function GetTrap(handler, name, defaultTrap) {
       throw MakeTypeError("handler_trap_missing", [handler, name]);
     }
     trap = defaultTrap;
-  } else if (!IS_FUNCTION(trap)) {
+  } else if (!IS_SPEC_FUNCTION(trap)) {
     throw MakeTypeError("handler_trap_must_be_callable", [handler, name]);
   }
   return trap;
@@ -977,7 +978,7 @@ function ObjectDefineProperty(obj, p, attributes) {
     // Clone the attributes object for protection.
     // TODO(rossberg): not spec'ed yet, so not sure if this should involve
     // non-own properties as it does (or non-enumerable ones, as it doesn't?).
-    var attributesClone = {}
+    var attributesClone = {};
     for (var a in attributes) {
       attributesClone[a] = attributes[a];
     }
@@ -1041,7 +1042,25 @@ function ProxyFix(obj) {
   if (IS_UNDEFINED(props)) {
     throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
   }
-  %Fix(obj);
+
+  if (IS_SPEC_FUNCTION(obj)) {
+    var callTrap = %GetCallTrap(obj);
+    var constructTrap = %GetConstructTrap(obj);
+    var code = DelegateCallAndConstruct(callTrap, constructTrap);
+    %Fix(obj);  // becomes a regular function
+    %SetCode(obj, code);
+    // TODO(rossberg): What about length and other properties? Not specified.
+    // We just put in some half-reasonable defaults for now.
+    var prototype = new $Object();
+    $Object.defineProperty(prototype, "constructor",
+      {value: obj, writable: true, enumerable: false, configrable: true});
+    $Object.defineProperty(obj, "prototype",
+      {value: prototype, writable: true, enumerable: false, configrable: false})
+    $Object.defineProperty(obj, "length",
+      {value: 0, writable: true, enumerable: false, configrable: false});
+  } else {
+    %Fix(obj);
+  }
   ObjectDefineProperties(obj, props);
 }
 
@@ -1412,6 +1431,10 @@ SetUpNumber();
 $Function.prototype.constructor = $Function;
 
 function FunctionSourceString(func) {
+  while (%IsJSFunctionProxy(func)) {
+    func = %GetCallTrap(func);
+  }
+
   if (!IS_FUNCTION(func)) {
     throw new $TypeError('Function.prototype.toString is not generic');
   }
@@ -1441,12 +1464,13 @@ function FunctionToString() {
 
 // ES5 15.3.4.5
 function FunctionBind(this_arg) { // Length is 1.
-  if (!IS_FUNCTION(this)) {
+  if (!IS_SPEC_FUNCTION(this)) {
       throw new $TypeError('Bind must be called on a function');
   }
   // this_arg is not an argument that should be bound.
   var argc_bound = (%_ArgumentsLength() || 1) - 1;
   var fn = this;
+
   if (argc_bound == 0) {
     var result = function() {
       if (%_IsConstructCall()) {
@@ -1455,8 +1479,7 @@ function FunctionBind(this_arg) { // Length is 1.
         // materializing it and guarantee that this function will be optimized.
         return %NewObjectFromBound(fn, null);
       }
-
-      return fn.apply(this_arg, arguments);
+      return %Apply(fn, this_arg, arguments, 0, %_ArgumentsLength());
     };
   } else {
     var bound_args = new InternalArray(argc_bound);
@@ -1486,7 +1509,7 @@ function FunctionBind(this_arg) { // Length is 1.
       for (var i = 0; i < argc; i++) {
         args[argc_bound + i] = %_Arguments(i);
       }
-      return fn.apply(this_arg, args);
+      return %Apply(fn, this_arg, args, 0, argc + argc_bound);
     };
   }
 
@@ -1497,11 +1520,16 @@ function FunctionBind(this_arg) { // Length is 1.
   // is called and make them non-enumerable and non-configurable.
   // To be consistent with our normal functions we leave this as it is.
 
-  // Set the correct length.
-  var length = (this.length - argc_bound) > 0 ? this.length - argc_bound : 0;
   %FunctionRemovePrototype(result);
   %FunctionSetBound(result);
-  %BoundFunctionSetLength(result, length);
+  // Set the correct length. If this is a function proxy, this.length might
+  // throw, or return a bogus result. Leave length alone in that case.
+  // TODO(rossberg): This is underspecified in the current proxy proposal.
+  try {
+    var old_length = ToInteger(this.length);
+    var length = (old_length - argc_bound) > 0 ? old_length - argc_bound : 0;
+    %BoundFunctionSetLength(result, length);
+  } catch(x) {}
   return result;
 }
 

@@ -62,9 +62,11 @@ static unsigned GetPropertyId(Property* property) {
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
 // method EmitPatchInfo to record a marker back to the patchable code. This
-// marker is a andi at, rx, #yyy instruction, and x * 0x0000ffff + yyy (raw 16
-// bit immediate value is used) is the delta from the pc to the first
+// marker is a andi zero_reg, rx, #yyyy instruction, and rx * 0x0000ffff + yyyy
+// (raw 16 bit immediate value is used) is the delta from the pc to the first
 // instruction of the patchable code.
+// The marker instruction is effectively a NOP (dest is zero_reg) and will
+// never be emitted by normal code.
 class JumpPatchSite BASE_EMBEDDED {
  public:
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
@@ -103,7 +105,7 @@ class JumpPatchSite BASE_EMBEDDED {
     if (patch_site_.is_bound()) {
       int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
       Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
-      __ andi(at, reg, delta_to_patch_site % kImm16Mask);
+      __ andi(zero_reg, reg, delta_to_patch_site % kImm16Mask);
 #ifdef DEBUG
       info_emitted_ = true;
 #endif
@@ -161,6 +163,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
   }
+
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   int locals_count = info->scope()->num_stack_slots();
 
@@ -310,17 +317,25 @@ void FullCodeGenerator::ClearAccumulator() {
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
+  // The generated code is used in Deoptimizer::PatchStackCheckCodeAt so we need
+  // to make sure it is constant. Branch may emit a skip-or-jump sequence
+  // instead of the normal Branch. It seems that the "skip" part of that
+  // sequence is about as long as this Branch would be so it is safe to ignore
+  // that.
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
   __ LoadRoot(t0, Heap::kStackLimitRootIndex);
-  __ Branch(&ok, hs, sp, Operand(t0));
+  __ sltu(at, sp, t0);
+  __ beq(at, zero_reg, &ok);
+  // CallStub will emit a li t9, ... first, so it is safe to use the delay slot.
   StackCheckStub stub;
+  __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
   RecordStackCheck(stmt->OsrEntryId());
 
-  __ CallStub(&stub);
   __ bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   // Record a mapping of the OSR id to this PC.  This is used if the OSR
@@ -2042,9 +2057,8 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
   __ Call(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2075,9 +2089,8 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count);
   __ lw(a2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
   __ Call(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
@@ -2098,8 +2111,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   }
   // Record source position for debugger.
   SetSourcePosition(expr->position());
-  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub stub(arg_count, in_loop, flags);
+  CallFunctionStub stub(arg_count, flags);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2197,8 +2209,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
-    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_IMPLICIT);
+    CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3574,9 +3585,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ li(a2, Operand(expr->name()));
     RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count,
-                                                       NOT_IN_LOOP,
-                                                       mode);
+        isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
     __ Call(ic, mode, expr->id());
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -4115,20 +4124,16 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  Comment cmnt(masm_, "[ CompareToNull");
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  VisitForAccumulatorValue(expr->expression());
+void FullCodeGenerator::EmitLiteralCompareNull(Expression* expr,
+                                               bool is_strict,
+                                               Label* if_true,
+                                               Label* if_false,
+                                               Label* fall_through) {
+  VisitForAccumulatorValue(expr);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   __ mov(a0, result_register());
   __ LoadRoot(a1, Heap::kNullValueRootIndex);
-  if (expr->is_strict()) {
+  if (is_strict) {
     Split(eq, a0, Operand(a1), if_true, if_false, fall_through);
   } else {
     __ Branch(if_true, eq, a0, Operand(a1));
@@ -4142,7 +4147,6 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
     __ And(a1, a1, Operand(1 << Map::kIsUndetectable));
     Split(ne, a1, Operand(zero_reg), if_true, if_false, fall_through);
   }
-  context()->Plug(if_true, if_false);
 }
 
 

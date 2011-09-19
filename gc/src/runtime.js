@@ -366,7 +366,7 @@ function IN(x) {
 // an expensive ToBoolean conversion in the generated code.
 function INSTANCE_OF(F) {
   var V = this;
-  if (!IS_FUNCTION(F)) {
+  if (!IS_SPEC_FUNCTION(F)) {
     throw %MakeTypeError('instanceof_function_expected', [V]);
   }
 
@@ -408,7 +408,7 @@ function CALL_NON_FUNCTION() {
   if (!IS_FUNCTION(delegate)) {
     throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-  return delegate.apply(this, arguments);
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
 
 
@@ -417,7 +417,22 @@ function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   if (!IS_FUNCTION(delegate)) {
     throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-  return delegate.apply(this, arguments);
+  return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
+}
+
+
+function CALL_FUNCTION_PROXY() {
+  var arity = %_ArgumentsLength() - 1;
+  var proxy = %_Arguments(arity);  // The proxy comes in as an additional arg.
+  var trap = %GetCallTrap(proxy);
+  return %Apply(trap, this, arguments, 0, arity);
+}
+
+
+function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR() {
+  var proxy = this;
+  var trap = %GetConstructTrap(proxy);
+  return %Apply(trap, this, arguments, 0, %_ArgumentsLength());
 }
 
 
@@ -428,7 +443,8 @@ function APPLY_PREPARE(args) {
   // that takes care of more eventualities.
   if (IS_ARRAY(args)) {
     length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < 0x800000 && IS_FUNCTION(this)) {
+    if (%_IsSmi(length) && length >= 0 && length < 0x800000 &&
+        IS_SPEC_FUNCTION(this)) {
       return length;
     }
   }
@@ -442,7 +458,7 @@ function APPLY_PREPARE(args) {
     throw %MakeRangeError('stack_overflow', []);
   }
 
-  if (!IS_FUNCTION(this)) {
+  if (!IS_SPEC_FUNCTION(this)) {
     throw %MakeTypeError('apply_non_function', [ %ToString(this), typeof this ]);
   }
 
@@ -610,13 +626,13 @@ function IsPrimitive(x) {
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
   var valueOf = x.valueOf;
-  if (IS_FUNCTION(valueOf)) {
+  if (IS_SPEC_FUNCTION(valueOf)) {
     var v = %_CallFunction(x, valueOf);
     if (%IsPrimitive(v)) return v;
   }
 
   var toString = x.toString;
-  if (IS_FUNCTION(toString)) {
+  if (IS_SPEC_FUNCTION(toString)) {
     var s = %_CallFunction(x, toString);
     if (%IsPrimitive(s)) return s;
   }
@@ -628,13 +644,13 @@ function DefaultNumber(x) {
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultString(x) {
   var toString = x.toString;
-  if (IS_FUNCTION(toString)) {
+  if (IS_SPEC_FUNCTION(toString)) {
     var s = %_CallFunction(x, toString);
     if (%IsPrimitive(s)) return s;
   }
 
   var valueOf = x.valueOf;
-  if (IS_FUNCTION(valueOf)) {
+  if (IS_SPEC_FUNCTION(valueOf)) {
     var v = %_CallFunction(x, valueOf);
     if (%IsPrimitive(v)) return v;
   }

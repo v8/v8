@@ -43,7 +43,6 @@
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "runtime-profiler.h"
-#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "store-buffer.h"
@@ -1728,7 +1727,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_elements_kind(JSObject::FAST_ELEMENTS);
+  map->set_elements_kind(FAST_ELEMENTS);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -2163,6 +2162,15 @@ void Heap::CreateFixedStubs() {
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
+
+  // Create stubs that should be there, so we don't unexpectedly have to
+  // create them if we need them during the creation of another stub.
+  // Stub creation mixes raw pointers and handles in an unsafe manner so
+  // we cannot create stubs while we are creating stubs.
+  CEntryStub ces(1);
+  ces.GetCode();
+
+  CodeStub::GenerateStubsAheadOfTime();
 }
 
 
@@ -2844,25 +2852,23 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   // Make an attempt to flatten the buffer to reduce access time.
   buffer = buffer->TryFlattenGetString();
 
-  // TODO(1626): For now slicing external strings is not supported.  However,
-  // a flat cons string can have an external string as first part in some cases.
-  // Therefore we have to single out this case as well.
   if (!FLAG_string_slices ||
-      (buffer->IsConsString() &&
-        (!buffer->IsFlat() ||
-         !ConsString::cast(buffer)->first()->IsSeqString())) ||
-      buffer->IsExternalString() ||
+      !buffer->IsFlat() ||
       length < SlicedString::kMinLength ||
       pretenure == TENURED) {
     Object* result;
-    { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
-                     ? AllocateRawAsciiString(length, pretenure)
-                     : AllocateRawTwoByteString(length, pretenure);
+    // WriteToFlat takes care of the case when an indirect string has a
+    // different encoding from its underlying string.  These encodings may
+    // differ because of externalization.
+    bool is_ascii = buffer->IsAsciiRepresentation();
+    { MaybeObject* maybe_result = is_ascii
+                                  ? AllocateRawAsciiString(length, pretenure)
+                                  : AllocateRawTwoByteString(length, pretenure);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     String* string_result = String::cast(result);
     // Copy the characters into the new object.
-    if (buffer->IsAsciiRepresentation()) {
+    if (is_ascii) {
       ASSERT(string_result->IsAsciiRepresentation());
       char* dest = SeqAsciiString::cast(string_result)->GetChars();
       String::WriteToFlat(buffer, dest, start, end);
@@ -2875,12 +2881,17 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   }
 
   ASSERT(buffer->IsFlat());
-  ASSERT(!buffer->IsExternalString());
 #if DEBUG
   buffer->StringVerify();
 #endif
 
   Object* result;
+  // When slicing an indirect string we use its encoding for a newly created
+  // slice and don't check the encoding of the underlying string.  This is safe
+  // even if the encodings are different because of externalization.  If an
+  // indirect ASCII string is pointing to a two-byte string, the two-byte char
+  // codes of the underlying string must still fit into ASCII (because
+  // externalization must not change char codes).
   { Map* map = buffer->IsAsciiRepresentation()
                  ? sliced_ascii_string_map()
                  : sliced_string_map();
@@ -2906,7 +2917,8 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     sliced_string->set_parent(buffer);
     sliced_string->set_offset(start);
   }
-  ASSERT(sliced_string->parent()->IsSeqString());
+  ASSERT(sliced_string->parent()->IsSeqString() ||
+         sliced_string->parent()->IsExternalString());
   return result;
 }
 
@@ -3522,11 +3534,36 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   map->set_prototype(prototype);
 
   // Allocate the proxy object.
-  Object* result;
+  JSProxy* result;
   MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  JSProxy::cast(result)->set_handler(handler);
-  JSProxy::cast(result)->set_padding(Smi::FromInt(0));
+  if (!maybe_result->To<JSProxy>(&result)) return maybe_result;
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(handler);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
+                                           Object* call_trap,
+                                           Object* construct_trap,
+                                           Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Map* map;
+  MaybeObject* maybe_map_obj =
+      AllocateMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
+  map->set_prototype(prototype);
+
+  // Allocate the proxy object.
+  JSFunctionProxy* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->To<JSFunctionProxy>(&result)) return maybe_result;
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(handler);
+  result->set_call_trap(call_trap);
+  result->set_construct_trap(construct_trap);
   return result;
 }
 
@@ -3671,16 +3708,19 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
 }
 
 
-MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
+MaybeObject* Heap::ReinitializeJSReceiver(
+    JSReceiver* object, InstanceType type, int size) {
+  ASSERT(type >= FIRST_JS_RECEIVER_TYPE);
+
   // Allocate fresh map.
   // TODO(rossberg): Once we optimize proxies, cache these maps.
   Map* map;
-  MaybeObject* maybe_map_obj =
-      AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  MaybeObject* maybe_map_obj = AllocateMap(type, size);
   if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
 
-  // Check that the receiver has the same size as a fresh object.
-  ASSERT(map->instance_size() == object->map()->instance_size());
+  // Check that the receiver has at least the size of the fresh object.
+  int size_difference = object->map()->instance_size() - map->instance_size();
+  ASSERT(size_difference >= 0);
 
   map->set_prototype(object->map()->prototype());
 
@@ -3697,6 +3737,29 @@ MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
   // Reinitialize the object from the constructor map.
   InitializeJSObjectFromMap(JSObject::cast(object),
                             FixedArray::cast(properties), map);
+
+  // Functions require some minimal initialization.
+  if (type == JS_FUNCTION_TYPE) {
+    map->set_function_with_prototype(true);
+    String* name;
+    MaybeObject* maybe_name = LookupAsciiSymbol("<freezing call trap>");
+    if (!maybe_name->To<String>(&name)) return maybe_name;
+    SharedFunctionInfo* shared;
+    MaybeObject* maybe_shared = AllocateSharedFunctionInfo(name);
+    if (!maybe_shared->To<SharedFunctionInfo>(&shared)) return maybe_shared;
+    JSFunction* func;
+    MaybeObject* maybe_func =
+        InitializeFunction(JSFunction::cast(object), shared, the_hole_value());
+    if (!maybe_func->To<JSFunction>(&func)) return maybe_func;
+    func->set_context(isolate()->context()->global_context());
+  }
+
+  // Put in filler if the new object is smaller than the old.
+  if (size_difference > 0) {
+    CreateFillerObjectAt(
+        object->address() + map->instance_size(), size_difference);
+  }
+
   return object;
 }
 

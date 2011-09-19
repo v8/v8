@@ -215,13 +215,8 @@ class Factory {
 
   Handle<Map> CopyMapDropTransitions(Handle<Map> map);
 
-  Handle<Map> GetFastElementsMap(Handle<Map> map);
-
-  Handle<Map> GetSlowElementsMap(Handle<Map> map);
-
-  Handle<Map> GetExternalArrayElementsMap(Handle<Map> map,
-                                          ExternalArrayType array_type,
-                                          bool safe_to_add_transition);
+  Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
+                                       ElementsKind elements_kind);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
@@ -260,8 +255,9 @@ class Factory {
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
-  // Change the type of the argument into a regular JS object and reinitialize.
-  void BecomeJSObject(Handle<JSProxy> object);
+  // Change the type of the argument into a JS object/function and reinitialize.
+  void BecomeJSObject(Handle<JSReceiver> object);
+  void BecomeJSFunction(Handle<JSReceiver> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);

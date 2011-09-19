@@ -75,7 +75,7 @@ namespace internal {
   V(KeyedLoadElement)                    \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryNegativeLookup)
+  V(StringDictionaryLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -144,6 +144,22 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
+  // See comment above, where Instanceof is defined.
+  virtual bool CompilingCallsToThisStubIsGCSafe() {
+    return MajorKey() <= Instanceof;
+  }
+
+  static void GenerateStubsAheadOfTime();
+  static void GenerateFPStubs();
+
+  // Some stubs put untagged junk on the stack that cannot be scanned by the
+  // GC.  This means that we must be statically sure that no GC can occur while
+  // they are running.  If that is the case they should override this to return
+  // true, which will cause an assertion if we try to call something that can
+  // GC or if we try to put a stack frame on top of the junk, which would not
+  // result in a traversable stack.
+  virtual bool SometimesSetsUpAFrame() { return true; }
+
  protected:
   static const int kMajorBits = 6;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
@@ -178,10 +194,6 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() = 0;
   virtual int MinorKey() = 0;
 
-  // The CallFunctionStub needs to override this so it can encode whether a
-  // lazily generated function should be fully optimized or not.
-  virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
-
   // BinaryOpStub needs to override this.
   virtual int GetCodeKind();
 
@@ -191,7 +203,7 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // Returns a name for logging/debugging purposes.
-  SmartPointer<const char> GetName();
+  SmartArrayPointer<const char> GetName();
   virtual void PrintName(StringStream* stream) {
     stream->Add("%s", MajorName(MajorKey(), false));
   }
@@ -206,9 +218,6 @@ class CodeStub BASE_EMBEDDED {
     return MinorKeyBits::encode(MinorKey()) |
            MajorKeyBits::encode(MajorKey());
   }
-
-  // See comment above, where Instanceof is defined.
-  bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
@@ -551,6 +560,12 @@ class CEntryStub : public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  // The version of this stub that doesn't save doubles is generated ahead of
+  // time, so it's OK to call it from other stubs that can't cope with GC during
+  // their code generation.  On machines that always have gp registers (x64) we
+  // can generate both variants ahead of time.
+  virtual bool CompilingCallsToThisStubIsGCSafe();
+
  private:
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
@@ -656,8 +671,8 @@ class RegExpConstructResultStub: public CodeStub {
 
 class CallFunctionStub: public CodeStub {
  public:
-  CallFunctionStub(int argc, InLoopFlag in_loop, CallFunctionFlags flags)
-      : argc_(argc), in_loop_(in_loop), flags_(flags) { }
+  CallFunctionStub(int argc, CallFunctionFlags flags)
+      : argc_(argc), flags_(flags) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -667,25 +682,19 @@ class CallFunctionStub: public CodeStub {
 
  private:
   int argc_;
-  InLoopFlag in_loop_;
   CallFunctionFlags flags_;
 
   virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
-  class InLoopBits: public BitField<InLoopFlag, 0, 1> {};
-  class FlagBits: public BitField<CallFunctionFlags, 1, 1> {};
-  class ArgcBits: public BitField<int, 2, 32 - 2> {};
+  class FlagBits: public BitField<CallFunctionFlags, 0, 1> {};
+  class ArgcBits: public BitField<unsigned, 1, 32 - 1> {};
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() {
     // Encode the parameters in a unique 32 bit value.
-    return InLoopBits::encode(in_loop_)
-           | FlagBits::encode(flags_)
-           | ArgcBits::encode(argc_);
+    return FlagBits::encode(flags_) | ArgcBits::encode(argc_);
   }
-
-  InLoopFlag InLoop() { return in_loop_; }
 
   bool ReceiverMightBeImplicit() {
     return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
@@ -870,7 +879,7 @@ class AllowStubCallsScope {
 
 class KeyedLoadElementStub : public CodeStub {
  public:
-  explicit KeyedLoadElementStub(JSObject::ElementsKind elements_kind)
+  explicit KeyedLoadElementStub(ElementsKind elements_kind)
       : elements_kind_(elements_kind)
   { }
 
@@ -880,7 +889,7 @@ class KeyedLoadElementStub : public CodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadElementStub);
 };
@@ -889,20 +898,20 @@ class KeyedLoadElementStub : public CodeStub {
 class KeyedStoreElementStub : public CodeStub {
  public:
   KeyedStoreElementStub(bool is_js_array,
-                        JSObject::ElementsKind elements_kind)
+                        ElementsKind elements_kind)
     : is_js_array_(is_js_array),
     elements_kind_(elements_kind) { }
 
   Major MajorKey() { return KeyedStoreElement; }
   int MinorKey() {
-    return (is_js_array_ ? 0 : JSObject::kElementsKindCount) + elements_kind_;
+    return (is_js_array_ ? 0 : kElementsKindCount) + elements_kind_;
   }
 
   void Generate(MacroAssembler* masm);
 
  private:
   bool is_js_array_;
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedStoreElementStub);
 };
@@ -953,6 +962,8 @@ class ToBooleanStub: public CodeStub {
   void Generate(MacroAssembler* masm);
   virtual int GetCodeKind() { return Code::TO_BOOLEAN_IC; }
   virtual void PrintName(StringStream* stream);
+
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
   Major MajorKey() { return ToBoolean; }

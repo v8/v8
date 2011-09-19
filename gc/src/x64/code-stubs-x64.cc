@@ -233,6 +233,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 // The stub expects its argument on the stack and returns its result in tos_:
 // zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   Label patch;
   const Register argument = rax;
   const Register map = rdx;
@@ -337,6 +339,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 #else
   __ LoadAddress(rdi, ExternalReference::isolate_address());
 #endif
+
+  AllowExternalCallThatCantCauseGC scope(masm);
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
@@ -639,12 +643,13 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(rax);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ movq(rcx, rax);
-    __ pop(rax);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(rax);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ movq(rcx, rax);
+      __ pop(rax);
+    }
     __ bind(&heapnumber_allocated);
     // rcx: allocated 'empty' number
 
@@ -1470,11 +1475,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ addq(rsp, Immediate(kDoubleSize));
     // We return the value in xmm1 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
-    // Allocate an unused object bigger than a HeapNumber.
-    __ Push(Smi::FromInt(2 * kDoubleSize));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Allocate an unused object bigger than a HeapNumber.
+      __ Push(Smi::FromInt(2 * kDoubleSize));
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 
@@ -1490,10 +1496,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call);
     __ AllocateHeapNumber(rax, rdi, &skip_cache);
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    __ EnterInternalFrame();
-    __ push(rax);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(rax);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -2735,7 +2742,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address, isolate);
+      Isolate::kPendingExceptionAddress, isolate);
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address, rbx);
   __ movq(rax, pending_exception_operand);
@@ -3255,7 +3262,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -3280,7 +3287,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(rdi, &slow);
+  __ JumpIfSmi(rdi, &non_function);
   // Goto slow case if we do not have a function.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
@@ -3307,21 +3314,56 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &non_function);
+  __ pop(rcx);
+  __ push(rdi);  // put proxy as additional argument under return address
+  __ push(rcx);
+  __ Set(rax, argc_ + 1);
+  __ Set(rbx, 0);
+  __ SetCallKind(rcx, CALL_AS_FUNCTION);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdi);
   __ Set(rax, argc_);
   __ Set(rbx, 0);
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       Isolate::Current()->builtins()->ArgumentsAdaptorTrampoline();
-  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
 bool CEntryStub::NeedsImmovableCode() {
   return false;
+}
+
+
+bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+  return result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+  CEntryStub save_doubles(1, kSaveFPRegs);
+  save_doubles.GetCode();
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+  // It is important that the store buffer overflow stubs are generated first.
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
+}
+
+
+void CodeStub::GenerateFPStubs() {
 }
 
 
@@ -3451,7 +3493,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address, masm->isolate());
+      Isolate::kPendingExceptionAddress, masm->isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address);
   __ movq(rax, pending_exception_operand);
@@ -3591,14 +3633,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Isolate* isolate = masm->isolate();
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, isolate);
+  ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, isolate);
   {
     Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
     __ push(c_entry_fp_operand);
   }
 
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
   __ Load(rax, js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
@@ -3616,7 +3658,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
@@ -5282,12 +5324,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   // Call the runtime system in a fresh internal frame.
   ExternalReference miss =
       ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
-  __ EnterInternalFrame();
-  __ push(rdx);
-  __ push(rax);
-  __ Push(Smi::FromInt(op_));
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rdx);
+    __ push(rax);
+    __ Push(Smi::FromInt(op_));
+    __ CallExternalReference(miss, 3);
+  }
 
   // Compute the entry point of the rewritten stub.
   __ lea(rdi, FieldOperand(rax, Code::kHeaderSize));
@@ -5418,6 +5461,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
   //  esp[0 * kPointerSize]: return address.
   //  esp[1 * kPointerSize]: key's hash.
@@ -5500,6 +5545,74 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ movq(scratch, Immediate(0));
   __ Drop(1);
   __ ret(2 * kPointerSize);
+}
+
+
+struct AheadOfTimeWriteBarrierStubList {
+  Register object, value, address;
+  RememberedSetAction action;
+};
+
+
+struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+  // Used in RegExpExecStub.
+  { rbx, rax, rdi, EMIT_REMEMBERED_SET },
+  // Used in CompileArrayPushCall.
+  { rbx, rcx, rdx, EMIT_REMEMBERED_SET },
+  // Used in CompileStoreGlobal.
+  { rbx, rcx, rdx, OMIT_REMEMBERED_SET },
+  // Used in StoreStubCompiler::CompileStoreField and
+  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { rdx, rcx, rbx, EMIT_REMEMBERED_SET },
+  // GenerateStoreField calls the stub with two different permutations of
+  // registers.  This is the second.
+  { rbx, rcx, rdx, EMIT_REMEMBERED_SET },
+  // StoreIC::GenerateNormal via GenerateDictionaryStore.
+  { rbx, r8, r9, EMIT_REMEMBERED_SET },
+  // KeyedStoreIC::GenerateGeneric.
+  { rbx, rdx, rcx, EMIT_REMEMBERED_SET},
+  // KeyedStoreStubCompiler::GenerateStoreFastElement.
+  { rdi, rdx, rcx, EMIT_REMEMBERED_SET},
+  // Null termination.
+  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+};
+
+
+bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    if (object_.is(entry->object) &&
+        value_.is(entry->value) &&
+        address_.is(entry->address) &&
+        remembered_set_action_ == entry->action &&
+        save_fp_regs_mode_ == kDontSaveFPRegs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreBufferOverflowStub stub2(kSaveFPRegs);
+  stub2.GetCode();
+}
+
+
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    RecordWriteStub stub(entry->object,
+                         entry->value,
+                         entry->address,
+                         entry->action,
+                         kDontSaveFPRegs);
+    stub.GetCode();
+  }
 }
 
 
@@ -5602,6 +5715,8 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   }
   __ LoadAddress(arg3, ExternalReference::isolate_address());
   int argument_count = 3;
+
+  AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(argument_count);
   if (mode == INCREMENTAL_COMPACTION) {
     __ CallCFunction(

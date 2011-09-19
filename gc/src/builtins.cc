@@ -1592,7 +1592,6 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(Code::kind,                       \
-                                          NOT_IN_LOOP,                      \
                                           state,                            \
                                           extra);                           \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
@@ -1631,6 +1630,7 @@ void Builtins::Setup(bool create_heap_objects) {
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
+      ASSERT(!masm.has_frame());
       g(&masm, functions[i].name, functions[i].extra_args);
       // Move the code into the object heap.
       CodeDesc desc;
