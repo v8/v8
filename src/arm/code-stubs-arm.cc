@@ -6816,7 +6816,23 @@ struct AheadOfTimeWriteBarrierStubList {
 
 
 struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
-  // TODO(1696): Fill this in for ARM.
+  // Used in RegExpExecStub.
+  { r6, r4, r7, EMIT_REMEMBERED_SET },
+  { r6, r2, r7, EMIT_REMEMBERED_SET },
+  // Used in CompileArrayPushCall.
+  // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
+  // Also used in KeyedStoreIC::GenerateGeneric.
+  { r3, r4, r5, EMIT_REMEMBERED_SET },
+  // Used in CompileStoreGlobal.
+  { r4, r1, r2, OMIT_REMEMBERED_SET },
+  // Used in StoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { r1, r2, r3, EMIT_REMEMBERED_SET },
+  { r3, r2, r1, EMIT_REMEMBERED_SET },
+  // Used in KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { r2, r1, r3, EMIT_REMEMBERED_SET },
+  { r3, r1, r2, EMIT_REMEMBERED_SET },
+  // KeyedStoreStubCompiler::GenerateStoreFastElement.
+  { r4, r2, r3, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -6834,7 +6850,7 @@ bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
       return true;
     }
   }
-  return true;  // TODO(1696): Should be false.
+  return false;
 }
 
 
