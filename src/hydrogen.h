@@ -283,7 +283,7 @@ class HGraph: public ZoneObject {
   }
 
 #ifdef DEBUG
-  void Verify() const;
+  void Verify(bool do_full_verify) const;
 #endif
 
  private:

@@ -422,7 +422,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 };
 
 
-void HGraph::Verify() const {
+void HGraph::Verify(bool do_full_verify) const {
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -473,25 +473,27 @@ void HGraph::Verify() const {
   // Check special property of first block to have no predecessors.
   ASSERT(blocks_.at(0)->predecessors()->is_empty());
 
-  // Check that the graph is fully connected.
-  ReachabilityAnalyzer analyzer(entry_block_, blocks_.length(), NULL);
-  ASSERT(analyzer.visited_count() == blocks_.length());
+  if (do_full_verify) {
+    // Check that the graph is fully connected.
+    ReachabilityAnalyzer analyzer(entry_block_, blocks_.length(), NULL);
+    ASSERT(analyzer.visited_count() == blocks_.length());
 
-  // Check that entry block dominator is NULL.
-  ASSERT(entry_block_->dominator() == NULL);
+    // Check that entry block dominator is NULL.
+    ASSERT(entry_block_->dominator() == NULL);
 
-  // Check dominators.
-  for (int i = 0; i < blocks_.length(); ++i) {
-    HBasicBlock* block = blocks_.at(i);
-    if (block->dominator() == NULL) {
-      // Only start block may have no dominator assigned to.
-      ASSERT(i == 0);
-    } else {
-      // Assert that block is unreachable if dominator must not be visited.
-      ReachabilityAnalyzer dominator_analyzer(entry_block_,
-                                              blocks_.length(),
-                                              block->dominator());
-      ASSERT(!dominator_analyzer.reachable()->Contains(block->block_id()));
+    // Check dominators.
+    for (int i = 0; i < blocks_.length(); ++i) {
+      HBasicBlock* block = blocks_.at(i);
+      if (block->dominator() == NULL) {
+        // Only start block may have no dominator assigned to.
+        ASSERT(i == 0);
+      } else {
+        // Assert that block is unreachable if dominator must not be visited.
+        ReachabilityAnalyzer dominator_analyzer(entry_block_,
+                                                blocks_.length(),
+                                                block->dominator());
+        ASSERT(!dominator_analyzer.reachable()->Contains(block->block_id()));
+      }
     }
   }
 }
@@ -2320,6 +2322,12 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->OrderBlocks();
   graph()->AssignDominators();
+
+#ifdef DEBUG
+  // Do a full verify after building the graph and computing dominators.
+  graph()->Verify(true);
+#endif
+
   graph()->PropagateDeoptimizingMark();
   graph()->EliminateRedundantPhis();
   if (!graph()->CheckPhis()) {
@@ -6820,7 +6828,7 @@ void HPhase::End() const {
   }
 
 #ifdef DEBUG
-  if (graph_ != NULL) graph_->Verify();
+  if (graph_ != NULL) graph_->Verify(false);  // No full verify.
   if (allocator_ != NULL) allocator_->Verify();
 #endif
 }
