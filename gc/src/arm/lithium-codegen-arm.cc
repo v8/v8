@@ -2200,6 +2200,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register value = ToRegister(instr->InputAt(0));
   Register scratch = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
 
   // Load the cell.
   __ mov(scratch, Operand(Handle<Object>(instr->hydrogen()->cell())));
@@ -2209,7 +2210,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   // to update the property details in the property dictionary to mark
   // it as no longer deleted.
   if (instr->hydrogen()->check_hole_value()) {
-    Register scratch2 = ToRegister(instr->TempAt(0));
     __ ldr(scratch2,
            FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -2219,6 +2219,15 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ str(value, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+
+  // Cells are always in the remembered set.
+  __ RecordWriteField(scratch,
+                      JSGlobalPropertyCell::kValueOffset,
+                      value,
+                      scratch2,
+                      kLRHasBeenSaved,
+                      kSaveFPRegs,
+                      OMIT_REMEMBERED_SET);
 }
 
 

@@ -559,7 +559,7 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
 
-  ASSERT(chunk->slots_buffer() == NULL);
+  delete chunk->slots_buffer();
   delete chunk->skip_list();
 
   VirtualMemory* reservation = chunk->reserved_memory();

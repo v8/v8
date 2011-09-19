@@ -148,6 +148,14 @@ static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->new_space());
 
   VerifyMarkingVisitor visitor;
+
+  LargeObjectIterator it(heap->lo_space());
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    if (MarkCompactCollector::IsMarked(obj)) {
+      obj->Iterate(&visitor);
+    }
+  }
+
   heap->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
@@ -307,6 +315,12 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->cell_space());
   VerifyMarkbitsAreClean(heap_->map_space());
   VerifyMarkbitsAreClean(heap_->new_space());
+
+  LargeObjectIterator it(heap_->lo_space());
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    MarkBit mark_bit = Marking::MarkBitFrom(obj);
+    ASSERT(Marking::IsWhite(mark_bit));
+  }
 }
 #endif
 
@@ -336,6 +350,13 @@ static void ClearMarkbits(Heap* heap) {
   ClearMarkbits(heap->old_data_space());
   ClearMarkbits(heap->cell_space());
   ClearMarkbits(heap->new_space());
+
+  LargeObjectIterator it(heap->lo_space());
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    MarkBit mark_bit = Marking::MarkBitFrom(obj);
+    mark_bit.Clear();
+    mark_bit.Next().Clear();
+  }
 }
 
 
