@@ -1179,14 +1179,23 @@ Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   // Iterate through the page until we reach the end or find an object starting
   // after the pc.
   Page* page = Page::FromAddress(pc);
-  HeapObjectIterator iterator(page, &GcSafeSizeOfCodeSpaceObject);
-  HeapObject* previous = NULL;
+
+  Address addr = page->skip_list()->StartFor(pc);
+
+  Address top = heap->code_space()->top();
+  Address limit = heap->code_space()->limit();
+
   while (true) {
-    HeapObject* next = iterator.Next();
-    if (next == NULL || next->address() >= pc) {
-      return GcSafeCastToCode(previous, pc);
+    if (addr == top && addr != limit) {
+      addr = limit;
+      continue;
     }
-    previous = next;
+
+    HeapObject* obj = HeapObject::FromAddress(addr);
+    int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
+    Address next_addr = addr + obj_size;
+    if (next_addr >= pc) return GcSafeCastToCode(obj, pc);
+    addr = next_addr;
   }
 }
 

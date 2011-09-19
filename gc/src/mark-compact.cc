@@ -2715,17 +2715,28 @@ enum SweepingMode {
 };
 
 
+enum SkipListRebuildingMode {
+  REBUILD_SKIP_LIST,
+  IGNORE_SKIP_LIST
+};
+
+
 // Sweep a space precisely.  After this has been done the space can
 // be iterated precisely, hitting only the live objects.  Code space
 // is always swept precisely because we want to be able to iterate
 // over it.  Map space is swept precisely, because it is not compacted.
 // Slots in live objects pointing into evacuation candidates are updated
 // if requested.
+template<SkipListRebuildingMode skip_list_mode>
 static void SweepPrecisely(PagedSpace* space,
                            Page* p,
                            SweepingMode mode,
                            ObjectVisitor* v) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
+  ASSERT_EQ(skip_list_mode == REBUILD_SKIP_LIST,
+            space->identity() == CODE_SPACE);
+  ASSERT((p->skip_list() == NULL) || (skip_list_mode == REBUILD_SKIP_LIST));
+
   MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptPrecisely();
 
@@ -2739,6 +2750,12 @@ static void SweepPrecisely(PagedSpace* space,
   ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
   Address object_address = p->ObjectAreaStart();
   int offsets[16];
+
+  SkipList* skip_list = p->skip_list();
+  int curr_region = -1;
+  if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list) {
+    skip_list->Clear();
+  }
 
   for (cell_index = Page::kFirstUsedCell;
        cell_index < last_cell_index;
@@ -2760,6 +2777,17 @@ static void SweepPrecisely(PagedSpace* space,
       int size = live_object->SizeFromMap(map);
       if (mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
         live_object->IterateBody(map->instance_type(), size, v);
+      }
+      if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list != NULL) {
+        int new_region_start =
+            SkipList::RegionNumber(free_end);
+        int new_region_end =
+            SkipList::RegionNumber(free_end + size - kPointerSize);
+        if (new_region_start != curr_region ||
+            new_region_end != curr_region) {
+          skip_list->AddObject(free_end, size);
+          curr_region = new_region_end;
+        }
       }
       free_start = free_end + size;
     }
@@ -2821,6 +2849,12 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                reinterpret_cast<void*>(p),
                SlotsBuffer::SizeOfChain(p->slots_buffer()));
       }
+
+      // Important: skip list should be cleared only after roots were updated
+      // because root iteration traverses the stack and might have to find code
+      // objects from non-updated pc pointing into evacuation candidate.
+      SkipList* list = p->skip_list();
+      if (list != NULL) list->Clear();
     } else {
       if (FLAG_gc_verbose) {
         PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
@@ -2829,13 +2863,25 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       PagedSpace* space = static_cast<PagedSpace*>(p->owner());
       p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
 
-      if (space->identity() == OLD_DATA_SPACE) {
-        SweepConservatively(space, p);
-      } else {
-        SweepPrecisely(space,
-                       p,
-                       SWEEP_AND_VISIT_LIVE_OBJECTS,
-                       &updating_visitor);
+      switch (space->identity()) {
+        case OLD_DATA_SPACE:
+          SweepConservatively(space, p);
+          break;
+        case OLD_POINTER_SPACE:
+          SweepPrecisely<IGNORE_SKIP_LIST>(space,
+                                           p,
+                                           SWEEP_AND_VISIT_LIVE_OBJECTS,
+                                           &updating_visitor);
+          break;
+        case CODE_SPACE:
+          SweepPrecisely<REBUILD_SKIP_LIST>(space,
+                                            p,
+                                            SWEEP_AND_VISIT_LIVE_OBJECTS,
+                                            &updating_visitor);
+          break;
+        default:
+          UNREACHABLE();
+          break;
       }
     }
   }
@@ -3358,7 +3404,11 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
         break;
       }
       case PRECISE: {
-        SweepPrecisely(space, p, SWEEP_ONLY, NULL);
+        if (space->identity() == CODE_SPACE) {
+          SweepPrecisely<REBUILD_SKIP_LIST>(space, p, SWEEP_ONLY, NULL);
+        } else {
+          SweepPrecisely<IGNORE_SKIP_LIST>(space, p, SWEEP_ONLY, NULL);
+        }
         break;
       }
       default: {

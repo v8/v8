@@ -268,18 +268,27 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
-  MaybeObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
+  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
   if (object != NULL) {
+    if (identity() == CODE_SPACE) {
+      SkipList::Update(object->address(), size_in_bytes);
+    }
     return object;
   }
 
   object = free_list_.Allocate(size_in_bytes);
   if (object != NULL) {
+    if (identity() == CODE_SPACE) {
+      SkipList::Update(object->address(), size_in_bytes);
+    }
     return object;
   }
 
   object = SlowAllocateRaw(size_in_bytes);
   if (object != NULL) {
+    if (identity() == CODE_SPACE) {
+      SkipList::Update(object->address(), size_in_bytes);
+    }
     return object;
   }
 

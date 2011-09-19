@@ -431,6 +431,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = NULL;
+  chunk->skip_list_ = NULL;
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
   chunk->SetFlag(WAS_SWEPT_PRECISELY);
@@ -557,6 +558,9 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
         static_cast<ObjectSpace>(1 << chunk->owner()->identity());
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
+
+  ASSERT(chunk->slots_buffer() == NULL);
+  delete chunk->skip_list();
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {

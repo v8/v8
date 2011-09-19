@@ -289,6 +289,7 @@ class Bitmap {
 };
 
 
+class SkipList;
 class SlotsBuffer;
 
 // MemoryChunk represents a memory region owned by a specific space.
@@ -472,7 +473,8 @@ class MemoryChunk {
 
   static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
 
-  static const size_t kHeaderSize = kSlotsBufferOffset + kPointerSize;
+  static const size_t kHeaderSize =
+      kSlotsBufferOffset + kPointerSize + kPointerSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -543,6 +545,14 @@ class MemoryChunk {
     return (flags_ & kSkipEvacuationSlotsRecordingMask) != 0;
   }
 
+  inline SkipList* skip_list() {
+    return skip_list_;
+  }
+
+  inline void set_skip_list(SkipList* skip_list) {
+    skip_list_ = skip_list;
+  }
+
   inline SlotsBuffer* slots_buffer() {
     return slots_buffer_;
   }
@@ -580,6 +590,7 @@ class MemoryChunk {
   // Count of bytes marked black on page.
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
+  SkipList* skip_list_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -844,6 +855,56 @@ class CodeRange {
                                      const FreeBlock* right);
 
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
+};
+
+
+class SkipList {
+ public:
+  SkipList() {
+    Clear();
+  }
+
+  void Clear() {
+    for (int idx = 0; idx < kSize; idx++) {
+      starts_[idx] = reinterpret_cast<Address>(-1);
+    }
+  }
+
+  Address StartFor(Address addr) {
+    return starts_[RegionNumber(addr)];
+  }
+
+  void AddObject(Address addr, int size) {
+    int start_region = RegionNumber(addr);
+    int end_region = RegionNumber(addr + size - kPointerSize);
+    for (int idx = start_region; idx <= end_region; idx++) {
+      if (starts_[idx] > addr) starts_[idx] = addr;
+    }
+  }
+
+  static inline int RegionNumber(Address addr) {
+    return (OffsetFrom(addr) & Page::kPageAlignmentMask) >> kRegionSizeLog2;
+  }
+
+  static void Update(Address addr, int size) {
+    Page* page = Page::FromAddress(addr);
+    SkipList* list = page->skip_list();
+    if (list == NULL) {
+      list = new SkipList();
+      page->set_skip_list(list);
+    }
+
+    list->AddObject(addr, size);
+  }
+
+ private:
+  static const int kRegionSizeLog2 = 13;
+  static const int kRegionSize = 1 << kRegionSizeLog2;
+  static const int kSize = Page::kPageSize / kRegionSize;
+
+  STATIC_ASSERT(Page::kPageSize % kRegionSize == 0);
+
+  Address starts_[kSize];
 };
 
 
