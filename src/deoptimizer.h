@@ -86,8 +86,8 @@ class DeoptimizerData {
 #endif
 
  private:
-  LargeObjectChunk* eager_deoptimization_entry_code_;
-  LargeObjectChunk* lazy_deoptimization_entry_code_;
+  MemoryChunk* eager_deoptimization_entry_code_;
+  MemoryChunk* lazy_deoptimization_entry_code_;
   Deoptimizer* current_;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -173,7 +173,8 @@ class Deoptimizer : public Malloced {
 
   // Patch stack guard check at instruction before pc_after in
   // the unoptimized code to unconditionally call replacement_code.
-  static void PatchStackCheckCodeAt(Address pc_after,
+  static void PatchStackCheckCodeAt(Code* unoptimized_code,
+                                    Address pc_after,
                                     Code* check_code,
                                     Code* replacement_code);
 
@@ -285,7 +286,7 @@ class Deoptimizer : public Malloced {
 
   void AddDoubleValue(intptr_t slot_address, double value);
 
-  static LargeObjectChunk* CreateCode(BailoutType type);
+  static MemoryChunk* CreateCode(BailoutType type);
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 

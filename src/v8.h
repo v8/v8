@@ -60,6 +60,8 @@
 #include "objects-inl.h"
 #include "spaces-inl.h"
 #include "heap-inl.h"
+#include "incremental-marking-inl.h"
+#include "mark-compact-inl.h"
 #include "log-inl.h"
 #include "cpu-profiler-inl.h"
 #include "handles-inl.h"

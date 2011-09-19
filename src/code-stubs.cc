@@ -128,8 +128,8 @@ Handle<Code> CodeStub::GetCode() {
             GetKey(),
             new_object);
     heap->public_set_code_stubs(*dict);
-
     code = *new_object;
+    Activate(code);
   }
 
   ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
@@ -167,7 +167,11 @@ MaybeObject* CodeStub::TryGetCode() {
         heap->code_stubs()->AtNumberPut(GetKey(), code);
     if (maybe_new_object->ToObject(&new_object)) {
       heap->public_set_code_stubs(NumberDictionary::cast(new_object));
+    } else if (MustBeInStubCache()) {
+      return maybe_new_object;
     }
+
+    Activate(code);
   }
 
   return code;

@@ -94,6 +94,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
+    case FREE_SPACE_TYPE:
+      FreeSpace::cast(this)->FreeSpaceVerify();
+      break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
       break;
@@ -204,6 +207,11 @@ void HeapNumber::HeapNumberVerify() {
 
 void ByteArray::ByteArrayVerify() {
   ASSERT(IsByteArray());
+}
+
+
+void FreeSpace::FreeSpaceVerify() {
+  ASSERT(IsFreeSpace());
 }
 
 
@@ -387,6 +395,7 @@ void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   VerifyObjectField(kPrototypeOrInitialMapOffset);
   VerifyObjectField(kNextFunctionLinkOffset);
+  CHECK(code()->IsCode());
   CHECK(next_function_link()->IsUndefined() ||
         next_function_link()->IsJSFunction());
 }
@@ -463,6 +472,7 @@ void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
+  relocation_info()->Verify();
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();

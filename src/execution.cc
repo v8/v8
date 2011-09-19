@@ -377,7 +377,7 @@ void StackGuard::DisableInterrupts() {
 
 bool StackGuard::IsInterrupted() {
   ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & INTERRUPT;
+  return (thread_local_.interrupt_flags_ & INTERRUPT) != 0;
 }
 
 
@@ -403,7 +403,7 @@ void StackGuard::Preempt() {
 
 bool StackGuard::IsTerminateExecution() {
   ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & TERMINATE;
+  return (thread_local_.interrupt_flags_ & TERMINATE) != 0;
 }
 
 
@@ -416,7 +416,7 @@ void StackGuard::TerminateExecution() {
 
 bool StackGuard::IsRuntimeProfilerTick() {
   ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK;
+  return (thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK) != 0;
 }
 
 
@@ -429,6 +429,22 @@ void StackGuard::RequestRuntimeProfilerTick() {
       isolate_->heap()->SetStackLimits();
     }
     ExecutionAccess::Unlock(isolate_);
+  }
+}
+
+
+bool StackGuard::IsGCRequest() {
+  ExecutionAccess access(isolate_);
+  return (thread_local_.interrupt_flags_ & GC_REQUEST) != 0;
+}
+
+
+void StackGuard::RequestGC() {
+  ExecutionAccess access(isolate_);
+  thread_local_.interrupt_flags_ |= GC_REQUEST;
+  if (thread_local_.postpone_interrupts_nesting_ == 0) {
+    thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
+    isolate_->heap()->SetStackLimits();
   }
 }
 
@@ -852,6 +868,12 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 MaybeObject* Execution::HandleStackGuardInterrupt() {
   Isolate* isolate = Isolate::Current();
   StackGuard* stack_guard = isolate->stack_guard();
+
+  if (stack_guard->IsGCRequest()) {
+    isolate->heap()->CollectAllGarbage(false);
+    stack_guard->Continue(GC_REQUEST);
+  }
+
   isolate->counters()->stack_interrupts()->Increment();
   if (stack_guard->IsRuntimeProfilerTick()) {
     isolate->counters()->runtime_profiler_ticks()->Increment();

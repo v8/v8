@@ -2259,6 +2259,19 @@ class HConstant: public HTemplateInstruction<0> {
 
   bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
 
+  bool ImmortalImmovable() const {
+    Heap* heap = HEAP;
+    if (*handle_ == heap->undefined_value()) return true;
+    if (*handle_ == heap->null_value()) return true;
+    if (*handle_ == heap->true_value()) return true;
+    if (*handle_ == heap->false_value()) return true;
+    if (*handle_ == heap->the_hole_value()) return true;
+    if (*handle_ == heap->minus_zero_value()) return true;
+    if (*handle_ == heap->nan_value()) return true;
+    if (*handle_ == heap->empty_string()) return true;
+    return false;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
@@ -3344,7 +3357,7 @@ class HLoadContextSlot: public HUnaryOperation {
 static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
-      && !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
+      && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
 }
 
 

@@ -116,7 +116,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
         new_reloc->GetDataStartAddress() + padding, 0);
     intptr_t comment_string
         = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string);
+    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
     for (int i = 0; i < additional_comments; ++i) {
 #ifdef DEBUG
       byte* pos_before = reloc_info_writer.pos();
@@ -174,7 +174,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
       // We use RUNTIME_ENTRY for deoptimization bailouts.
       RelocInfo rinfo(curr_address + 1,  // 1 after the call opcode.
                       RelocInfo::RUNTIME_ENTRY,
-                      reinterpret_cast<intptr_t>(deopt_entry));
+                      reinterpret_cast<intptr_t>(deopt_entry),
+                      NULL);
       reloc_info_writer.Write(&rinfo);
       ASSERT_GE(reloc_info_writer.pos(),
                 reloc_info->address() + ByteArray::kHeaderSize);
@@ -221,7 +222,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
                                         Code* check_code,
                                         Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -250,6 +252,13 @@ void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
+
+  RelocInfo rinfo(call_target_address,
+                  RelocInfo::CODE_TARGET,
+                  NULL,
+                  unoptimized_code);
+  unoptimized_code->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+      unoptimized_code, &rinfo, replacement_code);
 }
 
 
@@ -268,6 +277,9 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
+
+  check_code->GetHeap()->incremental_marking()->
+      RecordCodeTargetPatch(call_target_address, check_code);
 }
 
 

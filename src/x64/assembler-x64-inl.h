@@ -242,6 +242,11 @@ void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (IsCodeTarget(rmode_)) {
     Assembler::set_target_address_at(pc_, target);
+    Object* target_code = Code::GetCodeFromTargetAddress(target);
+    if (host() != NULL) {
+      host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+          host(), this, HeapObject::cast(target_code));
+    }
   } else {
     Memory::Address_at(pc_) = target;
     CPU::FlushICache(pc_, sizeof(Address));
@@ -279,8 +284,12 @@ Address* RelocInfo::target_reference_address() {
 
 void RelocInfo::set_target_object(Object* target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  *reinterpret_cast<Object**>(pc_) = target;
+  Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
+  if (host() != NULL && target->IsHeapObject()) {
+    host()->GetHeap()->incremental_marking()->RecordWrite(
+        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+  }
 }
 
 
@@ -306,6 +315,12 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
+  if (host() != NULL) {
+    // TODO(1550) We are passing NULL as a slot because cell can never be on
+    // evacuation candidate.
+    host()->GetHeap()->incremental_marking()->RecordWrite(
+        host(), NULL, cell);
+  }
 }
 
 
@@ -344,6 +359,11 @@ void RelocInfo::set_call_address(Address target) {
       target;
   CPU::FlushICache(pc_ + Assembler::kRealPatchReturnSequenceAddressOffset,
                    sizeof(Address));
+  if (host() != NULL) {
+    Object* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target_code));
+  }
 }
 
 

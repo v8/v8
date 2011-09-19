@@ -294,7 +294,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot1 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
 
-  HEAP->CollectAllGarbage(true);  // Enforce compaction.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));

@@ -253,10 +253,16 @@ DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
+DEFINE_bool(trace_fragmentation, false,
+            "report fragmentation for old pointer and data pages")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(flush_code, true,
+DEFINE_bool(flush_code, false,
             "flush code that we expect not to use again before full gc")
+DEFINE_bool(incremental_marking, true, "use incremental marking")
+DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
+DEFINE_bool(trace_incremental_marking, false,
+            "trace progress of the incremental marking")
 
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
@@ -276,6 +282,10 @@ DEFINE_bool(native_code_counters, false,
 
 // mark-compact.cc
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
+DEFINE_bool(lazy_sweeping, true,
+            "Use lazy sweeping for old pointer and data spaces")
+DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
+            "Flush code caches in maps during mark compact cycle.")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
@@ -424,6 +434,11 @@ DEFINE_bool(print_global_handles, false, "report global handles after GC")
 
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")
+
+// mark-compact.cc
+DEFINE_bool(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
 
 // objects.cc
 DEFINE_bool(trace_normalization,

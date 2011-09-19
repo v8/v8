@@ -407,32 +407,6 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
-void MacroAssembler::RecordWriteHelper(Register object,
-                                       Register address,
-                                       Register scratch) {
-  if (emit_debug_code()) {
-    // Check that the object is not in new space.
-    Label not_in_new_space;
-    InNewSpace(object, scratch, ne, &not_in_new_space);
-    Abort("new-space object passed to RecordWriteHelper");
-    bind(&not_in_new_space);
-  }
-
-  // Calculate page address.
-  Bfc(object, 0, kPageSizeBits);
-
-  // Calculate region number.
-  Ubfx(address, address, Page::kRegionSizeLog2,
-       kPageSizeBits - Page::kRegionSizeLog2);
-
-  // Mark region dirty.
-  ldr(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-  mov(ip, Operand(1));
-  orr(scratch, scratch, Operand(ip, LSL, address));
-  str(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-}
-
-
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
@@ -444,38 +418,52 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, ip.  The
-// register 'object' contains a heap object pointer.  The heap object
-// tag is shifted away.
-void MacroAssembler::RecordWrite(Register object,
-                                 Operand offset,
-                                 Register scratch0,
-                                 Register scratch1) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are cp.
-  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
-
+void MacroAssembler::RecordWriteField(
+    Register object,
+    int offset,
+    Register value,
+    Register dst,
+    LinkRegisterStatus lr_status,
+    SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check) {
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
   Label done;
 
-  // First, test that the object is not in the new space.  We cannot set
-  // region marks for new space pages.
-  InNewSpace(object, scratch0, eq, &done);
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
 
-  // Add offset into the object.
-  add(scratch0, object, offset);
+  // Although the object register is tagged, the offset is relative to the start
+  // of the object, so so offset must be a multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize));
 
-  // Record the actual write.
-  RecordWriteHelper(object, scratch0, scratch1);
+  add(dst, object, Operand(offset - kHeapObjectTag));
+  if (emit_debug_code()) {
+    Label ok;
+    tst(dst, Operand((1 << kPointerSizeLog2) - 1));
+    b(eq, &ok);
+    stop("Unaligned cell in write barrier");
+    bind(&ok);
+  }
+
+  RecordWrite(object,
+              dst,
+              value,
+              lr_status,
+              save_fp,
+              remembered_set_action,
+              OMIT_SMI_CHECK);
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
+    mov(value, Operand(BitCast<int32_t>(kZapValue + 4)));
+    mov(dst, Operand(BitCast<int32_t>(kZapValue + 8)));
   }
 }
 
@@ -485,29 +473,87 @@ void MacroAssembler::RecordWrite(Register object,
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
-                                 Register scratch) {
+                                 Register value,
+                                 LinkRegisterStatus lr_status,
+                                 SaveFPRegsMode fp_mode,
+                                 RememberedSetAction remembered_set_action,
+                                 SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
-  ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
+  ASSERT(!address.is(cp) && !value.is(cp));
 
   Label done;
 
-  // First, test that the object is not in the new space.  We cannot set
-  // region marks for new space pages.
-  InNewSpace(object, scratch, eq, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    ASSERT_EQ(0, kSmiTag);
+    tst(value, Operand(kSmiTagMask));
+    b(eq, &done);
+  }
+
+  CheckPageFlag(value,
+                value,  // Used as scratch.
+                MemoryChunk::kPointersToHereAreInterestingMask,
+                eq,
+                &done);
+  CheckPageFlag(object,
+                value,  // Used as scratch.
+                MemoryChunk::kPointersFromHereAreInterestingMask,
+                eq,
+                &done);
 
   // Record the actual write.
-  RecordWriteHelper(object, address, scratch);
+  if (lr_status == kLRHasNotBeenSaved) {
+    push(lr);
+  }
+  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  CallStub(&stub);
+  if (lr_status == kLRHasNotBeenSaved) {
+    pop(lr);
+  }
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(address, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
+    mov(address, Operand(BitCast<int32_t>(kZapValue + 12)));
+    mov(value, Operand(BitCast<int32_t>(kZapValue + 16)));
+  }
+}
+
+
+void MacroAssembler::RememberedSetHelper(Register address,
+                                         Register scratch,
+                                         SaveFPRegsMode fp_mode,
+                                         RememberedSetFinalAction and_then) {
+  Label done;
+  // Load store buffer top.
+  ExternalReference store_buffer =
+      ExternalReference::store_buffer_top(isolate());
+  mov(ip, Operand(store_buffer));
+  ldr(scratch, MemOperand(ip));
+  // Store pointer to buffer and increment buffer top.
+  str(address, MemOperand(scratch, kPointerSize, PostIndex));
+  // Write back new top of buffer.
+  str(scratch, MemOperand(ip));
+  // Call stub on end of buffer.
+  // Check for end of buffer.
+  tst(scratch, Operand(StoreBuffer::kStoreBufferOverflowBit));
+  if (and_then == kFallThroughAtEnd) {
+    b(eq, &done);
+  } else {
+    ASSERT(and_then == kReturnAtEnd);
+    Ret(ne);
+  }
+  push(lr);
+  StoreBufferOverflowStub store_buffer_overflow =
+      StoreBufferOverflowStub(fp_mode);
+  CallStub(&store_buffer_overflow);
+  pop(lr);
+  bind(&done);
+  if (and_then == kReturnAtEnd) {
+    Ret();
   }
 }
 
@@ -2435,8 +2481,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   mov(r0, Operand(function->nargs));
   mov(r1, Operand(ExternalReference(function, isolate())));
-  CEntryStub stub(1);
-  stub.SaveDoubles();
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -3213,6 +3258,185 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 }
 
 
+void MacroAssembler::CheckPageFlag(
+    Register object,
+    Register scratch,
+    int mask,
+    Condition cc,
+    Label* condition_met) {
+  and_(scratch, object, Operand(~Page::kPageAlignmentMask));
+  ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  tst(scratch, Operand(mask));
+  b(cc, condition_met);
+}
+
+
+void MacroAssembler::JumpIfBlack(Register object,
+                                 Register scratch0,
+                                 Register scratch1,
+                                 Label* on_black) {
+  HasColor(object, scratch0, scratch1, on_black, 1, 0);  // kBlackBitPattern.
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+}
+
+
+void MacroAssembler::HasColor(Register object,
+                              Register bitmap_scratch,
+                              Register mask_scratch,
+                              Label* has_color,
+                              int first_bit,
+                              int second_bit) {
+  ASSERT(!AreAliased(object, bitmap_scratch, mask_scratch, no_reg));
+
+  GetMarkBits(object, bitmap_scratch, mask_scratch);
+
+  Label other_color, word_boundary;
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(ip, Operand(mask_scratch));
+  b(first_bit == 1 ? eq : ne, &other_color);
+  // Shift left 1 by adding.
+  add(mask_scratch, mask_scratch, Operand(mask_scratch), SetCC);
+  b(eq, &word_boundary);
+  tst(ip, Operand(mask_scratch));
+  b(second_bit == 1 ? ne : eq, has_color);
+  jmp(&other_color);
+
+  bind(&word_boundary);
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize));
+  tst(ip, Operand(1));
+  b(second_bit == 1 ? ne : eq, has_color);
+  bind(&other_color);
+}
+
+
+// Detect some, but not all, common pointer-free objects.  This is used by the
+// incremental write barrier which doesn't care about oddballs (they are always
+// marked black immediately so this code is not hit).
+void MacroAssembler::JumpIfDataObject(Register value,
+                                      Register scratch,
+                                      Label* not_data_object) {
+  Label is_data_object;
+  ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
+  b(eq, &is_data_object);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  tst(scratch, Operand(kIsIndirectStringMask | kIsNotStringMask));
+  b(ne, not_data_object);
+  bind(&is_data_object);
+}
+
+
+void MacroAssembler::GetMarkBits(Register addr_reg,
+                                 Register bitmap_reg,
+                                 Register mask_reg) {
+  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
+  and_(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
+  Ubfx(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
+  const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
+  Ubfx(ip, addr_reg, kLowBits, kPageSizeBits - kLowBits);
+  add(bitmap_reg, bitmap_reg, Operand(ip, LSL, kPointerSizeLog2));
+  mov(ip, Operand(1));
+  mov(mask_reg, Operand(ip, LSL, mask_reg));
+}
+
+
+void MacroAssembler::EnsureNotWhite(
+    Register value,
+    Register bitmap_scratch,
+    Register mask_scratch,
+    Register load_scratch,
+    Label* value_is_white_and_not_data) {
+  ASSERT(!AreAliased(value, bitmap_scratch, mask_scratch, ip));
+  GetMarkBits(value, bitmap_scratch, mask_scratch);
+
+  // If the value is black or grey we don't need to do anything.
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  Label done;
+
+  // Since both black and grey have a 1 in the first position and white does
+  // not have a 1 there we only need to check one bit.
+  ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(mask_scratch, load_scratch);
+  b(ne, &done);
+
+  if (FLAG_debug_code) {
+    // Check for impossible bit pattern.
+    Label ok;
+    // LSL may overflow, making the check conservative.
+    tst(load_scratch, Operand(mask_scratch, LSL, 1));
+    b(eq, &ok);
+    stop("Impossible marking bit pattern");
+    bind(&ok);
+  }
+
+  // Value is white.  We check whether it is data that doesn't need scanning.
+  // Currently only checks for HeapNumber and non-cons strings.
+  Register map = load_scratch;  // Holds map while checking type.
+  Register length = load_scratch;  // Holds length of object after testing type.
+  Label is_data_object;
+
+  // Check for heap-number
+  ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  mov(length, Operand(HeapNumber::kSize), LeaveCC, eq);
+  b(eq, &is_data_object);
+
+  // Check for strings.
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  Register instance_type = load_scratch;
+  ldrb(instance_type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  tst(instance_type, Operand(kIsIndirectStringMask | kIsNotStringMask));
+  b(ne, value_is_white_and_not_data);
+  // It's a non-indirect (non-cons and non-slice) string.
+  // If it's external, the length is just ExternalString::kSize.
+  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
+  // External strings are the only ones with the kExternalStringTag bit
+  // set.
+  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  tst(instance_type, Operand(kExternalStringTag));
+  mov(length, Operand(ExternalString::kSize), LeaveCC, ne);
+  b(ne, &is_data_object);
+
+  // Sequential string, either ASCII or UC16.
+  // For ASCII (char-size of 1) we shift the smi tag away to get the length.
+  // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
+  // getting the length multiplied by 2.
+  ASSERT(kAsciiStringTag == 4 && kStringEncodingMask == 4);
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  ldr(ip, FieldMemOperand(value, String::kLengthOffset));
+  tst(instance_type, Operand(kStringEncodingMask));
+  mov(ip, Operand(ip, LSR, 1), LeaveCC, ne);
+  add(length, ip, Operand(SeqString::kHeaderSize + kObjectAlignmentMask));
+  and_(length, length, Operand(~kObjectAlignmentMask));
+
+  bind(&is_data_object);
+  // Value is a data object, and it is white.  Mark it black.  Since we know
+  // that the object is white we can make it black by flipping one bit.
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  orr(ip, ip, Operand(mask_scratch));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+
+  and_(bitmap_scratch, bitmap_scratch, Operand(~Page::kPageAlignmentMask));
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+  add(ip, ip, Operand(length));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+
+  bind(&done);
+}
+
+
 void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
   Usat(output_reg, 8, Operand(input_reg));
 }
@@ -3259,6 +3483,17 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   JumpIfNotSmi(descriptors, &not_smi);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
   bind(&not_smi);
+}
+
+
+bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
+  if (r1.is(r2)) return true;
+  if (r1.is(r3)) return true;
+  if (r1.is(r4)) return true;
+  if (r2.is(r3)) return true;
+  if (r2.is(r4)) return true;
+  if (r3.is(r4)) return true;
+  return false;
 }
 
 

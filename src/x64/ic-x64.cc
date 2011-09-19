@@ -221,7 +221,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update write barrier. Make sure not to clobber the value.
   __ movq(scratch0, value);
-  __ RecordWrite(elements, scratch1, scratch0);
+  __ RecordWrite(elements, scratch1, scratch0, kDontSaveFPRegs);
 }
 
 
@@ -701,7 +701,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Slow case that needs to retain rcx for use by RecordWrite.
   // Update write barrier for the elements array address.
   __ movq(rdx, rax);
-  __ RecordWriteNonSmi(rbx, 0, rdx, rcx);
+  __ lea(rcx,
+         FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
+  __ RecordWrite(
+      rbx, rcx, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 }
 
@@ -1214,7 +1217,12 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ movq(mapped_location, rax);
   __ lea(r9, mapped_location);
   __ movq(r8, rax);
-  __ RecordWrite(rbx, r9, r8);
+  __ RecordWrite(rbx,
+                 r9,
+                 r8,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 INLINE_SMI_CHECK);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in rbx.
@@ -1223,7 +1231,12 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ movq(unmapped_location, rax);
   __ lea(r9, unmapped_location);
   __ movq(r8, rax);
-  __ RecordWrite(rbx, r9, r8);
+  __ RecordWrite(rbx,
+                 r9,
+                 r8,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 INLINE_SMI_CHECK);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);

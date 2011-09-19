@@ -52,11 +52,13 @@ DeoptimizerData::DeoptimizerData() {
 
 DeoptimizerData::~DeoptimizerData() {
   if (eager_deoptimization_entry_code_ != NULL) {
-    eager_deoptimization_entry_code_->Free(EXECUTABLE);
+    Isolate::Current()->memory_allocator()->Free(
+        eager_deoptimization_entry_code_);
     eager_deoptimization_entry_code_ = NULL;
   }
   if (lazy_deoptimization_entry_code_ != NULL) {
-    lazy_deoptimization_entry_code_->Free(EXECUTABLE);
+    Isolate::Current()->memory_allocator()->Free(
+        lazy_deoptimization_entry_code_);
     lazy_deoptimization_entry_code_ = NULL;
   }
 }
@@ -388,7 +390,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
 Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
   ASSERT(id >= 0);
   if (id >= kNumberOfEntries) return NULL;
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     if (data->eager_deoptimization_entry_code_ == NULL) {
@@ -402,12 +404,12 @@ Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->GetStartAddress()) + (id * table_entry_size_);
+      static_cast<Address>(base->body()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
@@ -415,14 +417,14 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   if (base == NULL ||
-      addr < base->GetStartAddress() ||
-      addr >= base->GetStartAddress() +
+      addr < base->body() ||
+      addr >= base->body() +
           (kNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-      static_cast<int>(addr - base->GetStartAddress()) % table_entry_size_);
-  return static_cast<int>(addr - base->GetStartAddress()) / table_entry_size_;
+      static_cast<int>(addr - base->body()) % table_entry_size_);
+  return static_cast<int>(addr - base->body()) / table_entry_size_;
 }
 
 
@@ -957,7 +959,10 @@ void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
   for (uint32_t i = 0; i < table_length; ++i) {
     uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    PatchStackCheckCodeAt(pc_after, check_code, replacement_code);
+    PatchStackCheckCodeAt(unoptimized_code,
+                          pc_after,
+                          check_code,
+                          replacement_code);
     stack_check_cursor += 2 * kIntSize;
   }
 }
@@ -1043,7 +1048,7 @@ void Deoptimizer::AddDoubleValue(intptr_t slot_address,
 }
 
 
-LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
+MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
@@ -1057,12 +1062,15 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
+  MemoryChunk* chunk =
+      Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
+                                                            EXECUTABLE,
+                                                            NULL);
   if (chunk == NULL) {
     V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
   }
-  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
+  memcpy(chunk->body(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->body(), desc.instr_size);
   return chunk;
 }
 

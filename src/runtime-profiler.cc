@@ -338,7 +338,8 @@ void RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(Thread* thread) {
 void RuntimeProfiler::RemoveDeadSamples() {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     Object* function = sampler_window_[i];
-    if (function != NULL && !HeapObject::cast(function)->IsMarked()) {
+    if (function != NULL &&
+        !Marking::MarkBitFrom(HeapObject::cast(function)).Get()) {
       sampler_window_[i] = NULL;
     }
   }

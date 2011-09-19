@@ -224,14 +224,12 @@ TEST(DisasmIa320) {
   __ cmp(ebx, 12345);
   __ cmp(Operand(ebx), Immediate(12));
   __ cmp(Operand(edx, ecx, times_4, 10000), Immediate(12));
+  __ cmpb(Operand(eax), 100);
 
   __ or_(ebx, 12345);
 
   __ sub(Operand(ebx), Immediate(12));
   __ sub(Operand(edx, ecx, times_4, 10000), Immediate(12));
-  __ subb(Operand(edx, ecx, times_4, 10000), 100);
-  __ subb(Operand(eax), 100);
-  __ subb(eax, Operand(edx, ecx, times_4, 10000));
 
   __ xor_(ebx, 12345);
 

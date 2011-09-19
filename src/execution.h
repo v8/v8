@@ -41,7 +41,8 @@ enum InterruptFlag {
   DEBUGCOMMAND = 1 << 2,
   PREEMPT = 1 << 3,
   TERMINATE = 1 << 4,
-  RUNTIME_PROFILER_TICK = 1 << 5
+  RUNTIME_PROFILER_TICK = 1 << 5,
+  GC_REQUEST = 1 << 6
 };
 
 class Execution : public AllStatic {
@@ -196,6 +197,8 @@ class StackGuard {
   bool IsDebugCommand();
   void DebugCommand();
 #endif
+  bool IsGCRequest();
+  void RequestGC();
   void Continue(InterruptFlag after_what);
 
   // This provides an asynchronous read of the stack limits for the current

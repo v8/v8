@@ -212,7 +212,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update write barrier. Make sure not to clobber the value.
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1);
+  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
 }
 
 
@@ -710,7 +710,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ mov(mapped_location, eax);
   __ lea(ecx, mapped_location);
   __ mov(edx, eax);
-  __ RecordWrite(ebx, ecx, edx);
+  __ RecordWrite(ebx, ecx, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in ebx.
@@ -719,7 +719,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ mov(unmapped_location, eax);
   __ lea(edi, unmapped_location);
   __ mov(edx, eax);
-  __ RecordWrite(ebx, edi, edx);
+  __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
@@ -811,9 +811,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edx: receiver
   // edi: FixedArray receiver->elements
   __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
+
   // Update write barrier for the elements array address.
-  __ mov(edx, Operand(eax));
-  __ RecordWrite(edi, 0, edx, ecx);
+  __ mov(edx, Operand(eax));  // Preserve the value which is returned.
+  __ RecordWriteArray(edi, edx, ecx, kDontSaveFPRegs);
   __ ret(0);
 }
 

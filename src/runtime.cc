@@ -1735,7 +1735,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
     regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, multiline);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0),
-                                  SKIP_WRITE_BARRIER);
+                                  SKIP_WRITE_BARRIER);  // It's a Smi.
     return regexp;
   }
 
@@ -2149,9 +2149,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
       literals->set(JSFunction::kLiteralGlobalContextIndex,
                     context->global_context());
     }
-    // It's okay to skip the write barrier here because the literals
-    // are guaranteed to be in old space.
-    target->set_literals(*literals, SKIP_WRITE_BARRIER);
+    target->set_literals(*literals);
     target->set_next_function_link(isolate->heap()->undefined_value());
 
     if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
@@ -3152,6 +3150,9 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 
   Address end_of_string = answer->address() + string_size;
   isolate->heap()->CreateFillerObjectAt(end_of_string, delta);
+  if (Marking::IsBlack(Marking::MarkBitFrom(*answer))) {
+    MemoryChunk::IncrementLiveBytes(answer->address(), -delta);
+  }
 
   return *answer;
 }
@@ -6187,11 +6188,11 @@ static int CopyCachedAsciiCharsToArray(Heap* heap,
   FixedArray* ascii_cache = heap->single_character_string_cache();
   Object* undefined = heap->undefined_value();
   int i;
+  WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (i = 0; i < length; ++i) {
     Object* value = ascii_cache->get(chars[i]);
     if (value == undefined) break;
-    ASSERT(!heap->InNewSpace(value));
-    elements->set(i, value, SKIP_WRITE_BARRIER);
+    elements->set(i, value, mode);
   }
   if (i < length) {
     ASSERT(Smi::FromInt(0) == 0);
@@ -11376,48 +11377,53 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
   int target_start_position = RelocInfo::kNoPosition;
   Handle<SharedFunctionInfo> target;
   while (!done) {
-    HeapIterator iterator;
-    for (HeapObject* obj = iterator.next();
-         obj != NULL; obj = iterator.next()) {
-      if (obj->IsSharedFunctionInfo()) {
-        Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
-        if (shared->script() == *script) {
-          // If the SharedFunctionInfo found has the requested script data and
-          // contains the source position it is a candidate.
-          int start_position = shared->function_token_position();
-          if (start_position == RelocInfo::kNoPosition) {
-            start_position = shared->start_position();
-          }
-          if (start_position <= position &&
-              position <= shared->end_position()) {
-            // If there is no candidate or this function is within the current
-            // candidate this is the new candidate.
-            if (target.is_null()) {
-              target_start_position = start_position;
-              target = shared;
-            } else {
-              if (target_start_position == start_position &&
-                  shared->end_position() == target->end_position()) {
-                  // If a top-level function contain only one function
-                  // declartion the source for the top-level and the function is
-                  // the same. In that case prefer the non top-level function.
-                if (!shared->is_toplevel()) {
+    { // Extra scope for iterator and no-allocation.
+      isolate->heap()->EnsureHeapIsIterable();
+      AssertNoAllocation no_alloc_during_heap_iteration;
+      HeapIterator iterator;
+      for (HeapObject* obj = iterator.next();
+           obj != NULL; obj = iterator.next()) {
+        if (obj->IsSharedFunctionInfo()) {
+          Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
+          if (shared->script() == *script) {
+            // If the SharedFunctionInfo found has the requested script data and
+            // contains the source position it is a candidate.
+            int start_position = shared->function_token_position();
+            if (start_position == RelocInfo::kNoPosition) {
+              start_position = shared->start_position();
+            }
+            if (start_position <= position &&
+                position <= shared->end_position()) {
+              // If there is no candidate or this function is within the current
+              // candidate this is the new candidate.
+              if (target.is_null()) {
+                target_start_position = start_position;
+                target = shared;
+              } else {
+                if (target_start_position == start_position &&
+                    shared->end_position() == target->end_position()) {
+                    // If a top-level function contain only one function
+                    // declartion the source for the top-level and the
+                    // function is the same. In that case prefer the non
+                    // top-level function.
+                  if (!shared->is_toplevel()) {
+                    target_start_position = start_position;
+                    target = shared;
+                  }
+                } else if (target_start_position <= start_position &&
+                           shared->end_position() <= target->end_position()) {
+                  // This containment check includes equality as a function
+                  // inside a top-level function can share either start or end
+                  // position with the top-level function.
                   target_start_position = start_position;
                   target = shared;
                 }
-              } else if (target_start_position <= start_position &&
-                         shared->end_position() <= target->end_position()) {
-                // This containment check includes equality as a function inside
-                // a top-level function can share either start or end position
-                // with the top-level function.
-                target_start_position = start_position;
-                target = shared;
               }
             }
           }
         }
-      }
-    }
+      }  // End for loop.
+    }  // End No allocation scope.
 
     if (target.is_null()) {
       return isolate->heap()->undefined_value();
@@ -11432,7 +11438,7 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
       // functions which might contain the requested source position.
       CompileLazyShared(target, KEEP_EXCEPTION);
     }
-  }
+  }  // End while loop.
 
   return *target;
 }
@@ -11917,7 +11923,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
 
 
 // Helper function used by Runtime_DebugReferencedBy below.
-static int DebugReferencedBy(JSObject* target,
+static int DebugReferencedBy(HeapIterator* iterator,
+                             JSObject* target,
                              Object* instance_filter, int max_references,
                              FixedArray* instances, int instances_size,
                              JSFunction* arguments_function) {
@@ -11927,9 +11934,8 @@ static int DebugReferencedBy(JSObject* target,
   // Iterate the heap.
   int count = 0;
   JSObject* last = NULL;
-  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator.next()) != NULL) &&
+  while (((heap_obj = iterator->next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -11994,7 +12000,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  isolate->heap()->CollectAllGarbage(false);
+  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  // The heap iterator reserves the right to do a GC to make the heap iterable.
+  // Due to the GC above we know it won't need to do that, but it seems cleaner
+  // to get the heap iterator constructed before we start having unprotected
+  // Object* locals that are not protected by handles.
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -12004,6 +12014,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
   RUNTIME_ASSERT(max_references >= 0);
 
+
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
       isolate->context()->global_context()->arguments_boilerplate();
@@ -12012,7 +12023,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Get the number of referencing objects.
   int count;
-  count = DebugReferencedBy(target, instance_filter, max_references,
+  HeapIterator heap_iterator;
+  count = DebugReferencedBy(&heap_iterator,
+                            target, instance_filter, max_references,
                             NULL, 0, arguments_function);
 
   // Allocate an array to hold the result.
@@ -12023,7 +12036,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   FixedArray* instances = FixedArray::cast(object);
 
   // Fill the referencing objects.
-  count = DebugReferencedBy(target, instance_filter, max_references,
+  // AllocateFixedArray above does not make the heap non-iterable.
+  ASSERT(HEAP->IsHeapIterable());
+  HeapIterator heap_iterator2;
+  count = DebugReferencedBy(&heap_iterator2,
+                            target, instance_filter, max_references,
                             instances, count, arguments_function);
 
   // Return result as JS array.
@@ -12038,15 +12055,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
 
 // Helper function used by Runtime_DebugConstructedBy below.
-static int DebugConstructedBy(JSFunction* constructor, int max_references,
-                              FixedArray* instances, int instances_size) {
+static int DebugConstructedBy(HeapIterator* iterator,
+                              JSFunction* constructor,
+                              int max_references,
+                              FixedArray* instances,
+                              int instances_size) {
   AssertNoAllocation no_alloc;
 
   // Iterate the heap.
   int count = 0;
-  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator.next()) != NULL) &&
+  while (((heap_obj = iterator->next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -12074,7 +12093,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  isolate->heap()->CollectAllGarbage(false);
+  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
@@ -12083,7 +12102,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
 
   // Get the number of referencing objects.
   int count;
-  count = DebugConstructedBy(constructor, max_references, NULL, 0);
+  HeapIterator heap_iterator;
+  count = DebugConstructedBy(&heap_iterator,
+                             constructor,
+                             max_references,
+                             NULL,
+                             0);
 
   // Allocate an array to hold the result.
   Object* object;
@@ -12092,8 +12116,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   }
   FixedArray* instances = FixedArray::cast(object);
 
+  ASSERT(HEAP->IsHeapIterable());
   // Fill the referencing objects.
-  count = DebugConstructedBy(constructor, max_references, instances, count);
+  HeapIterator heap_iterator2;
+  count = DebugConstructedBy(&heap_iterator2,
+                             constructor,
+                             max_references,
+                             instances,
+                             count);
 
   // Return result as JS array.
   Object* result;
@@ -12166,14 +12196,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetInferredName) {
 }
 
 
-static int FindSharedFunctionInfosForScript(Script* script,
+static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
+                                            Script* script,
                                             FixedArray* buffer) {
   AssertNoAllocation no_allocations;
-
   int counter = 0;
   int buffer_size = buffer->length();
-  HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator->next();
+       obj != NULL;
+       obj = iterator->next()) {
     ASSERT(obj != NULL);
     if (!obj->IsSharedFunctionInfo()) {
       continue;
@@ -12199,16 +12230,30 @@ RUNTIME_FUNCTION(MaybeObject*,
   HandleScope scope(isolate);
   CONVERT_CHECKED(JSValue, script_value, args[0]);
 
+
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
   const int kBufferSize = 32;
 
   Handle<FixedArray> array;
   array = isolate->factory()->NewFixedArray(kBufferSize);
-  int number = FindSharedFunctionInfosForScript(*script, *array);
+  int number;
+  {
+    isolate->heap()->EnsureHeapIsIterable();
+    AssertNoAllocation no_allocations;
+    HeapIterator heap_iterator;
+    Script* scr = *script;
+    FixedArray* arr = *array;
+    number = FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
+  }
   if (number > kBufferSize) {
     array = isolate->factory()->NewFixedArray(number);
-    FindSharedFunctionInfosForScript(*script, *array);
+    isolate->heap()->EnsureHeapIsIterable();
+    AssertNoAllocation no_allocations;
+    HeapIterator heap_iterator;
+    Script* scr = *script;
+    FixedArray* arr = *array;
+    FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
   }
 
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(array);
@@ -12689,6 +12734,8 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   // Scan the heap for Script objects to find the script with the requested
   // script data.
   Handle<Script> script;
+  script_name->GetHeap()->EnsureHeapIsIterable();
+  AssertNoAllocation no_allocation_during_heap_iteration;
   HeapIterator iterator;
   HeapObject* obj = NULL;
   while (script.is_null() && ((obj = iterator.next()) != NULL)) {
@@ -13140,6 +13187,9 @@ void Runtime::PerformGC(Object* result) {
   Isolate* isolate = Isolate::Current();
   Failure* failure = Failure::cast(result);
   if (failure->IsRetryAfterGC()) {
+    if (isolate->heap()->new_space()->AddFreshPage()) {
+      return;
+    }
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
     isolate->heap()->CollectGarbage(failure->allocation_space());
@@ -13147,7 +13197,7 @@ void Runtime::PerformGC(Object* result) {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
     isolate->counters()->gc_last_resort_from_js()->Increment();
-    isolate->heap()->CollectAllGarbage(false);
+    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
   }
 }
 

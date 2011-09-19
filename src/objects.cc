@@ -39,7 +39,9 @@
 #include "hydrogen.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
+#include "objects-visiting-inl.h"
 #include "macro-assembler.h"
+#include "mark-compact.h"
 #include "safepoint-table.h"
 #include "string-stream.h"
 #include "utils.h"
@@ -466,7 +468,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
       }
       JSGlobalPropertyCell* cell =
           JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
-      cell->set_value(cell->heap()->the_hole_value());
+      cell->set_value(cell->GetHeap()->the_hole_value());
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
       Object* deleted = dictionary->DeleteProperty(entry, mode);
@@ -855,6 +857,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
+    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+  }
   return true;
 }
 
@@ -901,6 +906,10 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
+    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+  }
+
   return true;
 }
 
@@ -1005,7 +1014,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     // JSGlobalProxy, JSGlobalObject, JSUndetectableObject, JSValue).
     default: {
       Map* map_of_this = map();
-      Heap* heap = map_of_this->heap();
+      Heap* heap = GetHeap();
       Object* constructor = map_of_this->constructor();
       bool printed = false;
       if (constructor->IsHeapObject() &&
@@ -1079,6 +1088,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       break;
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
+      break;
+    case FREE_SPACE_TYPE:
+      accumulator->Add("<FreeSpace[%u]>", FreeSpace::cast(this)->Size());
       break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       accumulator->Add("<ExternalPixelArray[%u]>",
@@ -1255,6 +1267,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
+    case FREE_SPACE_TYPE:
     case EXTERNAL_PIXEL_ARRAY_TYPE:
     case EXTERNAL_BYTE_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
@@ -1511,7 +1524,7 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
 
   // If the old map is the global object map (from new Object()),
   // then transitions are not added to it, so we are done.
-  Heap* heap = old_map->heap();
+  Heap* heap = GetHeap();
   if (old_map == heap->isolate()->context()->global_context()->
       object_function()->map()) {
     return function;
@@ -1587,7 +1600,7 @@ MaybeObject* JSObject::AddProperty(String* name,
                                    StrictModeFlag strict_mode) {
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
-  Heap* heap = map_of_this->heap();
+  Heap* heap = GetHeap();
   if (!map_of_this->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
       return heap->undefined_value();
@@ -1674,7 +1687,7 @@ MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
     return result;
   }
   // Do not add transitions to the map of "new Object()".
-  if (map() == old_map->heap()->isolate()->context()->global_context()->
+  if (map() == GetIsolate()->context()->global_context()->
       object_function()->map()) {
     return result;
   }
@@ -1966,7 +1979,8 @@ void Map::LookupInDescriptors(JSObject* holder,
                               String* name,
                               LookupResult* result) {
   DescriptorArray* descriptors = instance_descriptors();
-  DescriptorLookupCache* cache = heap()->isolate()->descriptor_lookup_cache();
+  DescriptorLookupCache* cache =
+      GetHeap()->isolate()->descriptor_lookup_cache();
   int number = cache->Lookup(descriptors, name);
   if (number == DescriptorLookupCache::kAbsent) {
     number = descriptors->Search(name);
@@ -2877,7 +2891,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     }
   }
 
-  Heap* current_heap = map_of_this->heap();
+  Heap* current_heap = GetHeap();
 
   // Copy the next enumeration index from instance descriptor.
   int index = map_of_this->instance_descriptors()->NextEnumerationIndex();
@@ -2899,6 +2913,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   ASSERT(instance_size_delta >= 0);
   current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
                                      instance_size_delta);
+  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
+    MemoryChunk::IncrementLiveBytes(this->address(), -instance_size_delta);
+  }
+
 
   set_map(new_map);
   new_map->clear_instance_descriptors();
@@ -2932,7 +2950,7 @@ MaybeObject* JSObject::NormalizeElements() {
   FixedArrayBase* array = FixedArrayBase::cast(elements());
   Map* old_map = array->map();
   bool is_arguments =
-      (old_map == old_map->heap()->non_strict_arguments_elements_map());
+      (old_map == old_map->GetHeap()->non_strict_arguments_elements_map());
   if (is_arguments) {
     array = FixedArrayBase::cast(FixedArray::cast(array)->get(1));
   }
@@ -2999,7 +3017,8 @@ MaybeObject* JSObject::NormalizeElements() {
     set_elements(dictionary);
   }
 
-  old_map->isolate()->counters()->elements_to_dictionary()->Increment();
+  old_map->GetHeap()->isolate()->counters()->elements_to_dictionary()->
+      Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
@@ -3300,7 +3319,7 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
 // Check whether this object references another object.
 bool JSObject::ReferencesObject(Object* obj) {
   Map* map_of_this = map();
-  Heap* heap = map_of_this->heap();
+  Heap* heap = GetHeap();
   AssertNoAllocation no_alloc;
 
   // Is the object the constructor for this object?
@@ -4098,7 +4117,7 @@ MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
-    { MaybeObject* maybe_result = code->heap()->AllocateCodeCache();
+    { MaybeObject* maybe_result = GetHeap()->AllocateCodeCache();
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     set_code_cache(result);
@@ -4140,7 +4159,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   // Traverse the transition tree without using a stack.  We do this by
   // reversing the pointers in the maps and descriptor arrays.
   Map* current = this;
-  Map* meta_map = heap()->meta_map();
+  Map* meta_map = GetHeap()->meta_map();
   Object** map_or_index_field = NULL;
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
@@ -4193,9 +4212,9 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
         continue;
       }
     }
-    *proto_map_or_index_field = heap()->fixed_array_map();
+    *proto_map_or_index_field = GetHeap()->fixed_array_map();
     if (map_or_index_field != NULL) {
-      *map_or_index_field = heap()->fixed_array_map();
+      *map_or_index_field = GetHeap()->fixed_array_map();
     }
 
     // The callback expects a map to have a real map as its map, so we save
@@ -4418,7 +4437,7 @@ class CodeCacheHashTableKey : public HashTableKey {
   MUST_USE_RESULT MaybeObject* AsObject() {
     ASSERT(code_ != NULL);
     Object* obj;
-    { MaybeObject* maybe_obj = code_->heap()->AllocateFixedArray(2);
+    { MaybeObject* maybe_obj = code_->GetHeap()->AllocateFixedArray(2);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* pair = FixedArray::cast(obj);
@@ -6007,7 +6026,7 @@ bool String::MarkAsUndetectable() {
   if (StringShape(this).IsSymbol()) return false;
 
   Map* map = this->map();
-  Heap* heap = map->heap();
+  Heap* heap = GetHeap();
   if (map == heap->string_map()) {
     this->set_map(heap->undetectable_string_map());
     return true;
@@ -6261,7 +6280,8 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
         details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
-      if (!target->IsMarked()) {
+      MarkBit map_mark = Marking::MarkBitFrom(target);
+      if (!map_mark.Get()) {
         ASSERT(target->IsMap());
         contents->set_unchecked(i + 1, NullDescriptorDetails);
         contents->set_null_unchecked(heap, i);
@@ -6374,7 +6394,7 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
       if (!maybe_new_map->ToObject(&new_object)) return maybe_new_map;
     }
     Map* new_map = Map::cast(new_object);
-    Heap* heap = new_map->heap();
+    Heap* heap = new_map->GetHeap();
     set_map(new_map);
     new_map->set_constructor(value);
     new_map->set_non_instance_prototype(true);
@@ -6405,7 +6425,7 @@ Object* JSFunction::RemovePrototype() {
   ASSERT(shared()->strict_mode() || map() == global_context->function_map());
 
   set_map(no_prototype_map);
-  set_prototype_or_initial_map(no_prototype_map->heap()->the_hole_value());
+  set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
   return this;
 }
 
@@ -6713,7 +6733,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
     set_construction_count(kGenerousAllocationCount);
   }
   set_initial_map(map);
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Builtins* builtins = map->GetHeap()->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             construct_stub());
   set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
@@ -6733,8 +6753,9 @@ void SharedFunctionInfo::DetachInitialMap() {
   // then StartInobjectTracking will be called again the next time the
   // constructor is called. The countdown will continue and (possibly after
   // several more GCs) CompleteInobjectSlackTracking will eventually be called.
-  set_initial_map(map->heap()->raw_unchecked_undefined_value());
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Heap* heap = map->GetHeap();
+  set_initial_map(heap->raw_unchecked_undefined_value());
+  Builtins* builtins = heap->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
             *RawField(this, kConstructStubOffset));
   set_construct_stub(builtins->builtin(Builtins::kJSConstructStubGeneric));
@@ -6750,7 +6771,7 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 
   // Resume inobject slack tracking.
   set_initial_map(map);
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Builtins* builtins = map->GetHeap()->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             *RawField(this, kConstructStubOffset));
   set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
@@ -6782,7 +6803,7 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
   ASSERT(live_objects_may_exist() && IsInobjectSlackTrackingInProgress());
   Map* map = Map::cast(initial_map());
 
-  Heap* heap = map->heap();
+  Heap* heap = map->GetHeap();
   set_initial_map(heap->undefined_value());
   Builtins* builtins = heap->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
@@ -6845,7 +6866,7 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
 
 
 void Code::InvalidateRelocation() {
-  set_relocation_info(heap()->empty_byte_array());
+  set_relocation_info(GetHeap()->empty_byte_array());
 }
 
 
@@ -6879,7 +6900,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p);
     } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell = it.rinfo()->target_cell_handle();
+      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
       it.rinfo()->set_target_cell(*cell);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
@@ -7706,7 +7727,7 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
     FixedArray* new_cache;
     // Grow array by factor 2 over and above what we need.
     { MaybeObject* maybe_cache =
-          heap()->AllocateFixedArray(transitions * 2 * step + header);
+          GetHeap()->AllocateFixedArray(transitions * 2 * step + header);
       if (!maybe_cache->To<FixedArray>(&new_cache)) return maybe_cache;
     }
 

@@ -1162,23 +1162,40 @@ Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
 }
 
 
+static int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
+  MapWord map_word = object->map_word();
+  Map* map = map_word.IsForwardingAddress() ?
+      map_word.ToForwardingAddress()->map() : map_word.ToMap();
+  return object->SizeFromMap(map);
+}
+
+
 Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   Heap* heap = isolate_->heap();
   // Check if the pc points into a large object chunk.
-  LargeObjectChunk* chunk = heap->lo_space()->FindChunkContainingPc(pc);
-  if (chunk != NULL) return GcSafeCastToCode(chunk->GetObject(), pc);
+  LargePage* large_page = heap->lo_space()->FindPageContainingPc(pc);
+  if (large_page != NULL) return GcSafeCastToCode(large_page->GetObject(), pc);
 
-  // Iterate through the 8K page until we reach the end or find an
-  // object starting after the pc.
+  // Iterate through the page until we reach the end or find an object starting
+  // after the pc.
   Page* page = Page::FromAddress(pc);
-  HeapObjectIterator iterator(page, heap->GcSafeSizeOfOldObjectFunction());
-  HeapObject* previous = NULL;
+
+  Address addr = page->skip_list()->StartFor(pc);
+
+  Address top = heap->code_space()->top();
+  Address limit = heap->code_space()->limit();
+
   while (true) {
-    HeapObject* next = iterator.next();
-    if (next == NULL || next->address() >= pc) {
-      return GcSafeCastToCode(previous, pc);
+    if (addr == top && addr != limit) {
+      addr = limit;
+      continue;
     }
-    previous = next;
+
+    HeapObject* obj = HeapObject::FromAddress(addr);
+    int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
+    Address next_addr = addr + obj_size;
+    if (next_addr >= pc) return GcSafeCastToCode(obj, pc);
+    addr = next_addr;
   }
 }
 

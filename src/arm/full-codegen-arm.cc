@@ -39,6 +39,7 @@
 #include "stub-cache.h"
 
 #include "arm/code-stubs-arm.h"
+#include "arm/macro-assembler-arm.h"
 
 namespace v8 {
 namespace internal {
@@ -205,13 +206,12 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Load parameter from stack.
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        __ mov(r1, Operand(Context::SlotOffset(var->index())));
-        __ str(r0, MemOperand(cp, r1));
-        // Update the write barrier. This clobbers all involved
-        // registers, so we have to use two more registers to avoid
-        // clobbering cp.
-        __ mov(r2, Operand(cp));
-        __ RecordWrite(r2, Operand(r1), r3, r0);
+        MemOperand target = ContextOperand(cp, var->index());
+        __ str(r0, target);
+
+        // Update the write barrier.
+        __ RecordWriteContextSlot(
+            cp, target.offset(), r0, r3, kLRHasBeenSaved, kDontSaveFPRegs);
       }
     }
   }
@@ -670,12 +670,15 @@ void FullCodeGenerator::SetVar(Variable* var,
   ASSERT(!scratch1.is(src));
   MemOperand location = VarOperand(var, scratch0);
   __ str(src, location);
+
   // Emit the write barrier code if the location is in the heap.
   if (var->IsContextSlot()) {
-    __ RecordWrite(scratch0,
-                   Operand(Context::SlotOffset(var->index())),
-                   scratch1,
-                   src);
+    __ RecordWriteContextSlot(scratch0,
+                              location.offset(),
+                              src,
+                              scratch1,
+                              kLRHasBeenSaved,
+                              kDontSaveFPRegs);
   }
 }
 
@@ -751,8 +754,14 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         __ str(result_register(), ContextOperand(cp, variable->index()));
         int offset = Context::SlotOffset(variable->index());
         // We know that we have written a function, which is not a smi.
-        __ mov(r1, Operand(cp));
-        __ RecordWrite(r1, Operand(offset), r2, result_register());
+        __ RecordWriteContextSlot(cp,
+                                  offset,
+                                  result_register(),
+                                  r2,
+                                  kLRHasBeenSaved,
+                                  kDontSaveFPRegs,
+                                  EMIT_REMEMBERED_SET,
+                                  OMIT_SMI_CHECK);
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       } else if (mode == Variable::CONST || mode == Variable::LET) {
         Comment cmnt(masm_, "[ Declaration");
@@ -1502,7 +1511,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     // Update the write barrier for the array store with r0 as the scratch
     // register.
-    __ RecordWrite(r1, Operand(offset), r2, result_register());
+    __ RecordWriteField(
+        r1, offset, result_register(), r2, kLRHasBeenSaved, kDontSaveFPRegs);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1874,7 +1884,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // RecordWrite may destroy all its register arguments.
         __ mov(r3, result_register());
         int offset = Context::SlotOffset(var->index());
-        __ RecordWrite(r1, Operand(offset), r2, r3);
+        __ RecordWriteContextSlot(
+            r1, offset, r3, r2, kLRHasBeenSaved, kDontSaveFPRegs);
       }
     }
 
@@ -1892,7 +1903,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ str(r0, location);
       if (var->IsContextSlot()) {
         __ mov(r3, r0);
-        __ RecordWrite(r1, Operand(Context::SlotOffset(var->index())), r2, r3);
+        int offset = Context::SlotOffset(var->index());
+        __ RecordWriteContextSlot(
+            r1, offset, r3, r2, kLRHasBeenSaved, kDontSaveFPRegs);
       }
     } else {
       ASSERT(var->IsLookupSlot());
@@ -2858,7 +2871,9 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
-  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
+  __ mov(r2, r0);
+  __ RecordWriteField(
+      r1, JSValue::kValueOffset, r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(r0);
@@ -3146,16 +3161,25 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ str(scratch1, MemOperand(index2, 0));
   __ str(scratch2, MemOperand(index1, 0));
 
-  Label new_space;
-  __ InNewSpace(elements, scratch1, eq, &new_space);
+  Label no_remembered_set;
+  __ CheckPageFlag(elements,
+                   scratch1,
+                   1 << MemoryChunk::SCAN_ON_SCAVENGE,
+                   ne,
+                   &no_remembered_set);
   // Possible optimization: do a check that both values are Smis
   // (or them and test against Smi mask.)
 
-  __ mov(scratch1, elements);
-  __ RecordWriteHelper(elements, index1, scratch2);
-  __ RecordWriteHelper(scratch1, index2, scratch2);  // scratch1 holds elements.
+  // We are swapping two objects in an array and the incremental marker never
+  // pauses in the middle of scanning a single object.  Therefore the
+  // incremental marker is not disturbed, so we don't need to call the
+  // RecordWrite stub that notifies the incremental marker.
+  __ RememberedSetHelper(
+      index1, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(
+      index2, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
 
-  __ bind(&new_space);
+  __ bind(&no_remembered_set);
   // We are done. Drop elements from the stack, and return undefined.
   __ Drop(3);
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);

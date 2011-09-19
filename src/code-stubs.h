@@ -45,6 +45,9 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
+  V(RecordWrite)                         \
+  V(StoreBufferOverflow)                 \
+  V(RegExpExec)                          \
   V(TranscendentalCache)                 \
   V(Instanceof)                          \
   /* All stubs above this line only exist in a few versions, which are  */  \
@@ -65,7 +68,6 @@ namespace internal {
   V(ToNumber)                            \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
-  V(RegExpExec)                          \
   V(RegExpConstructResult)               \
   V(NumberToString)                      \
   V(CEntry)                              \
@@ -179,6 +181,14 @@ class CodeStub BASE_EMBEDDED {
 
   // Finish the code object after it has been generated.
   virtual void FinishCode(Code* code) { }
+
+  // Returns true if TryGetCode should fail if it failed
+  // to register newly generated stub in the stub cache.
+  virtual bool MustBeInStubCache() { return false; }
+
+  // Activate newly generated stub. Is called after
+  // registering stub in the stub cache.
+  virtual void Activate(Code* code) { }
 
   // Returns information for computing the number key.
   virtual Major MajorKey() = 0;
@@ -544,11 +554,11 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  explicit CEntryStub(int result_size)
-      : result_size_(result_size), save_doubles_(false) { }
+  explicit CEntryStub(int result_size,
+                      SaveFPRegsMode save_doubles = kDontSaveFPRegs)
+      : result_size_(result_size), save_doubles_(save_doubles) { }
 
   void Generate(MacroAssembler* masm);
-  void SaveDoubles() { save_doubles_ = true; }
 
   // The version of this stub that doesn't save doubles is generated ahead of
   // time, so it's OK to call it from other stubs that can't cope with GC during
@@ -569,7 +579,7 @@ class CEntryStub : public CodeStub {
 
   // Number of pointers/values returned.
   const int result_size_;
-  bool save_doubles_;
+  SaveFPRegsMode save_doubles_;
 
   Major MajorKey() { return CEntry; }
   int MinorKey();

@@ -330,6 +330,25 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
+  __ PushCallerSaved(save_doubles_);
+  const int argument_count = 1;
+  __ PrepareCallCFunction(argument_count);
+#ifdef _WIN64
+  __ LoadAddress(rcx, ExternalReference::isolate_address());
+#else
+  __ LoadAddress(rdi, ExternalReference::isolate_address());
+#endif
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ CallCFunction(
+      ExternalReference::store_buffer_overflow_function(masm->isolate()),
+      argument_count);
+  __ PopCallerSaved(save_doubles_);
+  __ ret(0);
+}
+
+
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,
                                  Type type,
                                  Heap::RootListIndex value,
@@ -2675,12 +2694,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
+  __ RecordWriteField(rbx,
+                      RegExpImpl::kLastSubjectOffset,
+                      rax,
+                      rdi,
+                      kDontSaveFPRegs);
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
+  __ RecordWriteField(rbx,
+                      RegExpImpl::kLastInputOffset,
+                      rax,
+                      rdi,
+                      kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   __ LoadAddress(rcx,
@@ -3330,9 +3355,11 @@ bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
-  CEntryStub save_doubles(1);
-  save_doubles.SaveDoubles();
+  CEntryStub save_doubles(1, kSaveFPRegs);
   save_doubles.GetCode();
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+  // It is important that the store buffer overflow stubs are generated first.
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
 }
 
 
@@ -3778,6 +3805,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
     __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
   } else {
+    // Get return address and delta to inlined map check.
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movq(Operand(kScratchRegister, kOffsetToMapCheckValue), rax);
@@ -3812,9 +3840,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Store offset of true in the root array at the inline check site.
-    ASSERT((Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
-        == 0xB0 - 0x100);
-    __ movl(rax, Immediate(0xB0));  // TrueValue is at -10 * kPointerSize.
+    int true_offset = 0x100 +
+        (Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
+    // Assert it is a 1-byte signed value.
+    ASSERT(true_offset >= 0 && true_offset < 0x100);
+    __ movl(rax, Immediate(true_offset));
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
@@ -3833,9 +3863,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Store offset of false in the root array at the inline check site.
-    ASSERT((Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
-        == 0xB8 - 0x100);
-    __ movl(rax, Immediate(0xB8));  // FalseValue is at -9 * kPointerSize.
+    int false_offset = 0x100 +
+        (Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
+    // Assert it is a 1-byte signed value.
+    ASSERT(false_offset >= 0 && false_offset < 0x100);
+    __ movl(rax, Immediate(false_offset));
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
@@ -5513,6 +5545,267 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ movq(scratch, Immediate(0));
   __ Drop(1);
   __ ret(2 * kPointerSize);
+}
+
+
+struct AheadOfTimeWriteBarrierStubList {
+  Register object, value, address;
+  RememberedSetAction action;
+};
+
+
+struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+  // Used in RegExpExecStub.
+  { rbx, rax, rdi, EMIT_REMEMBERED_SET },
+  // Used in CompileArrayPushCall.
+  { rbx, rcx, rdx, EMIT_REMEMBERED_SET },
+  // Used in CompileStoreGlobal.
+  { rbx, rcx, rdx, OMIT_REMEMBERED_SET },
+  // Used in StoreStubCompiler::CompileStoreField and
+  // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { rdx, rcx, rbx, EMIT_REMEMBERED_SET },
+  // GenerateStoreField calls the stub with two different permutations of
+  // registers.  This is the second.
+  { rbx, rcx, rdx, EMIT_REMEMBERED_SET },
+  // StoreIC::GenerateNormal via GenerateDictionaryStore.
+  { rbx, r8, r9, EMIT_REMEMBERED_SET },
+  // KeyedStoreIC::GenerateGeneric.
+  { rbx, rdx, rcx, EMIT_REMEMBERED_SET},
+  // KeyedStoreStubCompiler::GenerateStoreFastElement.
+  { rdi, rdx, rcx, EMIT_REMEMBERED_SET},
+  // Null termination.
+  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+};
+
+
+bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    if (object_.is(entry->object) &&
+        value_.is(entry->value) &&
+        address_.is(entry->address) &&
+        remembered_set_action_ == entry->action &&
+        save_fp_regs_mode_ == kDontSaveFPRegs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreBufferOverflowStub stub2(kSaveFPRegs);
+  stub2.GetCode();
+}
+
+
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    RecordWriteStub stub(entry->object,
+                         entry->value,
+                         entry->address,
+                         entry->action,
+                         kDontSaveFPRegs);
+    stub.GetCode();
+  }
+}
+
+
+// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
+// the value has just been written into the object, now this stub makes sure
+// we keep the GC informed.  The word in the object where the value has been
+// written is in the address register.
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  Label skip_to_incremental_noncompacting;
+  Label skip_to_incremental_compacting;
+
+  // The first two instructions are generated with labels so as to get the
+  // offset fixed up correctly by the bind(Label*) call.  We patch it back and
+  // forth between a compare instructions (a nop in this position) and the
+  // real branch when we start and stop incremental heap marking.
+  // See RecordWriteStub::Patch for details.
+  __ jmp(&skip_to_incremental_noncompacting, Label::kNear);
+  __ jmp(&skip_to_incremental_compacting, Label::kFar);
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&skip_to_incremental_noncompacting);
+  GenerateIncremental(masm, INCREMENTAL);
+
+  __ bind(&skip_to_incremental_compacting);
+  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+
+  // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
+  // Will be checked in IncrementalMarking::ActivateGeneratedStub.
+  masm->set_byte_at(0, kTwoByteNopInstruction);
+  masm->set_byte_at(2, kFiveByteNopInstruction);
+}
+
+
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
+  regs_.Save(masm);
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    Label dont_need_remembered_set;
+
+    __ movq(regs_.scratch0(), Operand(regs_.address(), 0));
+    __ JumpIfNotInNewSpace(regs_.scratch0(),
+                           regs_.scratch0(),
+                           &dont_need_remembered_set);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch0(),
+                     1 << MemoryChunk::SCAN_ON_SCAVENGE,
+                     not_zero,
+                     &dont_need_remembered_set);
+
+    // First notify the incremental marker if necessary, then update the
+    // remembered set.
+    CheckNeedsToInformIncrementalMarker(
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
+    InformIncrementalMarker(masm, mode);
+    regs_.Restore(masm);
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+
+    __ bind(&dont_need_remembered_set);
+  }
+
+  CheckNeedsToInformIncrementalMarker(
+      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
+  InformIncrementalMarker(masm, mode);
+  regs_.Restore(masm);
+  __ ret(0);
+}
+
+
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+#ifdef _WIN64
+  Register arg3 = r8;
+  Register arg2 = rdx;
+  Register arg1 = rcx;
+#else
+  Register arg3 = rdx;
+  Register arg2 = rsi;
+  Register arg1 = rdi;
+#endif
+  Register address =
+      arg1.is(regs_.address()) ? kScratchRegister : regs_.address();
+  ASSERT(!address.is(regs_.object()));
+  ASSERT(!address.is(arg1));
+  __ Move(address, regs_.address());
+  __ Move(arg1, regs_.object());
+  if (mode == INCREMENTAL_COMPACTION) {
+    // TODO(gc) Can we just set address arg2 in the beginning?
+    __ Move(arg2, address);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ movq(arg2, Operand(address, 0));
+  }
+  __ LoadAddress(arg3, ExternalReference::isolate_address());
+  int argument_count = 3;
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(argument_count);
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ CallCFunction(
+        ExternalReference::incremental_evacuation_record_write_function(
+            masm->isolate()),
+        argument_count);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ CallCFunction(
+        ExternalReference::incremental_marking_record_write_function(
+            masm->isolate()),
+        argument_count);
+  }
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+}
+
+
+void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
+    MacroAssembler* masm,
+    OnNoNeedToInformIncrementalMarker on_no_need,
+    Mode mode) {
+  Label on_black;
+  Label need_incremental;
+  Label need_incremental_pop_object;
+
+  // Let's look at the color of the object:  If it is not black we don't have
+  // to inform the incremental marker.
+  __ JumpIfBlack(regs_.object(),
+                 regs_.scratch0(),
+                 regs_.scratch1(),
+                 &on_black,
+                 Label::kNear);
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&on_black);
+
+  // Get the value from the slot.
+  __ movq(regs_.scratch0(), Operand(regs_.address(), 0));
+
+  if (mode == INCREMENTAL_COMPACTION) {
+    Label ensure_not_white;
+
+    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateMask,
+                     zero,
+                     &ensure_not_white,
+                     Label::kNear);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
+                     zero,
+                     &need_incremental);
+
+    __ bind(&ensure_not_white);
+  }
+
+  // We need an extra register for this, so we push the object register
+  // temporarily.
+  __ push(regs_.object());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),  // Scratch.
+                    &need_incremental_pop_object,
+                    Label::kNear);
+  __ pop(regs_.object());
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&need_incremental_pop_object);
+  __ pop(regs_.object());
+
+  __ bind(&need_incremental);
+
+  // Fall through when we need to inform the incremental marker.
 }
 
 

@@ -33,6 +33,7 @@
 #include "builtins.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
+#include "mark-compact.h"
 #include "vm-state-inl.h"
 
 namespace v8 {
@@ -295,6 +296,7 @@ static void CopyElements(Heap* heap,
   if (mode == UPDATE_WRITE_BARRIER) {
     heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  heap->incremental_marking()->RecordWrites(dst);
 }
 
 
@@ -313,6 +315,7 @@ static void MoveElements(Heap* heap,
   if (mode == UPDATE_WRITE_BARRIER) {
     heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  heap->incremental_marking()->RecordWrites(dst);
 }
 
 
@@ -357,6 +360,14 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
   former_start[to_trim] = heap->fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
+
+  // Maintain marking consistency for HeapObjectIterator and
+  // IncrementalMarking.
+  int size_delta = to_trim * kPointerSize;
+  if (heap->marking()->TransferMark(elms->address(),
+                                    elms->address() + size_delta)) {
+    MemoryChunk::IncrementLiveBytes(elms->address(), -size_delta);
+  }
 
   return FixedArray::cast(HeapObject::FromAddress(
       elms->address() + to_trim * kPointerSize));
@@ -551,9 +562,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (!heap->lo_space()->Contains(elms)) {
-    // As elms still in the same space they used to be,
-    // there is no need to update region dirty mark.
-    array->set_elements(LeftTrimFixedArray(heap, elms, 1), SKIP_WRITE_BARRIER);
+    array->set_elements(LeftTrimFixedArray(heap, elms, 1));
   } else {
     // Shift the elements.
     AssertNoAllocation no_gc;
@@ -842,7 +851,7 @@ BUILTIN(ArraySplice) {
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
-      array->set_elements(elms, SKIP_WRITE_BARRIER);
+      array->set_elements(elms);
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,

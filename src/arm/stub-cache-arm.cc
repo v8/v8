@@ -431,7 +431,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
-    __ RecordWrite(receiver_reg, Operand(offset), name_reg, scratch);
+    __ mov(name_reg, r0);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch,
+                        kLRHasNotBeenSaved,
+                        kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -444,7 +450,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
-    __ RecordWrite(scratch, Operand(offset), name_reg, receiver_reg);
+    __ mov(name_reg, r0);
+    __ RecordWriteField(scratch,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kLRHasNotBeenSaved,
+                        kDontSaveFPRegs);
   }
 
   // Return the value (register r0).
@@ -1568,7 +1580,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                 DONT_DO_SMI_CHECK);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label exit, with_write_barrier, attempt_to_grow_elements;
+      Label exit, attempt_to_grow_elements;
 
       // Get the array's length into r0 and calculate new length.
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1597,14 +1609,20 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
+      Label with_write_barrier;
       __ JumpIfNotSmi(r4, &with_write_barrier);
       __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
 
       __ bind(&with_write_barrier);
-      __ InNewSpace(elements, r4, eq, &exit);
-      __ RecordWriteHelper(elements, end_elements, r4);
+      __ RecordWrite(elements,
+                     end_elements,
+                     r4,
+                     kLRHasNotBeenSaved,
+                     kDontSaveFPRegs,
+                     EMIT_REMEMBERED_SET,
+                     OMIT_SMI_CHECK);
       __ Drop(argc + 1);
       __ Ret();
 
@@ -2724,6 +2742,15 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 
   // Store the value in the cell.
   __ str(r0, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
+
+  __ mov(r1, r0);
+  __ RecordWriteField(r4,
+                      JSGlobalPropertyCell::kValueOffset,
+                      r1,
+                      r2,
+                      kLRHasNotBeenSaved,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET);
 
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1, r4, r3);
@@ -4292,11 +4319,16 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   __ add(scratch,
          elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ str(value_reg,
-         MemOperand(scratch, key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ RecordWrite(scratch,
-                 Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize),
-                 receiver_reg , elements_reg);
+  __ add(scratch,
+         scratch,
+         Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(value_reg, MemOperand(scratch));
+  __ mov(receiver_reg, value_reg);
+  __ RecordWrite(elements_reg,  // Object.
+                 scratch,       // Address.
+                 receiver_reg,  // Value.
+                 kLRHasNotBeenSaved,
+                 kDontSaveFPRegs);
 
   // value_reg (r0) is preserved.
   // Done.

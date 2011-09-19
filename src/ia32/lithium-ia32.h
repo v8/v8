@@ -1231,10 +1231,12 @@ class LLoadGlobalGeneric: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LStoreGlobalCell: public LTemplateInstruction<0, 1, 0> {
+class LStoreGlobalCell: public LTemplateInstruction<0, 1, 2> {
  public:
-  explicit LStoreGlobalCell(LOperand* value) {
+  explicit LStoreGlobalCell(LOperand* value, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = value;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")

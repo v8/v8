@@ -1732,7 +1732,9 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
   LStoreGlobalCell* result =
-      new LStoreGlobalCell(UseRegister(instr->value()), TempRegister());
+      new LStoreGlobalCell(UseTempRegister(instr->value()),
+                           TempRegister(),
+                           TempRegister());
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
 }
 

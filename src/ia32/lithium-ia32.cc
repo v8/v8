@@ -1787,7 +1787,9 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
   LStoreGlobalCell* result =
-      new LStoreGlobalCell(UseRegisterAtStart(instr->value()));
+      new LStoreGlobalCell(UseTempRegister(instr->value()),
+                           TempRegister(),
+                           TempRegister());
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
 }
 
@@ -1809,15 +1811,13 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
-  LOperand* context;
   LOperand* value;
   LOperand* temp;
+  LOperand* context = UseRegister(instr->context());
   if (instr->NeedsWriteBarrier()) {
-    context = UseTempRegister(instr->context());
     value = UseTempRegister(instr->value());
     temp = TempRegister();
   } else {
-    context = UseRegister(instr->context());
     value = UseRegister(instr->value());
     temp = NULL;
   }
@@ -1945,7 +1945,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
   ASSERT(instr->object()->representation().IsTagged());
   ASSERT(instr->key()->representation().IsInteger32());
 
-  LOperand* obj = UseTempRegister(instr->object());
+  LOperand* obj = UseRegister(instr->object());
   LOperand* val = needs_write_barrier
       ? UseTempRegister(instr->value())
       : UseRegisterAtStart(instr->value());
@@ -2022,9 +2022,14 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool needs_write_barrier = instr->NeedsWriteBarrier();
 
-  LOperand* obj = needs_write_barrier
-      ? UseTempRegister(instr->object())
-      : UseRegisterAtStart(instr->object());
+  LOperand* obj;
+  if (needs_write_barrier) {
+    obj = instr->is_in_object()
+        ? UseRegister(instr->object())
+        : UseTempRegister(instr->object());
+  } else {
+    obj = UseRegisterAtStart(instr->object());
+  }
 
   LOperand* val = needs_write_barrier
       ? UseTempRegister(instr->value())

@@ -75,6 +75,8 @@ struct Register {
   static inline Register FromAllocationIndex(int index);
 
   static Register from_code(int code) {
+    ASSERT(code >= 0);
+    ASSERT(code < kNumRegisters);
     Register r = { code };
     return r;
   }
@@ -346,6 +348,13 @@ class Operand BASE_EMBEDDED {
 
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
+
+  // Returns true if this Operand is a wrapper for one register.
+  bool is_reg_only() const;
+
+  // Asserts that this Operand is a wrapper for one register and returns the
+  // register.
+  Register reg() const;
 
  private:
   byte buf_[6];
@@ -716,6 +725,7 @@ class Assembler : public AssemblerBase {
   void adc(Register dst, const Operand& src);
 
   void add(Register dst, const Operand& src);
+  void add(const Operand& dst, Register src);
   void add(const Operand& dst, const Immediate& x);
 
   void and_(Register dst, int32_t imm32);
@@ -786,8 +796,6 @@ class Assembler : public AssemblerBase {
   void shr(Register dst, uint8_t imm8);
   void shr_cl(Register dst);
 
-  void subb(const Operand& dst, int8_t imm8);
-  void subb(Register dst, const Operand& src);
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);
@@ -1045,6 +1053,9 @@ class Assembler : public AssemblerBase {
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
  protected:
   bool emit_debug_code() const { return emit_debug_code_; }
 
@@ -1057,9 +1068,8 @@ class Assembler : public AssemblerBase {
 
   byte* addr_at(int pos) { return buffer_ + pos; }
 
+
  private:
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }

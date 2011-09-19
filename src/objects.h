@@ -38,6 +38,7 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/constants-mips.h"
 #endif
+#include "v8checks.h"
 
 //
 // Most object types in the V8 JavaScript are described in this file.
@@ -329,6 +330,7 @@ static const int kVariableSizeSentinel = 0;
   V(HEAP_NUMBER_TYPE)                                                          \
   V(FOREIGN_TYPE)                                                              \
   V(BYTE_ARRAY_TYPE)                                                           \
+  V(FREE_SPACE_TYPE)                                                           \
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
   /* Object::IsExternalArray(). */                                             \
@@ -585,6 +587,7 @@ enum InstanceType {
   HEAP_NUMBER_TYPE,
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
+  FREE_SPACE_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
   EXTERNAL_SHORT_ARRAY_TYPE,
@@ -697,6 +700,7 @@ class ElementsAccessor;
 class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
+class Failure;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -710,7 +714,6 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
-class Failure;
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -748,7 +751,7 @@ class MaybeObject BASE_EMBEDDED {
   // Prints this object with details.
   inline void Print() {
     Print(stdout);
-  };
+  }
   inline void PrintLn() {
     PrintLn(stdout);
   }
@@ -791,6 +794,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
+  V(FreeSpace)                                 \
   V(JSReceiver)                                \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
@@ -867,6 +871,10 @@ class Object : public MaybeObject {
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
+  inline bool NonFailureIsHeapObject();
+
+  // Filler objects (fillers and free space objects).
+  inline bool IsFiller();
 
   // Extract the number.
   inline double Number();
@@ -1092,101 +1100,13 @@ class MapWord BASE_EMBEDDED {
   // View this map word as a forwarding address.
   inline HeapObject* ToForwardingAddress();
 
-  // Marking phase of full collection: the map word of live objects is
-  // marked, and may be marked as overflowed (eg, the object is live, its
-  // children have not been visited, and it does not fit in the marking
-  // stack).
+  static inline MapWord FromRawValue(uintptr_t value) {
+    return MapWord(value);
+  }
 
-  // True if this map word's mark bit is set.
-  inline bool IsMarked();
-
-  // Return this map word but with its mark bit set.
-  inline void SetMark();
-
-  // Return this map word but with its mark bit cleared.
-  inline void ClearMark();
-
-  // True if this map word's overflow bit is set.
-  inline bool IsOverflowed();
-
-  // Return this map word but with its overflow bit set.
-  inline void SetOverflow();
-
-  // Return this map word but with its overflow bit cleared.
-  inline void ClearOverflow();
-
-
-  // Compacting phase of a full compacting collection: the map word of live
-  // objects contains an encoding of the original map address along with the
-  // forwarding address (represented as an offset from the first live object
-  // in the same page as the (old) object address).
-
-  // Create a map word from a map address and a forwarding address offset.
-  static inline MapWord EncodeAddress(Address map_address, int offset);
-
-  // Return the map address encoded in this map word.
-  inline Address DecodeMapAddress(MapSpace* map_space);
-
-  // Return the forwarding offset encoded in this map word.
-  inline int DecodeOffset();
-
-
-  // During serialization: the map word is used to hold an encoded
-  // address, and possibly a mark bit (set and cleared with SetMark
-  // and ClearMark).
-
-  // Create a map word from an encoded address.
-  static inline MapWord FromEncodedAddress(Address address);
-
-  inline Address ToEncodedAddress();
-
-  // Bits used by the marking phase of the garbage collector.
-  //
-  // The first word of a heap object is normally a map pointer. The last two
-  // bits are tagged as '01' (kHeapObjectTag). We reuse the last two bits to
-  // mark an object as live and/or overflowed:
-  //   last bit = 0, marked as alive
-  //   second bit = 1, overflowed
-  // An object is only marked as overflowed when it is marked as live while
-  // the marking stack is overflowed.
-  static const int kMarkingBit = 0;  // marking bit
-  static const int kMarkingMask = (1 << kMarkingBit);  // marking mask
-  static const int kOverflowBit = 1;  // overflow bit
-  static const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
-
-  // Forwarding pointers and map pointer encoding. On 32 bit all the bits are
-  // used.
-  // +-----------------+------------------+-----------------+
-  // |forwarding offset|page offset of map|page index of map|
-  // +-----------------+------------------+-----------------+
-  //          ^                 ^                  ^
-  //          |                 |                  |
-  //          |                 |          kMapPageIndexBits
-  //          |         kMapPageOffsetBits
-  // kForwardingOffsetBits
-  static const int kMapPageOffsetBits = kPageSizeBits - kMapAlignmentBits;
-  static const int kForwardingOffsetBits = kPageSizeBits - kObjectAlignmentBits;
-#ifdef V8_HOST_ARCH_64_BIT
-  static const int kMapPageIndexBits = 16;
-#else
-  // Use all the 32-bits to encode on a 32-bit platform.
-  static const int kMapPageIndexBits =
-      32 - (kMapPageOffsetBits + kForwardingOffsetBits);
-#endif
-
-  static const int kMapPageIndexShift = 0;
-  static const int kMapPageOffsetShift =
-      kMapPageIndexShift + kMapPageIndexBits;
-  static const int kForwardingOffsetShift =
-      kMapPageOffsetShift + kMapPageOffsetBits;
-
-  // Bit masks covering the different parts the encoding.
-  static const uintptr_t kMapPageIndexMask =
-      (1 << kMapPageOffsetShift) - 1;
-  static const uintptr_t kMapPageOffsetMask =
-      ((1 << kForwardingOffsetShift) - 1) & ~kMapPageIndexMask;
-  static const uintptr_t kForwardingOffsetMask =
-      ~(kMapPageIndexMask | kMapPageOffsetMask);
+  inline uintptr_t ToRawValue() {
+    return value_;
+  }
 
  private:
   // HeapObject calls the private constructor and directly reads the value.
@@ -1213,8 +1133,8 @@ class HeapObject: public Object {
   inline void set_map_word(MapWord map_word);
 
   // The Heap the object was allocated in. Used also to access Isolate.
-  // This method can not be used during GC, it ASSERTs this.
   inline Heap* GetHeap();
+
   // Convenience method to get current isolate. This method can be
   // accessed only when its result is the same as
   // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.
@@ -1243,31 +1163,6 @@ class HeapObject: public Object {
   // GC internal.
   inline int SizeFromMap(Map* map);
 
-  // Support for the marking heap objects during the marking phase of GC.
-  // True if the object is marked live.
-  inline bool IsMarked();
-
-  // Mutate this object's map pointer to indicate that the object is live.
-  inline void SetMark();
-
-  // Mutate this object's map pointer to remove the indication that the
-  // object is live (ie, partially restore the map pointer).
-  inline void ClearMark();
-
-  // True if this object is marked as overflowed.  Overflowed objects have
-  // been reached and marked during marking of the heap, but their children
-  // have not necessarily been marked and they have not been pushed on the
-  // marking stack.
-  inline bool IsOverflowed();
-
-  // Mutate this object's map pointer to indicate that the object is
-  // overflowed.
-  inline void SetOverflow();
-
-  // Mutate this object's map pointer to remove the indication that the
-  // object is overflowed (ie, partially restore the map pointer).
-  inline void ClearOverflow();
-
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
@@ -1291,18 +1186,14 @@ class HeapObject: public Object {
     HeapObjectPrint(stdout);
   }
   void HeapObjectPrint(FILE* out);
-#endif
-#ifdef DEBUG
-  void HeapObjectVerify();
-  inline void VerifyObjectField(int offset);
-  inline void VerifySmiField(int offset);
-#endif
-
-#ifdef OBJECT_PRINT
   void PrintHeader(FILE* out, const char* id);
 #endif
 
 #ifdef DEBUG
+  void HeapObjectVerify();
+  inline void VerifyObjectField(int offset);
+  inline void VerifySmiField(int offset);
+
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
   static void VerifyHeapPointer(Object* p);
@@ -3078,11 +2969,12 @@ class NormalizedMapCache: public FixedArray {
 };
 
 
-// ByteArray represents fixed sized byte arrays.  Used by the outside world,
-// such as PCRE, and also by the memory allocator and garbage collector to
-// fill in free blocks in the heap.
+// ByteArray represents fixed sized byte arrays.  Used for the relocation info
+// that is attached to code objects.
 class ByteArray: public FixedArrayBase {
  public:
+  inline int Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
+
   // Setter and getter.
   inline byte get(int index);
   inline void set(int index, byte value);
@@ -3136,6 +3028,44 @@ class ByteArray: public FixedArrayBase {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
+};
+
+
+// FreeSpace represents fixed sized areas of the heap that are not currently in
+// use.  Used by the heap and GC.
+class FreeSpace: public HeapObject {
+ public:
+  // [size]: size of the free space including the header.
+  inline int size();
+  inline void set_size(int value);
+
+  inline int Size() { return size(); }
+
+  // Casting.
+  static inline FreeSpace* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void FreeSpacePrint() {
+    FreeSpacePrint(stdout);
+  }
+  void FreeSpacePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void FreeSpaceVerify();
+#endif
+
+  // Layout description.
+  // Size is smi tagged when it is stored.
+  static const int kSizeOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kSizeOffset + kPointerSize;
+
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
+
+  // Maximal size of a single FreeSpace.
+  static const int kMaxSize = 512 * MB;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
 };
 
 
@@ -3835,10 +3765,6 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
 
-  // Returns the isolate/heap this code object belongs to.
-  inline Isolate* isolate();
-  inline Heap* heap();
-
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
@@ -4099,6 +4025,7 @@ class Map: public HeapObject {
   //    1 + 2 * i: prototype
   //    2 + 2 * i: target map
   DECL_ACCESSORS(prototype_transitions, FixedArray)
+
   inline FixedArray* unchecked_prototype_transitions();
 
   static const int kProtoTransitionHeaderSize = 1;
@@ -4108,14 +4035,14 @@ class Map: public HeapObject {
   static const int kProtoTransitionMapOffset = 1;
 
   inline int NumberOfProtoTransitions() {
-    FixedArray* cache = unchecked_prototype_transitions();
+    FixedArray* cache = prototype_transitions();
     if (cache->length() == 0) return 0;
     return
         Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
   }
 
   inline void SetNumberOfProtoTransitions(int value) {
-    FixedArray* cache = unchecked_prototype_transitions();
+    FixedArray* cache = prototype_transitions();
     ASSERT(cache->length() != 0);
     cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
                          Smi::FromInt(value));
@@ -4211,10 +4138,6 @@ class Map: public HeapObject {
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
 
-  // Returns the isolate/heap this map belongs to.
-  inline Isolate* isolate();
-  inline Heap* heap();
-
   typedef void (*TraverseCallback)(Map* map, void* data);
 
   void TraverseTransitionTree(TraverseCallback callback, void* data);
@@ -4251,7 +4174,7 @@ class Map: public HeapObject {
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
-  // being continiously allocated.
+  // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
       Map::kPrototypeTransitionsOffset + kPointerSize;
@@ -6242,7 +6165,7 @@ class SeqAsciiString: public SeqString {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential ASCII string.
-  static const int kMaxSize = 512 * MB;
+  static const int kMaxSize = 512 * MB - 1;
   // Maximal length of a single sequential ASCII string.
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize);
@@ -6296,7 +6219,7 @@ class SeqTwoByteString: public SeqString {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential two-byte string.
-  static const int kMaxSize = 512 * MB;
+  static const int kMaxSize = 512 * MB - 1;
   // Maximal length of a single sequential two-byte string.
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);
@@ -6681,10 +6604,6 @@ class JSGlobalPropertyCell: public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset,
                               kValueOffset + kPointerSize,
                               kSize> BodyDescriptor;
-
-  // Returns the isolate/heap this cell object belongs to.
-  inline Isolate* isolate();
-  inline Heap* heap();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);

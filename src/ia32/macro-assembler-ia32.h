@@ -51,6 +51,13 @@ enum AllocationFlags {
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
 
+enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+
+
+bool AreAliased(Register r1, Register r2, Register r3, Register r4);
+
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -62,42 +69,129 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // GC Support
+  enum RememberedSetFinalAction {
+    kReturnAtEnd,
+    kFallThroughAtEnd
+  };
 
-  // For page containing |object| mark region covering |addr| dirty.
-  // RecordWriteHelper only works if the object is not in new
-  // space.
-  void RecordWriteHelper(Register object,
-                         Register addr,
-                         Register scratch);
+  // Record in the remembered set the fact that we have a pointer to new space
+  // at the address pointed to by the addr register.  Only works if addr is not
+  // in new space.
+  void RememberedSetHelper(Register addr,
+                           Register scratch,
+                           SaveFPRegsMode save_fp,
+                           RememberedSetFinalAction and_then);
 
-  // Check if object is in new space.
-  // scratch can be object itself, but it will be clobbered.
-  void InNewSpace(Register object,
-                  Register scratch,
-                  Condition cc,  // equal for new space, not_equal otherwise.
-                  Label* branch,
-                  Label::Distance branch_near = Label::kFar);
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     int mask,
+                     Condition cc,
+                     Label* condition_met,
+                     Label::Distance condition_met_distance = Label::kFar);
 
-  // For page containing |object| mark region covering [object+offset]
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. If offset is zero, then the scratch register
-  // contains the array index into the elements array represented as a
-  // Smi. All registers are clobbered by the operation. RecordWrite
+  // Check if object is in new space.  Jumps if the object is not in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfNotInNewSpace(Register object,
+                           Register scratch,
+                           Label* branch,
+                           Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, zero, branch, distance);
+  }
+
+  // Check if object is in new space.  Jumps if the object is in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfInNewSpace(Register object,
+                        Register scratch,
+                        Label* branch,
+                        Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, not_zero, branch, distance);
+  }
+
+  // Check if an object has a given incremental marking color.  Also uses ecx!
+  void HasColor(Register object,
+                Register scratch0,
+                Register scratch1,
+                Label* has_color,
+                Label::Distance has_color_distance,
+                int first_bit,
+                int second_bit);
+
+  void JumpIfBlack(Register object,
+                   Register scratch0,
+                   Register scratch1,
+                   Label* on_black,
+                   Label::Distance on_black_distance = Label::kFar);
+
+  // Checks the color of an object.  If the object is already grey or black
+  // then we just fall through, since it is already live.  If it is white and
+  // we can determine that it doesn't need to be scanned, then we just mark it
+  // black and fall through.  For the rest we jump to the label so the
+  // incremental marker can fix its assumptions.
+  void EnsureNotWhite(Register object,
+                      Register scratch1,
+                      Register scratch2,
+                      Label* object_is_white_and_not_data,
+                      Label::Distance distance);
+
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  value and scratch registers are clobbered by the operation.
+  // The offset is the offset from the start of the object, not the offset from
+  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  void RecordWriteField(
+      Register object,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
+
+  // As above, but the offset has the tag presubtracted.  For use with
+  // Operand(reg, off).
+  void RecordWriteContextSlot(
+      Register context,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
+    RecordWriteField(context,
+                     offset + kHeapObjectTag,
+                     value,
+                     scratch,
+                     save_fp,
+                     remembered_set_action,
+                     smi_check);
+  }
+
+  // Notify the garbage collector that we wrote a pointer into a fixed array.
+  // |array| is the array being stored into, |value| is the
+  // object being stored.  |index| is the array index represented as a
+  // Smi. All registers are clobbered by the operation RecordWriteArray
   // filters out smis so it does not update the write barrier if the
   // value is a smi.
-  void RecordWrite(Register object,
-                   int offset,
-                   Register value,
-                   Register scratch);
+  void RecordWriteArray(
+      Register array,
+      Register value,
+      Register index,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. All registers are clobbered by the
   // operation. RecordWrite filters out smis so it does not update the
   // write barrier if the value is a smi.
-  void RecordWrite(Register object,
-                   Register address,
-                   Register value);
+  void RecordWrite(
+      Register object,
+      Register address,
+      Register value,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -703,7 +797,7 @@ class MacroAssembler: public Assembler {
                       const Operand& code_operand,
                       Label* done,
                       InvokeFlag flag,
-                      Label::Distance done_near = Label::kFar,
+                      Label::Distance done_distance,
                       const CallWrapper& call_wrapper = NullCallWrapper(),
                       CallKind call_kind = CALL_AS_METHOD);
 
@@ -725,6 +819,20 @@ class MacroAssembler: public Assembler {
                                                     Register scratch,
                                                     bool gc_allowed);
 
+  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,
+                  Label* condition_met,
+                  Label::Distance condition_met_distance = Label::kFar);
+
+  // Helper for finding the mark bits for an address.  Afterwards, the
+  // bitmap register points at the word with the mark bits and the mask
+  // the position of the first bit.  Uses ecx as scratch and leaves addr_reg
+  // unchanged.
+  inline void GetMarkBits(Register addr_reg,
+                          Register bitmap_reg,
+                          Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);
