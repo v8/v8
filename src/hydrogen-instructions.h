@@ -118,7 +118,7 @@ class LChunkBuilder;
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
-  V(IsNullAndBranch)                           \
+  V(IsNilAndBranch)                            \
   V(IsObjectAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
@@ -2641,21 +2641,23 @@ class HCompareConstantEqAndBranch: public HUnaryControlInstruction {
 };
 
 
-class HIsNullAndBranch: public HUnaryControlInstruction {
+class HIsNilAndBranch: public HUnaryControlInstruction {
  public:
-  HIsNullAndBranch(HValue* value, bool is_strict)
-      : HUnaryControlInstruction(value, NULL, NULL), is_strict_(is_strict) { }
+  HIsNilAndBranch(HValue* value, EqualityKind kind, NilValue nil)
+      : HUnaryControlInstruction(value, NULL, NULL), kind_(kind), nil_(nil) { }
 
-  bool is_strict() const { return is_strict_; }
+  EqualityKind kind() const { return kind_; }
+  NilValue nil() const { return nil_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(IsNullAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch)
 
  private:
-  bool is_strict_;
+  EqualityKind kind_;
+  NilValue nil_;
 };
 
 

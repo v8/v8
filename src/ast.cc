@@ -327,77 +327,77 @@ bool BinaryOperation::ResultOverwriteAllowed() {
 }
 
 
+static bool IsTypeof(Expression* expr) {
+  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
+  return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;
+}
+
+
+// Check for the pattern: typeof <expression> equals <string literal>.
+static bool MatchLiteralCompareTypeof(Expression* left,
+                                      Token::Value op,
+                                      Expression* right,
+                                      Expression** expr,
+                                      Handle<String>* check) {
+  if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
+    *expr = left->AsUnaryOperation()->expression();
+    *check = Handle<String>::cast(right->AsLiteral()->handle());
+    return true;
+  }
+  return false;
+}
+
+
 bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
                                               Handle<String>* check) {
-  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
+  return MatchLiteralCompareTypeof(left_, op_, right_, expr, check) ||
+      MatchLiteralCompareTypeof(right_, op_, left_, expr, check);
+}
 
-  UnaryOperation* left_unary = left_->AsUnaryOperation();
-  UnaryOperation* right_unary = right_->AsUnaryOperation();
-  Literal* left_literal = left_->AsLiteral();
-  Literal* right_literal = right_->AsLiteral();
 
-  // Check for the pattern: typeof <expression> == <string literal>.
-  if (left_unary != NULL && left_unary->op() == Token::TYPEOF &&
-      right_literal != NULL && right_literal->handle()->IsString()) {
-    *expr = left_unary->expression();
-    *check = Handle<String>::cast(right_literal->handle());
+static bool IsVoidOfLiteral(Expression* expr) {
+  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
+  return maybe_unary != NULL &&
+      maybe_unary->op() == Token::VOID &&
+      maybe_unary->expression()->AsLiteral() != NULL;
+}
+
+
+// Check for the pattern: void <literal> equals <expression>
+static bool MatchLiteralCompareUndefined(Expression* left,
+                                         Token::Value op,
+                                         Expression* right,
+                                         Expression** expr) {
+  if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
+    *expr = right;
     return true;
   }
-
-  // Check for the pattern: <string literal> == typeof <expression>.
-  if (right_unary != NULL && right_unary->op() == Token::TYPEOF &&
-      left_literal != NULL && left_literal->handle()->IsString()) {
-    *expr = right_unary->expression();
-    *check = Handle<String>::cast(left_literal->handle());
-    return true;
-  }
-
   return false;
 }
 
 
 bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
-  if (op_ != Token::EQ_STRICT) return false;
+  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
+      MatchLiteralCompareUndefined(right_, op_, left_, expr);
+}
 
-  UnaryOperation* left_unary = left_->AsUnaryOperation();
-  UnaryOperation* right_unary = right_->AsUnaryOperation();
 
-  // Check for the pattern: <expression> === void <literal>.
-  if (right_unary != NULL && right_unary->op() == Token::VOID &&
-      right_unary->expression()->AsLiteral() != NULL) {
-    *expr = left_;
+// Check for the pattern: null equals <expression>
+static bool MatchLiteralCompareNull(Expression* left,
+                                    Token::Value op,
+                                    Expression* right,
+                                    Expression** expr) {
+  if (left->IsNullLiteral() && Token::IsEqualityOp(op)) {
+    *expr = right;
     return true;
   }
-
-  // Check for the pattern: void <literal> === <expression>.
-  if (left_unary != NULL && left_unary->op() == Token::VOID &&
-      left_unary->expression()->AsLiteral() != NULL) {
-    *expr = right_;
-    return true;
-  }
-
   return false;
 }
 
 
 bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
-  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
-
-  // Check for the pattern: <expression> equals null.
-  Literal* right_literal = right_->AsLiteral();
-  if (right_literal != NULL && right_literal->handle()->IsNull()) {
-    *expr = left_;
-    return true;
-  }
-
-  // Check for the pattern: null equals <expression>.
-  Literal* left_literal = left_->AsLiteral();
-  if (left_literal != NULL && left_literal->handle()->IsNull()) {
-    *expr = right_;
-    return true;
-  }
-
-  return false;
+  return MatchLiteralCompareNull(left_, op_, right_, expr) ||
+      MatchLiteralCompareNull(right_, op_, left_, expr);
 }
 
 

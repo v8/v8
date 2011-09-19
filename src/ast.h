@@ -288,6 +288,12 @@ class Expression: public AstNode {
   // True iff the expression is a literal represented as a smi.
   virtual bool IsSmiLiteral() { return false; }
 
+  // True iff the expression is a string literal.
+  virtual bool IsStringLiteral() { return false; }
+
+  // True iff the expression is the null literal.
+  virtual bool IsNullLiteral() { return false; }
+
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -890,6 +896,8 @@ class Literal: public Expression {
 
   virtual bool IsTrivial() { return true; }
   virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
+  virtual bool IsStringLiteral() { return handle_->IsString(); }
+  virtual bool IsNullLiteral() { return handle_->IsNull(); }
 
   // Check if this literal is identical to the other literal.
   bool IsIdenticalTo(const Literal* other) const {

@@ -1316,25 +1316,21 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
 }
 
 
-bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
-                                          Label* if_true,
-                                          Label* if_false,
-                                          Label* fall_through) {
-  bool is_strict = compare->op() == Token::EQ_STRICT;
-  Expression *expr;
+bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
+  Expression *sub_expr;
   Handle<String> check;
-  if (compare->IsLiteralCompareTypeof(&expr, &check)) {
-    EmitLiteralCompareTypeof(expr, check, if_true, if_false, fall_through);
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    EmitLiteralCompareTypeof(sub_expr, check);
     return true;
   }
 
-  if (compare->IsLiteralCompareUndefined(&expr)) {
-    EmitLiteralCompareUndefined(expr, if_true, if_false, fall_through);
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
     return true;
   }
 
-  if (compare->IsLiteralCompareNull(&expr)) {
-    EmitLiteralCompareNull(expr, is_strict, if_true, if_false, fall_through);
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    EmitLiteralCompareNil(expr, sub_expr, kNullValue);
     return true;
   }
 

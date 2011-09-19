@@ -124,6 +124,15 @@ class V8 : public AllStatic {
   static bool use_crankshaft_;
 };
 
+
+// JavaScript defines two kinds of 'nil'.
+enum NilValue { kNullValue, kUndefinedValue };
+
+
+// JavaScript defines two kinds of equality.
+enum EqualityKind { kStrictEquality, kNonStrictEquality };
+
+
 } }  // namespace v8::internal
 
 namespace i = v8::internal;
