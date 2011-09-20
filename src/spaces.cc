@@ -785,7 +785,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
   if (was_swept_conservatively_) return;
 
   bool allocation_pointer_found_in_space =
-      (allocation_info_.top != allocation_info_.limit);
+      (allocation_info_.top == allocation_info_.limit);
   PageIterator page_iterator(this);
   while (page_iterator.has_next()) {
     Page* page = page_iterator.next();
@@ -826,6 +826,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 
     CHECK_LE(black_size, page->LiveBytes());
   }
+  ASSERT(allocation_pointer_found_in_space);
 }
 #endif
 
