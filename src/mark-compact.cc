@@ -2684,7 +2684,7 @@ static inline void UpdateSlot(ObjectVisitor* v,
                               Address addr) {
   switch (slot_type) {
     case SlotsBuffer::CODE_TARGET_SLOT: {
-      RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, NULL, NULL);
+      RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, NULL);
       rinfo.Visit(v);
       break;
     }
@@ -2698,12 +2698,12 @@ static inline void UpdateSlot(ObjectVisitor* v,
       break;
     }
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
-      RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, NULL, NULL);
+      RelocInfo rinfo(addr, RelocInfo::DEBUG_BREAK_SLOT, 0, NULL);
       if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(v);
       break;
     }
     case SlotsBuffer::JS_RETURN_SLOT: {
-      RelocInfo rinfo(addr, RelocInfo::JS_RETURN, NULL, NULL);
+      RelocInfo rinfo(addr, RelocInfo::JS_RETURN, 0, NULL);
       if (rinfo.IsPatchedReturnSequence()) rinfo.Visit(v);
       break;
     }

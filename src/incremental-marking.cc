@@ -89,7 +89,7 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
   if (IsMarking()) {
     Code* host =
         heap_->isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(pc);
-    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, NULL, host);
+    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
     RecordWriteIntoCode(host, &rinfo, value);
   }
 }

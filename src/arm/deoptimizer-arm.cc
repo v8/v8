@@ -173,7 +173,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
 
   RelocInfo rinfo(pc_after - 2 * kInstrSize,
                   RelocInfo::CODE_TARGET,
-                  NULL,
+                  0,
                   unoptimized_code);
   unoptimized_code->GetHeap()->incremental_marking()->RecordWriteIntoCode(
       unoptimized_code, &rinfo, replacement_code);
