@@ -106,7 +106,7 @@ inline StackHandler* StackFrame::top_handler() const {
 
 
 inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
-  return isolate->pc_to_code_cache()->GetCacheEntry(pc)->code;
+  return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
 

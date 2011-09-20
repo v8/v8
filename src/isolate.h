@@ -66,7 +66,7 @@ class HandleScopeImplementer;
 class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
-class PcToCodeCache;
+class InnerPointerToCodeCache;
 class PreallocatedMemoryThread;
 class RegExpStack;
 class SaveContext;
@@ -841,7 +841,9 @@ class Isolate {
     return unicode_cache_;
   }
 
-  PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
+  InnerPointerToCodeCache* inner_pointer_to_code_cache() {
+    return inner_pointer_to_code_cache_;
+  }
 
   StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
 
@@ -1136,7 +1138,7 @@ class Isolate {
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
-  PcToCodeCache* pc_to_code_cache_;
+  InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   StringInputBuffer* write_input_buffer_;
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;

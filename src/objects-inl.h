@@ -3864,9 +3864,8 @@ byte* Code::entry() {
 }
 
 
-bool Code::contains(byte* pc) {
-  return (instruction_start() <= pc) &&
-      (pc <= instruction_start() + instruction_size());
+bool Code::contains(byte* inner_pointer) {
+  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
 

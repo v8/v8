@@ -366,16 +366,17 @@ void SafeStackTraceFrameIterator::Advance() {
 
 
 Code* StackFrame::GetSafepointData(Isolate* isolate,
-                                   Address pc,
+                                   Address inner_pointer,
                                    SafepointEntry* safepoint_entry,
                                    unsigned* stack_slots) {
-  PcToCodeCache::PcToCodeCacheEntry* entry =
-      isolate->pc_to_code_cache()->GetCacheEntry(pc);
+  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+      isolate->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   if (!entry->safepoint_entry.is_valid()) {
-    entry->safepoint_entry = entry->code->GetSafepointEntry(pc);
+    entry->safepoint_entry = entry->code->GetSafepointEntry(inner_pointer);
     ASSERT(entry->safepoint_entry.is_valid());
   } else {
-    ASSERT(entry->safepoint_entry.Equals(entry->code->GetSafepointEntry(pc)));
+    ASSERT(entry->safepoint_entry.Equals(
+        entry->code->GetSafepointEntry(inner_pointer)));
   }
 
   // Fill in the results and return the code.
@@ -819,7 +820,8 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   // back to a slow search in this case to find the original optimized
   // code object.
   if (!code->contains(pc())) {
-    code = isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(pc());
+    code = isolate()->inner_pointer_to_code_cache()->
+        GcSafeFindCodeForInnerPointer(pc());
   }
   ASSERT(code != NULL);
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
@@ -1155,9 +1157,10 @@ JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
 // -------------------------------------------------------------------------
 
 
-Code* PcToCodeCache::GcSafeCastToCode(HeapObject* object, Address pc) {
+Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
+                                                Address inner_pointer) {
   Code* code = reinterpret_cast<Code*>(object);
-  ASSERT(code != NULL && code->contains(pc));
+  ASSERT(code != NULL && code->contains(inner_pointer));
   return code;
 }
 
@@ -1170,17 +1173,20 @@ static int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
 }
 
 
-Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
+Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
+    Address inner_pointer) {
   Heap* heap = isolate_->heap();
-  // Check if the pc points into a large object chunk.
-  LargePage* large_page = heap->lo_space()->FindPageContainingPc(pc);
-  if (large_page != NULL) return GcSafeCastToCode(large_page->GetObject(), pc);
+  // Check if the inner pointer points into a large object chunk.
+  LargePage* large_page = heap->lo_space()->FindPageContainingPc(inner_pointer);
+  if (large_page != NULL) {
+    return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
+  }
 
   // Iterate through the page until we reach the end or find an object starting
-  // after the pc.
-  Page* page = Page::FromAddress(pc);
+  // after the inner pointer.
+  Page* page = Page::FromAddress(inner_pointer);
 
-  Address addr = page->skip_list()->StartFor(pc);
+  Address addr = page->skip_list()->StartFor(inner_pointer);
 
   Address top = heap->code_space()->top();
   Address limit = heap->code_space()->limit();
@@ -1194,30 +1200,31 @@ Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
     HeapObject* obj = HeapObject::FromAddress(addr);
     int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
     Address next_addr = addr + obj_size;
-    if (next_addr >= pc) return GcSafeCastToCode(obj, pc);
+    if (next_addr > inner_pointer) return GcSafeCastToCode(obj, inner_pointer);
     addr = next_addr;
   }
 }
 
 
-PcToCodeCache::PcToCodeCacheEntry* PcToCodeCache::GetCacheEntry(Address pc) {
+InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
+    InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
-  ASSERT(IsPowerOf2(kPcToCodeCacheSize));
+  ASSERT(IsPowerOf2(kInnerPointerToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pc)));
-  uint32_t index = hash & (kPcToCodeCacheSize - 1);
-  PcToCodeCacheEntry* entry = cache(index);
-  if (entry->pc == pc) {
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(inner_pointer)));
+  uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
+  InnerPointerToCodeCacheEntry* entry = cache(index);
+  if (entry->inner_pointer == inner_pointer) {
     isolate_->counters()->pc_to_code_cached()->Increment();
-    ASSERT(entry->code == GcSafeFindCodeForPc(pc));
+    ASSERT(entry->code == GcSafeFindCodeForInnerPointer(inner_pointer));
   } else {
     // Because this code may be interrupted by a profiling signal that
-    // also queries the cache, we cannot update pc before the code has
-    // been set. Otherwise, we risk trying to use a cache entry before
+    // also queries the cache, we cannot update inner_pointer before the code
+    // has been set. Otherwise, we risk trying to use a cache entry before
     // the code has been computed.
-    entry->code = GcSafeFindCodeForPc(pc);
+    entry->code = GcSafeFindCodeForInnerPointer(inner_pointer);
     entry->safepoint_entry.Reset();
-    entry->pc = pc;
+    entry->inner_pointer = inner_pointer;
   }
   return entry;
 }

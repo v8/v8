@@ -87,8 +87,8 @@ void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
 
 void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
   if (IsMarking()) {
-    Code* host =
-        heap_->isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(pc);
+    Code* host = heap_->isolate()->inner_pointer_to_code_cache()->
+        GcSafeFindCodeForInnerPointer(pc);
     RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
     RecordWriteIntoCode(host, &rinfo, value);
   }

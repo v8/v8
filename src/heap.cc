@@ -844,7 +844,8 @@ void Heap::MarkCompactPrologue() {
 
 
 Object* Heap::FindCodeObject(Address a) {
-  return isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(a);
+  return isolate()->inner_pointer_to_code_cache()->
+      GcSafeFindCodeForInnerPointer(a);
 }
 
 

@@ -49,36 +49,36 @@ class StackFrameIterator;
 class ThreadLocalTop;
 class Isolate;
 
-class PcToCodeCache {
+class InnerPointerToCodeCache {
  public:
-  struct PcToCodeCacheEntry {
-    Address pc;
+  struct InnerPointerToCodeCacheEntry {
+    Address inner_pointer;
     Code* code;
     SafepointEntry safepoint_entry;
   };
 
-  explicit PcToCodeCache(Isolate* isolate) : isolate_(isolate) {
+  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
     Flush();
   }
 
-  Code* GcSafeFindCodeForPc(Address pc);
-  Code* GcSafeCastToCode(HeapObject* object, Address pc);
+  Code* GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  Code* GcSafeCastToCode(HeapObject* object, Address inner_pointer);
 
   void Flush() {
     memset(&cache_[0], 0, sizeof(cache_));
   }
 
-  PcToCodeCacheEntry* GetCacheEntry(Address pc);
+  InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
 
  private:
-  PcToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+  InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
 
   Isolate* isolate_;
 
-  static const int kPcToCodeCacheSize = 1024;
-  PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+  static const int kInnerPointerToCodeCacheSize = 1024;
+  InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
 
-  DISALLOW_COPY_AND_ASSIGN(PcToCodeCache);
+  DISALLOW_COPY_AND_ASSIGN(InnerPointerToCodeCache);
 };
 
 

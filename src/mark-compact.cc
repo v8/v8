@@ -281,7 +281,7 @@ void MarkCompactCollector::CollectGarbage() {
 
   if (!collect_maps_) ReattachInitialMaps();
 
-  heap_->isolate()->pc_to_code_cache()->Flush();
+  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
   Finish();
 
