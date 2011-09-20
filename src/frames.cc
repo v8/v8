@@ -393,11 +393,16 @@ bool StackFrame::HasHandler() const {
 }
 
 
+#ifdef DEBUG
+static bool GcSafeCodeContains(HeapObject* object, Address addr);
+#endif
+
+
 void StackFrame::IteratePc(ObjectVisitor* v,
                            Address* pc_address,
                            Code* holder) {
   Address pc = *pc_address;
-  ASSERT(holder->contains(pc));
+  ASSERT(GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
   Object* code = holder;
   v->VisitPointer(&code);
@@ -1157,19 +1162,34 @@ JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
 // -------------------------------------------------------------------------
 
 
-Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
-                                                Address inner_pointer) {
-  Code* code = reinterpret_cast<Code*>(object);
-  ASSERT(code != NULL && code->contains(inner_pointer));
-  return code;
+static Map* GcSafeMapOfCodeSpaceObject(HeapObject* object) {
+  MapWord map_word = object->map_word();
+  return map_word.IsForwardingAddress() ?
+      map_word.ToForwardingAddress()->map() : map_word.ToMap();
 }
 
 
 static int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
-  MapWord map_word = object->map_word();
-  Map* map = map_word.IsForwardingAddress() ?
-      map_word.ToForwardingAddress()->map() : map_word.ToMap();
-  return object->SizeFromMap(map);
+  return object->SizeFromMap(GcSafeMapOfCodeSpaceObject(object));
+}
+
+
+#ifdef DEBUG
+static bool GcSafeCodeContains(HeapObject* code, Address addr) {
+  Map* map = GcSafeMapOfCodeSpaceObject(code);
+  ASSERT(map == code->GetHeap()->code_map());
+  Address start = code->address();
+  Address end = code->address() + code->SizeFromMap(map);
+  return start <= addr && addr < end;
+}
+#endif
+
+
+Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
+                                                Address inner_pointer) {
+  Code* code = reinterpret_cast<Code*>(object);
+  ASSERT(code != NULL && GcSafeCodeContains(code, inner_pointer));
+  return code;
 }
 
 
