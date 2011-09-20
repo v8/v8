@@ -84,12 +84,6 @@ void MacroAssembler::RememberedSetHelper(
     SaveFPRegsMode save_fp,
     MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
-  if (FLAG_debug_code) {
-    Label ok;
-    JumpIfNotInNewSpace(addr, scratch, &ok, Label::kNear);
-    int3();
-    bind(&ok);
-  }
   // Load store buffer top.
   ExternalReference store_buffer =
       ExternalReference::store_buffer_top(isolate());
