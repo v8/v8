@@ -79,11 +79,18 @@ void MacroAssembler::InNewSpace(
 
 
 void MacroAssembler::RememberedSetHelper(
+    Register object,  // Only used for debug checks.
     Register addr,
     Register scratch,
     SaveFPRegsMode save_fp,
     MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
+  if (FLAG_debug_code) {
+    Label ok;
+    JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
   // Load store buffer top.
   ExternalReference store_buffer =
       ExternalReference::store_buffer_top(isolate());

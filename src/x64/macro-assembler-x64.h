@@ -165,7 +165,8 @@ class MacroAssembler: public Assembler {
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register.  Only works if addr is not
   // in new space.
-  void RememberedSetHelper(Register addr,
+  void RememberedSetHelper(Register object,  // Used for debug code.
+                           Register addr,
                            Register scratch,
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
@@ -178,7 +179,7 @@ class MacroAssembler: public Assembler {
                      Label::Distance condition_met_distance = Label::kFar);
 
   // Check if object is in new space.  Jumps if the object is not in new space.
-  // The register scratch can be object itself, but it will be clobbered.
+  // The register scratch can be object itself, but scratch will be clobbered.
   void JumpIfNotInNewSpace(Register object,
                            Register scratch,
                            Label* branch,
@@ -267,9 +268,9 @@ class MacroAssembler: public Assembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  // For page containing |object| mark region covering [address]
+  // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. All registers are clobbered by the
+  // object being stored. The address and value registers are clobbered by the
   // operation.  RecordWrite filters out smis so it does not update
   // the write barrier if the value is a smi.
   void RecordWrite(

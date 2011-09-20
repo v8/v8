@@ -3174,10 +3174,16 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // pauses in the middle of scanning a single object.  Therefore the
   // incremental marker is not disturbed, so we don't need to call the
   // RecordWrite stub that notifies the incremental marker.
-  __ RememberedSetHelper(
-      index1, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
-  __ RememberedSetHelper(
-      index2, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(elements,
+                         index1,
+                         scratch2,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(elements,
+                         index2,
+                         scratch2,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
 
   __ bind(&no_remembered_set);
   // We are done. Drop elements from the stack, and return undefined.

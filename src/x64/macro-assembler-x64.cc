@@ -197,10 +197,17 @@ void MacroAssembler::CompareRoot(const Operand& with,
 }
 
 
-void MacroAssembler::RememberedSetHelper(Register addr,
+void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
+                                         Register addr,
                                          Register scratch,
                                          SaveFPRegsMode save_fp,
                                          RememberedSetFinalAction and_then) {
+  if (FLAG_debug_code) {
+    Label ok;
+    JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
   // Load store buffer top.
   LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Store pointer to buffer.

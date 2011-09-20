@@ -523,11 +523,18 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-void MacroAssembler::RememberedSetHelper(Register address,
+void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
+                                         Register address,
                                          Register scratch,
                                          SaveFPRegsMode fp_mode,
                                          RememberedSetFinalAction and_then) {
   Label done;
+  if (FLAG_debug_code) {
+    Label ok;
+    JumpIfNotInNewSpace(object, scratch, &ok);
+    stop("Remembered set pointer is in new space");
+    bind(&ok);
+  }
   // Load store buffer top.
   ExternalReference store_buffer =
       ExternalReference::store_buffer_top(isolate());
