@@ -844,13 +844,7 @@ void Heap::MarkCompactPrologue() {
 
 
 Object* Heap::FindCodeObject(Address a) {
-  Object* obj = NULL;  // Initialization to please compiler.
-  { MaybeObject* maybe_obj = code_space_->FindObject(a);
-    if (!maybe_obj->ToObject(&obj)) {
-      obj = lo_space_->FindObject(a)->ToObjectUnchecked();
-    }
-  }
-  return obj;
+  return isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(a);
 }
 
 
