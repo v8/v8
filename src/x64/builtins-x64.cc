@@ -207,22 +207,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rax: initial map
       // rbx: JSObject
       // rdi: start of next object
-      { Label loop, entry;
-        // To allow for truncation.
-        if (count_constructions) {
-          __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
-        } else {
-          __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      if (count_constructions) {
+        __ movzxbq(rsi,
+                   FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ lea(rsi,
+               Operand(rbx, rsi, times_pointer_size, JSObject::kHeaderSize));
+        // rsi: offset of first field after pre-allocated fields
+        if (FLAG_debug_code) {
+          __ cmpq(rsi, rdi);
+          __ Assert(less_equal,
+                    "Unexpected number of pre-allocated property fields.");
         }
-        __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ movq(Operand(rcx, 0), rdx);
-        __ addq(rcx, Immediate(kPointerSize));
-        __ bind(&entry);
-        __ cmpq(rcx, rdi);
-        __ j(less, &loop);
+        __ InitializeFieldsWithFiller(rcx, rsi, rdx);
+        __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
       }
+      __ InitializeFieldsWithFiller(rcx, rdi, rdx);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any

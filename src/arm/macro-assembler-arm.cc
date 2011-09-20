@@ -3002,6 +3002,19 @@ void MacroAssembler::CopyBytes(Register src,
 }
 
 
+void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
+                                                Register end_offset,
+                                                Register filler) {
+  Label loop, entry;
+  b(&entry);
+  bind(&loop);
+  str(filler, MemOperand(start_offset, kPointerSize, PostIndex));
+  bind(&entry);
+  cmp(start_offset, end_offset);
+  b(lt, &loop);
+}
+
+
 void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register source,  // Input.
                                        Register scratch) {

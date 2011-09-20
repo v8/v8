@@ -1205,6 +1205,13 @@ class MacroAssembler: public Assembler {
                  int min_length = 0,
                  Register scratch = kScratchRegister);
 
+  // Initialize fields with filler values.  Fields starting at |start_offset|
+  // not including end_offset are overwritten with the value in |filler|.  At
+  // the end the loop, |start_offset| takes the value of |end_offset|.
+  void InitializeFieldsWithFiller(Register start_offset,
+                                  Register end_offset,
+                                  Register filler);
+
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

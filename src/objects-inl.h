@@ -1493,10 +1493,26 @@ Object* JSObject::InObjectPropertyAtPut(int index,
 
 
 
-void JSObject::InitializeBody(int object_size, Object* value) {
-  ASSERT(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
-  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, value);
+void JSObject::InitializeBody(Map* map,
+                              Object* pre_allocated_value,
+                              Object* filler_value) {
+  ASSERT(!filler_value->IsHeapObject() ||
+         !GetHeap()->InNewSpace(filler_value));
+  ASSERT(!pre_allocated_value->IsHeapObject() ||
+         !GetHeap()->InNewSpace(pre_allocated_value));
+  int size = map->instance_size();
+  int offset = kHeaderSize;
+  if (filler_value != pre_allocated_value) {
+    int pre_allocated = map->pre_allocated_property_fields();
+    ASSERT(pre_allocated * kPointerSize + kHeaderSize <= size);
+    for (int i = 0; i < pre_allocated; i++) {
+      WRITE_FIELD(this, offset, pre_allocated_value);
+      offset += kPointerSize;
+    }
+  }
+  while (offset < size) {
+    WRITE_FIELD(this, offset, filler_value);
+    offset += kPointerSize;
   }
 }
 

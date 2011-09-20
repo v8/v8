@@ -3443,6 +3443,9 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // We cannot always fill with one_pointer_filler_map because objects
   // created from API functions expect their internal fields to be initialized
   // with undefined_value.
+  // Pre-allocated fields need to be initialized with undefined_value as well
+  // so that object accesses before the constructor completes (e.g. in the
+  // debugger) will not cause a crash.
   if (map->constructor()->IsJSFunction() &&
       JSFunction::cast(map->constructor())->shared()->
           IsInobjectSlackTrackingInProgress()) {
@@ -3452,7 +3455,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   } else {
     filler = Heap::undefined_value();
   }
-  obj->InitializeBody(map->instance_size(), filler);
+  obj->InitializeBody(map, Heap::undefined_value(), filler);
 }
 
 

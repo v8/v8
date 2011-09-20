@@ -653,6 +653,13 @@ class MacroAssembler: public Assembler {
                  Register length,
                  Register scratch);
 
+  // Initialize fields with filler values.  Fields starting at |start_offset|
+  // not including end_offset are overwritten with the value in |filler|.  At
+  // the end the loop, |start_offset| takes the value of |end_offset|.
+  void InitializeFieldsWithFiller(Register start_offset,
+                                  Register end_offset,
+                                  Register filler);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 

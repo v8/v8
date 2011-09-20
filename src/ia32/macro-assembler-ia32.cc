@@ -1379,6 +1379,20 @@ void MacroAssembler::CopyBytes(Register source,
 }
 
 
+void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
+                                                Register end_offset,
+                                                Register filler) {
+  Label loop, entry;
+  jmp(&entry);
+  bind(&loop);
+  mov(Operand(start_offset, 0), filler);
+  add(Operand(start_offset), Immediate(kPointerSize));
+  bind(&entry);
+  cmp(start_offset, Operand(end_offset));
+  j(less, &loop);
+}
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {

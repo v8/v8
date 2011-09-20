@@ -204,22 +204,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // eax: initial map
       // ebx: JSObject
       // edi: start of next object
-      { Label loop, entry;
-        // To allow for truncation.
-        if (count_constructions) {
-          __ mov(edx, factory->one_pointer_filler_map());
-        } else {
-          __ mov(edx, factory->undefined_value());
+      __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
+      __ mov(edx, factory->undefined_value());
+      if (count_constructions) {
+        __ movzx_b(esi,
+                   FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ lea(esi,
+               Operand(ebx, esi, times_pointer_size, JSObject::kHeaderSize));
+        // esi: offset of first field after pre-allocated fields
+        if (FLAG_debug_code) {
+          __ cmp(esi, Operand(edi));
+          __ Assert(less_equal,
+                    "Unexpected number of pre-allocated property fields.");
         }
-        __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ mov(Operand(ecx, 0), edx);
-        __ add(Operand(ecx), Immediate(kPointerSize));
-        __ bind(&entry);
-        __ cmp(ecx, Operand(edi));
-        __ j(less, &loop);
+        __ InitializeFieldsWithFiller(ecx, esi, edx);
+        __ mov(edx, factory->one_pointer_filler_map());
       }
+      __ InitializeFieldsWithFiller(ecx, edi, edx);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on. Any

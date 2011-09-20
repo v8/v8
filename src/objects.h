@@ -1815,11 +1815,14 @@ class JSObject: public JSReceiver {
                                        WriteBarrierMode mode
                                        = UPDATE_WRITE_BARRIER);
 
-  // initializes the body after properties slot, properties slot is
-  // initialized by set_properties
-  // Note: this call does not update write barrier, it is caller's
-  // reponsibility to ensure that *v* can be collected without WB here.
-  inline void InitializeBody(int object_size, Object* value);
+  // Initializes the body after properties slot, properties slot is
+  // initialized by set_properties.  Fill the pre-allocated fields with
+  // pre_allocated_value and the rest with filler_value.
+  // Note: this call does not update write barrier, the caller is responsible
+  // to ensure that |filler_value| can be collected without WB here.
+  inline void InitializeBody(Map* map,
+                             Object* pre_allocated_value,
+                             Object* filler_value);
 
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);

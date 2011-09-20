@@ -3851,6 +3851,20 @@ void MacroAssembler::CopyBytes(Register destination,
 }
 
 
+void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
+                                                Register end_offset,
+                                                Register filler) {
+  Label loop, entry;
+  jmp(&entry);
+  bind(&loop);
+  movq(Operand(start_offset, 0), filler);
+  addq(start_offset, Immediate(kPointerSize));
+  bind(&entry);
+  cmpq(start_offset, end_offset);
+  j(less, &loop);
+}
+
+
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.
