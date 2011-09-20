@@ -619,11 +619,13 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       intptr_t input_value = input_->GetRegister(input_reg);
       if (FLAG_trace_deopt) {
         PrintF(
-            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s\n",
+            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s ",
             output_[frame_index]->GetTop() + output_offset,
             output_offset,
             input_value,
             converter.NameOfCPURegister(input_reg));
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -681,10 +683,12 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
-        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
+        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] ",
                output_offset,
                input_value,
                input_offset);
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
