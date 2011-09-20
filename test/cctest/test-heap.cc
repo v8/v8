@@ -1221,6 +1221,50 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
 }
 
 
+TEST(GrowAndShrinkNewSpace) {
+  InitializeVM();
+  v8::HandleScope scope;
+  NewSpace* new_space = HEAP->new_space();
+
+  // Explicitly growing should double the space capacity.
+  int old_capacity, new_capacity;
+  old_capacity = new_space->Capacity();
+  new_space->Grow();
+  new_capacity = new_space->Capacity();
+  ASSERT_EQ(2 * old_capacity, new_capacity);
+
+  // Fill up new space to the point that it exceeds old capacity.
+  while (new_space->SizeAsInt() <= old_capacity) {
+    Handle<FixedArray> filler = FACTORY->NewFixedArray(1000, NOT_TENURED);
+    ASSERT(HEAP->InNewSpace(*FACTORY->NewFixedArray(1000, NOT_TENURED)));
+  }
+
+  // Explicitly shrinking should not affect space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  ASSERT_EQ(old_capacity, new_capacity);
+
+  // Perform scavenge to empty the new space.
+  HEAP->CollectGarbage(NEW_SPACE);
+  ASSERT_LE(new_space->SizeAsInt(), old_capacity);
+
+  // Explicitly shrinking should halve the space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  ASSERT_EQ(old_capacity, 2 * new_capacity);
+
+  // Consecutive shrinking should not affect space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_space->Shrink();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  ASSERT_EQ(old_capacity, new_capacity);
+}
+
+
 class HeapIteratorTestHelper {
  public:
   HeapIteratorTestHelper(Object* a, Object* b)

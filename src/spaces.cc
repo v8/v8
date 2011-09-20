@@ -926,10 +926,10 @@ void NewSpace::Flip() {
 void NewSpace::Grow() {
   ASSERT(Capacity() < MaximumCapacity());
   if (to_space_.Grow()) {
-    // Only grow from space if we managed to grow to space.
+    // Only grow from space if we managed to grow to-space.
     if (!from_space_.Grow()) {
-      // If we managed to grow to space but couldn't grow from space,
-      // attempt to shrink to space.
+      // If we managed to grow to-space but couldn't grow from-space,
+      // attempt to shrink to-space.
       if (!to_space_.ShrinkTo(from_space_.Capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
@@ -947,10 +947,11 @@ void NewSpace::Shrink() {
       RoundUp(new_capacity, static_cast<int>(OS::AllocateAlignment()));
   if (rounded_new_capacity < Capacity() &&
       to_space_.ShrinkTo(rounded_new_capacity))  {
-    // Only shrink from space if we managed to shrink to space.
+    // Only shrink from-space if we managed to shrink to-space.
+    from_space_.Reset();
     if (!from_space_.ShrinkTo(rounded_new_capacity)) {
-      // If we managed to shrink to space but couldn't shrink from
-      // space, attempt to grow to space again.
+      // If we managed to shrink to-space but couldn't shrink from
+      // space, attempt to grow to-space again.
       if (!to_space_.GrowTo(from_space_.Capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
