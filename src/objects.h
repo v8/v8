@@ -6130,6 +6130,9 @@ class SeqString: public String {
   // Casting.
   static inline SeqString* cast(Object* obj);
 
+  // Layout description.
+  static const int kHeaderSize = String::kSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
 };
@@ -6162,10 +6165,6 @@ class SeqAsciiString: public SeqString {
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length * kCharSize);
   }
-
-  // Layout description.
-  static const int kHeaderSize = String::kSize;
-  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential ASCII string.
   static const int kMaxSize = 512 * MB - 1;
@@ -6216,10 +6215,6 @@ class SeqTwoByteString: public SeqString {
   static int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length * kShortSize);
   }
-
-  // Layout description.
-  static const int kHeaderSize = String::kSize;
-  static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxSize = 512 * MB - 1;

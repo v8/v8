@@ -63,11 +63,6 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
-# Known failures after merge from the bleeding edge (issue 1672)
-debug-scopes: PASS, SKIP if ($mode == debug)
-mirror-object: PASS, SKIP if ($mode == debug)
-harmony/debug-blockscopes: PASS, SKIP if ($mode == debug)
-
 ##############################################################################
 [ $arch == arm ]
 

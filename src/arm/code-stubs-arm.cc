@@ -4575,8 +4575,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ add(r8, subject, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(r8, subject, Operand(SeqString::kHeaderSize - kHeapObjectTag));
   __ eor(r3, r3, Operand(1));
   // Load the length from the original subject string from the previous stack
   // frame. Therefore we have to use fp, which points exactly to two pointer

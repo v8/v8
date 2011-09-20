@@ -438,6 +438,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->SetFlag(WAS_SWEPT_PRECISELY);
 
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
+  ASSERT(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
 
@@ -823,7 +824,6 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       ASSERT(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-
     CHECK_LE(black_size, page->LiveBytes());
   }
   ASSERT(allocation_pointer_found_in_space);

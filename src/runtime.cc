@@ -5492,7 +5492,7 @@ static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
   StringType* new_string = StringType::cast(new_object);
 
   Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqAsciiString::kHeaderSize);
+      new_string->address() + SeqString::kHeaderSize);
   if (comma) *(write_cursor++) = ',';
   *(write_cursor++) = '"';
 
@@ -5580,16 +5580,15 @@ static MaybeObject* QuoteJsonString(Isolate* isolate,
   StringType* new_string = StringType::cast(new_object);
   ASSERT(isolate->heap()->new_space()->Contains(new_string));
 
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqAsciiString::kHeaderSize);
+      new_string->address() + SeqString::kHeaderSize);
   if (comma) *(write_cursor++) = ',';
   write_cursor = WriteQuoteJsonString<Char, Char>(isolate,
                                                   write_cursor,
                                                   characters);
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqAsciiString::kHeaderSize));
+          new_string->address() + SeqString::kHeaderSize));
   isolate->heap()->new_space()->
       template ShrinkStringAtAllocationBoundary<StringType>(
           new_string, final_length);
@@ -5667,9 +5666,8 @@ static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
   StringType* new_string = StringType::cast(new_object);
   ASSERT(isolate->heap()->new_space()->Contains(new_string));
 
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
-      new_string->address() + SeqAsciiString::kHeaderSize);
+      new_string->address() + SeqString::kHeaderSize);
   *(write_cursor++) = '[';
   for (int i = 0; i < length; i++) {
     if (i != 0) *(write_cursor++) = ',';
@@ -5690,7 +5688,7 @@ static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
 
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
-          new_string->address() + SeqAsciiString::kHeaderSize));
+          new_string->address() + SeqString::kHeaderSize));
   isolate->heap()->new_space()->
       template ShrinkStringAtAllocationBoundary<StringType>(
           new_string, final_length);
