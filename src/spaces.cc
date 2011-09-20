@@ -925,10 +925,12 @@ void NewSpace::Flip() {
 
 
 void NewSpace::Grow() {
+  // Double the semispace size but only up to maximum capacity.
   ASSERT(Capacity() < MaximumCapacity());
-  if (to_space_.Grow()) {
+  int new_capacity = Min(MaximumCapacity(), 2 * static_cast<int>(Capacity()));
+  if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
-    if (!from_space_.Grow()) {
+    if (!from_space_.GrowTo(new_capacity)) {
       // If we managed to grow to-space but couldn't grow from-space,
       // attempt to shrink to-space.
       if (!to_space_.ShrinkTo(from_space_.Capacity())) {
@@ -944,8 +946,7 @@ void NewSpace::Grow() {
 
 void NewSpace::Shrink() {
   int new_capacity = Max(InitialCapacity(), 2 * SizeAsInt());
-  int rounded_new_capacity =
-      RoundUp(new_capacity, static_cast<int>(OS::AllocateAlignment()));
+  int rounded_new_capacity = RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < Capacity() &&
       to_space_.ShrinkTo(rounded_new_capacity))  {
     // Only shrink from-space if we managed to shrink to-space.
@@ -1145,15 +1146,6 @@ bool SemiSpace::Uncommit() {
 }
 
 
-bool SemiSpace::Grow() {
-  // Double the semispace size but only up to maximum capacity.
-  ASSERT(static_cast<size_t>(Page::kPageSize) > OS::AllocateAlignment());
-  int new_capacity = Min(maximum_capacity_,
-      RoundUp(capacity_ * 2, static_cast<int>(Page::kPageSize)));
-  return GrowTo(new_capacity);
-}
-
-
 bool SemiSpace::GrowTo(int new_capacity) {
   ASSERT((new_capacity & Page::kPageAlignmentMask) == 0);
   ASSERT(new_capacity <= maximum_capacity_);
@@ -1210,7 +1202,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
       NewSpacePage::FromAddress(space_end - pages_after * Page::kPageSize);
   new_last_page->set_next_page(anchor());
   anchor()->set_prev_page(new_last_page);
-  ASSERT(current_page_ == first_page());
+  ASSERT((current_page_ <= first_page()) && (current_page_ >= new_last_page));
 
   return true;
 }

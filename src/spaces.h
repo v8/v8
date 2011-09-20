@@ -1793,14 +1793,9 @@ class SemiSpace : public Space {
   // True if the space has been set up but not torn down.
   bool HasBeenSetup() { return start_ != NULL; }
 
-  // Grow the size of the semispace by committing extra virtual memory.
-  // Assumes that the caller has checked that the semispace has not reached
-  // its maximum capacity (and thus there is space available in the reserved
-  // address range to grow).
-  bool Grow();
-
   // Grow the semispace to the new capacity.  The new capacity
-  // requested must be larger than the current capacity.
+  // requested must be larger than the current capacity and less than
+  // the maximum capacity.
   bool GrowTo(int new_capacity);
 
   // Shrinks the semispace to the new capacity.  The new capacity
