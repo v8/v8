@@ -765,6 +765,8 @@ class MarkCompactCollector {
 };
 
 
+const char* AllocationSpaceName(AllocationSpace space);
+
 } }  // namespace v8::internal
 
 #endif  // V8_MARK_COMPACT_H_

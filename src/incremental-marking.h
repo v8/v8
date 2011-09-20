@@ -138,13 +138,16 @@ class IncrementalMarking {
 
   inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit);
 
-  // Does white->black or grey->grey
+  // Does white->black or keeps gray or black color. Returns true if converting
+  // white to black.
   inline bool MarkBlackOrKeepGrey(MarkBit mark_bit) {
     ASSERT(!Marking::IsImpossible(mark_bit));
-    if (mark_bit.Get()) return false;
+    if (mark_bit.Get()) {
+      // Grey or black: Keep the color.
+      return false;
+    }
     mark_bit.Set();
-    ASSERT(!Marking::IsWhite(mark_bit));
-    ASSERT(!Marking::IsImpossible(mark_bit));
+    ASSERT(Marking::IsBlack(mark_bit));
     return true;
   }
 

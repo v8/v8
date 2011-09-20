@@ -4184,7 +4184,7 @@ void MacroAssembler::EnsureNotWhite(
   addq(length, Immediate(0x04));
   // Value now either 4 (if ASCII) or 8 (if UC16), i.e. char-size shifted by 2.
   imul(length, FieldOperand(value, String::kLengthOffset));
-  shr(length, Immediate(2 + kSmiTagSize));
+  shr(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
   addq(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
   and_(length, Immediate(~kObjectAlignmentMask));
 

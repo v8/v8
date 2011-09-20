@@ -459,6 +459,9 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
 
+DEFINE_bool(trace_live_byte_count, false,
+            "trace updates to page live byte count")
+
 // VM state
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 

@@ -2595,7 +2595,7 @@ void MacroAssembler::EnsureNotWhite(
   ASSERT(SeqAsciiString::kMaxSize <=
          static_cast<int>(0xffffffffu >> (2 + kSmiTagSize)));
   imul(length, FieldOperand(value, String::kLengthOffset));
-  shr(length, 2 + kSmiTagSize);
+  shr(length, 2 + kSmiTagSize + kSmiShiftSize);
   add(Operand(length),
       Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
   and_(Operand(length),
@@ -2609,6 +2609,11 @@ void MacroAssembler::EnsureNotWhite(
   and_(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
   add(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset),
       length);
+  if (FLAG_debug_code) {
+    mov(length, Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+    cmp(length, Operand(bitmap_scratch, MemoryChunk::kSizeOffset));
+    Check(less_equal, "Live Bytes Count overflow chunk size");
+  }
 
   bind(&done);
 }

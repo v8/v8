@@ -114,8 +114,10 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
   ASSERT(obj->Size() >= 2*kPointerSize);
   ASSERT(IsMarking());
   Marking::BlackToGrey(mark_bit);
+  int obj_size = obj->Size();
+  MemoryChunk::IncrementLiveBytes(obj->address(), -obj_size);
   int64_t old_bytes_rescanned = bytes_rescanned_;
-  bytes_rescanned_ = old_bytes_rescanned + obj->Size();
+  bytes_rescanned_ = old_bytes_rescanned + obj_size;
   if ((bytes_rescanned_ >> 20) != (old_bytes_rescanned >> 20)) {
     if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSize()) {
       // If we have queued twice the heap size for rescanning then we are

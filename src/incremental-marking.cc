@@ -403,7 +403,12 @@ void IncrementalMarking::Start() {
 
 static void MarkObjectGreyDoNotEnqueue(Object* obj) {
   if (obj->IsHeapObject()) {
+    HeapObject* heap_obj = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(obj));
+    if (Marking::IsBlack(mark_bit)) {
+      MemoryChunk::IncrementLiveBytes(heap_obj->address(),
+                                      -heap_obj->Size());
+    }
     Marking::AnyToGrey(mark_bit);
   }
 }
@@ -569,14 +574,20 @@ void IncrementalMarking::Hurry() {
   }
 
   if (FLAG_cleanup_code_caches_at_gc) {
-    Marking::GreyToBlack(Marking::MarkBitFrom(heap_->polymorphic_code_cache()));
+    PolymorphicCodeCache* poly_cache = heap_->polymorphic_code_cache();
+    Marking::GreyToBlack(Marking::MarkBitFrom(poly_cache));
+    MemoryChunk::IncrementLiveBytes(poly_cache->address(),
+                                    PolymorphicCodeCache::kSize);
   }
 
   Object* context = heap_->global_contexts_list();
   while (!context->IsUndefined()) {
     NormalizedMapCache* cache = Context::cast(context)->normalized_map_cache();
     MarkBit mark_bit = Marking::MarkBitFrom(cache);
-    if (Marking::IsGrey(mark_bit)) Marking::GreyToBlack(mark_bit);
+    if (Marking::IsGrey(mark_bit)) {
+      Marking::GreyToBlack(mark_bit);
+      MemoryChunk::IncrementLiveBytes(cache->address(), cache->Size());
+    }
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
 }

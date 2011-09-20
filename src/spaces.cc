@@ -432,6 +432,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = NULL;
   chunk->skip_list_ = NULL;
+  chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
   chunk->SetFlag(WAS_SWEPT_PRECISELY);
@@ -822,8 +823,8 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       ASSERT(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-    // TODO(1672): Page live bytes are off for some tests.
-    // CHECK_LE(black_size, page->LiveBytes());
+
+    CHECK_LE(black_size, page->LiveBytes());
   }
 }
 #endif
@@ -2504,6 +2505,31 @@ void LargeObjectSpace::CollectCodeStatistics() {
     }
   }
 }
+
+
+void Page::Print() {
+  // Make a best-effort to print the objects in the page.
+  PrintF("Page@%p in %s\n",
+         this->address(),
+         AllocationSpaceName(this->owner()->identity()));
+  printf(" --------------------------------------\n");
+  HeapObjectIterator objects(this, heap()->GcSafeSizeOfOldObjectFunction());
+  unsigned mark_size = 0;
+  for (HeapObject* object = objects.Next();
+       object != NULL;
+       object = objects.Next()) {
+    bool is_marked = Marking::MarkBitFrom(object).Get();
+    PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
+    if (is_marked) {
+      mark_size += heap()->GcSafeSizeOfOldObjectFunction()(object);
+    }
+    object->ShortPrint();
+    PrintF("\n");
+  }
+  printf(" --------------------------------------\n");
+  printf(" Marked: %x, LiveCount: %x\n", mark_size, LiveBytes());
+}
+
 #endif  // DEBUG
 
 } }  // namespace v8::internal
