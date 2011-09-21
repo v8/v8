@@ -4293,6 +4293,47 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
+static const char* kEmbeddedExtensionSource =
+    "function Ret54321(){return 54321;}~~@@$"
+    "$%% THIS IS A SERIES OF NON-NULL-TERMINATED STRINGS.";
+static const int kEmbeddedExtensionSourceValidLen = 34;
+
+
+THREADED_TEST(ExtensionMissingSourceLength) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("srclentest_fail",
+                                      kEmbeddedExtensionSource));
+  const char* extension_names[] = { "srclentest_fail" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  CHECK_EQ(0, *context);
+}
+
+
+THREADED_TEST(ExtensionWithSourceLength) {
+  for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
+       source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
+    v8::HandleScope handle_scope;
+    char extension_name[32];
+    snprintf(extension_name, sizeof(extension_name), "ext #%d", source_len);
+    v8::RegisterExtension(new Extension(extension_name,
+                                        kEmbeddedExtensionSource, 0, 0,
+                                        source_len));
+    const char* extension_names[1] = { extension_name };
+    v8::ExtensionConfiguration extensions(1, extension_names);
+    v8::Handle<Context> context = Context::New(&extensions);
+    if (source_len == kEmbeddedExtensionSourceValidLen) {
+      Context::Scope lock(context);
+      v8::Handle<Value> result = Script::Compile(v8_str("Ret54321()"))->Run();
+      CHECK_EQ(v8::Integer::New(54321), result);
+    } else {
+      // Anything but exactly the right length should fail to compile.
+      CHECK_EQ(0, *context);
+    }
+  }
+}
+
+
 static const char* kEvalExtensionSource1 =
   "function UseEval1() {"
   "  var x = 42;"

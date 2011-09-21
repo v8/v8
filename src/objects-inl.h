@@ -2299,25 +2299,27 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 }
 
 
-ExternalAsciiString::Resource* ExternalAsciiString::resource() {
+const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
 
 
 void ExternalAsciiString::set_resource(
-    ExternalAsciiString::Resource* resource) {
-  *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
+    const ExternalAsciiString::Resource* resource) {
+  *reinterpret_cast<const Resource**>(
+      FIELD_ADDR(this, kResourceOffset)) = resource;
 }
 
 
-ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
+const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
 
 
 void ExternalTwoByteString::set_resource(
-    ExternalTwoByteString::Resource* resource) {
-  *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
+    const ExternalTwoByteString::Resource* resource) {
+  *reinterpret_cast<const Resource**>(
+      FIELD_ADDR(this, kResourceOffset)) = resource;
 }
 
 

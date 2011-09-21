@@ -1453,7 +1453,7 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
     if (!source->IsUndefined()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;
-      Resource* resource = string->resource();
+      const Resource* resource = string->resource();
       if (resource == *resource_pointer) {
         sink_->Put(kNativesStringResource, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");

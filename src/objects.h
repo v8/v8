@@ -6379,8 +6379,8 @@ class ExternalAsciiString: public ExternalString {
   typedef v8::String::ExternalAsciiStringResource Resource;
 
   // The underlying resource.
-  inline Resource* resource();
-  inline void set_resource(Resource* buffer);
+  inline const Resource* resource();
+  inline void set_resource(const Resource* buffer);
 
   // Dispatched behavior.
   uint16_t ExternalAsciiStringGet(int index);
@@ -6416,8 +6416,8 @@ class ExternalTwoByteString: public ExternalString {
   typedef v8::String::ExternalStringResource Resource;
 
   // The underlying string resource.
-  inline Resource* resource();
-  inline void set_resource(Resource* buffer);
+  inline const Resource* resource();
+  inline void set_resource(const Resource* buffer);
 
   // Dispatched behavior.
   uint16_t ExternalTwoByteStringGet(int index);

@@ -1171,7 +1171,8 @@ class String : public Primitive {
    * Get the ExternalAsciiStringResource for an external ASCII string.
    * Returns NULL if IsExternalAscii() doesn't return true.
    */
-  V8EXPORT ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
+  V8EXPORT const ExternalAsciiStringResource* GetExternalAsciiStringResource()
+      const;
 
   static inline String* Cast(v8::Value* obj);
 
@@ -2451,24 +2452,42 @@ class V8EXPORT TypeSwitch : public Data {
 
 // --- Extensions ---
 
+class ExternalAsciiStringResourceImpl
+    : public String::ExternalAsciiStringResource {
+ public:
+  ExternalAsciiStringResourceImpl() : data_(0), length_(0) {}
+  ExternalAsciiStringResourceImpl(const char* data, size_t length)
+      : data_(data), length_(length) {}
+  const char* data() const { return data_; }
+  size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
 
 /**
  * Ignore
  */
 class V8EXPORT Extension {  // NOLINT
  public:
+  // Note that the strings passed into this constructor must live as long
+  // as the Extension itself.
   Extension(const char* name,
             const char* source = 0,
             int dep_count = 0,
-            const char** deps = 0);
+            const char** deps = 0,
+            int source_length = -1);
   virtual ~Extension() { }
   virtual v8::Handle<v8::FunctionTemplate>
       GetNativeFunction(v8::Handle<v8::String> name) {
     return v8::Handle<v8::FunctionTemplate>();
   }
 
-  const char* name() { return name_; }
-  const char* source() { return source_; }
+  const char* name() const { return name_; }
+  size_t source_length() const { return source_length_; }
+  const String::ExternalAsciiStringResource* source() const {
+    return &source_; }
   int dependency_count() { return dep_count_; }
   const char** dependencies() { return deps_; }
   void set_auto_enable(bool value) { auto_enable_ = value; }
@@ -2476,7 +2495,8 @@ class V8EXPORT Extension {  // NOLINT
 
  private:
   const char* name_;
-  const char* source_;
+  size_t source_length_;  // expected to initialize before source_
+  ExternalAsciiStringResourceImpl source_;
   int dep_count_;
   const char** deps_;
   bool auto_enable_;

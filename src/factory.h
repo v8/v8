@@ -145,9 +145,9 @@ class Factory {
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.
   Handle<String> NewExternalStringFromAscii(
-      ExternalAsciiString::Resource* resource);
+      const ExternalAsciiString::Resource* resource);
   Handle<String> NewExternalStringFromTwoByte(
-      ExternalTwoByteString::Resource* resource);
+      const ExternalTwoByteString::Resource* resource);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewGlobalContext();

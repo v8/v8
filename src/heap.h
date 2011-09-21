@@ -835,9 +835,9 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateExternalStringFromAscii(
-      ExternalAsciiString::Resource* resource);
+      const ExternalAsciiString::Resource* resource);
   MUST_USE_RESULT MaybeObject* AllocateExternalStringFromTwoByte(
-      ExternalTwoByteString::Resource* resource);
+      const ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.

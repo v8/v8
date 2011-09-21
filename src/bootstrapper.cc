@@ -1940,14 +1940,13 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
     if (!InstallExtension(extension->dependencies()[i])) return false;
   }
   Isolate* isolate = Isolate::Current();
-  Vector<const char> source = CStrVector(extension->source());
-  Handle<String> source_code = isolate->factory()->NewStringFromAscii(source);
-  bool result = CompileScriptCached(CStrVector(extension->name()),
-                                    source_code,
-                                    isolate->bootstrapper()->extensions_cache(),
-                                    extension,
-                                    Handle<Context>(isolate->context()),
-                                    false);
+  bool result = CompileScriptCached(
+      CStrVector(extension->name()),
+      isolate->factory()->NewExternalStringFromAscii(extension->source()),
+      isolate->bootstrapper()->extensions_cache(),
+      extension,
+      Handle<Context>(isolate->context()),
+      false);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) {
     isolate->clear_pending_exception();

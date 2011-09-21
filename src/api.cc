@@ -501,9 +501,12 @@ void RegisterExtension(Extension* that) {
 Extension::Extension(const char* name,
                      const char* source,
                      int dep_count,
-                     const char** deps)
+                     const char** deps,
+                     int source_length)
     : name_(name),
-      source_(source),
+      source_length_(source_length >= 0 ?
+                  source_length : (source ? strlen(source) : 0)),
+      source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
       auto_enable_(false) { }
@@ -3789,10 +3792,11 @@ bool v8::String::IsExternalAscii() const {
 void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  v8::String::ExternalStringResource* expected;
+  const v8::String::ExternalStringResource* expected;
   if (i::StringShape(*str).IsExternalTwoByte()) {
-    void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-    expected = reinterpret_cast<ExternalStringResource*>(resource);
+    const void* resource =
+        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    expected = reinterpret_cast<const ExternalStringResource*>(resource);
   } else {
     expected = NULL;
   }
@@ -3800,7 +3804,7 @@ void v8::String::VerifyExternalStringResource(
 }
 
 
-v8::String::ExternalAsciiStringResource*
+const v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (IsDeadCheck(str->GetIsolate(),
@@ -3808,8 +3812,9 @@ v8::String::ExternalAsciiStringResource*
     return NULL;
   }
   if (i::StringShape(*str).IsExternalAscii()) {
-    void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-    return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+    const void* resource =
+        i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    return reinterpret_cast<const ExternalAsciiStringResource*>(resource);
   } else {
     return NULL;
   }

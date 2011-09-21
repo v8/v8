@@ -2919,7 +2919,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
 
 
 MaybeObject* Heap::AllocateExternalStringFromAscii(
-    ExternalAsciiString::Resource* resource) {
+    const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     isolate()->context()->mark_out_of_memory();
@@ -2942,7 +2942,7 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
 
 
 MaybeObject* Heap::AllocateExternalStringFromTwoByte(
-    ExternalTwoByteString::Resource* resource) {
+    const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     isolate()->context()->mark_out_of_memory();
