@@ -840,7 +840,7 @@ void HGraph::EliminateUnreachablePhis() {
 }
 
 
-bool HGraph::CheckPhis() {
+bool HGraph::CheckArgumentsPhiUses() {
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
     for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
@@ -853,13 +853,11 @@ bool HGraph::CheckPhis() {
 }
 
 
-bool HGraph::CollectPhis() {
+bool HGraph::CheckConstPhiUses() {
   int block_count = blocks_.length();
-  phi_list_ = new ZoneList<HPhi*>(block_count);
   for (int i = 0; i < block_count; ++i) {
     for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
       HPhi* phi = blocks_[i]->phis()->at(j);
-      phi_list_->Add(phi);
       // Check for the hole value (from an uninitialized const).
       for (int k = 0; k < phi->OperandCount(); k++) {
         if (phi->OperandAt(k) == GetConstantHole()) return false;
@@ -867,6 +865,18 @@ bool HGraph::CollectPhis() {
     }
   }
   return true;
+}
+
+
+void HGraph::CollectPhis() {
+  int block_count = blocks_.length();
+  phi_list_ = new ZoneList<HPhi*>(block_count);
+  for (int i = 0; i < block_count; ++i) {
+    for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
+      HPhi* phi = blocks_[i]->phis()->at(j);
+      phi_list_->Add(phi);
+    }
+  }
 }
 
 
@@ -2311,16 +2321,17 @@ HGraph* HGraphBuilder::CreateGraph() {
   graph()->OrderBlocks();
   graph()->AssignDominators();
   graph()->PropagateDeoptimizingMark();
+  if (!graph()->CheckConstPhiUses()) {
+    Bailout("Unsupported phi use of const variable");
+    return NULL;
+  }
   graph()->EliminateRedundantPhis();
-  if (!graph()->CheckPhis()) {
-    Bailout("Unsupported phi use of arguments object");
+  if (!graph()->CheckArgumentsPhiUses()) {
+    Bailout("Unsupported phi use of arguments");
     return NULL;
   }
   if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
-  if (!graph()->CollectPhis()) {
-    Bailout("Unsupported phi use of uninitialized constant");
-    return NULL;
-  }
+  graph()->CollectPhis();
 
   HInferRepresentation rep(graph());
   rep.Analyze();
