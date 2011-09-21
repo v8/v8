@@ -1616,14 +1616,15 @@ void Builtins::Setup(bool create_heap_objects) {
   const BuiltinDesc* functions = BuiltinFunctionTable::functions();
 
   // For now we generate builtin adaptor code into a stack-allocated
-  // buffer, before copying it into individual code objects.
-  byte buffer[4*KB];
+  // buffer, before copying it into individual code objects. Be careful
+  // with alignment, some platforms don't like unaligned code.
+  union { int force_alignment; byte buffer[4*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(isolate, buffer, sizeof buffer);
+      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer);
       // Generate the code/adaptor.
       typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
