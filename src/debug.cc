@@ -1733,6 +1733,10 @@ void Debug::PrepareForBreakPoints() {
   if (!has_break_points_) {
     Deoptimizer::DeoptimizeAll();
 
+    // We are going to iterate heap to find all functions without
+    // debug break slots.
+    isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+
     AssertNoAllocation no_allocation;
     Builtins* builtins = isolate_->builtins();
     Code* lazy_compile = builtins->builtin(Builtins::kLazyCompile);

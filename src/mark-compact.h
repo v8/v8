@@ -449,6 +449,8 @@ class MarkCompactCollector {
 
   bool StartCompaction();
 
+  void AbortCompaction();
+
   // During a full GC, there is a stack-allocated GCTracer that is used for
   // bookkeeping information.  Return a pointer to that tracer.
   GCTracer* tracer() { return tracer_; }

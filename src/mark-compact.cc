@@ -258,6 +258,22 @@ bool MarkCompactCollector::StartCompaction() {
 }
 
 
+void MarkCompactCollector::AbortCompaction() {
+  if (compacting_) {
+    int npages = evacuation_candidates_.length();
+    for (int i = 0; i < npages; i++) {
+      Page* p = evacuation_candidates_[i];
+      slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
+      p->ClearEvacuationCandidate();
+      p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+    }
+    compacting_ = false;
+    evacuation_candidates_.Rewind(0);
+  }
+  ASSERT_EQ(0, evacuation_candidates_.length());
+}
+
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -478,6 +494,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (heap()->incremental_marking()->IsMarking() && PreciseSweepingRequired()) {
     heap()->incremental_marking()->Abort();
     ClearMarkbits(heap_);
+    AbortCompaction();
   }
 
   if (!FLAG_never_compact) StartCompaction();
