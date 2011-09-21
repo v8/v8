@@ -1313,7 +1313,7 @@ void SemiSpace::Verify() {
 
 void SemiSpace::AssertValidRange(Address start, Address end) {
   // Addresses belong to same semi-space
-  NewSpacePage* page = NewSpacePage::FromAddress(start);
+  NewSpacePage* page = NewSpacePage::FromLimit(start);
   NewSpacePage* end_page = NewSpacePage::FromLimit(end);
   SemiSpace* space = page->semi_space();
   CHECK_EQ(space, end_page->semi_space());
