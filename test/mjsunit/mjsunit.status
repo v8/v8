@@ -27,9 +27,6 @@
 
 prefix mjsunit
 
-# BUG(1698): Fix Harmony-related crashes in these tests
-harmony/proxies: SKIP
-
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 

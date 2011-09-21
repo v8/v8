@@ -2441,10 +2441,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                 "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
             return isolate->Throw(*error);
           }
-          // The proxy does not define the property as an accessor.
-          // Consequently, it has no effect on setting the receiver.
-          return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
         }
+        // The proxy does not define the property as an accessor.
+        // Consequently, it has no effect on setting the receiver.
+        return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
       }
     }
   }
