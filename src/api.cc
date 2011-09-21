@@ -5470,6 +5470,12 @@ bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
                                                        wait_for_connection);
 }
 
+
+void Debug::DisableAgent() {
+  return i::Isolate::Current()->debugger()->StopAgent();
+}
+
+
 void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMesssages(true);
 }
