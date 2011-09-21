@@ -8657,7 +8657,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // GetProperty below can cause GC.
     Handle<Object> receiver_handle(object->IsGlobalObject()
         ? GlobalObject::cast(*object)->global_receiver()
-        : ComputeReceiverForNonGlobal(isolate, object));
+        : ComputeReceiverForNonGlobal(isolate, *object));
 
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
