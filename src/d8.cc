@@ -1253,14 +1253,22 @@ int Shell::RunMain(int argc, char* argv[]) {
     Locker lock;
     HandleScope scope;
     Persistent<Context> context = CreateEvaluationContext();
+    if (options.last_run) {
+      // Keep using the same context in the interactive shell.
+      evaluation_context_ = context;
+#ifndef V8_SHARED
+      // If the interactive debugger is enabled make sure to activate
+      // it before running the files passed on the command line.
+      if (i::FLAG_debugger) {
+        InstallUtilityScript();
+      }
+#endif  // V8_SHARED
+    }
     {
       Context::Scope cscope(context);
       options.isolate_sources[0].Execute();
     }
-    if (options.last_run) {
-      // Keep using the same context in the interactive shell
-      evaluation_context_ = context;
-    } else {
+    if (!options.last_run) {
       context.Dispose();
     }
 
@@ -1332,7 +1340,9 @@ int Shell::Main(int argc, char* argv[]) {
       || !options.script_executed )
       && !options.test_shell ) {
 #ifndef V8_SHARED
-    InstallUtilityScript();
+    if (!i::FLAG_debugger) {
+      InstallUtilityScript();
+    }
 #endif  // V8_SHARED
     RunShell();
   }
