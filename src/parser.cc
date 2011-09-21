@@ -1103,14 +1103,16 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
 
 Statement* Parser::ParseSourceElement(ZoneStringList* labels,
                                       bool* ok) {
+  // (Ecma 262 5th Edition, clause 14):
+  // SourceElement:
+  //    Statement
+  //    FunctionDeclaration
+  //
+  // In harmony mode we allow additionally the following productions
+  // SourceElement:
+  //    LetDeclaration
+
   if (peek() == Token::FUNCTION) {
-    // FunctionDeclaration is only allowed in the context of SourceElements
-    // (Ecma 262 5th Edition, clause 14):
-    // SourceElement:
-    //    Statement
-    //    FunctionDeclaration
-    // Common language extension is to allow function declaration in place
-    // of any statement. This language extension is disabled in strict mode.
     return ParseFunctionDeclaration(ok);
   } else if (peek() == Token::LET) {
     return ParseVariableStatement(kSourceElement, ok);
@@ -1124,7 +1126,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool* ok) {
   // SourceElements ::
-  //   (Statement)* <end_token>
+  //   (SourceElement)* <end_token>
 
   // Allocate a target stack to use for this set of source
   // elements. This way, all scripts and functions get their own
@@ -1295,8 +1297,13 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     }
 
     case Token::FUNCTION: {
-      // In strict mode, FunctionDeclaration is only allowed in the context
-      // of SourceElements.
+      // FunctionDeclaration is only allowed in the context of SourceElements
+      // (Ecma 262 5th Edition, clause 14):
+      // SourceElement:
+      //    Statement
+      //    FunctionDeclaration
+      // Common language extension is to allow function declaration in place
+      // of any statement. This language extension is disabled in strict mode.
       if (top_scope_->is_strict_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
@@ -1555,6 +1562,11 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
+  // The harmony mode uses source elements instead of statements.
+  //
+  // Block ::
+  //   '{' SourceElement* '}'
+
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
   Scope* saved_scope = top_scope_;
