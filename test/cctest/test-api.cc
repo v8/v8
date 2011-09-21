@@ -4314,12 +4314,12 @@ THREADED_TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope;
-    char extension_name[32];
-    snprintf(extension_name, sizeof(extension_name), "ext #%d", source_len);
-    v8::RegisterExtension(new Extension(extension_name,
+    i::ScopedVector<char> extension_name(32);
+    i::OS::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::RegisterExtension(new Extension(extension_name.start(),
                                         kEmbeddedExtensionSource, 0, 0,
                                         source_len));
-    const char* extension_names[1] = { extension_name };
+    const char* extension_names[1] = { extension_name.start() };
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Handle<Context> context = Context::New(&extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
