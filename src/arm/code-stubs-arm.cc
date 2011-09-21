@@ -1241,7 +1241,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // If either operand is a JS object or an oddball value, then they are
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
     Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
     // FIRST_SPEC_OBJECT_TYPE.

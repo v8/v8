@@ -140,7 +140,8 @@ class LCodeGen BASE_EMBEDDED {
                        Label* if_false,
                        Handle<String> class_name,
                        Register input,
-                       Register temporary);
+                       Register temporary,
+                       Register scratch);
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
   int GetParameterCount() const { return scope()->num_parameters(); }

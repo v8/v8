@@ -706,11 +706,12 @@ class LHasCachedArrayIndexAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LClassOfTestAndBranch: public LControlInstruction<1, 1> {
+class LClassOfTestAndBranch: public LControlInstruction<1, 2> {
  public:
-  LClassOfTestAndBranch(LOperand* value, LOperand* temp) {
+  LClassOfTestAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
     inputs_[0] = value;
     temps_[0] = temp;
+    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch,

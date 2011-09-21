@@ -1494,6 +1494,7 @@ LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
 LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
     HClassOfTestAndBranch* instr) {
   return new LClassOfTestAndBranch(UseTempRegister(instr->value()),
+                                   TempRegister(),
                                    TempRegister());
 }
 
