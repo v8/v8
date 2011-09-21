@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -90,6 +90,7 @@
             '../tools/js2c.py',
             '<@(_outputs)',
             'D8',
+            'off',  # compress startup data
             '<@(js_files)'
           ],
         },
