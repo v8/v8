@@ -1327,6 +1327,8 @@ void Genesis::InstallNativeFunctions() {
                  configure_instance_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
+  INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
+                 to_complete_property_descriptor);
 }
 
 void Genesis::InstallExperimentalNativeFunctions() {

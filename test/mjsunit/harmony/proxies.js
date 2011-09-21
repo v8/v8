@@ -28,8 +28,9 @@
 // Flags: --harmony-proxies
 
 
-// TODO(rossberg): for-in for proxies not implemented.
 // TODO(rossberg): integer-index properties not implemented properly.
+// TODO(rossberg): for-in not implemented on proxies.
+
 
 
 // Helper.
@@ -1079,7 +1080,7 @@ function TestInForDerived2(handler, create) {
   var o = Object.create(p)
   assertTrue("a" in o)
   assertEquals("a", key)
-// TODO(rossberg): integer indexes not correctly imlemeted yet
+// TODO(rossberg): integer indexes not correctly implemented yet
 //  assertTrue(99 in o)
 //  assertEquals("99", key)
   assertFalse("z" in o)
@@ -1161,6 +1162,62 @@ TestInForDerived(Proxy.create({
     return function(k) { key = k; return k < "z" ? {value: 42} : void 0 }
   }
 }))
+
+
+
+// Property descriptor conversion.
+
+var descget
+
+function TestDescriptorGetOrder(handler) {
+  var p = Proxy.create(handler)
+  var o = Object.create(p, {b: {value: 0}})
+  TestDescriptorGetOrder2(function(n) { p[n] }, "vV")
+  TestDescriptorGetOrder2(function(n) { n in p }, "")
+  TestDescriptorGetOrder2(function(n) { o[n] }, "vV")
+  TestDescriptorGetOrder2(function(n) { n in o }, "eEcCvVwWgs")
+}
+
+function TestDescriptorGetOrder2(f, access) {
+  descget = ""
+  f("a")
+  assertEquals(access, descget)
+// TODO(rossberg): integer indexes not correctly implemented yet.
+//  descget = ""
+//  f(99)
+//  assertEquals(access, descget)
+  descget = ""
+  f("z")
+  assertEquals("", descget)
+}
+
+TestDescriptorGetOrder({
+  getPropertyDescriptor: function(k) {
+    if (k >= "z") return void 0
+    // Return a proxy as property descriptor, so that we can log accesses.
+    return Proxy.create({
+      get: function(r, attr) {
+        descget += attr[0].toUpperCase()
+        return true
+      },
+      has: function(attr) {
+        descget += attr[0]
+        switch (attr) {
+          case "writable":
+          case "enumerable":
+          case "configurable":
+          case "value":
+            return true
+          case "get":
+          case "set":
+            return false
+          default:
+            assertUnreachable()
+        }
+      }
+    })
+  }
+})
 
 
 

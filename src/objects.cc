@@ -2296,8 +2296,29 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 
   if (result->IsUndefined()) return ABSENT;
 
-  // TODO(rossberg): convert result to PropertyAttributes
-  return NONE;
+  bool has_pending_exception;
+  Object** argv[] = { result.location() };
+  Handle<Object> desc =
+      Execution::Call(isolate->to_complete_property_descriptor(), result,
+                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  if (has_pending_exception) return NONE;
+
+  // Convert result to PropertyAttributes.
+  Handle<String> enum_n = isolate->factory()->LookupAsciiSymbol("enumerable");
+  Handle<Object> enumerable(v8::internal::GetProperty(desc, enum_n));
+  if (isolate->has_pending_exception()) return NONE;
+  Handle<String> conf_n = isolate->factory()->LookupAsciiSymbol("configurable");
+  Handle<Object> configurable(v8::internal::GetProperty(desc, conf_n));
+  if (isolate->has_pending_exception()) return NONE;
+  Handle<String> writ_n = isolate->factory()->LookupAsciiSymbol("writable");
+  Handle<Object> writable(v8::internal::GetProperty(desc, writ_n));
+  if (isolate->has_pending_exception()) return NONE;
+
+  int attributes = NONE;
+  if (enumerable->ToBoolean()->IsFalse()) attributes |= DONT_ENUM;
+  if (configurable->ToBoolean()->IsFalse()) attributes |= DONT_DELETE;
+  if (writable->ToBoolean()->IsFalse()) attributes |= READ_ONLY;
+  return static_cast<PropertyAttributes>(attributes);
 }
 
 
