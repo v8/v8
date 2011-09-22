@@ -205,8 +205,9 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   // __defineGetter__ callback
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
-    if (getter->IsJSFunction()) {
-      return GetPropertyWithDefinedGetter(receiver, JSFunction::cast(getter));
+    if (getter->IsSpecFunction()) {
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+      return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
     }
     // Getter is not a function.
     return isolate->heap()->undefined_value();
@@ -261,17 +262,20 @@ bool JSProxy::HasElementWithHandler(uint32_t index) {
 
 
 MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
-                                                  JSFunction* getter) {
+                                                  JSReceiver* getter) {
   HandleScope scope;
-  Handle<JSFunction> fun(JSFunction::cast(getter));
+  Handle<JSReceiver> fun(getter);
   Handle<Object> self(receiver);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = fun->GetHeap()->isolate()->debug();
   // Handle stepping into a getter if step into is active.
-  if (debug->StepInActive()) {
-    debug->HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  // TODO(rossberg): should this apply to getters that are function proxies?
+  if (debug->StepInActive() && fun->IsJSFunction()) {
+    debug->HandleStepIn(
+        Handle<JSFunction>::cast(fun), Handle<Object>::null(), 0, false);
   }
 #endif
+
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, self, 0, NULL, &has_pending_exception);
@@ -1882,8 +1886,9 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
 
   if (structure->IsFixedArray()) {
     Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
-    if (setter->IsJSFunction()) {
-     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+    if (setter->IsSpecFunction()) {
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+     return SetPropertyWithDefinedSetter(JSReceiver::cast(setter), value);
     } else {
       if (strict_mode == kNonStrictMode) {
         return value;
@@ -1902,17 +1907,19 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
 }
 
 
-MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSFunction* setter,
+MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                       Object* value) {
   Isolate* isolate = GetIsolate();
   Handle<Object> value_handle(value, isolate);
-  Handle<JSFunction> fun(JSFunction::cast(setter), isolate);
+  Handle<JSReceiver> fun(setter, isolate);
   Handle<JSReceiver> self(this, isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
-  if (debug->StepInActive()) {
-    debug->HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  // TODO(rossberg): should this apply to getters that are function proxies?
+  if (debug->StepInActive() && fun->IsJSFunction()) {
+    debug->HandleStepIn(
+        Handle<JSFunction>::cast(fun), Handle<Object>::null(), 0, false);
   }
 #endif
   bool has_pending_exception;
@@ -2323,8 +2330,9 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     ASSERT(!isolate->has_pending_exception());
     if (!setter->IsUndefined()) {
       // We have a setter -- invoke it.
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return proxy->SetPropertyWithDefinedSetter(
-          JSFunction::cast(*setter), *value);
+          JSReceiver::cast(*setter), *value);
     } else {
       Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
       Handle<Object> getter(v8::internal::GetProperty(desc, get_name));
@@ -2482,7 +2490,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
   }
 
   Object*** argv = reinterpret_cast<Object***>(args);
-  bool threw = false;
+  bool threw;
   return Execution::Call(trap, handler, argc, argv, &threw);
 }
 
@@ -3977,7 +3985,7 @@ MaybeObject* JSObject::DefineAccessor(String* name,
                                       bool is_getter,
                                       Object* fun,
                                       PropertyAttributes attributes) {
-  ASSERT(fun->IsJSFunction() || fun->IsUndefined());
+  ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   Isolate* isolate = GetIsolate();
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -8418,8 +8426,9 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   // __defineGetter__ callback
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
-    if (getter->IsJSFunction()) {
-      return GetPropertyWithDefinedGetter(receiver, JSFunction::cast(getter));
+    if (getter->IsSpecFunction()) {
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+      return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
     }
     // Getter is not a function.
     return isolate->heap()->undefined_value();
@@ -8474,8 +8483,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 
   if (structure->IsFixedArray()) {
     Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
-    if (setter->IsJSFunction()) {
-     return SetPropertyWithDefinedSetter(JSFunction::cast(*setter), value);
+    if (setter->IsSpecFunction()) {
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+      return SetPropertyWithDefinedSetter(JSReceiver::cast(*setter), value);
     } else {
       if (strict_mode == kNonStrictMode) {
         return value;

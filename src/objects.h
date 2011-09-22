@@ -863,6 +863,9 @@ class MaybeObject BASE_EMBEDDED {
   V(AccessCheckNeeded)                         \
   V(JSGlobalPropertyCell)                      \
 
+
+class JSReceiver;
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -887,6 +890,7 @@ class Object : public MaybeObject {
 #undef DECLARE_STRUCT_PREDICATE
 
   INLINE(bool IsSpecObject());
+  INLINE(bool IsSpecFunction());
 
   // Oddball testing.
   INLINE(bool IsUndefined());
@@ -936,7 +940,7 @@ class Object : public MaybeObject {
                                            String* key,
                                            PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
-                                                            JSFunction* getter);
+                                                            JSReceiver* getter);
 
   inline MaybeObject* GetElement(uint32_t index);
   // For use when we know that no exception can be thrown.
@@ -1356,7 +1360,7 @@ class JSReceiver: public HeapObject {
                                            Object* value,
                                            PropertyAttributes attributes,
                                            StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
+  MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSReceiver* setter,
                                                             Object* value);
 
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);

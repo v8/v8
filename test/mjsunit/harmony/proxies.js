@@ -2019,7 +2019,7 @@ function CreateFrozen(handler, callTrap, constructTrap) {
 
 function TestCall(isStrict, callTrap) {
   assertEquals(42, callTrap(5, 37))
-  // TODO(rossberg): unrelated bug: this does not succeed for optimized code.
+  // TODO(rossberg): unrelated bug: this does not succeed for optimized code:
   // assertEquals(isStrict ? undefined : global_object, receiver)
 
   var f = Proxy.createFunction({}, callTrap)
@@ -2236,3 +2236,120 @@ function TestConstructThrow2(f) {
 TestConstructThrow(function() { throw "myexn" })
 TestConstructThrow(Proxy.createFunction({}, function() { throw "myexn" }))
 TestConstructThrow(CreateFrozen({}, function() { throw "myexn" }))
+
+
+
+// Getters and setters.
+
+var value
+var receiver
+
+function TestAccessorCall(getterCallTrap, setterCallTrap) {
+  var handler = {fix: function() { return {} }}
+  var pgetter = Proxy.createFunction(handler, getterCallTrap)
+  var psetter = Proxy.createFunction(handler, setterCallTrap)
+
+  var o = {}
+  var oo = Object.create(o)
+  Object.defineProperty(o, "a", {get: pgetter, set: psetter})
+  Object.defineProperty(o, "b", {get: pgetter})
+  Object.defineProperty(o, "c", {set: psetter})
+  Object.defineProperty(o, "3", {get: pgetter, set: psetter})
+  Object.defineProperty(oo, "a", {value: 43})
+
+  receiver = ""
+  assertEquals(42, o.a)
+  assertSame(o, receiver)
+  receiver = ""
+  assertEquals(42, o.b)
+  assertSame(o, receiver)
+  receiver = ""
+  assertEquals(undefined, o.c)
+  assertEquals("", receiver)
+  receiver = ""
+  assertEquals(42, o["a"])
+  assertSame(o, receiver)
+  receiver = ""
+  assertEquals(42, o[3])
+  assertSame(o, receiver)
+
+  receiver = ""
+  assertEquals(43, oo.a)
+  assertEquals("", receiver)
+  receiver = ""
+  assertEquals(42, oo.b)
+  assertSame(o, receiver)
+  receiver = ""
+  assertEquals(undefined, oo.c)
+  assertEquals("", receiver)
+  receiver = ""
+  assertEquals(43, oo["a"])
+  assertEquals("", receiver)
+  receiver = ""
+  assertEquals(42, oo[3])
+  assertSame(o, receiver)
+
+  receiver = ""
+  assertEquals(50, o.a = 50)
+  assertSame(o, receiver)
+  assertEquals(50, value)
+  receiver = ""
+  assertEquals(51, o.b = 51)
+  assertEquals("", receiver)
+  assertEquals(50, value)  // no setter
+  assertThrows(function() { "use strict"; o.b = 51 }, TypeError)
+  receiver = ""
+  assertEquals(52, o.c = 52)
+  assertSame(o, receiver)
+  assertEquals(52, value)
+  receiver = ""
+  assertEquals(53, o["a"] = 53)
+  assertSame(o, receiver)
+  assertEquals(53, value)
+  receiver = ""
+  assertEquals(54, o[3] = 54)
+  assertSame(o, receiver)
+  assertEquals(54, value)
+
+  value = 0
+  receiver = ""
+  assertEquals(60, oo.a = 60)
+  assertEquals("", receiver)
+  assertEquals(0, value)  // oo has own 'a'
+  assertEquals(61, oo.b = 61)
+  assertSame("", receiver)
+  assertEquals(0, value)  // no setter
+  assertThrows(function() { "use strict"; oo.b = 61 }, TypeError)
+  receiver = ""
+  assertEquals(62, oo.c = 62)
+  assertSame(oo, receiver)
+  assertEquals(62, value)
+  receiver = ""
+  assertEquals(63, oo["c"] = 63)
+  assertSame(oo, receiver)
+  assertEquals(63, value)
+  receiver = ""
+  assertEquals(64, oo[3] = 64)
+  assertSame(oo, receiver)
+  assertEquals(64, value)
+}
+
+TestAccessorCall(
+  function() { receiver = this; return 42 },
+  function(x) { receiver = this; value = x }
+)
+
+TestAccessorCall(
+  function() { "use strict"; receiver = this; return 42 },
+  function(x) { "use strict"; receiver = this; value = x }
+)
+
+TestAccessorCall(
+  Proxy.createFunction({}, function() { receiver = this; return 42 }),
+  Proxy.createFunction({}, function(x) { receiver = this; value = x })
+)
+
+TestAccessorCall(
+  CreateFrozen({}, function() { receiver = this; return 42 }),
+  CreateFrozen({}, function(x) { receiver = this; value = x })
+)

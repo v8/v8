@@ -441,7 +441,7 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   for (int i = 0; i < n_args; i++) {
     argv[i] = args.at<Object>(i + 1).location();
   }
-  bool pending_exception = false;
+  bool pending_exception;
   Handle<Object> result = Execution::Call(function,
                                           args.receiver(),
                                           n_args,

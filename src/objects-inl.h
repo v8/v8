@@ -174,6 +174,13 @@ bool Object::IsSpecObject() {
 }
 
 
+bool Object::IsSpecFunction() {
+  if (!Object::IsHeapObject()) return false;
+  InstanceType type = HeapObject::cast(this)->map()->instance_type();
+  return type == JS_FUNCTION_TYPE || type == JS_FUNCTION_PROXY_TYPE;
+}
+
+
 bool Object::IsSymbol() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();

@@ -151,6 +151,8 @@ Handle<Object> Execution::Call(Handle<Object> callable,
                                Object*** args,
                                bool* pending_exception,
                                bool convert_receiver) {
+  *pending_exception = false;
+
   if (!callable->IsJSFunction()) {
     callable = TryGetFunctionDelegate(callable, pending_exception);
     if (*pending_exception) return callable;
@@ -195,6 +197,7 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
   v8::TryCatch catcher;
   catcher.SetVerbose(false);
   catcher.SetCaptureMessage(false);
+  *caught_exception = false;
 
   Handle<Object> result = Invoke(false, func, receiver, argc, args,
                                  caught_exception);
@@ -756,7 +759,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                           Handle<Object>::cast(fun).location(),
                           pos.location(),
                           is_global.location() };
-  bool caught_exception = false;
+  bool caught_exception;
   Handle<Object> result =
       TryCall(isolate->get_stack_trace_line_fun(),
               isolate->js_builtins_object(), argc, args,
