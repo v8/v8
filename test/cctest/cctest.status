@@ -52,9 +52,6 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
-# NewGC: http://code.google.com/p/v8/issues/detail?id=1707
-test-heap/GrowAndShrinkNewSpace: PASS || TIMEOUT
-
 # NewGC: BUG(1717)
 test-api/OutOfMemoryNested: PASS || TIMEOUT
 
