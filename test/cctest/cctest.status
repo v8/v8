@@ -55,6 +55,9 @@ test-weakmaps/Shrinking: FAIL
 # NewGC: http://code.google.com/p/v8/issues/detail?id=1707
 test-heap/GrowAndShrinkNewSpace: PASS || TIMEOUT
 
+# NewGC: BUG(1717)
+test-api/OutOfMemoryNested: PASS || TIMEOUT
+
 ##############################################################################
 [ $arch == arm ]
 
