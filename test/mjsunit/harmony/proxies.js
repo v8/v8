@@ -28,9 +28,7 @@
 // Flags: --harmony-proxies
 
 
-// TODO(rossberg): integer-index properties not implemented properly.
 // TODO(rossberg): for-in not implemented on proxies.
-
 
 
 // Helper.
@@ -54,6 +52,8 @@ function TestGetOwnProperty2(handler, create) {
   var p = create(handler)
   assertEquals(42, Object.getOwnPropertyDescriptor(p, "a").value)
   assertEquals("a", key)
+  assertEquals(42, Object.getOwnPropertyDescriptor(p, 99).value)
+  assertEquals("99", key)
 }
 
 TestGetOwnProperty({
@@ -94,6 +94,7 @@ function TestGetOwnPropertyThrow(handler) {
 function TestGetOwnPropertyThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ Object.getOwnPropertyDescriptor(p, "a") }, "myexn")
+  assertThrows(function(){ Object.getOwnPropertyDescriptor(p, 77) }, "myexn")
 }
 
 TestGetOwnPropertyThrow({
@@ -135,12 +136,16 @@ function TestGet2(handler, create) {
   assertEquals("a", key)
   assertEquals(42, p["b"])
   assertEquals("b", key)
+  assertEquals(42, p[99])
+  assertEquals("99", key)
 
   var o = Object.create(p, {x: {value: 88}})
   assertEquals(42, o.a)
   assertEquals("a", key)
   assertEquals(42, o["b"])
   assertEquals("b", key)
+  assertEquals(42, o[99])
+  assertEquals("99", key)
   assertEquals(88, o.x)
   assertEquals(88, o["x"])
 }
@@ -193,6 +198,7 @@ function TestGetCall2(handler, create) {
   assertEquals(55, p.f("unused", "arguments"))
   assertEquals(55, p.f.call(p))
   assertEquals(55, p["f"].call(p))
+  assertEquals(55, p[101].call(p))
   assertEquals(55, p.withargs(45, 5))
   assertEquals(55, p.withargs.call(p, 11, 22))
   assertEquals("6655", "66" + p)  // calls p.toString
@@ -204,6 +210,7 @@ function TestGetCall2(handler, create) {
   assertEquals(55, o.f.call(o))
   assertEquals(55, o.f.call(p))
   assertEquals(55, o["f"].call(p))
+  assertEquals(55, o[101].call(p))
   assertEquals(55, o.withargs(45, 5))
   assertEquals(55, o.withargs.call(p, 11, 22))
   assertEquals(90, o.g(2))
@@ -274,12 +281,15 @@ function TestGetThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ p.a }, "myexn")
   assertThrows(function(){ p["b"] }, "myexn")
+  assertThrows(function(){ p[3] }, "myexn")
 
-  var o = Object.create(p, {x: {value: 88}})
+  var o = Object.create(p, {x: {value: 88}, '4': {value: 89}})
   assertThrows(function(){ o.a }, "myexn")
   assertThrows(function(){ o["b"] }, "myexn")
+  assertThrows(function(){ o[3] }, "myexn")
   assertEquals(88, o.x)
   assertEquals(88, o["x"])
+  assertEquals(89, o[4])
 }
 
 TestGetThrow({
@@ -340,6 +350,9 @@ function TestSet2(handler, create) {
   assertEquals(43, p["b"] = 43)
   assertEquals("b", key)
   assertEquals(43, val)
+  assertEquals(44, p[77] = 44)
+  assertEquals("77", key)
+  assertEquals(44, val)
 }
 
 TestSet({
@@ -420,6 +433,7 @@ function TestSetThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ p.a = 42 }, "myexn")
   assertThrows(function(){ p["b"] = 42 }, "myexn")
+  assertThrows(function(){ p[22] = 42 }, "myexn")
 }
 
 TestSetThrow({
@@ -540,16 +554,25 @@ function TestSetForDerived(handler, create) {
 
 function TestSetForDerived2(handler, create) {
   var p = create(handler)
-  var o = Object.create(p, {x: {value: 88, writable: true}})
+  var o = Object.create(p, {x: {value: 88, writable: true},
+                            '1': {value: 89, writable: true}})
 
   key = ""
   assertEquals(48, o.x = 48)
   assertEquals("", key)  // trap not invoked
   assertEquals(48, o.x)
 
+  assertEquals(47, o[1] = 47)
+  assertEquals("", key)  // trap not invoked
+  assertEquals(47, o[1])
+
   assertEquals(49, o.y = 49)
   assertEquals("y", key)
   assertEquals(49, o.y)
+
+  assertEquals(50, o[2] = 50)
+  assertEquals("2", key)
+  assertEquals(50, o[2])
 
   assertEquals(44, o.p_writable = 44)
   assertEquals("p_writable", key)
@@ -575,6 +598,9 @@ function TestSetForDerived2(handler, create) {
   assertEquals("p_nosetter", key)
   assertEquals("", val)  // not written at all
 
+  assertThrows(function(){ o.p_nonconf = 53 }, TypeError)
+  assertEquals("p_nonconf", key)
+
   assertThrows(function(){ o.p_throw = 51 }, "myexn")
   assertEquals("p_throw", key)
 
@@ -586,10 +612,11 @@ TestSetForDerived({
   getOwnPropertyDescriptor: function(k) {
     key = k;
     switch (k) {
-      case "p_writable": return {writable: true}
-      case "p_nonwritable": return {writable: false}
-      case "p_setter":return {set: function(x) { val = x }}
-      case "p_nosetter": return {get: function() { return 1 }}
+      case "p_writable": return {writable: true, configurable: true}
+      case "p_nonwritable": return {writable: false, configurable: true}
+      case "p_setter":return {set: function(x) { val = x }, configurable: true}
+      case "p_nosetter": return {get: function() { return 1 }, configurable: true}
+      case "p_nonconf":return {}
       case "p_throw": throw "myexn"
       case "p_setterthrow": return {set: function(x) { throw "myexn" }}
       default: return undefined
@@ -631,6 +658,12 @@ function TestDefine2(handler, create) {
   assertEquals(46, desc.value)
   assertEquals(false, desc.enumerable)
 
+  assertEquals(p, Object.defineProperty(p, 101, {value: 47, enumerable: false}))
+  assertEquals("101", key)
+  assertEquals(2, Object.getOwnPropertyNames(desc).length)
+  assertEquals(47, desc.value)
+  assertEquals(false, desc.enumerable)
+
   var attributes = {configurable: true, mine: 66, minetoo: 23}
   assertEquals(p, Object.defineProperty(p, "d", attributes))
   assertEquals("d", key)
@@ -665,7 +698,7 @@ function TestDefine2(handler, create) {
 //  assertEquals(77, desc.value)
 
   var props = {
-    'bla': {},
+    '11': {},
     blub: {get: function() { return true }},
     '': {get value() { return 20 }},
     last: {value: 21, configurable: true, mine: "eyes"}
@@ -705,6 +738,7 @@ function TestDefineThrow(handler) {
 function TestDefineThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ Object.defineProperty(p, "a", {value: 44})}, "myexn")
+  assertThrows(function(){ Object.defineProperty(p, 0, {value: 44})}, "myexn")
 
 // TODO(rossberg): These tests require for-in on proxies.
 //  var d1 = create({
@@ -757,6 +791,8 @@ function TestDelete2(handler, create) {
   assertEquals("a", key)
   assertEquals(true, delete p["b"])
   assertEquals("b", key)
+  assertEquals(true, delete p[1])
+  assertEquals("1", key)
 
   assertEquals(false, delete p.z1)
   assertEquals("z1", key)
@@ -769,6 +805,8 @@ function TestDelete2(handler, create) {
     assertEquals("c", key)
     assertEquals(true, delete p["d"])
     assertEquals("d", key)
+    assertEquals(true, delete p[2])
+    assertEquals("2", key)
 
     assertThrows(function(){ delete p.z3 }, TypeError)
     assertEquals("z3", key)
@@ -801,11 +839,13 @@ function TestDeleteThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ delete p.a }, "myexn")
   assertThrows(function(){ delete p["b"] }, "myexn");
+  assertThrows(function(){ delete p[3] }, "myexn");
 
   (function() {
     "use strict"
     assertThrows(function(){ delete p.c }, "myexn")
     assertThrows(function(){ delete p["d"] }, "myexn")
+    assertThrows(function(){ delete p[4] }, "myexn");
   })()
 }
 
@@ -956,6 +996,7 @@ function TestIn2(handler, create) {
   assertEquals(0, ("zzz" in p) ? 2 : 0)
   assertEquals(2, !("zzz" in p) ? 2 : 0)
 
+  // Test compilation in conditionals.
   if ("b" in p) {
   } else {
     assertTrue(false)
@@ -1028,6 +1069,7 @@ function TestInThrow(handler) {
 function TestInThrow2(handler, create) {
   var p = create(handler)
   assertThrows(function(){ return "a" in o }, "myexn")
+  assertThrows(function(){ return 99 in o }, "myexn")
   assertThrows(function(){ return !("a" in o) }, "myexn")
   assertThrows(function(){ return ("a" in o) ? 2 : 3 }, "myexn")
   assertThrows(function(){ if ("b" in o) {} }, "myexn")
@@ -1069,8 +1111,6 @@ TestInThrow(Proxy.create({
 }))
 
 
-/* TODO(rossberg): does not work yet, JSProxy::GetPropertyAttributeWithHandler
- * is not fully implemented.*/
 function TestInForDerived(handler) {
   TestWithProxies(TestInForDerived2, handler)
 }
@@ -1078,11 +1118,11 @@ function TestInForDerived(handler) {
 function TestInForDerived2(handler, create) {
   var p = create(handler)
   var o = Object.create(p)
+
   assertTrue("a" in o)
   assertEquals("a", key)
-// TODO(rossberg): integer indexes not correctly implemented yet
-//  assertTrue(99 in o)
-//  assertEquals("99", key)
+  assertTrue(99 in o)
+  assertEquals("99", key)
   assertFalse("z" in o)
   assertEquals("z", key)
 
@@ -1116,20 +1156,21 @@ function TestInForDerived2(handler, create) {
 
 TestInForDerived({
   getPropertyDescriptor: function(k) {
-    key = k; return k < "z" ? {value: 42} : void 0
+    key = k; return k < "z" ? {value: 42, configurable: true} : void 0
   }
 })
 
 TestInForDerived({
   getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
   getPropertyDescriptor2: function(k) {
-    key = k; return k < "z" ? {value: 42} : void 0
+    key = k; return k < "z" ? {value: 42, configurable: true} : void 0
   }
 })
 
 TestInForDerived({
   getPropertyDescriptor: function(k) {
-    key = k; return k < "z" ? {get value() { return 42 }} : void 0
+    key = k;
+    return k < "z" ? {get value() { return 42 }, configurable: true} : void 0
   }
 })
 
@@ -1137,7 +1178,7 @@ TestInForDerived({
  * regarding default traps for getPropertyDescriptor.
 TestInForDerived({
   getOwnPropertyDescriptor: function(k) {
-    key = k; return k < "z" ? {value: 42} : void 0
+    key = k; return k < "z" ? {value: 42, configurable: true} : void 0
   }
 })
 
@@ -1146,20 +1187,23 @@ TestInForDerived({
     return this.getOwnPropertyDescriptor2(k)
   },
   getOwnPropertyDescriptor2: function(k) {
-    key = k; return k < "z" ? {value: 42} : void 0
+    key = k; return k < "z" ? {value: 42, configurable: true} : void 0
   }
 })
 
 TestInForDerived({
   getOwnPropertyDescriptor: function(k) {
-    key = k; return k < "z" ? {get value() { return 42 }} : void 0
+    key = k;
+    return k < "z" ? {get value() { return 42 }, configurable: true} : void 0
   }
 })
 */
 
 TestInForDerived(Proxy.create({
   get: function(pr, pk) {
-    return function(k) { key = k; return k < "z" ? {value: 42} : void 0 }
+    return function(k) {
+      key = k; return k < "z" ? {value: 42, configurable: true} : void 0
+    }
   }
 }))
 
@@ -1172,22 +1216,21 @@ var descget
 function TestDescriptorGetOrder(handler) {
   var p = Proxy.create(handler)
   var o = Object.create(p, {b: {value: 0}})
-  TestDescriptorGetOrder2(function(n) { p[n] }, "vV")
-  TestDescriptorGetOrder2(function(n) { n in p }, "")
-  TestDescriptorGetOrder2(function(n) { o[n] }, "vV")
-  TestDescriptorGetOrder2(function(n) { n in o }, "eEcCvVwWgs")
+  TestDescriptorGetOrder2(function(n) { return p[n] }, "vV")
+  TestDescriptorGetOrder2(function(n) { return n in p }, "")
+  TestDescriptorGetOrder2(function(n) { return o[n] }, "vV")
+  TestDescriptorGetOrder2(function(n) { return n in o }, "eEcCvVwWgs")
 }
 
 function TestDescriptorGetOrder2(f, access) {
   descget = ""
-  f("a")
+  assertTrue(f("a"))
   assertEquals(access, descget)
-// TODO(rossberg): integer indexes not correctly implemented yet.
-//  descget = ""
-//  f(99)
-//  assertEquals(access, descget)
   descget = ""
-  f("z")
+  assertTrue(f(99))
+  assertEquals(access, descget)
+  descget = ""
+  assertFalse(!!f("z"))
   assertEquals("", descget)
 }
 
@@ -1683,13 +1726,13 @@ TestFix([], {
   fix: function() { return {} }
 })
 
-TestFix(["a", "b", "c", "d", "zz"], {
+TestFix(["a", "b", "c", "3", "zz"], {
   fix: function() {
     return {
       a: {value: "a", writable: true, configurable: false, enumerable: true},
       b: {value: 33, writable: false, configurable: false, enumerable: true},
       c: {value: 0, writable: true, configurable: true, enumerable: true},
-      d: {value: true, writable: false, configurable: true, enumerable: true},
+      '3': {value: true, writable: false, configurable: true, enumerable: true},
       zz: {value: 0, enumerable: false}
     }
   }

@@ -1043,7 +1043,7 @@ function ProxyFix(obj) {
     throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
   }
 
-  if (IS_SPEC_FUNCTION(obj)) {
+  if (%IsJSFunctionProxy(obj)) {
     var callTrap = %GetCallTrap(obj);
     var constructTrap = %GetConstructTrap(obj);
     var code = DelegateCallAndConstruct(callTrap, constructTrap);

@@ -978,6 +978,12 @@ Handle<String> Factory::NumberToString(Handle<Object> number) {
 }
 
 
+Handle<String> Factory::Uint32ToString(uint32_t value) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->Uint32ToString(value), String);
+}
+
+
 Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
     Handle<NumberDictionary> dictionary,
     uint32_t key,

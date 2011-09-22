@@ -2532,6 +2532,15 @@ MaybeObject* Heap::NumberToString(Object* number,
 }
 
 
+MaybeObject* Heap::Uint32ToString(uint32_t value,
+                                  bool check_number_string_cache) {
+  Object* number;
+  MaybeObject* maybe = NumberFromUint32(value);
+  if (!maybe->To<Object>(&number)) return maybe;
+  return NumberToString(number, check_number_string_cache);
+}
+
+
 Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
   return Map::cast(roots_[RootIndexForExternalArrayType(array_type)]);
 }

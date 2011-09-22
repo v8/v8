@@ -162,10 +162,9 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
 }
 
 
-MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
-                                             Object* structure,
-                                             String* name,
-                                             Object* holder) {
+MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
+                                               Object* structure,
+                                               String* name) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
   // data structure used to store the callbacks.  Eventually foreign
@@ -186,10 +185,9 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
-    JSObject* holder_handle = JSObject::cast(holder);
     Handle<String> key(name);
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
-    CustomArguments args(isolate, data->data(), self, holder_handle);
+    CustomArguments args(isolate, data->data(), self, this);
     v8::AccessorInfo info(args.end());
     v8::Handle<v8::Value> result;
     {
@@ -208,8 +206,7 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
     if (getter->IsJSFunction()) {
-      return Object::GetPropertyWithDefinedGetter(receiver,
-                                                  JSFunction::cast(getter));
+      return GetPropertyWithDefinedGetter(receiver, JSFunction::cast(getter));
     }
     // Getter is not a function.
     return isolate->heap()->undefined_value();
@@ -233,6 +230,33 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
   if (isolate->has_pending_exception()) return Failure::Exception();
 
   return *result;
+}
+
+
+MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
+                                            uint32_t index) {
+  String* name;
+  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
+  if (!maybe->To<String>(&name)) return maybe;
+  return GetPropertyWithHandler(receiver, name);
+}
+
+
+MaybeObject* JSProxy::SetElementWithHandler(uint32_t index,
+                                            Object* value,
+                                            StrictModeFlag strict_mode) {
+  String* name;
+  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
+  if (!maybe->To<String>(&name)) return maybe;
+  return SetPropertyWithHandler(name, value, NONE, strict_mode);
+}
+
+
+bool JSProxy::HasElementWithHandler(uint32_t index) {
+  String* name;
+  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
+  if (!maybe->To<String>(&name)) return maybe;
+  return HasPropertyWithHandler(name);
 }
 
 
@@ -272,10 +296,8 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
           AccessorInfo* info = AccessorInfo::cast(obj);
           if (info->all_can_read()) {
             *attributes = result->GetAttributes();
-            return GetPropertyWithCallback(receiver,
-                                           result->GetCallbackObject(),
-                                           name,
-                                           result->holder());
+            return result->holder()->GetPropertyWithCallback(
+                receiver, result->GetCallbackObject(), name);
           }
         }
         break;
@@ -560,10 +582,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS:
-      return GetPropertyWithCallback(receiver,
-                                     result->GetCallbackObject(),
-                                     name,
-                                     result->holder());
+      return result->holder()->GetPropertyWithCallback(
+          receiver, result->GetCallbackObject(), name);
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
     case INTERCEPTOR: {
@@ -593,28 +613,21 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
   for (holder = this;
        holder != heap->null_value();
        holder = holder->GetPrototype()) {
-    if (holder->IsSmi()) {
-      Context* global_context = Isolate::Current()->context()->global_context();
-      holder = global_context->number_function()->instance_prototype();
-    } else {
-      HeapObject* heap_object = HeapObject::cast(holder);
-      if (!heap_object->IsJSObject()) {
-        Isolate* isolate = heap->isolate();
-        Context* global_context = isolate->context()->global_context();
-        if (heap_object->IsString()) {
-          holder = global_context->string_function()->instance_prototype();
-        } else if (heap_object->IsHeapNumber()) {
-          holder = global_context->number_function()->instance_prototype();
-        } else if (heap_object->IsBoolean()) {
-          holder = global_context->boolean_function()->instance_prototype();
-        } else if (heap_object->IsJSProxy()) {
-          // TODO(rossberg): do something
-          return heap->undefined_value();  // For now...
-        } else {
-          // Undefined and null have no indexed properties.
-          ASSERT(heap_object->IsUndefined() || heap_object->IsNull());
-          return heap->undefined_value();
-        }
+    if (!holder->IsJSObject()) {
+      Isolate* isolate = heap->isolate();
+      Context* global_context = isolate->context()->global_context();
+      if (holder->IsNumber()) {
+        holder = global_context->number_function()->instance_prototype();
+      } else if (holder->IsString()) {
+        holder = global_context->string_function()->instance_prototype();
+      } else if (holder->IsBoolean()) {
+        holder = global_context->boolean_function()->instance_prototype();
+      } else if (holder->IsJSProxy()) {
+        return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
+      } else {
+        // Undefined and null have no indexed properties.
+        ASSERT(holder->IsUndefined() || holder->IsNull());
+        return heap->undefined_value();
       }
     }
 
@@ -1941,6 +1954,16 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
        pt = pt->GetPrototype()) {
+    if (pt->IsJSProxy()) {
+      String* name;
+      MaybeObject* maybe = GetHeap()->Uint32ToString(index);
+      if (!maybe->To<String>(&name)) {
+        *found = true;  // Force abort
+        return maybe;
+      }
+      return JSProxy::cast(pt)->SetPropertyWithHandlerIfDefiningSetter(
+          name, value, NONE, strict_mode, found);
+    }
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
       continue;
     }
@@ -2256,6 +2279,76 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 }
 
 
+MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
+    String* name_raw,
+    Object* value_raw,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode,
+    bool* found) {
+  *found = true;  // except where defined otherwise...
+  Isolate* isolate = GetHeap()->isolate();
+  Handle<JSProxy> proxy(this);
+  Handle<String> name(name_raw);
+  Handle<Object> value(value_raw);
+  Handle<Object> args[] = { name };
+  Handle<Object> result = proxy->CallTrap(
+      "getOwnPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
+  if (isolate->has_pending_exception()) return Failure::Exception();
+
+  if (!result->IsUndefined()) {
+    // The proxy handler cares about this property.
+    // Check whether it is virtualized as an accessor.
+    // Emulate [[GetProperty]] semantics for proxies.
+    bool has_pending_exception;
+    Object** argv[] = { result.location() };
+    Handle<Object> desc =
+        Execution::Call(isolate->to_complete_property_descriptor(), result,
+                        ARRAY_SIZE(argv), argv, &has_pending_exception);
+    if (has_pending_exception) return Failure::Exception();
+
+    Handle<String> conf_name =
+        isolate->factory()->LookupAsciiSymbol("configurable_");
+    Handle<Object> configurable(v8::internal::GetProperty(desc, conf_name));
+    ASSERT(!isolate->has_pending_exception());
+    if (configurable->IsFalse()) {
+      Handle<Object> args[] = { Handle<Object>(proxy->handler()), proxy, name };
+      Handle<Object> error = isolate->factory()->NewTypeError(
+          "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+      return isolate->Throw(*error);
+    }
+    ASSERT(configurable->IsTrue());
+
+    // Check for AccessorDescriptor.
+    Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
+    Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
+    ASSERT(!isolate->has_pending_exception());
+    if (!setter->IsUndefined()) {
+      // We have a setter -- invoke it.
+      return proxy->SetPropertyWithDefinedSetter(
+          JSFunction::cast(*setter), *value);
+    } else {
+      Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
+      Handle<Object> getter(v8::internal::GetProperty(desc, get_name));
+      ASSERT(!isolate->has_pending_exception());
+      if (!getter->IsUndefined()) {
+        // We have a getter but no setter -- the property may not be
+        // written. In strict mode, throw an error.
+        if (strict_mode == kNonStrictMode) return *value;
+        Handle<Object> args[] = { name, proxy };
+        Handle<Object> error = isolate->factory()->NewTypeError(
+            "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
+        return isolate->Throw(*error);
+      }
+    }
+    // Fall-through.
+  }
+
+  // The proxy does not define the property as an accessor.
+  *found = false;
+  return *value;
+}
+
+
 MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
     String* name_raw, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
@@ -2281,11 +2374,22 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
 }
 
 
+MUST_USE_RESULT MaybeObject* JSProxy::DeleteElementWithHandler(
+    uint32_t index,
+    DeleteMode mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  return JSProxy::DeletePropertyWithHandler(*name, mode);
+}
+
+
 MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     JSReceiver* receiver_raw,
     String* name_raw) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
+  Handle<JSProxy> proxy(this);
   Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
 
@@ -2314,11 +2418,29 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   Handle<Object> writable(v8::internal::GetProperty(desc, writ_n));
   if (isolate->has_pending_exception()) return NONE;
 
+  if (configurable->IsFalse()) {
+    Handle<Object> args[] = { Handle<Object>(proxy->handler()), proxy, name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    return NONE;
+  }
+
   int attributes = NONE;
   if (enumerable->ToBoolean()->IsFalse()) attributes |= DONT_ENUM;
   if (configurable->ToBoolean()->IsFalse()) attributes |= DONT_DELETE;
   if (writable->ToBoolean()->IsFalse()) attributes |= READ_ONLY;
   return static_cast<PropertyAttributes>(attributes);
+}
+
+
+MUST_USE_RESULT PropertyAttributes JSProxy::GetElementAttributeWithHandler(
+    JSReceiver* receiver,
+    uint32_t index) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  return GetPropertyAttributeWithHandler(receiver, *name);
 }
 
 
@@ -2350,7 +2472,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
   if (isolate->has_pending_exception()) return trap;
 
   if (trap->IsUndefined()) {
-    if (*derived == NULL) {
+    if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
       Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
@@ -2419,52 +2541,17 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       } else if (accessor_result.type() == HANDLER) {
         // There is a proxy in the prototype chain. Invoke its
         // getOwnPropertyDescriptor trap.
-        Isolate* isolate = heap->isolate();
+        bool found = false;
         Handle<JSObject> self(this);
         Handle<String> hname(name);
         Handle<Object> hvalue(value);
-        Handle<JSProxy> proxy(accessor_result.proxy());
-        Handle<Object> args[] = { hname };
-        Handle<Object> result = proxy->CallTrap(
-          "getOwnPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
-        if (isolate->has_pending_exception()) return Failure::Exception();
-
-        if (!result->IsUndefined()) {
-          // The proxy handler cares about this property.
-          // Check whether it is virtualized as an accessor.
-          Handle<String> getter_name =
-              isolate->factory()->LookupAsciiSymbol("get");
-          Handle<Object> getter(
-              v8::internal::GetProperty(result, getter_name));
-          if (isolate->has_pending_exception()) return Failure::Exception();
-          Handle<String> setter_name =
-              isolate->factory()->LookupAsciiSymbol("set");
-          Handle<Object> setter(
-              v8::internal::GetProperty(result, setter_name));
-          if (isolate->has_pending_exception()) return Failure::Exception();
-
-          if (!setter->IsUndefined()) {
-            // We have a setter -- invoke it.
-            if (setter->IsJSFunction()) {
-              return proxy->SetPropertyWithDefinedSetter(
-                  JSFunction::cast(*setter), *hvalue);
-            }
-            Handle<Object> args[] = { setter };
-            Handle<Object> error = isolate->factory()->NewTypeError(
-               "setter_must_be_callable", HandleVector(args, ARRAY_SIZE(args)));
-            return isolate->Throw(*error);
-          } else if (!getter->IsUndefined()) {
-            // We have a getter but no setter -- the property may not be
-            // written. In strict mode, throw an error.
-            if (strict_mode == kNonStrictMode) return *hvalue;
-            Handle<Object> args[] = { hname, proxy };
-            Handle<Object> error = isolate->factory()->NewTypeError(
-                "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
-            return isolate->Throw(*error);
-          }
-        }
+        MaybeObject* result =
+            accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
+                name, value, attributes, strict_mode, &found);
+        if (found) return result;
         // The proxy does not define the property as an accessor.
         // Consequently, it has no effect on setting the receiver.
+        // Make sure to use the handlified references at this point!
         return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
       }
     }
@@ -2712,9 +2799,8 @@ PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
       String* key) {
   uint32_t index = 0;
   if (IsJSObject() && key->AsArrayIndex(&index)) {
-    if (JSObject::cast(this)->HasElementWithReceiver(receiver, index))
-      return NONE;
-    return ABSENT;
+    return JSObject::cast(this)->HasElementWithReceiver(receiver, index)
+        ? NONE : ABSENT;
   }
   // Named property.
   LookupResult result;
@@ -3253,9 +3339,16 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
-  } else {
-    return JSObject::cast(this)->DeleteProperty(name, mode);
   }
+  return JSObject::cast(this)->DeleteProperty(name, mode);
+}
+
+
+MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
+  }
+  return JSObject::cast(this)->DeleteElement(index, mode);
 }
 
 
@@ -7911,6 +8004,11 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
 
   Object* pt = GetPrototype();
   if (pt->IsNull()) return false;
+  if (pt->IsJSProxy()) {
+    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
+    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
+        receiver, index) != ABSENT;
+  }
   return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
 }
 
@@ -8167,6 +8265,11 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
 
   Object* pt = GetPrototype();
   if (pt->IsNull()) return false;
+  if (pt->IsJSProxy()) {
+    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
+    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
+        receiver, index) != ABSENT;
+  }
   return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
 }
 
@@ -8244,8 +8347,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
     if (getter->IsJSFunction()) {
-      return Object::GetPropertyWithDefinedGetter(receiver,
-                                                  JSFunction::cast(getter));
+      return GetPropertyWithDefinedGetter(receiver, JSFunction::cast(getter));
     }
     // Getter is not a function.
     return isolate->heap()->undefined_value();
@@ -8597,6 +8699,17 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   }
   ASSERT(HasDictionaryElements());
   return SetElement(index, value, strict_mode, check_prototype);
+}
+
+
+MaybeObject* JSReceiver::SetElement(uint32_t index,
+                                    Object* value,
+                                    StrictModeFlag strict_mode,
+                                    bool check_proto) {
+  return IsJSProxy()
+      ? JSProxy::cast(this)->SetElementWithHandler(index, value, strict_mode)
+      : JSObject::cast(this)->SetElement(index, value, strict_mode, check_proto)
+  ;
 }
 
 

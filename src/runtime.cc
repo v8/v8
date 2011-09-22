@@ -4329,6 +4329,14 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     return isolate->Throw(*error);
   }
 
+  if (object->IsJSProxy()) {
+    bool has_pending_exception = false;
+    Handle<Object> name = Execution::ToString(key, &has_pending_exception);
+    if (has_pending_exception) return Failure::Exception();
+    return JSProxy::cast(*object)->SetProperty(
+        String::cast(*name), *value, attr, strict_mode);
+  }
+
   // If the object isn't a JavaScript object, we ignore the store.
   if (!object->IsJSObject()) return *value;
 
@@ -4448,7 +4456,7 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (receiver->IsJSObject() && key->ToArrayIndex(&index)) {
+  if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
     // String object we just need to redirect the deletion to the
@@ -4459,8 +4467,7 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
       return isolate->heap()->true_value();
     }
 
-    return JSObject::cast(*receiver)->DeleteElement(
-        index, JSReceiver::FORCE_DELETION);
+    return receiver->DeleteElement(index, JSReceiver::FORCE_DELETION);
   }
 
   Handle<String> key_string;
@@ -4622,31 +4629,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSReceiver, receiver, args[0]);
+  CONVERT_CHECKED(String, key, args[1]);
 
-  // Only JS receivers can have properties.
-  if (args[0]->IsJSReceiver()) {
-    JSReceiver* receiver = JSReceiver::cast(args[0]);
-    CONVERT_CHECKED(String, key, args[1]);
-    bool result = receiver->HasProperty(key);
-    if (isolate->has_pending_exception()) return Failure::Exception();
-    return isolate->heap()->ToBoolean(result);
-  }
-  return isolate->heap()->false_value();
+  bool result = receiver->HasProperty(key);
+  if (isolate->has_pending_exception()) return Failure::Exception();
+  return isolate->heap()->ToBoolean(result);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSReceiver, receiver, args[0]);
+  CONVERT_CHECKED(Smi, index, args[1]);
 
-  // Only JS objects can have elements.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
-    CONVERT_CHECKED(Smi, index_obj, args[1]);
-    uint32_t index = index_obj->value();
-    if (object->HasElement(index)) return isolate->heap()->true_value();
-  }
-  return isolate->heap()->false_value();
+  bool result = receiver->HasElement(index->value());
+  if (isolate->has_pending_exception()) return Failure::Exception();
+  return isolate->heap()->ToBoolean(result);
 }
 
 
@@ -10079,8 +10079,8 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
-        MaybeObject* maybe_value = receiver->GetPropertyWithCallback(
-            receiver, structure, name, result->holder());
+        MaybeObject* maybe_value = result->holder()->GetPropertyWithCallback(
+            receiver, structure, name);
         if (!maybe_value->ToObject(&value)) {
           if (maybe_value->IsRetryAfterGC()) return maybe_value;
           ASSERT(maybe_value->IsException());

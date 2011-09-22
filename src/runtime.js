@@ -355,7 +355,7 @@ function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsNonNegativeSmi(this) && !%IsJSProxy(x) ?
+  return %_IsNonNegativeSmi(this) ?
     %HasElement(x, this) : %HasProperty(x, %ToString(this));
 }
 

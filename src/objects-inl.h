@@ -4253,8 +4253,11 @@ bool JSObject::HasHiddenProperties() {
 }
 
 
-bool JSObject::HasElement(uint32_t index) {
-  return HasElementWithReceiver(this, index);
+bool JSReceiver::HasElement(uint32_t index) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasElementWithHandler(index);
+  }
+  return JSObject::cast(this)->HasElementWithReceiver(this, index);
 }
 
 

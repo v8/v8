@@ -351,6 +351,7 @@ class Factory {
       PropertyAttributes attributes);
 
   Handle<String> NumberToString(Handle<Object> number);
+  Handle<String> Uint32ToString(uint32_t value);
 
   enum ApiInstanceType {
     JavaScriptObject,

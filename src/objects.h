@@ -923,10 +923,6 @@ class Object : public MaybeObject {
                                            LookupResult* result,
                                            String* key,
                                            PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
-                                                       Object* structure,
-                                                       String* name,
-                                                       Object* holder);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSFunction* getter);
 
@@ -1352,6 +1348,14 @@ class JSReceiver: public HeapObject {
                                                             Object* value);
 
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
+
+  // Set the index'th array element.
+  // Can cause GC, or return failure if GC is required.
+  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
+                                          Object* value,
+                                          StrictModeFlag strict_mode,
+                                          bool check_prototype);
 
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
@@ -1368,6 +1372,7 @@ class JSReceiver: public HeapObject {
   // Can cause a GC.
   inline bool HasProperty(String* name);
   inline bool HasLocalProperty(String* name);
+  inline bool HasElement(uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1455,6 +1460,10 @@ class JSObject: public JSReceiver {
   // As PrepareElementsForSort, but only on objects where elements is
   // a dictionary, and it will stay a dictionary.
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
+
+  MUST_USE_RESULT MaybeObject* GetPropertyWithCallback(Object* receiver,
+                                                       Object* structure,
+                                                       String* name);
 
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetPropertyForResult(LookupResult* result,
@@ -1612,7 +1621,6 @@ class JSObject: public JSReceiver {
   bool CanConvertToFastDoubleElements();
 
   // Tells whether the index'th element is present.
-  inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
 
   // Computes the new capacity when expanding the elements of a JSObject.
@@ -6630,24 +6638,47 @@ class JSProxy: public JSReceiver {
   static inline JSProxy* cast(Object* obj);
 
   bool HasPropertyWithHandler(String* name);
+  bool HasElementWithHandler(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(
       Object* receiver,
       String* name);
+  MUST_USE_RESULT MaybeObject* GetElementWithHandler(
+      Object* receiver,
+      uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
       String* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetElementWithHandler(
+      uint32_t index,
+      Object* value,
+      StrictModeFlag strict_mode);
+
+  // If the handler defines an accessor property, invoke its setter
+  // (or throw if only a getter exists) and set *found to true. Otherwise false.
+  MUST_USE_RESULT MaybeObject* SetPropertyWithHandlerIfDefiningSetter(
+      String* name,
+      Object* value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      bool* found);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
       String* name,
+      DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteElementWithHandler(
+      uint32_t index,
       DeleteMode mode);
 
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
       String* name);
+  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithHandler(
+      JSReceiver* receiver,
+      uint32_t index);
 
   // Turn this into an (empty) JSObject.
   void Fix();
