@@ -453,6 +453,19 @@ void IncrementalMarking::StartMarking() {
     MarkObjectGreyDoNotEnqueue(heap_->polymorphic_code_cache());
   }
 
+  if (is_compacting_) {
+    // It's difficult to filter out slots recorded for large objects.
+    LargeObjectIterator it(heap_->lo_space());
+    for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+      if (obj->IsFixedArray() || obj->IsCode()) {
+        Page* p = Page::FromAddress(obj->address());
+        if (p->size() > static_cast<size_t>(Page::kPageSize)) {
+          p->SetFlag(Page::RESCAN_ON_EVACUATION);
+        }
+      }
+    }
+  }
+
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(heap_, this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
@@ -605,6 +618,16 @@ void IncrementalMarking::Abort() {
     PatchIncrementalMarkingRecordWriteStubs(heap_,
                                             RecordWriteStub::STORE_BUFFER_ONLY);
     DeactivateIncrementalWriteBarrier();
+
+    if (is_compacting_) {
+      LargeObjectIterator it(heap_->lo_space());
+      for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+        Page* p = Page::FromAddress(obj->address());
+        if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+          p->ClearFlag(Page::RESCAN_ON_EVACUATION);
+        }
+      }
+    }
   }
   heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
   state_ = STOPPED;

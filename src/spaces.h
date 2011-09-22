@@ -187,7 +187,7 @@ class Bitmap {
   }
 
   static int SizeFor(int cells_count) {
-    return sizeof(MarkBit::CellType)*cells_count;
+    return sizeof(MarkBit::CellType) * cells_count;
   }
 
   INLINE(static uint32_t IndexToCell(uint32_t index)) {
@@ -1585,7 +1585,8 @@ class PagedSpace : public Space {
              (ratio > ratio_threshold) ? "[fragmented]" : "");
     }
 
-    return (ratio > ratio_threshold) || FLAG_always_compact;
+    return (ratio > ratio_threshold) ||
+        (FLAG_always_compact && sizes[3] != Page::kObjectAreaSize);
   }
 
   void EvictEvacuationCandidatesFromFreeLists();

@@ -1930,8 +1930,10 @@ void PagedSpace::PrepareForMarkCompact() {
     Page* last = last_unswept_page_->next_page();
     Page* p = first_unswept_page_;
     do {
-      if (ShouldBeSweptLazily(p)) {
-        ASSERT(!p->WasSwept());
+      // Do not use ShouldBeSweptLazily predicate here.
+      // New evacuation candidates were selected but they still have
+      // to be swept before collection starts.
+      if (!p->WasSwept()) {
         Bitmap::Clear(p);
         if (FLAG_gc_verbose) {
           PrintF("Sweeping 0x%" V8PRIxPTR " lazily abandoned.\n",

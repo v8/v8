@@ -206,6 +206,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 
+  // We might be in the middle of incremental marking with compaction.
+  // Tell collector to treat this code object in a special way and
+  // ignore all slots that might have been recorded on it.
+  isolate->heap()->mark_compact_collector()->InvalidateCode(code);
+
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
 
