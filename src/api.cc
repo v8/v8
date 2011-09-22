@@ -3209,7 +3209,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
       self,
-      i::JSObject::ALLOW_CREATION));
+      i::ALLOW_CREATION));
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
@@ -3233,7 +3233,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
       self,
-      i::JSObject::OMIT_CREATION));
+      i::OMIT_CREATION));
   if (hidden_props->IsUndefined()) {
     return v8::Local<v8::Value>();
   }
@@ -3257,7 +3257,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
       self,
-      i::JSObject::OMIT_CREATION));
+      i::OMIT_CREATION));
   if (hidden_props->IsUndefined()) {
     return true;
   }

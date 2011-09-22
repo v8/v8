@@ -671,6 +671,8 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
+  PrintF(out, " - hash = ");
+  hash()->Print(out);
   PrintF(out, "\n");
 }
 

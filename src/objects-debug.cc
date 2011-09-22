@@ -546,13 +546,14 @@ void JSRegExp::JSRegExpVerify() {
 
 
 void JSProxy::JSProxyVerify() {
-  ASSERT(IsJSProxy());
+  CHECK(IsJSProxy());
   VerifyPointer(handler());
+  ASSERT(hash()->IsSmi() || hash()->IsUndefined());
 }
 
 
 void JSFunctionProxy::JSFunctionProxyVerify() {
-  ASSERT(IsJSFunctionProxy());
+  CHECK(IsJSFunctionProxy());
   JSProxyVerify();
   VerifyPointer(call_trap());
   VerifyPointer(construct_trap());

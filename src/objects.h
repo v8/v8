@@ -282,6 +282,13 @@ enum NormalizedMapSharingMode {
 };
 
 
+// Indicates whether a get method should implicitly create the object looked up.
+enum CreationFlag {
+  ALLOW_CREATION,
+  OMIT_CREATION
+};
+
+
 // Instance size sentinel for objects of variable size.
 static const int kVariableSizeSentinel = 0;
 
@@ -1386,10 +1393,17 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
                                             bool skip_hidden_prototypes);
 
+  // Retrieves a permanent object identity hash code. The undefined value might
+  // be returned in case no has been created yet and OMIT_CREATION was used.
+  inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
   void LocalLookup(String* name, LookupResult* result);
   void Lookup(String* name, LookupResult* result);
+
+ protected:
+  Smi* GenerateIdentityHash();
 
  private:
   PropertyAttributes GetPropertyAttribute(JSReceiver* receiver,
@@ -1596,22 +1610,15 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* SetHiddenPropertiesObject(
       Object* hidden_obj);
 
-  // Indicates whether the hidden properties object should be created.
-  enum HiddenPropertiesFlag { ALLOW_CREATION, OMIT_CREATION };
-
   // Retrieves the hidden properties object.
   //
   // The undefined value might be returned in case no hidden properties object
   // is present and creation was omitted.
   inline bool HasHiddenProperties();
-  MUST_USE_RESULT MaybeObject* GetHiddenProperties(HiddenPropertiesFlag flag);
+  MUST_USE_RESULT MaybeObject* GetHiddenProperties(CreationFlag flag);
 
-  // Retrieves a permanent object identity hash code.
-  //
-  // The identity hash is stored as a hidden property. The undefined value might
-  // be returned in case no hidden properties object is present and creation was
-  // omitted.
-  MUST_USE_RESULT MaybeObject* GetIdentityHash(HiddenPropertiesFlag flag);
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+  MUST_USE_RESULT MaybeObject* SetIdentityHash(Object* hash, CreationFlag flag);
 
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
@@ -2925,10 +2932,10 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 
 class ObjectHashTableShape {
  public:
-  static inline bool IsMatch(JSObject* key, Object* other);
-  static inline uint32_t Hash(JSObject* key);
-  static inline uint32_t HashForObject(JSObject* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(JSObject* key);
+  static inline bool IsMatch(JSReceiver* key, Object* other);
+  static inline uint32_t Hash(JSReceiver* key);
+  static inline uint32_t HashForObject(JSReceiver* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(JSReceiver* key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
 };
@@ -2936,7 +2943,7 @@ class ObjectHashTableShape {
 
 // ObjectHashTable maps keys that are JavaScript objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTableShape, JSObject*> {
+class ObjectHashTable: public HashTable<ObjectHashTableShape, JSReceiver*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -2945,16 +2952,16 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape, JSObject*> {
 
   // Looks up the value associated with the given key. The undefined value is
   // returned in case the key is not present.
-  Object* Lookup(JSObject* key);
+  Object* Lookup(JSReceiver* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the undefined value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(JSObject* key, Object* value);
+  MUST_USE_RESULT MaybeObject* Put(JSReceiver* key, Object* value);
 
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, JSObject* key, Object* value);
+  void AddEntry(int entry, JSReceiver* key, Object* value);
   void RemoveEntry(int entry, Heap* heap);
   inline void RemoveEntry(int entry);
 
@@ -6677,6 +6684,9 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
+  // [hash]: The hash code property (undefined if not initialized yet).
+  DECL_ACCESSORS(hash, Object)
+
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
@@ -6723,6 +6733,8 @@ class JSProxy: public JSReceiver {
       JSReceiver* receiver,
       uint32_t index);
 
+  MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
+
   // Turn this into an (empty) JSObject.
   void Fix();
 
@@ -6751,7 +6763,8 @@ class JSProxy: public JSReceiver {
   // size as a virgin JSObject. This is essential for becoming a JSObject
   // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
-  static const int kPaddingOffset = kHandlerOffset + kPointerSize;
+  static const int kHashOffset = kHandlerOffset + kPointerSize;
+  static const int kPaddingOffset = kHashOffset + kPointerSize;
   static const int kSize = JSObject::kHeaderSize;
   static const int kHeaderSize = kPaddingOffset;
   static const int kPaddingSize = kSize - kPaddingOffset;
@@ -6759,7 +6772,7 @@ class JSProxy: public JSReceiver {
   STATIC_CHECK(kPaddingSize >= 0);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
-                              kHandlerOffset + kPointerSize,
+                              kPaddingOffset,
                               kSize> BodyDescriptor;
 
  private:
@@ -6790,7 +6803,7 @@ class JSFunctionProxy: public JSProxy {
 #endif
 
   // Layout description.
-  static const int kCallTrapOffset = kHandlerOffset + kPointerSize;
+  static const int kCallTrapOffset = JSProxy::kPaddingOffset;
   static const int kConstructTrapOffset = kCallTrapOffset + kPointerSize;
   static const int kPaddingOffset = kConstructTrapOffset + kPointerSize;
   static const int kSize = JSFunction::kSize;

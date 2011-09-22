@@ -267,10 +267,9 @@ Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 // properties and HiddenPropertiesFlag::ALLOW_CREATION is passed, then a new
 // hidden property object will be allocated. Otherwise Heap::undefined_value
 // is returned.
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
-                                   JSObject::HiddenPropertiesFlag flag);
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj, CreationFlag flag);
 
-int GetIdentityHash(Handle<JSObject> obj);
+int GetIdentityHash(Handle<JSReceiver> obj);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
@@ -348,7 +347,7 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 Handle<Object> PreventExtensions(Handle<JSObject> object);
 
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSObject> key,
+                                               Handle<JSReceiver> key,
                                                Handle<Object> value);
 
 // Does lazy compilation of the given function. Returns true on success and

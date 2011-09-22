@@ -3139,7 +3139,7 @@ MaybeObject* JSObject::NormalizeElements() {
 }
 
 
-MaybeObject* JSObject::GetHiddenProperties(HiddenPropertiesFlag flag) {
+MaybeObject* JSObject::GetHiddenProperties(CreationFlag flag) {
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
   Object* holder = BypassGlobalProxy();
@@ -3179,7 +3179,35 @@ MaybeObject* JSObject::GetHiddenProperties(HiddenPropertiesFlag flag) {
 }
 
 
-MaybeObject* JSObject::GetIdentityHash(HiddenPropertiesFlag flag) {
+Smi* JSReceiver::GenerateIdentityHash() {
+  Isolate* isolate = GetIsolate();
+
+  int hash_value;
+  int attempts = 0;
+  do {
+    // Generate a random 32-bit hash value but limit range to fit
+    // within a smi.
+    hash_value = V8::Random(isolate) & Smi::kMaxValue;
+    attempts++;
+  } while (hash_value == 0 && attempts < 30);
+  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
+
+  return Smi::FromInt(hash_value);
+}
+
+
+MaybeObject* JSObject::SetIdentityHash(Object* hash, CreationFlag flag) {
+  JSObject* hidden_props;
+  MaybeObject* maybe = GetHiddenProperties(flag);
+  if (!maybe->To<JSObject>(&hidden_props)) return maybe;
+  maybe = hidden_props->SetLocalPropertyIgnoreAttributes(
+      GetHeap()->identity_hash_symbol(), hash, NONE);
+  if (maybe->IsFailure()) return maybe;
+  return this;
+}
+
+
+MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
   Isolate* isolate = GetIsolate();
   Object* hidden_props_obj;
   { MaybeObject* maybe_obj = GetHiddenProperties(flag);
@@ -3203,22 +3231,22 @@ MaybeObject* JSObject::GetIdentityHash(HiddenPropertiesFlag flag) {
     }
   }
 
-  int hash_value;
-  int attempts = 0;
-  do {
-    // Generate a random 32-bit hash value but limit range to fit
-    // within a smi.
-    hash_value = V8::Random(isolate) & Smi::kMaxValue;
-    attempts++;
-  } while (hash_value == 0 && attempts < 30);
-  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
-
-  Smi* hash = Smi::FromInt(hash_value);
+  Smi* hash = GenerateIdentityHash();
   { MaybeObject* result = hidden_props->SetLocalPropertyIgnoreAttributes(
         hash_symbol,
         hash,
         static_cast<PropertyAttributes>(None));
     if (result->IsFailure()) return result;
+  }
+  return hash;
+}
+
+
+MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
+  Object* hash = this->hash();
+  if (!hash->IsSmi() && flag == ALLOW_CREATION) {
+    hash = GenerateIdentityHash();
+    set_hash(hash);
   }
   return hash;
 }
@@ -11542,9 +11570,9 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 }
 
 
-Object* ObjectHashTable::Lookup(JSObject* key) {
+Object* ObjectHashTable::Lookup(JSReceiver* key) {
   // If the object does not have an identity hash, it was never used as a key.
-  MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::OMIT_CREATION);
+  MaybeObject* maybe_hash = key->GetIdentityHash(OMIT_CREATION);
   if (maybe_hash->IsFailure()) return GetHeap()->undefined_value();
   int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
@@ -11552,10 +11580,10 @@ Object* ObjectHashTable::Lookup(JSObject* key) {
 }
 
 
-MaybeObject* ObjectHashTable::Put(JSObject* key, Object* value) {
+MaybeObject* ObjectHashTable::Put(JSReceiver* key, Object* value) {
   // Make sure the key object has an identity hash code.
   int hash;
-  { MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::ALLOW_CREATION);
+  { MaybeObject* maybe_hash = key->GetIdentityHash(ALLOW_CREATION);
     if (maybe_hash->IsFailure()) return maybe_hash;
     hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
   }
@@ -11585,7 +11613,7 @@ MaybeObject* ObjectHashTable::Put(JSObject* key, Object* value) {
 }
 
 
-void ObjectHashTable::AddEntry(int entry, JSObject* key, Object* value) {
+void ObjectHashTable::AddEntry(int entry, JSReceiver* key, Object* value) {
   set(EntryToIndex(entry), key);
   set(EntryToIndex(entry) + 1, value);
   ElementAdded();

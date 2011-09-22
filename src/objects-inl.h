@@ -3834,6 +3834,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
+ACCESSORS(JSProxy, hash, Object, kHashOffset)
 ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)
 ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
 
@@ -4309,6 +4310,13 @@ Object* JSObject::BypassGlobalProxy() {
 }
 
 
+MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
+  return IsJSProxy()
+      ? JSProxy::cast(this)->GetIdentityHash(flag)
+      : JSObject::cast(this)->GetIdentityHash(flag);
+}
+
+
 bool JSObject::HasHiddenPropertiesObject() {
   ASSERT(!IsJSGlobalProxy());
   return GetPropertyAttributePostInterceptor(this,
@@ -4461,27 +4469,27 @@ MaybeObject* StringDictionaryShape::AsObject(String* key) {
 }
 
 
-bool ObjectHashTableShape::IsMatch(JSObject* key, Object* other) {
-  return key == JSObject::cast(other);
+bool ObjectHashTableShape::IsMatch(JSReceiver* key, Object* other) {
+  return key == JSReceiver::cast(other);
 }
 
 
-uint32_t ObjectHashTableShape::Hash(JSObject* key) {
-  MaybeObject* maybe_hash = key->GetIdentityHash(JSObject::OMIT_CREATION);
+uint32_t ObjectHashTableShape::Hash(JSReceiver* key) {
+  MaybeObject* maybe_hash = key->GetIdentityHash(OMIT_CREATION);
   ASSERT(!maybe_hash->IsFailure());
   return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
 }
 
 
-uint32_t ObjectHashTableShape::HashForObject(JSObject* key, Object* other) {
-  MaybeObject* maybe_hash = JSObject::cast(other)->GetIdentityHash(
-      JSObject::OMIT_CREATION);
+uint32_t ObjectHashTableShape::HashForObject(JSReceiver* key, Object* other) {
+  MaybeObject* maybe_hash =
+      JSReceiver::cast(other)->GetIdentityHash(OMIT_CREATION);
   ASSERT(!maybe_hash->IsFailure());
   return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
 }
 
 
-MaybeObject* ObjectHashTableShape::AsObject(JSObject* key) {
+MaybeObject* ObjectHashTableShape::AsObject(JSReceiver* key) {
   return key;
 }
 

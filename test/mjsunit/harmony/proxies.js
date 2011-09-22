@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1665,7 +1665,6 @@ TestKeysThrow([], {
 // Fixing (Object.freeze, Object.seal, Object.preventExtensions,
 //         Object.isFrozen, Object.isSealed, Object.isExtensible)
 
-// TODO(rossberg): use TestWithProxies to include function proxies
 function TestFix(names, handler) {
   var proto = {p: 77}
   var assertFixing = function(o, s, f, e) {
@@ -2020,8 +2019,8 @@ function CreateFrozen(handler, callTrap, constructTrap) {
 
 function TestCall(isStrict, callTrap) {
   assertEquals(42, callTrap(5, 37))
-// TODO(rossberg): unrelated bug: this does not succeed for optimized code.
-// assertEquals(isStrict ? undefined : global_object, receiver)
+  // TODO(rossberg): unrelated bug: this does not succeed for optimized code.
+  // assertEquals(isStrict ? undefined : global_object, receiver)
 
   var f = Proxy.createFunction({}, callTrap)
   receiver = 333
@@ -2048,8 +2047,8 @@ function TestCall(isStrict, callTrap) {
   var f = CreateFrozen({}, callTrap)
   receiver = 333
   assertEquals(42, f(11, 31))
-// TODO(rossberg): unrelated bug: this does not succeed for optimized code.
-// assertEquals(isStrict ? undefined : global, receiver)
+  // TODO(rossberg): unrelated bug: this does not succeed for optimized code.
+  // assertEquals(isStrict ? undefined : global, receiver)
   receiver = 333
   assertEquals(42, Function.prototype.call.call(f, o, 20, 22))
   assertEquals(o, receiver)

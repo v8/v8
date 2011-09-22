@@ -714,9 +714,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapGet) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSWeakMap, weakmap, 0);
-  // TODO(mstarzinger): Currently we cannot use JSProxy objects as keys
-  // because they cannot be cast to JSObject to get an identity hash code.
-  CONVERT_ARG_CHECKED(JSObject, key, 1);
+  CONVERT_ARG_CHECKED(JSReceiver, key, 1);
   return weakmap->table()->Lookup(*key);
 }
 
@@ -725,8 +723,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapSet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(JSWeakMap, weakmap, 0);
-  // TODO(mstarzinger): See Runtime_WeakMapGet above.
-  CONVERT_ARG_CHECKED(JSObject, key, 1);
+  CONVERT_ARG_CHECKED(JSReceiver, key, 1);
   Handle<Object> value(args[2]);
   Handle<ObjectHashTable> table(weakmap->table());
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);

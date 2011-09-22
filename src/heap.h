@@ -495,6 +495,7 @@ class Heap {
   // size, but keeping the original prototype.  The receiver must have at least
   // the size of the new object.  The object is reinitialized and behaves as an
   // object that has been freshly allocated.
+  // Returns failure if an error occured, otherwise object.
   MUST_USE_RESULT MaybeObject* ReinitializeJSReceiver(JSReceiver* object,
                                                       InstanceType type,
                                                       int size);
