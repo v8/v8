@@ -766,15 +766,6 @@ void PagedSpace::Shrink() {
 }
 
 
-bool PagedSpace::EnsureCapacity(int capacity) {
-  while (Capacity() < capacity) {
-    // Expand the space until it has the required capacity or expansion fails.
-    if (!Expand()) return false;
-  }
-  return true;
-}
-
-
 #ifdef DEBUG
 void PagedSpace::Print() { }
 #endif

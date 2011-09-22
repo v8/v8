@@ -1505,9 +1505,6 @@ class PagedSpace : public Space {
   // Releases half of unused pages.
   void Shrink();
 
-  // Ensures that the capacity is at least 'capacity'. Returns false on failure.
-  bool EnsureCapacity(int capacity);
-
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
 
@@ -1626,8 +1623,7 @@ class PagedSpace : public Space {
 
   // Generic fast case allocation function that tries linear allocation at the
   // address denoted by top in allocation_info_.
-  inline HeapObject* AllocateLinearly(AllocationInfo* alloc_info,
-                                      int size_in_bytes);
+  inline HeapObject* AllocateLinearly(int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
   MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);

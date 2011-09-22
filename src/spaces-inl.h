@@ -251,14 +251,13 @@ void Page::set_prev_page(Page* page) {
 // not contain slow case logic (eg, move to the next page or try free list
 // allocation) so it can be used by all the allocation functions and for all
 // the paged spaces.
-HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
-                                         int size_in_bytes) {
-  Address current_top = alloc_info->top;
+HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
+  Address current_top = allocation_info_.top;
   Address new_top = current_top + size_in_bytes;
-  if (new_top > alloc_info->limit) return NULL;
+  if (new_top > allocation_info_.limit) return NULL;
 
-  alloc_info->top = new_top;
-  ASSERT(alloc_info->VerifyPagedAllocation());
+  allocation_info_.top = new_top;
+  ASSERT(allocation_info_.VerifyPagedAllocation());
   ASSERT(current_top != NULL);
   return HeapObject::FromAddress(current_top);
 }
@@ -268,7 +267,7 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
-  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
+  HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
