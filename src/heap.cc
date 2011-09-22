@@ -3265,8 +3265,18 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // different context.
   JSFunction* object_function =
       function->context()->global_context()->object_function();
+
+  // Each function prototype gets a copy of the object function map.
+  // This avoid unwanted sharing of maps between prototypes of different
+  // constructors.
+  Map* new_map;
+  ASSERT(object_function->has_initial_map());
+  { MaybeObject* maybe_map =
+        object_function->initial_map()->CopyDropTransitions();
+    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
+  }
   Object* prototype;
-  { MaybeObject* maybe_prototype = AllocateJSObject(object_function);
+  { MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
     if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
   }
   // When creating the prototype for the function we must set its

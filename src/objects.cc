@@ -1070,7 +1070,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
 
 
 void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
-  // if (!HEAP->InNewSpace(this)) PrintF("*", this);
   Heap* heap = GetHeap();
   if (!heap->Contains(this)) {
     accumulator->Add("!!!INVALID POINTER!!!");
