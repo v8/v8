@@ -1231,7 +1231,7 @@ TEST(GrowAndShrinkNewSpace) {
   old_capacity = new_space->Capacity();
   new_space->Grow();
   new_capacity = new_space->Capacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
+  CHECK(2 * old_capacity == new_capacity);
 
   // Fill up new space to the point that it is completely full. Make sure
   // that the scavenger does not undo the filling.
@@ -1246,13 +1246,13 @@ TEST(GrowAndShrinkNewSpace) {
     }
   }
   new_capacity = new_space->Capacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK(old_capacity == new_capacity);
 
   // Explicitly shrinking should not affect space capacity.
   old_capacity = new_space->Capacity();
   new_space->Shrink();
   new_capacity = new_space->Capacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK(old_capacity == new_capacity);
 
   // Let the scavenger empty the new space.
   HEAP->CollectGarbage(NEW_SPACE);
@@ -1262,7 +1262,7 @@ TEST(GrowAndShrinkNewSpace) {
   old_capacity = new_space->Capacity();
   new_space->Shrink();
   new_capacity = new_space->Capacity();
-  CHECK_EQ(old_capacity, 2 * new_capacity);
+  CHECK(old_capacity == 2 * new_capacity);
 
   // Consecutive shrinking should not affect space capacity.
   old_capacity = new_space->Capacity();
@@ -1270,5 +1270,5 @@ TEST(GrowAndShrinkNewSpace) {
   new_space->Shrink();
   new_space->Shrink();
   new_capacity = new_space->Capacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK(old_capacity == new_capacity);
 }
