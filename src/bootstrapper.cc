@@ -1940,9 +1940,11 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
     if (!InstallExtension(extension->dependencies()[i])) return false;
   }
   Isolate* isolate = Isolate::Current();
+  Handle<String> source_code =
+      isolate->factory()->NewExternalStringFromAscii(extension->source());
   bool result = CompileScriptCached(
       CStrVector(extension->name()),
-      isolate->factory()->NewExternalStringFromAscii(extension->source()),
+      source_code,
       isolate->bootstrapper()->extensions_cache(),
       extension,
       Handle<Context>(isolate->context()),
