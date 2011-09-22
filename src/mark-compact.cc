@@ -382,41 +382,40 @@ bool Marking::TransferMark(Address old_start, Address new_start) {
   // This is only used when resizing an object.
   ASSERT(MemoryChunk::FromAddress(old_start) ==
          MemoryChunk::FromAddress(new_start));
+
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
   // size, so the adjustment to the live data count will be zero anyway.
   if (old_start == new_start) return false;
 
   MarkBit new_mark_bit = MarkBitFrom(new_start);
-
-  if (heap_->incremental_marking()->IsMarking()) {
-    MarkBit old_mark_bit = MarkBitFrom(old_start);
-#ifdef DEBUG
-    ObjectColor old_color = Color(old_mark_bit);
-#endif
-    if (Marking::IsBlack(old_mark_bit)) {
-      Marking::MarkBlack(new_mark_bit);
-      old_mark_bit.Clear();
-      return true;
-    } else if (Marking::IsGrey(old_mark_bit)) {
-      old_mark_bit.Next().Clear();
-      heap_->incremental_marking()->WhiteToGreyAndPush(
-          HeapObject::FromAddress(new_start), new_mark_bit);
-      heap_->incremental_marking()->RestartIfNotMarking();
-    }
-
-#ifdef DEBUG
-    ObjectColor new_color = Color(new_mark_bit);
-    ASSERT(new_color == old_color);
-#endif
-    return false;
-  }
   MarkBit old_mark_bit = MarkBitFrom(old_start);
-  if (!old_mark_bit.Get()) {
-    return false;
+
+#ifdef DEBUG
+  ObjectColor old_color = Color(old_mark_bit);
+#endif
+
+  if (Marking::IsBlack(old_mark_bit)) {
+    old_mark_bit.Clear();
+    ASSERT(IsWhite(old_mark_bit));
+    Marking::MarkBlack(new_mark_bit);
+    return true;
+  } else if (Marking::IsGrey(old_mark_bit)) {
+    ASSERT(heap_->incremental_marking()->IsMarking());
+    old_mark_bit.Clear();
+    old_mark_bit.Next().Clear();
+    ASSERT(IsWhite(old_mark_bit));
+    heap_->incremental_marking()->WhiteToGreyAndPush(
+        HeapObject::FromAddress(new_start), new_mark_bit);
+    heap_->incremental_marking()->RestartIfNotMarking();
   }
-  new_mark_bit.Set();
-  return true;
+
+#ifdef DEBUG
+  ObjectColor new_color = Color(new_mark_bit);
+  ASSERT(new_color == old_color);
+#endif
+
+  return false;
 }
 
 
@@ -3254,6 +3253,9 @@ static inline Address DigestFreeStart(Address approximate_free_start,
                                       uint32_t free_start_cell) {
   ASSERT(free_start_cell != 0);
 
+  // No consecutive 1 bits.
+  ASSERT((free_start_cell & (free_start_cell << 1)) == 0);
+
   int offsets[16];
   uint32_t cell = free_start_cell;
   int offset_of_last_live;
@@ -3283,6 +3285,9 @@ static inline Address DigestFreeStart(Address approximate_free_start,
 
 static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
   ASSERT(cell != 0);
+
+  // No consecutive 1 bits.
+  ASSERT((cell & (cell << 1)) == 0);
 
   int offsets[16];
   if (cell == 0x80000000u) {  // Avoid overflow below.
