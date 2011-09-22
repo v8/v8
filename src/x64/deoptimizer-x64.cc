@@ -197,10 +197,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // Destroy the code which is not supposed to run again.
   ZapCodeRange(previous_pc, jump_table_address);
 #endif
+  Isolate* isolate = code->GetIsolate();
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
+  DeoptimizerData* data = isolate->deoptimizer_data();
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 
