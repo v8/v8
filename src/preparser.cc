@@ -390,8 +390,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
 
   Expression expr = ParseExpression(true, CHECK_OK);
   if (expr.IsRawIdentifier()) {
-    if (peek() == i::Token::COLON &&
-        (!strict_mode() || !expr.AsIdentifier().IsFutureReserved())) {
+    ASSERT(!expr.AsIdentifier().IsFutureReserved());
+    ASSERT(!strict_mode() || !expr.AsIdentifier().IsFutureStrictReserved());
+    if (peek() == i::Token::COLON) {
       Consume(i::Token::COLON);
       return ParseStatement(ok);
     }
@@ -1436,9 +1437,16 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "reserved_word", NULL);
       *ok = false;
+      return GetIdentifierSymbol();
     }
-      // FALLTHROUGH
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
+      if (strict_mode()) {
+        i::Scanner::Location location = scanner_->location();
+        ReportMessageAt(location.beg_pos, location.end_pos,
+                        "strict_reserved_word", NULL);
+        *ok = false;
+      }
+      // FALLTHROUGH
     case i::Token::IDENTIFIER:
       return GetIdentifierSymbol();
     default:
