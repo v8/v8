@@ -185,7 +185,10 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   int end_marker;
   heap_stats.end_marker = &end_marker;
   i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->RecordStats(&heap_stats, take_snapshot);
+  // BUG(1718):
+  // Don't use the take_snapshot since we don't support HeapIterator here
+  // without doing a special GC.
+  isolate->heap()->RecordStats(&heap_stats, false);
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
