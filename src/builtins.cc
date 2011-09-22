@@ -203,7 +203,7 @@ BUILTIN(ArrayCodeGeneric) {
   }
 
   // 'array' now contains the JSArray we should initialize.
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   // Optimize the case where there is one argument and the argument is a
   // small smi.
@@ -216,7 +216,8 @@ BUILTIN(ArrayCodeGeneric) {
         { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len);
           if (!maybe_obj->ToObject(&obj)) return maybe_obj;
         }
-        array->SetContent(FixedArray::cast(obj));
+        MaybeObject* maybe_obj = array->SetContent(FixedArray::cast(obj));
+        if (maybe_obj->IsFailure()) return maybe_obj;
         return array;
       }
     }
@@ -240,6 +241,13 @@ BUILTIN(ArrayCodeGeneric) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
+  // Set length and elements on the array.
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        array->EnsureCanContainElements(FixedArray::cast(obj));
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
+
   AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
@@ -248,7 +256,6 @@ BUILTIN(ArrayCodeGeneric) {
     elms->set(index, args[index+1], mode);
   }
 
-  // Set length and elements on the array.
   array->set_elements(FixedArray::cast(obj));
   array->set_length(len);
 
@@ -486,14 +493,20 @@ BUILTIN(ArrayPush) {
     FillWithHoles(heap, new_elms, new_length, capacity);
 
     elms = new_elms;
-    array->set_elements(elms);
   }
+
+  MaybeObject* maybe = array->EnsureCanContainElements(&args, 1, to_add);
+  if (maybe->IsFailure()) return maybe;
 
   // Add the provided values.
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < to_add; index++) {
     elms->set(index + len, args[index + 1], mode);
+  }
+
+  if (elms != array->elements()) {
+    array->set_elements(elms);
   }
 
   // Set the length.
@@ -550,7 +563,7 @@ BUILTIN(ArrayShift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -592,7 +605,7 @@ BUILTIN(ArrayUnshift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -600,6 +613,12 @@ BUILTIN(ArrayUnshift) {
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
+
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        array->EnsureCanContainElements(&args, 1, to_add);
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
@@ -609,13 +628,11 @@ BUILTIN(ArrayUnshift) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* new_elms = FixedArray::cast(obj);
-
     AssertNoAllocation no_gc;
     if (len > 0) {
       CopyElements(heap, &no_gc, new_elms, to_add, elms, 0, len);
     }
     FillWithHoles(heap, new_elms, new_length, capacity);
-
     elms = new_elms;
     array->set_elements(elms);
   } else {
@@ -730,6 +747,12 @@ BUILTIN(ArraySlice) {
   }
   FixedArray* result_elms = FixedArray::cast(result);
 
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        result_array->EnsureCanContainElements(result_elms);
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
+
   AssertNoAllocation no_gc;
   CopyElements(heap, &no_gc, result_elms, 0, elms, k, result_len);
 
@@ -757,7 +780,7 @@ BUILTIN(ArraySplice) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
 
@@ -835,8 +858,14 @@ BUILTIN(ArraySplice) {
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
 
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe = array->EnsureCanContainElements(&args, 3, item_count);
+    if (maybe->IsFailure()) return maybe;
+  }
+
   int new_length = len - actual_delete_count + item_count;
 
+  bool elms_changed = false;
   if (item_count < actual_delete_count) {
     // Shrink the array.
     const bool trim_array = !heap->lo_space()->Contains(elms) &&
@@ -851,7 +880,8 @@ BUILTIN(ArraySplice) {
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
-      array->set_elements(elms);
+
+      elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,
@@ -891,7 +921,7 @@ BUILTIN(ArraySplice) {
       FillWithHoles(heap, new_elms, new_length, capacity);
 
       elms = new_elms;
-      array->set_elements(elms);
+      elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,
@@ -905,6 +935,10 @@ BUILTIN(ArraySplice) {
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int k = actual_start; k < actual_start + item_count; k++) {
     elms->set(k, args[3 + k - actual_start], mode);
+  }
+
+  if (elms_changed) {
+    array->set_elements(elms);
   }
 
   // Set the length.
@@ -964,6 +998,19 @@ BUILTIN(ArrayConcat) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   FixedArray* result_elms = FixedArray::cast(result);
+
+  if (FLAG_smi_only_arrays) {
+    for (int i = 0; i < n_arguments; i++) {
+      JSArray* array = JSArray::cast(args[i]);
+      int len = Smi::cast(array->length())->value();
+      if (len > 0) {
+        FixedArray* elms = FixedArray::cast(array->elements());
+        MaybeObject* maybe_object =
+            result_array->EnsureCanContainElements(elms);
+        if (maybe_object->IsFailure()) return maybe_object;
+      }
+    }
+  }
 
   // Copy data.
   AssertNoAllocation no_gc;

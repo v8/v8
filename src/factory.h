@@ -203,7 +203,9 @@ class Factory {
   Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
       Handle<Object> value);
 
-  Handle<Map> NewMap(InstanceType type, int instance_size);
+  Handle<Map> NewMap(InstanceType type,
+                     int instance_size,
+                     ElementsKind elements_kind = FAST_ELEMENTS);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
@@ -252,6 +254,10 @@ class Factory {
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArray> elements,
       PretenureFlag pretenure = NOT_TENURED);
+
+  void SetContent(Handle<JSArray> array, Handle<FixedArray> elements);
+
+  void EnsureCanContainNonSmiElements(Handle<JSArray> array);
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 

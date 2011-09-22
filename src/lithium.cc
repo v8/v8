@@ -203,6 +203,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
       return 3;
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:

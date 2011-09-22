@@ -268,7 +268,7 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT_EQ(map()->has_fast_elements(),
+  ASSERT_EQ((map()->has_fast_elements() || map()->has_fast_smi_only_elements()),
             (elements()->map() == GetHeap()->fixed_array_map() ||
              elements()->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_elements() == HasFastElements());
@@ -330,7 +330,8 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       double value = get_scalar(i);
       ASSERT(!isnan(value) ||
              (BitCast<uint64_t>(value) ==
-              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())));
+              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
+             ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
 }

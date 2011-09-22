@@ -3063,6 +3063,7 @@ MaybeObject* JSObject::NormalizeElements() {
   if (array->IsDictionary()) return array;
 
   ASSERT(HasFastElements() ||
+         HasFastSmiOnlyElements() ||
          HasFastDoubleElements() ||
          HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
@@ -3097,7 +3098,8 @@ MaybeObject* JSObject::NormalizeElements() {
         if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
       }
     } else {
-      ASSERT(old_map->has_fast_elements());
+      ASSERT(old_map->has_fast_elements() ||
+             old_map->has_fast_smi_only_elements());
       value = FixedArray::cast(array)->get(i);
     }
     PropertyDetails details = PropertyDetails(NONE, NORMAL);
@@ -3412,7 +3414,8 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
-  ASSERT(kind == FAST_ELEMENTS || kind == DICTIONARY_ELEMENTS);
+  ASSERT(kind == FAST_ELEMENTS ||
+         kind == DICTIONARY_ELEMENTS);
   if (kind == FAST_ELEMENTS) {
     int length = IsJSArray()
         ? Smi::cast(JSArray::cast(this)->length())->value()
@@ -3466,6 +3469,8 @@ bool JSObject::ReferencesObject(Object* obj) {
     case FAST_DOUBLE_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
+      break;
+    case FAST_SMI_ONLY_ELEMENTS:
       break;
     case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS: {
@@ -3758,6 +3763,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
 
   if (is_element) {
     switch (GetElementsKind()) {
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
         break;
@@ -4007,6 +4013,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 
     // Accessors overwrite previous callbacks (cf. with getters/setters).
     switch (GetElementsKind()) {
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
         break;
@@ -7416,8 +7423,10 @@ static void CopySlowElementsToFast(NumberDictionary* source,
 }
 
 
-MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
-                                                        int length) {
+MaybeObject* JSObject::SetFastElementsCapacityAndLength(
+    int capacity,
+    int length,
+    SetFastElementsCapacityMode set_capacity_mode) {
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
@@ -7434,15 +7443,25 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
   Map* new_map = NULL;
   if (elements()->map() != heap->non_strict_arguments_elements_map()) {
     Object* object;
-    MaybeObject* maybe = GetElementsTransitionMap(FAST_ELEMENTS);
+    bool has_fast_smi_only_elements =
+        FLAG_smi_only_arrays &&
+        (set_capacity_mode == kAllowSmiOnlyElements) &&
+        (elements()->map()->has_fast_smi_only_elements() ||
+         elements() == heap->empty_fixed_array());
+    ElementsKind elements_kind = has_fast_smi_only_elements
+        ? FAST_SMI_ONLY_ELEMENTS
+        : FAST_ELEMENTS;
+    MaybeObject* maybe = GetElementsTransitionMap(elements_kind);
     if (!maybe->ToObject(&object)) return maybe;
     new_map = Map::cast(object);
   }
 
-  switch (GetElementsKind()) {
+  ElementsKind elements_kind = GetElementsKind();
+  switch (elements_kind) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       AssertNoAllocation no_gc;
-      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
+      WriteBarrierMode mode(new_elements->GetWriteBarrierMode(no_gc));
       CopyFastElementsToFast(FixedArray::cast(elements()), new_elements, mode);
       set_map(new_map);
       set_elements(new_elements);
@@ -7545,6 +7564,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
 
   AssertNoAllocation no_gc;
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       elems->Initialize(FixedArray::cast(elements()));
       break;
@@ -7582,8 +7602,9 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
   switch (GetElementsKind()) {
-    case FAST_ELEMENTS: {
-    case FAST_DOUBLE_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS: {
       // Make sure we never try to shrink dense arrays into sparse arrays.
       ASSERT(static_cast<uint32_t>(
           FixedArrayBase::cast(elements())->length()) <= new_length);
@@ -7649,7 +7670,7 @@ void JSArray::Expand(int required_size) {
   Handle<FixedArray> new_backing = FACTORY->NewFixedArray(new_size);
   // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
-  self->SetContent(*new_backing);
+  GetIsolate()->factory()->SetContent(self, new_backing);
 }
 
 
@@ -7672,13 +7693,15 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
     if (value < 0) return ArrayLengthRangeError(GetHeap());
     ElementsKind elements_kind = GetElementsKind();
     switch (elements_kind) {
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS: {
         int old_capacity = FixedArrayBase::cast(elements())->length();
         if (value <= old_capacity) {
           if (IsJSArray()) {
             Object* obj;
-            if (elements_kind == FAST_ELEMENTS) {
+            if (elements_kind == FAST_ELEMENTS ||
+                elements_kind == FAST_SMI_ONLY_ELEMENTS) {
               MaybeObject* maybe_obj = EnsureWritableFastElements();
               if (!maybe_obj->ToObject(&obj)) return maybe_obj;
             }
@@ -7689,7 +7712,8 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
               } else {
                 Address filler_start;
                 int filler_size;
-                if (GetElementsKind() == FAST_ELEMENTS) {
+                if (elements_kind == FAST_ELEMENTS ||
+                    elements_kind == FAST_SMI_ONLY_ELEMENTS) {
                   FixedArray* fast_elements = FixedArray::cast(elements());
                   fast_elements->set_length(value);
                   filler_start = fast_elements->address() +
@@ -7709,13 +7733,14 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
             } else {
               // Otherwise, fill the unused tail with holes.
               int old_length = FastD2I(JSArray::cast(this)->length()->Number());
-              if (GetElementsKind() == FAST_ELEMENTS) {
+              if (elements_kind == FAST_ELEMENTS ||
+                  elements_kind == FAST_SMI_ONLY_ELEMENTS) {
                 FixedArray* fast_elements = FixedArray::cast(elements());
                 for (int i = value; i < old_length; i++) {
                   fast_elements->set_the_hole(i);
                 }
               } else {
-                ASSERT(GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+                ASSERT(elements_kind == FAST_DOUBLE_ELEMENTS);
                 FixedDoubleArray* fast_double_elements =
                     FixedDoubleArray::cast(elements());
                 for (int i = value; i < old_length; i++) {
@@ -7731,10 +7756,17 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
         int new_capacity = value > min ? value : min;
         if (!ShouldConvertToSlowElements(new_capacity)) {
           MaybeObject* result;
-          if (GetElementsKind() == FAST_ELEMENTS) {
-            result = SetFastElementsCapacityAndLength(new_capacity, value);
+          if (elements_kind == FAST_ELEMENTS ||
+              elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+            SetFastElementsCapacityMode set_capacity_mode =
+                elements_kind == FAST_SMI_ONLY_ELEMENTS
+                    ? kAllowSmiOnlyElements
+                    : kDontAllowSmiOnlyElements;
+            result = SetFastElementsCapacityAndLength(new_capacity,
+                                                      value,
+                                                      set_capacity_mode);
           }  else {
-            ASSERT(GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+            ASSERT(elements_kind == FAST_DOUBLE_ELEMENTS);
             result = SetFastDoubleElementsCapacityAndLength(new_capacity,
                                                             value);
           }
@@ -7791,10 +7823,13 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
   // len is not a number so make the array size one and
   // set only element to len.
   Object* obj;
-  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(1);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(1);
+  if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   FixedArray::cast(obj)->set(0, len);
+
+  maybe_obj = EnsureCanContainElements(&len, 1);
+  if (maybe_obj->IsFailure()) return maybe_obj;
+
   if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(1));
   set_elements(FixedArray::cast(obj));
   return this;
@@ -7942,8 +7977,16 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
 }
 
 
+MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
+                                                uint32_t first_arg,
+                                                uint32_t arg_count) {
+  return EnsureCanContainElements(args->arguments() - first_arg, arg_count);
+}
+
+
 bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>
@@ -8085,6 +8128,7 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
   }
 
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>
@@ -8199,6 +8243,7 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
 
   ElementsKind kind = GetElementsKind();
   switch (kind) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>
@@ -8453,7 +8498,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       Object* value,
                                       StrictModeFlag strict_mode,
                                       bool check_prototype) {
-  ASSERT(HasFastElements() || HasFastArgumentsElements());
+  ASSERT(HasFastTypeElements() ||
+         HasFastArgumentsElements());
 
   FixedArray* backing_store = FixedArray::cast(elements());
   if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
@@ -8478,6 +8524,24 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
 
   // Check whether there is extra space in fixed array.
   if (index < length) {
+    if (HasFastSmiOnlyElements()) {
+      if (!value->IsSmi()) {
+        // If the value is a number, transition from smi-only to
+        // FastDoubleElements.
+        if (value->IsNumber()) {
+          MaybeObject* maybe =
+              SetFastDoubleElementsCapacityAndLength(length, length);
+          if (maybe->IsFailure()) return maybe;
+          FixedDoubleArray::cast(elements())->set(index, value->Number());
+          return value;
+        }
+        // Value is not a number, transition to generic fast elements.
+        MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
+        Map* new_map;
+        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
+        set_map(new_map);
+      }
+    }
     backing_store->set(index, value);
     if (IsJSArray()) {
       // Update the length of the array if needed.
@@ -8497,8 +8561,14 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       Object* new_elements;
+      SetFastElementsCapacityMode set_capacity_mode =
+          value->IsSmi() && HasFastSmiOnlyElements()
+              ? kAllowSmiOnlyElements
+              : kDontAllowSmiOnlyElements;
       MaybeObject* maybe =
-          SetFastElementsCapacityAndLength(new_capacity, index + 1);
+          SetFastElementsCapacityAndLength(new_capacity,
+                                           index + 1,
+                                           set_capacity_mode);
       if (!maybe->ToObject(&new_elements)) return maybe;
       FixedArray::cast(new_elements)->set(index, value);
       return value;
@@ -8604,7 +8674,9 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     }
     MaybeObject* result = CanConvertToFastDoubleElements()
         ? SetFastDoubleElementsCapacityAndLength(new_length, new_length)
-        : SetFastElementsCapacityAndLength(new_length, new_length);
+        : SetFastElementsCapacityAndLength(new_length,
+                                           new_length,
+                                           kDontAllowSmiOnlyElements);
     if (result->IsFailure()) return result;
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
@@ -8648,10 +8720,15 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
     if (IsJSArray()) {
       CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
     }
-    MaybeObject* maybe_obj =
-        SetFastElementsCapacityAndLength(elms_length, length);
+    MaybeObject* maybe_obj = SetFastElementsCapacityAndLength(
+        elms_length,
+        length,
+        kDontAllowSmiOnlyElements);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    return SetFastElement(index, value, strict_mode, check_prototype);
+    return SetFastElement(index,
+                          value,
+                          strict_mode,
+                          check_prototype);
   }
 
   double double_value = value_is_smi
@@ -8759,6 +8836,7 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
                                                     bool check_prototype) {
   Isolate* isolate = GetIsolate();
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
       return SetFastElement(index, value, strict_mode, check_prototype);
     case FAST_DOUBLE_ELEMENTS:
@@ -8921,6 +8999,7 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
         break;
       }
       // Fall through.
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
       backing_store = FixedArray::cast(backing_store_base);
       *capacity = backing_store->length();
@@ -9196,6 +9275,7 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>(
@@ -9435,6 +9515,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
                                   PropertyAttributes filter) {
   int counter = 0;
   switch (GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       int length = IsJSArray() ?
           Smi::cast(JSArray::cast(this)->length())->value() :
@@ -10337,7 +10418,8 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
   }
-  ASSERT(HasFastElements() || HasFastDoubleElements());
+  ASSERT(HasFastTypeElements() ||
+         HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.

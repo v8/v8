@@ -1492,8 +1492,20 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ mov(FieldOperand(ebx, offset), result_register());
 
+    Label no_map_change;
+    __ JumpIfSmi(result_register(), &no_map_change);
     // Update the write barrier for the array store.
-    __ RecordWriteField(ebx, offset, result_register(), ecx, kDontSaveFPRegs);
+    __ RecordWriteField(ebx, offset, result_register(), ecx,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    if (FLAG_smi_only_arrays) {
+      __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
+      __ CheckFastSmiOnlyElements(edi, &no_map_change, Label::kNear);
+      __ push(Operand(esp, 0));
+      __ CallRuntime(Runtime::kNonSmiElementStored, 1);
+    }
+    __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }

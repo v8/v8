@@ -177,6 +177,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
   // Pixel elements cannot be created using an object literal.
   ASSERT(!copy->HasExternalArrayElements());
   switch (copy->GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
       if (elements->map() == heap->fixed_cow_array_map()) {
@@ -189,6 +190,9 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Object* value = elements->get(i);
+          ASSERT(value->IsSmi() ||
+                 value->IsTheHole() ||
+                 (copy->GetElementsKind() == FAST_ELEMENTS));
           if (value->IsJSObject()) {
             JSObject* js_object = JSObject::cast(value);
             { MaybeObject* maybe_result = DeepCopyBoilerplate(isolate,
@@ -432,16 +436,28 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
       is_cow ? elements : isolate->factory()->CopyFixedArray(elements);
 
   Handle<FixedArray> content = Handle<FixedArray>::cast(copied_elements);
+  bool has_non_smi = false;
   if (is_cow) {
-#ifdef DEBUG
     // Copy-on-write arrays must be shallow (and simple).
-    for (int i = 0; i < content->length(); i++) {
-      ASSERT(!content->get(i)->IsFixedArray());
-    }
+    if (FLAG_smi_only_arrays) {
+      for (int i = 0; i < content->length(); i++) {
+        Object* current = content->get(i);
+        ASSERT(!current->IsFixedArray());
+        if (!current->IsSmi()) {
+          has_non_smi = true;
+        }
+      }
+    } else {
+#if DEBUG
+      for (int i = 0; i < content->length(); i++) {
+        ASSERT(!content->get(i)->IsFixedArray());
+      }
 #endif
+    }
   } else {
     for (int i = 0; i < content->length(); i++) {
-      if (content->get(i)->IsFixedArray()) {
+      Object* current = content->get(i);
+      if (current->IsFixedArray()) {
         // The value contains the constant_properties of a
         // simple object or array literal.
         Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
@@ -449,12 +465,25 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
             CreateLiteralBoilerplate(isolate, literals, fa);
         if (result.is_null()) return result;
         content->set(i, *result);
+        has_non_smi = true;
+      } else {
+        if (!current->IsSmi()) {
+          has_non_smi = true;
+        }
       }
     }
   }
 
   // Set the elements.
-  Handle<JSArray>::cast(object)->SetContent(*content);
+  Handle<JSArray> js_object(Handle<JSArray>::cast(object));
+  isolate->factory()->SetContent(js_object, content);
+
+  if (FLAG_smi_only_arrays) {
+    if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
+      isolate->factory()->EnsureCanContainNonSmiElements(js_object);
+    }
+  }
+
   return object;
 }
 
@@ -1631,6 +1660,19 @@ RUNTIME_FUNCTION(MaybeObject*,
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NonSmiElementStored) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  if (FLAG_smi_only_arrays && object->HasFastSmiOnlyElements()) {
+    MaybeObject* maybe_map = object->GetElementsTransitionMap(FAST_ELEMENTS);
+    Map* map;
+    if (!maybe_map->To<Map>(&map)) return maybe_map;
+    object->set_map(Map::cast(map));
+  }
+  return *object;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
@@ -2214,7 +2256,8 @@ class FixedArrayBuilder {
  public:
   explicit FixedArrayBuilder(Isolate* isolate, int initial_capacity)
       : array_(isolate->factory()->NewFixedArrayWithHoles(initial_capacity)),
-        length_(0) {
+        length_(0),
+        has_non_smi_elements_(false) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(initial_capacity > 0);
@@ -2222,7 +2265,8 @@ class FixedArrayBuilder {
 
   explicit FixedArrayBuilder(Handle<FixedArray> backing_store)
       : array_(backing_store),
-        length_(0) {
+        length_(0),
+        has_non_smi_elements_(false) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(backing_store->length() > 0);
@@ -2250,12 +2294,15 @@ class FixedArrayBuilder {
   }
 
   void Add(Object* value) {
+    ASSERT(!value->IsSmi());
     ASSERT(length_ < capacity());
     array_->set(length_, value);
     length_++;
+    has_non_smi_elements_ = true;
   }
 
   void Add(Smi* value) {
+    ASSERT(value->IsSmi());
     ASSERT(length_ < capacity());
     array_->set(length_, value);
     length_++;
@@ -2280,7 +2327,7 @@ class FixedArrayBuilder {
   }
 
   Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
-    target_array->set_elements(*array_);
+    FACTORY->SetContent(target_array, array_);
     target_array->set_length(Smi::FromInt(length_));
     return target_array;
   }
@@ -2288,6 +2335,7 @@ class FixedArrayBuilder {
  private:
   Handle<FixedArray> array_;
   int length_;
+  bool has_non_smi_elements_;
 };
 
 
@@ -6121,6 +6169,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   int part_count = indices.length();
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(part_count);
+  MaybeObject* maybe_result = result->EnsureCanContainNonSmiElements();
+  if (maybe_result->IsFailure()) return maybe_result;
   result->set_length(Smi::FromInt(part_count));
 
   ASSERT(result->HasFastElements());
@@ -6495,6 +6545,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
+  MaybeObject* maybe_result = array->EnsureCanContainNonSmiElements();
+  if (maybe_result->IsFailure()) return maybe_result;
+
   int special_length = special->length();
   if (!array->HasFastElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_symbol());
@@ -6722,7 +6775,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSArray, elements_array, args[0]);
-  RUNTIME_ASSERT(elements_array->HasFastElements());
+  RUNTIME_ASSERT(elements_array->HasFastElements() ||
+                 elements_array->HasFastSmiOnlyElements());
   CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
   CONVERT_CHECKED(String, separator, args[2]);
   // elements_array is fast-mode JSarray of alternating positions
@@ -7889,7 +7943,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   int bound_argc = 0;
   if (!args[1]->IsNull()) {
     CONVERT_ARG_CHECKED(JSArray, params, 1);
-    RUNTIME_ASSERT(params->HasFastElements());
+    RUNTIME_ASSERT(params->HasFastTypeElements());
     bound_args = Handle<FixedArray>(FixedArray::cast(params->elements()));
     bound_argc = Smi::cast(params->length())->value();
   }
@@ -8984,6 +9038,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   FlattenString(str);
 
   CONVERT_ARG_CHECKED(JSArray, output, 1);
+
+  MaybeObject* maybe_result_array =
+      output->EnsureCanContainNonSmiElements();
+  if (maybe_result_array->IsFailure()) return maybe_result_array;
   RUNTIME_ASSERT(output->HasFastElements());
 
   AssertNoAllocation no_allocation;
@@ -9287,7 +9345,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(JSObject, element, args[1]);
-  RUNTIME_ASSERT(array->HasFastElements());
+  RUNTIME_ASSERT(array->HasFastElements() || array->HasFastSmiOnlyElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
   for (int i = 0; i < length; i++) {
@@ -9518,6 +9576,7 @@ static void CollectElementIndices(Handle<JSObject> object,
                                   List<uint32_t>* indices) {
   ElementsKind kind = object->GetElementsKind();
   switch (kind) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(object->elements()));
       uint32_t length = static_cast<uint32_t>(elements->length());
@@ -9637,6 +9696,7 @@ static bool IterateElements(Isolate* isolate,
                             ArrayConcatVisitor* visitor) {
   uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
   switch (receiver->GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
@@ -9960,7 +10020,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     }
     return *isolate->factory()->NewJSArrayWithElements(keys);
   } else {
-    ASSERT(array->HasFastElements() || array->HasFastDoubleElements());
+    ASSERT(array->HasFastElements() ||
+           array->HasFastSmiOnlyElements() ||
+           array->HasFastDoubleElements());
     Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
     // -1 means start of array.
     single_interval->set(0, Smi::FromInt(-1));
@@ -11870,7 +11932,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
   // Return result as a JS array.
   Handle<JSObject> result =
       isolate->factory()->NewJSObject(isolate->array_function());
-  Handle<JSArray>::cast(result)->SetContent(*instances);
+  isolate->factory()->SetContent(Handle<JSArray>::cast(result), instances);
   return *result;
 }
 
@@ -11998,12 +12060,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Return result as JS array.
   Object* result;
-  { MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
+  MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
       isolate->context()->global_context()->array_function());
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  JSArray::cast(result)->SetContent(instances);
-  return result;
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  return JSArray::cast(result)->SetContent(instances);
 }
 
 
@@ -12084,8 +12144,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
           isolate->context()->global_context()->array_function());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  JSArray::cast(result)->SetContent(instances);
-  return result;
+  return JSArray::cast(result)->SetContent(instances);
 }
 
 
@@ -13057,6 +13116,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IS_VAR) {
     return isolate->heap()->ToBoolean(obj->Has##Name());  \
   }
 
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastSmiOnlyElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)

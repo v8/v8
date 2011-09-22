@@ -3336,7 +3336,12 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
                               Representation::Integer32()));
-    AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
+    if (FLAG_smi_only_arrays) {
+      AddInstruction(BuildStoreKeyedGeneric(literal, key, value));
+    } else {
+      AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
+    }
+
     AddSimulate(expr->GetIdForElement(i));
   }
   return ast_context()->ReturnValue(Pop());
@@ -3947,6 +3952,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
         break;
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
@@ -4058,14 +4064,20 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 
-  // FAST_ELEMENTS is assumed to be the first case.
-  STATIC_ASSERT(FAST_ELEMENTS == 0);
+  // Generated code assumes that FAST_SMI_ONLY_ELEMENTS, FAST_ELEMENTS,
+  // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS are handled before external
+  // arrays.
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  STATIC_ASSERT(FAST_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  STATIC_ASSERT(DICTIONARY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
 
-  for (ElementsKind elements_kind = FAST_ELEMENTS;
+  for (ElementsKind elements_kind = FIRST_ELEMENTS_KIND;
        elements_kind <= LAST_ELEMENTS_KIND;
        elements_kind = ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_ELEMENTS and DICTIONARY_ELEMENTS, we
-    // need to add some code that's executed for all external array cases.
+    // After having handled FAST_ELEMENTS, FAST_SMI_ELEMENTS,
+    // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS, we need to add some code
+    // that's executed for all external array cases.
     STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
                   LAST_ELEMENTS_KIND);
     if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
@@ -4087,11 +4099,12 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
       set_current_block(if_true);
       HInstruction* access;
-      if (elements_kind == FAST_ELEMENTS ||
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+          elements_kind == FAST_ELEMENTS ||
           elements_kind == FAST_DOUBLE_ELEMENTS) {
         bool fast_double_elements =
             elements_kind == FAST_DOUBLE_ELEMENTS;
-        if (is_store && elements_kind == FAST_ELEMENTS) {
+        if (is_store && !fast_double_elements) {
           AddInstruction(new(zone()) HCheckMap(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
@@ -4105,29 +4118,40 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         current_block()->Finish(typecheck);
 
         set_current_block(if_jsarray);
-        HInstruction* length = new(zone()) HJSArrayLength(object, typecheck);
-        AddInstruction(length);
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-        if (is_store) {
-          if (fast_double_elements) {
-            access = AddInstruction(
-                new(zone()) HStoreKeyedFastDoubleElement(elements,
-                                                         checked_key,
-                                                         val));
-          } else {
-            access = AddInstruction(
-                new(zone()) HStoreKeyedFastElement(elements, checked_key, val));
-          }
+        HInstruction* length;
+        if (is_store && elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+          // For now, fall back to the generic stub for
+          // FAST_SMI_ONLY_ELEMENTS
+          access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
         } else {
-          if (fast_double_elements) {
-            access = AddInstruction(
-                new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key));
+          length = new(zone()) HJSArrayLength(object, typecheck);
+          AddInstruction(length);
+          checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+          if (is_store) {
+            if (fast_double_elements) {
+              access = AddInstruction(
+                  new(zone()) HStoreKeyedFastDoubleElement(elements,
+                                                           checked_key,
+                                                           val));
+            } else {
+              access = AddInstruction(
+                  new(zone()) HStoreKeyedFastElement(elements,
+                                                     checked_key,
+                                                     val));
+            }
           } else {
-            access = AddInstruction(
-                new(zone()) HLoadKeyedFastElement(elements, checked_key));
+            if (fast_double_elements) {
+              access = AddInstruction(
+                  new(zone()) HLoadKeyedFastDoubleElement(elements,
+                                                          checked_key));
+            } else {
+              access = AddInstruction(
+                  new(zone()) HLoadKeyedFastElement(elements, checked_key));
+            }
+            Push(access);
           }
-          Push(access);
         }
+
         *has_side_effects |= access->HasSideEffects();
         if (position != -1) {
           access->set_position(position);

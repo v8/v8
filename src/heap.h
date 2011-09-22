@@ -523,8 +523,10 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateMap(InstanceType instance_type,
-                                           int instance_size);
+  MUST_USE_RESULT MaybeObject* AllocateMap(
+      InstanceType instance_type,
+      int instance_size,
+      ElementsKind elements_kind = FAST_ELEMENTS);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,

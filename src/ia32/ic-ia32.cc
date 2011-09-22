@@ -810,6 +810,19 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // ecx: key (a smi)
   // edx: receiver
   // edi: FixedArray receiver->elements
+
+  if (FLAG_smi_only_arrays) {
+    Label not_smi_only;
+    // Make sure the elements are smi-only.
+    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(ebx, &not_smi_only, Label::kNear);
+    // Non-smis need to call into the runtime if the array is smi only.
+    __ JumpIfNotSmi(eax, &slow);
+    __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
+    __ ret(0);
+    __ bind(&not_smi_only);
+  }
+
   __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
 
   // Update write barrier for the elements array address.

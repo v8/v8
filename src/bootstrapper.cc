@@ -1076,6 +1076,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     elements->set(0, *array);
     array = factory->NewFixedArray(0);
     elements->set(1, *array);
+    Handle<Map> non_strict_arguments_elements_map =
+        factory->GetElementsTransitionMap(result,
+                                          NON_STRICT_ARGUMENTS_ELEMENTS);
+    result->set_map(*non_strict_arguments_elements_map);
+    ASSERT(result->HasNonStrictArgumentsElements());
     result->set_elements(*elements);
     global_context()->set_aliased_arguments_boilerplate(*result);
   }
@@ -1556,6 +1561,18 @@ bool Genesis::InstallNatives() {
     array_function->shared()->set_construct_stub(
         isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
+
+    // InternalArrays should not use Smi-Only array optimizations. There are too
+    // many places in the C++ runtime code (e.g. RegEx) that assume that
+    // elements in InternalArrays can be set to non-Smi values without going
+    // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
+    // transition easy to trap. Moreover, they rarely are smi-only.
+    MaybeObject* maybe_map =
+        array_function->initial_map()->CopyDropTransitions();
+    Map* new_map;
+    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
+    new_map->set_elements_kind(FAST_ELEMENTS);
+    array_function->set_initial_map(new_map);
 
     // Make "length" magic on instances.
     Handle<DescriptorArray> array_descriptors =

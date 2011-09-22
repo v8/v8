@@ -672,7 +672,8 @@ TEST(JSArray) {
   // Set array length to 0.
   ok = array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
-  CHECK(array->HasFastElements());  // Must be in fast mode.
+  // Must be in fast mode.
+  CHECK(array->HasFastTypeElements());
 
   // array[length] = name.
   ok = array->SetElement(0, *name, kNonStrictMode, true)->ToObjectChecked();

@@ -250,6 +250,7 @@ void InstanceofStub::PrintName(StringStream* stream) {
 void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
     case FAST_DOUBLE_ELEMENTS:
@@ -279,7 +280,11 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
+    case FAST_SMI_ONLY_ELEMENTS: {
+      KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
+                                                       is_js_array_,
+                                                       elements_kind_);
+    }
       break;
     case FAST_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,

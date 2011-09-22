@@ -2648,7 +2648,8 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckFastElements(Register map,
                                        Label* fail,
                                        Label::Distance distance) {
-  STATIC_ASSERT(FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 1);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
        Immediate(Map::kMaximumBitField2FastElementValue));
   j(above, fail, distance);

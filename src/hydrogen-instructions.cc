@@ -1488,6 +1488,7 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
       stream->Add("pixel");
       break;
     case FAST_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -1582,6 +1583,7 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     case EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
       break;
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:

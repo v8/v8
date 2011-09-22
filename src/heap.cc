@@ -1700,7 +1700,9 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
 }
 
 
-MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
+MaybeObject* Heap::AllocateMap(InstanceType instance_type,
+                               int instance_size,
+                               ElementsKind elements_kind) {
   Object* result;
   { MaybeObject* maybe_result = AllocateRawMap();
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -1722,7 +1724,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_elements_kind(FAST_ELEMENTS);
+  map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -2112,7 +2114,13 @@ bool Heap::CreateApiObjects() {
   { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_neander_map(Map::cast(obj));
+  // Don't use Smi-only elements optimizations for objects with the neander
+  // map. There are too many cases where element values are set directly with a
+  // bottleneck to trap the Smi-only -> fast elements transition, and there
+  // appears to be no benefit for optimize this case.
+  Map* new_neander_map = Map::cast(obj);
+  new_neander_map->set_elements_kind(FAST_ELEMENTS);
+  set_neander_map(new_neander_map);
 
   { MaybeObject* maybe_obj = AllocateJSObjectFromMap(neander_map());
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3503,7 +3511,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastElements());
+  ASSERT(JSObject::cast(obj)->HasFastSmiOnlyElements() ||
+         JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 
@@ -3685,6 +3694,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
               object_size);
   }
 
+  ASSERT(JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
   FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.

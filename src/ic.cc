@@ -1673,6 +1673,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
   } else {
     ASSERT(receiver_map->has_dictionary_elements() ||
            receiver_map->has_fast_elements() ||
+           receiver_map->has_fast_smi_only_elements() ||
            receiver_map->has_fast_double_elements() ||
            receiver_map->has_external_array_elements());
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
