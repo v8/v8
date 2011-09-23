@@ -111,11 +111,6 @@ static void VerifyMarking(Address bottom, Address top) {
 }
 
 
-static void VerifyMarking(Page* p) {
-  VerifyMarking(p->ObjectAreaStart(), p->ObjectAreaEnd());
-}
-
-
 static void VerifyMarking(NewSpace* space) {
   Address end = space->top();
   NewSpacePageIterator it(space->bottom(), end);
@@ -136,7 +131,8 @@ static void VerifyMarking(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
-    VerifyMarking(it.next());
+    Page* p = it.next();
+    VerifyMarking(p->ObjectAreaStart(), p->ObjectAreaEnd());
   }
 }
 
@@ -168,14 +164,10 @@ class VerifyEvacuationVisitor: public ObjectVisitor {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        if (MarkCompactCollector::IsOnEvacuationCandidate(object)) {
-          CHECK(false);
-        }
+        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
       }
     }
   }
-
-  HeapObject* source_;
 };
 
 
@@ -190,7 +182,6 @@ static void VerifyEvacuation(Address bottom, Address top) {
     object = HeapObject::FromAddress(current);
     if (MarkCompactCollector::IsMarked(object)) {
       ASSERT(current >= next_object_must_be_here_or_later);
-      visitor.source_ = object;
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
     }
@@ -198,15 +189,21 @@ static void VerifyEvacuation(Address bottom, Address top) {
 }
 
 
-static void VerifyEvacuation(Page* p) {
-  if (p->IsEvacuationCandidate()) return;
-
-  VerifyEvacuation(p->ObjectAreaStart(), p->ObjectAreaEnd());
-}
-
-
 static void VerifyEvacuation(NewSpace* space) {
-  // TODO(gc) Verify evacution for new space.
+  NewSpacePageIterator it(space->bottom(), space->top());
+  VerifyEvacuationVisitor visitor;
+
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    Address current = page->body();
+    Address limit = it.has_next() ? page->body_limit() : space->top();
+    ASSERT(limit == space->top() || !page->Contains(space->top()));
+    while (current < limit) {
+      HeapObject* object = HeapObject::FromAddress(current);
+      object->Iterate(&visitor);
+      current += object->Size();
+    }
+  }
 }
 
 
@@ -214,7 +211,9 @@ static void VerifyEvacuation(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
-    VerifyEvacuation(it.next());
+    Page* p = it.next();
+    if (p->IsEvacuationCandidate()) continue;
+    VerifyEvacuation(p->ObjectAreaStart(), p->ObjectAreaEnd());
   }
 }
 
