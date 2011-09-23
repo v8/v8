@@ -65,6 +65,7 @@ inline Heap* _inline_get_heap_();
   V(Object, true_value, TrueValue)                                             \
   V(Object, false_value, FalseValue)                                           \
   V(Object, arguments_marker, ArgumentsMarker)                                 \
+  V(Object, frame_alignment_marker, FrameAlignmentMarker)                      \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \

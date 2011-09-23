@@ -352,7 +352,11 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 int LChunk::GetNextSpillIndex(bool is_double) {
   // Skip a slot if for a double-width slot.
-  if (is_double) spill_slot_count_++;
+  if (is_double) {
+    spill_slot_count_ |= 1;  // Make it odd, so incrementing makes it even.
+    spill_slot_count_++;
+    num_double_slots_++;
+  }
   return spill_slot_count_++;
 }
 

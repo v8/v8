@@ -2249,25 +2249,33 @@ bool Heap::CreateInitialObjects() {
   set_the_hole_value(obj);
 
   { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
-                                           Smi::FromInt(-4),
+                                           Smi::FromInt(-2),
                                            Oddball::kArgumentMarker);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_arguments_marker(obj);
 
   { MaybeObject* maybe_obj = CreateOddball("no_interceptor_result_sentinel",
-                                           Smi::FromInt(-2),
+                                           Smi::FromInt(-3),
                                            Oddball::kOther);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_no_interceptor_result_sentinel(obj);
 
   { MaybeObject* maybe_obj = CreateOddball("termination_exception",
-                                           Smi::FromInt(-3),
+                                           Smi::FromInt(-4),
                                            Oddball::kOther);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_termination_exception(obj);
+
+  { MaybeObject* maybe_obj = CreateOddball("frame_alignment_marker",
+                                           Smi::FromInt(-5),
+                                           Oddball::kOther);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_frame_alignment_marker(obj);
+  STATIC_ASSERT(Oddball::kLeastHiddenOddballNumber == -5);
 
   // Allocate the empty string.
   { MaybeObject* maybe_obj = AllocateRawAsciiString(0, TENURED);

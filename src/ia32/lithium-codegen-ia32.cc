@@ -78,6 +78,9 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
+  dynamic_frame_alignment_ = chunk()->num_double_slots() > 2 ||
+                             info()->osr_ast_id() != AstNode::kNoNumber;
+
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
@@ -150,6 +153,29 @@ bool LCodeGen::GeneratePrologue() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
+  }
+
+  if (dynamic_frame_alignment_) {
+    Label do_not_pad, align_loop;
+    STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
+    // Align esp to a multiple of 2 * kPointerSize.
+    __ test(esp, Immediate(kPointerSize));
+    __ j(zero, &do_not_pad, Label::kNear);
+    __ push(Immediate(0));
+    __ mov(ebx, esp);
+    // Copy arguments, receiver, and return address.
+    __ mov(ecx, Immediate(scope()->num_parameters() + 2));
+
+    __ bind(&align_loop);
+    __ mov(eax, Operand(ebx, 1 * kPointerSize));
+    __ mov(Operand(ebx, 0), eax);
+    __ add(Operand(ebx), Immediate(kPointerSize));
+    __ dec(ecx);
+    __ j(not_zero, &align_loop, Label::kNear);
+    __ mov(Operand(ebx, 0),
+           Immediate(isolate()->factory()->frame_alignment_marker()));
+
+    __ bind(&do_not_pad);
   }
 
   __ push(ebp);  // Caller's frame pointer.
@@ -2018,6 +2044,17 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
+  if (dynamic_frame_alignment_) {
+    Label aligned;
+    // Frame alignment marker (padding) is below arguments,
+    // and receiver, so its return-address-relative offset is
+    // (num_arguments + 2) words.
+    __ cmp(Operand(esp, (GetParameterCount() + 2) * kPointerSize),
+           Immediate(factory()->frame_alignment_marker()));
+    __ j(not_equal, &aligned);
+    __ Ret((GetParameterCount() + 2) * kPointerSize, ecx);
+    __ bind(&aligned);
+  }
   __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
 }
 

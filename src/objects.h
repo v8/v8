@@ -6642,6 +6642,9 @@ class Oddball: public HeapObject {
   static const byte kUndefined = 5;
   static const byte kOther = 6;
 
+  // The ToNumber value of a hidden oddball is a negative smi.
+  static const int kLeastHiddenOddballNumber = -5;
+
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,
                               kSize> BodyDescriptor;

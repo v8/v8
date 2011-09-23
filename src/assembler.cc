@@ -845,6 +845,13 @@ ExternalReference ExternalReference::arguments_marker_location(
 }
 
 
+ExternalReference ExternalReference::frame_alignment_marker_location(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->factory()->frame_alignment_marker().location());
+}
+
+
 ExternalReference ExternalReference::roots_address(Isolate* isolate) {
   return ExternalReference(isolate->heap()->roots_address());
 }

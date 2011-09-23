@@ -596,6 +596,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Factory::arguments_marker.location()
   static ExternalReference arguments_marker_location(Isolate* isolate);
 
+  // Static variable Factory::frame_alignment_marker.location()
+  static ExternalReference frame_alignment_marker_location(Isolate* isolate);
+
   // Static variable Heap::roots_address()
   static ExternalReference roots_address(Isolate* isolate);
 
