@@ -115,11 +115,9 @@ class MapTransitionDescriptor: public Descriptor {
 class ElementsTransitionDescriptor: public Descriptor {
  public:
   ElementsTransitionDescriptor(String* key,
-                               Map* map,
-                               ElementsKind elements_kind)
-      : Descriptor(key, map, PropertyDetails(NONE,
-                                             ELEMENTS_TRANSITION,
-                                             elements_kind)) { }
+                               Object* map_or_array)
+      : Descriptor(key, map_or_array, PropertyDetails(NONE,
+                                                      ELEMENTS_TRANSITION)) { }
 };
 
 // Marks a field name in a map so that adding the field is guaranteed

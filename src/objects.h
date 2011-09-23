@@ -180,7 +180,6 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
-    ASSERT(type != ELEMENTS_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
     ASSERT(StorageField::is_valid(index));
@@ -192,23 +191,6 @@ class PropertyDetails BASE_EMBEDDED {
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
     ASSERT(index == this->index());
-  }
-
-  PropertyDetails(PropertyAttributes attributes,
-                  PropertyType type,
-                  ElementsKind elements_kind) {
-    ASSERT(type == ELEMENTS_TRANSITION);
-    ASSERT(TypeField::is_valid(type));
-    ASSERT(AttributesField::is_valid(attributes));
-    ASSERT(StorageField::is_valid(static_cast<int>(elements_kind)));
-
-    value_ = TypeField::encode(type)
-        | AttributesField::encode(attributes)
-        | StorageField::encode(static_cast<int>(elements_kind));
-
-    ASSERT(type == this->type());
-    ASSERT(attributes == this->attributes());
-    ASSERT(elements_kind == this->elements_kind());
   }
 
   // Conversion for storing details as Object*.
@@ -231,11 +213,6 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
   int index() { return StorageField::decode(value_); }
-
-  ElementsKind elements_kind() {
-    ASSERT(type() == ELEMENTS_TRANSITION);
-    return static_cast<ElementsKind>(StorageField::decode(value_));
-  }
 
   inline PropertyDetails AsDeleted();
 
@@ -4175,6 +4152,8 @@ class Map: public HeapObject {
   // target's prototype pointer point back to this map.
   // This is undone in MarkCompactCollector::ClearNonLiveTransitions().
   void CreateBackPointers();
+
+  void CreateOneBackPointer(Map* transition_target);
 
   // Set all map transitions from this map to dead maps to null.
   // Also, restore the original prototype on the targets of these

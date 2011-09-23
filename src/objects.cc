@@ -2022,6 +2022,84 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
+static Map* GetElementsTransitionMapFromDescriptor(Object* descriptor_contents,
+                                                   ElementsKind elements_kind) {
+  if (descriptor_contents->IsMap()) {
+    Map* map = Map::cast(descriptor_contents);
+    if (map->elements_kind() == elements_kind) {
+      return map;
+    }
+    return NULL;
+  }
+
+  FixedArray* map_array = FixedArray::cast(descriptor_contents);
+  for (int i = 0; i < map_array->length(); ++i) {
+    Object* current = map_array->get(i);
+    // Skip undefined slots, they are sentinels for reclaimed maps.
+    if (!current->IsUndefined()) {
+      Map* current_map = Map::cast(map_array->get(i));
+      if (current_map->elements_kind() == elements_kind) {
+        return current_map;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+
+static MaybeObject* AddElementsTransitionMapToDescriptor(
+    Object* descriptor_contents,
+    Map* new_map) {
+  // Nothing was in the descriptor for an ELEMENTS_TRANSITION,
+  // simply add the map.
+  if (descriptor_contents == NULL) {
+    return new_map;
+  }
+
+  // There was already a map in the descriptor, create a 2-element FixedArray
+  // to contain the existing map plus the new one.
+  FixedArray* new_array;
+  Heap* heap = new_map->GetHeap();
+  if (descriptor_contents->IsMap()) {
+    // Must tenure, DescriptorArray expects no new-space objects.
+    MaybeObject* maybe_new_array = heap->AllocateFixedArray(2, TENURED);
+    if (!maybe_new_array->To<FixedArray>(&new_array)) {
+      return maybe_new_array;
+    }
+    new_array->set(0, descriptor_contents);
+    new_array->set(1, new_map);
+    return new_array;
+  }
+
+  // The descriptor already contained a list of maps for different ElementKinds
+  // of ELEMENTS_TRANSITION, first check the existing array for an undefined
+  // slot, and if that's not available, create a FixedArray to hold the existing
+  // maps plus the new one and fill it in.
+  FixedArray* array = FixedArray::cast(descriptor_contents);
+  for (int i = 0; i < array->length(); ++i) {
+    if (array->get(i)->IsUndefined()) {
+      array->set(i, new_map);
+      return array;
+    }
+  }
+
+  // Must tenure, DescriptorArray expects no new-space objects.
+  MaybeObject* maybe_new_array =
+      heap->AllocateFixedArray(array->length() + 1, TENURED);
+  if (!maybe_new_array->To<FixedArray>(&new_array)) {
+    return maybe_new_array;
+  }
+  int i = 0;
+  while (i < array->length()) {
+    new_array->set(i, array->get(i));
+    ++i;
+  }
+  new_array->set(i, new_map);
+  return new_array;
+}
+
+
 MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind elements_kind) {
   Heap* current_heap = GetHeap();
   Map* current_map = map();
@@ -2044,6 +2122,7 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind elements_kind) {
     safe_to_add_transition = false;
   }
 
+  Object* descriptor_contents = NULL;
   if (safe_to_add_transition) {
     // It's only safe to manipulate the descriptor array if it would be
     // safe to add a transition.
@@ -2063,9 +2142,15 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind elements_kind) {
     // return it.
     if (index != DescriptorArray::kNotFound) {
       PropertyDetails details(PropertyDetails(descriptors->GetDetails(index)));
-      if (details.type() == ELEMENTS_TRANSITION &&
-          details.elements_kind() == elements_kind) {
-        return descriptors->GetValue(index);
+      if (details.type() == ELEMENTS_TRANSITION) {
+        descriptor_contents = descriptors->GetValue(index);
+        Map* maybe_transition_map =
+            GetElementsTransitionMapFromDescriptor(descriptor_contents,
+                                                   elements_kind);
+        if (maybe_transition_map != NULL) {
+          ASSERT(maybe_transition_map->IsMap());
+          return maybe_transition_map;
+        }
       } else {
         safe_to_add_transition = false;
       }
@@ -2085,15 +2170,19 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind elements_kind) {
   // Only remember the map transition if the object's map is NOT equal to the
   // global object_function's map and there is not an already existing
   // non-matching element transition.
-  bool allow_map_transition =
-      safe_to_add_transition &&
+  bool allow_map_transition = safe_to_add_transition &&
       (GetIsolate()->context()->global_context()->object_function()->map() !=
        map());
   if (allow_map_transition) {
-    // Allocate new instance descriptors for the old map with map transition.
+    MaybeObject* maybe_new_contents =
+        AddElementsTransitionMapToDescriptor(descriptor_contents, new_map);
+    Object* new_contents;
+    if (!maybe_new_contents->ToObject(&new_contents)) {
+      return maybe_new_contents;
+    }
+
     ElementsTransitionDescriptor desc(elements_transition_sentinel_name,
-                                      Map::cast(new_map),
-                                      elements_kind);
+                                      new_contents);
     Object* new_descriptors;
     MaybeObject* maybe_new_descriptors = descriptors->CopyInsert(
         &desc,
@@ -6384,29 +6473,45 @@ void String::PrintOn(FILE* file) {
 }
 
 
+void Map::CreateOneBackPointer(Map* target) {
+#ifdef DEBUG
+  // Verify target.
+  Object* source_prototype = prototype();
+  Object* target_prototype = target->prototype();
+  ASSERT(source_prototype->IsJSReceiver() ||
+         source_prototype->IsMap() ||
+         source_prototype->IsNull());
+  ASSERT(target_prototype->IsJSReceiver() ||
+         target_prototype->IsNull());
+  ASSERT(source_prototype->IsMap() ||
+         source_prototype == target_prototype);
+#endif
+  // Point target back to source.  set_prototype() will not let us set
+  // the prototype to a map, as we do here.
+  *RawField(target, kPrototypeOffset) = this;
+}
+
+
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
     if (descriptors->GetType(i) == MAP_TRANSITION ||
         descriptors->GetType(i) == ELEMENTS_TRANSITION ||
         descriptors->GetType(i) == CONSTANT_TRANSITION) {
-      // Get target.
-      Map* target = Map::cast(descriptors->GetValue(i));
-#ifdef DEBUG
-      // Verify target.
-      Object* source_prototype = prototype();
-      Object* target_prototype = target->prototype();
-      ASSERT(source_prototype->IsJSReceiver() ||
-             source_prototype->IsMap() ||
-             source_prototype->IsNull());
-      ASSERT(target_prototype->IsJSReceiver() ||
-             target_prototype->IsNull());
-      ASSERT(source_prototype->IsMap() ||
-             source_prototype == target_prototype);
-#endif
-      // Point target back to source.  set_prototype() will not let us set
-      // the prototype to a map, as we do here.
-      *RawField(target, kPrototypeOffset) = this;
+      Object* object = reinterpret_cast<Object*>(descriptors->GetValue(i));
+      if (object->IsMap()) {
+        CreateOneBackPointer(reinterpret_cast<Map*>(object));
+      } else {
+        ASSERT(object->IsFixedArray());
+        ASSERT(descriptors->GetType(i) == ELEMENTS_TRANSITION);
+        FixedArray* array = reinterpret_cast<FixedArray*>(object);
+        for (int i = 0; i < array->length(); ++i) {
+          Map* target = reinterpret_cast<Map*>(array->get(i));
+          if (!target->IsUndefined()) {
+            CreateOneBackPointer(target);
+          }
+        }
+      }
     }
   }
 }
@@ -6433,17 +6538,46 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
     if (details.type() == MAP_TRANSITION ||
         details.type() == ELEMENTS_TRANSITION ||
         details.type() == CONSTANT_TRANSITION) {
-      Map* target = reinterpret_cast<Map*>(contents->get(i));
-      ASSERT(target->IsHeapObject());
-      MarkBit map_mark = Marking::MarkBitFrom(target);
-      if (!map_mark.Get()) {
-        ASSERT(target->IsMap());
-        contents->set_unchecked(i + 1, NullDescriptorDetails);
-        contents->set_null_unchecked(heap, i);
-        ASSERT(target->prototype() == this ||
-               target->prototype() == real_prototype);
-        // Getter prototype() is read-only, set_prototype() has side effects.
-        *RawField(target, Map::kPrototypeOffset) = real_prototype;
+      Object* object = reinterpret_cast<Object*>(contents->get(i));
+      if (object->IsMap()) {
+        Map* target = reinterpret_cast<Map*>(object);
+        ASSERT(target->IsHeapObject());
+        MarkBit map_mark = Marking::MarkBitFrom(target);
+        if (!map_mark.Get()) {
+          ASSERT(target->IsMap());
+          contents->set_unchecked(i + 1, NullDescriptorDetails);
+          contents->set_null_unchecked(heap, i);
+          ASSERT(target->prototype() == this ||
+                 target->prototype() == real_prototype);
+          // Getter prototype() is read-only, set_prototype() has side effects.
+          *RawField(target, Map::kPrototypeOffset) = real_prototype;
+        }
+      } else {
+        ASSERT(object->IsFixedArray());
+        ASSERT(details.type() == ELEMENTS_TRANSITION);
+        FixedArray* array = reinterpret_cast<FixedArray*>(contents->get(i));
+        bool reachable_map_found = false;
+        for (int j = 0; j < array->length(); ++j) {
+          Map* target = reinterpret_cast<Map*>(array->get(j));
+          ASSERT(target->IsHeapObject());
+          MarkBit map_mark = Marking::MarkBitFrom(target);
+          if (!map_mark.Get()) {
+            ASSERT(target->IsMap());
+            array->set_undefined(j);
+            ASSERT(target->prototype() == this ||
+                   target->prototype() == real_prototype);
+            // Getter prototype() is read-only, set_prototype() has side
+            // effects.
+            *RawField(target, Map::kPrototypeOffset) = real_prototype;
+          } else {
+            reachable_map_found = true;
+          }
+        }
+        // If no map was found, make sure the FixedArray also gets collected.
+        if (!reachable_map_found) {
+          contents->set_unchecked(i + 1, NullDescriptorDetails);
+          contents->set_null_unchecked(heap, i);
+        }
       }
     }
   }
