@@ -847,6 +847,18 @@ class MacroAssembler: public Assembler {
                          Label* fail,
                          Label::Distance distance = Label::kFar);
 
+  // Check if a map for a JSObject indicates that the object can have both smi
+  // and HeapObject elements.  Jump to the specified label if it does not.
+  void CheckFastObjectElements(Register map,
+                               Label* fail,
+                               Label::Distance distance = Label::kFar);
+
+  // Check if a map for a JSObject indicates that the object has fast smi only
+  // elements.  Jump to the specified label if it does not.
+  void CheckFastSmiOnlyElements(Register map,
+                                Label* fail,
+                                Label::Distance distance = Label::kFar);
+
   // Check if the map of an object is equal to a specified map and
   // branch to label if not. Skip the smi check if not required
   // (object is known to be a heap object)

@@ -1455,13 +1455,25 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForAccumulatorValue(subexpr);
 
     // Store the subexpression value in the array's elements.
-    __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
-    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ movq(r8, Operand(rsp, 0));  // Copy of array literal.
+    __ movq(rbx, FieldOperand(r8, JSObject::kElementsOffset));
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ movq(FieldOperand(rbx, offset), result_register());
 
+    Label no_map_change;
+    __ JumpIfSmi(result_register(), &no_map_change);
     // Update the write barrier for the array store.
-    __ RecordWriteField(rbx, offset, result_register(), rcx, kDontSaveFPRegs);
+    __ RecordWriteField(rbx, offset, result_register(), rcx,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    if (FLAG_smi_only_arrays) {
+      __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
+      __ CheckFastSmiOnlyElements(rdi, &no_map_change, Label::kNear);
+      __ push(r8);
+      __ CallRuntime(Runtime::kNonSmiElementStored, 1);
+    }
+    __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }

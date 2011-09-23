@@ -1442,33 +1442,58 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ cmpl(rax, rcx);
       __ j(greater, &attempt_to_grow_elements);
 
+      // Check if value is a smi.
+      __ movq(rcx, Operand(rsp, argc * kPointerSize));
+      __ JumpIfNotSmi(rcx, &with_write_barrier);
+
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
       // Push the element.
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
       __ lea(rdx, FieldOperand(rbx,
                                rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ movq(Operand(rdx, 0), rcx);
 
-      // Check if value is a smi.
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
-
-      __ JumpIfNotSmi(rcx, &with_write_barrier);
-
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
 
+      if (FLAG_smi_only_arrays) {
+        __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+        __ CheckFastObjectElements(rdi, &call_builtin);
+      }
+
+      // Save new length.
+      __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+
+      // Push the element.
+      __ lea(rdx, FieldOperand(rbx,
+                               rax, times_pointer_size,
+                               FixedArray::kHeaderSize - argc * kPointerSize));
+      __ movq(Operand(rdx, 0), rcx);
+
       __ RecordWrite(
           rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
+      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
       if (!FLAG_inline_new) {
         __ jmp(&call_builtin);
+      }
+
+      __ movq(rdi, Operand(rsp, argc * kPointerSize));
+      if (FLAG_smi_only_arrays) {
+        // Growing elements that are SMI-only requires special handling in case
+        // the new element is non-Smi. For now, delegate to the builtin.
+        Label no_fast_elements_check;
+        __ JumpIfSmi(rdi, &no_fast_elements_check);
+        __ movq(rsi, FieldOperand(rdx, HeapObject::kMapOffset));
+        __ CheckFastObjectElements(rsi, &call_builtin, Label::kFar);
+        __ bind(&no_fast_elements_check);
       }
 
       ExternalReference new_space_allocation_top =
@@ -1494,10 +1519,9 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // We fit and could grow elements.
       __ Store(new_space_allocation_top, rcx);
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
 
       // Push the argument...
-      __ movq(Operand(rdx, 0), rcx);
+      __ movq(Operand(rdx, 0), rdi);
       // ... and fill the rest with holes.
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
@@ -1509,7 +1533,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // tell the incremental marker to rescan the object that we just grew.  We
       // don't need to worry about the holes because they are in old space and
       // already marked black.
-      __ RecordWrite(rbx, rdx, rcx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+      __ RecordWrite(rbx, rdx, rdi, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to rdx as finish sequence assumes it's here.
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -3699,13 +3723,19 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 
   // Do the store and update the write barrier.
   __ SmiToInteger32(rcx, rcx);
-  __ lea(rcx,
-         FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ movq(Operand(rcx, 0), rax);
-  // Make sure to preserve the value in register rax.
-  __ movq(rdx, rax);
-  ASSERT(elements_kind == FAST_ELEMENTS);
-  __ RecordWrite(rdi, rcx, rdx, kDontSaveFPRegs);
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    __ JumpIfNotSmi(rax, &miss_force_generic);
+    __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
+            rax);
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS);
+    __ lea(rcx,
+           FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize));
+    __ movq(Operand(rcx, 0), rax);
+    // Make sure to preserve the value in register rax.
+    __ movq(rdx, rax);
+    __ RecordWrite(rdi, rcx, rdx, kDontSaveFPRegs);
+  }
 
   // Done.
   __ ret(0);

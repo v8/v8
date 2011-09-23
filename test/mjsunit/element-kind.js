@@ -47,7 +47,7 @@ var element_kind = {
 }
 
 // We expect an object to only be of one element kind.
-function assertKind(expected, obj){
+function assertKind(expected, obj) {
   if (support_smi_only_arrays) {
     assertEquals(expected == element_kind.fast_smi_only_elements,
                  %HasFastSmiOnlyElements(obj));
@@ -100,7 +100,7 @@ assertKind(element_kind.fast_smi_only_elements, too);
 // Make sure the element kind transitions from smionly when a non-smi is stored.
 var you = new Array();
 assertKind(element_kind.fast_smi_only_elements, you);
-for(i = 0; i < 1337; i++) {
+for (var i = 0; i < 1337; i++) {
   var val = i;
   if (i == 1336) {
     assertKind(element_kind.fast_smi_only_elements, you);
@@ -110,10 +110,11 @@ for(i = 0; i < 1337; i++) {
 }
 assertKind(element_kind.fast_elements, you);
 
-assertKind(element_kind.dictionary_elements, new Array(0xC0C0A));
+assertKind(element_kind.dictionary_elements, new Array(0xDECAF));
 
-// fast_double_elements not yet available
-
+var fast_double_array = new Array(0xDECAF);
+for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
+assertKind(element_kind.fast_double_elements, fast_double_array);
 
 assertKind(element_kind.external_byte_elements,           new Int8Array(9001));
 assertKind(element_kind.external_unsigned_byte_elements,  new Uint8Array(007));

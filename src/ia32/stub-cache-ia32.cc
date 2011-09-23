@@ -3936,7 +3936,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(eax, &miss_force_generic);
-    // ecx is a smi, don't use times_half_pointer_size istead of
+    // ecx is a smi, use times_half_pointer_size instead of
     // times_pointer_size
     __ mov(FieldOperand(edi,
                         ecx,
@@ -3945,7 +3945,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   } else {
     ASSERT(elements_kind == FAST_ELEMENTS);
     // Do the store and update the write barrier.
-    // ecx is a smi, don't use times_half_pointer_size istead of
+    // ecx is a smi, use times_half_pointer_size instead of
     // times_pointer_size
     __ lea(ecx, FieldOperand(edi,
                              ecx,

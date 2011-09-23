@@ -692,14 +692,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // rax: value
   // rbx: receiver's elements array (a FixedArray)
   // rcx: index
+
   Label non_smi_value;
+  __ JumpIfNotSmi(rax, &non_smi_value);
+  // It's irrelevant whether array is smi-only or not when writing a smi.
   __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
-  __ JumpIfNotSmi(rax, &non_smi_value, Label::kNear);
   __ ret(0);
+
   __ bind(&non_smi_value);
-  // Slow case that needs to retain rcx for use by RecordWrite.
-  // Update write barrier for the elements array address.
+  if (FLAG_smi_only_arrays) {
+    // Writing a non-smi, check whether array allows non-smi elements.
+    __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+    __ CheckFastObjectElements(rdi, &slow, Label::kNear);
+  }
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
   __ movq(rdx, rax);
   __ lea(rcx,
          FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));

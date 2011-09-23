@@ -2656,6 +2656,30 @@ void MacroAssembler::CheckFastElements(Register map,
 }
 
 
+void MacroAssembler::CheckFastObjectElements(Register map,
+                                             Label* fail,
+                                             Label::Distance distance) {
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  cmpb(FieldOperand(map, Map::kBitField2Offset),
+       Immediate(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  j(below_equal, fail, distance);
+  cmpb(FieldOperand(map, Map::kBitField2Offset),
+       Immediate(Map::kMaximumBitField2FastElementValue));
+  j(above, fail, distance);
+}
+
+
+void MacroAssembler::CheckFastSmiOnlyElements(Register map,
+                                              Label* fail,
+                                              Label::Distance distance) {
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  cmpb(FieldOperand(map, Map::kBitField2Offset),
+       Immediate(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  j(above, fail, distance);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
