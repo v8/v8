@@ -1978,6 +1978,8 @@ class HCheckInstanceType: public HUnaryOperation {
     return new HCheckInstanceType(value, IS_SYMBOL);
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2007,6 +2009,8 @@ class HCheckInstanceType: public HUnaryOperation {
     IS_SYMBOL,
     LAST_INTERVAL_CHECK = IS_JS_ARRAY
   };
+
+  const char* GetCheckName();
 
   HCheckInstanceType(HValue* value, Check check)
       : HUnaryOperation(value), check_(check) {
@@ -2623,6 +2627,8 @@ class HCompareObjectEqAndBranch: public HTemplateControlInstruction<2, 2> {
   HValue* left() { return OperandAt(0); }
   HValue* right() { return OperandAt(1); }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2661,6 +2667,8 @@ class HIsNilAndBranch: public HUnaryControlInstruction {
 
   EqualityKind kind() const { return kind_; }
   NilValue nil() const { return nil_; }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -4128,6 +4136,8 @@ class HTypeof: public HTemplateInstruction<2> {
 
   HValue* context() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();

@@ -707,6 +707,14 @@ void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
 }
 
 
+void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(kind() == kStrictEquality ? " === " : " == ");
+  stream->Add(nil() == kNullValue ? "null" : "undefined");
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -777,6 +785,12 @@ void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" == ");
   stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HTypeof::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
 }
 
 
@@ -854,6 +868,23 @@ void HCheckMap::PrintDataTo(StringStream* stream) {
 void HCheckFunction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" %p", *target());
+}
+
+
+const char* HCheckInstanceType::GetCheckName() {
+  switch (check_) {
+    case IS_SPEC_OBJECT: return "object";
+    case IS_JS_ARRAY: return "array";
+    case IS_STRING: return "string";
+    case IS_SYMBOL: return "symbol";
+  }
+  UNREACHABLE();
+  return "";
+}
+
+void HCheckInstanceType::PrintDataTo(StringStream* stream) {
+  stream->Add("%s ", GetCheckName());
+  HUnaryOperation::PrintDataTo(stream);
 }
 
 
@@ -1304,6 +1335,14 @@ void HCompareGeneric::PrintDataTo(StringStream* stream) {
 void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
+  left()->PrintNameTo(stream);
+  stream->Add(" ");
+  right()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
   right()->PrintNameTo(stream);
