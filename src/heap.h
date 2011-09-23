@@ -126,6 +126,7 @@ inline Heap* _inline_get_heap_();
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
   V(Object, nan_value, NanValue)                                               \
+  V(Object, infinity_value, InfinityValue)                                     \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
@@ -229,7 +230,9 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")
+  V(anonymous_function_symbol, "(anonymous function)")                   \
+  V(infinity_symbol, "Infinity")                                         \
+  V(minus_infinity_symbol, "-Infinity")
 
 // Forward declarations.
 class GCTracer;

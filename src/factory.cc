@@ -1315,4 +1315,13 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
 }
 
 
+Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
+  Heap* h = isolate()->heap();
+  if (name->Equals(h->undefined_symbol())) return undefined_value();
+  if (name->Equals(h->nan_symbol())) return nan_value();
+  if (name->Equals(h->infinity_symbol())) return infinity_value();
+  return Handle<Object>::null();
+}
+
+
 } }  // namespace v8::internal

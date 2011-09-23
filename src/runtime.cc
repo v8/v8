@@ -3938,13 +3938,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   // Slow case.
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
+    return *isolate->factory()->nan_symbol();
   }
   if (isinf(value)) {
     if (value < 0) {
-      return isolate->heap()->AllocateStringFromAscii(CStrVector("-Infinity"));
+      return *isolate->factory()->minus_infinity_symbol();
     }
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
+    return *isolate->factory()->infinity_symbol();
   }
   char* str = DoubleToRadixCString(value, radix);
   MaybeObject* result =
@@ -3960,13 +3960,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
+    return *isolate->factory()->nan_symbol();
   }
   if (isinf(value)) {
     if (value < 0) {
-      return isolate->heap()->AllocateStringFromAscii(CStrVector("-Infinity"));
+      return *isolate->factory()->minus_infinity_symbol();
     }
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
+    return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);
@@ -3985,13 +3985,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
+    return *isolate->factory()->nan_symbol();
   }
   if (isinf(value)) {
     if (value < 0) {
-      return isolate->heap()->AllocateStringFromAscii(CStrVector("-Infinity"));
+      return *isolate->factory()->minus_infinity_symbol();
     }
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
+    return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);
@@ -4010,13 +4010,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("NaN"));
+    return *isolate->factory()->nan_symbol();
   }
   if (isinf(value)) {
     if (value < 0) {
-      return isolate->heap()->AllocateStringFromAscii(CStrVector("-Infinity"));
+      return *isolate->factory()->minus_infinity_symbol();
     }
-    return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
+    return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2I(f_number);

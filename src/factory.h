@@ -444,6 +444,11 @@ class Factory {
                              JSRegExp::Flags flags,
                              int capture_count);
 
+  // Returns the value for a known global constant (a property of the global
+  // object which is neither configurable nor writable) like 'undefined'.
+  // Returns a null handle when the given name is unknown.
+  Handle<Object> GlobalConstantFor(Handle<String> name);
+
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
 

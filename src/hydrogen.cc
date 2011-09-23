@@ -3146,6 +3146,16 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   }
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
+      // Handle known global constants like 'undefined' specially to avoid a
+      // load from a global cell for them.
+      Handle<Object> constant_value =
+          isolate()->factory()->GlobalConstantFor(variable->name());
+      if (!constant_value.is_null()) {
+        HConstant* instr =
+            new(zone()) HConstant(constant_value, Representation::Tagged());
+        return ast_context()->ReturnInstruction(instr, expr->id());
+      }
+
       LookupResult lookup;
       GlobalPropertyAccess type =
           LookupGlobalProperty(variable, &lookup, false);

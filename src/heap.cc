@@ -2192,6 +2192,11 @@ bool Heap::CreateInitialObjects() {
   }
   set_nan_value(obj);
 
+  { MaybeObject* maybe_obj = AllocateHeapNumber(V8_INFINITY, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_infinity_value(obj);
+
   { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
