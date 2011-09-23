@@ -532,7 +532,9 @@ void Map::MapPrint(FILE* out) {
   PrintF(out, " - type: %s\n", TypeToString(instance_type()));
   PrintF(out, " - instance size: %d\n", instance_size());
   PrintF(out, " - inobject properties: %d\n", inobject_properties());
-  PrintF(out, " - pre-allocated property fields: %d\n",
+  PrintF(out, " - elements kind: ");
+  PrintElementsKind(out, elements_kind());
+  PrintF(out, "\n - pre-allocated property fields: %d\n",
       pre_allocated_property_fields());
   PrintF(out, " - unused property fields: %d\n", unused_property_fields());
   if (is_hidden_prototype()) {
