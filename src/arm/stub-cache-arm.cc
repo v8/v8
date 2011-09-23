@@ -1580,7 +1580,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                 DONT_DO_SMI_CHECK);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label exit, attempt_to_grow_elements;
+      Label attempt_to_grow_elements;
 
       // Get the array's length into r0 and calculate new length.
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1595,11 +1595,15 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ cmp(r0, r4);
       __ b(gt, &attempt_to_grow_elements);
 
+      // Check if value is a smi.
+      Label with_write_barrier;
+      __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ JumpIfNotSmi(r4, &with_write_barrier);
+
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
       // Push the element.
-      __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
       __ add(end_elements, elements,
@@ -1609,13 +1613,26 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
-      Label with_write_barrier;
-      __ JumpIfNotSmi(r4, &with_write_barrier);
-      __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
 
       __ bind(&with_write_barrier);
+
+      if (FLAG_smi_only_arrays) {
+        __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
+        __ CheckFastSmiOnlyElements(r6, r6, &call_builtin);
+      }
+
+      // Save new length.
+      __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Push the element.
+      // We may need a register containing the address end_elements below,
+      // so write back the value in end_elements.
+      __ add(end_elements, elements,
+             Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+      __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
+
       __ RecordWrite(elements,
                      end_elements,
                      r4,
@@ -1632,6 +1649,17 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       if (!FLAG_inline_new) {
         __ b(&call_builtin);
+      }
+
+      __ ldr(r2, MemOperand(sp, (argc - 1) * kPointerSize));
+      if (FLAG_smi_only_arrays) {
+        // Growing elements that are SMI-only requires special handling in case
+        // the new element is non-Smi. For now, delegate to the builtin.
+        Label no_fast_elements_check;
+        __ JumpIfSmi(r2, &no_fast_elements_check);
+        __ ldr(r7, FieldMemOperand(receiver, HeapObject::kMapOffset));
+        __ CheckFastObjectElements(r7, r7, &call_builtin);
+        __ bind(&no_fast_elements_check);
       }
 
       Isolate* isolate = masm()->isolate();
@@ -1660,8 +1688,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Update new_space_allocation_top.
       __ str(r6, MemOperand(r7));
       // Push the argument.
-      __ ldr(r6, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ str(r6, MemOperand(end_elements));
+      __ str(r2, MemOperand(end_elements));
       // Fill the rest with holes.
       __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
@@ -4323,21 +4350,33 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   __ cmp(key_reg, scratch);
   __ b(hs, &miss_force_generic);
 
-  __ add(scratch,
-         elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ add(scratch,
-         scratch,
-         Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ str(value_reg, MemOperand(scratch));
-  __ mov(receiver_reg, value_reg);
-  ASSERT(elements_kind == FAST_ELEMENTS);
-  __ RecordWrite(elements_reg,  // Object.
-                 scratch,       // Address.
-                 receiver_reg,  // Value.
-                 kLRHasNotBeenSaved,
-                 kDontSaveFPRegs);
-
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    __ JumpIfNotSmi(value_reg, &miss_force_generic);
+    __ add(scratch,
+           elements_reg,
+           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    __ add(scratch,
+           scratch,
+           Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ str(value_reg, MemOperand(scratch));
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS);
+    __ add(scratch,
+           elements_reg,
+           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    __ add(scratch,
+           scratch,
+           Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ str(value_reg, MemOperand(scratch));
+    __ mov(receiver_reg, value_reg);
+    __ RecordWrite(elements_reg,  // Object.
+                   scratch,       // Address.
+                   receiver_reg,  // Value.
+                   kLRHasNotBeenSaved,
+                   kDontSaveFPRegs);
+  }
   // value_reg (r0) is preserved.
   // Done.
   __ Ret();

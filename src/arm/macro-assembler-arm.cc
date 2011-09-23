@@ -1867,6 +1867,29 @@ void MacroAssembler::CheckFastElements(Register map,
 }
 
 
+void MacroAssembler::CheckFastObjectElements(Register map,
+                                             Register scratch,
+                                             Label* fail) {
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  b(ls, fail);
+  cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  b(hi, fail);
+}
+
+
+void MacroAssembler::CheckFastSmiOnlyElements(Register map,
+                                              Register scratch,
+                                              Label* fail) {
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  b(hi, fail);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,

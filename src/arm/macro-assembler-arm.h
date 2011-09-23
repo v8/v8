@@ -700,6 +700,18 @@ class MacroAssembler: public Assembler {
                          Register scratch,
                          Label* fail);
 
+  // Check if a map for a JSObject indicates that the object can have both smi
+  // and HeapObject elements.  Jump to the specified label if it does not.
+  void CheckFastObjectElements(Register map,
+                               Register scratch,
+                               Label* fail);
+
+  // Check if a map for a JSObject indicates that the object has fast smi only
+  // elements.  Jump to the specified label if it does not.
+  void CheckFastSmiOnlyElements(Register map,
+                                Register scratch,
+                                Label* fail);
+
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
   // label if not. Skip the smi check if not required (object is known
