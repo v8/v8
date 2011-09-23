@@ -60,6 +60,8 @@
 
     'v8_enable_disassembler%': 0,
 
+    'v8_object_print%': 0,
+
     'v8_enable_gdbjit%': 0,
 
     # Enable profiling support. Only required on Windows.
@@ -83,6 +85,9 @@
       }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
+      }],
+      ['v8_object_print==1', {
+        'defines': ['OBJECT_PRINT',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
