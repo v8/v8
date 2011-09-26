@@ -1808,6 +1808,34 @@ THREADED_TEST(HiddenProperties) {
 }
 
 
+THREADED_TEST(Regress97784) {
+  // Regression test for crbug.com/97784
+  // Messing with the Object.prototype should not have effect on
+  // hidden properties.
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::String> key = v8_str("hidden");
+
+  CompileRun(
+      "set_called = false;"
+      "Object.defineProperty("
+      "    Object.prototype,"
+      "    'hidden',"
+      "    {get: function() { return 45; },"
+      "     set: function() { set_called = true; }})");
+
+  CHECK(obj->GetHiddenValue(key).IsEmpty());
+  // Make sure that the getter and setter from Object.prototype is not invoked.
+  // If it did we would have full access to the hidden properties in
+  // the accessor.
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(42)));
+  ExpectFalse("set_called");
+  CHECK_EQ(42, obj->GetHiddenValue(key)->Int32Value());
+}
+
+
 static bool interceptor_for_hidden_properties_called;
 static v8::Handle<Value> InterceptorForHiddenProperties(
     Local<String> name, const AccessorInfo& info) {
