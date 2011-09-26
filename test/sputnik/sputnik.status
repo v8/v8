@@ -52,6 +52,9 @@ S15.10.6.2_A1_T16: FAIL_OK
 S15.10.6.2_A12: FAIL_OK
 S15.10.6.3_A1_T16: FAIL_OK
 
+# Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
+S15.10.6_A2: FAIL_OK
+
 # We are silent in some regexp cases where the spec wants us to give
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL

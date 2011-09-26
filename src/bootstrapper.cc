@@ -995,6 +995,26 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         initial_map->instance_size() + 5 * kPointerSize);
     initial_map->set_instance_descriptors(*descriptors);
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
+
+    // RegExp prototype object is itself a RegExp.
+    Handle<Map> proto_map = factory->CopyMapDropTransitions(initial_map);
+    proto_map->set_prototype(global_context()->initial_object_prototype());
+    Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
+    proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
+                                 heap->empty_string());
+    proto->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex,
+                                 heap->false_value());
+    proto->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex,
+                                 heap->false_value());
+    proto->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex,
+                                 heap->false_value());
+    proto->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
+                                 Smi::FromInt(0),
+                                 SKIP_WRITE_BARRIER);  // It's a Smi.
+    initial_map->set_prototype(*proto);
+    factory->SetRegExpIrregexpData(Handle<JSRegExp>::cast(proto),
+                                   JSRegExp::IRREGEXP, factory->empty_string(),
+                                   JSRegExp::Flags(0), 0);
   }
 
   {  // -- J S O N

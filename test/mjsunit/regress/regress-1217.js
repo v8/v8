@@ -25,8 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Check conformity to ECMA-262 15.10.6.
-// The class of RegExp's prototype is RegExp.
+// Check that RegExp.prototype is itself a RegExp object.
 
-var prototype_class = ({}).toString.call(RegExp.prototype);
-assertEquals("[object RegExp]", prototype_class);
+var proto = RegExp.prototype;
+assertEquals("[object RegExp]", Object.prototype.toString.call(proto));
+
+assertEquals("", proto.source);
+assertEquals(false, proto.global);
+assertEquals(false, proto.multiline);
+assertEquals(false, proto.ignoreCase);
+assertEquals(0, proto.lastIndex);
+
+assertEquals("/(?:)/", proto.toString());
+
+var execResult = proto.exec("argle");
+assertEquals(1, execResult.length);
+assertEquals("", execResult[0]);
+assertEquals("argle", execResult.input);
+assertEquals(0, execResult.index);
+
+assertTrue(proto.test("argle"));
+
+// We disallow re-compiling the RegExp.prototype object.
+assertThrows(function(){ proto.compile("something"); }, TypeError);
