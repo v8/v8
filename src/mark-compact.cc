@@ -483,7 +483,9 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   ASSERT(state_ == IDLE);
   state_ = PREPARE_GC;
 #endif
-  ASSERT(!FLAG_always_compact || !FLAG_never_compact);
+
+  // TODO(1726) Revert this into an assertion when compaction is enabled.
+  if (FLAG_never_compact) FLAG_always_compact = false;
 
   if (collect_maps_) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -2454,11 +2456,13 @@ class PointersUpdatingVisitor: public ObjectVisitor {
 
     HeapObject* obj = HeapObject::cast(*p);
 
-    if (heap_->InNewSpace(obj) ||
-        MarkCompactCollector::IsOnEvacuationCandidate(obj)) {
-      ASSERT(obj->map_word().IsForwardingAddress());
+    MapWord map_word = obj->map_word();
+    if (map_word.IsForwardingAddress()) {
+      ASSERT(heap_->InFromSpace(obj) ||
+             MarkCompactCollector::IsOnEvacuationCandidate(obj));
       *p = obj->map_word().ToForwardingAddress();
-      ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*p));
+      ASSERT(!heap_->InFromSpace(*p) &&
+             !MarkCompactCollector::IsOnEvacuationCandidate(*p));
     }
   }
 
