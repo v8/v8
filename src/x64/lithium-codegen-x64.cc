@@ -283,6 +283,9 @@ bool LCodeGen::GenerateDeferredCode() {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
       __ bind(code->entry());
+      Comment(";;; Deferred code @%d: %s.",
+              code->instruction_index(),
+              code->instr()->Mnemonic());
       code->Generate();
       __ jmp(code->exit());
     }
@@ -1870,9 +1873,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     virtual void Generate() {
       codegen()->DoDeferredLInstanceOfKnownGlobal(instr_, &map_check_);
     }
-
+    virtual LInstruction* instr() { return instr_; }
     Label* map_check() { return &map_check_; }
-
    private:
     LInstanceOfKnownGlobal* instr_;
     Label map_check_;
@@ -2713,6 +2715,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
     virtual void Generate() {
       codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
     }
+    virtual LInstruction* instr() { return instr_; }
    private:
     LUnaryMathOperation* instr_;
   };
@@ -3229,6 +3232,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     DeferredStringCharCodeAt(LCodeGen* codegen, LStringCharCodeAt* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() { codegen()->DoDeferredStringCharCodeAt(instr_); }
+    virtual LInstruction* instr() { return instr_; }
    private:
     LStringCharCodeAt* instr_;
   };
@@ -3349,6 +3353,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
     DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() { codegen()->DoDeferredStringCharFromCode(instr_); }
+    virtual LInstruction* instr() { return instr_; }
    private:
     LStringCharFromCode* instr_;
   };
@@ -3425,6 +3430,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     DeferredNumberTagD(LCodeGen* codegen, LNumberTagD* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() { codegen()->DoDeferredNumberTagD(instr_); }
+    virtual LInstruction* instr() { return instr_; }
    private:
     LNumberTagD* instr_;
   };
@@ -3520,16 +3526,6 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 }
 
 
-class DeferredTaggedToI: public LDeferredCode {
- public:
-  DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
-      : LDeferredCode(codegen), instr_(instr) { }
-  virtual void Generate() { codegen()->DoDeferredTaggedToI(instr_); }
- private:
-  LTaggedToI* instr_;
-};
-
-
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Label done, heap_number;
   Register input_reg = ToRegister(instr->InputAt(0));
@@ -3578,6 +3574,16 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
 
 void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
+  class DeferredTaggedToI: public LDeferredCode {
+   public:
+    DeferredTaggedToI(LCodeGen* codegen, LTaggedToI* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredTaggedToI(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LTaggedToI* instr_;
+  };
+
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister());
   ASSERT(input->Equals(instr->result()));
@@ -4145,6 +4151,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     DeferredStackCheck(LCodeGen* codegen, LStackCheck* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() { codegen()->DoDeferredStackCheck(instr_); }
+    virtual LInstruction* instr() { return instr_; }
    private:
     LStackCheck* instr_;
   };
