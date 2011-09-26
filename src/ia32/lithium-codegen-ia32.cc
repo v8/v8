@@ -516,14 +516,18 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
                                        int argc,
                                        LInstruction* instr,
                                        LOperand* context) {
-  ASSERT(context->IsRegister() || context->IsStackSlot());
   if (context->IsRegister()) {
     if (!ToRegister(context).is(esi)) {
       __ mov(esi, ToRegister(context));
     }
-  } else {
-    // Context is stack slot.
+  } else if (context->IsStackSlot()) {
     __ mov(esi, ToOperand(context));
+  } else if (context->IsConstantOperand()) {
+    Handle<Object> literal =
+        chunk_->LookupLiteral(LConstantOperand::cast(context));
+    LoadHeapObject(esi, Handle<Context>::cast(literal));
+  } else {
+    UNREACHABLE();
   }
 
   __ CallRuntimeSaveDoubles(id);
@@ -1235,8 +1239,13 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-  ASSERT(instr->result()->IsRegister());
-  __ Set(ToRegister(instr->result()), Immediate(instr->value()));
+  Register reg = ToRegister(instr->result());
+  Handle<Object> handle = instr->value();
+  if (handle->IsHeapObject()) {
+    LoadHeapObject(reg, Handle<HeapObject>::cast(handle));
+  } else {
+    __ Set(reg, Immediate(handle));
+  }
 }
 
 

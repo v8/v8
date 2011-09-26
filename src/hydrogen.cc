@@ -4527,14 +4527,17 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  // No context change required.
   CompilationInfo* outer_info = info();
+#if !defined(V8_TARGET_ARCH_IA32)
+  // Target must be able to use caller's context.
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
     TraceInline(target, caller, "target requires context change");
     return false;
   }
+#endif
+
 
   // Don't inline deeper than kMaxInliningLevels calls.
   HEnvironment* env = environment();
@@ -4655,6 +4658,10 @@ bool HGraphBuilder::TryInline(Call* expr) {
                                      function,
                                      undefined,
                                      call_kind);
+  HConstant* context = new HConstant(Handle<Context>(target->context()),
+                                     Representation::Tagged());
+  AddInstruction(context);
+  inner_env->BindContext(context);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
   body_entry->SetJoinId(expr->ReturnId());
