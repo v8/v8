@@ -2367,6 +2367,7 @@ void MarkCompactCollector::MigrateObject(Address dst,
                                          Address src,
                                          int size,
                                          AllocationSpace dest) {
+  HEAP_PROFILE(heap(), ObjectMoveEvent(src, dst));
   if (dest == OLD_POINTER_SPACE || dest == LO_SPACE) {
     Address src_slot = src;
     Address dst_slot = dst;

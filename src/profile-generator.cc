@@ -1403,10 +1403,12 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   if (entry != NULL) {
     void* value = entry->value;
     entries_map_.Remove(from, AddressHash(from));
-    entry = entries_map_.Lookup(to, AddressHash(to), true);
-    // We can have an entry at the new location, it is OK, as GC can overwrite
-    // dead objects with alive objects being moved.
-    entry->value = value;
+    if (to != NULL) {
+      entry = entries_map_.Lookup(to, AddressHash(to), true);
+      // We can have an entry at the new location, it is OK, as GC can overwrite
+      // dead objects with alive objects being moved.
+      entry->value = value;
+    }
   }
 }
 
