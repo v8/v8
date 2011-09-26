@@ -81,6 +81,11 @@ static void ExpectString(const char* code, const char* expected) {
   CHECK_EQ(expected, *ascii);
 }
 
+static void ExpectInt32(const char* code, int expected) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->IsInt32());
+  CHECK_EQ(expected, result->Int32Value());
+}
 
 static void ExpectBoolean(const char* code, bool expected) {
   Local<Value> result = CompileRun(code);
@@ -1297,6 +1302,197 @@ static v8::Handle<Value> EchoNamedProperty(Local<String> name,
   return name;
 }
 
+// Helper functions for Interceptor/Accessor interaction tests
+
+Handle<Value> SimpleAccessorGetter(Local<String> name,
+                                   const AccessorInfo& info) {
+  Handle<Object> self = info.This();
+  return self->Get(String::Concat(v8_str("accessor_"), name));
+}
+
+void SimpleAccessorSetter(Local<String> name, Local<Value> value,
+                          const AccessorInfo& info) {
+  Handle<Object> self = info.This();
+  self->Set(String::Concat(v8_str("accessor_"), name), value);
+}
+
+Handle<Value> EmptyInterceptorGetter(Local<String> name,
+                                     const AccessorInfo& info) {
+  return Handle<Value>();
+}
+
+Handle<Value> EmptyInterceptorSetter(Local<String> name,
+                                     Local<Value> value,
+                                     const AccessorInfo& info) {
+  return Handle<Value>();
+}
+
+Handle<Value> InterceptorGetter(Local<String> name,
+                                const AccessorInfo& info) {
+  // Intercept names that start with 'interceptor_'.
+  String::AsciiValue ascii(name);
+  char* name_str = *ascii;
+  char prefix[] = "interceptor_";
+  int i;
+  for (i = 0; name_str[i] && prefix[i]; ++i) {
+    if (name_str[i] != prefix[i]) return Handle<Value>();
+  }
+  Handle<Object> self = info.This();
+  return self->GetHiddenValue(v8_str(name_str + i));
+}
+
+Handle<Value> InterceptorSetter(Local<String> name,
+                                Local<Value> value,
+                                const AccessorInfo& info) {
+  // Intercept accesses that set certain integer values.
+  if (value->IsInt32() && value->Int32Value() < 10000) {
+    Handle<Object> self = info.This();
+    self->SetHiddenValue(name, value);
+    return value;
+  }
+  return Handle<Value>();
+}
+
+void AddAccessor(Handle<FunctionTemplate> templ,
+                 Handle<String> name,
+                 v8::AccessorGetter getter,
+                 v8::AccessorSetter setter) {
+  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
+}
+
+void AddInterceptor(Handle<FunctionTemplate> templ,
+                    v8::NamedPropertyGetter getter,
+                    v8::NamedPropertySetter setter) {
+  templ->InstanceTemplate()->SetNamedPropertyHandler(getter, setter);
+}
+
+THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddAccessor(parent, v8_str("age"),
+              SimpleAccessorGetter, SimpleAccessorSetter);
+  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "child.age = 10;");
+  ExpectBoolean("child.hasOwnProperty('age')", false);
+  ExpectInt32("child.age", 10);
+  ExpectInt32("child.accessor_age", 10);
+}
+
+THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "var parent = child.__proto__;"
+             "Object.defineProperty(parent, 'age', "
+             "  {get: function(){ return this.accessor_age; }, "
+             "   set: function(v){ this.accessor_age = v; }, "
+             "   enumerable: true, configurable: true});"
+             "child.age = 10;");
+  ExpectBoolean("child.hasOwnProperty('age')", false);
+  ExpectInt32("child.age", 10);
+  ExpectInt32("child.accessor_age", 10);
+}
+
+THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "var parent = child.__proto__;"
+             "parent.name = 'Alice';");
+  ExpectBoolean("child.hasOwnProperty('name')", false);
+  ExpectString("child.name", "Alice");
+  CompileRun("child.name = 'Bob';");
+  ExpectString("child.name", "Bob");
+  ExpectBoolean("child.hasOwnProperty('name')", true);
+  ExpectString("parent.name", "Alice");
+}
+
+THREADED_TEST(SwitchFromInterceptorToAccessor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddAccessor(parent, v8_str("age"),
+              SimpleAccessorGetter, SimpleAccessorSetter);
+  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "function setAge(i){ child.age = i; };"
+             "for(var i = 0; i <= 10000; i++) setAge(i);");
+  // All i < 10000 go to the interceptor.
+  ExpectInt32("child.interceptor_age", 9999);
+  // The last i goes to the accessor.
+  ExpectInt32("child.accessor_age", 10000);
+}
+
+THREADED_TEST(SwitchFromAccessorToInterceptor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddAccessor(parent, v8_str("age"),
+              SimpleAccessorGetter, SimpleAccessorSetter);
+  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "function setAge(i){ child.age = i; };"
+             "for(var i = 20000; i >= 9999; i--) setAge(i);");
+  // All i >= 10000 go to the accessor.
+  ExpectInt32("child.accessor_age", 10000);
+  // The last i goes to the interceptor.
+  ExpectInt32("child.interceptor_age", 9999);
+}
+
+THREADED_TEST(SwitchFromInterceptorToProperty) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "function setAge(i){ child.age = i; };"
+             "for(var i = 0; i <= 10000; i++) setAge(i);");
+  // All i < 10000 go to the interceptor.
+  ExpectInt32("child.interceptor_age", 9999);
+  // The last i goes to child's own property.
+  ExpectInt32("child.age", 10000);
+}
+
+THREADED_TEST(SwitchFromPropertyToInterceptor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> parent = FunctionTemplate::New();
+  Handle<FunctionTemplate> child = FunctionTemplate::New();
+  child->Inherit(parent);
+  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+  CompileRun("var child = new Child;"
+             "function setAge(i){ child.age = i; };"
+             "for(var i = 20000; i >= 9999; i--) setAge(i);");
+  // All i >= 10000 go to child's own property.
+  ExpectInt32("child.age", 10000);
+  // The last i goes to the interceptor.
+  ExpectInt32("child.interceptor_age", 9999);
+}
 
 THREADED_TEST(NamedPropertyHandlerGetter) {
   echo_named_call_count = 0;

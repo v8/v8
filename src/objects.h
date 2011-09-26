@@ -1987,6 +1987,18 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool check_prototype);
 
+  // Searches the prototype chain for a callback setter and sets the property
+  // with the setter if it finds one. The '*found' flag indicates whether
+  // a setter was found or not.
+  // This function can cause GC and can return a failure result with
+  // '*found==true'.
+  MUST_USE_RESULT MaybeObject* SetPropertyWithCallbackSetterInPrototypes(
+      String* name,
+      Object* value,
+      PropertyAttributes attributes,
+      bool* found,
+      StrictModeFlag strict_mode);
+
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeletePropertyWithInterceptor(String* name);

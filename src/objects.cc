@@ -1664,6 +1664,14 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     // found.  Use set property to handle all these cases.
     return SetProperty(&result, name, value, attributes, strict_mode);
   }
+  bool found = false;
+  MaybeObject* result_object;
+  result_object = SetPropertyWithCallbackSetterInPrototypes(name,
+                                                            value,
+                                                            attributes,
+                                                            &found,
+                                                            strict_mode);
+  if (found) return result_object;
   // Add a new real property.
   return AddProperty(name, value, attributes, strict_mode);
 }
@@ -1984,6 +1992,60 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
                                       value,
                                       JSObject::cast(pt),
                                       strict_mode);
+      }
+    }
+  }
+  *found = false;
+  return heap->the_hole_value();
+}
+
+MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
+    String* name,
+    Object* value,
+    PropertyAttributes attributes,
+    bool* found,
+    StrictModeFlag strict_mode) {
+  LookupResult result;
+  LookupCallbackSetterInPrototypes(name, &result);
+  Heap* heap = GetHeap();
+  if (result.IsFound()) {
+    *found = true;
+    if (result.type() == CALLBACKS) {
+      return SetPropertyWithCallback(result.GetCallbackObject(),
+                                     name,
+                                     value,
+                                     result.holder(),
+                                     strict_mode);
+    } else if (result.type() == HANDLER) {
+      // We could not find a local property so let's check whether there is an
+      // accessor that wants to handle the property.
+      LookupResult accessor_result;
+      LookupCallbackSetterInPrototypes(name, &accessor_result);
+      if (accessor_result.IsFound()) {
+        if (accessor_result.type() == CALLBACKS) {
+          return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
+                                         name,
+                                         value,
+                                         accessor_result.holder(),
+                                         strict_mode);
+        } else if (accessor_result.type() == HANDLER) {
+          // There is a proxy in the prototype chain. Invoke its
+          // getOwnPropertyDescriptor trap.
+          bool found = false;
+          // SetPropertyWithHandlerIfDefiningSetter can cause GC,
+          // make sure to use the handlified references after calling
+          // the function.
+          Handle<JSObject> self(this);
+          Handle<String> hname(name);
+          Handle<Object> hvalue(value);
+          MaybeObject* result =
+              accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
+                  name, value, attributes, strict_mode, &found);
+          if (found) return result;
+          // The proxy does not define the property as an accessor.
+          // Consequently, it has no effect on setting the receiver.
+          return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
+        }
       }
     }
   }
@@ -2623,34 +2685,14 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
-    // We could not find a local property so let's check whether there is an
-    // accessor that wants to handle the property.
-    LookupResult accessor_result;
-    LookupCallbackSetterInPrototypes(name, &accessor_result);
-    if (accessor_result.IsFound()) {
-      if (accessor_result.type() == CALLBACKS) {
-        return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                       name,
-                                       value,
-                                       accessor_result.holder(),
-                                       strict_mode);
-      } else if (accessor_result.type() == HANDLER) {
-        // There is a proxy in the prototype chain. Invoke its
-        // getOwnPropertyDescriptor trap.
-        bool found = false;
-        Handle<JSObject> self(this);
-        Handle<String> hname(name);
-        Handle<Object> hvalue(value);
-        MaybeObject* result =
-            accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
-                name, value, attributes, strict_mode, &found);
-        if (found) return result;
-        // The proxy does not define the property as an accessor.
-        // Consequently, it has no effect on setting the receiver.
-        // Make sure to use the handlified references at this point!
-        return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
-      }
-    }
+    bool found = false;
+    MaybeObject* result_object;
+    result_object = SetPropertyWithCallbackSetterInPrototypes(name,
+                                                              value,
+                                                              attributes,
+                                                              &found,
+                                                              strict_mode);
+    if (found) return result_object;
   }
 
   // At this point, no GC should have happened, as this would invalidate
