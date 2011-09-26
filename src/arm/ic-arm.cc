@@ -1360,28 +1360,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&fast);
   Register scratch_value = r4;
   Register address = r5;
-  if (FLAG_smi_only_arrays) {
-    Label not_smi_only;
-    // Make sure the elements are smi-only.
-    __ ldr(scratch_value, FieldMemOperand(receiver, HeapObject::kMapOffset));
-    __ CheckFastSmiOnlyElements(scratch_value, scratch_value, &not_smi_only);
-    // Non-smis need to call into the runtime if the array is smi only.
-    __ JumpIfNotSmi(value, &slow);
-    __ add(address, elements,
-           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-    __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ str(value, MemOperand(address));
-    __ Ret();
-    __ bind(&not_smi_only);
-  }
-  // Fast case, store the value to the elements backing store.
+
+  Label non_smi_value;
+  __ JumpIfNotSmi(value, &non_smi_value);
+  // It's irrelevant whether array is smi-only or not when writing a smi.
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ str(value, MemOperand(address));
-  // Skip write barrier if the written value is a smi.
-  __ tst(value, Operand(kSmiTagMask));
-  __ Ret(eq);
+  __ Ret();
 
+  __ bind(&non_smi_value);
+  if (FLAG_smi_only_arrays) {
+    // Escape to slow case when writing non-smi into smi-only array.
+    __ ldr(scratch_value, FieldMemOperand(receiver, HeapObject::kMapOffset));
+    __ CheckFastObjectElements(scratch_value, scratch_value, &slow);
+  }
+  // Fast elements array, store the value to the elements backing store.
+  __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(value, MemOperand(address));
   // Update write barrier for the elements array address.
   __ mov(scratch_value, value);  // Preserve the value which is returned.
   __ RecordWrite(elements,
@@ -1391,7 +1388,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                  kDontSaveFPRegs,
                  EMIT_REMEMBERED_SET,
                  OMIT_SMI_CHECK);
-
   __ Ret();
 }
 

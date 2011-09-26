@@ -811,23 +811,24 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edx: receiver
   // edi: FixedArray receiver->elements
 
-  if (FLAG_smi_only_arrays) {
-    Label not_smi_only;
-    // Make sure the elements are smi-only.
-    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ CheckFastSmiOnlyElements(ebx, &not_smi_only, Label::kNear);
-    // Non-smis need to call into the runtime if the array is smi only.
-    __ JumpIfNotSmi(eax, &slow);
-    __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
-    __ ret(0);
-    __ bind(&not_smi_only);
-  }
-
+  Label non_smi_value;
+  __ JumpIfNotSmi(eax, &non_smi_value);
+  // It's irrelevant whether array is smi-only or not when writing a smi.
   __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
+  __ ret(0);
 
+  __ bind(&non_smi_value);
+  if (FLAG_smi_only_arrays) {
+    // Escape to slow case when writing non-smi into smi-only array.
+    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+    __ CheckFastObjectElements(ebx, &slow, Label::kNear);
+  }
+  // Fast elements array, store the value to the elements backing store.
+  __ mov(CodeGenerator::FixedArrayElementOperand(edi, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));  // Preserve the value which is returned.
-  __ RecordWriteArray(edi, edx, ecx, kDontSaveFPRegs);
+  __ RecordWriteArray(
+      edi, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 }
 
