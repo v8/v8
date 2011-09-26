@@ -452,6 +452,11 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     if (create_if_needed) {
       Handle<Object> hidden_obj =
           isolate->factory()->NewJSObject(isolate->object_function());
+
+      // Don't allow leakage of the hidden object through accessors
+      // on Object.prototype.
+      SetPrototype(Handle<JSObject>::cast(hidden_obj),
+                   isolate->factory()->null_value());
       CALL_HEAP_FUNCTION(isolate,
                          obj->SetHiddenPropertiesObject(*hidden_obj), Object);
     } else {
