@@ -4674,10 +4674,17 @@ bool HGraphBuilder::TryInline(Call* expr) {
                                      function,
                                      undefined,
                                      call_kind);
+#ifdef V8_TARGET_ARCH_IA32
+  // IA32 only, overwrite the caller's context in the deoptimization
+  // environment with the correct one.
+  //
+  // TODO(kmillikin): implement the same inlining on other platforms so we
+  // can remove the unsightly ifdefs in this function.
   HConstant* context = new HConstant(Handle<Context>(target->context()),
                                      Representation::Tagged());
   AddInstruction(context);
   inner_env->BindContext(context);
+#endif
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
   body_entry->SetJoinId(expr->ReturnId());
