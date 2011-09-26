@@ -244,7 +244,10 @@ bool MarkCompactCollector::StartCompaction() {
 
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
-    CollectEvacuationCandidates(heap()->code_space());
+
+    if (FLAG_compact_code_space) {
+      CollectEvacuationCandidates(heap()->code_space());
+    }
 
     heap()->old_pointer_space()->EvictEvacuationCandidatesFromFreeLists();
     heap()->old_data_space()->EvictEvacuationCandidatesFromFreeLists();
