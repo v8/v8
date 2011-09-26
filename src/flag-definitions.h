@@ -287,9 +287,9 @@ DEFINE_bool(lazy_sweeping, true,
             "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
             "Flush code caches in maps during mark compact cycle.")
-DEFINE_bool(never_compact, true,
+DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_bool(compact_code_space, true, "Compact code space")
+DEFINE_bool(compact_code_space, false, "Compact code space")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")

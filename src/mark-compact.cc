@@ -485,7 +485,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
 
   // TODO(1726) Revert this into an assertion when compaction is enabled.
-  if (FLAG_never_compact) FLAG_always_compact = false;
+  ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
   if (collect_maps_) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
