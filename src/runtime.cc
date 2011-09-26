@@ -443,7 +443,7 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
       for (int i = 0; i < content->length(); i++) {
         Object* current = content->get(i);
         ASSERT(!current->IsFixedArray());
-        if (!current->IsSmi()) {
+        if (!current->IsSmi() && !current->IsTheHole()) {
           has_non_smi = true;
         }
       }
@@ -467,7 +467,7 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
         content->set(i, *result);
         has_non_smi = true;
       } else {
-        if (!current->IsSmi()) {
+        if (!current->IsSmi() && !current->IsTheHole()) {
           has_non_smi = true;
         }
       }
@@ -8250,6 +8250,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
+  // The least significant bit (after untagging) indicates whether the
+  // function is currently optimized, regardless of reason.
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }

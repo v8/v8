@@ -125,3 +125,70 @@ assertKind(element_kind.external_unsigned_int_elements,   new Uint32Array(23));
 assertKind(element_kind.external_float_elements,          new Float32Array(7));
 assertKind(element_kind.external_double_elements,         new Float64Array(0));
 assertKind(element_kind.external_pixel_elements,          new PixelArray(512));
+
+// Crankshaft support for smi-only array elements.
+function monomorphic(array) {
+  for (var i = 0; i < 3; i++) {
+    array[i] = i + 10;
+  }
+  assertKind(element_kind.fast_smi_only_elements, array);
+  for (var i = 0; i < 3; i++) {
+    var a = array[i];
+    assertEquals(i + 10, a);
+  }
+}
+var smi_only = [1, 2, 3];
+for (var i = 0; i < 3; i++) monomorphic(smi_only);
+%OptimizeFunctionOnNextCall(monomorphic);
+monomorphic(smi_only);
+function polymorphic(array, expected_kind) {
+  array[1] = 42;
+  assertKind(expected_kind, array);
+  var a = array[1];
+  assertEquals(42, a);
+}
+var smis = [1, 2, 3];
+var strings = ["one", "two", "three"];
+var doubles = [0, 0, 0]; doubles[0] = 1.5; doubles[1] = 2.5; doubles[2] = 3.5;
+assertKind(support_smi_only_arrays
+               ? element_kind.fast_double_elements
+               : element_kind.fast_elements,
+           doubles);
+for (var i = 0; i < 3; i++) {
+  polymorphic(smis, element_kind.fast_smi_only_elements);
+  polymorphic(strings, element_kind.fast_elements);
+  polymorphic(doubles, support_smi_only_arrays
+                           ? element_kind.fast_double_elements
+                           : element_kind.fast_elements);
+}
+%OptimizeFunctionOnNextCall(polymorphic);
+polymorphic(smis, element_kind.fast_smi_only_elements);
+polymorphic(strings, element_kind.fast_elements);
+polymorphic(doubles, support_smi_only_arrays
+    ? element_kind.fast_double_elements
+    : element_kind.fast_elements);
+
+// Crankshaft support for smi-only elements in dynamic array literals.
+function get(foo) { return foo; }  // Used to generate dynamic values.
+
+//function crankshaft_test(expected_kind) {
+function crankshaft_test() {
+  var a = [get(1), get(2), get(3)];
+  assertKind(element_kind.fast_smi_only_elements, a);
+  var b = [get(1), get(2), get("three")];
+  assertKind(element_kind.fast_elements, b);
+  var c = [get(1), get(2), get(3.5)];
+  // The full code generator doesn't support conversion to fast_double_elements
+  // yet. Crankshaft does, but only with --smi-only-arrays support.
+  if ((%GetOptimizationStatus(crankshaft_test) & 1) &&
+      support_smi_only_arrays) {
+    assertKind(element_kind.fast_double_elements, c);
+  } else {
+    assertKind(element_kind.fast_elements, c);
+  }
+}
+for (var i = 0; i < 3; i++) {
+  crankshaft_test();
+}
+%OptimizeFunctionOnNextCall(crankshaft_test);
+crankshaft_test();

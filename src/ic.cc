@@ -1689,6 +1689,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              Code* generic_stub) {
   Code* result = NULL;
   if (receiver->HasFastElements() ||
+      receiver->HasFastSmiOnlyElements() ||
       receiver->HasExternalArrayElements() ||
       receiver->HasFastDoubleElements() ||
       receiver->HasDictionaryElements()) {

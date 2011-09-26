@@ -942,6 +942,11 @@ class HGraphBuilder: public AstVisitor {
       HValue* val,
       ElementsKind elements_kind,
       bool is_store);
+  HInstruction* BuildFastElementAccess(HValue* elements,
+                                       HValue* checked_key,
+                                       HValue* val,
+                                       ElementsKind elements_kind,
+                                       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,

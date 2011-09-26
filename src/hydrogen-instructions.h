@@ -908,8 +908,8 @@ class HDeoptimize: public HControlInstruction {
 class HGoto: public HTemplateControlInstruction<1, 0> {
  public:
   explicit HGoto(HBasicBlock* target) {
-        SetSuccessorAt(0, target);
-      }
+    SetSuccessorAt(0, target);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -3740,7 +3740,9 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 
 class HStoreKeyedFastElement: public HTemplateInstruction<3> {
  public:
-  HStoreKeyedFastElement(HValue* obj, HValue* key, HValue* val) {
+  HStoreKeyedFastElement(HValue* obj, HValue* key, HValue* val,
+                         ElementsKind elements_kind = FAST_ELEMENTS)
+      : elements_kind_(elements_kind) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -3757,14 +3759,28 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
+  bool value_is_smi() {
+    return elements_kind_ == FAST_SMI_ONLY_ELEMENTS;
+  }
 
   bool NeedsWriteBarrier() {
-    return StoringValueNeedsWriteBarrier(value());
+    if (value_is_smi()) {
+      return false;
+    } else {
+      return StoringValueNeedsWriteBarrier(value());
+    }
+  }
+
+  bool ValueNeedsSmiCheck() {
+    return value_is_smi();
   }
 
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement)
+
+ private:
+  ElementsKind elements_kind_;
 };
 
 

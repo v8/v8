@@ -3347,7 +3347,42 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
                               Representation::Integer32()));
     if (FLAG_smi_only_arrays) {
+      HInstruction* elements_kind =
+          AddInstruction(new(zone()) HElementsKind(literal));
+      HBasicBlock* store_fast = graph()->CreateBasicBlock();
+      // Two empty blocks to satisfy edge split form.
+      HBasicBlock* store_fast_edgesplit1 = graph()->CreateBasicBlock();
+      HBasicBlock* store_fast_edgesplit2 = graph()->CreateBasicBlock();
+      HBasicBlock* store_generic = graph()->CreateBasicBlock();
+      HBasicBlock* check_smi_only_elements = graph()->CreateBasicBlock();
+      HBasicBlock* join = graph()->CreateBasicBlock();
+
+      HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(value);
+      smicheck->SetSuccessorAt(0, store_fast_edgesplit1);
+      smicheck->SetSuccessorAt(1, check_smi_only_elements);
+      current_block()->Finish(smicheck);
+      store_fast_edgesplit1->Finish(new(zone()) HGoto(store_fast));
+
+      set_current_block(check_smi_only_elements);
+      HCompareConstantEqAndBranch* smi_elements_check =
+          new(zone()) HCompareConstantEqAndBranch(elements_kind,
+                                                  FAST_SMI_ONLY_ELEMENTS,
+                                                  Token::EQ_STRICT);
+      smi_elements_check->SetSuccessorAt(0, store_generic);
+      smi_elements_check->SetSuccessorAt(1, store_fast_edgesplit2);
+      current_block()->Finish(smi_elements_check);
+      store_fast_edgesplit2->Finish(new(zone()) HGoto(store_fast));
+
+      set_current_block(store_fast);
+      AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
+      store_fast->Goto(join);
+
+      set_current_block(store_generic);
       AddInstruction(BuildStoreKeyedGeneric(literal, key, value));
+      store_generic->Goto(join);
+
+      join->SetJoinId(expr->id());
+      set_current_block(join);
     } else {
       AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
     }
@@ -3979,6 +4014,30 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
 }
 
 
+HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
+                                                    HValue* checked_key,
+                                                    HValue* val,
+                                                    ElementsKind elements_kind,
+                                                    bool is_store) {
+  if (is_store) {
+    ASSERT(val != NULL);
+    if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+      return new(zone()) HStoreKeyedFastDoubleElement(
+          elements, checked_key, val);
+    } else {  // FAST_ELEMENTS or FAST_SMI_ONLY_ELEMENTS.
+      return new(zone()) HStoreKeyedFastElement(
+          elements, checked_key, val, elements_kind);
+    }
+  }
+  // It's an element load (!is_store).
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key);
+  } else {  // FAST_ELEMENTS or FAST_SMI_ONLY_ELEMENTS.
+    return new(zone()) HLoadKeyedFastElement(elements, checked_key);
+  }
+}
+
+
 HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* key,
                                                            HValue* val,
@@ -3988,15 +4047,18 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
   Handle<Map> map = expr->GetMonomorphicReceiverType();
   AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
-  if (!map->has_fast_elements() &&
-      !map->has_fast_double_elements() &&
+  bool fast_smi_only_elements = map->has_fast_smi_only_elements();
+  bool fast_elements = map->has_fast_elements();
+  bool fast_double_elements = map->has_fast_double_elements();
+  if (!fast_smi_only_elements &&
+      !fast_elements &&
+      !fast_double_elements &&
       !map->has_external_array_elements()) {
     return is_store ? BuildStoreKeyedGeneric(object, key, val)
                     : BuildLoadKeyedGeneric(object, key);
   }
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
-  bool fast_double_elements = map->has_fast_double_elements();
-  if (is_store && map->has_fast_elements()) {
+  if (is_store && (fast_elements || fast_smi_only_elements)) {
     AddInstruction(new(zone()) HCheckMap(
         elements, isolate()->factory()->fixed_array_map()));
   }
@@ -4011,28 +4073,15 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
     return BuildExternalArrayElementAccess(external_elements, checked_key,
                                            val, map->elements_kind(), is_store);
   }
-  ASSERT(map->has_fast_elements() || fast_double_elements);
+  ASSERT(fast_smi_only_elements || fast_elements || fast_double_elements);
   if (map->instance_type() == JS_ARRAY_TYPE) {
     length = AddInstruction(new(zone()) HJSArrayLength(object, mapcheck));
   } else {
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
   checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-  if (is_store) {
-    if (fast_double_elements) {
-      return new(zone()) HStoreKeyedFastDoubleElement(elements,
-                                                      checked_key,
-                                                      val);
-    } else {
-      return new(zone()) HStoreKeyedFastElement(elements, checked_key, val);
-    }
-  } else {
-    if (fast_double_elements) {
-      return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key);
-    } else {
-      return new(zone()) HLoadKeyedFastElement(elements, checked_key);
-    }
-  }
+  return BuildFastElementAccess(elements, checked_key, val,
+                                map->elements_kind(), is_store);
 }
 
 
@@ -4085,7 +4134,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   for (ElementsKind elements_kind = FIRST_ELEMENTS_KIND;
        elements_kind <= LAST_ELEMENTS_KIND;
        elements_kind = ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_ELEMENTS, FAST_SMI_ELEMENTS,
+    // After having handled FAST_ELEMENTS, FAST_SMI_ONLY_ELEMENTS,
     // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS, we need to add some code
     // that's executed for all external array cases.
     STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
@@ -4112,13 +4161,22 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
       if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
           elements_kind == FAST_ELEMENTS ||
           elements_kind == FAST_DOUBLE_ELEMENTS) {
-        bool fast_double_elements =
-            elements_kind == FAST_DOUBLE_ELEMENTS;
-        if (is_store && !fast_double_elements) {
+        if (is_store && elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+          AddInstruction(new(zone()) HCheckSmi(val));
+        }
+        if (is_store && elements_kind != FAST_DOUBLE_ELEMENTS) {
           AddInstruction(new(zone()) HCheckMap(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
         }
+        // TODO(jkummerow): The need for these two blocks could be avoided
+        // in one of two ways:
+        // (1) Introduce ElementsKinds for JSArrays that are distinct from
+        //     those for fast objects.
+        // (2) Put the common instructions into a third "join" block. This
+        //     requires additional AST IDs that we can deopt to from inside
+        //     that join block. They must be added to the Property class (when
+        //     it's a keyed property) and registered in the full codegen.
         HBasicBlock* if_jsarray = graph()->CreateBasicBlock();
         HBasicBlock* if_fastobject = graph()->CreateBasicBlock();
         HHasInstanceTypeAndBranch* typecheck =
@@ -4129,37 +4187,12 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
         set_current_block(if_jsarray);
         HInstruction* length;
-        if (is_store && elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-          // For now, fall back to the generic stub for
-          // FAST_SMI_ONLY_ELEMENTS
-          access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
-        } else {
-          length = new(zone()) HJSArrayLength(object, typecheck);
-          AddInstruction(length);
-          checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-          if (is_store) {
-            if (fast_double_elements) {
-              access = AddInstruction(
-                  new(zone()) HStoreKeyedFastDoubleElement(elements,
-                                                           checked_key,
-                                                           val));
-            } else {
-              access = AddInstruction(
-                  new(zone()) HStoreKeyedFastElement(elements,
-                                                     checked_key,
-                                                     val));
-            }
-          } else {
-            if (fast_double_elements) {
-              access = AddInstruction(
-                  new(zone()) HLoadKeyedFastDoubleElement(elements,
-                                                          checked_key));
-            } else {
-              access = AddInstruction(
-                  new(zone()) HLoadKeyedFastElement(elements, checked_key));
-            }
-            Push(access);
-          }
+        length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        access = AddInstruction(BuildFastElementAccess(
+            elements, checked_key, val, elements_kind, is_store));
+        if (!is_store) {
+          Push(access);
         }
 
         *has_side_effects |= access->HasSideEffects();
@@ -4171,25 +4204,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-        if (is_store) {
-          if (fast_double_elements) {
-            access = AddInstruction(
-                new(zone()) HStoreKeyedFastDoubleElement(elements,
-                                                         checked_key,
-                                                         val));
-          } else {
-            access = AddInstruction(
-                new(zone()) HStoreKeyedFastElement(elements, checked_key, val));
-          }
-        } else {
-          if (fast_double_elements) {
-            access = AddInstruction(
-                new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key));
-          } else {
-            access = AddInstruction(
-                new(zone()) HLoadKeyedFastElement(elements, checked_key));
-          }
-        }
+        access = AddInstruction(BuildFastElementAccess(
+            elements, checked_key, val, elements_kind, is_store));
       } else if (elements_kind == DICTIONARY_ELEMENTS) {
         if (is_store) {
           access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
