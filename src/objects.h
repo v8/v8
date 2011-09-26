@@ -5734,7 +5734,6 @@ class StringHasher {
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
-  bool is_first_char_;
   bool is_valid_;
   friend class TwoCharHashTableKey;
 };
@@ -6186,15 +6185,25 @@ class SeqString: public String {
   // Layout description.
   static const int kHeaderSize = String::kSize;
 
+  // Shortcuts for templates that know their string-type exactly.
+  bool IsExternalAsciiString() {
+    return false;
+  }
+  bool IsExternalTwoByteString() {
+    return false;
+  }
+
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
 };
 
 
-// The AsciiString class captures sequential ascii string objects.
-// Each character in the AsciiString is an ascii character.
+// The SeqAsciiString class captures sequential ASCII string objects.
+// Each character in the AsciiString is an ASCII character.
 class SeqAsciiString: public SeqString {
  public:
+  typedef char CharType;
   static const bool kHasAsciiEncoding = true;
 
   // Dispatched behavior.
@@ -6208,6 +6217,15 @@ class SeqAsciiString: public SeqString {
 
   // Casting
   static inline SeqAsciiString* cast(Object* obj);
+
+  bool IsSeqAsciiString() {
+    ASSERT(this->Object::IsSeqAsciiString());
+    return true;
+  }
+  bool IsSeqTwoByteString() {
+    ASSERT(this->Object::IsSeqAsciiString());
+    return false;
+  }
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
@@ -6238,10 +6256,12 @@ class SeqAsciiString: public SeqString {
 };
 
 
-// The TwoByteString class captures sequential unicode string objects.
+// The SeqTwoByteString class captures sequential unicode string objects.
 // Each character in the TwoByteString is a two-byte uint16_t.
 class SeqTwoByteString: public SeqString {
  public:
+  typedef uc16 CharType;
+
   static const bool kHasAsciiEncoding = false;
 
   // Dispatched behavior.
@@ -6258,6 +6278,14 @@ class SeqTwoByteString: public SeqString {
 
   // Casting
   static inline SeqTwoByteString* cast(Object* obj);
+  bool IsSeqTwoByteString() {
+    ASSERT(this->Object::IsSeqTwoByteString());
+    return true;
+  }
+  bool IsSeqAsciiString() {
+    ASSERT(this->Object::IsSeqTwoByteString());
+    return false;
+  }
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
@@ -6418,6 +6446,14 @@ class ExternalString: public String {
 
   STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
 
+  // Shortcuts for templates that know their string type exactly.
+  bool IsSeqAsciiString() {
+    return false;
+  }
+  bool IsSeqTwoByteString() {
+    return false;
+  }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalString);
 };
@@ -6427,6 +6463,8 @@ class ExternalString: public String {
 // ASCII string.
 class ExternalAsciiString: public ExternalString {
  public:
+  typedef char CharType;
+
   static const bool kHasAsciiEncoding = true;
 
   typedef v8::String::ExternalAsciiStringResource Resource;
@@ -6440,6 +6478,14 @@ class ExternalAsciiString: public ExternalString {
 
   // Casting.
   static inline ExternalAsciiString* cast(Object* obj);
+  bool IsExternalAsciiString() {
+    ASSERT(this->Object::IsExternalAsciiString());
+    return true;
+  }
+  bool IsExternalTwoByteString() {
+    ASSERT(this->Object::IsExternalAsciiString());
+    return false;
+  }
 
   // Garbage collection support.
   inline void ExternalAsciiStringIterateBody(ObjectVisitor* v);
@@ -6460,10 +6506,11 @@ class ExternalAsciiString: public ExternalString {
 };
 
 
-// The ExternalTwoByteString class is an external string backed by a UTF-16
-// encoded string.
+// The ExternalTwoByteString class is an external string backed by a 16-bit
+// character sequence.
 class ExternalTwoByteString: public ExternalString {
  public:
+  typedef uc16 CharType;
   static const bool kHasAsciiEncoding = false;
 
   typedef v8::String::ExternalStringResource Resource;
@@ -6480,6 +6527,14 @@ class ExternalTwoByteString: public ExternalString {
 
   // Casting.
   static inline ExternalTwoByteString* cast(Object* obj);
+  bool IsExternalTwoByteString() {
+    ASSERT(this->Object::IsExternalTwoByteString());
+    return true;
+  }
+  bool IsExternalAsciiString() {
+    ASSERT(this->Object::IsExternalTwoByteString());
+    return false;
+  }
 
   // Garbage collection support.
   inline void ExternalTwoByteStringIterateBody(ObjectVisitor* v);

@@ -9106,13 +9106,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
 
-  source = Handle<String>(source->TryFlattenGetString());
-  // Optimized fast case where we only have ascii characters.
+  source = FlattenGetString(source);
+  ASSERT(!source->IsConsString());
+  ASSERT(!source->IsSlicedString());
   Handle<Object> result;
-  if (source->IsSeqAsciiString()) {
-    result = JsonParser<true>::Parse(source);
-  } else {
-    result = JsonParser<false>::Parse(source);
+  {
+    StringLock lock_representation(source);
+    if (source->IsSeqAsciiString()) {
+      result = JsonParser<SeqAsciiString>::Parse(source);
+    } else if (source->IsExternalTwoByteString()) {
+      result = JsonParser<ExternalTwoByteString>::Parse(source);
+    } else if (source->IsSeqTwoByteString()) {
+      result = JsonParser<SeqTwoByteString>::Parse(source);
+    } else {
+      ASSERT(source->IsExternalAsciiString());
+      result = JsonParser<ExternalAsciiString>::Parse(source);
+    }
   }
   if (result.is_null()) {
     // Syntax error or stack overflow in scanner.

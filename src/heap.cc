@@ -2346,6 +2346,7 @@ bool Heap::CreateInitialObjects() {
   set_intrinsic_function_names(StringDictionary::cast(obj));
 
   if (InitializeNumberStringCache()->IsFailure()) return false;
+  if (InitializeStringLocks()->IsFailure()) return false;
 
   // Allocate cache for single character ASCII strings.
   { MaybeObject* maybe_obj =
@@ -2559,6 +2560,76 @@ MaybeObject* Heap::Uint32ToString(uint32_t value,
   MaybeObject* maybe = NumberFromUint32(value);
   if (!maybe->To<Object>(&number)) return maybe;
   return NumberToString(number, check_number_string_cache);
+}
+
+
+MaybeObject* Heap::LockString(String* string) {
+  ASSERT(!string->IsConsString());
+  FixedArray* locks = string_locks();
+  ASSERT(locks->length() > 1);
+  int length = locks->length();
+  int element_count = Smi::cast(locks->get(0))->value();
+  int element_index = element_count + 1;
+  if (element_index >= length) {
+    int new_length = length * 2;
+    MaybeObject* allocation = AllocateFixedArray(new_length);
+    FixedArray* new_locks = NULL;  // Initialized to please compiler.
+    if (!allocation->To<FixedArray>(&new_locks)) return allocation;
+    for (int i = 1; i < length; i++) {
+      new_locks->set(i, locks->get(i));
+    }
+    set_string_locks(new_locks);
+    locks = new_locks;
+  }
+  locks->set(element_index, string);
+  locks->set(0, Smi::FromInt(element_index));
+  return string;
+}
+
+
+void Heap::UnlockString(String* string) {
+  FixedArray* locks = string_locks();
+  ASSERT(locks->length() > 1);
+  int element_count = Smi::cast(locks->get(0))->value();
+  ASSERT(element_count > 0);
+  ASSERT(element_count < locks->length());
+  for (int i = 1; i <= element_count; i++) {
+    String* element = String::cast(locks->get(i));
+    if (element == string) {
+      if (i < element_count) {
+        locks->set(i, locks->get(element_count));
+      }
+      locks->set_undefined(element_count);
+      locks->set(0, Smi::FromInt(element_count - 1));
+      return;
+    }
+  }
+  // We should have found the string. It's an error to try to unlock
+  // a string that hasn't been locked.
+  UNREACHABLE();
+}
+
+
+bool Heap::IsStringLocked(String* string) {
+  if (string->IsConsString()) return false;
+  FixedArray* locks = string_locks();
+  ASSERT(locks->length() > 1);
+  int element_count = Smi::cast(locks->get(0))->value();
+  for (int i = 1; i <= element_count; i++) {
+    if (locks->get(i) == string) return true;
+  }
+  return false;
+}
+
+
+MaybeObject* Heap::InitializeStringLocks() {
+  const int kInitialSize = 6;
+  MaybeObject* allocation = AllocateFixedArray(kInitialSize);
+  if (allocation->IsFailure()) return allocation;
+  FixedArray* new_array = FixedArray::cast(allocation->ToObjectUnchecked());
+  new_array->set(0, Smi::FromInt(0));
+  set_string_locks(new_array);
+  return new_array;
 }
 
 

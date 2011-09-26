@@ -33,6 +33,7 @@
 #include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
+#include "handles.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "utils.h"
@@ -15215,4 +15216,224 @@ THREADED_TEST(ForeignFunctionReceiver) {
   TestReceiver(o, context->Global(), "(1,func)()");
 
   foreign_context.Dispose();
+}
+
+
+
+class SimpleTestResource: public String::ExternalStringResource {
+ public:
+  explicit SimpleTestResource(const uint16_t* data) : data_(data), length_(0) {
+    while (data[length_] != 0) length_++;
+  }
+  virtual ~SimpleTestResource() { }
+  virtual const uint16_t* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+ private:
+  const uint16_t* data_;
+  int length_;
+};
+
+
+THREADED_TEST(StringLock) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Heap* heap = isolate->heap();
+
+  // ASCII text of test strings.
+  const char* text = "Lorem ipsum dolor sic amet.";
+  const size_t kTextLength = 27;
+  CHECK(strlen(text) == kTextLength);
+  // UC16 version of string.
+  uint16_t uc16_text[kTextLength + 1];
+  for (unsigned i = 0; i <= kTextLength; i++) {
+    uc16_text[i] = static_cast<uint16_t>(text[i]);
+  }
+
+  // Create some different strings and move them to old-space,
+  // so that externalization can succeede.
+  Local<String> s1 = v8_str(text);
+  Local<String> s2 = v8_str(text + 1);
+  Local<String> s3 = v8_str(text + 2);
+  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectGarbage(i::NEW_SPACE);
+
+  SimpleTestResource* r1 = new SimpleTestResource(uc16_text);
+  SimpleTestResource* r2 = new SimpleTestResource(uc16_text + 1);
+  SimpleTestResource* r3 = new SimpleTestResource(uc16_text + 2);
+
+  // Check that externalization works.
+  CHECK(!s1->IsExternal());
+  CHECK(s1->MakeExternal(r1));
+  CHECK(s1->IsExternal());
+
+  // Externalize while the string is locked.
+
+  // Use the direct interface to string locking.
+  i::Handle<i::String> s2i(v8::Utils::OpenHandle(*s2));
+  CHECK(!heap->IsStringLocked(*s2i));
+  LockString(s2i);  // Use handle version, not Heap::LockString, to allow GC.
+  CHECK(isolate->heap()->IsStringLocked(*s2i));
+
+  CHECK(!s2->IsExternal());
+  CHECK(!s2->MakeExternal(r2));
+  CHECK(!s2->IsExternal());
+
+  CHECK(heap->IsStringLocked(*s2i));
+  heap->UnlockString(*s2i);
+  CHECK(!heap->IsStringLocked(*s2i));
+
+  CHECK(!s2->IsExternal());
+  CHECK(s2->MakeExternal(r2));
+  CHECK(s2->IsExternal());
+
+  // Use the Handle-based scoped StringLock.
+  i::Handle<i::String> s3i(v8::Utils::OpenHandle(*s3));
+  {
+    CHECK(!heap->IsStringLocked(*s3i));
+    i::StringLock lock(s3i);
+    CHECK(heap->IsStringLocked(*s3i));
+
+    CHECK(!s3->IsExternal());
+    CHECK(!s3->MakeExternal(r3));
+    CHECK(!s3->IsExternal());
+
+    CHECK(heap->IsStringLocked(*s3i));
+  }
+  CHECK(!heap->IsStringLocked(*s3i));
+
+  CHECK(!s3->IsExternal());
+  CHECK(s3->MakeExternal(r3));
+  CHECK(s3->IsExternal());
+}
+
+
+THREADED_TEST(MultiStringLock) {
+  v8::HandleScope scope;
+  LocalContext env;
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Heap* heap = isolate->heap();
+  const char* text = "Lorem ipsum dolor sic amet.";
+
+  const int N = 16;  // Must be power of 2.
+  CHECK_GT(strlen(text), static_cast<size_t>(N));
+
+  // Create a bunch of different strings.
+  i::Handle<i::String> strings[N];
+
+  for (int i = 0; i < N; i++) {
+    Local<String> s = v8_str(text + i);
+    strings[i] = v8::Utils::OpenHandle(*s);
+  }
+
+  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectGarbage(i::NEW_SPACE);
+
+  // Check that start out are unlocked.
+  for (int i = 0; i < N; i++) {
+    CHECK(!heap->IsStringLocked(*strings[i]));
+  }
+
+  // Lock them, one at a time.
+  for (int i = 0; i < N; i++) {
+    LockString(strings[i]);
+    for (int j = 0; j < N; j++) {
+      if (j <= i) {
+        CHECK(heap->IsStringLocked(*strings[j]));
+      } else {
+        CHECK(!heap->IsStringLocked(*strings[j]));
+      }
+    }
+  }
+
+  // Unlock them in a slightly different order (not same as locking,
+  // nor the reverse order).
+  for (int i = 0; i < N; i++) {
+    int mix_i = i ^ 3;
+    heap->UnlockString(*strings[mix_i]);
+    for (int j = 0; j < N; j++) {
+      int unmix_j =  j ^ 3;
+      if (unmix_j <= i) {
+        CHECK(!heap->IsStringLocked(*strings[j]));
+      } else {
+        CHECK(heap->IsStringLocked(*strings[j]));
+      }
+    }
+  }
+}
+
+
+THREADED_TEST(DuplicateStringLock) {
+  v8::HandleScope scope;
+  LocalContext env;
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Heap* heap = isolate->heap();
+  const char* text = "Lorem ipsum dolor sic amet.";
+
+  const int N = 16;  // Must be power of 2.
+  CHECK_GT(strlen(text), static_cast<size_t>(N));
+
+  // Create a bunch of different strings.
+  i::Handle<i::String> strings[N];
+
+  for (int i = 0; i < N; i++) {
+    Local<String> s = v8_str(text + i);
+    strings[i] = v8::Utils::OpenHandle(*s);
+  }
+
+  heap->CollectGarbage(i::NEW_SPACE);
+  heap->CollectGarbage(i::NEW_SPACE);
+
+  // Check that strings start out unlocked.
+  for (int i = 0; i < N; i++) {
+    CHECK(!heap->IsStringLocked(*strings[i]));
+  }
+
+  // Lock them, one at a time.
+  for (int i = 0; i < N; i++) {
+    LockString(strings[i]);
+    for (int j = 0; j < N; j++) {
+      if (j <= i) {
+        CHECK(heap->IsStringLocked(*strings[j]));
+      } else {
+        CHECK(!heap->IsStringLocked(*strings[j]));
+      }
+    }
+  }
+
+  // Lock the first half of them a second time.
+  for (int i = 0; i < N / 2; i++) {
+    LockString(strings[i]);
+    for (int j = 0; j < N; j++) {
+      CHECK(heap->IsStringLocked(*strings[j]));
+    }
+  }
+
+  // Unlock them in a slightly different order (not same as locking,
+  // nor the reverse order).
+  for (int i = 0; i < N; i++) {
+    int mix_i = i ^ 3;
+    heap->UnlockString(*strings[mix_i]);
+    for (int j = 0; j < N; j++) {
+      int unmix_j =  j ^ 3;
+      if (unmix_j <= i && j >= N / 2) {
+        CHECK(!heap->IsStringLocked(*strings[j]));
+      } else {
+        CHECK(heap->IsStringLocked(*strings[j]));
+      }
+    }
+  }
+
+  // Unlock the first half again.
+  for (int i = 0; i < N / 2; i++) {
+    heap->UnlockString(*strings[i]);
+    for (int j = 0; j < N; j++) {
+      if (j <= i || j >= N/ 2) {
+        CHECK(!heap->IsStringLocked(*strings[j]));
+      } else {
+        CHECK(heap->IsStringLocked(*strings[j]));
+      }
+    }
+  }
 }

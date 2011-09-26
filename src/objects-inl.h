@@ -37,6 +37,7 @@
 
 #include "elements.h"
 #include "objects.h"
+#include "char-predicates-inl.h"
 #include "contexts.h"
 #include "conversions-inl.h"
 #include "heap.h"
@@ -4194,7 +4195,6 @@ StringHasher::StringHasher(int length)
     raw_running_hash_(0),
     array_index_(0),
     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
-    is_first_char_(true),
     is_valid_(true) { }
 
 
@@ -4206,26 +4206,18 @@ bool StringHasher::has_trivial_hash() {
 void StringHasher::AddCharacter(uc32 c) {
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ = (raw_running_hash_ + c) * 1025;
   raw_running_hash_ ^= (raw_running_hash_ >> 6);
-  // Incremental array index computation.
   if (is_array_index_) {
-    if (c < '0' || c > '9') {
+    // Incremental array index computation.
+    unsigned digit = static_cast<unsigned>(c) - '0';
+    if (digit > 9 || array_index_ > 429496729U - ((digit + 2) >> 3)) {
       is_array_index_ = false;
     } else {
-      int d = c - '0';
-      if (is_first_char_) {
-        is_first_char_ = false;
-        if (c == '0' && length_ > 1) {
-          is_array_index_ = false;
-          return;
-        }
-      }
-      if (array_index_ > 429496729U - ((d + 2) >> 3)) {
+      array_index_ = array_index_ * 10 + digit;
+      // Check for overflows or prefixed zeros (lengths > 0).
+      if (array_index_ == 0 && length_ > 1) {
         is_array_index_ = false;
-      } else {
-        array_index_ = array_index_ * 10 + d;
       }
     }
   }
@@ -4234,8 +4226,7 @@ void StringHasher::AddCharacter(uc32 c) {
 
 void StringHasher::AddCharacterNoIndex(uc32 c) {
   ASSERT(!is_array_index());
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ = (raw_running_hash_ + c) * 1025;
   raw_running_hash_ ^= (raw_running_hash_ >> 6);
 }
 

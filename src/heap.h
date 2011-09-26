@@ -77,6 +77,7 @@ inline Heap* _inline_get_heap_();
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Smi, stack_limit, StackLimit)                                              \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
+  V(FixedArray, string_locks, StringLocks)                        \
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
   V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
@@ -1213,6 +1214,25 @@ class Heap {
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
   Object* GetNumberStringCache(Object* number);
+
+  // Locks a string to prevent changes to the string's representation or
+  // encoding, e.g., due to externalization.
+  // It does not prevent moving the string during a GC
+  // (i.e., it's not a way to keep a pointer to an underlying character
+  // sequence valid). Might fail if the underlying data structure can't
+  // grow to accomodate the string, otherwise returns the string itself.
+  //
+  // Stores data in Heap::string_locks(), a FixedArray with the number
+  // of filled in elements in the first position, and that number of
+  // string pointers in the following positions (in no particular order).
+  // The FixedArray is padded with undefined or similar uninteresting values.
+  MaybeObject* LockString(String* string);
+  // Removes the lock on the string.
+  void UnlockString(String* string);
+  // Check if a string is locked.
+  bool IsStringLocked(String* string);
+  // Initializes the data structure underlying LockString.
+  MaybeObject* InitializeStringLocks();
 
   // Update the cache with a new number-string pair.
   void SetNumberStringCache(Object* number, String* str);

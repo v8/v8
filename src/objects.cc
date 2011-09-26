@@ -2771,7 +2771,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
         attributes);
   }
 
-  // Check for accessor in prototype chain removed here in clone.
+  // Unlike SetLocalProperty, we ignore the prototype chain and
+  // any accessors in it.
   if (!result.IsFound()) {
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes, kNonStrictMode);
@@ -10069,6 +10070,8 @@ class SubStringAsciiSymbolKey : public HashTableKey {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
     StringHasher hasher(length_);
+    AssertNoAllocation no_alloc;
+    const char* chars = string_->GetChars() + from_;
 
     // Very long strings have a trivial hash that doesn't inspect the
     // string contents.
@@ -10079,16 +10082,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
       // Do the iterative array index computation as long as there is a
       // chance this is an array index.
       while (i < length_ && hasher.is_array_index()) {
-        hasher.AddCharacter(static_cast<uc32>(
-            string_->SeqAsciiStringGet(i + from_)));
+        hasher.AddCharacter(static_cast<uc32>(chars[i]));
         i++;
       }
 
       // Process the remaining characters without updating the array
       // index.
       while (i < length_) {
-        hasher.AddCharacterNoIndex(static_cast<uc32>(
-            string_->SeqAsciiStringGet(i + from_)));
+        hasher.AddCharacterNoIndex(static_cast<uc32>(chars[i]));
         i++;
       }
       hash_field_ = hasher.GetHashField();

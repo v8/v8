@@ -942,4 +942,20 @@ bool CompileOptimized(Handle<JSFunction> function,
   return CompileLazyHelper(&info, flag);
 }
 
+
+void LockString(Handle<String> string) {
+  CALL_HEAP_FUNCTION_VOID(string->GetHeap()->isolate(),
+                          string->GetHeap()->LockString(*string));
+}
+
+
+StringLock::StringLock(Handle<String> string) : string_(string) {
+  LockString(string);
+}
+
+
+StringLock::~StringLock() {
+  string_->GetHeap()->UnlockString(*string_);
+}
+
 } }  // namespace v8::internal

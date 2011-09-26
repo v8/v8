@@ -4479,6 +4479,9 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
+  if (isolate->heap()->IsStringLocked(*obj)) {
+    return false;
+  }
   if (isolate->heap()->IsInGCPostProcessing()) {
     return false;
   }
