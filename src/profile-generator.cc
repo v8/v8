@@ -1015,6 +1015,11 @@ int HeapEntry::RetainedSize(bool exact) {
 }
 
 
+Handle<HeapObject> HeapEntry::GetHeapObject() {
+  return snapshot_->collection()->FindHeapObjectById(id());
+}
+
+
 template<class Visitor>
 void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
   List<HeapEntry*> list(10);
@@ -1375,8 +1380,8 @@ HeapObjectsMap::~HeapObjectsMap() {
 
 
 void HeapObjectsMap::SnapshotGenerationFinished() {
-    initial_fill_mode_ = false;
-    RemoveDeadEntries();
+  initial_fill_mode_ = false;
+  RemoveDeadEntries();
 }
 
 
@@ -1519,6 +1524,26 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   unsigned uid = snapshot->uid();
   snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
                          static_cast<uint32_t>(uid));
+}
+
+
+Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
+  // First perform a full GC in order to avoid dead objects.
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  AssertNoAllocation no_allocation;
+  HeapObject* object = NULL;
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  // Make sure that object with the given id is still reachable.
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    if (ids_.FindObject(obj->address()) == id) {
+      ASSERT(object == NULL);
+      object = obj;
+      // Can't break -- kFilterUnreachable requires full heap traversal.
+    }
+  }
+  return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
 }
 
 
