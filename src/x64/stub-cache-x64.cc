@@ -3722,13 +3722,14 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   }
 
   // Do the store and update the write barrier.
-  __ SmiToInteger32(rcx, rcx);
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(rax, &miss_force_generic);
+    __ SmiToInteger32(rcx, rcx);
     __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
             rax);
   } else {
     ASSERT(elements_kind == FAST_ELEMENTS);
+    __ SmiToInteger32(rcx, rcx);
     __ lea(rcx,
            FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize));
     __ movq(Operand(rcx, 0), rax);
