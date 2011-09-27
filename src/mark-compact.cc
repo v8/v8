@@ -2690,8 +2690,10 @@ void MarkCompactCollector::EvacuatePages() {
         // Without room for expansion evacuation is not guaranteed to succeed.
         // Pessimistically abandon unevacuated pages.
         for (int j = i; j < npages; j++) {
-          evacuation_candidates_[j]->ClearEvacuationCandidate();
-          evacuation_candidates_[j]->SetFlag(Page::RESCAN_ON_EVACUATION);
+          Page* page = evacuation_candidates_[j];
+          slots_buffer_allocator_.DeallocateChain(page->slots_buffer_address());
+          page->ClearEvacuationCandidate();
+          page->SetFlag(Page::RESCAN_ON_EVACUATION);
         }
         return;
       }
