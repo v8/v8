@@ -2015,7 +2015,7 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
     __ movq(result, instr->hydrogen()->cell(), RelocInfo::GLOBAL_PROPERTY_CELL);
     __ movq(result, Operand(result, 0));
   }
-  if (instr->hydrogen()->check_hole_value()) {
+  if (instr->hydrogen()->RequiresHoleCheck()) {
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
   }
@@ -2047,7 +2047,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
-  if (instr->hydrogen()->check_hole_value()) {
+  if (instr->hydrogen()->RequiresHoleCheck()) {
     __ CompareRoot(Operand(address, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
   }
@@ -2316,17 +2316,15 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
     LLoadKeyedFastDoubleElement* instr) {
   XMMRegister result(ToDoubleRegister(instr->result()));
 
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-        sizeof(kHoleNanLower32);
-    Operand hole_check_operand = BuildFastArrayOperand(
-        instr->elements(),
-        instr->key(),
-        FAST_DOUBLE_ELEMENTS,
-        offset);
-    __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
-    DeoptimizeIf(equal, instr->environment());
-  }
+  int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+      sizeof(kHoleNanLower32);
+  Operand hole_check_operand = BuildFastArrayOperand(
+      instr->elements(),
+      instr->key(),
+      FAST_DOUBLE_ELEMENTS,
+      offset);
+  __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
+  DeoptimizeIf(equal, instr->environment());
 
   Operand double_load_operand = BuildFastArrayOperand(
       instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,

@@ -2207,7 +2207,7 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ mov(ip, Operand(Handle<Object>(instr->hydrogen()->cell())));
   __ ldr(result, FieldMemOperand(ip, JSGlobalPropertyCell::kValueOffset));
-  if (instr->hydrogen()->check_hole_value()) {
+  if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
     __ cmp(result, ip);
     DeoptimizeIf(eq, instr->environment());
@@ -2239,7 +2239,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted.
-  if (instr->hydrogen()->check_hole_value()) {
+  if (instr->hydrogen()->RequiresHoleCheck()) {
     __ ldr(scratch2,
            FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -2541,13 +2541,9 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
            Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    // TODO(danno): If no hole check is required, there is no need to allocate
-    // elements into a temporary register, instead scratch can be used.
-    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
-    __ cmp(scratch, Operand(kHoleNanUpper32));
-    DeoptimizeIf(eq, instr->environment());
-  }
+  __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+  __ cmp(scratch, Operand(kHoleNanUpper32));
+  DeoptimizeIf(eq, instr->environment());
 
   __ vldr(result, elements, 0);
 }

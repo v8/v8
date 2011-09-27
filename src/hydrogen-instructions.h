@@ -3201,15 +3201,15 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 
 class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
-  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, bool check_hole_value)
-      : cell_(cell), check_hole_value_(check_hole_value) {
+  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, PropertyDetails details)
+      : cell_(cell), details_(details) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell>  cell() const { return cell_; }
-  bool check_hole_value() const { return check_hole_value_; }
+  bool RequiresHoleCheck();
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -3232,7 +3232,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
-  bool check_hole_value_;
+  PropertyDetails details_;
 };
 
 
@@ -3273,15 +3273,17 @@ class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
                    Handle<JSGlobalPropertyCell> cell,
-                   bool check_hole_value)
+                   PropertyDetails details)
       : HUnaryOperation(value),
         cell_(cell),
-        check_hole_value_(check_hole_value) {
+        details_(details) {
     SetFlag(kChangesGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
-  bool check_hole_value() const { return check_hole_value_; }
+  bool RequiresHoleCheck() {
+    return !details_.IsDontDelete() || details_.IsReadOnly();
+  }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -3292,7 +3294,7 @@ class HStoreGlobalCell: public HUnaryOperation {
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
-  bool check_hole_value_;
+  PropertyDetails details_;
 };
 
 
@@ -3543,7 +3545,7 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  bool RequiresHoleCheck() const;
+  bool RequiresHoleCheck();
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement)
 
@@ -3573,8 +3575,6 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
   }
 
   virtual void PrintDataTo(StringStream* stream);
-
-  bool RequiresHoleCheck() const;
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
 

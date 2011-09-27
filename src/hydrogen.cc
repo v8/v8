@@ -3168,8 +3168,8 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       if (type == kUseCell) {
         Handle<GlobalObject> global(info()->global_object());
         Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-        bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
-        HLoadGlobalCell* instr = new(zone()) HLoadGlobalCell(cell, check_hole);
+        HLoadGlobalCell* instr =
+            new(zone()) HLoadGlobalCell(cell, lookup.GetPropertyDetails());
         return ast_context()->ReturnInstruction(instr, expr->id());
       } else {
         HValue* context = environment()->LookupContext();
@@ -3630,10 +3630,10 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
   LookupResult lookup;
   GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
   if (type == kUseCell) {
-    bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
     Handle<GlobalObject> global(info()->global_object());
     Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-    HInstruction* instr = new(zone()) HStoreGlobalCell(value, cell, check_hole);
+    HInstruction* instr =
+        new(zone()) HStoreGlobalCell(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);
     AddInstruction(instr);
     if (instr->HasSideEffects()) AddSimulate(ast_id);
