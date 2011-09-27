@@ -28,9 +28,8 @@
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
 
-#include <limits>
-
 #include "scanner-base.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
