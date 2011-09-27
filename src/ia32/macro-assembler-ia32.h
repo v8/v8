@@ -324,6 +324,17 @@ class MacroAssembler: public Assembler {
                                 Label* fail,
                                 Label::Distance distance = Label::kFar);
 
+  // Check to see if maybe_number can be stored as a double in
+  // FastDoubleElements. If it can, store it at the index specified by key in
+  // the FastDoubleElements array elements, otherwise jump to fail.
+  void StoreNumberToDoubleElements(Register maybe_number,
+                                   Register elements,
+                                   Register key,
+                                   Register scratch1,
+                                   XMMRegister scratch2,
+                                   Label* fail,
+                                   bool specialize_for_processor);
+
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
   // heap object)

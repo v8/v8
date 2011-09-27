@@ -406,6 +406,79 @@ void MacroAssembler::CheckFastSmiOnlyElements(Register map,
 }
 
 
+void MacroAssembler::StoreNumberToDoubleElements(
+    Register maybe_number,
+    Register elements,
+    Register key,
+    Register scratch1,
+    XMMRegister scratch2,
+    Label* fail,
+    bool specialize_for_processor) {
+  Label smi_value, done, maybe_nan, not_nan, is_nan, have_double_value;
+  JumpIfSmi(maybe_number, &smi_value, Label::kNear);
+
+  CheckMap(maybe_number,
+           isolate()->factory()->heap_number_map(),
+           fail,
+           DONT_DO_SMI_CHECK);
+
+  // Double value, canonicalize NaN.
+  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
+  cmp(FieldOperand(maybe_number, offset),
+      Immediate(kNaNOrInfinityLowerBoundUpper32));
+  j(greater_equal, &maybe_nan, Label::kNear);
+
+  bind(&not_nan);
+  ExternalReference canonical_nan_reference =
+      ExternalReference::address_of_canonical_non_hole_nan();
+  if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    movdbl(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+    bind(&have_double_value);
+    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
+           scratch2);
+  } else {
+    fld_d(FieldOperand(maybe_number, HeapNumber::kValueOffset));
+    bind(&have_double_value);
+    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
+  }
+  jmp(&done);
+
+  bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  j(greater, &is_nan, Label::kNear);
+  cmp(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
+  j(zero, &not_nan);
+  bind(&is_nan);
+  if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    movdbl(scratch2, Operand::StaticVariable(canonical_nan_reference));
+  } else {
+    fld_d(Operand::StaticVariable(canonical_nan_reference));
+  }
+  jmp(&have_double_value, Label::kNear);
+
+  bind(&smi_value);
+  // Value is a smi. Convert to a double and store.
+  // Preserve original value.
+  mov(scratch1, maybe_number);
+  SmiUntag(scratch1);
+  if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
+    CpuFeatures::Scope fscope(SSE2);
+    cvtsi2sd(scratch2, Operand(scratch1));
+    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
+           scratch2);
+  } else {
+    push(scratch1);
+    fild_s(Operand(esp, 0));
+    pop(scratch1);
+    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
+  }
+  bind(&done);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,

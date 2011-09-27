@@ -3977,8 +3977,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, smi_value, is_nan, maybe_nan;
-  Label have_double_value, not_nan;
+  Label miss_force_generic;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3999,59 +3998,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   }
   __ j(above_equal, &miss_force_generic);
 
-  __ JumpIfSmi(eax, &smi_value, Label::kNear);
-
-  __ CheckMap(eax,
-              masm->isolate()->factory()->heap_number_map(),
-              &miss_force_generic,
-              DONT_DO_SMI_CHECK);
-
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  __ cmp(FieldOperand(eax, offset), Immediate(kNaNOrInfinityLowerBoundUpper32));
-  __ j(greater_equal, &maybe_nan, Label::kNear);
-
-  __ bind(&not_nan);
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
-    __ bind(&have_double_value);
-    __ movdbl(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize),
-              xmm0);
-    __ ret(0);
-  } else {
-    __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    __ bind(&have_double_value);
-    __ fstp_d(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize));
-    __ ret(0);
-  }
-
-  __ bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  __ j(greater, &is_nan, Label::kNear);
-  __ cmp(FieldOperand(eax, HeapNumber::kValueOffset), Immediate(0));
-  __ j(zero, &not_nan);
-  __ bind(&is_nan);
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(xmm0, Operand::StaticVariable(canonical_nan_reference));
-  } else {
-    __ fld_d(Operand::StaticVariable(canonical_nan_reference));
-  }
-  __ jmp(&have_double_value, Label::kNear);
-
-  __ bind(&smi_value);
-  // Value is a smi. convert to a double and store.
-  // Preserve original value.
-  __ mov(edx, eax);
-  __ SmiUntag(edx);
-  __ push(edx);
-  __ fild_s(Operand(esp, 0));
-  __ pop(edx);
-  __ fstp_d(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize));
+  __ StoreNumberToDoubleElements(eax,
+                                 edi,
+                                 ecx,
+                                 edx,
+                                 xmm0,
+                                 &miss_force_generic,
+                                 true);
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.

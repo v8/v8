@@ -494,6 +494,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       44,
       "Factory::arguments_marker().location()");
+  Add(ExternalReference::address_of_canonical_non_hole_nan().address(),
+      UNCLASSIFIED,
+      45,
+      "canonical_nan");
 }
 
 
