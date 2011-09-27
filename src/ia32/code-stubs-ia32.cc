@@ -4325,6 +4325,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // megamorphic.
     __ cmp(Operand(ecx), Immediate(UninitializedSentinel(isolate)));
     __ j(equal, &initialize, Label::kNear);
+    // MegamorphicSentinel is a root so no write-barrier is needed.
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
            Immediate(MegamorphicSentinel(isolate)));
     __ jmp(&call, Label::kNear);
@@ -4332,6 +4333,14 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // An uninitialized cache is patched with the function.
     __ bind(&initialize);
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
+    __ mov(ecx, edi);
+    __ RecordWriteField(ebx,
+                        JSGlobalPropertyCell::kValueOffset,
+                        ecx,
+                        edx,
+                        kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET,  // Cells are rescanned.
+                        OMIT_SMI_CHECK);
 
     __ bind(&call);
   }
