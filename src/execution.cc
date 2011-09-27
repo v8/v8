@@ -88,11 +88,9 @@ static Handle<Object> Invoke(bool construct,
 
   Handle<Code> code;
   if (construct) {
-    JSConstructEntryStub stub;
-    code = stub.GetCode();
+    code = isolate->factory()->js_construct_entry_code();
   } else {
-    JSEntryStub stub;
-    code = stub.GetCode();
+    code = isolate->factory()->js_entry_code();
   }
 
   // Convert calls on global objects to be calls on the global
