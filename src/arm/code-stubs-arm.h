@@ -65,7 +65,7 @@ class StoreBufferOverflowStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool CompilingCallsToThisStubIsGCSafe() { return true; }
+  virtual bool IsPregenerated() { return true; }
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -342,7 +342,7 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch) { }
 
-  bool CompilingCallsToThisStubIsGCSafe();
+  bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
 
  private:
@@ -416,7 +416,7 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool CompilingCallsToThisStubIsGCSafe();
+  virtual bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 

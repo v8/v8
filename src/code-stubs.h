@@ -144,8 +144,17 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
+  bool CompilingCallsToThisStubIsGCSafe() {
+    bool is_pregenerated = IsPregenerated();
+#ifdef DEBUG
+    Code* code = NULL;
+    ASSERT(!is_pregenerated || FindCodeInCache(&code));
+#endif
+    return is_pregenerated;
+  }
+
   // See comment above, where Instanceof is defined.
-  virtual bool CompilingCallsToThisStubIsGCSafe() {
+  virtual bool IsPregenerated() {
     return MajorKey() <= Instanceof;
   }
 
@@ -564,7 +573,7 @@ class CEntryStub : public CodeStub {
   // time, so it's OK to call it from other stubs that can't cope with GC during
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
-  virtual bool CompilingCallsToThisStubIsGCSafe();
+  virtual bool IsPregenerated();
 
  private:
   void GenerateCore(MacroAssembler* masm,

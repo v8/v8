@@ -859,7 +859,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 }
 
 
-bool WriteInt32ToHeapNumberStub::CompilingCallsToThisStubIsGCSafe() {
+bool WriteInt32ToHeapNumberStub::IsPregenerated() {
   // These variants are compiled ahead of time.  See next method.
   if (the_int_.is(r1) && the_heap_number_.is(r0) && scratch_.is(r2)) {
     return true;
@@ -2094,6 +2094,10 @@ void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(
 
 
 void BinaryOpStub::Generate(MacroAssembler* masm) {
+  // Explicitly allow generation of nested stubs. It is safe here because
+  // generation code does not use any raw pointers.
+  AllowStubCallsScope allow_stub_calls(masm, true);
+
   switch (operands_type_) {
     case BinaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
@@ -3394,7 +3398,7 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+bool CEntryStub::IsPregenerated() {
   return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
           result_size_ == 1;
 }
@@ -3402,6 +3406,8 @@ bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
 
 void CodeStub::GenerateStubsAheadOfTime() {
   WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime();
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
 }
 
 
@@ -6837,7 +6843,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 };
 
 
-bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+bool RecordWriteStub::IsPregenerated() {
   for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {

@@ -3477,7 +3477,7 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+bool CEntryStub::IsPregenerated() {
   return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
           result_size_ == 1;
 }

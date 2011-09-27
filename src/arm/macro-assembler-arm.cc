@@ -2003,7 +2003,7 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_);
+  ASSERT(allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe());
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
@@ -2113,7 +2113,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
   if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
-  return stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_;
+  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe();
 }
 
 

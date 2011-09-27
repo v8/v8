@@ -986,6 +986,10 @@ void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm) {
 
 
 void BinaryOpStub::Generate(MacroAssembler* masm) {
+  // Explicitly allow generation of nested stubs. It is safe here because
+  // generation code does not use any raw pointers.
+  AllowStubCallsScope allow_stub_calls(masm, true);
+
   switch (operands_type_) {
     case BinaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
@@ -4333,13 +4337,16 @@ bool CEntryStub::NeedsImmovableCode() {
 }
 
 
-bool CEntryStub::CompilingCallsToThisStubIsGCSafe() {
+bool CEntryStub::IsPregenerated() {
   return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
           result_size_ == 1;
 }
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+  // It is important that the store buffer overflow stubs are generated first.
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
 }
 
 
@@ -6597,7 +6604,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // GenerateStoreField calls the stub with two different permutations of
   // registers.  This is the second.
   { ebx, ecx, edx, EMIT_REMEMBERED_SET },
-  // StoreIC::GenerateNormal via GenerateDictionaryStore.
+  // StoreIC::GenerateNormal via GenerateDictionaryStore, CompileArrayPushCall
   { ebx, edi, edx, EMIT_REMEMBERED_SET },
   // KeyedStoreIC::GenerateGeneric.
   { ebx, edx, ecx, EMIT_REMEMBERED_SET},
@@ -6608,7 +6615,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 };
 
 
-bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
+bool RecordWriteStub::IsPregenerated() {
   for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
@@ -6627,8 +6634,12 @@ bool RecordWriteStub::CompilingCallsToThisStubIsGCSafe() {
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
   stub1.GetCode();
-  StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode();
+
+  CpuFeatures::TryForceFeatureScope scope(SSE2);
+  if (CpuFeatures::IsSupported(SSE2)) {
+    StoreBufferOverflowStub stub2(kSaveFPRegs);
+    stub2.GetCode();
+  }
 }
 
 

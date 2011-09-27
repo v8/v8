@@ -66,7 +66,7 @@ class StoreBufferOverflowStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool CompilingCallsToThisStubIsGCSafe() { return true; }
+  virtual bool IsPregenerated() { return true; }
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -497,7 +497,7 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool CompilingCallsToThisStubIsGCSafe();
+  virtual bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 
