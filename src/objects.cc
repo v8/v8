@@ -3024,6 +3024,13 @@ MaybeObject* JSObject::GetHiddenProperties(HiddenPropertiesFlag flag) {
             isolate->context()->global_context()->object_function());
         if (!maybe_obj->ToObject(&hidden_obj)) return maybe_obj;
       }
+      // Don't allow leakage of the hidden object through accessors
+      // on Object.prototype.
+      {
+        MaybeObject* maybe_obj =
+            JSObject::cast(hidden_obj)->SetPrototype(heap->null_value(), false);
+        if (maybe_obj->IsFailure()) return maybe_obj;
+      }
       return obj->SetHiddenPropertiesObject(hidden_obj);
     } else {
       return heap->undefined_value();
