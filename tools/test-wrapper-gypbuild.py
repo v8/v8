@@ -169,7 +169,7 @@ def PassOnOptions(options):
   if options.snapshot:
     result += ['--snapshot']
   if options.special_command:
-    result += ['--special-command=' + options.special_command]
+    result += ['--special-command="%s"' % options.special_command]
   if options.valgrind:
     result += ['--valgrind']
   if options.cat:
