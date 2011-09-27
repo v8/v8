@@ -685,8 +685,30 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  virtual void FinishCode(Code* code);
+
+  static void Clear(Heap* heap, Address address);
+
+  static Object* GetCachedValue(Address address);
+
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
+  }
+
+  // The object that indicates an uninitialized cache.
+  static Handle<Object> UninitializedSentinel(Isolate* isolate) {
+    return isolate->factory()->the_hole_value();
+  }
+
+  // A raw version of the uninitialized sentinel that's safe to read during
+  // garbage collection (e.g., for patching the cache).
+  static Object* RawUninitializedSentinel(Heap* heap) {
+    return heap->raw_unchecked_the_hole_value();
+  }
+
+  // The object that indicates a megamorphic state.
+  static Handle<Object> MegamorphicSentinel(Isolate* isolate) {
+    return isolate->factory()->undefined_value();
   }
 
  private:
@@ -696,8 +718,8 @@ class CallFunctionStub: public CodeStub {
   virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
-  class FlagBits: public BitField<CallFunctionFlags, 0, 1> {};
-  class ArgcBits: public BitField<unsigned, 1, 32 - 1> {};
+  class FlagBits: public BitField<CallFunctionFlags, 0, 2> {};
+  class ArgcBits: public BitField<unsigned, 2, 32 - 2> {};
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() {
@@ -707,6 +729,10 @@ class CallFunctionStub: public CodeStub {
 
   bool ReceiverMightBeImplicit() {
     return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
+  }
+
+  bool RecordCallTarget() {
+    return (flags_ & RECORD_CALL_TARGET) != 0;
   }
 };
 

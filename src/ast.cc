@@ -764,37 +764,41 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                               CallKind call_kind) {
-  Property* property = expression()->AsProperty();
-  ASSERT(property != NULL);
-  // Specialize for the receiver types seen at runtime.
-  Literal* key = property->key()->AsLiteral();
-  ASSERT(key != NULL && key->handle()->IsString());
-  Handle<String> name = Handle<String>::cast(key->handle());
-  receiver_types_.Clear();
-  oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
-#ifdef DEBUG
-  if (FLAG_enable_slow_asserts) {
-    int length = receiver_types_.length();
-    for (int i = 0; i < length; i++) {
-      Handle<Map> map = receiver_types_.at(i);
-      ASSERT(!map.is_null() && *map != NULL);
-    }
-  }
-#endif
   is_monomorphic_ = oracle->CallIsMonomorphic(this);
-  check_type_ = oracle->GetCallCheckType(this);
-  if (is_monomorphic_) {
-    Handle<Map> map;
-    if (receiver_types_.length() > 0) {
-      ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-      map = receiver_types_.at(0);
-    } else {
-      ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-      holder_ = Handle<JSObject>(
-          oracle->GetPrototypeForPrimitiveCheck(check_type_));
-      map = Handle<Map>(holder_->map());
+  Property* property = expression()->AsProperty();
+  if (property == NULL) {
+    // Function call.  Specialize for monomorphic calls.
+    if (is_monomorphic_) target_ = oracle->GetCallTarget(this);
+  } else {
+    // Method call.  Specialize for the receiver types seen at runtime.
+    Literal* key = property->key()->AsLiteral();
+    ASSERT(key != NULL && key->handle()->IsString());
+    Handle<String> name = Handle<String>::cast(key->handle());
+    receiver_types_.Clear();
+    oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+#ifdef DEBUG
+    if (FLAG_enable_slow_asserts) {
+      int length = receiver_types_.length();
+      for (int i = 0; i < length; i++) {
+        Handle<Map> map = receiver_types_.at(i);
+        ASSERT(!map.is_null() && *map != NULL);
+      }
     }
-    is_monomorphic_ = ComputeTarget(map, name);
+#endif
+    check_type_ = oracle->GetCallCheckType(this);
+    if (is_monomorphic_) {
+      Handle<Map> map;
+      if (receiver_types_.length() > 0) {
+        ASSERT(check_type_ == RECEIVER_MAP_CHECK);
+        map = receiver_types_.at(0);
+      } else {
+        ASSERT(check_type_ != RECEIVER_MAP_CHECK);
+        holder_ = Handle<JSObject>(
+            oracle->GetPrototypeForPrimitiveCheck(check_type_));
+        map = Handle<Map>(holder_->map());
+      }
+      is_monomorphic_ = ComputeTarget(map, name);
+    }
   }
 }
 

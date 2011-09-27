@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "code-stubs.h"
 #include "compilation-cache.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -849,6 +850,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // marked since they are contained in HEAP->non_monomorphic_cache().
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
+      if (FLAG_cleanup_code_caches_at_gc &&
+          target->kind() == Code::STUB &&
+          target->major_key() == CodeStub::CallFunction &&
+          target->has_function_cache()) {
+        CallFunctionStub::Clear(heap, rinfo->pc());
+      }
       MarkBit code_mark = Marking::MarkBitFrom(target);
       heap->mark_compact_collector()->MarkObject(target, code_mark);
     }

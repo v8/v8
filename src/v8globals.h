@@ -299,7 +299,9 @@ enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
   // Receiver might implicitly be the global objects. If it is, the
   // hole is passed to the call function stub.
-  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0
+  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0,
+  // The call target is cached in the instruction stream.
+  RECORD_CALL_TARGET = 1 << 1
 };
 
 

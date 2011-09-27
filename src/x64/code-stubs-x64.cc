@@ -3265,6 +3265,22 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallFunctionStub::FinishCode(Code* code) {
+  code->set_has_function_cache(false);
+}
+
+
+void CallFunctionStub::Clear(Heap* heap, Address address) {
+  UNREACHABLE();
+}
+
+
+Object* CallFunctionStub::GetCachedValue(Address address) {
+  UNREACHABLE();
+  return NULL;
+}
+
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow, non_function;
 

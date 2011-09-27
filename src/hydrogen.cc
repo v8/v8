@@ -5005,6 +5005,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     }
 
   } else {
+    expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
 
@@ -5055,6 +5056,46 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
         call = new(zone()) HCallGlobal(context, var->name(), argument_count);
         Drop(argument_count);
+      }
+
+    } else if (expr->IsMonomorphic()) {
+      // The function is on the stack in the unoptimized code during
+      // evaluation of the arguments.
+      CHECK_ALIVE(VisitForValue(expr->expression()));
+      HValue* function = Top();
+      HValue* context = environment()->LookupContext();
+      HGlobalObject* global = new(zone()) HGlobalObject(context);
+      HGlobalReceiver* receiver = new(zone()) HGlobalReceiver(global);
+      AddInstruction(global);
+      PushAndAdd(receiver);
+      CHECK_ALIVE(VisitExpressions(expr->arguments()));
+      AddInstruction(new(zone()) HCheckFunction(function, expr->target()));
+      if (TryInline(expr)) {
+        // The function is lingering in the deoptimization environment.
+        // Handle it by case analysis on the AST context.
+        if (ast_context()->IsEffect()) {
+          Drop(1);
+        } else if (ast_context()->IsValue()) {
+          HValue* result = Pop();
+          Drop(1);
+          Push(result);
+        } else if (ast_context()->IsTest()) {
+          TestContext* context = TestContext::cast(ast_context());
+          if (context->if_true()->HasPredecessor()) {
+            context->if_true()->last_environment()->Drop(1);
+          }
+          if (context->if_false()->HasPredecessor()) {
+            context->if_true()->last_environment()->Drop(1);
+          }
+        } else {
+          UNREACHABLE();
+        }
+        return;
+      } else {
+        call = PreProcessCall(new(zone()) HInvokeFunction(context,
+                                                          function,
+                                                          argument_count));
+        Drop(1);  // The function.
       }
 
     } else {

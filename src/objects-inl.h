@@ -3100,6 +3100,19 @@ void Code::set_to_boolean_state(byte value) {
   WRITE_BYTE_FIELD(this, kToBooleanTypeOffset, value);
 }
 
+
+bool Code::has_function_cache() {
+  ASSERT(kind() == STUB);
+  return READ_BYTE_FIELD(this, kHasFunctionCacheOffset) != 0;
+}
+
+
+void Code::set_has_function_cache(bool flag) {
+  ASSERT(kind() == STUB);
+  WRITE_BYTE_FIELD(this, kHasFunctionCacheOffset, flag);
+}
+
+
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
   return kind >= FIRST_IC_KIND && kind <= LAST_IC_KIND;

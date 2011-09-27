@@ -2095,8 +2095,29 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   }
   // Record source position for debugger.
   SetSourcePosition(expr->position());
+
+  // Record call targets in unoptimized code, but not in the snapshot.
+  bool record_call_target = !Serializer::enabled();
+  if (record_call_target) {
+    flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
+  }
   CallFunctionStub stub(arg_count, flags);
   __ CallStub(&stub);
+  if (record_call_target) {
+    // There is a one element cache in the instruction stream.
+#ifdef DEBUG
+    int return_site_offset = masm()->pc_offset();
+#endif
+    Handle<Object> uninitialized =
+        CallFunctionStub::UninitializedSentinel(isolate());
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
+    __ test(eax, Immediate(cell));
+    // Patching code in the stub assumes the opcode is 1 byte and there is
+    // word for a pointer in the operand.
+    ASSERT(masm()->pc_offset() - return_site_offset >= 1 + kPointerSize);
+  }
+
   RecordJSReturnSite(expr);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));

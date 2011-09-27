@@ -243,6 +243,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
+  Handle<JSFunction> GetCallTarget(Call* expr);
+
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
@@ -273,7 +275,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
-  void ProcessTarget(unsigned ast_id, Code* target);
+  void ProcessTargetAt(Address target_address, unsigned ast_id);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
