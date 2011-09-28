@@ -2953,7 +2953,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (is_global &&
-      regexp->TypeTag() == JSRegExp::ATOM &&
+      regexp_handle->TypeTag() == JSRegExp::ATOM &&
       compiled_replacement.simple_hint()) {
     if (subject_handle->HasOnlyAsciiChars() &&
         replacement_handle->HasOnlyAsciiChars()) {
