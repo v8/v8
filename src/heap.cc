@@ -4594,8 +4594,11 @@ bool Heap::IdleNotification() {
 
   // Make sure that we have no pending context disposals and
   // conditionally uncommit from space.
-  ASSERT((contexts_disposed_ == 0) || incremental_marking()->IsMarking());
+  // Take into account that we might have decided to delay full collection
+  // because incremental marking is in progress.
+  ASSERT((contexts_disposed_ == 0) || !incremental_marking()->IsStopped());
   if (uncommit) UncommitFromSpace();
+
   return finished;
 }
 
