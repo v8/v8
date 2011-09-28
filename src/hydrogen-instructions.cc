@@ -796,10 +796,11 @@ void HTypeof::PrintDataTo(StringStream* stream) {
 
 void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
-  stream->Add(" %s to %s", from_.Mnemonic(), to().Mnemonic());
+  stream->Add(" %s to %s", from().Mnemonic(), to().Mnemonic());
 
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
+  if (CheckFlag(kDeoptimizeOnUndefined)) stream->Add(" deopt-on-undefined");
 }
 
 

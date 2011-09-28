@@ -1860,7 +1860,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   if (new_value == NULL) {
-    new_value = new(zone()) HChange(value, value->representation(), to,
+    new_value = new(zone()) HChange(value, to,
                                     is_truncating, deoptimize_on_undefined);
   }
 
