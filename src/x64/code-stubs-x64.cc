@@ -3370,13 +3370,16 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 bool CEntryStub::IsPregenerated() {
+#ifdef _WIN64
   return result_size_ == 1;
+#else
+  return true;
+#endif
 }
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
-  CEntryStub save_doubles(1, kSaveFPRegs);
-  save_doubles.GetCode()->set_is_pregenerated(true);
+  CEntryStub::GenerateAheadOfTime();
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
   // It is important that the store buffer overflow stubs are generated first.
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
@@ -3384,6 +3387,14 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 
 void CodeStub::GenerateFPStubs() {
+}
+
+
+void CEntryStub::GenerateAheadOfTime() {
+  CEntryStub stub(1, kDontSaveFPRegs);
+  stub.GetCode()->set_is_pregenerated(true);
+  CEntryStub save_doubles(1, kSaveFPRegs);
+  save_doubles.GetCode()->set_is_pregenerated(true);
 }
 
 

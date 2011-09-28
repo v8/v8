@@ -130,6 +130,8 @@ Handle<Code> CodeStub::GetCode() {
     heap->public_set_code_stubs(*dict);
     code = *new_object;
     Activate(code);
+  } else {
+    ASSERT(IsPregenerated() == code->is_pregenerated());
   }
 
   ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));

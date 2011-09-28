@@ -50,13 +50,6 @@ namespace internal {
   V(RegExpExec)                          \
   V(TranscendentalCache)                 \
   V(Instanceof)                          \
-  /* All stubs above this line only exist in a few versions, which are  */  \
-  /* generated ahead of time.  Therefore compiling a call to one of     */  \
-  /* them can't cause a new stub to be compiled, so compiling a call to */  \
-  /* them is GC safe.  The ones below this line exist in many variants  */  \
-  /* so code compiling a call to one can cause a GC.  This means they   */  \
-  /* can't be called from other stubs, since stub generation code is    */  \
-  /* not GC safe.                                                       */  \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
@@ -154,9 +147,7 @@ class CodeStub BASE_EMBEDDED {
   }
 
   // See comment above, where Instanceof is defined.
-  virtual bool IsPregenerated() {
-    return MajorKey() <= Instanceof;
-  }
+  virtual bool IsPregenerated() { return false; }
 
   static void GenerateStubsAheadOfTime();
   static void GenerateFPStubs();
@@ -574,6 +565,7 @@ class CEntryStub : public CodeStub {
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
   virtual bool IsPregenerated();
+  static void GenerateAheadOfTime();
 
  private:
   void GenerateCore(MacroAssembler* masm,

@@ -3888,7 +3888,7 @@ class Code: public HeapObject {
   class IsPregeneratedField: public BitField<bool, 14, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 14;
+  static const int kArgumentsCountShift = 15;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   static const int kFlagsNotUsedInLookup =

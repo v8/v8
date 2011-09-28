@@ -2170,9 +2170,6 @@ void Heap::CreateFixedStubs() {
   // create them if we need them during the creation of another stub.
   // Stub creation mixes raw pointers and handles in an unsafe manner so
   // we cannot create stubs while we are creating stubs.
-  CEntryStub ces(1);
-  ces.GetCode();
-
   CodeStub::GenerateStubsAheadOfTime();
 }
 
