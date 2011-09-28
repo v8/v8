@@ -6474,7 +6474,6 @@ void HEnvironment::Initialize(const HEnvironment* other) {
   pop_count_ = other->pop_count_;
   push_count_ = other->push_count_;
   ast_id_ = other->ast_id_;
-  CheckDepth();
 }
 
 

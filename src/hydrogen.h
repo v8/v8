@@ -448,23 +448,6 @@ class HEnvironment: public ZoneObject {
  private:
   explicit HEnvironment(const HEnvironment* other);
 
-  void CheckDepth() {
-    // Verify that we are not trying to create an
-    // impossibly deeply nested environment.
-    if (!FLAG_limit_inlining) return;
-
-    static const int kMaxDepth = 4;
-
-    int cnt = 0;
-    for (HEnvironment* env = this;
-         env != NULL && cnt <= kMaxDepth;  // Check cnt to avoid infinite loop.
-         env = env->outer()) {
-      cnt++;
-    }
-
-    CHECK(cnt <= kMaxDepth);
-  }
-
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
 
