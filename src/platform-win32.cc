@@ -1511,6 +1511,7 @@ class Thread::PlatformData : public Malloced {
  public:
   explicit PlatformData(HANDLE thread) : thread_(thread) {}
   HANDLE thread_;
+  unsigned thread_id_;
 };
 
 
@@ -1554,13 +1555,15 @@ void Thread::Start() {
                      ThreadEntry,
                      this,
                      0,
-                     NULL));
+                     &data_->thread_id_));
 }
 
 
 // Wait for thread to terminate.
 void Thread::Join() {
-  WaitForSingleObject(data_->thread_, INFINITE);
+  if (data_->thread_id_ != GetCurrentThreadId()) {
+    WaitForSingleObject(data_->thread_, INFINITE);
+  }
 }
 
 
