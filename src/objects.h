@@ -7502,6 +7502,13 @@ class ObjectVisitor BASE_EMBEDDED {
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
 
+  // Visit pointer embedded into a code object.
+  virtual void VisitEmbeddedPointer(Code* host, Object** p) {
+    // Default implementation for the convenience of users that do
+    // not care about the host object.
+    VisitPointer(p);
+  }
+
   // Visits a contiguous arrays of external references (references to the C++
   // heap) in the half-open range [start, end). Any or all of the values
   // may be modified on return.

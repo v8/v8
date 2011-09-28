@@ -172,7 +172,7 @@ class IncrementalMarking {
   }
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
-    SetOldSpacePageFlags(chunk, IsMarking());
+    SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }
 
   inline void SetNewSpacePageFlags(NewSpacePage* chunk) {
@@ -208,7 +208,7 @@ class IncrementalMarking {
 
   void StartMarking();
 
-  static void ActivateIncrementalWriteBarrier(PagedSpace* space);
+  void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);
   void ActivateIncrementalWriteBarrier();
 
@@ -216,7 +216,10 @@ class IncrementalMarking {
   static void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
+  static void SetOldSpacePageFlags(MemoryChunk* chunk,
+                                   bool is_marking,
+                                   bool is_compacting);
+
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   void EnsureMarkingDequeIsCommitted();

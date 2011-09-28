@@ -115,6 +115,17 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
         incremental_marking_(incremental_marking) {
   }
 
+  void VisitEmbeddedPointer(Code* host, Object** p) {
+    Object* obj = *p;
+    if (obj->NonFailureIsHeapObject()) {
+      heap_->mark_compact_collector()->RecordSlot(
+          reinterpret_cast<Object**>(host),
+          p,
+          obj);
+      MarkObject(obj);
+    }
+  }
+
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -218,10 +229,18 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 
 
 void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
-                                              bool is_marking) {
+                                              bool is_marking,
+                                              bool is_compacting) {
   if (is_marking) {
     chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+
+    // It's difficult to filter out slots recorded for large objects.
+    if (chunk->owner()->identity() == LO_SPACE &&
+        chunk->size() > static_cast<size_t>(Page::kPageSize) &&
+        is_compacting) {
+      chunk->SetFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+    }
   } else if (chunk->owner()->identity() == CELL_SPACE ||
              chunk->scan_on_scavenge()) {
     chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
@@ -250,7 +269,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    SetOldSpacePageFlags(p, false);
+    SetOldSpacePageFlags(p, false, false);
   }
 }
 
@@ -275,7 +294,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
 
   LargePage* lop = heap_->lo_space()->first_page();
   while (lop->is_valid()) {
-    SetOldSpacePageFlags(lop, false);
+    SetOldSpacePageFlags(lop, false, false);
     lop = lop->next_page();
   }
 }
@@ -285,7 +304,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    SetOldSpacePageFlags(p, true);
+    SetOldSpacePageFlags(p, true, is_compacting_);
   }
 }
 
@@ -309,7 +328,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 
   LargePage* lop = heap_->lo_space()->first_page();
   while (lop->is_valid()) {
-    SetOldSpacePageFlags(lop, true);
+    SetOldSpacePageFlags(lop, true, is_compacting_);
     lop = lop->next_page();
   }
 }
@@ -451,19 +470,6 @@ void IncrementalMarking::StartMarking() {
     // We will mark cache black with a separate pass
     // when we finish marking.
     MarkObjectGreyDoNotEnqueue(heap_->polymorphic_code_cache());
-  }
-
-  if (is_compacting_) {
-    // It's difficult to filter out slots recorded for large objects.
-    LargeObjectIterator it(heap_->lo_space());
-    for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-      if (obj->IsFixedArray() || obj->IsCode()) {
-        Page* p = Page::FromAddress(obj->address());
-        if (p->size() > static_cast<size_t>(Page::kPageSize)) {
-          p->SetFlag(Page::RESCAN_ON_EVACUATION);
-        }
-      }
-    }
   }
 
   // Mark strong roots grey.

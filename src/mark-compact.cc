@@ -841,6 +841,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     heap->mark_compact_collector()->MarkObject(cell, mark);
   }
 
+  static inline void VisitEmbeddedPointer(Heap* heap, Code* host, Object** p) {
+    MarkObjectByPointer(heap->mark_compact_collector(),
+                        reinterpret_cast<Object**>(host),
+                        p);
+  }
+
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -2439,6 +2445,10 @@ class PointersUpdatingVisitor: public ObjectVisitor {
 
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) UpdatePointer(p);
+  }
+
+  void VisitEmbeddedPointer(Code* host, Object** p) {
+    UpdatePointer(p);
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
