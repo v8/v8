@@ -3035,6 +3035,10 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     // It's difficult to filter out slots recorded for large objects.
     LargeObjectIterator it(heap_->lo_space());
     for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+      // LargeObjectSpace is not swept yet thus we have to skip
+      // dead objects explicitly.
+      if (!IsMarked(obj)) continue;
+
       Page* p = Page::FromAddress(obj->address());
       if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
         obj->Iterate(&updating_visitor);
