@@ -134,6 +134,12 @@
           'sources': [
             'test-platform-win32.cc',
           ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              # MSVS wants this for gay-{precision,shortest}.cc.
+              'AdditionalOptions': ['/bigobj'],
+            },
+          },
         }],
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to
