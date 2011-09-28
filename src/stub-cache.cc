@@ -55,7 +55,15 @@ void StubCache::Initialize(bool create_heap_objects) {
   ASSERT(IsPowerOf2(kSecondaryTableSize));
   if (create_heap_objects) {
     HandleScope scope;
-    Clear();
+    Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
+    for (int i = 0; i < kPrimaryTableSize; i++) {
+      primary_[i].key = heap()->empty_string();
+      primary_[i].value = empty;
+    }
+    for (int j = 0; j < kSecondaryTableSize; j++) {
+      secondary_[j].key = heap()->empty_string();
+      secondary_[j].value = empty;
+    }
   }
 }
 
@@ -1099,15 +1107,20 @@ MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(
 
 
 void StubCache::Clear() {
+  Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = heap()->empty_string();
-    primary_[i].value = isolate_->builtins()->builtin(
-        Builtins::kIllegal);
+    Code* code = primary_[i].value;
+    if (code != empty && !code->is_pregenerated()) {
+      primary_[i].key = heap()->empty_string();
+      primary_[i].value = empty;
+    }
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = heap()->empty_string();
-    secondary_[j].value = isolate_->builtins()->builtin(
-        Builtins::kIllegal);
+    Code* code = secondary_[j].value;
+    if (code != empty && !code->is_pregenerated()) {
+      secondary_[j].key = heap()->empty_string();
+      secondary_[j].value = empty;
+    }
   }
 }
 

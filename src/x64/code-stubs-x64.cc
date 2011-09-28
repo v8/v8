@@ -3376,7 +3376,7 @@ bool CEntryStub::IsPregenerated() {
 
 void CodeStub::GenerateStubsAheadOfTime() {
   CEntryStub save_doubles(1, kSaveFPRegs);
-  save_doubles.GetCode();
+  save_doubles.GetCode()->set_is_pregenerated(true);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
   // It is important that the store buffer overflow stubs are generated first.
   RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
@@ -5616,9 +5616,9 @@ bool RecordWriteStub::IsPregenerated() {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode();
+  stub1.GetCode()->set_is_pregenerated(true);
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode();
+  stub2.GetCode()->set_is_pregenerated(true);
 }
 
 
@@ -5631,7 +5631,7 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          entry->address,
                          entry->action,
                          kDontSaveFPRegs);
-    stub.GetCode();
+    stub.GetCode()->set_is_pregenerated(true);
   }
 }
 

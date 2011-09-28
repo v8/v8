@@ -877,8 +877,8 @@ bool WriteInt32ToHeapNumberStub::IsPregenerated() {
 void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime() {
   WriteInt32ToHeapNumberStub stub1(r1, r0, r2);
   WriteInt32ToHeapNumberStub stub2(r2, r0, r3);
-  Handle<Code> code1 = stub1.GetCode();
-  Handle<Code> code2 = stub2.GetCode();
+  Handle<Code> code1 = stub1.GetCode()->set_is_pregenerated(true);
+  Handle<Code> code2 = stub2.GetCode()->set_is_pregenerated(true);
 }
 
 
@@ -3413,7 +3413,7 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 void CodeStub::GenerateFPStubs() {
   CEntryStub save_doubles(1, kSaveFPRegs);
-  Handle<Code> code = save_doubles.GetCode();
+  Handle<Code> code = save_doubles.GetCode()->set_is_pregenerated(true);
   code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
@@ -6877,9 +6877,9 @@ bool RecordWriteStub::IsPregenerated() {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode();
+  stub1.GetCode()->set_is_pregenerated(true);
   StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode();
+  stub2.GetCode()->set_is_pregenerated(true);
 }
 
 
@@ -6892,7 +6892,7 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          entry->address,
                          entry->action,
                          kDontSaveFPRegs);
-    stub.GetCode();
+    stub.GetCode()->set_is_pregenerated(true);
   }
 }
 

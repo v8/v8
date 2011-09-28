@@ -3657,6 +3657,11 @@ class Code: public HeapObject {
   inline int major_key();
   inline void set_major_key(int value);
 
+  // For stubs, tells whether they should always exist, so that they can be
+  // called from other stubs.
+  inline bool is_pregenerated();
+  inline void set_is_pregenerated(bool value);
+
   // [optimizable]: For FUNCTION kind, tells if it is optimizable.
   inline bool optimizable();
   inline void set_optimizable(bool value);
@@ -3880,6 +3885,7 @@ class Code: public HeapObject {
   class KindField: public BitField<Kind, 7, 4> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 11, 1> {};
   class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
+  class IsPregeneratedField: public BitField<bool, 14, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 14;

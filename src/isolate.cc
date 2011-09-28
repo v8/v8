@@ -1768,7 +1768,7 @@ bool Isolate::Init(Deserializer* des) {
   // If we are deserializing, read the state into the now-empty heap.
   if (des != NULL) {
     des->Deserialize();
-    stub_cache_->Clear();
+    stub_cache_->Initialize(true);
   }
 
   // Deserializing may put strange things in the root array's copy of the
