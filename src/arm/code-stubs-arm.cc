@@ -3416,6 +3416,8 @@ void CodeStub::GenerateFPStubs() {
   CEntryStub save_doubles(1, kSaveFPRegs);
   Handle<Code> code = save_doubles.GetCode();
   code->set_is_pregenerated(true);
+  StoreBufferOverflowStub stub(kSaveFPRegs);
+  stub.GetCode()->set_is_pregenerated(true);
   code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
@@ -6884,11 +6886,14 @@ bool RecordWriteStub::IsPregenerated() {
 }
 
 
+bool StoreBufferOverflowStub::IsPregenerated() {
+  return save_doubles_ == kDontSaveFPRegs || ISOLATE->fp_stubs_generated();
+}
+
+
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
   stub1.GetCode()->set_is_pregenerated(true);
-  StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode()->set_is_pregenerated(true);
 }
 
 
