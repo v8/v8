@@ -282,7 +282,7 @@ DEFINE_bool(native_code_counters, false,
             "generate extra code for manipulating stats counters")
 
 // mark-compact.cc
-DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
+DEFINE_bool(always_compact, true, "Perform compaction on every full GC")
 DEFINE_bool(lazy_sweeping, true,
             "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
