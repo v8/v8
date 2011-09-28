@@ -5845,14 +5845,11 @@ TEST(DebuggerAgent) {
   const int kPort1 = 5858;
   const int kPort2 = 5857;
   const int kPort3 = 5856;
-  const int kPort4 = 5855;
 
   // Make a string with the port2 number.
   const int kPortBufferLen = 6;
   char port2_str[kPortBufferLen];
   OS::SNPrintF(i::Vector<char>(port2_str, kPortBufferLen), "%d", kPort2);
-  char port4_str[kPortBufferLen];
-  OS::SNPrintF(i::Vector<char>(port4_str, kPortBufferLen), "%d", kPort4);
 
   bool ok;
 
@@ -5888,27 +5885,6 @@ TEST(DebuggerAgent) {
   debugger->StopAgent();
 
   delete server;
-
-  // Test responsiveness after connecting and disconnecting a client.
-  ok = debugger->StartAgent("test", kPort4);
-  CHECK(ok);
-  client = i::OS::CreateSocket();
-  ok = client->Connect("localhost", port4_str);
-  CHECK(ok);
-  ok = client->Receive(&buf, 1) == 1;
-  CHECK(ok);
-  ok = client->Send(
-      "{\"seq\":1,\"type\":\"request\",\"command\":\"disconnect\"}", 49);
-  CHECK(ok);
-  client->Shutdown();
-  delete client;
-  // Is the server still responsive?
-  client = i::OS::CreateSocket();
-  ok = client->Connect("localhost", port4_str);
-  CHECK(ok);
-  client->Shutdown();
-  delete client;
-  debugger->StopAgent();
 }
 
 

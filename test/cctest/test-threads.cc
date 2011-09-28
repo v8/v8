@@ -63,7 +63,7 @@ enum Turn {
 static Turn turn = FILL_CACHE;
 
 
-class ThreadA: public v8::internal::Thread {
+class ThreadA : public v8::internal::Thread {
  public:
   ThreadA() : Thread("ThreadA") { }
   void Run() {
@@ -99,7 +99,7 @@ class ThreadA: public v8::internal::Thread {
 };
 
 
-class ThreadB: public v8::internal::Thread {
+class ThreadB : public v8::internal::Thread {
  public:
   ThreadB() : Thread("ThreadB") { }
   void Run() {
@@ -189,4 +189,20 @@ TEST(ThreadIdValidation) {
   for (int i = 0; i < kNThreads; i++) {
     delete threads[i];
   }
+}
+
+
+class ThreadC : public v8::internal::Thread {
+ public:
+  ThreadC() : Thread("ThreadC") { }
+  void Run() {
+    Join();
+  }
+};
+
+
+TEST(ThreadJoinSelf) {
+  ThreadC thread;
+  thread.Start();
+  thread.Join();
 }
