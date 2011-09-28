@@ -2452,7 +2452,7 @@ class V8EXPORT TypeSwitch : public Data {
 
 // --- Extensions ---
 
-class ExternalAsciiStringResourceImpl
+class V8EXPORT ExternalAsciiStringResourceImpl
     : public String::ExternalAsciiStringResource {
  public:
   ExternalAsciiStringResourceImpl() : data_(0), length_(0) {}
