@@ -2777,23 +2777,6 @@ static inline void UpdateSlot(ObjectVisitor* v,
 }
 
 
-static inline void UpdateSlotsInRange(Object** start, Object** end) {
-  for (Object** slot = start;
-       slot < end;
-       slot++) {
-    Object* obj = *slot;
-    if (obj->IsHeapObject() &&
-        MarkCompactCollector::IsOnEvacuationCandidate(obj)) {
-      MapWord map_word = HeapObject::cast(obj)->map_word();
-      if (map_word.IsForwardingAddress()) {
-        *slot = map_word.ToForwardingAddress();
-        ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
-      }
-    }
-  }
-}
-
-
 enum SweepingMode {
   SWEEP_ONLY,
   SWEEP_AND_VISIT_LIVE_OBJECTS
@@ -3157,52 +3140,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
-}
-
-
-INLINE(static uint32_t SweepFree(PagedSpace* space,
-                                 Page* p,
-                                 uint32_t free_start,
-                                 uint32_t region_end,
-                                 uint32_t* cells));
-
-
-static uint32_t SweepFree(PagedSpace* space,
-                          Page* p,
-                          uint32_t free_start,
-                          uint32_t region_end,
-                          uint32_t* cells) {
-  uint32_t free_cell_index = Bitmap::IndexToCell(free_start);
-  ASSERT(cells[free_cell_index] == 0);
-  while (free_cell_index < region_end && cells[free_cell_index] == 0) {
-    free_cell_index++;
-  }
-
-  if (free_cell_index >= region_end) {
-    return free_cell_index;
-  }
-
-  uint32_t free_end = Bitmap::CellToIndex(free_cell_index);
-  space->FreeOrUnmapPage(p,
-                         p->MarkbitIndexToAddress(free_start),
-                         (free_end - free_start) << kPointerSizeLog2);
-
-  return free_cell_index;
-}
-
-
-INLINE(static uint32_t NextCandidate(uint32_t cell_index,
-                                     uint32_t last_cell_index,
-                                     uint32_t* cells));
-
-
-static uint32_t NextCandidate(uint32_t cell_index,
-                              uint32_t last_cell_index,
-                              uint32_t* cells) {
-  do {
-    cell_index++;
-  } while (cell_index < last_cell_index && cells[cell_index] != 0);
-  return cell_index;
 }
 
 
@@ -3589,6 +3526,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
   intptr_t freed_bytes = 0;
   intptr_t newspace_size = space->heap()->new_space()->Size();
   bool lazy_sweeping_active = false;
+  bool unused_page_present = false;
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -3615,6 +3553,19 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       continue;
     }
 
+    // One unused page is kept, all further are released before sweeping them.
+    if (p->LiveBytes() == 0) {
+      if (unused_page_present) {
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " released page.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
+        space->ReleasePage(p);
+        continue;
+      }
+      unused_page_present = true;
+    }
+
     if (FLAG_gc_verbose) {
       PrintF("Sweeping 0x%" V8PRIxPTR " with sweeper %d.\n",
              reinterpret_cast<intptr_t>(p),
@@ -3629,7 +3580,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       case LAZY_CONSERVATIVE: {
         freed_bytes += SweepConservatively(space, p);
         if (freed_bytes >= newspace_size && p != space->LastPage()) {
-          space->SetPagesToSweep(p->next_page(), space->LastPage());
+          space->SetPagesToSweep(p->next_page(), space->anchor());
           lazy_sweeping_active = true;
         }
         break;
@@ -3647,6 +3598,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       }
     }
   }
+
+  // Give pages that are queued to be freed back to the OS.
+  heap()->FreeQueuedChunks();
 }
 
 

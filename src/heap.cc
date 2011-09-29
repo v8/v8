@@ -144,7 +144,6 @@ Heap::Heap()
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
       configured_(false),
-      last_empty_page_was_given_back_to_the_os_(false),
       chunks_queued_for_free_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
@@ -812,8 +811,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   LOG(isolate_, ResourceEvent("markcompact", "end"));
 
   gc_state_ = NOT_IN_GC;
-
-  Shrink();
 
   isolate_->counters()->objs_since_last_full()->Set(0);
 
@@ -5627,7 +5624,7 @@ void Heap::Shrink() {
   // Try to shrink all paged spaces.
   PagedSpaces spaces;
   for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
-    space->Shrink();
+    space->ReleaseAllUnusedPages();
 }
 
 
@@ -6470,6 +6467,7 @@ void Heap::FreeQueuedChunks() {
       }
     }
   }
+  isolate_->heap()->store_buffer()->Compact();
   isolate_->heap()->store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
   for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
     next = chunk->next_chunk();

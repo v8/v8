@@ -1235,6 +1235,15 @@ class AllocationStats BASE_EMBEDDED {
     ASSERT(size_ >= 0);
   }
 
+  // Shrink the space by removing available bytes.  Since shrinking is done
+  // during sweeping, bytes have been marked as being in use (part of the size)
+  // and are hereby freed.
+  void ShrinkSpace(int size_in_bytes) {
+    capacity_ -= size_in_bytes;
+    size_ -= size_in_bytes;
+    ASSERT(size_ >= 0);
+  }
+
   // Allocate from available bytes (available -> size).
   void AllocateBytes(intptr_t size_in_bytes) {
     size_ += size_in_bytes;
@@ -1484,8 +1493,6 @@ class PagedSpace : public Space {
     return size_in_bytes - wasted;
   }
 
-  int FreeOrUnmapPage(Page* page, Address start, int size_in_bytes);
-
   // Set space allocation info.
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
@@ -1502,8 +1509,11 @@ class PagedSpace : public Space {
     accounting_stats_.ExpandSpace(size);
   }
 
-  // Releases half of unused pages.
-  void Shrink();
+  // Releases an unused page and shrinks the space.
+  void ReleasePage(Page* page);
+
+  // Releases all of the unused pages.
+  void ReleaseAllUnusedPages();
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }

@@ -1045,21 +1045,6 @@ class Heap {
                                          Address end,
                                          ObjectSlotCallback callback);
 
-  // Iterate pointers to new space found in memory interval from start to end.
-  static void IteratePointersToNewSpace(Heap* heap,
-                                        Address start,
-                                        Address end,
-                                        ObjectSlotCallback callback);
-
-
-  // Iterate pointers to new space found in memory interval from start to end.
-  // This interval is considered to belong to the map space.
-  static void IteratePointersFromMapsToNewSpace(Heap* heap,
-                                                Address start,
-                                                Address end,
-                                                ObjectSlotCallback callback);
-
-
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
   inline bool InNewSpace(Address addr);
@@ -1442,12 +1427,6 @@ class Heap {
     scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
   }
 
-  bool ShouldWeGiveBackAPageToTheOS() {
-    last_empty_page_was_given_back_to_the_os_ =
-        !last_empty_page_was_given_back_to_the_os_;
-    return last_empty_page_was_given_back_to_the_os_;
-  }
-
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FreeQueuedChunks();
 
@@ -1818,7 +1797,6 @@ class Heap {
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
-  bool last_empty_page_was_given_back_to_the_os_;
   MemoryChunk* chunks_queued_for_free_;
 
   friend class Factory;

@@ -763,8 +763,30 @@ int PagedSpace::CountTotalPages() {
 #endif
 
 
-void PagedSpace::Shrink() {
-  // TODO(1614) Not implemented.
+void PagedSpace::ReleasePage(Page* page) {
+  ASSERT(page->LiveBytes() == 0);
+  page->Unlink();
+  if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
+    heap()->isolate()->memory_allocator()->Free(page);
+  } else {
+    heap()->QueueMemoryChunkForFree(page);
+  }
+
+  ASSERT(Capacity() > 0);
+  ASSERT(Capacity() % Page::kObjectAreaSize == 0);
+  accounting_stats_.ShrinkSpace(Page::kObjectAreaSize);
+}
+
+
+void PagedSpace::ReleaseAllUnusedPages() {
+  PageIterator it(this);
+  while (it.has_next()) {
+    Page* page = it.next();
+    if (page->LiveBytes() == 0) {
+      ReleasePage(page);
+    }
+  }
+  heap()->FreeQueuedChunks();
 }
 
 
@@ -1649,25 +1671,6 @@ void FreeList::Reset() {
 }
 
 
-int PagedSpace::FreeOrUnmapPage(Page* page, Address start, int size_in_bytes) {
-  Heap* heap = page->heap();
-  // TODO(gc): When we count the live bytes per page we can free empty pages
-  // instead of sweeping.  At that point this if should be turned into an
-  // ASSERT that the area to be freed cannot be the entire page.
-  if (size_in_bytes == Page::kObjectAreaSize &&
-      heap->ShouldWeGiveBackAPageToTheOS()) {
-    page->Unlink();
-    if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
-      heap->isolate()->memory_allocator()->Free(page);
-    } else {
-      heap->QueueMemoryChunkForFree(page);
-    }
-    return 0;
-  }
-  return Free(start, size_in_bytes);
-}
-
-
 int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
   FreeListNode* node = FreeListNode::FromAddress(start);
@@ -1920,7 +1923,7 @@ void PagedSpace::PrepareForMarkCompact() {
 
   // Stop lazy sweeping and clear marking bits for unswept pages.
   if (first_unswept_page_ != NULL) {
-    Page* last = last_unswept_page_->next_page();
+    Page* last = last_unswept_page_;
     Page* p = first_unswept_page_;
     do {
       // Do not use ShouldBeSweptLazily predicate here.
@@ -1977,7 +1980,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   if (IsSweepingComplete()) return true;
 
   intptr_t freed_bytes = 0;
-  Page* last = last_unswept_page_->next_page();
+  Page* last = last_unswept_page_;
   Page* p = first_unswept_page_;
   do {
     Page* next_page = p->next_page();
