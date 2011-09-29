@@ -146,11 +146,11 @@ bool Shell::ExecuteString(Handle<String> source,
                           Handle<Value> name,
                           bool print_result,
                           bool report_exceptions) {
-#ifndef V8_SHARED
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   bool FLAG_debugger = i::FLAG_debugger;
 #else
   bool FLAG_debugger = false;
-#endif  // V8_SHARED
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
   HandleScope handle_scope;
   TryCatch try_catch;
   options.script_executed = true;
@@ -594,6 +594,7 @@ void Shell::InstallUtilityScript() {
   Context::Scope utility_scope(utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
   // Install the debugger object in the utility scope
   i::Debug* debug = i::Isolate::Current()->debug();
   debug->Load();
@@ -900,9 +901,6 @@ void Shell::RunShell() {
 #ifndef V8_SHARED
   console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
-  if (i::FLAG_debugger) {
-    printf("JavaScript debugger enabled\n");
-  }
   console->Open();
   while (true) {
     i::SmartArrayPointer<char> input = console->Prompt(Shell::kPrompt);
@@ -1256,13 +1254,13 @@ int Shell::RunMain(int argc, char* argv[]) {
     if (options.last_run) {
       // Keep using the same context in the interactive shell.
       evaluation_context_ = context;
-#ifndef V8_SHARED
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
       // If the interactive debugger is enabled make sure to activate
       // it before running the files passed on the command line.
       if (i::FLAG_debugger) {
         InstallUtilityScript();
       }
-#endif  // V8_SHARED
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
     }
     {
       Context::Scope cscope(context);
@@ -1339,11 +1337,11 @@ int Shell::Main(int argc, char* argv[]) {
   if (( options.interactive_shell
       || !options.script_executed )
       && !options.test_shell ) {
-#ifndef V8_SHARED
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
     if (!i::FLAG_debugger) {
       InstallUtilityScript();
     }
-#endif  // V8_SHARED
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
     RunShell();
   }
 
