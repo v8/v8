@@ -765,7 +765,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // ecx: key (a smi)
   // edi: receiver map
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
-  // Check that the object is in fast mode and writable.
+  // Check array bounds. Both the key and the length of FixedArray are smis.
   __ cmp(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
   __ j(below, &fast_object_with_map_check);
 
@@ -787,15 +787,17 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ j(not_equal, &slow);
   __ cmp(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
   __ j(above_equal, &slow);
-  __ CheckMap(ebx, FACTORY->fixed_array_map(),
-              &check_if_double_array, DONT_DO_SMI_CHECK);
+  __ mov(edi, FieldOperand(ebx, HeapObject::kMapOffset));
+  __ cmp(edi, masm->isolate()->factory()->fixed_array_map());
+  __ j(not_equal, &check_if_double_array);
   // Add 1 to receiver->length, and go to common element store code for Objects.
   __ add(FieldOperand(edx, JSArray::kLengthOffset),
          Immediate(Smi::FromInt(1)));
   __ jmp(&fast_object_without_map_check);
 
   __ bind(&check_if_double_array);
-  __ CheckMap(ebx, FACTORY->fixed_double_array_map(), &slow, DONT_DO_SMI_CHECK);
+  __ cmp(edi, masm->isolate()->factory()->fixed_double_array_map());
+  __ j(not_equal, &slow);
   // Add 1 to receiver->length, and go to common element store code for doubles.
   __ add(FieldOperand(edx, JSArray::kLengthOffset),
          Immediate(Smi::FromInt(1)));
@@ -823,8 +825,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edx: receiver
   // ebx: FixedArray receiver->elements
   // edi: receiver map
-  __ CheckMap(ebx, FACTORY->fixed_array_map(),
-              &fast_double_with_map_check, DONT_DO_SMI_CHECK);
+  __ mov(edi, FieldOperand(ebx, HeapObject::kMapOffset));
+  __ cmp(edi, masm->isolate()->factory()->fixed_array_map());
+  __ j(not_equal, &fast_double_with_map_check);
   __ bind(&fast_object_without_map_check);
   // Smi stores don't require further checks.
   Label non_smi_value;
@@ -836,6 +839,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&non_smi_value);
   if (FLAG_smi_only_arrays) {
     // Escape to slow case when writing non-smi into smi-only array.
+    __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
     __ CheckFastObjectElements(edi, &slow, Label::kNear);
   }
 
@@ -850,17 +854,12 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&fast_double_with_map_check);
   // Check for fast double array case. If this fails, call through to the
   // runtime.
-  __ CheckMap(ebx, FACTORY->fixed_double_array_map(), &slow, DONT_DO_SMI_CHECK);
+  __ cmp(edi, masm->isolate()->factory()->fixed_double_array_map());
+  __ j(not_equal, &slow);
   __ bind(&fast_double_without_map_check);
   // If the value is a number, store it as a double in the FastDoubleElements
   // array.
-  __ StoreNumberToDoubleElements(eax,
-                                 ebx,
-                                 ecx,
-                                 edx,
-                                 xmm0,
-                                 &slow,
-                                 false);
+  __ StoreNumberToDoubleElements(eax, ebx, ecx, edx, xmm0, &slow, false);
   __ ret(0);
 }
 

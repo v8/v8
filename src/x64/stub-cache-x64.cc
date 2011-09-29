@@ -3758,8 +3758,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, smi_value, is_nan, maybe_nan;
-  Label have_double_value, not_nan;
+  Label miss_force_generic;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3780,50 +3779,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ j(above_equal, &miss_force_generic);
 
   // Handle smi values specially
-  __ JumpIfSmi(rax, &smi_value, Label::kNear);
-
-  __ CheckMap(rax,
-              masm->isolate()->factory()->heap_number_map(),
-              &miss_force_generic,
-              DONT_DO_SMI_CHECK);
-
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  __ cmpl(FieldOperand(rax, offset),
-          Immediate(kNaNOrInfinityLowerBoundUpper32));
-  __ j(greater_equal, &maybe_nan, Label::kNear);
-
-  __ bind(&not_nan);
-  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ bind(&have_double_value);
   __ SmiToInteger32(rcx, rcx);
-  __ movsd(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize),
-           xmm0);
-  __ ret(0);
-
-  __ bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  __ j(greater, &is_nan, Label::kNear);
-  __ cmpl(FieldOperand(rax, HeapNumber::kValueOffset), Immediate(0));
-  __ j(zero, &not_nan);
-  __ bind(&is_nan);
-  // Convert all NaNs to the same canonical NaN value when they are stored in
-  // the double array.
-  __ Set(kScratchRegister, BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-  __ movq(xmm0, kScratchRegister);
-  __ jmp(&have_double_value, Label::kNear);
-
-  __ bind(&smi_value);
-  // Value is a smi. convert to a double and store.
-  // Preserve original value.
-  __ SmiToInteger32(rdx, rax);
-  __ push(rdx);
-  __ fild_s(Operand(rsp, 0));
-  __ pop(rdx);
-  __ SmiToInteger32(rcx, rcx);
-  __ fstp_d(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize));
+  __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0, &miss_force_generic);
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.

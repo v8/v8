@@ -2680,6 +2680,59 @@ void MacroAssembler::CheckFastSmiOnlyElements(Register map,
 }
 
 
+void MacroAssembler::StoreNumberToDoubleElements(
+    Register maybe_number,
+    Register elements,
+    Register key,
+    XMMRegister xmm_scratch,
+    Label* fail) {
+  Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
+
+  JumpIfSmi(maybe_number, &smi_value, Label::kNear);
+
+  CheckMap(maybe_number,
+           isolate()->factory()->heap_number_map(),
+           fail,
+           DONT_DO_SMI_CHECK);
+
+  // Double value, canonicalize NaN.
+  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
+  cmpl(FieldOperand(maybe_number, offset),
+       Immediate(kNaNOrInfinityLowerBoundUpper32));
+  j(greater_equal, &maybe_nan, Label::kNear);
+
+  bind(&not_nan);
+  movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+  bind(&have_double_value);
+  movsd(FieldOperand(elements, key, times_8, FixedDoubleArray::kHeaderSize),
+        xmm_scratch);
+  jmp(&done);
+
+  bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  j(greater, &is_nan, Label::kNear);
+  cmpl(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
+  j(zero, &not_nan);
+  bind(&is_nan);
+  // Convert all NaNs to the same canonical NaN value when they are stored in
+  // the double array.
+  Set(kScratchRegister, BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+  movq(xmm_scratch, kScratchRegister);
+  jmp(&have_double_value, Label::kNear);
+
+  bind(&smi_value);
+  // Value is a smi. convert to a double and store.
+  // Preserve original value.
+  SmiToInteger32(kScratchRegister, maybe_number);
+  cvtlsi2sd(xmm_scratch, kScratchRegister);
+  movsd(FieldOperand(elements, key, times_8, FixedDoubleArray::kHeaderSize),
+        xmm_scratch);
+  bind(&done);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
