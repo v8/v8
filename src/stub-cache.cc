@@ -1109,18 +1109,12 @@ MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(
 void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    Code* code = primary_[i].value;
-    if (code != empty && !code->is_pregenerated()) {
-      primary_[i].key = heap()->empty_string();
-      primary_[i].value = empty;
-    }
+    primary_[i].key = heap()->empty_string();
+    primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    Code* code = secondary_[j].value;
-    if (code != empty && !code->is_pregenerated()) {
-      secondary_[j].key = heap()->empty_string();
-      secondary_[j].value = empty;
-    }
+    secondary_[j].key = heap()->empty_string();
+    secondary_[j].value = empty;
   }
 }
 
