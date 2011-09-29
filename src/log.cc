@@ -1519,6 +1519,7 @@ void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
 
 
 void Logger::LogCodeObjects() {
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HeapIterator iterator;
   AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
@@ -1573,6 +1574,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 
 void Logger::LogCompiledFunctions() {
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HandleScope scope;
   const int compiled_funcs_count = EnumerateCompiledFunctions(NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
@@ -1591,6 +1593,7 @@ void Logger::LogCompiledFunctions() {
 
 
 void Logger::LogAccessorCallbacks() {
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HeapIterator iterator;
   AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
