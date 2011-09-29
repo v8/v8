@@ -25,10 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Test element kind of objects
+// Flags: --allow-natives-syntax --smi-only-arrays
+// Test element kind of objects.
+// Since --smi-only-arrays affects builtins, its default setting at compile
+// time sticks if built with snapshot.  If --smi-only-arrays is deactivated
+// by default, only a no-snapshot build actually has smi-only arrays enabled
+// in this test case.  Depending on whether smi-only arrays are actually
+// enabled, this test takes the appropriate code path to check smi-only arrays.
+
 
 support_smi_only_arrays = %HasFastSmiOnlyElements([]);
+
+if (support_smi_only_arrays) {
+  print("Tests include smi-only arrays.");
+} else {
+  print("Tests do NOT include smi-only arrays.");
+}
 
 var element_kind = {
   fast_smi_only_elements            :  0,
