@@ -351,12 +351,14 @@ class VirtualMemory {
 
   void Release() {
     ASSERT(IsReserved());
-    // Notice: Order is somportant here. The VirtualMemory object might live
+    // Notice: Order is important here. The VirtualMemory object might live
     // inside the allocated region.
     void* address = address_;
     size_t size = size_;
     Reset();
-    ReleaseRegion(address, size);
+    bool result = ReleaseRegion(address, size);
+    USE(result);
+    ASSERT(result);
   }
 
   // Assign control of the reserved region to a different VirtualMemory object.

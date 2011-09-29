@@ -1413,7 +1413,9 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   if (address == NULL) return;
   Address base = RoundUp(static_cast<Address>(address), alignment);
   // Try reducing the size by freeing and then reallocating a specific area.
-  ReleaseRegion(address, request_size);
+  bool result = ReleaseRegion(address, request_size);
+  USE(result);
+  ASSERT(result);
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != NULL) {
     request_size = size;

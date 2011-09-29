@@ -341,7 +341,9 @@ void MemoryAllocator::FreeMemory(Address base,
     isolate_->code_range()->FreeRawMemory(base, size);
   } else {
     ASSERT(executable == NOT_EXECUTABLE || !isolate_->code_range()->exists());
-    VirtualMemory::ReleaseRegion(base, size);
+    bool result = VirtualMemory::ReleaseRegion(base, size);
+    USE(result);
+    ASSERT(result);
   }
 }
 

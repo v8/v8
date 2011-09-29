@@ -228,7 +228,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
+  if (memory_) OS::Free(memory_, size_);
   fclose(file_);
 }
 
@@ -353,21 +353,31 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
                            kMmapFd,
                            kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
+
   Address base = static_cast<Address>(reservation);
   Address aligned_base = RoundUp(base, alignment);
-  ASSERT(base <= aligned_base);
+  ASSERT_LE(base, aligned_base);
 
   // Unmap extra memory reserved before and after the desired block.
-  size_t bytes_prior = static_cast<size_t>(aligned_base - base);
-  if (bytes_prior > 0) {
-    munmap(base, bytes_prior);
-  }
-  if (static_cast<size_t>(aligned_base - base) < request_size - size) {
-    munmap(aligned_base + size, request_size - size - bytes_prior);
+  if (aligned_base != base) {
+    size_t prefix_size = static_cast<size_t>(aligned_base - base);
+    OS::Free(base, prefix_size);
+    request_size -= prefix_size;
   }
 
+  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
+  ASSERT_LE(aligned_size, request_size);
+
+  if (aligned_size != request_size) {
+    size_t suffix_size = request_size - aligned_size;
+    OS::Free(aligned_base + aligned_size, suffix_size);
+    request_size -= suffix_size;
+  }
+
+  ASSERT(aligned_size == request_size);
+
   address_ = static_cast<void*>(aligned_base);
-  size_ = size;
+  size_ = aligned_size;
 }
 
 
