@@ -139,10 +139,8 @@ class CodeStub BASE_EMBEDDED {
 
   bool CompilingCallsToThisStubIsGCSafe() {
     bool is_pregenerated = IsPregenerated();
-#ifdef DEBUG
     Code* code = NULL;
-    ASSERT(!is_pregenerated || FindCodeInCache(&code));
-#endif
+    CHECK(!is_pregenerated || FindCodeInCache(&code));
     return is_pregenerated;
   }
 
