@@ -839,7 +839,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       ASSERT(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-    // TODO(1672): Assert that black_size <= page->LiveBytes().
+    ASSERT_LE(black_size, page->LiveBytes());
   }
   ASSERT(allocation_pointer_found_in_space);
 }
