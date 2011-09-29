@@ -467,8 +467,6 @@ void MarkCompactCollector::AbortCompaction() {
 
 
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
-  FLAG_flush_code = false;
-
   was_marked_incrementally_ = heap()->incremental_marking()->IsMarking();
 
   // Disable collection of maps if incremental marking is enabled.
@@ -485,7 +483,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   state_ = PREPARE_GC;
 #endif
 
-  // TODO(1726) Revert this into an assertion when compaction is enabled.
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
   if (collect_maps_) CreateBackPointers();
@@ -1422,7 +1419,8 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
 void MarkCompactCollector::PrepareForCodeFlushing() {
   ASSERT(heap() == Isolate::Current()->heap());
 
-  if (!FLAG_flush_code) {
+  // TODO(1609) Currently incremental marker does not support code flushing.
+  if (!FLAG_flush_code || was_marked_incrementally_) {
     EnableCodeFlushing(false);
     return;
   }
@@ -1434,6 +1432,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
     return;
   }
 #endif
+
   EnableCodeFlushing(true);
 
   // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
@@ -3641,9 +3640,6 @@ void MarkCompactCollector::SweepSpaces() {
 }
 
 
-// TODO(1466) ReportDeleteIfNeeded is not called currently.
-// Our profiling tools do not expect intersections between
-// code objects. We should either reenable it or change our tools.
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
   if (enable) {
     if (code_flusher_ != NULL) return;
@@ -3656,6 +3652,9 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 }
 
 
+// TODO(1466) ReportDeleteIfNeeded is not called currently.
+// Our profiling tools do not expect intersections between
+// code objects. We should either reenable it or change our tools.
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
                                                 Isolate* isolate) {
 #ifdef ENABLE_GDB_JIT_INTERFACE

@@ -258,7 +258,7 @@ DEFINE_bool(trace_fragmentation, false,
             "report fragmentation for old pointer and data pages")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(flush_code, false,
+DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again before full gc")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
