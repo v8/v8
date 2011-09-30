@@ -817,7 +817,7 @@ void Shell::OnExit() {
 
 
 static FILE* FOpen(const char* path, const char* mode) {
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
   FILE* result;
   if (fopen_s(&result, path, mode) == 0) {
     return result;
