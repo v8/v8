@@ -216,11 +216,11 @@ int SortedListBSearch(
     int mid = (low + high) / 2;
     T mid_elem = list[mid];
 
-    if (cmp(&mid_elem, &elem) > 0) {
+    if (mid_elem > elem) {
       high = mid - 1;
       continue;
     }
-    if (cmp(&mid_elem, &elem) < 0) {
+    if (mid_elem < elem) {
       low = mid + 1;
       continue;
     }

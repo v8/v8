@@ -289,12 +289,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_has_debug_break_slots(
       info->isolate()->debugger()->IsDebuggerActive());
-  code->set_compiled_optimizable(info->IsOptimizable());
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
-  info->SetCode(code);  // May be an empty handle.
+  info->SetCode(code);  // may be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit && !code.is_null()) {
     GDBJITLineInfo* lineinfo =
