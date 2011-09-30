@@ -2486,7 +2486,6 @@ class PointersUpdatingVisitor: public ObjectVisitor {
   }
 
  private:
-
   inline void UpdatePointer(Object** p) {
     UpdateSlot(heap_, p);
   }
