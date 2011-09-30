@@ -26,14 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
-#include <limits>
+#include <math.h>
 
-#ifndef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
-#endif
-
+#include "platform.h"
 #include "utils.h"
-
 #include "strtod.h"
 #include "bignum.h"
 #include "cached-powers.h"
