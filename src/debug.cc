@@ -1778,6 +1778,10 @@ void Debug::PrepareForBreakPoints() {
     List<Handle<JSFunction> > active_functions(100);
 
     {
+      // We are going to iterate heap to find all functions without
+      // debug break slots.
+      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+
       // Ensure no GC in this scope as we are comparing raw pointer
       // values and performing a heap iteration.
       AssertNoAllocation no_allocation;
