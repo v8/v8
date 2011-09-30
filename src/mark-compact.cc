@@ -2467,20 +2467,28 @@ class PointersUpdatingVisitor: public ObjectVisitor {
     rinfo->set_call_address(Code::cast(target)->instruction_start());
   }
 
- private:
-  inline void UpdatePointer(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
+  static inline void UpdateSlot(Heap* heap, Object** slot) {
+    Object* obj = *slot;
 
-    HeapObject* obj = HeapObject::cast(*p);
+    if (!obj->IsHeapObject()) return;
 
-    MapWord map_word = obj->map_word();
+    HeapObject* heap_obj = HeapObject::cast(obj);
+
+    MapWord map_word = heap_obj->map_word();
     if (map_word.IsForwardingAddress()) {
-      ASSERT(heap_->InFromSpace(obj) ||
-             MarkCompactCollector::IsOnEvacuationCandidate(obj));
-      *p = obj->map_word().ToForwardingAddress();
-      ASSERT(!heap_->InFromSpace(*p) &&
-             !MarkCompactCollector::IsOnEvacuationCandidate(*p));
+      ASSERT(heap->InFromSpace(heap_obj) ||
+             MarkCompactCollector::IsOnEvacuationCandidate(heap_obj));
+      HeapObject* target = map_word.ToForwardingAddress();
+      *slot = target;
+      ASSERT(!heap->InFromSpace(target) &&
+             !MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
+  }
+
+ private:
+
+  inline void UpdatePointer(Object** p) {
+    UpdateSlot(heap_, p);
   }
 
   Heap* heap_;
@@ -2724,21 +2732,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
     return object;
   }
 };
-
-
-static inline void UpdateSlot(Object** slot) {
-  Object* obj = *slot;
-  if (!obj->IsHeapObject()) return;
-
-  HeapObject* heap_obj = HeapObject::cast(obj);
-
-  MapWord map_word = heap_obj->map_word();
-  if (map_word.IsForwardingAddress()) {
-    ASSERT(MarkCompactCollector::IsOnEvacuationCandidate(*slot));
-    *slot = map_word.ToForwardingAddress();
-    ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(*slot));
-  }
-}
 
 
 static inline void UpdateSlot(ObjectVisitor* v,
@@ -3757,7 +3750,7 @@ void SlotsBuffer::UpdateSlots(Heap* heap) {
   for (int slot_idx = 0; slot_idx < idx_; ++slot_idx) {
     ObjectSlot slot = slots_[slot_idx];
     if (!IsTypedSlot(slot)) {
-      UpdateSlot(slot);
+      PointersUpdatingVisitor::UpdateSlot(heap, slot);
     } else {
       ++slot_idx;
       ASSERT(slot_idx < idx_);
@@ -3776,7 +3769,7 @@ void SlotsBuffer::UpdateSlotsWithFilter(Heap* heap) {
     ObjectSlot slot = slots_[slot_idx];
     if (!IsTypedSlot(slot)) {
       if (!IsOnInvalidatedCodeObject(reinterpret_cast<Address>(slot))) {
-        UpdateSlot(slot);
+        PointersUpdatingVisitor::UpdateSlot(heap, slot);
       }
     } else {
       ++slot_idx;
