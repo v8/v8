@@ -1239,6 +1239,12 @@ void HeapObject::set_map(Map* value) {
 }
 
 
+// Unsafe accessor omitting write barrier.
+void HeapObject::set_map_unsafe(Map* value) {
+  set_map_word(MapWord::FromMap(value));
+}
+
+
 MapWord HeapObject::map_word() {
   return MapWord(reinterpret_cast<uintptr_t>(READ_FIELD(this, kMapOffset)));
 }

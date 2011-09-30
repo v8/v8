@@ -1127,6 +1127,7 @@ class HeapObject: public Object {
   // information.
   inline Map* map();
   inline void set_map(Map* value);
+  inline void set_map_unsafe(Map* value);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.

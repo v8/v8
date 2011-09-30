@@ -4474,7 +4474,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
           // of the next map and recording the index in the transition array in
           // the map field of the array.
           Map* next = Map::cast(contents->get(i));
-          next->set_map(current);
+          next->set_map_unsafe(current);
           *map_or_index_field = Smi::FromInt(i + 2);
           current = next;
           map_done = false;
@@ -4499,7 +4499,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
       Object* perhaps_map = prototype_transitions->get(i);
       if (perhaps_map->IsMap()) {
         Map* next = Map::cast(perhaps_map);
-        next->set_map(current);
+        next->set_map_unsafe(current);
         *proto_map_or_index_field =
             Smi::FromInt(i + kProtoTransitionElementsPerEntry);
         current = next;
@@ -4515,7 +4515,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
     // the map field, which is being used to track the traversal and put the
     // correct map (the meta_map) in place while we do the callback.
     Map* prev = current->map();
-    current->set_map(meta_map);
+    current->set_map_unsafe(meta_map);
     callback(current, data);
     current = prev;
   }
