@@ -1877,7 +1877,7 @@ void Debug::PrepareForBreakPoints() {
         if (frame->function()->IsJSFunction() &&
             frame->function() == *function &&
             frame->LookupCode()->kind() == Code::FUNCTION) {
-          int delta = frame->pc() - current_code->instruction_start();
+          intptr_t delta = frame->pc() - current_code->instruction_start();
           int debug_break_slot_count = 0;
           int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
           for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
@@ -1886,7 +1886,7 @@ void Debug::PrepareForBreakPoints() {
             RelocInfo* info = it.rinfo();
             int debug_break_slot_bytes =
                 debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-            int new_delta =
+            intptr_t new_delta =
                 info->pc() -
                 new_code->instruction_start() -
                 debug_break_slot_bytes;
