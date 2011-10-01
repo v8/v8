@@ -120,19 +120,6 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(IsOptimizing());
     osr_ast_id_ = osr_ast_id;
   }
-  void MarkCompilingForDebugging(Handle<Code> current_code) {
-    ASSERT(mode_ != OPTIMIZE);
-    ASSERT(current_code->kind() == Code::FUNCTION);
-    flags_ |= IsCompilingForDebugging::encode(true);
-    if (current_code->is_compiled_optimizable()) {
-      EnableDeoptimizationSupport();
-    } else {
-      mode_ = CompilationInfo::NONOPT;
-    }
-  }
-  bool IsCompilingForDebugging() {
-    return IsCompilingForDebugging::decode(flags_);
-  }
 
   bool has_global_object() const {
     return !closure().is_null() && (closure()->context()->global() != NULL);
@@ -152,12 +139,10 @@ class CompilationInfo BASE_EMBEDDED {
   void DisableOptimization();
 
   // Deoptimization support.
-  bool HasDeoptimizationSupport() const {
-    return SupportsDeoptimization::decode(flags_);
-  }
+  bool HasDeoptimizationSupport() const { return supports_deoptimization_; }
   void EnableDeoptimizationSupport() {
     ASSERT(IsOptimizable());
-    flags_ |= SupportsDeoptimization::encode(true);
+    supports_deoptimization_ = true;
   }
 
   // Determine whether or not we can adaptively optimize.
@@ -218,11 +203,6 @@ class CompilationInfo BASE_EMBEDDED {
   class IsNativesSyntaxAllowed: public BitField<bool, 5, 1> {};
   // Is this a function from our natives.
   class IsNative: public BitField<bool, 6, 1> {};
-  // Is this code being compiled with support for deoptimization..
-  class SupportsDeoptimization: public BitField<bool, 7, 1> {};
-  // If compiling for debugging produce just full code matching the
-  // initial mode setting.
-  class IsCompilingForDebugging: public BitField<bool, 8, 1> {};
 
 
   unsigned flags_;
@@ -251,6 +231,7 @@ class CompilationInfo BASE_EMBEDDED {
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
+  bool supports_deoptimization_;
   int osr_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
