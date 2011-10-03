@@ -69,7 +69,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
   // JumpToExternalReference expects eax to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ add(Operand(eax), Immediate(num_extra_args + 1));
+  __ add(eax, Immediate(num_extra_args + 1));
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
@@ -91,7 +91,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kConstructStubOffset));
   __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
-  __ jmp(Operand(ebx));
+  __ jmp(ebx);
 
   // edi: called object
   // eax: number of arguments
@@ -213,7 +213,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                Operand(ebx, esi, times_pointer_size, JSObject::kHeaderSize));
         // esi: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
-          __ cmp(esi, Operand(edi));
+          __ cmp(esi, edi);
           __ Assert(less_equal,
                     "Unexpected number of pre-allocated property fields.");
         }
@@ -229,7 +229,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // eax: initial map
       // ebx: JSObject
       // edi: start of next object
-      __ or_(Operand(ebx), Immediate(kHeapObjectTag));
+      __ or_(ebx, Immediate(kHeapObjectTag));
 
       // Check if a non-empty properties array is needed.
       // Allocate and initialize a FixedArray if it is.
@@ -240,10 +240,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
       __ movzx_b(ecx,
                  FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
-      __ add(edx, Operand(ecx));
+      __ add(edx, ecx);
       // Calculate unused properties past the end of the in-object properties.
       __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
-      __ sub(edx, Operand(ecx));
+      __ sub(edx, ecx);
       // Done if no extra properties are to be allocated.
       __ j(zero, &allocated);
       __ Assert(positive, "Property allocation count failed.");
@@ -282,9 +282,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ jmp(&entry);
         __ bind(&loop);
         __ mov(Operand(eax, 0), edx);
-        __ add(Operand(eax), Immediate(kPointerSize));
+        __ add(eax, Immediate(kPointerSize));
         __ bind(&entry);
-        __ cmp(eax, Operand(ecx));
+        __ cmp(eax, ecx);
         __ j(below, &loop);
       }
 
@@ -292,7 +292,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // the JSObject
       // ebx: JSObject
       // edi: FixedArray
-      __ or_(Operand(edi), Immediate(kHeapObjectTag));  // add the heap tag
+      __ or_(edi, Immediate(kHeapObjectTag));  // add the heap tag
       __ mov(FieldOperand(ebx, JSObject::kPropertiesOffset), edi);
 
 
@@ -315,7 +315,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: function (constructor)
     __ push(edi);
     __ CallRuntime(Runtime::kNewObject, 1);
-    __ mov(ebx, Operand(eax));  // store result in ebx
+    __ mov(ebx, eax);  // store result in ebx
 
     // New object allocated.
     // ebx: newly allocated object
@@ -338,7 +338,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ mov(ecx, Operand(eax));
+    __ mov(ecx, eax);
     __ jmp(&entry);
     __ bind(&loop);
     __ push(Operand(ebx, ecx, times_4, 0));
@@ -443,9 +443,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ bind(&loop);
     __ mov(edx, Operand(ebx, ecx, times_4, 0));  // push parameter from argv
     __ push(Operand(edx, 0));  // dereference handle
-    __ inc(Operand(ecx));
+    __ inc(ecx);
     __ bind(&entry);
-    __ cmp(ecx, Operand(eax));
+    __ cmp(ecx, eax);
     __ j(not_equal, &loop);
 
     // Get the function from the stack and call it.
@@ -502,7 +502,7 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
   // Do a tail-call of the compiled function.
   __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(Operand(eax));
+  __ jmp(eax);
 }
 
 
@@ -528,7 +528,7 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
   // Do a tail-call of the compiled function.
   __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(Operand(eax));
+  __ jmp(eax);
 }
 
 
@@ -597,7 +597,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 1. Make sure we have at least one argument.
   { Label done;
-    __ test(eax, Operand(eax));
+    __ test(eax, eax);
     __ j(not_zero, &done);
     __ pop(ebx);
     __ push(Immediate(factory->undefined_value()));
@@ -716,11 +716,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
   //     or a function proxy via CALL_FUNCTION_PROXY.
   { Label function, non_proxy;
-    __ test(edx, Operand(edx));
+    __ test(edx, edx);
     __ j(zero, &function);
     __ Set(ebx, Immediate(0));
     __ SetCallKind(ecx, CALL_AS_METHOD);
-    __ cmp(Operand(edx), Immediate(1));
+    __ cmp(edx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
     __ pop(edx);   // return address
@@ -747,13 +747,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
   __ SetCallKind(ecx, CALL_AS_METHOD);
-  __ cmp(eax, Operand(ebx));
+  __ cmp(eax, ebx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
 
   ParameterCount expected(0);
-  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION,
-                NullCallWrapper(), CALL_AS_METHOD);
+  __ InvokeCode(edx, expected, expected, JUMP_FUNCTION, NullCallWrapper(),
+                CALL_AS_METHOD);
 }
 
 
@@ -777,14 +777,14 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(edi, Operand::StaticVariable(real_stack_limit));
     // Make ecx the space we have left. The stack might already be overflowed
     // here which will cause ecx to become negative.
-    __ mov(ecx, Operand(esp));
-    __ sub(ecx, Operand(edi));
+    __ mov(ecx, esp);
+    __ sub(ecx, edi);
     // Make edx the space we need for the array when it is unrolled onto the
     // stack.
-    __ mov(edx, Operand(eax));
+    __ mov(edx, eax);
     __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
     // Check if the arguments will overflow the stack.
-    __ cmp(ecx, Operand(edx));
+    __ cmp(ecx, edx);
     __ j(greater, &okay);  // Signed comparison.
 
     // Out of stack space.
@@ -843,7 +843,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&call_to_object);
     __ push(ebx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ mov(ebx, Operand(eax));
+    __ mov(ebx, eax);
     __ jmp(&push_receiver);
 
     // Use the current global receiver object as the receiver.
@@ -879,7 +879,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Update the index on the stack and in register eax.
     __ mov(eax, Operand(ebp, kIndexOffset));
-    __ add(Operand(eax), Immediate(1 << kSmiTagSize));
+    __ add(eax, Immediate(1 << kSmiTagSize));
     __ mov(Operand(ebp, kIndexOffset), eax);
 
     __ bind(&entry);
@@ -1005,9 +1005,9 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
     __ jmp(&entry);
     __ bind(&loop);
     __ mov(Operand(scratch1, 0), factory->the_hole_value());
-    __ add(Operand(scratch1), Immediate(kPointerSize));
+    __ add(scratch1, Immediate(kPointerSize));
     __ bind(&entry);
-    __ cmp(scratch1, Operand(scratch2));
+    __ cmp(scratch1, scratch2);
     __ j(below, &loop);
   }
 }
@@ -1104,7 +1104,7 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ bind(&loop);
     __ stos();
     __ bind(&entry);
-    __ cmp(edi, Operand(elements_array_end));
+    __ cmp(edi, elements_array_end);
     __ j(below, &loop);
     __ bind(&done);
   }
@@ -1142,7 +1142,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ push(eax);
 
   // Check for array construction with zero arguments.
-  __ test(eax, Operand(eax));
+  __ test(eax, eax);
   __ j(not_zero, &argc_one_or_more);
 
   __ bind(&empty_array);
@@ -1169,7 +1169,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ j(not_equal, &argc_two_or_more);
   STATIC_ASSERT(kSmiTag == 0);
   __ mov(ecx, Operand(esp, (push_count + 1) * kPointerSize));
-  __ test(ecx, Operand(ecx));
+  __ test(ecx, ecx);
   __ j(not_zero, &not_empty_array);
 
   // The single argument passed is zero, so we jump to the code above used to
@@ -1182,7 +1182,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
     __ mov(eax, Operand(esp, i * kPointerSize));
     __ mov(Operand(esp, (i + 1) * kPointerSize), eax);
   }
-  __ add(Operand(esp), Immediate(2 * kPointerSize));  // Drop two stack slots.
+  __ add(esp, Immediate(2 * kPointerSize));  // Drop two stack slots.
   __ push(Immediate(0));  // Treat this as a call with argc of zero.
   __ jmp(&empty_array);
 
@@ -1272,7 +1272,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ bind(&loop);
   __ mov(eax, Operand(edi, ecx, times_pointer_size, 0));
   __ mov(Operand(edx, 0), eax);
-  __ add(Operand(edx), Immediate(kPointerSize));
+  __ add(edx, Immediate(kPointerSize));
   __ bind(&entry);
   __ dec(ecx);
   __ j(greater_equal, &loop);
@@ -1378,14 +1378,14 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
-    __ cmp(edi, Operand(ecx));
+    __ cmp(edi, ecx);
     __ Assert(equal, "Unexpected String function");
   }
 
   // Load the first argument into eax and get rid of the rest
   // (including the receiver).
   Label no_arguments;
-  __ test(eax, Operand(eax));
+  __ test(eax, eax);
   __ j(zero, &no_arguments);
   __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
   __ pop(ecx);
@@ -1495,7 +1495,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ push(ebp);
-  __ mov(ebp, Operand(esp));
+  __ mov(ebp, esp);
 
   // Store the arguments adaptor context sentinel.
   __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -1539,7 +1539,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
 
   Label enough, too_few;
-  __ cmp(eax, Operand(ebx));
+  __ cmp(eax, ebx);
   __ j(less, &too_few);
   __ cmp(ebx, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
   __ j(equal, &dont_adapt_arguments);
@@ -1557,8 +1557,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ inc(edi);
     __ push(Operand(eax, 0));
-    __ sub(Operand(eax), Immediate(kPointerSize));
-    __ cmp(edi, Operand(ebx));
+    __ sub(eax, Immediate(kPointerSize));
+    __ cmp(edi, ebx);
     __ j(less, &copy);
     __ jmp(&invoke);
   }
@@ -1571,17 +1571,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
     // ebx = expected - actual.
-    __ sub(ebx, Operand(eax));
+    __ sub(ebx, eax);
     // eax = -actual - 1
     __ neg(eax);
-    __ sub(Operand(eax), Immediate(1));
+    __ sub(eax, Immediate(1));
 
     Label copy;
     __ bind(&copy);
     __ inc(eax);
     __ push(Operand(edi, 0));
-    __ sub(Operand(edi), Immediate(kPointerSize));
-    __ test(eax, Operand(eax));
+    __ sub(edi, Immediate(kPointerSize));
+    __ test(eax, eax);
     __ j(not_zero, &copy);
 
     // Fill remaining expected arguments with undefined values.
@@ -1589,7 +1589,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&fill);
     __ inc(eax);
     __ push(Immediate(masm->isolate()->factory()->undefined_value()));
-    __ cmp(eax, Operand(ebx));
+    __ cmp(eax, ebx);
     __ j(less, &fill);
   }
 
@@ -1597,7 +1597,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&invoke);
   // Restore function pointer.
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ call(Operand(edx));
+  __ call(edx);
 
   // Leave frame and return.
   LeaveArgumentsAdaptorFrame(masm);
@@ -1607,7 +1607,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ jmp(Operand(edx));
+  __ jmp(edx);
 }
 
 
@@ -1649,7 +1649,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // If the result was -1 it means that we couldn't optimize the
   // function. Just return and continue in the unoptimized version.
   Label skip;
-  __ cmp(Operand(eax), Immediate(Smi::FromInt(-1)));
+  __ cmp(eax, Immediate(Smi::FromInt(-1)));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 

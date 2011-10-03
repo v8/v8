@@ -157,7 +157,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ add(Operand(esp), Immediate(kPointerSize));
+    __ add(esp, Immediate(kPointerSize));
   }
 
   // Now that the break point has been handled, resume normal execution by
@@ -299,7 +299,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
 
   // Re-run JSFunction, edi is function, esi is context.
-  __ jmp(Operand(edx));
+  __ jmp(edx);
 }
 
 const bool Debug::kFrameDropperSupported = true;

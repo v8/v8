@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -631,8 +631,8 @@ class RecordWriteStub: public CodeStub {
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
       if (mode == kSaveFPRegs) {
         CpuFeatures::Scope scope(SSE2);
-        masm->sub(Operand(esp),
-                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
+        masm->sub(esp,
+                  Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
         // Save all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
@@ -650,7 +650,7 @@ class RecordWriteStub: public CodeStub {
           XMMRegister reg = XMMRegister::from_code(i);
           masm->movdbl(reg, Operand(esp, (i - 1) * kDoubleSize));
         }
-        masm->add(Operand(esp),
+        masm->add(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
       }
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);

@@ -246,6 +246,15 @@ class MacroAssembler: public Assembler {
   void SetCallKind(Register dst, CallKind kind);
 
   // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeCode(Register code,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  InvokeFlag flag,
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind) {
+    InvokeCode(Operand(code), expected, actual, flag, call_wrapper, call_kind);
+  }
+
   void InvokeCode(const Operand& code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
@@ -387,7 +396,7 @@ class MacroAssembler: public Assembler {
   void SmiTag(Register reg) {
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize == 1);
-    add(reg, Operand(reg));
+    add(reg, reg);
   }
   void SmiUntag(Register reg) {
     sar(reg, kSmiTagSize);

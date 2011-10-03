@@ -138,7 +138,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   // function calls.
   if (info->is_strict_mode() || info->is_native()) {
     Label ok;
-    __ test(ecx, Operand(ecx));
+    __ test(ecx, ecx);
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
@@ -371,10 +371,10 @@ void FullCodeGenerator::EmitReturnSequence() {
 
 void FullCodeGenerator::verify_stack_height() {
   ASSERT(FLAG_verify_stack_height);
-  __ sub(Operand(ebp), Immediate(kPointerSize * stack_height()));
-  __ cmp(ebp, Operand(esp));
+  __ sub(ebp, Immediate(kPointerSize * stack_height()));
+  __ cmp(ebp, esp);
   __ Assert(equal, "Full codegen stack height not as expected.");
-  __ add(Operand(ebp), Immediate(kPointerSize * stack_height()));
+  __ add(ebp, Immediate(kPointerSize * stack_height()));
 }
 
 
@@ -603,7 +603,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
   ToBooleanStub stub(result_register());
   __ push(result_register());
   __ CallStub(&stub, condition->test_id());
-  __ test(result_register(), Operand(result_register()));
+  __ test(result_register(), result_register());
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
 }
@@ -847,10 +847,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     if (inline_smi_code) {
       Label slow_case;
       __ mov(ecx, edx);
-      __ or_(ecx, Operand(eax));
+      __ or_(ecx, eax);
       patch_site.EmitJumpIfNotSmi(ecx, &slow_case, Label::kNear);
 
-      __ cmp(edx, Operand(eax));
+      __ cmp(edx, eax);
       __ j(not_equal, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
       __ jmp(clause->body_target());
@@ -862,7 +862,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
     __ call(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
-    __ test(eax, Operand(eax));
+    __ test(eax, eax);
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
     __ jmp(clause->body_target());
@@ -951,7 +951,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // For all objects but the receiver, check that the cache is empty.
   Label check_prototype;
-  __ cmp(ecx, Operand(eax));
+  __ cmp(ecx, eax);
   __ j(equal, &check_prototype, Label::kNear);
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
   __ cmp(edx, isolate()->factory()->empty_fixed_array());
@@ -1033,9 +1033,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ecx);  // Enumerable.
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ test(eax, Operand(eax));
+  __ test(eax, eax);
   __ j(equal, loop_statement.continue_label());
-  __ mov(ebx, Operand(eax));
+  __ mov(ebx, eax);
 
   // Update the 'each' property or variable from the possibly filtered
   // entry in register ebx.
@@ -1059,7 +1059,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Remove the pointers stored on the stack.
   __ bind(loop_statement.break_label());
-  __ add(Operand(esp), Immediate(5 * kPointerSize));
+  __ add(esp, Immediate(5 * kPointerSize));
 
   decrement_stack_height(ForIn::kElementCount);
   // Exit and decrement the loop depth.
@@ -1665,7 +1665,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ pop(edx);
   decrement_stack_height();
   __ mov(ecx, eax);
-  __ or_(eax, Operand(edx));
+  __ or_(eax, edx);
   JumpPatchSite patch_site(masm_);
   patch_site.EmitJumpIfSmi(eax, &smi_case, Label::kNear);
 
@@ -1715,32 +1715,32 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::ADD:
-      __ add(eax, Operand(ecx));
+      __ add(eax, ecx);
       __ j(overflow, &stub_call);
       break;
     case Token::SUB:
-      __ sub(eax, Operand(ecx));
+      __ sub(eax, ecx);
       __ j(overflow, &stub_call);
       break;
     case Token::MUL: {
       __ SmiUntag(eax);
-      __ imul(eax, Operand(ecx));
+      __ imul(eax, ecx);
       __ j(overflow, &stub_call);
-      __ test(eax, Operand(eax));
+      __ test(eax, eax);
       __ j(not_zero, &done, Label::kNear);
       __ mov(ebx, edx);
-      __ or_(ebx, Operand(ecx));
+      __ or_(ebx, ecx);
       __ j(negative, &stub_call);
       break;
     }
     case Token::BIT_OR:
-      __ or_(eax, Operand(ecx));
+      __ or_(eax, ecx);
       break;
     case Token::BIT_AND:
-      __ and_(eax, Operand(ecx));
+      __ and_(eax, ecx);
       break;
     case Token::BIT_XOR:
-      __ xor_(eax, Operand(ecx));
+      __ xor_(eax, ecx);
       break;
     default:
       UNREACHABLE();
@@ -2485,9 +2485,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   STATIC_ASSERT(kPointerSize == 4);
   __ lea(ecx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
   // Calculate location of the first key name.
-  __ add(Operand(ebx),
-           Immediate(FixedArray::kHeaderSize +
-                     DescriptorArray::kFirstIndex * kPointerSize));
+  __ add(ebx,
+         Immediate(FixedArray::kHeaderSize +
+                   DescriptorArray::kFirstIndex * kPointerSize));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
   Label entry, loop;
@@ -2496,9 +2496,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ mov(edx, FieldOperand(ebx, 0));
   __ cmp(edx, FACTORY->value_of_symbol());
   __ j(equal, if_false);
-  __ add(Operand(ebx), Immediate(kPointerSize));
+  __ add(ebx, Immediate(kPointerSize));
   __ bind(&entry);
-  __ cmp(ebx, Operand(ecx));
+  __ cmp(ebx, ecx);
   __ j(not_equal, &loop);
 
   // Reload map as register ebx was used as temporary above.
@@ -2638,7 +2638,7 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
 
   __ pop(ebx);
   decrement_stack_height();
-  __ cmp(eax, Operand(ebx));
+  __ cmp(eax, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
@@ -2792,8 +2792,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope fscope(SSE2);
     __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-    __ movd(xmm1, Operand(ebx));
-    __ movd(xmm0, Operand(eax));
+    __ movd(xmm1, ebx);
+    __ movd(xmm0, eax);
     __ cvtss2sd(xmm1, xmm1);
     __ xorps(xmm0, xmm1);
     __ subsd(xmm0, xmm1);
@@ -3171,14 +3171,14 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(index_1, Operand(esp, 1 * kPointerSize));
   __ mov(index_2, Operand(esp, 0));
   __ mov(temp, index_1);
-  __ or_(temp, Operand(index_2));
+  __ or_(temp, index_2);
   __ JumpIfNotSmi(temp, &slow_case);
 
   // Check that both indices are valid.
   __ mov(temp, FieldOperand(object, JSArray::kLengthOffset));
-  __ cmp(temp, Operand(index_1));
+  __ cmp(temp, index_1);
   __ j(below_equal, &slow_case);
-  __ cmp(temp, Operand(index_2));
+  __ cmp(temp, index_2);
   __ j(below_equal, &slow_case);
 
   // Bring addresses into index1 and index2.
@@ -3219,7 +3219,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ bind(&no_remembered_set);
 
   // We are done. Drop elements from the stack, and return undefined.
-  __ add(Operand(esp), Immediate(3 * kPointerSize));
+  __ add(esp, Immediate(3 * kPointerSize));
   __ mov(eax, isolate()->factory()->undefined_value());
   __ jmp(&done);
 
@@ -3292,11 +3292,11 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ pop(left);
 
   Label done, fail, ok;
-  __ cmp(left, Operand(right));
+  __ cmp(left, right);
   __ j(equal, &ok);
   // Fail if either is a non-HeapObject.
   __ mov(tmp, left);
-  __ and_(Operand(tmp), right);
+  __ and_(tmp, right);
   __ JumpIfSmi(tmp, &fail);
   __ mov(tmp, FieldOperand(left, HeapObject::kMapOffset));
   __ CmpInstanceType(tmp, JS_REGEXP_TYPE);
@@ -3387,7 +3387,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   Operand separator_operand = Operand(esp, 2 * kPointerSize);
   Operand result_operand = Operand(esp, 1 * kPointerSize);
   Operand array_length_operand = Operand(esp, 0);
-  __ sub(Operand(esp), Immediate(2 * kPointerSize));
+  __ sub(esp, Immediate(2 * kPointerSize));
   __ cld();
   // Check that the array is a JSArray
   __ JumpIfSmi(array, &bailout);
@@ -3423,7 +3423,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   // Live loop registers: index, array_length, string,
   //                      scratch, string_length, elements.
   if (FLAG_debug_code) {
-    __ cmp(index, Operand(array_length));
+    __ cmp(index, array_length);
     __ Assert(less, "No empty arrays here in EmitFastAsciiArrayJoin");
   }
   __ bind(&loop);
@@ -3441,8 +3441,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ add(string_length,
          FieldOperand(string, SeqAsciiString::kLengthOffset));
   __ j(overflow, &bailout);
-  __ add(Operand(index), Immediate(1));
-  __ cmp(index, Operand(array_length));
+  __ add(index, Immediate(1));
+  __ cmp(index, array_length);
   __ j(less, &loop);
 
   // If array_length is 1, return elements[0], a string.
@@ -3476,10 +3476,10 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   // to string_length.
   __ mov(scratch, separator_operand);
   __ mov(scratch, FieldOperand(scratch, SeqAsciiString::kLengthOffset));
-  __ sub(string_length, Operand(scratch));  // May be negative, temporarily.
+  __ sub(string_length, scratch);  // May be negative, temporarily.
   __ imul(scratch, array_length_operand);
   __ j(overflow, &bailout);
-  __ add(string_length, Operand(scratch));
+  __ add(string_length, scratch);
   __ j(overflow, &bailout);
 
   __ shr(string_length, 1);
@@ -3520,7 +3520,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ lea(string,
          FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ add(Operand(index), Immediate(1));
+  __ add(index, Immediate(1));
   __ bind(&loop_1_condition);
   __ cmp(index, array_length_operand);
   __ j(less, &loop_1);  // End while (index < length).
@@ -3561,7 +3561,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ lea(string,
          FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ add(Operand(index), Immediate(1));
+  __ add(index, Immediate(1));
 
   __ cmp(index, array_length_operand);
   __ j(less, &loop_2);  // End while (index < length).
@@ -3602,7 +3602,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ lea(string,
          FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ add(Operand(index), Immediate(1));
+  __ add(index, Immediate(1));
 
   __ cmp(index, array_length_operand);
   __ j(less, &loop_3);  // End while (index < length).
@@ -3614,7 +3614,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ bind(&done);
   __ mov(eax, result_operand);
   // Drop temp values from the stack, and restore context register.
-  __ add(Operand(esp), Immediate(3 * kPointerSize));
+  __ add(esp, Immediate(3 * kPointerSize));
 
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   decrement_stack_height();
@@ -3894,9 +3894,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   if (ShouldInlineSmiCase(expr->op())) {
     if (expr->op() == Token::INC) {
-      __ add(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ add(eax, Immediate(Smi::FromInt(1)));
     } else {
-      __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ sub(eax, Immediate(Smi::FromInt(1)));
     }
     __ j(overflow, &stub_call, Label::kNear);
     // We could eliminate this smi check if we split the code at
@@ -3906,9 +3906,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     if (expr->op() == Token::INC) {
-      __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ sub(eax, Immediate(Smi::FromInt(1)));
     } else {
-      __ add(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ add(eax, Immediate(Smi::FromInt(1)));
     }
   }
 
@@ -4134,7 +4134,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ CallStub(&stub);
       decrement_stack_height(2);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-      __ test(eax, Operand(eax));
+      __ test(eax, eax);
       // The stub returns 0 for true.
       Split(zero, if_true, if_false, fall_through);
       break;
@@ -4180,10 +4180,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
         Label slow_case;
-        __ mov(ecx, Operand(edx));
-        __ or_(ecx, Operand(eax));
+        __ mov(ecx, edx);
+        __ or_(ecx, eax);
         patch_site.EmitJumpIfNotSmi(ecx, &slow_case, Label::kNear);
-        __ cmp(edx, Operand(eax));
+        __ cmp(edx, eax);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
@@ -4195,7 +4195,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       patch_site.EmitPatchInfo();
 
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-      __ test(eax, Operand(eax));
+      __ test(eax, eax);
       Split(cc, if_true, if_false, fall_through);
     }
   }
@@ -4296,7 +4296,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   // Cook return address on top of stack (smi encoded Code* delta)
   ASSERT(!result_register().is(edx));
   __ pop(edx);
-  __ sub(Operand(edx), Immediate(masm_->CodeObject()));
+  __ sub(edx, Immediate(masm_->CodeObject()));
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
   __ SmiTag(edx);
@@ -4312,8 +4312,8 @@ void FullCodeGenerator::ExitFinallyBlock() {
   // Uncook return address.
   __ pop(edx);
   __ SmiUntag(edx);
-  __ add(Operand(edx), Immediate(masm_->CodeObject()));
-  __ jmp(Operand(edx));
+  __ add(edx, Immediate(masm_->CodeObject()));
+  __ jmp(edx);
 }
 
 

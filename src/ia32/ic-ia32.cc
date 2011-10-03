@@ -326,7 +326,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   // Fast case: Do the load.
   STATIC_ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
   __ mov(scratch, FieldOperand(scratch, key, times_2, FixedArray::kHeaderSize));
-  __ cmp(Operand(scratch), Immediate(FACTORY->the_hole_value()));
+  __ cmp(scratch, Immediate(FACTORY->the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
   __ j(equal, out_of_range);
@@ -394,8 +394,8 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // Check if element is in the range of mapped arguments. If not, jump
   // to the unmapped lookup with the parameter map in scratch1.
   __ mov(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
-  __ sub(Operand(scratch2), Immediate(Smi::FromInt(2)));
-  __ cmp(key, Operand(scratch2));
+  __ sub(scratch2, Immediate(Smi::FromInt(2)));
+  __ cmp(key, scratch2);
   __ j(greater_equal, unmapped_case);
 
   // Load element index and check whether it is the hole.
@@ -432,7 +432,7 @@ static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
   __ CheckMap(backing_store, fixed_array_map, slow_case, DONT_DO_SMI_CHECK);
   __ mov(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmp(key, Operand(scratch));
+  __ cmp(key, scratch);
   __ j(greater_equal, slow_case);
   return FieldOperand(backing_store,
                       key,
@@ -534,7 +534,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ shr(ecx, KeyedLookupCache::kMapHashShift);
   __ mov(edi, FieldOperand(eax, String::kHashFieldOffset));
   __ shr(edi, String::kHashShift);
-  __ xor_(ecx, Operand(edi));
+  __ xor_(ecx, edi);
   __ and_(ecx, KeyedLookupCache::kCapacityMask);
 
   // Load the key (consisting of map and symbol) from the cache and
@@ -545,7 +545,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ shl(edi, kPointerSizeLog2 + 1);
   __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
   __ j(not_equal, &slow);
-  __ add(Operand(edi), Immediate(kPointerSize));
+  __ add(edi, Immediate(kPointerSize));
   __ cmp(eax, Operand::StaticArray(edi, times_1, cache_keys));
   __ j(not_equal, &slow);
 
@@ -559,12 +559,12 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edi,
          Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
-  __ sub(edi, Operand(ecx));
+  __ sub(edi, ecx);
   __ j(above_equal, &property_array_property);
 
   // Load in-object property.
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
-  __ add(ecx, Operand(edi));
+  __ add(ecx, edi);
   __ mov(eax, FieldOperand(edx, ecx, times_pointer_size, 0));
   __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
   __ ret(0);
@@ -651,8 +651,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that it has indexed interceptor and access checks
   // are not enabled for this object.
   __ movzx_b(ecx, FieldOperand(ecx, Map::kBitFieldOffset));
-  __ and_(Operand(ecx), Immediate(kSlowCaseBitFieldMask));
-  __ cmp(Operand(ecx), Immediate(1 << Map::kHasIndexedInterceptor));
+  __ and_(ecx, Immediate(kSlowCaseBitFieldMask));
+  __ cmp(ecx, Immediate(1 << Map::kHasIndexedInterceptor));
   __ j(not_zero, &slow);
 
   // Everything is fine, call runtime.
@@ -846,7 +846,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Fast elements array, store the value to the elements backing store.
   __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
   // Update write barrier for the elements array address.
-  __ mov(edx, Operand(eax));  // Preserve the value which is returned.
+  __ mov(edx, eax);  // Preserve the value which is returned.
   __ RecordWriteArray(
       ebx, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);

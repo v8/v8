@@ -666,7 +666,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   const int kDoubleRegsSize = kDoubleSize *
                               XMMRegister::kNumAllocatableRegisters;
-  __ sub(Operand(esp), Immediate(kDoubleRegsSize));
+  __ sub(esp, Immediate(kDoubleRegsSize));
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
     int offset = i * kDoubleSize;
@@ -690,7 +690,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ mov(ecx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
     __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 2 * kPointerSize));
   }
-  __ sub(edx, Operand(ebp));
+  __ sub(edx, ebp);
   __ neg(edx);
 
   // Allocate a new deoptimizer object.
@@ -729,15 +729,15 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Remove the bailout id and the double registers from the stack.
   if (type() == EAGER) {
-    __ add(Operand(esp), Immediate(kDoubleRegsSize + kPointerSize));
+    __ add(esp, Immediate(kDoubleRegsSize + kPointerSize));
   } else {
-    __ add(Operand(esp), Immediate(kDoubleRegsSize + 2 * kPointerSize));
+    __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
   }
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
   __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
-  __ add(ecx, Operand(esp));
+  __ add(ecx, esp);
 
   // Unwind the stack down to - but not including - the unwinding
   // limit and copy the contents of the activation frame to the input
@@ -746,16 +746,16 @@ void Deoptimizer::EntryGenerator::Generate() {
   Label pop_loop;
   __ bind(&pop_loop);
   __ pop(Operand(edx, 0));
-  __ add(Operand(edx), Immediate(sizeof(uint32_t)));
-  __ cmp(ecx, Operand(esp));
+  __ add(edx, Immediate(sizeof(uint32_t)));
+  __ cmp(ecx, esp);
   __ j(not_equal, &pop_loop);
 
   // If frame was dynamically aligned, pop padding.
   Label sentinel, sentinel_done;
-  __ pop(Operand(ecx));
+  __ pop(ecx);
   __ cmp(ecx, Operand(eax, Deoptimizer::frame_alignment_marker_offset()));
   __ j(equal, &sentinel);
-  __ push(Operand(ecx));
+  __ push(ecx);
   __ jmp(&sentinel_done);
   __ bind(&sentinel);
   __ mov(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
@@ -795,12 +795,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ mov(ebx, Operand(eax, 0));
   __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
   __ bind(&inner_push_loop);
-  __ sub(Operand(ecx), Immediate(sizeof(uint32_t)));
+  __ sub(ecx, Immediate(sizeof(uint32_t)));
   __ push(Operand(ebx, ecx, times_1, FrameDescription::frame_content_offset()));
-  __ test(ecx, Operand(ecx));
+  __ test(ecx, ecx);
   __ j(not_zero, &inner_push_loop);
-  __ add(Operand(eax), Immediate(kPointerSize));
-  __ cmp(eax, Operand(edx));
+  __ add(eax, Immediate(kPointerSize));
+  __ cmp(eax, edx);
   __ j(below, &outer_push_loop);
 
   // In case of OSR, we have to restore the XMM registers.

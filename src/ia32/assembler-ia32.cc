@@ -88,23 +88,23 @@ void CpuFeatures::Probe() {
   __ pushfd();
   __ push(ecx);
   __ push(ebx);
-  __ mov(ebp, Operand(esp));
+  __ mov(ebp, esp);
 
   // If we can modify bit 21 of the EFLAGS register, then CPUID is supported.
   __ pushfd();
   __ pop(eax);
-  __ mov(edx, Operand(eax));
+  __ mov(edx, eax);
   __ xor_(eax, 0x200000);  // Flip bit 21.
   __ push(eax);
   __ popfd();
   __ pushfd();
   __ pop(eax);
-  __ xor_(eax, Operand(edx));  // Different if CPUID is supported.
+  __ xor_(eax, edx);  // Different if CPUID is supported.
   __ j(not_zero, &cpuid);
 
   // CPUID not supported. Clear the supported features in edx:eax.
-  __ xor_(eax, Operand(eax));
-  __ xor_(edx, Operand(edx));
+  __ xor_(eax, eax);
+  __ xor_(edx, edx);
   __ jmp(&done);
 
   // Invoke CPUID with 1 in eax to get feature information in
@@ -120,13 +120,13 @@ void CpuFeatures::Probe() {
 
   // Move the result from ecx:edx to edx:eax and make sure to mark the
   // CPUID feature as supported.
-  __ mov(eax, Operand(edx));
+  __ mov(eax, edx);
   __ or_(eax, 1 << CPUID);
-  __ mov(edx, Operand(ecx));
+  __ mov(edx, ecx);
 
   // Done.
   __ bind(&done);
-  __ mov(esp, Operand(ebp));
+  __ mov(esp, ebp);
   __ pop(ebx);
   __ pop(ecx);
   __ popfd();
@@ -772,19 +772,19 @@ void Assembler::cmpb(const Operand& op, int8_t imm8) {
 }
 
 
-void Assembler::cmpb(const Operand& dst, Register src) {
-  ASSERT(src.is_byte_register());
+void Assembler::cmpb(const Operand& op, Register reg) {
+  ASSERT(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x38);
-  emit_operand(src, dst);
+  emit_operand(reg, op);
 }
 
 
-void Assembler::cmpb(Register dst, const Operand& src) {
-  ASSERT(dst.is_byte_register());
+void Assembler::cmpb(Register reg, const Operand& op) {
+  ASSERT(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x3A);
-  emit_operand(dst, src);
+  emit_operand(reg, op);
 }
 
 
@@ -1187,10 +1187,10 @@ void Assembler::xor_(Register dst, const Operand& src) {
 }
 
 
-void Assembler::xor_(const Operand& src, Register dst) {
+void Assembler::xor_(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0x31);
-  emit_operand(dst, src);
+  emit_operand(src, dst);
 }
 
 

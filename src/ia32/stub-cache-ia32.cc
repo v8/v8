@@ -66,8 +66,8 @@ static void ProbeTable(Isolate* isolate,
     __ j(not_equal, &miss);
 
     // Jump to the first instruction in the code stub.
-    __ add(Operand(extra), Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(Operand(extra));
+    __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(extra);
 
     __ bind(&miss);
   } else {
@@ -92,8 +92,8 @@ static void ProbeTable(Isolate* isolate,
     __ mov(offset, Operand::StaticArray(offset, times_2, value_offset));
 
     // Jump to the first instruction in the code stub.
-    __ add(Operand(offset), Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(Operand(offset));
+    __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(offset);
 
     // Pop at miss.
     __ bind(&miss);
@@ -204,8 +204,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ add(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, flags);
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
-  __ sub(scratch, Operand(name));
-  __ add(Operand(scratch), Immediate(flags));
+  __ sub(scratch, name);
+  __ add(scratch, Immediate(flags));
   __ and_(scratch, (kSecondaryTableSize - 1) << kHeapObjectTagSize);
 
   // Probe the secondary table.
@@ -318,7 +318,7 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register scratch2,
                                                  Label* miss_label) {
   __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
-  __ mov(eax, Operand(scratch1));
+  __ mov(eax, scratch1);
   __ ret(0);
 }
 
@@ -406,7 +406,7 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //                                          frame.
   // -----------------------------------
   __ pop(scratch);
-  __ add(Operand(esp), Immediate(kPointerSize * kFastApiCallArguments));
+  __ add(esp, Immediate(kPointerSize * kFastApiCallArguments));
   __ push(scratch);
 }
 
@@ -462,7 +462,7 @@ static MaybeObject* GenerateFastApiCall(MacroAssembler* masm,
   __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
 
   __ mov(ApiParameterOperand(1), eax);  // v8::Arguments::implicit_args_.
-  __ add(Operand(eax), Immediate(argc * kPointerSize));
+  __ add(eax, Immediate(argc * kPointerSize));
   __ mov(ApiParameterOperand(2), eax);  // v8::Arguments::values_.
   __ Set(ApiParameterOperand(3), Immediate(argc));  // v8::Arguments::length_.
   // v8::Arguments::is_construct_call_.
@@ -789,7 +789,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-    __ mov(name_reg, Operand(eax));
+    __ mov(name_reg, eax);
     __ RecordWriteField(receiver_reg,
                         offset,
                         name_reg,
@@ -804,7 +804,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
-    __ mov(name_reg, Operand(eax));
+    __ mov(name_reg, eax);
     __ RecordWriteField(scratch,
                         offset,
                         name_reg,
@@ -943,7 +943,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     } else if (heap()->InNewSpace(prototype)) {
       // Get the map of the current object.
       __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
-      __ cmp(Operand(scratch1), Immediate(Handle<Map>(current->map())));
+      __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
       // Branch on the result of the map check.
       __ j(not_equal, miss);
       // Check access rights to the global object.  This has to happen
@@ -1064,7 +1064,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   __ pop(scratch3);  // Get return address to place it below.
 
   __ push(receiver);  // receiver
-  __ mov(scratch2, Operand(esp));
+  __ mov(scratch2, esp);
   ASSERT(!scratch2.is(reg));
   __ push(reg);  // holder
   // Push data from AccessorInfo.
@@ -1095,7 +1095,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 
   __ PrepareCallApiFunction(kApiArgc);
   __ mov(ApiParameterOperand(0), ebx);  // name.
-  __ add(Operand(ebx), Immediate(kPointerSize));
+  __ add(ebx, Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), ebx);  // arguments pointer.
 
   // Emitting a stub call may try to allocate (if the code is not
@@ -1272,7 +1272,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
-    __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
+    __ cmp(ecx, Immediate(Handle<String>(name)));
     __ j(not_equal, miss);
   }
 }
@@ -1329,7 +1329,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
            Immediate(Handle<SharedFunctionInfo>(function->shared())));
     __ j(not_equal, miss);
   } else {
-    __ cmp(Operand(edi), Immediate(Handle<JSFunction>(function)));
+    __ cmp(edi, Immediate(Handle<JSFunction>(function)));
     __ j(not_equal, miss);
   }
 }
@@ -1460,13 +1460,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
       STATIC_ASSERT(kSmiTagSize == 1);
       STATIC_ASSERT(kSmiTag == 0);
-      __ add(Operand(eax), Immediate(Smi::FromInt(argc)));
+      __ add(eax, Immediate(Smi::FromInt(argc)));
 
       // Get the element's length into ecx.
       __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
-      __ cmp(eax, Operand(ecx));
+      __ cmp(eax, ecx);
       __ j(greater, &attempt_to_grow_elements);
 
       // Check if value is a smi.
@@ -1538,9 +1538,9 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ lea(edx, FieldOperand(ebx,
                                eax, times_half_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
-      __ cmp(edx, Operand(ecx));
+      __ cmp(edx, ecx);
       __ j(not_equal, &call_builtin);
-      __ add(Operand(ecx), Immediate(kAllocationDelta * kPointerSize));
+      __ add(ecx, Immediate(kAllocationDelta * kPointerSize));
       __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
       __ j(above, &call_builtin);
 
@@ -1636,7 +1636,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Get the array's length into ecx and calculate new length.
   __ mov(ecx, FieldOperand(edx, JSArray::kLengthOffset));
-  __ sub(Operand(ecx), Immediate(Smi::FromInt(1)));
+  __ sub(ecx, Immediate(Smi::FromInt(1)));
   __ j(negative, &return_undefined);
 
   // Get the last element.
@@ -1645,7 +1645,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ mov(eax, FieldOperand(ebx,
                            ecx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
-  __ cmp(Operand(eax), Immediate(factory()->the_hole_value()));
+  __ cmp(eax, Immediate(factory()->the_hole_value()));
   __ j(equal, &call_builtin);
 
   // Set the array's length.
@@ -2109,10 +2109,10 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   __ sar(ebx, kBitsPerInt - 1);
 
   // Do bitwise not or do nothing depending on ebx.
-  __ xor_(eax, Operand(ebx));
+  __ xor_(eax, ebx);
 
   // Add 1 or do nothing depending on ebx.
-  __ sub(eax, Operand(ebx));
+  __ sub(eax, ebx);
 
   // If the result is still negative, go to the slow case.
   // This only happens for the most negative smi.
@@ -2195,7 +2195,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
 
   // Allocate space for v8::Arguments implicit values. Must be initialized
   // before calling any runtime function.
-  __ sub(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
+  __ sub(esp, Immediate(kFastApiCallArguments * kPointerSize));
 
   // Check that the maps haven't changed and find a Holder as a side effect.
   CheckPrototypes(JSObject::cast(object), edx, holder,
@@ -2211,7 +2211,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   if (result->IsFailure()) return result;
 
   __ bind(&miss);
-  __ add(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
+  __ add(esp, Immediate(kFastApiCallArguments * kPointerSize));
 
   __ bind(&miss_before_stack_reserved);
   MaybeObject* maybe_result = GenerateMissBranch();
@@ -2711,7 +2711,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ IncrementCounter(counters->keyed_store_field(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
+  __ cmp(ecx, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   // Generate store field code.  Trashes the name register.
@@ -3003,7 +3003,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
   __ IncrementCounter(counters->keyed_load_field(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   GenerateLoadField(receiver, holder, edx, ebx, ecx, edi, index, name, &miss);
@@ -3033,7 +3033,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
   __ IncrementCounter(counters->keyed_load_callback(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   MaybeObject* result = GenerateLoadCallback(receiver, holder, edx, eax, ebx,
@@ -3068,7 +3068,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   __ IncrementCounter(counters->keyed_load_constant_function(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   GenerateLoadConstant(receiver, holder, edx, ebx, ecx, edi,
@@ -3096,7 +3096,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ IncrementCounter(counters->keyed_load_interceptor(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   LookupResult lookup;
@@ -3132,7 +3132,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   __ IncrementCounter(counters->keyed_load_array_length(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   GenerateLoadArrayLength(masm(), edx, ecx, &miss);
@@ -3157,7 +3157,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ IncrementCounter(counters->keyed_load_string_length(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   GenerateLoadStringLength(masm(), edx, ecx, ebx, &miss, true);
@@ -3182,7 +3182,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   __ IncrementCounter(counters->keyed_load_function_prototype(), 1);
 
   // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(Handle<String>(name)));
   __ j(not_equal, &miss);
 
   GenerateLoadFunctionPrototype(masm(), edx, ecx, ebx, &miss);
@@ -3360,7 +3360,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // Move argc to ebx and retrieve and tag the JSObject to return.
   __ mov(ebx, eax);
   __ pop(eax);
-  __ or_(Operand(eax), Immediate(kHeapObjectTag));
+  __ or_(eax, Immediate(kHeapObjectTag));
 
   // Remove caller arguments and receiver from the stack and return.
   __ pop(ecx);
@@ -3741,10 +3741,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
             // If the value is NaN or +/-infinity, the result is 0x80000000,
             // which is automatically zero when taken mod 2^n, n < 32.
             __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-            __ sub(Operand(esp), Immediate(2 * kPointerSize));
+            __ sub(esp, Immediate(2 * kPointerSize));
             __ fisttp_d(Operand(esp, 0));
             __ pop(ebx);
-            __ add(Operand(esp), Immediate(kPointerSize));
+            __ add(esp, Immediate(kPointerSize));
           } else {
             ASSERT(CpuFeatures::IsSupported(SSE2));
             CpuFeatures::Scope scope(SSE2);
@@ -3953,7 +3953,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
                              FixedArray::kHeaderSize));
     __ mov(Operand(ecx, 0), eax);
     // Make sure to preserve the value in register eax.
-    __ mov(edx, Operand(eax));
+    __ mov(edx, eax);
     __ RecordWrite(edi, ecx, edx, kDontSaveFPRegs);
   }
 
