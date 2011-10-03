@@ -4704,7 +4704,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 
   uint32_t index;
   if (key->AsArrayIndex(&index)) {
-    return isolate->heap()->ToBoolean(object->HasElement(index));
+    JSObject::LocalElementType type = object->HasLocalElement(index);
+    switch (type) {
+      case JSObject::UNDEFINED_ELEMENT:
+      case JSObject::STRING_CHARACTER_ELEMENT:
+        return isolate->heap()->false_value();
+      case JSObject::INTERCEPTED_ELEMENT:
+      case JSObject::FAST_ELEMENT:
+        return isolate->heap()->true_value();
+      case JSObject::DICTIONARY_ELEMENT: {
+        if (object->IsJSGlobalProxy()) {
+          Object* proto = object->GetPrototype();
+          if (proto->IsNull()) {
+            return isolate->heap()->false_value();
+          }
+          ASSERT(proto->IsJSGlobalObject());
+          object = JSObject::cast(proto);
+        }
+        FixedArray* elements = FixedArray::cast(object->elements());
+        NumberDictionary* dictionary = NULL;
+        if (elements->map() ==
+            isolate->heap()->non_strict_arguments_elements_map()) {
+          dictionary = NumberDictionary::cast(elements->get(1));
+        } else {
+          dictionary = NumberDictionary::cast(elements);
+        }
+        int entry = dictionary->FindEntry(index);
+        ASSERT(entry != NumberDictionary::kNotFound);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        return isolate->heap()->ToBoolean(!details.IsDontEnum());
+      }
+    }
   }
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
