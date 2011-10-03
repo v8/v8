@@ -33,6 +33,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime-profiler.h"
 #include "simulator.h"
 #include "v8threads.h"

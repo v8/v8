@@ -195,6 +195,11 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 }
 
 
+void CodeStub::PrintName(StringStream* stream) {
+  stream->Add("%s", MajorName(MajorKey(), false));
+}
+
+
 int ICCompareStub::MinorKey() {
   return OpField::encode(op_ - Token::EQ) | StateField::encode(state_);
 }

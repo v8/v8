@@ -42,6 +42,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "isolate-inl.h"
 #include "jsregexp.h"
 #include "json-parser.h"
 #include "liveedit.h"

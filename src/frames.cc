@@ -888,6 +888,11 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
 }
 
 
+int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
+  return Smi::cast(GetExpression(0))->value();
+}
+
+
 Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }

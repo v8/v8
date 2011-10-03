@@ -106,9 +106,9 @@ class StackHandler BASE_EMBEDDED {
   static inline StackHandler* FromAddress(Address address);
 
   // Testers
-  bool is_entry() { return state() == ENTRY; }
-  bool is_try_catch() { return state() == TRY_CATCH; }
-  bool is_try_finally() { return state() == TRY_FINALLY; }
+  inline bool is_entry() const;
+  inline bool is_try_catch() const;
+  inline bool is_try_finally() const;
 
  private:
   // Accessors.
@@ -218,9 +218,7 @@ class StackFrame BASE_EMBEDDED {
   virtual Code* unchecked_code() const = 0;
 
   // Get the code associated with this frame.
-  Code* LookupCode() const {
-    return GetContainingCode(isolate(), pc());
-  }
+  inline Code* LookupCode() const;
 
   // Get the code object that contains the given pc.
   static inline Code* GetContainingCode(Isolate* isolate, Address pc);
@@ -302,7 +300,7 @@ class EntryFrame: public StackFrame {
   virtual void SetCallerFp(Address caller_fp);
 
  protected:
-  explicit EntryFrame(StackFrameIterator* iterator) : StackFrame(iterator) { }
+  inline explicit EntryFrame(StackFrameIterator* iterator);
 
   // The caller stack pointer for entry frames is always zero. The
   // real information about the caller frame is available through the
@@ -329,8 +327,7 @@ class EntryConstructFrame: public EntryFrame {
   }
 
  protected:
-  explicit EntryConstructFrame(StackFrameIterator* iterator)
-      : EntryFrame(iterator) { }
+  inline explicit EntryConstructFrame(StackFrameIterator* iterator);
 
  private:
   friend class StackFrameIterator;
@@ -364,7 +361,7 @@ class ExitFrame: public StackFrame {
   static void FillState(Address fp, Address sp, State* state);
 
  protected:
-  explicit ExitFrame(StackFrameIterator* iterator) : StackFrame(iterator) { }
+  inline explicit ExitFrame(StackFrameIterator* iterator);
 
   virtual Address GetCallerStackPointer() const;
 
@@ -397,8 +394,7 @@ class StandardFrame: public StackFrame {
   }
 
  protected:
-  explicit StandardFrame(StackFrameIterator* iterator)
-      : StackFrame(iterator) { }
+  inline explicit StandardFrame(StackFrameIterator* iterator);
 
   virtual void ComputeCallerState(State* state) const;
 
@@ -517,8 +513,7 @@ class JavaScriptFrame: public StandardFrame {
   }
 
  protected:
-  explicit JavaScriptFrame(StackFrameIterator* iterator)
-      : StandardFrame(iterator) { }
+  inline explicit JavaScriptFrame(StackFrameIterator* iterator);
 
   virtual Address GetCallerStackPointer() const;
 
@@ -555,8 +550,7 @@ class OptimizedFrame : public JavaScriptFrame {
   DeoptimizationInputData* GetDeoptimizationData(int* deopt_index);
 
  protected:
-  explicit OptimizedFrame(StackFrameIterator* iterator)
-      : JavaScriptFrame(iterator) { }
+  inline explicit OptimizedFrame(StackFrameIterator* iterator);
 
  private:
   friend class StackFrameIterator;
@@ -584,12 +578,9 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
                      int index) const;
 
  protected:
-  explicit ArgumentsAdaptorFrame(StackFrameIterator* iterator)
-      : JavaScriptFrame(iterator) { }
+  inline explicit ArgumentsAdaptorFrame(StackFrameIterator* iterator);
 
-  virtual int GetNumberOfIncomingArguments() const {
-    return Smi::cast(GetExpression(0))->value();
-  }
+  virtual int GetNumberOfIncomingArguments() const;
 
   virtual Address GetCallerStackPointer() const;
 
@@ -614,8 +605,7 @@ class InternalFrame: public StandardFrame {
   }
 
  protected:
-  explicit InternalFrame(StackFrameIterator* iterator)
-      : StandardFrame(iterator) { }
+  inline explicit InternalFrame(StackFrameIterator* iterator);
 
   virtual Address GetCallerStackPointer() const;
 
@@ -636,8 +626,7 @@ class ConstructFrame: public InternalFrame {
   }
 
  protected:
-  explicit ConstructFrame(StackFrameIterator* iterator)
-      : InternalFrame(iterator) { }
+  inline explicit ConstructFrame(StackFrameIterator* iterator);
 
  private:
   friend class StackFrameIterator;
@@ -718,15 +707,19 @@ class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
 
   inline JavaScriptFrameIteratorTemp(Isolate* isolate, StackFrame::Id id);
 
-  JavaScriptFrameIteratorTemp(Address fp, Address sp,
-                              Address low_bound, Address high_bound) :
+  JavaScriptFrameIteratorTemp(Address fp,
+                              Address sp,
+                              Address low_bound,
+                              Address high_bound) :
       iterator_(fp, sp, low_bound, high_bound) {
     if (!done()) Advance();
   }
 
   JavaScriptFrameIteratorTemp(Isolate* isolate,
-                              Address fp, Address sp,
-                              Address low_bound, Address high_bound) :
+                              Address fp,
+                              Address sp,
+                              Address low_bound,
+                              Address high_bound) :
       iterator_(isolate, fp, sp, low_bound, high_bound) {
     if (!done()) Advance();
   }

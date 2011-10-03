@@ -202,9 +202,7 @@ class CodeStub BASE_EMBEDDED {
 
   // Returns a name for logging/debugging purposes.
   SmartArrayPointer<const char> GetName();
-  virtual void PrintName(StringStream* stream) {
-    stream->Add("%s", MajorName(MajorKey(), false));
-  }
+  virtual void PrintName(StringStream* stream);
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.

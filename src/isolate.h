@@ -1219,19 +1219,7 @@ class Isolate {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  explicit SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
-    if (isolate->context() != NULL) {
-      context_ = Handle<Context>(isolate->context());
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-      dummy_ = Handle<Context>(isolate->context());
-#endif
-    }
-    isolate->set_save_context(this);
-
-    // If there is no JS frame under the current C frame, use the value 0.
-    JavaScriptFrameIterator it(isolate);
-    js_sp_ = it.done() ? 0 : it.frame()->sp();
-  }
+  inline explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
     if (context_.is_null()) {

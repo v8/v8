@@ -34,6 +34,7 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "isolate-inl.h"
 #include "macro-assembler.h"
 #include "natives.h"
 #include "objects-visiting.h"
