@@ -3205,23 +3205,15 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
-  CallCFunctionHelper(no_reg,
-                      function,
-                      ip,
-                      num_reg_arguments,
-                      num_double_arguments);
+  mov(ip, Operand(function));
+  CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments);
 }
 
 
 void MacroAssembler::CallCFunction(Register function,
-                                     Register scratch,
-                                     int num_reg_arguments,
-                                     int num_double_arguments) {
-  CallCFunctionHelper(function,
-                      ExternalReference::the_hole_value_location(isolate()),
-                      scratch,
-                      num_reg_arguments,
-                      num_double_arguments);
+                                   int num_reg_arguments,
+                                   int num_double_arguments) {
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
 }
 
 
@@ -3232,15 +3224,12 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 
 void MacroAssembler::CallCFunction(Register function,
-                                   Register scratch,
                                    int num_arguments) {
-  CallCFunction(function, scratch, num_arguments, 0);
+  CallCFunction(function, num_arguments, 0);
 }
 
 
 void MacroAssembler::CallCFunctionHelper(Register function,
-                                         ExternalReference function_reference,
-                                         Register scratch,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
   ASSERT(has_frame());
@@ -3267,10 +3256,6 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
-  if (function.is(no_reg)) {
-    mov(scratch, Operand(function_reference));
-    function = scratch;
-  }
   Call(function);
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);

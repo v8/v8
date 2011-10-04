@@ -318,10 +318,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
 
   // Miscellaneous
-  Add(ExternalReference::the_hole_value_location(isolate).address(),
-      UNCLASSIFIED,
-      2,
-      "Factory::the_hole_value().location()");
   Add(ExternalReference::roots_address(isolate).address(),
       UNCLASSIFIED,
       3,
@@ -490,13 +486,9 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       43,
       "store_buffer_top");
-  Add(ExternalReference::arguments_marker_location(isolate).address(),
-      UNCLASSIFIED,
-      44,
-      "Factory::arguments_marker().location()");
   Add(ExternalReference::address_of_canonical_non_hole_nan().address(),
       UNCLASSIFIED,
-      45,
+      44,
       "canonical_nan");
 }
 

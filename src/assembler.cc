@@ -834,24 +834,6 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
 }
 
 
-ExternalReference ExternalReference::the_hole_value_location(Isolate* isolate) {
-  return ExternalReference(isolate->factory()->the_hole_value().location());
-}
-
-
-ExternalReference ExternalReference::arguments_marker_location(
-    Isolate* isolate) {
-  return ExternalReference(isolate->factory()->arguments_marker().location());
-}
-
-
-ExternalReference ExternalReference::frame_alignment_marker_location(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->factory()->frame_alignment_marker().location());
-}
-
-
 ExternalReference ExternalReference::roots_address(Isolate* isolate) {
   return ExternalReference(isolate->heap()->roots_address());
 }

@@ -3597,9 +3597,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
-  __ mov(edx,
-         Operand::StaticVariable(ExternalReference::the_hole_value_location(
-             masm->isolate())));
+  __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
   __ mov(eax, Operand::StaticVariable(pending_exception));
   __ cmp(edx, eax);
   __ j(equal, &runtime);
@@ -4514,8 +4512,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // should have returned some failure value.
   if (FLAG_debug_code) {
     __ push(edx);
-    __ mov(edx, Operand::StaticVariable(
-        ExternalReference::the_hole_value_location(masm->isolate())));
+    __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
     Label okay;
     __ cmp(edx, Operand::StaticVariable(pending_exception_address));
     // Cannot use check here as it attempts to generate call into runtime.
@@ -4543,10 +4540,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  ExternalReference the_hole_location =
-      ExternalReference::the_hole_value_location(masm->isolate());
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
-  __ mov(edx, Operand::StaticVariable(the_hole_location));
+  __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
   __ mov(Operand::StaticVariable(pending_exception_address), edx);
 
   // Special handling of termination exceptions which are uncatchable
@@ -4681,9 +4676,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
 
   // Clear any pending exceptions.
-  ExternalReference the_hole_location =
-      ExternalReference::the_hole_value_location(masm->isolate());
-  __ mov(edx, Operand::StaticVariable(the_hole_location));
+  __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
   __ mov(Operand::StaticVariable(pending_exception), edx);
 
   // Fake a receiver (NULL).

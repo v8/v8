@@ -934,11 +934,11 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, Register scratch, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
   void CallCFunction(ExternalReference function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void CallCFunction(Register function, Register scratch,
+  void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
 
@@ -1161,8 +1161,6 @@ class MacroAssembler: public Assembler {
 
  private:
   void CallCFunctionHelper(Register function,
-                           ExternalReference function_reference,
-                           Register scratch,
                            int num_reg_arguments,
                            int num_double_arguments);
 

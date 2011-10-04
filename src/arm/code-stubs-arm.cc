@@ -3540,8 +3540,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ b(eq, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ ldr(r3, MemOperand(ip));
+  __ mov(r3, Operand(isolate->factory()->the_hole_value()));
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ ldr(r0, MemOperand(ip));
@@ -3724,8 +3723,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ ldr(r5, MemOperand(ip));
+  __ mov(r5, Operand(isolate->factory()->the_hole_value()));
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r5, MemOperand(ip));
@@ -4643,8 +4641,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ mov(r1, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ ldr(r1, MemOperand(r1, 0));
+  __ mov(r1, Operand(isolate->factory()->the_hole_value()));
   __ mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ ldr(r0, MemOperand(r2, 0));

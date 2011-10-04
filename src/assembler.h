@@ -590,15 +590,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
   static ExternalReference keyed_lookup_cache_field_offsets(Isolate* isolate);
 
-  // Static variable Factory::the_hole_value.location()
-  static ExternalReference the_hole_value_location(Isolate* isolate);
-
-  // Static variable Factory::arguments_marker.location()
-  static ExternalReference arguments_marker_location(Isolate* isolate);
-
-  // Static variable Factory::frame_alignment_marker.location()
-  static ExternalReference frame_alignment_marker_location(Isolate* isolate);
-
   // Static variable Heap::roots_address()
   static ExternalReference roots_address(Isolate* isolate);
 
