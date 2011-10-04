@@ -752,12 +752,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JSObject.
-  __ CmpInstanceType(edi, FIRST_JS_RECEIVER_TYPE);
+  __ CmpInstanceType(edi, FIRST_JS_OBJECT_TYPE);
   __ j(below, &slow);
-  __ CmpInstanceType(edi, JS_PROXY_TYPE);
-  __ j(equal, &slow);
-  __ CmpInstanceType(edi, JS_FUNCTION_PROXY_TYPE);
-  __ j(equal, &slow);
 
   // Object case: Check key against length in the elements array.
   // eax: value
