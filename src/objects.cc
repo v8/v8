@@ -10698,8 +10698,6 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  ASSERT(!HasExternalArrayElements());
-
   Heap* heap = GetHeap();
 
   if (HasDictionaryElements()) {
@@ -10729,14 +10727,16 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
 
     set_map(new_map);
     set_elements(fast_elements);
+  } else if (HasExternalArrayElements()) {
+    // External arrays cannot have holes or undefined elements.
+    return Smi::FromInt(ExternalArray::cast(elements())->length());
   } else if (!HasFastDoubleElements()) {
     Object* obj;
     { MaybeObject* maybe_obj = EnsureWritableFastElements();
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
   }
-  ASSERT(HasFastTypeElements() ||
-         HasFastDoubleElements());
+  ASSERT(HasFastTypeElements() || HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
