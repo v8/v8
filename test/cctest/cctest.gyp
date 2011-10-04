@@ -91,7 +91,8 @@
         'test-threads.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
-        'test-version.cc'
+        'test-version.cc',
+        'test-weakmaps.cc'
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
