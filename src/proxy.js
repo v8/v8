@@ -47,7 +47,7 @@ $Proxy.createFunction = function(handler, callTrap, constructTrap) {
   } else if (IS_SPEC_FUNCTION(constructTrap)) {
     construct = function() {
       // Make sure the trap receives 'undefined' as this.
-      return $Function.prototype.apply.call(constructTrap, void 0, arguments)
+      return %Apply(constructTrap, void 0, arguments, 0, %_ArgumentsLength());
     }
   } else {
     throw MakeTypeError("trap_function_expected",
@@ -69,7 +69,7 @@ function DerivedConstructTrap(callTrap) {
     if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
     var obj = new $Object()
     obj.__proto__ = proto
-    var result = $Function.prototype.apply.call(callTrap, obj, arguments)
+    var result = %Apply(callTrap, obj, arguments, 0, %_ArgumentsLength());
     return IS_SPEC_OBJECT(result) ? result : obj
   }
 }
