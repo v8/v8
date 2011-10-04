@@ -3210,21 +3210,10 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::ALLOW_CREATION));
-  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::SetProperty(
-      hidden_props,
-      key_obj,
-      value_obj,
-      static_cast<PropertyAttributes>(None),
-      i::kNonStrictMode);
-  has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return true;
+  i::Handle<i::Object> result = i::SetHiddenProperty(self, key_obj, value_obj);
+  return *result == *self;
 }
 
 
@@ -3234,20 +3223,9 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::OMIT_CREATION));
-  if (hidden_props->IsUndefined()) {
-    return v8::Local<v8::Value>();
-  }
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(hidden_props, key_obj);
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, v8::Local<v8::Value>());
-  if (result->IsUndefined()) {
-    return v8::Local<v8::Value>();
-  }
+  i::Handle<i::Object> result(self->GetHiddenProperty(*key_obj));
+  if (result->IsUndefined()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
 }
 
@@ -3258,15 +3236,9 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::OMIT_CREATION));
-  if (hidden_props->IsUndefined()) {
-    return true;
-  }
-  i::Handle<i::JSObject> js_obj(i::JSObject::cast(*hidden_props));
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return i::DeleteProperty(js_obj, key_obj)->IsTrue();
+  self->DeleteHiddenProperty(*key_obj);
+  return true;
 }
 
 

@@ -265,11 +265,11 @@ Handle<Object> GetPrototype(Handle<Object> obj);
 
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
-// Return the object's hidden properties object. If the object has no hidden
-// properties and HiddenPropertiesFlag::ALLOW_CREATION is passed, then a new
-// hidden property object will be allocated. Otherwise Heap::undefined_value
-// is returned.
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj, CreationFlag flag);
+// Sets a hidden property on an object. Returns obj on success, undefined
+// if trying to set the property on a detached proxy.
+Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value);
 
 int GetIdentityHash(Handle<JSReceiver> obj);
 

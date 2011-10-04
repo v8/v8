@@ -1577,27 +1577,25 @@ class JSObject: public JSReceiver {
   // Accessors for hidden properties object.
   //
   // Hidden properties are not local properties of the object itself.
-  // Instead they are stored on an auxiliary JSObject stored as a local
+  // Instead they are stored in an auxiliary structure kept as a local
   // property with a special name Heap::hidden_symbol(). But if the
   // receiver is a JSGlobalProxy then the auxiliary object is a property
-  // of its prototype.
-  //
-  // Has/Get/SetHiddenPropertiesObject methods don't allow the holder to be
-  // a JSGlobalProxy. Use BypassGlobalProxy method above to get to the real
-  // holder.
-  //
-  // These accessors do not touch interceptors or accessors.
-  inline bool HasHiddenPropertiesObject();
-  inline Object* GetHiddenPropertiesObject();
-  MUST_USE_RESULT inline MaybeObject* SetHiddenPropertiesObject(
-      Object* hidden_obj);
+  // of its prototype, and if it's a detached proxy, then you can't have
+  // hidden properties.
 
-  // Retrieves the hidden properties object.
-  //
-  // The undefined value might be returned in case no hidden properties object
-  // is present and creation was omitted.
-  inline bool HasHiddenProperties();
-  MUST_USE_RESULT MaybeObject* GetHiddenProperties(CreationFlag flag);
+  // Sets a hidden property on this object. Returns this object if successful,
+  // undefined if called on a detached proxy, and a failure if a GC
+  // is required
+  MaybeObject* SetHiddenProperty(String* key, Object* value);
+  // Gets the value of a hidden property with the given key. Returns undefined
+  // if the property doesn't exist (or if called on a detached proxy),
+  // otherwise returns the value set for the key.
+  Object* GetHiddenProperty(String* key);
+  // Deletes a hidden property. Deleting a non-existing property is
+  // considered successful.
+  void DeleteHiddenProperty(String* key);
+  // Returns true if the object has a property with the hidden symbol as name.
+  bool HasHiddenProperties();
 
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Object* hash, CreationFlag flag);
@@ -2037,6 +2035,15 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);
+
+  // Returns the hidden properties backing store object, currently
+  // a StringDictionary, stored on this object.
+  // If no hidden properties object has been put on this object,
+  // return undefined, unless create_if_absent is true, in which case
+  // a new dictionary is created, added to this object, and returned.
+  MaybeObject* GetHiddenPropertiesDictionary(bool create_if_absent);
+  // Updates the existing hidden properties dictionary.
+  MaybeObject* SetHiddenPropertiesDictionary(StringDictionary* dictionary);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -2863,7 +2870,7 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
       JSObject* obj,
       int unused_property_fields);
 
-  // Find entry for key otherwise return kNotFound. Optimzed version of
+  // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(String* key);
 };

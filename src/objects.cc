@@ -3279,53 +3279,6 @@ MaybeObject* JSObject::NormalizeElements() {
 }
 
 
-MaybeObject* JSObject::GetHiddenProperties(CreationFlag flag) {
-  Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  Object* holder = BypassGlobalProxy();
-  if (holder->IsUndefined()) return heap->undefined_value();
-  JSObject* obj = JSObject::cast(holder);
-  if (obj->HasFastProperties()) {
-    // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden symbol. Since the
-    // hidden symbols hash code is zero (and no other string has hash
-    // code zero) it will always occupy the first entry if present.
-    DescriptorArray* descriptors = obj->map()->instance_descriptors();
-    if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == heap->hidden_symbol()) &&
-        descriptors->IsProperty(0)) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      return obj->FastPropertyAt(descriptors->GetFieldIndex(0));
-    }
-  }
-
-  // Only attempt to find the hidden properties in the local object and not
-  // in the prototype chain.
-  if (!obj->HasHiddenPropertiesObject()) {
-    // Hidden properties object not found. Allocate a new hidden properties
-    // object if requested. Otherwise return the undefined value.
-    if (flag == ALLOW_CREATION) {
-      Object* hidden_obj;
-      { MaybeObject* maybe_obj = heap->AllocateJSObject(
-            isolate->context()->global_context()->object_function());
-        if (!maybe_obj->ToObject(&hidden_obj)) return maybe_obj;
-      }
-      // Don't allow leakage of the hidden object through accessors
-      // on Object.prototype.
-      {
-        MaybeObject* maybe_obj =
-            JSObject::cast(hidden_obj)->SetPrototype(heap->null_value(), false);
-        if (maybe_obj->IsFailure()) return maybe_obj;
-      }
-      return obj->SetHiddenPropertiesObject(hidden_obj);
-    } else {
-      return heap->undefined_value();
-    }
-  }
-  return obj->GetHiddenPropertiesObject();
-}
-
-
 Smi* JSReceiver::GenerateIdentityHash() {
   Isolate* isolate = GetIsolate();
 
@@ -3344,46 +3297,24 @@ Smi* JSReceiver::GenerateIdentityHash() {
 
 
 MaybeObject* JSObject::SetIdentityHash(Object* hash, CreationFlag flag) {
-  JSObject* hidden_props;
-  MaybeObject* maybe = GetHiddenProperties(flag);
-  if (!maybe->To<JSObject>(&hidden_props)) return maybe;
-  maybe = hidden_props->SetLocalPropertyIgnoreAttributes(
-      GetHeap()->identity_hash_symbol(), hash, NONE);
+  MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
+                                         hash);
   if (maybe->IsFailure()) return maybe;
   return this;
 }
 
 
 MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
-  Isolate* isolate = GetIsolate();
-  Object* hidden_props_obj;
-  { MaybeObject* maybe_obj = GetHiddenProperties(flag);
-    if (!maybe_obj->ToObject(&hidden_props_obj)) return maybe_obj;
-  }
-  if (!hidden_props_obj->IsJSObject()) {
-    // We failed to create hidden properties.  That's a detached
-    // global proxy.
-    ASSERT(hidden_props_obj->IsUndefined());
-    return Smi::FromInt(0);
-  }
-  JSObject* hidden_props = JSObject::cast(hidden_props_obj);
-  String* hash_symbol = isolate->heap()->identity_hash_symbol();
-  {
-    // Note that HasLocalProperty() can cause a GC in the general case in the
-    // presence of interceptors.
-    AssertNoAllocation no_alloc;
-    if (hidden_props->HasLocalProperty(hash_symbol)) {
-      MaybeObject* hash = hidden_props->GetProperty(hash_symbol);
-      return Smi::cast(hash->ToObjectChecked());
-    }
-  }
+  Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_symbol());
+  if (stored_value->IsSmi()) return stored_value;
 
   Smi* hash = GenerateIdentityHash();
-  { MaybeObject* result = hidden_props->SetLocalPropertyIgnoreAttributes(
-        hash_symbol,
-        hash,
-        static_cast<PropertyAttributes>(None));
-    if (result->IsFailure()) return result;
+  MaybeObject* result = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
+                                          hash);
+  if (result->IsFailure()) return result;
+  if (result->ToObjectUnchecked()->IsUndefined()) {
+    // Trying to get hash of detached proxy.
+    return Smi::FromInt(0);
   }
   return hash;
 }
@@ -3396,6 +3327,171 @@ MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
     set_hash(hash);
   }
   return hash;
+}
+
+
+Object* JSObject::GetHiddenProperty(String* key) {
+  if (IsJSGlobalProxy()) {
+    // For a proxy, use the prototype as target object.
+    Object* proxy_parent = GetPrototype();
+    // If the proxy is detached, return undefined.
+    if (proxy_parent->IsNull()) return GetHeap()->undefined_value();
+    ASSERT(proxy_parent->IsJSGlobalObject());
+    return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
+  }
+  ASSERT(!IsJSGlobalProxy());
+  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(false);
+  ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
+  if (hidden_lookup->ToObjectUnchecked()->IsUndefined()) {
+    return GetHeap()->undefined_value();
+  }
+  StringDictionary* dictionary =
+      StringDictionary::cast(hidden_lookup->ToObjectUnchecked());
+  int entry = dictionary->FindEntry(key);
+  if (entry == StringDictionary::kNotFound) return GetHeap()->undefined_value();
+  return dictionary->ValueAt(entry);
+}
+
+
+MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
+  if (IsJSGlobalProxy()) {
+    // For a proxy, use the prototype as target object.
+    Object* proxy_parent = GetPrototype();
+    // If the proxy is detached, return undefined.
+    if (proxy_parent->IsNull()) return GetHeap()->undefined_value();
+    ASSERT(proxy_parent->IsJSGlobalObject());
+    return JSObject::cast(proxy_parent)->SetHiddenProperty(key, value);
+  }
+  ASSERT(!IsJSGlobalProxy());
+  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(true);
+  StringDictionary* dictionary;
+  if (!hidden_lookup->To<StringDictionary>(&dictionary)) return hidden_lookup;
+
+  // If it was found, check if the key is already in the dictionary.
+  int entry = dictionary->FindEntry(key);
+  if (entry != StringDictionary::kNotFound) {
+    // If key was found, just update the value.
+    dictionary->ValueAtPut(entry, value);
+    return this;
+  }
+  // Key was not already in the dictionary, so add the entry.
+  MaybeObject* insert_result = dictionary->Add(key,
+                                               value,
+                                               PropertyDetails(NONE, NORMAL));
+  StringDictionary* new_dict;
+  if (!insert_result->To<StringDictionary>(&new_dict)) return insert_result;
+  if (new_dict != dictionary) {
+    // If adding the key expanded the dictionary (i.e., Add returned a new
+    // dictionary), store it back to the object.
+    MaybeObject* store_result = SetHiddenPropertiesDictionary(new_dict);
+    if (store_result->IsFailure()) return store_result;
+  }
+  // Return this to mark success.
+  return this;
+}
+
+
+void JSObject::DeleteHiddenProperty(String* key) {
+  if (IsJSGlobalProxy()) {
+    // For a proxy, use the prototype as target object.
+    Object* proxy_parent = GetPrototype();
+    // If the proxy is detached, return immediately.
+    if (proxy_parent->IsNull()) return;
+    ASSERT(proxy_parent->IsJSGlobalObject());
+    JSObject::cast(proxy_parent)->DeleteHiddenProperty(key);
+    return;
+  }
+  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(false);
+  ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
+  if (hidden_lookup->ToObjectUnchecked()->IsUndefined()) return;
+  StringDictionary* dictionary =
+      StringDictionary::cast(hidden_lookup->ToObjectUnchecked());
+  int entry = dictionary->FindEntry(key);
+  if (entry == StringDictionary::kNotFound) {
+    // Key wasn't in dictionary. Deletion is a success.
+    return;
+  }
+  // Key was in the dictionary. Remove it.
+  dictionary->DeleteProperty(entry, JSReceiver::FORCE_DELETION);
+}
+
+
+bool JSObject::HasHiddenProperties() {
+  LookupResult lookup;
+  LocalLookupRealNamedProperty(GetHeap()->hidden_symbol(), &lookup);
+  return lookup.IsFound();
+}
+
+
+MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
+  ASSERT(!IsJSGlobalProxy());
+  if (HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = this->map()->instance_descriptors();
+    if ((descriptors->number_of_descriptors() > 0) &&
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
+        descriptors->IsProperty(0)) {
+      ASSERT(descriptors->GetType(0) == FIELD);
+      Object* hidden_store =
+          this->FastPropertyAt(descriptors->GetFieldIndex(0));
+      return StringDictionary::cast(hidden_store);
+    }
+  } else {
+    PropertyAttributes attributes;
+    // You can't install a getter on a property indexed by the hidden symbol,
+    // so we can be sure that GetLocalPropertyPostInterceptor returns a real
+    // object.
+    Object* lookup =
+        GetLocalPropertyPostInterceptor(this,
+                                        GetHeap()->hidden_symbol(),
+                                        &attributes)->ToObjectUnchecked();
+    if (!lookup->IsUndefined()) {
+      return StringDictionary::cast(lookup);
+    }
+  }
+  if (!create_if_absent) return GetHeap()->undefined_value();
+  const int kInitialSize = 5;
+  MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
+  StringDictionary* dictionary;
+  if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
+  MaybeObject* store_result =
+      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+                                 dictionary,
+                                 DONT_ENUM,
+                                 kNonStrictMode);
+  if (store_result->IsFailure()) return store_result;
+  return dictionary;
+}
+
+
+MaybeObject* JSObject::SetHiddenPropertiesDictionary(
+    StringDictionary* dictionary) {
+  ASSERT(!IsJSGlobalProxy());
+  ASSERT(HasHiddenProperties());
+  if (HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = this->map()->instance_descriptors();
+    if ((descriptors->number_of_descriptors() > 0) &&
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
+        descriptors->IsProperty(0)) {
+      ASSERT(descriptors->GetType(0) == FIELD);
+      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
+      return this;
+    }
+  }
+  MaybeObject* store_result =
+      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+                                 dictionary,
+                                 DONT_ENUM,
+                                 kNonStrictMode);
+  if (store_result->IsFailure()) return store_result;
+  return this;
 }
 
 

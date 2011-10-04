@@ -421,9 +421,11 @@ Handle<Object> PreventExtensions(Handle<JSObject> object) {
 }
 
 
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj, CreationFlag flag) {
+Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->GetHiddenProperties(flag),
+                     obj->SetHiddenProperty(*key, *value),
                      Object);
 }
 

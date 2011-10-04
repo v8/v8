@@ -4347,42 +4347,6 @@ MaybeObject* JSReceiver::GetIdentityHash(CreationFlag flag) {
 }
 
 
-bool JSObject::HasHiddenPropertiesObject() {
-  ASSERT(!IsJSGlobalProxy());
-  return GetPropertyAttributePostInterceptor(this,
-                                             GetHeap()->hidden_symbol(),
-                                             false) != ABSENT;
-}
-
-
-Object* JSObject::GetHiddenPropertiesObject() {
-  ASSERT(!IsJSGlobalProxy());
-  PropertyAttributes attributes;
-  // You can't install a getter on a property indexed by the hidden symbol,
-  // so we can be sure that GetLocalPropertyPostInterceptor returns a real
-  // object.
-  Object* result =
-      GetLocalPropertyPostInterceptor(this,
-                                      GetHeap()->hidden_symbol(),
-                                      &attributes)->ToObjectUnchecked();
-  return result;
-}
-
-
-MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
-  ASSERT(!IsJSGlobalProxy());
-  return SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
-                                    hidden_obj,
-                                    DONT_ENUM,
-                                    kNonStrictMode);
-}
-
-
-bool JSObject::HasHiddenProperties() {
-  return !GetHiddenProperties(OMIT_CREATION)->ToObjectChecked()->IsUndefined();
-}
-
-
 bool JSReceiver::HasElement(uint32_t index) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasElementWithHandler(index);
