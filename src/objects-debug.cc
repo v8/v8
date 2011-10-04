@@ -498,7 +498,7 @@ void JSWeakMap::JSWeakMapVerify() {
   CHECK(IsJSWeakMap());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  ASSERT(table()->IsHashTable());
+  ASSERT(table()->IsHashTable() || table()->IsUndefined());
 }
 
 

@@ -708,7 +708,6 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
 void JSWeakMap::JSWeakMapPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSWeakMap");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
-  PrintF(out, " - number of elements = %d\n", table()->NumberOfElements());
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");

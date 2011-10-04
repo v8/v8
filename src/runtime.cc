@@ -716,7 +716,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapGet) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSWeakMap, weakmap, 0);
   CONVERT_ARG_CHECKED(JSReceiver, key, 1);
-  return weakmap->table()->Lookup(*key);
+  return ObjectHashTable::cast(weakmap->table())->Lookup(*key);
 }
 
 
@@ -726,7 +726,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapSet) {
   CONVERT_ARG_CHECKED(JSWeakMap, weakmap, 0);
   CONVERT_ARG_CHECKED(JSReceiver, key, 1);
   Handle<Object> value(args[2]);
-  Handle<ObjectHashTable> table(weakmap->table());
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
   weakmap->set_table(*new_table);
   return *value;

@@ -1002,8 +1002,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     case JS_WEAK_MAP_TYPE: {
-      int elements = JSWeakMap::cast(this)->table()->NumberOfElements();
-      accumulator->Add("<JS WeakMap[%d]>", elements);
+      accumulator->Add("<JS WeakMap>");
       break;
     }
     case JS_REGEXP_TYPE: {

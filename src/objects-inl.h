@@ -3887,7 +3887,7 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 }
 
 
-ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
+ACCESSORS(JSWeakMap, table, Object, kTableOffset)
 ACCESSORS_GCSAFE(JSWeakMap, next, Object, kNextOffset)
 
 

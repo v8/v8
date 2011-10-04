@@ -6897,7 +6897,7 @@ class JSFunctionProxy: public JSProxy {
 class JSWeakMap: public JSObject {
  public:
   // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, ObjectHashTable)
+  DECL_ACCESSORS(table, Object)
 
   // [next]: linked list of encountered weak maps during GC.
   DECL_ACCESSORS(next, Object)
