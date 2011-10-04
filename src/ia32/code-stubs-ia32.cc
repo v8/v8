@@ -6665,6 +6665,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { ebx, eax, edi, EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   { ebx, ecx, edx, EMIT_REMEMBERED_SET },
+  { ebx, edi, edx, OMIT_REMEMBERED_SET },
   // Used in CompileStoreGlobal and CallFunctionStub.
   { ebx, ecx, edx, OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
@@ -6673,7 +6674,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // GenerateStoreField calls the stub with two different permutations of
   // registers.  This is the second.
   { ebx, ecx, edx, EMIT_REMEMBERED_SET },
-  // StoreIC::GenerateNormal via GenerateDictionaryStore, CompileArrayPushCall
+  // StoreIC::GenerateNormal via GenerateDictionaryStore
   { ebx, edi, edx, EMIT_REMEMBERED_SET },
   // KeyedStoreIC::GenerateGeneric.
   { ebx, edx, ecx, EMIT_REMEMBERED_SET},
