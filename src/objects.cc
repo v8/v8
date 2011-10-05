@@ -8835,10 +8835,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!maybe->ToObject(&writable)) return maybe;
     backing_store = FixedArray::cast(writable);
   }
-  uint32_t length = static_cast<uint32_t>(backing_store->length());
+  uint32_t capacity = static_cast<uint32_t>(backing_store->length());
 
   if (check_prototype &&
-      (index >= length || backing_store->get(index)->IsTheHole())) {
+      (index >= capacity || backing_store->get(index)->IsTheHole())) {
     bool found;
     MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
                                                                    value,
@@ -8847,63 +8847,71 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (found) return result;
   }
 
-  // Check whether there is extra space in fixed array.
-  if (index < length) {
-    if (HasFastSmiOnlyElements()) {
-      if (!value->IsSmi()) {
-        // If the value is a number, transition from smi-only to
-        // FastDoubleElements.
-        if (value->IsNumber()) {
-          MaybeObject* maybe =
-              SetFastDoubleElementsCapacityAndLength(length, length);
-          if (maybe->IsFailure()) return maybe;
-          FixedDoubleArray::cast(elements())->set(index, value->Number());
-          return value;
-        }
-        // Value is not a number, transition to generic fast elements.
-        MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
-        Map* new_map;
-        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
-        set_map(new_map);
+  uint32_t new_capacity = capacity;
+  // Check if the length property of this object needs to be updated.
+  uint32_t array_length = 0;
+  bool must_update_array_length = false;
+  if (IsJSArray()) {
+    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+    if (index >= array_length) {
+      must_update_array_length = true;
+      array_length = index + 1;
+    }
+  }
+  // Check if the capacity of the backing store needs to be increased, or if
+  // a transition to slow elements is necessary.
+  if (index >= capacity) {
+    bool convert_to_slow = true;
+    if ((index - capacity) < kMaxGap) {
+      new_capacity = NewElementsCapacity(index + 1);
+      ASSERT(new_capacity > index);
+      if (!ShouldConvertToSlowElements(new_capacity)) {
+        convert_to_slow = false;
       }
     }
-    backing_store->set(index, value);
-    if (IsJSArray()) {
-      // Update the length of the array if needed.
-      uint32_t array_length = 0;
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
-      if (index >= array_length) {
-        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
-      }
+    if (convert_to_slow) {
+      MaybeObject* result = NormalizeElements();
+      if (result->IsFailure()) return result;
+      return SetDictionaryElement(index, value, strict_mode, check_prototype);
     }
+  }
+  // Convert to fast double elements if appropriate.
+  if (HasFastSmiOnlyElements() && !value->IsSmi() && value->IsNumber()) {
+    MaybeObject* maybe =
+        SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
+    if (maybe->IsFailure()) return maybe;
+    FixedDoubleArray::cast(elements())->set(index, value->Number());
     return value;
   }
-
-  // Allow gap in fast case.
-  if ((index - length) < kMaxGap) {
-    // Try allocating extra space.
-    int new_capacity = NewElementsCapacity(index + 1);
-    if (!ShouldConvertToSlowElements(new_capacity)) {
-      ASSERT(static_cast<uint32_t>(new_capacity) > index);
-      Object* new_elements;
-      SetFastElementsCapacityMode set_capacity_mode =
-          value->IsSmi() && HasFastSmiOnlyElements()
-              ? kAllowSmiOnlyElements
-              : kDontAllowSmiOnlyElements;
-      MaybeObject* maybe =
-          SetFastElementsCapacityAndLength(new_capacity,
-                                           index + 1,
-                                           set_capacity_mode);
-      if (!maybe->ToObject(&new_elements)) return maybe;
-      FixedArray::cast(new_elements)->set(index, value);
-      return value;
-    }
+  // Change elements kind from SMI_ONLY to generic FAST if necessary.
+  if (HasFastSmiOnlyElements() && !value->IsSmi()) {
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
+    Map* new_map;
+    if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
+    set_map(new_map);
   }
-
-  // Otherwise default to slow case.
-  MaybeObject* result = NormalizeElements();
-  if (result->IsFailure()) return result;
-  return SetDictionaryElement(index, value, strict_mode, check_prototype);
+  // Increase backing store capacity if that's been decided previously.
+  if (new_capacity != capacity) {
+    Object* new_elements;
+    SetFastElementsCapacityMode set_capacity_mode =
+        value->IsSmi() && HasFastSmiOnlyElements()
+            ? kAllowSmiOnlyElements
+            : kDontAllowSmiOnlyElements;
+    MaybeObject* maybe =
+        SetFastElementsCapacityAndLength(new_capacity,
+                                         array_length,
+                                         set_capacity_mode);
+    if (!maybe->ToObject(&new_elements)) return maybe;
+    FixedArray::cast(new_elements)->set(index, value);
+    return value;
+  }
+  // Finally, set the new element and length.
+  ASSERT(elements()->IsFixedArray());
+  backing_store->set(index, value);
+  if (must_update_array_length) {
+    JSArray::cast(this)->set_length(Smi::FromInt(array_length));
+  }
+  return value;
 }
 
 
