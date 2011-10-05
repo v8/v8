@@ -201,17 +201,14 @@ function ConvertToString(x) {
 
 
 function ConvertToLocaleString(e) {
-  if (e == null) {
+  if (IS_NULL_OR_UNDEFINED(e)) {
     return '';
   } else {
-    // e_obj's toLocaleString might be overwritten, check if it is a function.
-    // Call ToString if toLocaleString is not a function.
-    // See issue 877615.
+    // According to ES5, seciton 15.4.4.3, the toLocaleString conversion
+    // must throw a TypeError if ToObject(e).toLocaleString isn't
+    // callable.
     var e_obj = ToObject(e);
-    if (IS_SPEC_FUNCTION(e_obj.toLocaleString))
-      return ToString(e_obj.toLocaleString());
-    else
-      return ToString(e);
+    return %ToString(e_obj.toLocaleString());
   }
 }
 
@@ -381,18 +378,31 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
 
 
 function ArrayToString() {
-  if (!IS_ARRAY(this)) {
-    throw new $TypeError('Array.prototype.toString is not generic');
+  var array;
+  var func;
+  if (IS_ARRAY(this)) {
+    func = this.join;
+    if (func === ArrayJoin) {
+      return Join(this, this.length, ',', ConvertToString);
+    }
+    array = this;
+  } else {
+    array = ToObject(this);
+    func = array.join;
   }
-  return Join(this, this.length, ',', ConvertToString);
+  if (!IS_SPEC_FUNCTION(func)) {
+    return %_CallFunction(array, ObjectToString);
+  }
+  return %_CallFunction(array, func);
 }
 
 
 function ArrayToLocaleString() {
-  if (!IS_ARRAY(this)) {
-    throw new $TypeError('Array.prototype.toString is not generic');
-  }
-  return Join(this, this.length, ',', ConvertToLocaleString);
+  var array = ToObject(this);
+  var arrayLen = array.length;
+  var len = TO_UINT32(arrayLen);
+  if (len === 0) return "";
+  return Join(array, len, ',', ConvertToLocaleString);
 }
 
 
