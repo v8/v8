@@ -187,6 +187,11 @@ S15.1.1.2_A2_T1: FAIL_OK  # Infinity
 S15.1.1.3_A2_T1: FAIL_OK  # undefined
 S15.1.1.3_A2_T2: FAIL_OK  # undefined
 
+# Array.prototype.to[Locale]String is generic in ES5.
+S15.4.4.2_A2_T1: FAIL_OK
+S15.4.4.3_A2_T1: FAIL_OK
+
+
 ##################### SKIPPED TESTS #####################
 
 # These tests take a looong time to run in debug mode.
