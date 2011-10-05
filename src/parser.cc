@@ -1103,14 +1103,16 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
 
 Statement* Parser::ParseSourceElement(ZoneStringList* labels,
                                       bool* ok) {
+  // (Ecma 262 5th Edition, clause 14):
+  // SourceElement:
+  //    Statement
+  //    FunctionDeclaration
+  //
+  // In harmony mode we allow additionally the following productions
+  // SourceElement:
+  //    LetDeclaration
+
   if (peek() == Token::FUNCTION) {
-    // FunctionDeclaration is only allowed in the context of SourceElements
-    // (Ecma 262 5th Edition, clause 14):
-    // SourceElement:
-    //    Statement
-    //    FunctionDeclaration
-    // Common language extension is to allow function declaration in place
-    // of any statement. This language extension is disabled in strict mode.
     return ParseFunctionDeclaration(ok);
   } else if (peek() == Token::LET) {
     return ParseVariableStatement(kSourceElement, ok);
@@ -1124,7 +1126,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool* ok) {
   // SourceElements ::
-  //   (Statement)* <end_token>
+  //   (SourceElement)* <end_token>
 
   // Allocate a target stack to use for this set of source
   // elements. This way, all scripts and functions get their own
@@ -1295,8 +1297,13 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     }
 
     case Token::FUNCTION: {
-      // In strict mode, FunctionDeclaration is only allowed in the context
-      // of SourceElements.
+      // FunctionDeclaration is only allowed in the context of SourceElements
+      // (Ecma 262 5th Edition, clause 14):
+      // SourceElement:
+      //    Statement
+      //    FunctionDeclaration
+      // Common language extension is to allow function declaration in place
+      // of any statement. This language extension is disabled in strict mode.
       if (top_scope_->is_strict_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
@@ -1555,6 +1562,11 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
+  // The harmony mode uses source elements instead of statements.
+  //
+  // Block ::
+  //   '{' SourceElement* '}'
+
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
   Scope* saved_scope = top_scope_;
@@ -1753,6 +1765,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
           value->AsCall() == NULL &&
           value->AsCallNew() == NULL) {
         fni_->Infer();
+      } else {
+        fni_->RemoveLastFunction();
       }
     }
 
@@ -2503,6 +2517,8 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
          || op == Token::ASSIGN)
         && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
       fni_->Infer();
+    } else {
+      fni_->RemoveLastFunction();
     }
     fni_->Leave();
   }
@@ -2614,7 +2630,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y, position);
+        x = new(zone()) CompareOperation(isolate(), cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = new(zone()) UnaryOperation(isolate(), Token::NOT, x, position);
@@ -2627,27 +2643,6 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
-}
-
-
-Expression* Parser::NewCompareNode(Token::Value op,
-                                   Expression* x,
-                                   Expression* y,
-                                   int position) {
-  ASSERT(op != Token::NE && op != Token::NE_STRICT);
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool is_strict = (op == Token::EQ_STRICT);
-    Literal* x_literal = x->AsLiteral();
-    if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, y);
-    }
-
-    Literal* y_literal = y->AsLiteral();
-    if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, x);
-    }
-  }
-  return new(zone()) CompareOperation(isolate(), op, x, y, position);
 }
 
 

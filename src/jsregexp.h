@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,7 @@
 #define V8_JSREGEXP_H_
 
 #include "allocation.h"
+#include "assembler.h"
 #include "zone-inl.h"
 
 namespace v8 {

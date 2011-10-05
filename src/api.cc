@@ -185,7 +185,10 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   int end_marker;
   heap_stats.end_marker = &end_marker;
   i::Isolate* isolate = i::Isolate::Current();
-  isolate->heap()->RecordStats(&heap_stats, take_snapshot);
+  // BUG(1718):
+  // Don't use the take_snapshot since we don't support HeapIterator here
+  // without doing a special GC.
+  isolate->heap()->RecordStats(&heap_stats, false);
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
@@ -501,9 +504,12 @@ void RegisterExtension(Extension* that) {
 Extension::Extension(const char* name,
                      const char* source,
                      int dep_count,
-                     const char** deps)
+                     const char** deps,
+                     int source_length)
     : name_(name),
-      source_(source),
+      source_length_(source_length >= 0 ?
+                  source_length : (source ? strlen(source) : 0)),
+      source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
       auto_enable_(false) { }
@@ -3204,21 +3210,10 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::JSObject::ALLOW_CREATION));
-  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::SetProperty(
-      hidden_props,
-      key_obj,
-      value_obj,
-      static_cast<PropertyAttributes>(None),
-      i::kNonStrictMode);
-  has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return true;
+  i::Handle<i::Object> result = i::SetHiddenProperty(self, key_obj, value_obj);
+  return *result == *self;
 }
 
 
@@ -3228,20 +3223,9 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::JSObject::OMIT_CREATION));
-  if (hidden_props->IsUndefined()) {
-    return v8::Local<v8::Value>();
-  }
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(hidden_props, key_obj);
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, v8::Local<v8::Value>());
-  if (result->IsUndefined()) {
-    return v8::Local<v8::Value>();
-  }
+  i::Handle<i::Object> result(self->GetHiddenProperty(*key_obj));
+  if (result->IsUndefined()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
 }
 
@@ -3252,15 +3236,9 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(
-      self,
-      i::JSObject::OMIT_CREATION));
-  if (hidden_props->IsUndefined()) {
-    return true;
-  }
-  i::Handle<i::JSObject> js_obj(i::JSObject::cast(*hidden_props));
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return i::DeleteProperty(js_obj, key_obj)->IsTrue();
+  self->DeleteHiddenProperty(*key_obj);
+  return true;
 }
 
 
@@ -3310,22 +3288,12 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
   i::Handle<i::ExternalArray> array =
       isolate->factory()->NewExternalArray(length, array_type, data);
 
-  // If the object already has external elements, create a new, unique
-  // map if the element type is now changing, because assumptions about
-  // generated code based on the receiver's map will be invalid.
-  i::Handle<i::HeapObject> elements(object->elements());
-  bool cant_reuse_map =
-      elements->map()->IsUndefined() ||
-      !elements->map()->has_external_array_elements() ||
-      elements->map() != isolate->heap()->MapForExternalArrayType(array_type);
-  if (cant_reuse_map) {
-    i::Handle<i::Map> external_array_map =
-        isolate->factory()->GetElementsTransitionMap(
-            i::Handle<i::Map>(object->map()),
-            GetElementsKindFromExternalArrayType(array_type),
-            object->HasFastProperties());
-    object->set_map(*external_array_map);
-  }
+  i::Handle<i::Map> external_array_map =
+      isolate->factory()->GetElementsTransitionMap(
+          object,
+          GetElementsKindFromExternalArrayType(array_type));
+
+  object->set_map(*external_array_map);
   object->set_elements(*array);
 }
 
@@ -3799,10 +3767,11 @@ bool v8::String::IsExternalAscii() const {
 void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  v8::String::ExternalStringResource* expected;
+  const v8::String::ExternalStringResource* expected;
   if (i::StringShape(*str).IsExternalTwoByte()) {
-    void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-    expected = reinterpret_cast<ExternalStringResource*>(resource);
+    const void* resource =
+        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    expected = reinterpret_cast<const ExternalStringResource*>(resource);
   } else {
     expected = NULL;
   }
@@ -3810,7 +3779,7 @@ void v8::String::VerifyExternalStringResource(
 }
 
 
-v8::String::ExternalAsciiStringResource*
+const v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (IsDeadCheck(str->GetIsolate(),
@@ -3818,8 +3787,9 @@ v8::String::ExternalAsciiStringResource*
     return NULL;
   }
   if (i::StringShape(*str).IsExternalAscii()) {
-    void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-    return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+    const void* resource =
+        i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    return reinterpret_cast<const ExternalAsciiStringResource*>(resource);
   } else {
     return NULL;
   }
@@ -4009,7 +3979,7 @@ bool v8::V8::IdleNotification() {
 void v8::V8::LowMemoryNotification() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return;
-  isolate->heap()->CollectAllGarbage(true);
+  isolate->heap()->CollectAllAvailableGarbage();
 }
 
 
@@ -5480,6 +5450,12 @@ bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
                                                        wait_for_connection);
 }
 
+
+void Debug::DisableAgent() {
+  return i::Isolate::Current()->debugger()->StopAgent();
+}
+
+
 void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMesssages(true);
 }
@@ -5801,6 +5777,16 @@ const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
+}
+
+
+v8::Handle<v8::Value> HeapGraphNode::GetHeapValue() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphNode::GetHeapValue");
+  i::Handle<i::HeapObject> object = ToInternal(this)->GetHeapObject();
+  return v8::Handle<Value>(!object.is_null() ?
+                           ToApi<Value>(object) : ToApi<Value>(
+                               isolate->factory()->undefined_value()));
 }
 
 

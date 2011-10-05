@@ -36,6 +36,7 @@
 #include "full-codegen.h"
 #include "gdb-jit.h"
 #include "hydrogen.h"
+#include "isolate-inl.h"
 #include "lithium.h"
 #include "liveedit.h"
 #include "parser.h"

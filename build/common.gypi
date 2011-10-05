@@ -60,6 +60,8 @@
 
     'v8_enable_disassembler%': 0,
 
+    'v8_object_print%': 0,
+
     'v8_enable_gdbjit%': 0,
 
     # Enable profiling support. Only required on Windows.
@@ -83,6 +85,9 @@
       }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
+      }],
+      ['v8_object_print==1', {
+        'defines': ['OBJECT_PRINT',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -184,6 +189,9 @@
           }],
         ],
       }],
+      ['OS=="solaris"', {
+        'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
+      }],
     ],
     'configurations': {
       'Debug': {
@@ -261,7 +269,7 @@
           }],
           ['OS=="win"', {
             'msvs_configuration_attributes': {
-              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
+              'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },

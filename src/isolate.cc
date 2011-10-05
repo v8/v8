@@ -1403,11 +1403,12 @@ Isolate::Isolate()
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
-      pc_to_code_cache_(NULL),
+      inner_pointer_to_code_cache_(NULL),
       write_input_buffer_(NULL),
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
+      fp_stubs_generated_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       embedder_data_(NULL) {
@@ -1575,8 +1576,8 @@ Isolate::~Isolate() {
   compilation_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
-  delete pc_to_code_cache_;
-  pc_to_code_cache_ = NULL;
+  delete inner_pointer_to_code_cache_;
+  inner_pointer_to_code_cache_ = NULL;
   delete write_input_buffer_;
   write_input_buffer_ = NULL;
 
@@ -1700,7 +1701,7 @@ bool Isolate::Init(Deserializer* des) {
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
-  pc_to_code_cache_ = new PcToCodeCache(this);
+  inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
@@ -1767,7 +1768,7 @@ bool Isolate::Init(Deserializer* des) {
   // If we are deserializing, read the state into the now-empty heap.
   if (des != NULL) {
     des->Deserialize();
-    stub_cache_->Clear();
+    stub_cache_->Initialize(true);
   }
 
   // Deserializing may put strange things in the root array's copy of the

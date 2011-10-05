@@ -33,6 +33,7 @@
 #include "builtins.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
+#include "mark-compact.h"
 #include "vm-state-inl.h"
 
 namespace v8 {
@@ -202,7 +203,7 @@ BUILTIN(ArrayCodeGeneric) {
   }
 
   // 'array' now contains the JSArray we should initialize.
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   // Optimize the case where there is one argument and the argument is a
   // small smi.
@@ -215,7 +216,8 @@ BUILTIN(ArrayCodeGeneric) {
         { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len);
           if (!maybe_obj->ToObject(&obj)) return maybe_obj;
         }
-        array->SetContent(FixedArray::cast(obj));
+        MaybeObject* maybe_obj = array->SetContent(FixedArray::cast(obj));
+        if (maybe_obj->IsFailure()) return maybe_obj;
         return array;
       }
     }
@@ -239,6 +241,13 @@ BUILTIN(ArrayCodeGeneric) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
+  // Set length and elements on the array.
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        array->EnsureCanContainElements(FixedArray::cast(obj));
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
+
   AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
@@ -247,7 +256,6 @@ BUILTIN(ArrayCodeGeneric) {
     elms->set(index, args[index+1], mode);
   }
 
-  // Set length and elements on the array.
   array->set_elements(FixedArray::cast(obj));
   array->set_length(len);
 
@@ -295,6 +303,7 @@ static void CopyElements(Heap* heap,
   if (mode == UPDATE_WRITE_BARRIER) {
     heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  heap->incremental_marking()->RecordWrites(dst);
 }
 
 
@@ -313,6 +322,7 @@ static void MoveElements(Heap* heap,
   if (mode == UPDATE_WRITE_BARRIER) {
     heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  heap->incremental_marking()->RecordWrites(dst);
 }
 
 
@@ -357,6 +367,14 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
   former_start[to_trim] = heap->fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
+
+  // Maintain marking consistency for HeapObjectIterator and
+  // IncrementalMarking.
+  int size_delta = to_trim * kPointerSize;
+  if (heap->marking()->TransferMark(elms->address(),
+                                    elms->address() + size_delta)) {
+    MemoryChunk::IncrementLiveBytes(elms->address(), -size_delta);
+  }
 
   return FixedArray::cast(HeapObject::FromAddress(
       elms->address() + to_trim * kPointerSize));
@@ -423,7 +441,7 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   for (int i = 0; i < n_args; i++) {
     argv[i] = args.at<Object>(i + 1).location();
   }
-  bool pending_exception = false;
+  bool pending_exception;
   Handle<Object> result = Execution::Call(function,
                                           args.receiver(),
                                           n_args,
@@ -475,14 +493,20 @@ BUILTIN(ArrayPush) {
     FillWithHoles(heap, new_elms, new_length, capacity);
 
     elms = new_elms;
-    array->set_elements(elms);
   }
+
+  MaybeObject* maybe = array->EnsureCanContainElements(&args, 1, to_add);
+  if (maybe->IsFailure()) return maybe;
 
   // Add the provided values.
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < to_add; index++) {
     elms->set(index + len, args[index + 1], mode);
+  }
+
+  if (elms != array->elements()) {
+    array->set_elements(elms);
   }
 
   // Set the length.
@@ -539,7 +563,7 @@ BUILTIN(ArrayShift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -551,9 +575,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (!heap->lo_space()->Contains(elms)) {
-    // As elms still in the same space they used to be,
-    // there is no need to update region dirty mark.
-    array->set_elements(LeftTrimFixedArray(heap, elms, 1), SKIP_WRITE_BARRIER);
+    array->set_elements(LeftTrimFixedArray(heap, elms, 1));
   } else {
     // Shift the elements.
     AssertNoAllocation no_gc;
@@ -583,7 +605,7 @@ BUILTIN(ArrayUnshift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -591,6 +613,12 @@ BUILTIN(ArrayUnshift) {
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
+
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        array->EnsureCanContainElements(&args, 1, to_add);
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
@@ -600,13 +628,11 @@ BUILTIN(ArrayUnshift) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* new_elms = FixedArray::cast(obj);
-
     AssertNoAllocation no_gc;
     if (len > 0) {
       CopyElements(heap, &no_gc, new_elms, to_add, elms, 0, len);
     }
     FillWithHoles(heap, new_elms, new_length, capacity);
-
     elms = new_elms;
     array->set_elements(elms);
   } else {
@@ -634,7 +660,7 @@ BUILTIN(ArraySlice) {
   int len = -1;
   if (receiver->IsJSArray()) {
     JSArray* array = JSArray::cast(receiver);
-    if (!array->HasFastElements() ||
+    if (!array->HasFastTypeElements() ||
         !IsJSArrayFastElementMovingAllowed(heap, array)) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -650,7 +676,7 @@ BUILTIN(ArraySlice) {
     bool is_arguments_object_with_fast_elements =
         receiver->IsJSObject()
         && JSObject::cast(receiver)->map() == arguments_map
-        && JSObject::cast(receiver)->HasFastElements();
+        && JSObject::cast(receiver)->HasFastTypeElements();
     if (!is_arguments_object_with_fast_elements) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -721,6 +747,12 @@ BUILTIN(ArraySlice) {
   }
   FixedArray* result_elms = FixedArray::cast(result);
 
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe_object =
+        result_array->EnsureCanContainElements(result_elms);
+    if (maybe_object->IsFailure()) return maybe_object;
+  }
+
   AssertNoAllocation no_gc;
   CopyElements(heap, &no_gc, result_elms, 0, elms, k, result_len);
 
@@ -748,7 +780,7 @@ BUILTIN(ArraySplice) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+  ASSERT(array->HasFastTypeElements());
 
   int len = Smi::cast(array->length())->value();
 
@@ -826,8 +858,14 @@ BUILTIN(ArraySplice) {
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
 
+  if (FLAG_smi_only_arrays) {
+    MaybeObject* maybe = array->EnsureCanContainElements(&args, 3, item_count);
+    if (maybe->IsFailure()) return maybe;
+  }
+
   int new_length = len - actual_delete_count + item_count;
 
+  bool elms_changed = false;
   if (item_count < actual_delete_count) {
     // Shrink the array.
     const bool trim_array = !heap->lo_space()->Contains(elms) &&
@@ -842,7 +880,8 @@ BUILTIN(ArraySplice) {
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
-      array->set_elements(elms, SKIP_WRITE_BARRIER);
+
+      elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,
@@ -882,7 +921,7 @@ BUILTIN(ArraySplice) {
       FillWithHoles(heap, new_elms, new_length, capacity);
 
       elms = new_elms;
-      array->set_elements(elms);
+      elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
       MoveElements(heap, &no_gc,
@@ -896,6 +935,10 @@ BUILTIN(ArraySplice) {
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int k = actual_start; k < actual_start + item_count; k++) {
     elms->set(k, args[3 + k - actual_start], mode);
+  }
+
+  if (elms_changed) {
+    array->set_elements(elms);
   }
 
   // Set the length.
@@ -920,7 +963,7 @@ BUILTIN(ArrayConcat) {
   int result_len = 0;
   for (int i = 0; i < n_arguments; i++) {
     Object* arg = args[i];
-    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastElements()
+    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastTypeElements()
         || JSArray::cast(arg)->GetPrototype() != array_proto) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
@@ -955,6 +998,19 @@ BUILTIN(ArrayConcat) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   FixedArray* result_elms = FixedArray::cast(result);
+
+  if (FLAG_smi_only_arrays) {
+    for (int i = 0; i < n_arguments; i++) {
+      JSArray* array = JSArray::cast(args[i]);
+      int len = Smi::cast(array->length())->value();
+      if (len > 0) {
+        FixedArray* elms = FixedArray::cast(array->elements());
+        MaybeObject* maybe_object =
+            result_array->EnsureCanContainElements(elms);
+        if (maybe_object->IsFailure()) return maybe_object;
+      }
+    }
+  }
 
   // Copy data.
   AssertNoAllocation no_gc;
@@ -1607,20 +1663,22 @@ void Builtins::Setup(bool create_heap_objects) {
   const BuiltinDesc* functions = BuiltinFunctionTable::functions();
 
   // For now we generate builtin adaptor code into a stack-allocated
-  // buffer, before copying it into individual code objects.
-  byte buffer[4*KB];
+  // buffer, before copying it into individual code objects. Be careful
+  // with alignment, some platforms don't like unaligned code.
+  union { int force_alignment; byte buffer[4*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(isolate, buffer, sizeof buffer);
+      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer);
       // Generate the code/adaptor.
       typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
+      ASSERT(!masm.has_frame());
       g(&masm, functions[i].name, functions[i].extra_args);
       // Move the code into the object heap.
       CodeDesc desc;
