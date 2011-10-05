@@ -3363,7 +3363,7 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Compute address of modified element and store it into key register.
-    __ add(key, scratch, Operand(FixedArray::kHeaderSize));
+    __ add(key, scratch, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
     __ RecordWrite(elements, key, value, kLRHasBeenSaved, kSaveFPRegs);
   }
 }
