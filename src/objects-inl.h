@@ -88,15 +88,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-// GC-safe accessors do not use HeapObject::GetHeap(), but access TLS instead.
-#define ACCESSORS_GCSAFE(holder, name, type, offset)                    \
-  type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {         \
-    WRITE_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WRITE_BARRIER(HEAP, this, offset, value, mode);         \
-  }
-
-
 #define SMI_ACCESSORS(holder, name, offset)             \
   int holder::name() {                                  \
     Object* value = READ_FIELD(this, offset);           \
@@ -3414,8 +3405,8 @@ ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
-ACCESSORS_GCSAFE(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS_GCSAFE(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
+ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -3888,7 +3879,7 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 
 
 ACCESSORS(JSWeakMap, table, Object, kTableOffset)
-ACCESSORS_GCSAFE(JSWeakMap, next, Object, kNextOffset)
+ACCESSORS(JSWeakMap, next, Object, kNextOffset)
 
 
 ObjectHashTable* JSWeakMap::unchecked_table() {
