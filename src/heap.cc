@@ -3321,9 +3321,9 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
 }
 
 
-MaybeObject* Heap::InitializeFunction(JSFunction* function,
-                                      SharedFunctionInfo* shared,
-                                      Object* prototype) {
+void Heap::InitializeFunction(JSFunction* function,
+                              SharedFunctionInfo* shared,
+                              Object* prototype) {
   ASSERT(!prototype->IsMap());
   function->initialize_properties();
   function->initialize_elements();
@@ -3333,7 +3333,6 @@ MaybeObject* Heap::InitializeFunction(JSFunction* function,
   function->set_context(undefined_value());
   function->set_literals(empty_fixed_array());
   function->set_next_function_link(undefined_value());
-  return function;
 }
 
 
@@ -3379,7 +3378,8 @@ MaybeObject* Heap::AllocateFunction(Map* function_map,
   { MaybeObject* maybe_result = Allocate(function_map, space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  return InitializeFunction(JSFunction::cast(result), shared, prototype);
+  InitializeFunction(JSFunction::cast(result), shared, prototype);
+  return result;
 }
 
 
@@ -3819,9 +3819,6 @@ MaybeObject* Heap::ReinitializeJSReceiver(
     JSReceiver* object, InstanceType type, int size) {
   ASSERT(type >= FIRST_JS_OBJECT_TYPE);
 
-  // Save identity hash.
-  MaybeObject* maybe_hash = object->GetIdentityHash(OMIT_CREATION);
-
   // Allocate fresh map.
   // TODO(rossberg): Once we optimize proxies, cache these maps.
   Map* map;
@@ -3837,9 +3834,21 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
   Object* properties;
-  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, TENURED);
-    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
+  maybe = AllocateFixedArray(prop_size, TENURED);
+  if (!maybe->ToObject(&properties)) return maybe;
+
+  // Functions require some allocation, which might fail here.
+  SharedFunctionInfo* shared = NULL;
+  if (type == JS_FUNCTION_TYPE) {
+    String* name;
+    maybe = LookupAsciiSymbol("<freezing call trap>");
+    if (!maybe->To<String>(&name)) return maybe;
+    maybe = AllocateSharedFunctionInfo(name);
+    if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
   }
+
+  // Because of possible retries of this function after failure,
+  // we must NOT fail after this point, where we have changed the type!
 
   // Reset the map for the object.
   object->set_map(map);
@@ -3851,30 +3860,15 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   // Functions require some minimal initialization.
   if (type == JS_FUNCTION_TYPE) {
     map->set_function_with_prototype(true);
-    String* name;
-    maybe = LookupAsciiSymbol("<freezing call trap>");
-    if (!maybe->To<String>(&name)) return maybe;
-    SharedFunctionInfo* shared;
-    maybe = AllocateSharedFunctionInfo(name);
-    if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
-    JSFunction* func;
-    maybe = InitializeFunction(
-        JSFunction::cast(object), shared, the_hole_value());
-    if (!maybe->To<JSFunction>(&func)) return maybe;
-    func->set_context(isolate()->context()->global_context());
+    InitializeFunction(JSFunction::cast(object), shared, the_hole_value());
+    JSFunction::cast(object)->set_context(
+        isolate()->context()->global_context());
   }
 
   // Put in filler if the new object is smaller than the old.
   if (size_difference > 0) {
     CreateFillerObjectAt(
         object->address() + map->instance_size(), size_difference);
-  }
-
-  // Inherit identity, if it was present.
-  Object* hash;
-  if (maybe_hash->To<Object>(&hash) && hash->IsSmi()) {
-    maybe = jsobj->SetIdentityHash(hash, ALLOW_CREATION);
-    if (maybe->IsFailure()) return maybe;
   }
 
   return object;

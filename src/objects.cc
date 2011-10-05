@@ -2606,6 +2606,9 @@ void JSProxy::Fix() {
   HandleScope scope(isolate);
   Handle<JSProxy> self(this);
 
+  // Save identity hash.
+  MaybeObject* maybe_hash = GetIdentityHash(OMIT_CREATION);
+
   if (IsJSFunctionProxy()) {
     isolate->factory()->BecomeJSFunction(self);
     // Code will be set on the JavaScript side.
@@ -2613,6 +2616,13 @@ void JSProxy::Fix() {
     isolate->factory()->BecomeJSObject(self);
   }
   ASSERT(self->IsJSObject());
+
+  // Inherit identity, if it was present.
+  Object* hash;
+  if (maybe_hash->To<Object>(&hash) && hash->IsSmi()) {
+    Handle<JSObject> new_self(JSObject::cast(*self));
+    isolate->factory()->SetIdentityHash(new_self, hash);
+  }
 }
 
 

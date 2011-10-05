@@ -1685,12 +1685,11 @@ class Heap {
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Initializes a function with a shared part and prototype.
-  // Returns the function.
   // Note: this code was factored out of AllocateFunction such that
   // other parts of the VM could use it. Specifically, a function that creates
   // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* InitializeFunction(
+  inline void InitializeFunction(
       JSFunction* function,
       SharedFunctionInfo* shared,
       Object* prototype);
