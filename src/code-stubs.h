@@ -55,6 +55,7 @@ namespace internal {
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
+  V(FastNewBlockContext)                 \
   V(FastCloneShallowArray)               \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
@@ -323,7 +324,7 @@ class FastNewContextStub : public CodeStub {
   static const int kMaximumSlots = 64;
 
   explicit FastNewContextStub(int slots) : slots_(slots) {
-    ASSERT(slots_ > 0 && slots <= kMaximumSlots);
+    ASSERT(slots_ > 0 && slots_ <= kMaximumSlots);
   }
 
   void Generate(MacroAssembler* masm);
@@ -332,6 +333,24 @@ class FastNewContextStub : public CodeStub {
   int slots_;
 
   Major MajorKey() { return FastNewContext; }
+  int MinorKey() { return slots_; }
+};
+
+
+class FastNewBlockContextStub : public CodeStub {
+ public:
+  static const int kMaximumSlots = 64;
+
+  explicit FastNewBlockContextStub(int slots) : slots_(slots) {
+    ASSERT(slots_ > 0 && slots_ <= kMaximumSlots);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int slots_;
+
+  Major MajorKey() { return FastNewBlockContext; }
   int MinorKey() { return slots_; }
 };
 

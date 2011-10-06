@@ -820,9 +820,19 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   if (stmt->block_scope() != NULL) {
     { Comment cmnt(masm_, "[ Extend block context");
       scope_ = stmt->block_scope();
-      __ Push(scope_->GetSerializedScopeInfo());
+      Handle<SerializedScopeInfo> scope_info = scope_->GetSerializedScopeInfo();
+      int heap_slots =
+          scope_info->NumberOfContextSlots() - Context::MIN_CONTEXT_SLOTS;
+      __ Push(scope_info);
       PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
+        FastNewBlockContextStub stub(heap_slots);
+        __ CallStub(&stub);
+      } else {
+        __ CallRuntime(Runtime::kPushBlockContext, 2);
+      }
+
+      // Replace the context stored in the frame.
       StoreToFrameField(StandardFrameConstants::kContextOffset,
                         context_register());
     }
