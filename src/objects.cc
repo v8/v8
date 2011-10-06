@@ -3995,7 +3995,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
 void JSObject::LookupCallback(String* name, LookupResult* result) {
   Heap* heap = GetHeap();
   for (Object* current = this;
-       current != heap->null_value();
+       current != heap->null_value() && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty() && result->type() == CALLBACKS) return;
