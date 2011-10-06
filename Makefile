@@ -32,6 +32,7 @@ LINK ?= "g++"
 OUTDIR ?= out
 TESTJOBS ?= -j16
 GYPFLAGS ?=
+TESTFLAGS ?=
 
 # Special build flags. Use them like this: "make library=shared"
 
@@ -75,6 +76,14 @@ endif
 # soname_version=1.2.3
 ifdef soname_version
   GYPFLAGS += -Dsoname_version=$(soname_version)
+endif
+# werror=no
+ifeq ($(werror), no)
+  GYPFLAGS += -Dwerror=''
+endif
+# presubmit=no
+ifeq ($(presubmit), no)
+  TESTFLAGS += --no-presubmit
 endif
 
 # ----------------- available targets: --------------------
@@ -136,23 +145,24 @@ native: $(OUTDIR)/Makefile-native
 
 # Test targets.
 check: all
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    $(TESTFLAGS)
 
 $(addsuffix .check,$(MODES)): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --mode=$(basename $@)
+	    --mode=$(basename $@) $(TESTFLAGS)
 
 $(addsuffix .check,$(ARCHES)): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --arch=$(basename $@)
+	    --arch=$(basename $@) $(TESTFLAGS)
 
 $(CHECKS): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --arch-and-mode=$(basename $@)
+	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
 
 native.check: native
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
-	    --arch-and-mode=.
+	    --arch-and-mode=. $(TESTFLAGS)
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean,$(ARCHES)):

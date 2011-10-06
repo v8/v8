@@ -58,6 +58,7 @@
     'host_arch%': '<(host_arch)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
+    'werror%': '-Werror',
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="x64" and host_arch!="x64")', {
@@ -78,7 +79,7 @@
   'conditions': [
     [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
+        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                     '-Wnon-virtual-dtor', '-pthread', '-fno-rtti',
                     '-fno-exceptions', '-pedantic' ],
         'ldflags': [ '-pthread', ],
