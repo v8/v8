@@ -1225,9 +1225,17 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ ldr(r0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
-      __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+      if (local->mode() == Variable::CONST) {
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+      } else {  // Variable::LET
+        __ b(ne, done);
+        __ mov(r0, Operand(var->name()));
+        __ push(r0);
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }

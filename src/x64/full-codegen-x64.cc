@@ -1184,10 +1184,16 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ movq(rax, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
       __ j(not_equal, done);
-      __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      if (local->mode() == Variable::CONST) {
+        __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      } else {  // Variable::LET
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }
