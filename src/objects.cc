@@ -2029,7 +2029,7 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
                                          strict_mode);
         } else if (accessor_result.type() == HANDLER) {
           // There is a proxy in the prototype chain. Invoke its
-          // getOwnPropertyDescriptor trap.
+          // getPropertyDescriptor trap.
           bool found = false;
           // SetPropertyWithHandlerIfDefiningSetter can cause GC,
           // make sure to use the handlified references after calling
@@ -2448,7 +2448,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
   Handle<Object> value(value_raw);
   Handle<Object> args[] = { name };
   Handle<Object> result = proxy->CallTrap(
-      "getOwnPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
+      "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
 
   if (!result->IsUndefined()) {

@@ -609,7 +609,7 @@ function TestSetForDerived2(handler, create) {
 }
 
 TestSetForDerived({
-  getOwnPropertyDescriptor: function(k) {
+  getPropertyDescriptor: function(k) {
     key = k;
     switch (k) {
       case "p_writable": return {writable: true, configurable: true}
