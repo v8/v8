@@ -431,20 +431,18 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   HandleScope handleScope(isolate);
 
   Handle<Object> js_builtin =
-      GetProperty(Handle<JSObject>(
-          isolate->global_context()->builtins()),
-          name);
-  ASSERT(js_builtin->IsJSFunction());
-  Handle<JSFunction> function(Handle<JSFunction>::cast(js_builtin));
-  ScopedVector<Object**> argv(args.length() - 1);
-  int n_args = args.length() - 1;
-  for (int i = 0; i < n_args; i++) {
-    argv[i] = args.at<Object>(i + 1).location();
+      GetProperty(Handle<JSObject>(isolate->global_context()->builtins()),
+                  name);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(js_builtin);
+  int argc = args.length() - 1;
+  ScopedVector<Handle<Object> > argv(argc);
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = args.at<Object>(i + 1);
   }
   bool pending_exception;
   Handle<Object> result = Execution::Call(function,
                                           args.receiver(),
-                                          n_args,
+                                          argc,
                                           argv.start(),
                                           &pending_exception);
   if (pending_exception) return Failure::Exception();

@@ -1,5 +1,4 @@
-
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -149,12 +148,15 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
           JSFunction::cast(
               Isolate::Current()->js_builtins_object()->
               GetPropertyNoExceptionThrown(*fmt_str)));
-  Object** argv[1] = { data.location() };
+  Handle<Object> argv[] = { data };
 
   bool caught_exception;
   Handle<Object> result =
       Execution::TryCall(fun,
-          Isolate::Current()->js_builtins_object(), 1, argv, &caught_exception);
+                         Isolate::Current()->js_builtins_object(),
+                         ARRAY_SIZE(argv),
+                         argv,
+                         &caught_exception);
 
   if (caught_exception || !result->IsString()) {
     return FACTORY->LookupAsciiSymbol("<error>");

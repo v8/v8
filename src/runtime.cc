@@ -7921,8 +7921,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
 }
 
 
-static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
-                                                        int* total_argc) {
+static SmartArrayPointer<Handle<Object> > GetNonBoundArguments(
+    int bound_argc,
+    int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
@@ -7938,10 +7939,11 @@ static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
                                             &args_slots);
 
     *total_argc = bound_argc + args_count;
-    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Handle<Object> > param_data(
+        NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = args_slots[i].GetValue();
-      param_data[bound_argc + i] = val.location();
+      param_data[bound_argc + i] = val;
     }
     return param_data;
   } else {
@@ -7950,10 +7952,11 @@ static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = bound_argc + args_count;
-    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Handle<Object> > param_data(
+        NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i));
-      param_data[bound_argc + i] = val.location();
+      param_data[bound_argc + i] = val;
     }
     return param_data;
   }
@@ -7977,11 +7980,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   }
 
   int total_argc = 0;
-  SmartArrayPointer<Object**> param_data =
+  SmartArrayPointer<Handle<Object> > param_data =
       GetNonBoundArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     Handle<Object> val = Handle<Object>(bound_args->get(i));
-    param_data[i] = val.location();
+    param_data[i] = val;
   }
 
   bool exception = false;
@@ -8458,8 +8461,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   bool threw;
   Handle<JSReceiver> hfun(fun);
   Handle<Object> hreceiver(receiver);
-  Handle<Object> result = Execution::Call(
-      hfun, hreceiver, argc, reinterpret_cast<Object***>(argv), &threw, true);
+  Handle<Object> result =
+      Execution::Call(hfun, hreceiver, argc, argv, &threw, true);
 
   if (threw) return Failure::Exception();
   return *result;
@@ -11849,12 +11852,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                                                 &sinfo, function_context);
 
   // Invoke the evaluation function and return the result.
-  const int argc = 2;
-  Object** argv[argc] = { arguments.location(),
-                          Handle<Object>::cast(source).location() };
+  Handle<Object> argv[] = { arguments, source };
   Handle<Object> result =
-      Execution::Call(Handle<JSFunction>::cast(evaluation_function), receiver,
-                      argc, argv, &has_pending_exception);
+      Execution::Call(Handle<JSFunction>::cast(evaluation_function),
+                      receiver,
+                      ARRAY_SIZE(argv),
+                      argv,
+                      &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -12989,11 +12993,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     // TODO(antonm): consider passing a receiver when constructing a cache.
     Handle<Object> receiver(isolate->global_context()->global());
     // This handle is nor shared, nor used later, so it's safe.
-    Object** argv[] = { key_handle.location() };
+    Handle<Object> argv[] = { key_handle };
     bool pending_exception;
     value = Execution::Call(factory,
                             receiver,
-                            1,
+                            ARRAY_SIZE(argv),
                             argv,
                             &pending_exception);
     if (pending_exception) return Failure::Exception();

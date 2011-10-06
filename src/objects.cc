@@ -1930,8 +1930,8 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
   }
 #endif
   bool has_pending_exception;
-  Object** argv[] = { value_handle.location() };
-  Execution::Call(fun, self, 1, argv, &has_pending_exception);
+  Handle<Object> argv[] = { value_handle };
+  Execution::Call(fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *value_handle;
@@ -2456,7 +2456,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     // Check whether it is virtualized as an accessor.
     // Emulate [[GetProperty]] semantics for proxies.
     bool has_pending_exception;
-    Object** argv[] = { result.location() };
+    Handle<Object> argv[] = { result };
     Handle<Object> desc =
         Execution::Call(isolate->to_complete_property_descriptor(), result,
                         ARRAY_SIZE(argv), argv, &has_pending_exception);
@@ -2558,7 +2558,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (result->IsUndefined()) return ABSENT;
 
   bool has_pending_exception;
-  Object** argv[] = { result.location() };
+  Handle<Object> argv[] = { result };
   Handle<Object> desc =
       Execution::Call(isolate->to_complete_property_descriptor(), result,
                       ARRAY_SIZE(argv), argv, &has_pending_exception);
@@ -2626,11 +2626,10 @@ void JSProxy::Fix() {
 }
 
 
-MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
-    const char* name,
-    Handle<Object> derived,
-    int argc,
-    Handle<Object> args[]) {
+MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
+                                                 Handle<Object> derived,
+                                                 int argc,
+                                                 Handle<Object> argv[]) {
   Isolate* isolate = GetIsolate();
   Handle<Object> handler(this->handler());
 
@@ -2649,7 +2648,6 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
     trap = Handle<Object>(derived);
   }
 
-  Object*** argv = reinterpret_cast<Object***>(args);
   bool threw;
   return Execution::Call(trap, handler, argc, argv, &threw);
 }

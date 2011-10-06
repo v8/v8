@@ -2402,7 +2402,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
 
   bool caught_exception;
-  Object** builtin_args[] = { right.location() };
+  Handle<Object> builtin_args[] = { right };
   Handle<Object> result = Execution::Call(builtin_function,
                                           left,
                                           ARRAY_SIZE(builtin_args),
