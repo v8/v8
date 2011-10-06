@@ -3423,9 +3423,9 @@ void JSObject::DeleteHiddenProperty(String* key) {
 
 
 bool JSObject::HasHiddenProperties() {
-  LookupResult lookup;
-  LocalLookupRealNamedProperty(GetHeap()->hidden_symbol(), &lookup);
-  return lookup.IsFound();
+  return GetPropertyAttributePostInterceptor(this,
+                                             GetHeap()->hidden_symbol(),
+                                             false) != ABSENT;
 }
 
 
