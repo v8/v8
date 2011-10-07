@@ -1278,28 +1278,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.reduceRight - modifications to length will change number
 #      of iterations
 15.4.4.22-9-9: FAIL
-# Bug? String.prototype.trim - 'S' is a string with all WhiteSpace
-15.5.4.20-3-2: FAIL
-# Bug? String.prototype.trim - 'S' is a string with all union of WhiteSpace and
-#      LineTerminator
-15.5.4.20-3-3: FAIL
-# Bug? String.prototype.trim - 'S' is a string start with union of all
-#      LineTerminator and all WhiteSpace
-15.5.4.20-3-4: FAIL
-# Bug? String.prototype.trim - 'S' is a string end with union of all
-#      LineTerminator and all WhiteSpace
-15.5.4.20-3-5: FAIL
-# Bug? String.prototype.trim - 'S' is a string start with union of all
-#      LineTerminator and all WhiteSpace and end with union of all
-#      LineTerminator and all WhiteSpace
-15.5.4.20-3-6: FAIL
-# Bug? String.prototype.trim handles whitepace and lineterminators (\\uFEFFabc)
-15.5.4.20-4-10: FAIL
-# Bug? String.prototype.trim handles whitepace and lineterminators (abc\\uFEFF)
-15.5.4.20-4-18: FAIL
-# Bug? String.prototype.trim handles whitepace and lineterminators
-#      (\\uFEFF\\uFEFF)
-15.5.4.20-4-34: FAIL
 # Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
 #      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
 15.9.5.43-0-8: FAIL

@@ -6114,7 +6114,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
 
 
 static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
-  return unibrow::WhiteSpace::Is(c) || c == 0x200b;
+  return unibrow::WhiteSpace::Is(c) || c == 0x200b || c == 0xfeff;
 }
 
 
