@@ -257,7 +257,7 @@ class CodeMap {
     typedef Address Key;
     typedef CodeEntryInfo Value;
     static const Key kNoKey;
-    static const Value kNoValue;
+    static const Value NoValue() { return CodeEntryInfo(NULL, 0); }
     static int Compare(const Key& a, const Key& b) {
       return a < b ? -1 : (a > b ? 1 : 0);
     }

@@ -389,7 +389,7 @@ class DispatchTable : public ZoneObject {
     typedef uc16 Key;
     typedef Entry Value;
     static const uc16 kNoKey;
-    static const Entry kNoValue;
+    static const Entry NoValue() { return Value(); }
     static inline int Compare(uc16 a, uc16 b) {
       if (a == b)
         return 0;

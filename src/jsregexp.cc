@@ -4723,7 +4723,6 @@ bool OutSet::Get(unsigned value) {
 
 
 const uc16 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
-const DispatchTable::Entry DispatchTable::Config::kNoValue;
 
 
 void DispatchTable::AddRange(CharacterRange full_range, int value) {

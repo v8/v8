@@ -488,8 +488,6 @@ void CpuProfile::Print() {
 
 CodeEntry* const CodeMap::kSharedFunctionCodeEntry = NULL;
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
-const CodeMap::CodeTreeConfig::Value CodeMap::CodeTreeConfig::kNoValue =
-    CodeMap::CodeEntryInfo(NULL, 0);
 
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
