@@ -422,6 +422,9 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
 }
 
 
+static const int kSmiOnlyLiteralMinimumLength = 1024;
+
+
 static Handle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
@@ -430,6 +433,13 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   Handle<JSFunction> constructor(
       JSFunction::GlobalContextFromLiterals(*literals)->array_function());
   Handle<Object> object = isolate->factory()->NewJSObject(constructor);
+
+  if (elements->length() > kSmiOnlyLiteralMinimumLength) {
+    Handle<Map> smi_array_map = isolate->factory()->GetElementsTransitionMap(
+        Handle<JSObject>::cast(object),
+        FAST_SMI_ONLY_ELEMENTS);
+    HeapObject::cast(*object)->set_map(*smi_array_map);
+  }
 
   const bool is_cow =
       (elements->map() == isolate->heap()->fixed_cow_array_map());
@@ -440,21 +450,18 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   bool has_non_smi = false;
   if (is_cow) {
     // Copy-on-write arrays must be shallow (and simple).
-    if (FLAG_smi_only_arrays) {
-      for (int i = 0; i < content->length(); i++) {
-        Object* current = content->get(i);
-        ASSERT(!current->IsFixedArray());
-        if (!current->IsSmi() && !current->IsTheHole()) {
-          has_non_smi = true;
-        }
+    for (int i = 0; i < content->length(); i++) {
+      Object* current = content->get(i);
+      ASSERT(!current->IsFixedArray());
+      if (!current->IsSmi() && !current->IsTheHole()) {
+        has_non_smi = true;
       }
-    } else {
-#if DEBUG
-      for (int i = 0; i < content->length(); i++) {
-        ASSERT(!content->get(i)->IsFixedArray());
-      }
-#endif
     }
+#if DEBUG
+    for (int i = 0; i < content->length(); i++) {
+      ASSERT(!content->get(i)->IsFixedArray());
+    }
+#endif
   } else {
     for (int i = 0; i < content->length(); i++) {
       Object* current = content->get(i);
@@ -479,10 +486,8 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   Handle<JSArray> js_object(Handle<JSArray>::cast(object));
   isolate->factory()->SetContent(js_object, content);
 
-  if (FLAG_smi_only_arrays) {
-    if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
-      isolate->factory()->EnsureCanContainNonSmiElements(js_object);
-    }
+  if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
+    isolate->factory()->EnsureCanContainNonSmiElements(js_object);
   }
 
   return object;
@@ -1661,7 +1666,7 @@ RUNTIME_FUNCTION(MaybeObject*,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NonSmiElementStored) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, object, 0);
-  if (FLAG_smi_only_arrays && object->HasFastSmiOnlyElements()) {
+  if (object->HasFastSmiOnlyElements()) {
     MaybeObject* maybe_map = object->GetElementsTransitionMap(FAST_ELEMENTS);
     Map* map;
     if (!maybe_map->To<Map>(&map)) return maybe_map;

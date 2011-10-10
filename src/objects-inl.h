@@ -1306,8 +1306,7 @@ FixedArrayBase* JSObject::elements() {
 
 void JSObject::ValidateSmiOnlyElements() {
 #if DEBUG
-  if (FLAG_smi_only_arrays &&
-      map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
+  if (map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
     Heap* heap = GetHeap();
     // Don't use elements, since integrity checks will fail if there
     // are filler pointers in the array.
@@ -1332,8 +1331,7 @@ MaybeObject* JSObject::EnsureCanContainNonSmiElements() {
 #if DEBUG
   ValidateSmiOnlyElements();
 #endif
-  if (FLAG_smi_only_arrays &&
-      (map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS)) {
+  if ((map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS)) {
     Object* obj;
     MaybeObject* maybe_obj = GetElementsTransitionMap(FAST_ELEMENTS);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -1345,8 +1343,7 @@ MaybeObject* JSObject::EnsureCanContainNonSmiElements() {
 
 MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
                                                 uint32_t count) {
-  if (FLAG_smi_only_arrays &&
-      map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
+  if (map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
     for (uint32_t i = 0; i < count; ++i) {
       Object* current = *objects++;
       if (!current->IsSmi() && current != GetHeap()->the_hole_value()) {
@@ -1359,13 +1356,9 @@ MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
 
 
 MaybeObject* JSObject::EnsureCanContainElements(FixedArray* elements) {
-  if (FLAG_smi_only_arrays) {
-    Object** objects = reinterpret_cast<Object**>(
-        FIELD_ADDR(elements, elements->OffsetOfElementAt(0)));
-    return EnsureCanContainElements(objects, elements->length());
-  } else {
-    return this;
-  }
+  Object** objects = reinterpret_cast<Object**>(
+      FIELD_ADDR(elements, elements->OffsetOfElementAt(0)));
+  return EnsureCanContainElements(objects, elements->length());
 }
 
 

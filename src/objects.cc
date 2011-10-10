@@ -7765,7 +7765,6 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   if (elements()->map() != heap->non_strict_arguments_elements_map()) {
     Object* object;
     bool has_fast_smi_only_elements =
-        FLAG_smi_only_arrays &&
         (set_capacity_mode == kAllowSmiOnlyElements) &&
         (elements()->map()->has_fast_smi_only_elements() ||
          elements() == heap->empty_fixed_array());

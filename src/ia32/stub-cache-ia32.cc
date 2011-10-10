@@ -1486,10 +1486,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
-      if (FLAG_smi_only_arrays) {
-        __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-        __ CheckFastObjectElements(edi, &call_builtin);
-      }
+      __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(edi, &call_builtin);
 
       // Save new length.
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
@@ -1511,15 +1509,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       }
 
       __ mov(edi, Operand(esp, argc * kPointerSize));
-      if (FLAG_smi_only_arrays) {
-        // Growing elements that are SMI-only requires special handling in case
-        // the new element is non-Smi. For now, delegate to the builtin.
-        Label no_fast_elements_check;
-        __ JumpIfSmi(edi, &no_fast_elements_check);
-        __ mov(esi, FieldOperand(edx, HeapObject::kMapOffset));
-        __ CheckFastObjectElements(esi, &call_builtin, Label::kFar);
-        __ bind(&no_fast_elements_check);
-      }
+      // Growing elements that are SMI-only requires special handling in case
+      // the new element is non-Smi. For now, delegate to the builtin.
+      Label no_fast_elements_check;
+      __ JumpIfSmi(edi, &no_fast_elements_check);
+      __ mov(esi, FieldOperand(edx, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(esi, &call_builtin, Label::kFar);
+      __ bind(&no_fast_elements_check);
 
       // We could be lucky and the elements array could be at the top of
       // new-space.  In this case we can just grow it in place by moving the
