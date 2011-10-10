@@ -5076,7 +5076,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size < Page::kPageSize) {
       max_semispace_size = Page::kPageSize;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be less than %dkbytes",
+        PrintF("Max semispace size cannot be less than %dkbytes\n",
                Page::kPageSize >> 10);
       }
     }
@@ -5092,7 +5092,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size_ > reserved_semispace_size_) {
       max_semispace_size_ = reserved_semispace_size_;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be more than %dkbytes",
+        PrintF("Max semispace size cannot be more than %dkbytes\n",
                reserved_semispace_size_ >> 10);
       }
     }
