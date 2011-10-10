@@ -157,6 +157,10 @@ class VisitorDispatchTable {
     }
   }
 
+  inline Callback GetVisitorById(StaticVisitorBase::VisitorId id) {
+    return reinterpret_cast<Callback>(callbacks_[id]);
+  }
+
   inline Callback GetVisitor(Map* map) {
     return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
   }

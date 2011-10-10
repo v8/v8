@@ -1662,6 +1662,17 @@ void Heap::SelectScavengingVisitorsTable() {
           ScavengingVisitor<TRANSFER_MARKS,
                             LOGGING_AND_PROFILING_ENABLED>::GetTable());
     }
+
+    if (incremental_marking()->IsCompacting()) {
+      // When compacting forbid short-circuiting of cons-strings.
+      // Scavenging code relies on the fact that new space object
+      // can't be evacuated into evacuation candidate but
+      // short-circuiting violates this assumption.
+      scavenging_visitors_table_.Register(
+          StaticVisitorBase::kVisitShortcutCandidate,
+          scavenging_visitors_table_.GetVisitorById(
+              StaticVisitorBase::kVisitConsString));
+    }
   }
 }
 
