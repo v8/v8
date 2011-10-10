@@ -67,7 +67,9 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
   // Fast cases should already be covered by RecordWriteStub.
   ASSERT(value->IsHeapObject());
   ASSERT(!value->IsHeapNumber());
-  ASSERT(!value->IsString() || value->IsConsString());
+  ASSERT(!value->IsString() ||
+         value->IsConsString() ||
+         value->IsSlicedString());
   ASSERT(Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(value))));
 
   IncrementalMarking* marking = isolate->heap()->incremental_marking();
