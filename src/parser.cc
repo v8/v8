@@ -957,17 +957,18 @@ class InitializationBlockFinder : public ParserFinder {
 };
 
 
-// A ThisNamedPropertyAssigmentFinder finds and marks statements of the form
+// A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
 // this.x = ...;, where x is a named property. It also determines whether a
 // function contains only assignments of this type.
-class ThisNamedPropertyAssigmentFinder : public ParserFinder {
+class ThisNamedPropertyAssignmentFinder : public ParserFinder {
  public:
-  explicit ThisNamedPropertyAssigmentFinder(Isolate* isolate)
+  explicit ThisNamedPropertyAssignmentFinder(Isolate* isolate)
       : isolate_(isolate),
         only_simple_this_property_assignments_(true),
-        names_(NULL),
-        assigned_arguments_(NULL),
-        assigned_constants_(NULL) {}
+        names_(0),
+        assigned_arguments_(0),
+        assigned_constants_(0) {
+  }
 
   void Update(Scope* scope, Statement* stat) {
     // Bail out if function already has property assignment that are
@@ -994,19 +995,17 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   // Returns a fixed array containing three elements for each assignment of the
   // form this.x = y;
   Handle<FixedArray> GetThisPropertyAssignments() {
-    if (names_ == NULL) {
+    if (names_.is_empty()) {
       return isolate_->factory()->empty_fixed_array();
     }
-    ASSERT(names_ != NULL);
-    ASSERT(assigned_arguments_ != NULL);
-    ASSERT_EQ(names_->length(), assigned_arguments_->length());
-    ASSERT_EQ(names_->length(), assigned_constants_->length());
+    ASSERT_EQ(names_.length(), assigned_arguments_.length());
+    ASSERT_EQ(names_.length(), assigned_constants_.length());
     Handle<FixedArray> assignments =
-        isolate_->factory()->NewFixedArray(names_->length() * 3);
-    for (int i = 0; i < names_->length(); i++) {
-      assignments->set(i * 3, *names_->at(i));
-      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
-      assignments->set(i * 3 + 2, *assigned_constants_->at(i));
+        isolate_->factory()->NewFixedArray(names_.length() * 3);
+    for (int i = 0; i < names_.length(); ++i) {
+      assignments->set(i * 3, *names_[i]);
+      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_[i]));
+      assignments->set(i * 3 + 2, *assigned_constants_[i]);
     }
     return assignments;
   }
@@ -1063,18 +1062,37 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     AssignmentFromSomethingElse();
   }
 
+
+
+
+  // We will potentially reorder the property assignments, so they must be
+  // simple enough that the ordering does not matter.
   void AssignmentFromParameter(Handle<String> name, int index) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(index);
-    assigned_constants_->Add(isolate_->factory()->undefined_value());
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = index;
+        assigned_constants_[i] = isolate_->factory()->undefined_value();
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(index);
+    assigned_constants_.Add(isolate_->factory()->undefined_value());
   }
 
   void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(-1);
-    assigned_constants_->Add(value);
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = -1;
+        assigned_constants_[i] = value;
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(-1);
+    assigned_constants_.Add(value);
   }
 
   void AssignmentFromSomethingElse() {
@@ -1082,22 +1100,21 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     only_simple_this_property_assignments_ = false;
   }
 
-  void EnsureAllocation() {
-    if (names_ == NULL) {
-      ASSERT(assigned_arguments_ == NULL);
-      ASSERT(assigned_constants_ == NULL);
-      Zone* zone = isolate_->zone();
-      names_ = new(zone) ZoneStringList(4);
-      assigned_arguments_ = new(zone) ZoneList<int>(4);
-      assigned_constants_ = new(zone) ZoneObjectList(4);
+  void EnsureInitialized() {
+    if (names_.capacity() == 0) {
+      ASSERT(assigned_arguments_.capacity() == 0);
+      ASSERT(assigned_constants_.capacity() == 0);
+      names_.Initialize(4);
+      assigned_arguments_.Initialize(4);
+      assigned_constants_.Initialize(4);
     }
   }
 
   Isolate* isolate_;
   bool only_simple_this_property_assignments_;
-  ZoneStringList* names_;
-  ZoneList<int>* assigned_arguments_;
-  ZoneObjectList* assigned_constants_;
+  ZoneStringList names_;
+  ZoneList<int> assigned_arguments_;
+  ZoneObjectList assigned_constants_;
 };
 
 
@@ -1136,7 +1153,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder(top_scope_, target_stack_);
-  ThisNamedPropertyAssigmentFinder this_property_assignment_finder(isolate());
+  ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate());
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {

@@ -242,11 +242,9 @@ BUILTIN(ArrayCodeGeneric) {
   }
 
   // Set length and elements on the array.
-  if (FLAG_smi_only_arrays) {
-    MaybeObject* maybe_object =
-        array->EnsureCanContainElements(FixedArray::cast(obj));
-    if (maybe_object->IsFailure()) return maybe_object;
-  }
+  MaybeObject* maybe_object =
+      array->EnsureCanContainElements(FixedArray::cast(obj));
+  if (maybe_object->IsFailure()) return maybe_object;
 
   AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
@@ -402,15 +400,36 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
 
 MUST_USE_RESULT
 static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
-    Heap* heap, Object* receiver) {
+    Heap* heap, Object* receiver, Arguments* args, int first_added_arg) {
   if (!receiver->IsJSArray()) return NULL;
   JSArray* array = JSArray::cast(receiver);
   HeapObject* elms = array->elements();
-  if (elms->map() == heap->fixed_array_map()) return elms;
-  if (elms->map() == heap->fixed_cow_array_map()) {
-    return array->EnsureWritableFastElements();
+  Map* map = elms->map();
+  if (map == heap->fixed_array_map()) {
+    if (args == NULL || !array->HasFastSmiOnlyElements()) {
+      return elms;
+    }
+  } else if (map == heap->fixed_cow_array_map()) {
+    MaybeObject* maybe_writable_result = array->EnsureWritableFastElements();
+    if (args == NULL || !array->HasFastSmiOnlyElements() ||
+        maybe_writable_result->IsFailure()) {
+      return maybe_writable_result;
+    }
+  } else {
+    return NULL;
   }
-  return NULL;
+
+  // Need to ensure that the arguments passed in args can be contained in
+  // the array.
+  int args_length = args->length();
+  if (first_added_arg >= args_length) return array->elements();
+
+  MaybeObject* maybe_array = array->EnsureCanContainElements(
+      args,
+      first_added_arg,
+      args_length - first_added_arg);
+  if (maybe_array->IsFailure()) return maybe_array;
+  return array->elements();
 }
 
 
@@ -431,20 +450,18 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   HandleScope handleScope(isolate);
 
   Handle<Object> js_builtin =
-      GetProperty(Handle<JSObject>(
-          isolate->global_context()->builtins()),
-          name);
-  ASSERT(js_builtin->IsJSFunction());
-  Handle<JSFunction> function(Handle<JSFunction>::cast(js_builtin));
-  ScopedVector<Object**> argv(args.length() - 1);
-  int n_args = args.length() - 1;
-  for (int i = 0; i < n_args; i++) {
-    argv[i] = args.at<Object>(i + 1).location();
+      GetProperty(Handle<JSObject>(isolate->global_context()->builtins()),
+                  name);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(js_builtin);
+  int argc = args.length() - 1;
+  ScopedVector<Handle<Object> > argv(argc);
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = args.at<Object>(i + 1);
   }
   bool pending_exception;
   Handle<Object> result = Execution::Call(function,
                                           args.receiver(),
-                                          n_args,
+                                          argc,
                                           argv.start(),
                                           &pending_exception);
   if (pending_exception) return Failure::Exception();
@@ -457,7 +474,7 @@ BUILTIN(ArrayPush) {
   Object* receiver = *args.receiver();
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver);
+        EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 1);
     if (maybe_elms_obj == NULL) {
       return CallJsBuiltin(isolate, "ArrayPush", args);
     }
@@ -495,9 +512,6 @@ BUILTIN(ArrayPush) {
     elms = new_elms;
   }
 
-  MaybeObject* maybe = array->EnsureCanContainElements(&args, 1, to_add);
-  if (maybe->IsFailure()) return maybe;
-
   // Add the provided values.
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
@@ -520,7 +534,7 @@ BUILTIN(ArrayPop) {
   Object* receiver = *args.receiver();
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver);
+        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
     if (maybe_elms_obj == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
   }
@@ -553,7 +567,7 @@ BUILTIN(ArrayShift) {
   Object* receiver = *args.receiver();
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver);
+        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
     if (maybe_elms_obj == NULL)
         return CallJsBuiltin(isolate, "ArrayShift", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
@@ -595,7 +609,7 @@ BUILTIN(ArrayUnshift) {
   Object* receiver = *args.receiver();
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver);
+        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
     if (maybe_elms_obj == NULL)
         return CallJsBuiltin(isolate, "ArrayUnshift", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
@@ -614,11 +628,9 @@ BUILTIN(ArrayUnshift) {
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
 
-  if (FLAG_smi_only_arrays) {
-    MaybeObject* maybe_object =
-        array->EnsureCanContainElements(&args, 1, to_add);
-    if (maybe_object->IsFailure()) return maybe_object;
-  }
+  MaybeObject* maybe_object =
+      array->EnsureCanContainElements(&args, 1, to_add);
+  if (maybe_object->IsFailure()) return maybe_object;
 
   if (new_length > elms->length()) {
     // New backing storage is needed.
@@ -747,11 +759,9 @@ BUILTIN(ArraySlice) {
   }
   FixedArray* result_elms = FixedArray::cast(result);
 
-  if (FLAG_smi_only_arrays) {
-    MaybeObject* maybe_object =
-        result_array->EnsureCanContainElements(result_elms);
-    if (maybe_object->IsFailure()) return maybe_object;
-  }
+  MaybeObject* maybe_object =
+      result_array->EnsureCanContainElements(result_elms);
+  if (maybe_object->IsFailure()) return maybe_object;
 
   AssertNoAllocation no_gc;
   CopyElements(heap, &no_gc, result_elms, 0, elms, k, result_len);
@@ -770,7 +780,7 @@ BUILTIN(ArraySplice) {
   Object* receiver = *args.receiver();
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver);
+        EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 3);
     if (maybe_elms_obj == NULL)
         return CallJsBuiltin(isolate, "ArraySplice", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
@@ -857,12 +867,6 @@ BUILTIN(ArraySplice) {
   }
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
-
-  if (FLAG_smi_only_arrays) {
-    MaybeObject* maybe = array->EnsureCanContainElements(&args, 3, item_count);
-    if (maybe->IsFailure()) return maybe;
-  }
-
   int new_length = len - actual_delete_count + item_count;
 
   bool elms_changed = false;
@@ -999,15 +1003,13 @@ BUILTIN(ArrayConcat) {
   }
   FixedArray* result_elms = FixedArray::cast(result);
 
-  if (FLAG_smi_only_arrays) {
+  // Ensure element type transitions happen before copying elements in.
+  if (result_array->HasFastSmiOnlyElements()) {
     for (int i = 0; i < n_arguments; i++) {
       JSArray* array = JSArray::cast(args[i]);
-      int len = Smi::cast(array->length())->value();
-      if (len > 0) {
-        FixedArray* elms = FixedArray::cast(array->elements());
-        MaybeObject* maybe_object =
-            result_array->EnsureCanContainElements(elms);
-        if (maybe_object->IsFailure()) return maybe_object;
+      if (!array->HasFastSmiOnlyElements()) {
+        result_array->EnsureCanContainNonSmiElements();
+        break;
       }
     }
   }

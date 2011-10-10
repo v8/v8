@@ -1618,10 +1618,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
-      if (FLAG_smi_only_arrays) {
-        __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
-        __ CheckFastSmiOnlyElements(r6, r6, &call_builtin);
-      }
+      __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ CheckFastSmiOnlyElements(r6, r6, &call_builtin);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1652,15 +1650,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       }
 
       __ ldr(r2, MemOperand(sp, (argc - 1) * kPointerSize));
-      if (FLAG_smi_only_arrays) {
-        // Growing elements that are SMI-only requires special handling in case
-        // the new element is non-Smi. For now, delegate to the builtin.
-        Label no_fast_elements_check;
-        __ JumpIfSmi(r2, &no_fast_elements_check);
-        __ ldr(r7, FieldMemOperand(receiver, HeapObject::kMapOffset));
-        __ CheckFastObjectElements(r7, r7, &call_builtin);
-        __ bind(&no_fast_elements_check);
-      }
+      // Growing elements that are SMI-only requires special handling in case
+      // the new element is non-Smi. For now, delegate to the builtin.
+      Label no_fast_elements_check;
+      __ JumpIfSmi(r2, &no_fast_elements_check);
+      __ ldr(r7, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(r7, r7, &call_builtin);
+      __ bind(&no_fast_elements_check);
 
       Isolate* isolate = masm()->isolate();
       ExternalReference new_space_allocation_top =
@@ -4400,15 +4396,15 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r4    : scratch
   //  -- r5    : scratch
   // -----------------------------------
-  Label miss_force_generic, smi_value, is_nan, maybe_nan, have_double_value;
+  Label miss_force_generic;
 
   Register value_reg = r0;
   Register key_reg = r1;
   Register receiver_reg = r2;
-  Register scratch = r3;
-  Register elements_reg = r4;
-  Register mantissa_reg = r5;
-  Register exponent_reg = r6;
+  Register elements_reg = r3;
+  Register scratch1 = r4;
+  Register scratch2 = r5;
+  Register scratch3 = r6;
   Register scratch4 = r7;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -4420,90 +4416,25 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   // Check that the key is within bounds.
   if (is_js_array) {
-    __ ldr(scratch, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ ldr(scratch1, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
   } else {
-    __ ldr(scratch,
+    __ ldr(scratch1,
            FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
   }
   // Compare smis, unsigned compare catches both negative and out-of-bound
   // indexes.
-  __ cmp(key_reg, scratch);
+  __ cmp(key_reg, scratch1);
   __ b(hs, &miss_force_generic);
 
-  // Handle smi values specially.
-  __ JumpIfSmi(value_reg, &smi_value);
-
-  // Ensure that the object is a heap number
-  __ CheckMap(value_reg,
-              scratch,
-              masm->isolate()->factory()->heap_number_map(),
-              &miss_force_generic,
-              DONT_DO_SMI_CHECK);
-
-  // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
-  // in the exponent.
-  __ mov(scratch, Operand(kNaNOrInfinityLowerBoundUpper32));
-  __ ldr(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
-  __ cmp(exponent_reg, scratch);
-  __ b(ge, &maybe_nan);
-
-  __ ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-
-  __ bind(&have_double_value);
-  __ add(scratch, elements_reg,
-         Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
-  __ str(mantissa_reg, FieldMemOperand(scratch, FixedDoubleArray::kHeaderSize));
-  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
-  __ str(exponent_reg, FieldMemOperand(scratch, offset));
-  __ Ret();
-
-  __ bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  __ b(gt, &is_nan);
-  __ ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-  __ cmp(mantissa_reg, Operand(0));
-  __ b(eq, &have_double_value);
-  __ bind(&is_nan);
-  // Load canonical NaN for storing into the double array.
-  uint64_t nan_int64 = BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  __ mov(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
-  __ mov(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
-  __ jmp(&have_double_value);
-
-  __ bind(&smi_value);
-  __ add(scratch, elements_reg,
-         Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
-  __ add(scratch, scratch,
-         Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
-  // scratch is now effective address of the double element
-
-  FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(VFP3)) {
-    destination = FloatingPointHelper::kVFPRegisters;
-  } else {
-    destination = FloatingPointHelper::kCoreRegisters;
-  }
-
-  Register untagged_value = receiver_reg;
-  __ SmiUntag(untagged_value, value_reg);
-  FloatingPointHelper::ConvertIntToDouble(
-      masm,
-      untagged_value,
-      destination,
-      d0,
-      mantissa_reg,
-      exponent_reg,
-      scratch4,
-      s2);
-  if (destination == FloatingPointHelper::kVFPRegisters) {
-    CpuFeatures::Scope scope(VFP3);
-    __ vstr(d0, scratch, 0);
-  } else {
-    __ str(mantissa_reg, MemOperand(scratch, 0));
-    __ str(exponent_reg, MemOperand(scratch, Register::kSizeInBytes));
-  }
+  __ StoreNumberToDoubleElements(value_reg,
+                                 key_reg,
+                                 receiver_reg,
+                                 elements_reg,
+                                 scratch1,
+                                 scratch2,
+                                 scratch3,
+                                 scratch4,
+                                 &miss_force_generic);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.

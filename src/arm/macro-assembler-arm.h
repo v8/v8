@@ -712,6 +712,19 @@ class MacroAssembler: public Assembler {
                                 Register scratch,
                                 Label* fail);
 
+  // Check to see if maybe_number can be stored as a double in
+  // FastDoubleElements. If it can, store it at the index specified by key in
+  // the FastDoubleElements array elements, otherwise jump to fail.
+  void StoreNumberToDoubleElements(Register value_reg,
+                                   Register key_reg,
+                                   Register receiver_reg,
+                                   Register elements_reg,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Register scratch3,
+                                   Register scratch4,
+                                   Label* fail);
+
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
   // label if not. Skip the smi check if not required (object is known

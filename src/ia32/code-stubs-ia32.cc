@@ -159,6 +159,77 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [esp + (1 * kPointerSize)]: function
+  // [esp + (2 * kPointerSize)]: serialized scope info
+
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  __ AllocateInNewSpace(FixedArray::SizeFor(length),
+                        eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the function or sentinel from the stack.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+
+  // Get the serialized scope info from the stack.
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));
+
+  // Setup the object header.
+  Factory* factory = masm->isolate()->factory();
+  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
+         factory->block_context_map());
+  __ mov(FieldOperand(eax, Context::kLengthOffset),
+         Immediate(Smi::FromInt(length)));
+
+  // If this block context is nested in the global context we get a smi
+  // sentinel instead of a function. The block context should get the
+  // canonical empty function of the global context as its closure which
+  // we still have to look up.
+  Label after_sentinel;
+  __ JumpIfNotSmi(ecx, &after_sentinel, Label::kNear);
+  if (FLAG_debug_code) {
+    const char* message = "Expected 0 as a Smi sentinel";
+    __ cmp(ecx, 0);
+    __ Assert(equal, message);
+  }
+  __ mov(ecx, GlobalObjectOperand());
+  __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalContextOffset));
+  __ mov(ecx, ContextOperand(ecx, Context::CLOSURE_INDEX));
+  __ bind(&after_sentinel);
+
+  // Setup the fixed slots.
+  __ mov(ContextOperand(eax, Context::CLOSURE_INDEX), ecx);
+  __ mov(ContextOperand(eax, Context::PREVIOUS_INDEX), esi);
+  __ mov(ContextOperand(eax, Context::EXTENSION_INDEX), ebx);
+
+  // Copy the global object from the previous context.
+  __ mov(ebx, ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(ContextOperand(eax, Context::GLOBAL_INDEX), ebx);
+
+  // Initialize the rest of the slots to the hole value.
+  if (slots_ == 1) {
+    __ mov(ContextOperand(eax, Context::MIN_CONTEXT_SLOTS),
+           factory->the_hole_value());
+  } else {
+    __ mov(ebx, factory->the_hole_value());
+    for (int i = 0; i < slots_; i++) {
+      __ mov(ContextOperand(eax, i + Context::MIN_CONTEXT_SLOTS), ebx);
+    }
+  }
+
+  // Return and remove the on-stack parameters.
+  __ mov(esi, eax);
+  __ ret(2 * kPointerSize);
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
+}
+
+
 void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // Stack layout on entry:
   //

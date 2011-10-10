@@ -631,14 +631,16 @@ Handle<Object> Factory::NewError(const char* maker,
     return undefined_value();
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
   Handle<Object> type_obj = LookupAsciiSymbol(type);
-  Object** argv[2] = { type_obj.location(),
-                       Handle<Object>::cast(args).location() };
+  Handle<Object> argv[] = { type_obj, args };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-      isolate()->js_builtins_object(), 2, argv, &caught_exception);
+                                             isolate()->js_builtins_object(),
+                                             ARRAY_SIZE(argv),
+                                             argv,
+                                             &caught_exception);
   return result;
 }
 
@@ -654,13 +656,16 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<JSFunction> fun = Handle<JSFunction>(
       JSFunction::cast(isolate()->js_builtins_object()->
                        GetPropertyNoExceptionThrown(*constr)));
-  Object** argv[1] = { Handle<Object>::cast(message).location() };
+  Handle<Object> argv[] = { message };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-      isolate()->js_builtins_object(), 1, argv, &caught_exception);
+                                             isolate()->js_builtins_object(),
+                                             ARRAY_SIZE(argv),
+                                             argv,
+                                             &caught_exception);
   return result;
 }
 
@@ -1328,6 +1333,13 @@ Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
   if (name->Equals(h->nan_symbol())) return nan_value();
   if (name->Equals(h->infinity_symbol())) return infinity_value();
   return Handle<Object>::null();
+}
+
+
+Handle<Object> Factory::ToBoolean(bool value) {
+  return Handle<Object>(value
+                        ? isolate()->heap()->true_value()
+                        : isolate()->heap()->false_value());
 }
 
 

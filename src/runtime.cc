@@ -422,6 +422,9 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
 }
 
 
+static const int kSmiOnlyLiteralMinimumLength = 1024;
+
+
 static Handle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
@@ -430,6 +433,13 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   Handle<JSFunction> constructor(
       JSFunction::GlobalContextFromLiterals(*literals)->array_function());
   Handle<Object> object = isolate->factory()->NewJSObject(constructor);
+
+  if (elements->length() > kSmiOnlyLiteralMinimumLength) {
+    Handle<Map> smi_array_map = isolate->factory()->GetElementsTransitionMap(
+        Handle<JSObject>::cast(object),
+        FAST_SMI_ONLY_ELEMENTS);
+    HeapObject::cast(*object)->set_map(*smi_array_map);
+  }
 
   const bool is_cow =
       (elements->map() == isolate->heap()->fixed_cow_array_map());
@@ -440,21 +450,18 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   bool has_non_smi = false;
   if (is_cow) {
     // Copy-on-write arrays must be shallow (and simple).
-    if (FLAG_smi_only_arrays) {
-      for (int i = 0; i < content->length(); i++) {
-        Object* current = content->get(i);
-        ASSERT(!current->IsFixedArray());
-        if (!current->IsSmi() && !current->IsTheHole()) {
-          has_non_smi = true;
-        }
+    for (int i = 0; i < content->length(); i++) {
+      Object* current = content->get(i);
+      ASSERT(!current->IsFixedArray());
+      if (!current->IsSmi() && !current->IsTheHole()) {
+        has_non_smi = true;
       }
-    } else {
-#if DEBUG
-      for (int i = 0; i < content->length(); i++) {
-        ASSERT(!content->get(i)->IsFixedArray());
-      }
-#endif
     }
+#if DEBUG
+    for (int i = 0; i < content->length(); i++) {
+      ASSERT(!content->get(i)->IsFixedArray());
+    }
+#endif
   } else {
     for (int i = 0; i < content->length(); i++) {
       Object* current = content->get(i);
@@ -479,10 +486,8 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   Handle<JSArray> js_object(Handle<JSArray>::cast(object));
   isolate->factory()->SetContent(js_object, content);
 
-  if (FLAG_smi_only_arrays) {
-    if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
-      isolate->factory()->EnsureCanContainNonSmiElements(js_object);
-    }
+  if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
+    isolate->factory()->EnsureCanContainNonSmiElements(js_object);
   }
 
   return object;
@@ -1661,7 +1666,7 @@ RUNTIME_FUNCTION(MaybeObject*,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NonSmiElementStored) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, object, 0);
-  if (FLAG_smi_only_arrays && object->HasFastSmiOnlyElements()) {
+  if (object->HasFastSmiOnlyElements()) {
     MaybeObject* maybe_map = object->GetElementsTransitionMap(FAST_ELEMENTS);
     Map* map;
     if (!maybe_map->To<Map>(&map)) return maybe_map;
@@ -6114,7 +6119,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
 
 
 static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
-  return unibrow::WhiteSpace::Is(c) || c == 0x200b;
+  return unibrow::WhiteSpace::Is(c) || c == 0x200b || c == 0xfeff;
 }
 
 
@@ -7921,8 +7926,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
 }
 
 
-static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
-                                                        int* total_argc) {
+static SmartArrayPointer<Handle<Object> > GetNonBoundArguments(
+    int bound_argc,
+    int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
@@ -7938,10 +7944,11 @@ static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
                                             &args_slots);
 
     *total_argc = bound_argc + args_count;
-    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Handle<Object> > param_data(
+        NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = args_slots[i].GetValue();
-      param_data[bound_argc + i] = val.location();
+      param_data[bound_argc + i] = val;
     }
     return param_data;
   } else {
@@ -7950,10 +7957,11 @@ static SmartArrayPointer<Object**> GetNonBoundArguments(int bound_argc,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = bound_argc + args_count;
-    SmartArrayPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    SmartArrayPointer<Handle<Object> > param_data(
+        NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i));
-      param_data[bound_argc + i] = val.location();
+      param_data[bound_argc + i] = val;
     }
     return param_data;
   }
@@ -7977,11 +7985,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   }
 
   int total_argc = 0;
-  SmartArrayPointer<Object**> param_data =
+  SmartArrayPointer<Handle<Object> > param_data =
       GetNonBoundArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     Handle<Object> val = Handle<Object>(bound_args->get(i));
-    param_data[i] = val.location();
+    param_data[i] = val;
   }
 
   bool exception = false;
@@ -8458,8 +8466,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   bool threw;
   Handle<JSReceiver> hfun(fun);
   Handle<Object> hreceiver(receiver);
-  Handle<Object> result = Execution::Call(
-      hfun, hreceiver, argc, reinterpret_cast<Object***>(argv), &threw, true);
+  Handle<Object> result =
+      Execution::Call(hfun, hreceiver, argc, argv, &threw, true);
 
   if (threw) return Failure::Exception();
   return *result;
@@ -11849,12 +11857,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                                                 &sinfo, function_context);
 
   // Invoke the evaluation function and return the result.
-  const int argc = 2;
-  Object** argv[argc] = { arguments.location(),
-                          Handle<Object>::cast(source).location() };
+  Handle<Object> argv[] = { arguments, source };
   Handle<Object> result =
-      Execution::Call(Handle<JSFunction>::cast(evaluation_function), receiver,
-                      argc, argv, &has_pending_exception);
+      Execution::Call(Handle<JSFunction>::cast(evaluation_function),
+                      receiver,
+                      ARRAY_SIZE(argv),
+                      argv,
+                      &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
 
   // Skip the global proxy as it has no properties and always delegates to the
@@ -12989,11 +12998,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     // TODO(antonm): consider passing a receiver when constructing a cache.
     Handle<Object> receiver(isolate->global_context()->global());
     // This handle is nor shared, nor used later, so it's safe.
-    Object** argv[] = { key_handle.location() };
+    Handle<Object> argv[] = { key_handle };
     bool pending_exception;
     value = Execution::Call(factory,
                             receiver,
-                            1,
+                            ARRAY_SIZE(argv),
                             argv,
                             &pending_exception);
     if (pending_exception) return Failure::Exception();

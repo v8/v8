@@ -1003,21 +1003,24 @@ function ArrayFilter(f, receiver) {
                         ["Array.prototype.filter"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = ToUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
   }
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length = ToUint32(this.length);
+
   var result = [];
   var result_length = 0;
   for (var i = 0; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      if (%_CallFunction(receiver, current, i, this, f)) {
+    var current = array[i];
+    if (!IS_UNDEFINED(current) || i in array) {
+      if (%_CallFunction(receiver, current, i, array, f)) {
         result[result_length++] = current;
       }
     }
@@ -1032,19 +1035,22 @@ function ArrayForEach(f, receiver) {
                         ["Array.prototype.forEach"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
   }
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length =  TO_UINT32(this.length);
+
   for (var i = 0; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      %_CallFunction(receiver, current, i, this, f);
+    var current = array[i];
+    if (!IS_UNDEFINED(current) || i in array) {
+      %_CallFunction(receiver, current, i, array, f);
     }
   }
 }
@@ -1058,19 +1064,22 @@ function ArraySome(f, receiver) {
                         ["Array.prototype.some"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
   }
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length = TO_UINT32(this.length);
+
   for (var i = 0; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      if (%_CallFunction(receiver, current, i, this, f)) return true;
+    var current = array[i];
+    if (!IS_UNDEFINED(current) || i in array) {
+      if (%_CallFunction(receiver, current, i, array, f)) return true;
     }
   }
   return false;
@@ -1083,19 +1092,22 @@ function ArrayEvery(f, receiver) {
                         ["Array.prototype.every"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
   }
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length = TO_UINT32(this.length);
+
   for (var i = 0; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      if (!%_CallFunction(receiver, current, i, this, f)) return false;
+    var current = array[i];
+    if (!IS_UNDEFINED(current) || i in array) {
+      if (!%_CallFunction(receiver, current, i, array, f)) return false;
     }
   }
   return true;
@@ -1107,21 +1119,24 @@ function ArrayMap(f, receiver) {
                         ["Array.prototype.map"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = TO_UINT32(array.length);
+
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
   }
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length = TO_UINT32(this.length);
+
   var result = new $Array();
   var accumulator = new InternalArray(length);
   for (var i = 0; i < length; i++) {
-    var current = this[i];
-    if (!IS_UNDEFINED(current) || i in this) {
-      accumulator[i] = %_CallFunction(receiver, current, i, this, f);
+    var current = array[i];
+    if (!IS_UNDEFINED(current) || i in array) {
+      accumulator[i] = %_CallFunction(receiver, current, i, array, f);
     }
   }
   %MoveArrayContents(accumulator, result);
@@ -1255,19 +1270,20 @@ function ArrayReduce(callback, current) {
                         ["Array.prototype.reduce"]);
   }
 
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping and side effects are visible.
+  var array = ToObject(this);
+  var length = ToUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
-  // Pull out the length so that modifications to the length in the
-  // loop will not affect the looping.
-  var length = ToUint32(this.length);
   var i = 0;
-
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i < length; i++) {
-      current = this[i];
-      if (!IS_UNDEFINED(current) || i in this) {
+      current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
         i++;
         break find_initial;
       }
@@ -1277,9 +1293,9 @@ function ArrayReduce(callback, current) {
 
   var receiver = %GetDefaultReceiver(callback);
   for (; i < length; i++) {
-    var element = this[i];
-    if (!IS_UNDEFINED(element) || i in this) {
-      current = %_CallFunction(receiver, current, element, i, this, callback);
+    var element = array[i];
+    if (!IS_UNDEFINED(element) || i in array) {
+      current = %_CallFunction(receiver, current, element, i, array, callback);
     }
   }
   return current;
@@ -1291,15 +1307,20 @@ function ArrayReduceRight(callback, current) {
                         ["Array.prototype.reduceRight"]);
   }
 
+  // Pull out the length so that side effects are visible before the
+  // callback function is checked.
+  var array = ToObject(this);
+  var length = ToUint32(array.length);
+
   if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
-  var i = ToUint32(this.length) - 1;
 
+  var i = length - 1;
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {
-      current = this[i];
-      if (!IS_UNDEFINED(current) || i in this) {
+      current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
         i--;
         break find_initial;
       }
@@ -1309,9 +1330,9 @@ function ArrayReduceRight(callback, current) {
 
   var receiver = %GetDefaultReceiver(callback);
   for (; i >= 0; i--) {
-    var element = this[i];
-    if (!IS_UNDEFINED(element) || i in this) {
-      current = %_CallFunction(receiver, current, element, i, this, callback);
+    var element = array[i];
+    if (!IS_UNDEFINED(element) || i in array) {
+      current = %_CallFunction(receiver, current, element, i, array, callback);
     }
   }
   return current;

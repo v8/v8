@@ -1890,6 +1890,96 @@ void MacroAssembler::CheckFastSmiOnlyElements(Register map,
 }
 
 
+void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
+                                                 Register key_reg,
+                                                 Register receiver_reg,
+                                                 Register elements_reg,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Register scratch3,
+                                                 Register scratch4,
+                                                 Label* fail) {
+  Label smi_value, maybe_nan, have_double_value, is_nan, done;
+  Register mantissa_reg = scratch2;
+  Register exponent_reg = scratch3;
+
+  // Handle smi values specially.
+  JumpIfSmi(value_reg, &smi_value);
+
+  // Ensure that the object is a heap number
+  CheckMap(value_reg,
+           scratch1,
+           isolate()->factory()->heap_number_map(),
+           fail,
+           DONT_DO_SMI_CHECK);
+
+  // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
+  // in the exponent.
+  mov(scratch1, Operand(kNaNOrInfinityLowerBoundUpper32));
+  ldr(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
+  cmp(exponent_reg, scratch1);
+  b(ge, &maybe_nan);
+
+  ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
+
+  bind(&have_double_value);
+  add(scratch1, elements_reg,
+      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
+  str(mantissa_reg, FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize));
+  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  str(exponent_reg, FieldMemOperand(scratch1, offset));
+  jmp(&done);
+
+  bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  b(gt, &is_nan);
+  ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
+  cmp(mantissa_reg, Operand(0));
+  b(eq, &have_double_value);
+  bind(&is_nan);
+  // Load canonical NaN for storing into the double array.
+  uint64_t nan_int64 = BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+  mov(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
+  mov(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
+  jmp(&have_double_value);
+
+  bind(&smi_value);
+  add(scratch1, elements_reg,
+      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+  add(scratch1, scratch1,
+      Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
+  // scratch1 is now effective address of the double element
+
+  FloatingPointHelper::Destination destination;
+  if (CpuFeatures::IsSupported(VFP3)) {
+    destination = FloatingPointHelper::kVFPRegisters;
+  } else {
+    destination = FloatingPointHelper::kCoreRegisters;
+  }
+
+  Register untagged_value = receiver_reg;
+  SmiUntag(untagged_value, value_reg);
+  FloatingPointHelper::ConvertIntToDouble(this,
+                                          untagged_value,
+                                          destination,
+                                          d0,
+                                          mantissa_reg,
+                                          exponent_reg,
+                                          scratch4,
+                                          s2);
+  if (destination == FloatingPointHelper::kVFPRegisters) {
+    CpuFeatures::Scope scope(VFP3);
+    vstr(d0, scratch1, 0);
+  } else {
+    str(mantissa_reg, MemOperand(scratch1, 0));
+    str(exponent_reg, MemOperand(scratch1, Register::kSizeInBytes));
+  }
+  bind(&done);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,

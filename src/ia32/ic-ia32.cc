@@ -833,11 +833,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ret(0);
 
   __ bind(&non_smi_value);
-  if (FLAG_smi_only_arrays) {
-    // Escape to slow case when writing non-smi into smi-only array.
-    __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-    __ CheckFastObjectElements(edi, &slow, Label::kNear);
-  }
+  // Escape to slow case when writing non-smi into smi-only array.
+  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+  __ CheckFastObjectElements(edi, &slow, Label::kNear);
 
   // Fast elements array, store the value to the elements backing store.
   __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);

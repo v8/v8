@@ -709,11 +709,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ret(0);
 
   __ bind(&non_smi_value);
-  if (FLAG_smi_only_arrays) {
-    // Writing a non-smi, check whether array allows non-smi elements.
-    // r9: receiver's map
-    __ CheckFastObjectElements(r9, &slow, Label::kNear);
-  }
+  // Writing a non-smi, check whether array allows non-smi elements.
+  // r9: receiver's map
+  __ CheckFastObjectElements(r9, &slow, Label::kNear);
   __ lea(rcx,
          FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
   __ movq(Operand(rcx, 0), rax);

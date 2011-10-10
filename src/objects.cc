@@ -545,7 +545,9 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder in the prototype chain.
   // Proxy handlers do not use the proxy's prototype, so we can skip this.
   if (!result->IsHandler()) {
-    Object* last = result->IsProperty() ? result->holder() : heap->null_value();
+    Object* last = result->IsProperty()
+        ? result->holder()
+        : Object::cast(heap->null_value());
     ASSERT(this != this->GetPrototype());
     for (Object* current = this; true; current = current->GetPrototype()) {
       if (current->IsAccessCheckNeeded()) {
@@ -1930,8 +1932,8 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
   }
 #endif
   bool has_pending_exception;
-  Object** argv[] = { value_handle.location() };
-  Execution::Call(fun, self, 1, argv, &has_pending_exception);
+  Handle<Object> argv[] = { value_handle };
+  Execution::Call(fun, self, ARRAY_SIZE(argv), argv, &has_pending_exception);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *value_handle;
@@ -2029,7 +2031,7 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
                                          strict_mode);
         } else if (accessor_result.type() == HANDLER) {
           // There is a proxy in the prototype chain. Invoke its
-          // getOwnPropertyDescriptor trap.
+          // getPropertyDescriptor trap.
           bool found = false;
           // SetPropertyWithHandlerIfDefiningSetter can cause GC,
           // make sure to use the handlified references after calling
@@ -2448,7 +2450,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
   Handle<Object> value(value_raw);
   Handle<Object> args[] = { name };
   Handle<Object> result = proxy->CallTrap(
-      "getOwnPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
+      "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
 
   if (!result->IsUndefined()) {
@@ -2456,7 +2458,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     // Check whether it is virtualized as an accessor.
     // Emulate [[GetProperty]] semantics for proxies.
     bool has_pending_exception;
-    Object** argv[] = { result.location() };
+    Handle<Object> argv[] = { result };
     Handle<Object> desc =
         Execution::Call(isolate->to_complete_property_descriptor(), result,
                         ARRAY_SIZE(argv), argv, &has_pending_exception);
@@ -2558,7 +2560,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (result->IsUndefined()) return ABSENT;
 
   bool has_pending_exception;
-  Object** argv[] = { result.location() };
+  Handle<Object> argv[] = { result };
   Handle<Object> desc =
       Execution::Call(isolate->to_complete_property_descriptor(), result,
                       ARRAY_SIZE(argv), argv, &has_pending_exception);
@@ -2626,11 +2628,10 @@ void JSProxy::Fix() {
 }
 
 
-MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
-    const char* name,
-    Handle<Object> derived,
-    int argc,
-    Handle<Object> args[]) {
+MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
+                                                 Handle<Object> derived,
+                                                 int argc,
+                                                 Handle<Object> argv[]) {
   Isolate* isolate = GetIsolate();
   Handle<Object> handler(this->handler());
 
@@ -2649,7 +2650,6 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(
     trap = Handle<Object>(derived);
   }
 
-  Object*** argv = reinterpret_cast<Object***>(args);
   bool threw;
   return Execution::Call(trap, handler, argc, argv, &threw);
 }
@@ -3995,7 +3995,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
 void JSObject::LookupCallback(String* name, LookupResult* result) {
   Heap* heap = GetHeap();
   for (Object* current = this;
-       current != heap->null_value();
+       current != heap->null_value() && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
     if (result->IsProperty() && result->type() == CALLBACKS) return;
@@ -7767,7 +7767,6 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   if (elements()->map() != heap->non_strict_arguments_elements_map()) {
     Object* object;
     bool has_fast_smi_only_elements =
-        FLAG_smi_only_arrays &&
         (set_capacity_mode == kAllowSmiOnlyElements) &&
         (elements()->map()->has_fast_smi_only_elements() ||
          elements() == heap->empty_fixed_array());
@@ -8835,10 +8834,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!maybe->ToObject(&writable)) return maybe;
     backing_store = FixedArray::cast(writable);
   }
-  uint32_t length = static_cast<uint32_t>(backing_store->length());
+  uint32_t capacity = static_cast<uint32_t>(backing_store->length());
 
   if (check_prototype &&
-      (index >= length || backing_store->get(index)->IsTheHole())) {
+      (index >= capacity || backing_store->get(index)->IsTheHole())) {
     bool found;
     MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
                                                                    value,
@@ -8847,63 +8846,71 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (found) return result;
   }
 
-  // Check whether there is extra space in fixed array.
-  if (index < length) {
-    if (HasFastSmiOnlyElements()) {
-      if (!value->IsSmi()) {
-        // If the value is a number, transition from smi-only to
-        // FastDoubleElements.
-        if (value->IsNumber()) {
-          MaybeObject* maybe =
-              SetFastDoubleElementsCapacityAndLength(length, length);
-          if (maybe->IsFailure()) return maybe;
-          FixedDoubleArray::cast(elements())->set(index, value->Number());
-          return value;
-        }
-        // Value is not a number, transition to generic fast elements.
-        MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
-        Map* new_map;
-        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
-        set_map(new_map);
+  uint32_t new_capacity = capacity;
+  // Check if the length property of this object needs to be updated.
+  uint32_t array_length = 0;
+  bool must_update_array_length = false;
+  if (IsJSArray()) {
+    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+    if (index >= array_length) {
+      must_update_array_length = true;
+      array_length = index + 1;
+    }
+  }
+  // Check if the capacity of the backing store needs to be increased, or if
+  // a transition to slow elements is necessary.
+  if (index >= capacity) {
+    bool convert_to_slow = true;
+    if ((index - capacity) < kMaxGap) {
+      new_capacity = NewElementsCapacity(index + 1);
+      ASSERT(new_capacity > index);
+      if (!ShouldConvertToSlowElements(new_capacity)) {
+        convert_to_slow = false;
       }
     }
-    backing_store->set(index, value);
-    if (IsJSArray()) {
-      // Update the length of the array if needed.
-      uint32_t array_length = 0;
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
-      if (index >= array_length) {
-        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
-      }
+    if (convert_to_slow) {
+      MaybeObject* result = NormalizeElements();
+      if (result->IsFailure()) return result;
+      return SetDictionaryElement(index, value, strict_mode, check_prototype);
     }
+  }
+  // Convert to fast double elements if appropriate.
+  if (HasFastSmiOnlyElements() && !value->IsSmi() && value->IsNumber()) {
+    MaybeObject* maybe =
+        SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
+    if (maybe->IsFailure()) return maybe;
+    FixedDoubleArray::cast(elements())->set(index, value->Number());
     return value;
   }
-
-  // Allow gap in fast case.
-  if ((index - length) < kMaxGap) {
-    // Try allocating extra space.
-    int new_capacity = NewElementsCapacity(index + 1);
-    if (!ShouldConvertToSlowElements(new_capacity)) {
-      ASSERT(static_cast<uint32_t>(new_capacity) > index);
-      Object* new_elements;
-      SetFastElementsCapacityMode set_capacity_mode =
-          value->IsSmi() && HasFastSmiOnlyElements()
-              ? kAllowSmiOnlyElements
-              : kDontAllowSmiOnlyElements;
-      MaybeObject* maybe =
-          SetFastElementsCapacityAndLength(new_capacity,
-                                           index + 1,
-                                           set_capacity_mode);
-      if (!maybe->ToObject(&new_elements)) return maybe;
-      FixedArray::cast(new_elements)->set(index, value);
-      return value;
-    }
+  // Change elements kind from SMI_ONLY to generic FAST if necessary.
+  if (HasFastSmiOnlyElements() && !value->IsSmi()) {
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
+    Map* new_map;
+    if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
+    set_map(new_map);
   }
-
-  // Otherwise default to slow case.
-  MaybeObject* result = NormalizeElements();
-  if (result->IsFailure()) return result;
-  return SetDictionaryElement(index, value, strict_mode, check_prototype);
+  // Increase backing store capacity if that's been decided previously.
+  if (new_capacity != capacity) {
+    Object* new_elements;
+    SetFastElementsCapacityMode set_capacity_mode =
+        value->IsSmi() && HasFastSmiOnlyElements()
+            ? kAllowSmiOnlyElements
+            : kDontAllowSmiOnlyElements;
+    MaybeObject* maybe =
+        SetFastElementsCapacityAndLength(new_capacity,
+                                         array_length,
+                                         set_capacity_mode);
+    if (!maybe->ToObject(&new_elements)) return maybe;
+    FixedArray::cast(new_elements)->set(index, value);
+    return value;
+  }
+  // Finally, set the new element and length.
+  ASSERT(elements()->IsFixedArray());
+  backing_store->set(index, value);
+  if (must_update_array_length) {
+    JSArray::cast(this)->set_length(Smi::FromInt(array_length));
+  }
+  return value;
 }
 
 
@@ -10522,7 +10529,7 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape, JSObject*>;
+template class HashTable<ObjectHashTableShape, JSReceiver*>;
 
 template class Dictionary<StringDictionaryShape, String*>;
 

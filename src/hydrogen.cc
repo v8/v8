@@ -3346,46 +3346,42 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
                               Representation::Integer32()));
-    if (FLAG_smi_only_arrays) {
-      HInstruction* elements_kind =
-          AddInstruction(new(zone()) HElementsKind(literal));
-      HBasicBlock* store_fast = graph()->CreateBasicBlock();
-      // Two empty blocks to satisfy edge split form.
-      HBasicBlock* store_fast_edgesplit1 = graph()->CreateBasicBlock();
-      HBasicBlock* store_fast_edgesplit2 = graph()->CreateBasicBlock();
-      HBasicBlock* store_generic = graph()->CreateBasicBlock();
-      HBasicBlock* check_smi_only_elements = graph()->CreateBasicBlock();
-      HBasicBlock* join = graph()->CreateBasicBlock();
+    HInstruction* elements_kind =
+        AddInstruction(new(zone()) HElementsKind(literal));
+    HBasicBlock* store_fast = graph()->CreateBasicBlock();
+    // Two empty blocks to satisfy edge split form.
+    HBasicBlock* store_fast_edgesplit1 = graph()->CreateBasicBlock();
+    HBasicBlock* store_fast_edgesplit2 = graph()->CreateBasicBlock();
+    HBasicBlock* store_generic = graph()->CreateBasicBlock();
+    HBasicBlock* check_smi_only_elements = graph()->CreateBasicBlock();
+    HBasicBlock* join = graph()->CreateBasicBlock();
 
-      HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(value);
-      smicheck->SetSuccessorAt(0, store_fast_edgesplit1);
-      smicheck->SetSuccessorAt(1, check_smi_only_elements);
-      current_block()->Finish(smicheck);
-      store_fast_edgesplit1->Finish(new(zone()) HGoto(store_fast));
+    HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(value);
+    smicheck->SetSuccessorAt(0, store_fast_edgesplit1);
+    smicheck->SetSuccessorAt(1, check_smi_only_elements);
+    current_block()->Finish(smicheck);
+    store_fast_edgesplit1->Finish(new(zone()) HGoto(store_fast));
 
-      set_current_block(check_smi_only_elements);
-      HCompareConstantEqAndBranch* smi_elements_check =
-          new(zone()) HCompareConstantEqAndBranch(elements_kind,
-                                                  FAST_SMI_ONLY_ELEMENTS,
-                                                  Token::EQ_STRICT);
-      smi_elements_check->SetSuccessorAt(0, store_generic);
-      smi_elements_check->SetSuccessorAt(1, store_fast_edgesplit2);
-      current_block()->Finish(smi_elements_check);
-      store_fast_edgesplit2->Finish(new(zone()) HGoto(store_fast));
+    set_current_block(check_smi_only_elements);
+    HCompareConstantEqAndBranch* smi_elements_check =
+        new(zone()) HCompareConstantEqAndBranch(elements_kind,
+                                                FAST_SMI_ONLY_ELEMENTS,
+                                                Token::EQ_STRICT);
+    smi_elements_check->SetSuccessorAt(0, store_generic);
+    smi_elements_check->SetSuccessorAt(1, store_fast_edgesplit2);
+    current_block()->Finish(smi_elements_check);
+    store_fast_edgesplit2->Finish(new(zone()) HGoto(store_fast));
 
-      set_current_block(store_fast);
-      AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
-      store_fast->Goto(join);
+    set_current_block(store_fast);
+    AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
+    store_fast->Goto(join);
 
-      set_current_block(store_generic);
-      AddInstruction(BuildStoreKeyedGeneric(literal, key, value));
-      store_generic->Goto(join);
+    set_current_block(store_generic);
+    AddInstruction(BuildStoreKeyedGeneric(literal, key, value));
+    store_generic->Goto(join);
 
-      join->SetJoinId(expr->id());
-      set_current_block(join);
-    } else {
-      AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
-    }
+    join->SetJoinId(expr->id());
+    set_current_block(join);
 
     AddSimulate(expr->GetIdForElement(i));
   }
@@ -4667,7 +4663,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
   ASSERT(target_shared->has_deoptimization_support());
   TypeFeedbackOracle target_oracle(
       Handle<Code>(target_shared->code()),
-      Handle<Context>(target->context()->global_context()));
+      Handle<Context>(target->context()->global_context()),
+      isolate());
   FunctionState target_state(this, &target_info, &target_oracle);
 
   HConstant* undefined = graph()->GetConstantUndefined();

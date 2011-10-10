@@ -60,8 +60,10 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 
 
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
-                                       Handle<Context> global_context) {
+                                       Handle<Context> global_context,
+                                       Isolate* isolate) {
   global_context_ = global_context;
+  isolate_ = isolate;
   BuildDictionary(code);
   ASSERT(reinterpret_cast<Address>(*dictionary_.location()) != kHandleZapValue);
 }
@@ -71,7 +73,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
   int entry = dictionary_->FindEntry(ast_id);
   return entry != NumberDictionary::kNotFound
       ? Handle<Object>(dictionary_->ValueAt(entry))
-      : Isolate::Current()->factory()->undefined_value();
+      : Handle<Object>::cast(isolate_->factory()->undefined_value());
 }
 
 
@@ -93,7 +95,7 @@ bool TypeFeedbackOracle::LoadIsMegamorphicWithTypeInfo(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Builtins* builtins = Isolate::Current()->builtins();
+    Builtins* builtins = isolate_->builtins();
     return code->is_keyed_load_stub() &&
         *code != builtins->builtin(Builtins::kKeyedLoadIC_Generic) &&
         code->ic_state() == MEGAMORPHIC;
@@ -119,7 +121,7 @@ bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Builtins* builtins = Isolate::Current()->builtins();
+    Builtins* builtins = isolate_->builtins();
     return code->is_keyed_store_stub() &&
         *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic) &&
         *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic_Strict) &&
@@ -233,7 +235,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
   return *GetInfo(expr->id()) ==
-      Isolate::Current()->builtins()->builtin(id);
+      isolate_->builtins()->builtin(id);
 }
 
 
@@ -403,11 +405,11 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
                                               Handle<String> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
-  Isolate* isolate = Isolate::Current();
   Handle<Object> object = GetInfo(ast_id);
   if (object->IsUndefined() || object->IsSmi()) return;
 
-  if (*object == isolate->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
+  if (*object ==
+      isolate_->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
     // TODO(fschneider): We could collect the maps and signal that
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
@@ -416,7 +418,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
   } else if (Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     types->Reserve(4);
     ASSERT(object->IsCode());
-    isolate->stub_cache()->CollectMatchingMaps(types, *name, flags);
+    isolate_->stub_cache()->CollectMatchingMaps(types, *name, flags);
   }
 }
 

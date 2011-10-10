@@ -1,3 +1,16 @@
+2011-10-10: Version 3.6.6
+
+        Added a GC pause visualization tool.
+
+        Added presubmit=no and werror=no flags to Makefile.
+
+        ES5/Test262 conformance improvements.
+
+        Fixed compilation issues with GCC 4.5.x (issue 1743).
+
+        Bug fixes and performance improvements on all platforms.
+
+
 2011-10-05: Version 3.6.5
 
         New incremental garbage collector.

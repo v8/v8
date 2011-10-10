@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -61,7 +61,7 @@ class Execution : public AllStatic {
   static Handle<Object> Call(Handle<Object> callable,
                              Handle<Object> receiver,
                              int argc,
-                             Object*** args,
+                             Handle<Object> argv[],
                              bool* pending_exception,
                              bool convert_receiver = false);
 
@@ -74,7 +74,7 @@ class Execution : public AllStatic {
   //
   static Handle<Object> New(Handle<JSFunction> func,
                             int argc,
-                            Object*** args,
+                            Handle<Object> argv[],
                             bool* pending_exception);
 
   // Call a function, just like Call(), but make sure to silently catch
@@ -84,7 +84,7 @@ class Execution : public AllStatic {
   static Handle<Object> TryCall(Handle<JSFunction> func,
                                 Handle<Object> receiver,
                                 int argc,
-                                Object*** args,
+                                Handle<Object> argv[],
                                 bool* caught_exception);
 
   // ECMA-262 9.2

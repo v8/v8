@@ -1207,10 +1207,16 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ mov(eax, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ cmp(eax, isolate()->factory()->the_hole_value());
       __ j(not_equal, done);
-      __ mov(eax, isolate()->factory()->undefined_value());
+      if (local->mode() == Variable::CONST) {
+        __ mov(eax, isolate()->factory()->undefined_value());
+      } else {  // Variable::LET
+        __ push(Immediate(var->name()));
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }
@@ -1499,12 +1505,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                         kDontSaveFPRegs,
                         EMIT_REMEMBERED_SET,
                         OMIT_SMI_CHECK);
-    if (FLAG_smi_only_arrays) {
-      __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(edi, &no_map_change, Label::kNear);
-      __ push(Operand(esp, 0));
-      __ CallRuntime(Runtime::kNonSmiElementStored, 1);
-    }
+    __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(edi, &no_map_change, Label::kNear);
+    __ push(Operand(esp, 0));
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
     __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);

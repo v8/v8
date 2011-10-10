@@ -74,6 +74,7 @@
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
     'v8_use_liveobjectlist%': 'false',
+    'werror%': '-Werror',
 
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
@@ -226,7 +227,7 @@
             'cflags': [ '-I/usr/local/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor' ],
           }],
         ],

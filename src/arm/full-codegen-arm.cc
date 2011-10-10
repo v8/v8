@@ -1225,9 +1225,17 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ ldr(r0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
-      __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+      if (local->mode() == Variable::CONST) {
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+      } else {  // Variable::LET
+        __ b(ne, done);
+        __ mov(r0, Operand(var->name()));
+        __ push(r0);
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }
@@ -1516,12 +1524,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ RecordWriteField(
         r1, offset, result_register(), r2, kLRHasBeenSaved, kDontSaveFPRegs,
         EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-    if (FLAG_smi_only_arrays) {
-      __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(r3, r2, &no_map_change);
-      __ push(r6);  // Copy of array literal.
-      __ CallRuntime(Runtime::kNonSmiElementStored, 1);
-    }
+    __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(r3, r2, &no_map_change);
+    __ push(r6);  // Copy of array literal.
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
     __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);

@@ -1184,10 +1184,16 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ movq(rax, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
       __ j(not_equal, done);
-      __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      if (local->mode() == Variable::CONST) {
+        __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      } else {  // Variable::LET
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }
@@ -1467,12 +1473,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                         kDontSaveFPRegs,
                         EMIT_REMEMBERED_SET,
                         OMIT_SMI_CHECK);
-    if (FLAG_smi_only_arrays) {
-      __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(rdi, &no_map_change, Label::kNear);
-      __ push(r8);
-      __ CallRuntime(Runtime::kNonSmiElementStored, 1);
-    }
+    __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(rdi, &no_map_change, Label::kNear);
+    __ push(r8);
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
     __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);

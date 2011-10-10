@@ -1106,13 +1106,12 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
 
   // Call HandleBreakPointx.
   bool caught_exception;
-  const int argc = 2;
-  Object** argv[argc] = {
-    break_id.location(),
-    reinterpret_cast<Object**>(break_point_object.location())
-  };
+  Handle<Object> argv[] = { break_id, break_point_object };
   Handle<Object> result = Execution::TryCall(check_break_point,
-      isolate_->js_builtins_object(), argc, argv, &caught_exception);
+                                             isolate_->js_builtins_object(),
+                                             ARRAY_SIZE(argv),
+                                             argv,
+                                             &caught_exception);
 
   // If exception or non boolean result handle as not triggered
   if (caught_exception || !result->IsBoolean()) {
@@ -2102,7 +2101,8 @@ Debugger::~Debugger() {
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
-                                      int argc, Object*** argv,
+                                      int argc,
+                                      Handle<Object> argv[],
                                       bool* caught_exception) {
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
 
@@ -2119,7 +2119,9 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   Handle<Object> js_object = Execution::TryCall(
       Handle<JSFunction>::cast(constructor),
       Handle<JSObject>(isolate_->debug()->debug_context()->global()),
-      argc, argv, caught_exception);
+      argc,
+      argv,
+      caught_exception);
   return js_object;
 }
 
@@ -2128,10 +2130,11 @@ Handle<Object> Debugger::MakeExecutionState(bool* caught_exception) {
   // Create the execution state object.
   Handle<Object> break_id = isolate_->factory()->NewNumberFromInt(
       isolate_->debug()->break_id());
-  const int argc = 1;
-  Object** argv[argc] = { break_id.location() };
+  Handle<Object> argv[] = { break_id };
   return MakeJSObject(CStrVector("MakeExecutionState"),
-                      argc, argv, caught_exception);
+                      ARRAY_SIZE(argv),
+                      argv,
+                      caught_exception);
 }
 
 
@@ -2139,11 +2142,9 @@ Handle<Object> Debugger::MakeBreakEvent(Handle<Object> exec_state,
                                         Handle<Object> break_points_hit,
                                         bool* caught_exception) {
   // Create the new break event object.
-  const int argc = 2;
-  Object** argv[argc] = { exec_state.location(),
-                          break_points_hit.location() };
+  Handle<Object> argv[] = { exec_state, break_points_hit };
   return MakeJSObject(CStrVector("MakeBreakEvent"),
-                      argc,
+                      ARRAY_SIZE(argv),
                       argv,
                       caught_exception);
 }
@@ -2155,23 +2156,24 @@ Handle<Object> Debugger::MakeExceptionEvent(Handle<Object> exec_state,
                                             bool* caught_exception) {
   Factory* factory = isolate_->factory();
   // Create the new exception event object.
-  const int argc = 3;
-  Object** argv[argc] = { exec_state.location(),
-                          exception.location(),
-                          uncaught ? factory->true_value().location() :
-                                     factory->false_value().location()};
+  Handle<Object> argv[] = { exec_state,
+                            exception,
+                            factory->ToBoolean(uncaught) };
   return MakeJSObject(CStrVector("MakeExceptionEvent"),
-                      argc, argv, caught_exception);
+                      ARRAY_SIZE(argv),
+                      argv,
+                      caught_exception);
 }
 
 
 Handle<Object> Debugger::MakeNewFunctionEvent(Handle<Object> function,
                                               bool* caught_exception) {
   // Create the new function event object.
-  const int argc = 1;
-  Object** argv[argc] = { function.location() };
+  Handle<Object> argv[] = { function };
   return MakeJSObject(CStrVector("MakeNewFunctionEvent"),
-                      argc, argv, caught_exception);
+                      ARRAY_SIZE(argv),
+                      argv,
+                      caught_exception);
 }
 
 
@@ -2182,14 +2184,11 @@ Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
   // Create the compile event object.
   Handle<Object> exec_state = MakeExecutionState(caught_exception);
   Handle<Object> script_wrapper = GetScriptWrapper(script);
-  const int argc = 3;
-  Object** argv[argc] = { exec_state.location(),
-                          script_wrapper.location(),
-                          before ? factory->true_value().location() :
-                                   factory->false_value().location() };
-
+  Handle<Object> argv[] = { exec_state,
+                            script_wrapper,
+                            factory->ToBoolean(before) };
   return MakeJSObject(CStrVector("MakeCompileEvent"),
-                      argc,
+                      ARRAY_SIZE(argv),
                       argv,
                       caught_exception);
 }
@@ -2200,11 +2199,10 @@ Handle<Object> Debugger::MakeScriptCollectedEvent(int id,
   // Create the script collected event object.
   Handle<Object> exec_state = MakeExecutionState(caught_exception);
   Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id));
-  const int argc = 2;
-  Object** argv[argc] = { exec_state.location(), id_object.location() };
+  Handle<Object> argv[] = { exec_state, id_object };
 
   return MakeJSObject(CStrVector("MakeScriptCollectedEvent"),
-                      argc,
+                      ARRAY_SIZE(argv),
                       argv,
                       caught_exception);
 }
@@ -2355,11 +2353,12 @@ void Debugger::OnAfterCompile(Handle<Script> script,
 
   // Call UpdateScriptBreakPoints expect no exceptions.
   bool caught_exception;
-  const int argc = 1;
-  Object** argv[argc] = { reinterpret_cast<Object**>(wrapper.location()) };
+  Handle<Object> argv[] = { wrapper };
   Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
-      Isolate::Current()->js_builtins_object(), argc, argv,
-      &caught_exception);
+                     Isolate::Current()->js_builtins_object(),
+                     ARRAY_SIZE(argv),
+                     argv,
+                     &caught_exception);
   if (caught_exception) {
     return;
   }
@@ -2490,13 +2489,16 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
   Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
 
   // Invoke the JavaScript debug event listener.
-  const int argc = 4;
-  Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
-                          exec_state.location(),
-                          Handle<Object>::cast(event_data).location(),
-                          event_listener_data_.location() };
+  Handle<Object> argv[] = { Handle<Object>(Smi::FromInt(event)),
+                            exec_state,
+                            event_data,
+                            event_listener_data_ };
   bool caught_exception;
-  Execution::TryCall(fun, isolate_->global(), argc, argv, &caught_exception);
+  Execution::TryCall(fun,
+                     isolate_->global(),
+                     ARRAY_SIZE(argv),
+                     argv,
+                     &caught_exception);
   // Silently ignore exceptions from debug event listeners.
 }
 
@@ -2865,12 +2867,11 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
     return isolate_->factory()->undefined_value();
   }
 
-  static const int kArgc = 2;
-  Object** argv[kArgc] = { exec_state.location(), data.location() };
+  Handle<Object> argv[] = { exec_state, data };
   Handle<Object> result = Execution::Call(
       fun,
       Handle<Object>(isolate_->debug()->debug_context_->global_proxy()),
-      kArgc,
+      ARRAY_SIZE(argv),
       argv,
       pending_exception);
   return result;

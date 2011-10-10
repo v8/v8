@@ -705,7 +705,8 @@ class Debugger {
   void DebugRequest(const uint16_t* json_request, int length);
 
   Handle<Object> MakeJSObject(Vector<const char> constructor_name,
-                              int argc, Object*** argv,
+                              int argc,
+                              Handle<Object> argv[],
                               bool* caught_exception);
   Handle<Object> MakeExecutionState(bool* caught_exception);
   Handle<Object> MakeBreakEvent(Handle<Object> exec_state,

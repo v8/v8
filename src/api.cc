@@ -1787,7 +1787,7 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
 static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> recv,
                                                int argc,
-                                               i::Object** argv[],
+                                               i::Handle<i::Object> argv[],
                                                bool* has_pending_exception) {
   i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::String> fmt_str = isolate->factory()->LookupAsciiSymbol(name);
@@ -1804,10 +1804,10 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
 static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> data,
                                                bool* has_pending_exception) {
-  i::Object** argv[1] = { data.location() };
+  i::Handle<i::Object> argv[] = { data };
   return CallV8HeapFunction(name,
                             i::Isolate::Current()->js_builtins_object(),
-                            1,
+                            ARRAY_SIZE(argv),
                             argv,
                             has_pending_exception);
 }
@@ -2627,10 +2627,11 @@ bool Value::Equals(Handle<Value> that) const {
   if (obj->IsJSObject() && other->IsJSObject()) {
     return *obj == *other;
   }
-  i::Object** args[1] = { other.location() };
+  i::Handle<i::Object> args[] = { other };
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result =
-      CallV8HeapFunction("EQUALS", obj, 1, args, &has_pending_exception);
+      CallV8HeapFunction("EQUALS", obj, ARRAY_SIZE(args), args,
+                         &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return *result == i::Smi::FromInt(i::EQUAL);
 }
@@ -3452,7 +3453,8 @@ bool v8::Object::IsCallable() {
 }
 
 
-Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
+                                        int argc,
                                         v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::CallAsFunction()",
@@ -3463,7 +3465,7 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>();
   if (obj->IsJSFunction()) {
     fun = i::Handle<i::JSFunction>::cast(obj);
@@ -3493,7 +3495,7 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   if (obj->IsJSFunction()) {
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
     EXCEPTION_PREAMBLE(isolate);
@@ -3535,7 +3537,7 @@ Local<v8::Object> Function::NewInstance(int argc,
   HandleScope scope;
   i::Handle<i::JSFunction> function = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned =
       i::Execution::New(function, argc, args, &has_pending_exception);
@@ -3556,7 +3558,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
     i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
     STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-    i::Object*** args = reinterpret_cast<i::Object***>(argv);
+    i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned =
         i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);

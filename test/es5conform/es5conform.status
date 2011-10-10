@@ -183,11 +183,6 @@ chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
 # have no effect on the actual array on which reduceRight is called.
 chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
 
-# We do not correctly recognize \uFEFF as whitespace
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL
-
 ##############################################################################
 # Unimplemented parts of strict mode
 # Setting expectations to fail only so that the tests trigger as soon as
