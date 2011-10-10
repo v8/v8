@@ -408,7 +408,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
   Handle<Object> object = GetInfo(ast_id);
   if (object->IsUndefined() || object->IsSmi()) return;
 
-  if (*object == isolate_->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
+  if (*object ==
+      isolate_->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
     // TODO(fschneider): We could collect the maps and signal that
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
