@@ -4084,7 +4084,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, &call_runtime_);
   // Get the first of the two strings and load its instance type.
-  ASSERT(kScratchRegister != scratch_);
+  ASSERT(!kScratchRegister.is(scratch_));
   __ movq(kScratchRegister, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 
