@@ -10527,7 +10527,7 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape, JSObject*>;
+template class HashTable<ObjectHashTableShape, JSReceiver*>;
 
 template class Dictionary<StringDictionaryShape, String*>;
 
