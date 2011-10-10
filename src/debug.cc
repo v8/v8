@@ -2158,8 +2158,7 @@ Handle<Object> Debugger::MakeExceptionEvent(Handle<Object> exec_state,
   // Create the new exception event object.
   Handle<Object> argv[] = { exec_state,
                             exception,
-                            uncaught ? factory->true_value()
-                                     : factory->false_value() };
+                            factory->ToBoolean(uncaught) };
   return MakeJSObject(CStrVector("MakeExceptionEvent"),
                       ARRAY_SIZE(argv),
                       argv,
@@ -2187,9 +2186,7 @@ Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
   Handle<Object> script_wrapper = GetScriptWrapper(script);
   Handle<Object> argv[] = { exec_state,
                             script_wrapper,
-                            before ? factory->true_value()
-                                   : factory->false_value() };
-
+                            factory->ToBoolean(before) };
   return MakeJSObject(CStrVector("MakeCompileEvent"),
                       ARRAY_SIZE(argv),
                       argv,

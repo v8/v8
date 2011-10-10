@@ -52,20 +52,20 @@ inline Heap* _inline_get_heap_();
 
 
 // Defines all the roots in Heap.
-#define STRONG_ROOT_LIST(V)                                      \
+#define STRONG_ROOT_LIST(V)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
   V(Smi, store_buffer_top, StoreBufferTop)                                     \
-  V(Object, undefined_value, UndefinedValue)                                   \
-  V(Object, the_hole_value, TheHoleValue)                                      \
-  V(Object, null_value, NullValue)                                             \
-  V(Object, true_value, TrueValue)                                             \
-  V(Object, false_value, FalseValue)                                           \
-  V(Object, arguments_marker, ArgumentsMarker)                                 \
-  V(Object, frame_alignment_marker, FrameAlignmentMarker)                      \
+  V(Oddball, undefined_value, UndefinedValue)                                  \
+  V(Oddball, the_hole_value, TheHoleValue)                                     \
+  V(Oddball, null_value, NullValue)                                            \
+  V(Oddball, true_value, TrueValue)                                            \
+  V(Oddball, false_value, FalseValue)                                          \
+  V(Oddball, arguments_marker, ArgumentsMarker)                                \
+  V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -126,9 +126,9 @@ inline Heap* _inline_get_heap_();
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
-  V(Object, nan_value, NanValue)                                               \
-  V(Object, infinity_value, InfinityValue)                                     \
-  V(Object, minus_zero_value, MinusZeroValue)                                  \
+  V(HeapNumber, nan_value, NanValue)                                           \
+  V(HeapNumber, infinity_value, InfinityValue)                                 \
+  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \

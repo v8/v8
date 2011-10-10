@@ -216,7 +216,9 @@ class UnaryOperation;
 
 class TypeFeedbackOracle BASE_EMBEDDED {
  public:
-  TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
+  TypeFeedbackOracle(Handle<Code> code,
+                     Handle<Context> global_context,
+                     Isolate* isolate);
 
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsMegamorphicWithTypeInfo(Property* expr);
@@ -282,6 +284,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<Object> GetInfo(unsigned ast_id);
 
   Handle<Context> global_context_;
+  Isolate* isolate_;
   Handle<NumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);

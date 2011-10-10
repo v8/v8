@@ -4663,7 +4663,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
   ASSERT(target_shared->has_deoptimization_support());
   TypeFeedbackOracle target_oracle(
       Handle<Code>(target_shared->code()),
-      Handle<Context>(target->context()->global_context()));
+      Handle<Context>(target->context()->global_context()),
+      isolate());
   FunctionState target_state(this, &target_info, &target_oracle);
 
   HConstant* undefined = graph()->GetConstantUndefined();

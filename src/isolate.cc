@@ -98,6 +98,14 @@ void ThreadLocalTop::InitializeInternal() {
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
+
+  // These members are re-initialized later after deserialization
+  // is complete.
+  pending_exception_ = NULL;
+  has_pending_message_ = false;
+  pending_message_obj_ = NULL;
+  pending_message_script_ = NULL;
+  scheduled_exception_ = NULL;
 }
 
 
@@ -1284,6 +1292,9 @@ char* Isolate::ArchiveThread(char* to) {
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
   return to + sizeof(ThreadLocalTop);
 }
 
@@ -1611,9 +1622,6 @@ Isolate::~Isolate() {
 void Isolate::InitializeThreadLocal() {
   thread_local_top_.isolate_ = this;
   thread_local_top_.Initialize();
-  clear_pending_exception();
-  clear_pending_message();
-  clear_scheduled_exception();
 }
 
 
@@ -1770,6 +1778,11 @@ bool Isolate::Init(Deserializer* des) {
     des->Deserialize();
     stub_cache_->Initialize(true);
   }
+
+  // Finish initialization of ThreadLocal after deserialization is done.
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
 
   // Deserializing may put strange things in the root array's copy of the
   // stack guard.

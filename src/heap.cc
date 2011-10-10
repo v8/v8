@@ -1804,8 +1804,15 @@ bool Heap::CreateInitialMaps() {
   { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_null_value(obj);
+  set_null_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kNull);
+
+  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_undefined_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kUndefined);
+  ASSERT(!InNewSpace(undefined_value()));
 
   // Allocate the empty descriptor array.
   { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
@@ -2178,25 +2185,18 @@ bool Heap::CreateInitialObjects() {
   { MaybeObject* maybe_obj = AllocateHeapNumber(-0.0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_minus_zero_value(obj);
+  set_minus_zero_value(HeapNumber::cast(obj));
   ASSERT(signbit(minus_zero_value()->Number()) != 0);
 
   { MaybeObject* maybe_obj = AllocateHeapNumber(OS::nan_value(), TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_nan_value(obj);
+  set_nan_value(HeapNumber::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateHeapNumber(V8_INFINITY, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_infinity_value(obj);
-
-  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_undefined_value(obj);
-  Oddball::cast(obj)->set_kind(Oddball::kUndefined);
-  ASSERT(!InNewSpace(undefined_value()));
+  set_infinity_value(HeapNumber::cast(obj));
 
   // Allocate initial symbol table.
   { MaybeObject* maybe_obj = SymbolTable::Allocate(kInitialSymbolTableSize);
@@ -2205,19 +2205,17 @@ bool Heap::CreateInitialObjects() {
   // Don't use set_symbol_table() due to asserts.
   roots_[kSymbolTableRootIndex] = obj;
 
-  // Assign the print strings for oddballs after creating symboltable.
-  Object* symbol;
-  { MaybeObject* maybe_symbol = LookupAsciiSymbol("undefined");
-    if (!maybe_symbol->ToObject(&symbol)) return false;
-  }
-  Oddball::cast(undefined_value())->set_to_string(String::cast(symbol));
-  Oddball::cast(undefined_value())->set_to_number(nan_value());
-
-  // Allocate the null_value
+  // Finish initializing oddballs after creating symboltable.
   { MaybeObject* maybe_obj =
-        Oddball::cast(null_value())->Initialize("null",
-                                                Smi::FromInt(0),
-                                                Oddball::kNull);
+        undefined_value()->Initialize("undefined",
+                                      nan_value(),
+                                      Oddball::kUndefined);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+
+  // Initialize the null_value.
+  { MaybeObject* maybe_obj =
+        null_value()->Initialize("null", Smi::FromInt(0), Oddball::kNull);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
 
@@ -2226,28 +2224,28 @@ bool Heap::CreateInitialObjects() {
                                            Oddball::kTrue);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_true_value(obj);
+  set_true_value(Oddball::cast(obj));
 
   { MaybeObject* maybe_obj = CreateOddball("false",
                                            Smi::FromInt(0),
                                            Oddball::kFalse);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_false_value(obj);
+  set_false_value(Oddball::cast(obj));
 
   { MaybeObject* maybe_obj = CreateOddball("hole",
                                            Smi::FromInt(-1),
                                            Oddball::kTheHole);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_the_hole_value(obj);
+  set_the_hole_value(Oddball::cast(obj));
 
   { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
                                            Smi::FromInt(-2),
                                            Oddball::kArgumentMarker);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_arguments_marker(obj);
+  set_arguments_marker(Oddball::cast(obj));
 
   { MaybeObject* maybe_obj = CreateOddball("no_interceptor_result_sentinel",
                                            Smi::FromInt(-3),
@@ -2268,7 +2266,7 @@ bool Heap::CreateInitialObjects() {
                                            Oddball::kOther);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_frame_alignment_marker(obj);
+  set_frame_alignment_marker(Oddball::cast(obj));
   STATIC_ASSERT(Oddball::kLeastHiddenOddballNumber == -5);
 
   // Allocate the empty string.

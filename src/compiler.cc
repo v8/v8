@@ -276,7 +276,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   Handle<Context> global_context(info->closure()->context()->global_context());
-  TypeFeedbackOracle oracle(code, global_context);
+  TypeFeedbackOracle oracle(code, global_context, info->isolate());
   HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();

@@ -451,6 +451,9 @@ class Factory {
   // Returns a null handle when the given name is unknown.
   Handle<Object> GlobalConstantFor(Handle<String> name);
 
+  // Converts the given boolean condition to JavaScript boolean value.
+  Handle<Object> ToBoolean(bool value);
+
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
 

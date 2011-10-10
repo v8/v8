@@ -1336,4 +1336,11 @@ Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
 }
 
 
+Handle<Object> Factory::ToBoolean(bool value) {
+  return Handle<Object>(value
+                        ? isolate()->heap()->true_value()
+                        : isolate()->heap()->false_value());
+}
+
+
 } }  // namespace v8::internal

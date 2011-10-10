@@ -80,11 +80,11 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   }
 
   Handle<Object> stack_trace_handle = stack_trace.is_null()
-      ? FACTORY->undefined_value()
+      ? Handle<Object>::cast(FACTORY->undefined_value())
       : Handle<Object>::cast(stack_trace);
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()
-      ? FACTORY->undefined_value()
+      ? Handle<Object>::cast(FACTORY->undefined_value())
       : Handle<Object>::cast(stack_frames);
 
   Handle<JSMessageObject> message =

@@ -5216,8 +5216,6 @@ class GlobalObject: public JSObject {
   static const int kHeaderSize = kGlobalReceiverOffset + kPointerSize;
 
  private:
-  friend class AGCCVersionRequiresThisClassToHaveAFriendSoHereItIs;
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalObject);
 };
 
@@ -7151,7 +7149,6 @@ class TemplateInfo: public Struct {
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
   static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
  protected:
-  friend class AGCCVersionRequiresThisClassToHaveAFriendSoHereItIs;
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
 };
 

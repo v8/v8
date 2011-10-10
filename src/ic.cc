@@ -167,7 +167,7 @@ static bool HasNormalObjectsInPrototypeChain(Isolate* isolate,
                                              LookupResult* lookup,
                                              Object* receiver) {
   Object* end = lookup->IsProperty()
-      ? lookup->holder() : isolate->heap()->null_value();
+      ? lookup->holder() : Object::cast(isolate->heap()->null_value());
   for (Object* current = receiver;
        current != end;
        current = current->GetPrototype()) {
