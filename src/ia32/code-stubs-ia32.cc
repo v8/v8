@@ -5119,22 +5119,24 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
          Immediate(masm->isolate()->factory()->empty_string()));
   __ j(not_equal, &call_runtime_);
   // Get the first of the two strings and load its instance type.
-  __ mov(object_, FieldOperand(object_, ConsString::kFirstOffset));
+  __ mov(result_, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ add(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
-  __ mov(object_, FieldOperand(object_, SlicedString::kParentOffset));
+  __ mov(result_, FieldOperand(object_, SlicedString::kParentOffset));
 
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   __ bind(&assure_seq_string);
-  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
+  __ mov(result_, FieldOperand(result_, HeapObject::kMapOffset));
   __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
-  __ jmp(&flat_string, Label::kNear);
+  // Actually fetch the parent string if it is confirmed to be sequential.
+  STATIC_ASSERT(SlicedString::kParentOffset == ConsString::kFirstOffset);
+  __ mov(object_, FieldOperand(object_, SlicedString::kParentOffset));
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
