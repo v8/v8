@@ -6,7 +6,7 @@
 
         ES5/Test262 conformance improvements.
 
-        Fixed compilation issues with GCC 4.5.x. (issue 1743)
+        Fixed compilation issues with GCC 4.5.x (issue 1743).
 
         Bug fixes and performance improvements on all platforms.
 
