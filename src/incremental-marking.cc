@@ -411,7 +411,7 @@ void IncrementalMarking::Start() {
 
   if (heap_->old_pointer_space()->IsSweepingComplete() &&
       heap_->old_data_space()->IsSweepingComplete()) {
-    StartMarking();
+    StartMarking(ALLOW_COMPACTION);
   } else {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Start sweeping.\n");
@@ -436,12 +436,12 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
 }
 
 
-void IncrementalMarking::StartMarking() {
+void IncrementalMarking::StartMarking(CompactionFlag flag) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start marking\n");
   }
 
-  is_compacting_ = !FLAG_never_compact &&
+  is_compacting_ = !FLAG_never_compact && (flag == ALLOW_COMPACTION) &&
       heap_->mark_compact_collector()->StartCompaction();
 
   state_ = MARKING;
@@ -705,7 +705,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   if (state_ == SWEEPING) {
     if (heap_->old_pointer_space()->AdvanceSweeper(bytes_to_process) &&
         heap_->old_data_space()->AdvanceSweeper(bytes_to_process)) {
-      StartMarking();
+      StartMarking(PREVENT_COMPACTION);
     }
   } else if (state_ == MARKING) {
     Map* filler_map = heap_->one_pointer_filler_map();

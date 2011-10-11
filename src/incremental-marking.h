@@ -206,7 +206,9 @@ class IncrementalMarking {
 
   void ResetStepCounters();
 
-  void StartMarking();
+  enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
+
+  void StartMarking(CompactionFlag flag);
 
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);

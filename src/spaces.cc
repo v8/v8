@@ -1798,6 +1798,11 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   owner_->heap()->incremental_marking()->OldSpaceStep(
       size_in_bytes - old_linear_size);
 
+  // The old-space-step might have finished sweeping and restarted marking.
+  // Verify that it did not turn the page of the new node into an evacuation
+  // candidate.
+  ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
+
   const int kThreshold = IncrementalMarking::kAllocatedThreshold;
 
   // Memory in the linear allocation area is counted as allocated.  We may free
