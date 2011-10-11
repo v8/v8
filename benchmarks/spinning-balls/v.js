@@ -42,9 +42,6 @@ if ( !window.requestAnimationFrame ) {
   } )();
 }
 
-
-
-
 var kNPoints = 8000;
 var kNModifications = 20;
 var kNVisiblePoints = 200;
@@ -57,21 +54,9 @@ var livePoints = void 0;
 var dyingPoints = void 0;
 var scene = void 0;
 var renderingStartTime = void 0;
-var omitFrameDueToVisibilityChange = false;
 var scene = void 0;
 var pausePlot = void 0;
 var splayTree = void 0;
-
-handleVisibilityChange();
-
-function handleVisibilityChange() {
-  console.log("visibility change");
-  omitFrameDueToVisibilityChange = true;
-  document.addEventListener("webkitvisibilitychange", handleVisibilityChange);
-  document.addEventListener("msvisibilitychange", handleVisibilityChange);
-  document.addEventListener("mozvisibilitychange", handleVisibilityChange);
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-}
 
 
 function Point(x, y, z, payload) {
@@ -368,12 +353,9 @@ function render() {
   scene.draw();
 
   var renderingEndTime = Date.now();
-  if (!omitFrameDueToVisibilityChange) {
-    var pause = renderingEndTime - renderingStartTime;
-    pausePlot.addPause(pause);
-  }
+  var pause = renderingEndTime - renderingStartTime;
+  pausePlot.addPause(pause);
   renderingStartTime = renderingEndTime;
-  omitFrameDueToVisibilityChange = false;
 
   pausePlot.draw();
 
