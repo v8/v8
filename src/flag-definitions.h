@@ -107,6 +107,10 @@ DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
 DEFINE_bool(string_slices, false, "use string slices")
 
+DEFINE_bool(clever_optimizations,
+            true,
+            "Optimize object size, Array shift, DOM strings and string +")
+
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
   DEFINE_bool(crankshaft, false, "use crankshaft")

@@ -7242,6 +7242,8 @@ bool SharedFunctionInfo::VerifyBailoutId(int id) {
 void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
   ASSERT(!IsInobjectSlackTrackingInProgress());
 
+  if (!FLAG_clever_optimizations) return;
+
   // Only initiate the tracking the first time.
   if (live_objects_may_exist()) return;
   set_live_objects_may_exist(true);
