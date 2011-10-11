@@ -300,9 +300,6 @@ DEFINE_int(random_seed, 0,
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
 
-DEFINE_bool(use_big_map_space, true,
-            "Use big map space, but don't compact if it grew too big.")
-
 DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
            "Maximum number of pages in map space which still allows to encode "
            "forwarding pointers.  That's actually a constant, but it's useful "
@@ -338,7 +335,6 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
-DEFINE_bool(regexp_entry_native, true, "use native code to enter regexp")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
@@ -464,9 +460,6 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "(requires heap_stats)")
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
-
-DEFINE_bool(trace_live_byte_count, false,
-            "trace updates to page live byte count")
 
 // VM state
 DEFINE_bool(log_state_changes, false, "Log state changes.")

@@ -452,7 +452,7 @@ class MemoryChunk {
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
   void ResetLiveBytes() {
-    if (FLAG_trace_live_byte_count) {
+    if (FLAG_gc_verbose) {
       PrintF("ResetLiveBytes:%p:%x->0\n",
              static_cast<void*>(this), live_byte_count_);
     }
@@ -460,7 +460,7 @@ class MemoryChunk {
   }
   void IncrementLiveBytes(int by) {
     ASSERT_LE(static_cast<unsigned>(live_byte_count_), size_);
-    if (FLAG_trace_live_byte_count) {
+    if (FLAG_gc_verbose) {
       printf("UpdateLiveBytes:%p:%x%c=%x->%x\n",
              static_cast<void*>(this), live_byte_count_,
              ((by < 0) ? '-' : '+'), ((by < 0) ? -by : by),
