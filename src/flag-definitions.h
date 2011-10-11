@@ -394,6 +394,15 @@ DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
 DEFINE_string(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
 
+// mark-compact.cc
+DEFINE_bool(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
+DEFINE_bool(stress_compaction, false,
+            "stress the GC compactor to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
+
 //
 // Debug only flags
 //
@@ -440,11 +449,6 @@ DEFINE_bool(print_global_handles, false, "report global handles after GC")
 
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")
-
-// mark-compact.cc
-DEFINE_bool(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
 
 // objects.cc
 DEFINE_bool(trace_normalization,

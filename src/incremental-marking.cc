@@ -346,6 +346,7 @@ bool IncrementalMarking::WorthActivating() {
 #endif
 
   return FLAG_incremental_marking &&
+      !Serializer::enabled() &&
       heap_->PromotedSpaceSize() > kActivationThreshold;
 }
 

@@ -216,6 +216,12 @@ void V8::InitializeOncePerProcess() {
   FLAG_peephole_optimization = !use_crankshaft_;
 
   ElementsAccessor::InitializeOncePerProcess();
+
+  if (FLAG_stress_compaction) {
+    FLAG_force_marking_deque_overflows = true;
+    FLAG_gc_global = true;
+    FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
+  }
 }
 
 } }  // namespace v8::internal
