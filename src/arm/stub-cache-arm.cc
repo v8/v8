@@ -3274,6 +3274,61 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
 }
 
 
+MaybeObject* KeyedStoreStubCompiler::CompileStoreElementWithTransition(
+    Map* transitioned_map,
+    Map* untransitioned_map_1,
+    Map* untransitioned_map_2) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : scratch
+  // -----------------------------------
+
+  // The order of map occurrences in the generated code below is important.
+  // Both IC code and Crankshaft rely on |transitioned_map| being the first
+  // map in the stub.
+
+  Code* notransition_stub;
+  ElementsKind elements_kind = transitioned_map->elements_kind();
+  bool is_js_array = transitioned_map->instance_type() == JS_ARRAY_TYPE;
+  MaybeObject* maybe_stub =
+      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
+  if (!maybe_stub->To(&notransition_stub)) return maybe_stub;
+
+  Label just_store, miss;
+  __ JumpIfSmi(r2, &miss);
+  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  // r3: receiver->map().
+  __ mov(ip, Operand(Handle<Map>(transitioned_map)));
+  __ cmp(r3, ip);
+  __ b(eq, &just_store);
+  ASSERT_NE(untransitioned_map_1, NULL);
+  __ mov(ip, Operand(Handle<Map>(untransitioned_map_1)));
+  __ cmp(r3, ip);
+  Code* generic_stub = (strict_mode_ == kStrictMode)
+      ? isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic_Strict)
+      : isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic);
+  __ Jump(Handle<Code>(generic_stub), RelocInfo::CODE_TARGET, eq);
+  if (untransitioned_map_2 != NULL) {
+    __ mov(ip, Operand(Handle<Map>(untransitioned_map_2)));
+    __ cmp(r3, ip);
+    __ Jump(Handle<Code>(generic_stub), RelocInfo::CODE_TARGET, eq);
+  }
+
+  __ bind(&miss);
+  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&just_store);
+  __ Jump(Handle<Code>(notransition_stub), RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+}
+
+
 MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
@@ -4313,7 +4368,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   //  -- r3    : scratch
   //  -- r4    : scratch (elements)
   // -----------------------------------
-  Label miss_force_generic;
+  Label miss_force_generic, transition_elements_kind;
 
   Register value_reg = r0;
   Register key_reg = r1;
@@ -4347,7 +4402,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   __ b(hs, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    __ JumpIfNotSmi(value_reg, &miss_force_generic);
+    __ JumpIfNotSmi(value_reg, &transition_elements_kind);
     __ add(scratch,
            elements_reg,
            Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4381,6 +4436,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   Handle<Code> ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&transition_elements_kind);
+  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 
@@ -4396,7 +4455,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r4    : scratch
   //  -- r5    : scratch
   // -----------------------------------
-  Label miss_force_generic;
+  Label miss_force_generic, transition_elements_kind;
 
   Register value_reg = r0;
   Register key_reg = r1;
@@ -4434,7 +4493,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
                                  scratch2,
                                  scratch3,
                                  scratch4,
-                                 &miss_force_generic);
+                                 &transition_elements_kind);
   __ Ret();
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -4442,6 +4501,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Handle<Code> ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&transition_elements_kind);
+  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 

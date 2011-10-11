@@ -13172,6 +13172,14 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, obj1, args[0]);
+  CONVERT_CHECKED(JSObject, obj2, args[1]);
+  return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
+}
+
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 

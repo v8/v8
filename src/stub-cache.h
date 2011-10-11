@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "arguments.h"
+#include "ic-inl.h"
 #include "macro-assembler.h"
 #include "objects.h"
 #include "zone-inl.h"
@@ -187,7 +188,7 @@ class StubCache {
 
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreElement(
       JSObject* receiver,
-      bool is_store,
+      KeyedIC::StubKind stub_kind,
       StrictModeFlag strict_mode);
 
   // ---
@@ -698,6 +699,11 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  String* name);
 
   MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
+
+  MUST_USE_RESULT MaybeObject* CompileStoreElementWithTransition(
+      Map* transitioned_map,
+      Map* untransitioned_map_1,
+      Map* untransitioned_map_2 = NULL);
 
   MUST_USE_RESULT MaybeObject* CompileStoreMegamorphic(
       MapList* receiver_maps,
