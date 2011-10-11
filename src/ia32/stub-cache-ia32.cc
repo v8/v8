@@ -2755,65 +2755,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreElementWithTransition(
-    Map* transitioned_map,
-    Map* untransitioned_map_1,
-    Map* untransitioned_map_2) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  // The order of map occurrences in the generated code below is important.
-  // Both IC code and Crankshaft rely on |transitioned_map| being the first
-  // map in the stub.
-
-  Code* notransition_stub;
-  ElementsKind elements_kind = transitioned_map->elements_kind();
-  bool is_jsarray = transitioned_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreElementStub(is_jsarray, elements_kind).TryGetCode();
-  if (!maybe_stub->To(&notransition_stub)) return maybe_stub;
-
-  Label just_store, miss;
-  __ JumpIfSmi(edx, &miss, Label::kNear);
-  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  // ebx: receiver->map().
-  __ cmp(ebx, Handle<Map>(transitioned_map));
-  __ j(equal, &just_store);
-  ASSERT_NE(untransitioned_map_1, NULL);
-  __ cmp(ebx, Handle<Map>(untransitioned_map_1));
-  // TODO(jkummerow): When we have specialized code to do the transition,
-  // call that code here, then jump to just_store when the call returns.
-  // <temporary: just use the generic stub>
-  Code* generic_stub = (strict_mode_ == kStrictMode)
-      ? isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic_Strict)
-      : isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic);
-  __ j(equal, Handle<Code>(generic_stub));
-  // </temporary>
-  if (untransitioned_map_2 != NULL) {
-    __ cmp(ebx, Handle<Map>(untransitioned_map_2));
-    // <temporary: see above, same here>
-    __ j(equal, Handle<Code>(generic_stub));
-    // </temporary>
-  }
-  __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  __ bind(&just_store);
-  __ jmp(Handle<Code>(notransition_stub), RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
-}
-
-
-MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
+MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapList* receiver_maps,
-    CodeList* handler_ics) {
+    CodeList* handler_stubs,
+    MapList* transitioned_maps) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -2821,15 +2766,21 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
   //  -- esp[0] : return address
   // -----------------------------------
   Label miss;
-  __ JumpIfSmi(edx, &miss);
-
-  Register map_reg = ebx;
-  __ mov(map_reg, FieldOperand(edx, HeapObject::kMapOffset));
-  int receiver_count = receiver_maps->length();
-  for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    __ cmp(map_reg, map);
-    __ j(equal, Handle<Code>(handler_ics->at(current)));
+  __ JumpIfSmi(edx, &miss, Label::kNear);
+  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+  // ebx: receiver->map().
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Handle<Map> map(receiver_maps->at(i));
+    __ cmp(edi, map);
+    if (transitioned_maps->at(i) == NULL) {
+      __ j(equal, Handle<Code>(handler_stubs->at(i)));
+    } else {
+      Label next_map;
+      __ j(not_equal, &next_map, Label::kNear);
+      __ mov(ebx, Immediate(Handle<Map>(transitioned_maps->at(i))));
+      __ jmp(Handle<Code>(handler_stubs->at(i)), RelocInfo::CODE_TARGET);
+      __ bind(&next_map);
+    }
   }
   __ bind(&miss);
   Handle<Code> miss_ic = isolate()->builtins()->KeyedStoreIC_Miss();
@@ -3269,7 +3220,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
   // ----------- S t a t e -------------

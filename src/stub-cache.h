@@ -641,7 +641,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadMegamorphic(
+  MUST_USE_RESULT MaybeObject* CompileLoadPolymorphic(
       MapList* receiver_maps,
       CodeList* handler_ics);
 
@@ -700,14 +700,10 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreElementWithTransition(
-      Map* transitioned_map,
-      Map* untransitioned_map_1,
-      Map* untransitioned_map_2 = NULL);
-
-  MUST_USE_RESULT MaybeObject* CompileStoreMegamorphic(
+  MUST_USE_RESULT MaybeObject* CompileStorePolymorphic(
       MapList* receiver_maps,
-      CodeList* handler_ics);
+      CodeList* handler_stubs,
+      MapList* transitioned_maps);
 
   static void GenerateStoreFastElement(MacroAssembler* masm,
                                        bool is_js_array,

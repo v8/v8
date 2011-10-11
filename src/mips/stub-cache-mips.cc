@@ -3130,7 +3130,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
   // ----------- S t a t e -------------

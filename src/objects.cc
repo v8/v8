@@ -2163,15 +2163,16 @@ static MaybeObject* AddElementsTransitionMapToDescriptor(
 }
 
 
-// Returns the contents of |map|'s descriptor array for the given string
-// (which might be NULL). |safe_to_add_transition| is set to false and NULL
-// is returned if adding transitions is not allowed.
-static Object* GetDescriptorContents(Map* map,
-                                     String* sentinel_name,
-                                     bool* safe_to_add_transition) {
+String* Map::elements_transition_sentinel_name() {
+  return GetHeap()->empty_symbol();
+}
+
+
+Object* Map::GetDescriptorContents(String* sentinel_name,
+                                   bool* safe_to_add_transition) {
   // Get the cached index for the descriptors lookup, or find and cache it.
-  DescriptorArray* descriptors = map->instance_descriptors();
-  DescriptorLookupCache* cache = map->GetIsolate()->descriptor_lookup_cache();
+  DescriptorArray* descriptors = instance_descriptors();
+  DescriptorLookupCache* cache = GetIsolate()->descriptor_lookup_cache();
   int index = cache->Lookup(descriptors, sentinel_name);
   if (index == DescriptorLookupCache::kAbsent) {
     index = descriptors->Search(sentinel_name);
@@ -2190,31 +2191,20 @@ static Object* GetDescriptorContents(Map* map,
 }
 
 
-// Returns the map that |original_map| transitions to if its elements_kind
-// is changed to |elements_kind|, or NULL if no such map is cached yet.
-// |safe_to_add_transitions| is set to false if adding transitions is not
-// allowed.
-static Map* LookupElementsTransitionMap(Map* original_map,
-                                        ElementsKind elements_kind,
-                                        String* sentinel_name,
-                                        bool* safe_to_add_transition) {
+Map* Map::LookupElementsTransitionMap(ElementsKind elements_kind,
+                                      bool* safe_to_add_transition) {
   // Special case: indirect SMI->FAST transition (cf. comment in
   // AddElementsTransition()).
-  if (original_map->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
+  if (this->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
       elements_kind == FAST_ELEMENTS) {
-    Map* double_map = LookupElementsTransitionMap(
-        original_map,
-        FAST_DOUBLE_ELEMENTS,
-        sentinel_name,
-        safe_to_add_transition);
+    Map* double_map = this->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS,
+                                                        safe_to_add_transition);
     if (double_map == NULL) return double_map;
-    return LookupElementsTransitionMap(double_map,
-                                       FAST_ELEMENTS,
-                                       sentinel_name,
-                                       safe_to_add_transition);
+    return double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
+                                                   safe_to_add_transition);
   }
   Object* descriptor_contents = GetDescriptorContents(
-      original_map, sentinel_name, safe_to_add_transition);
+      elements_transition_sentinel_name(), safe_to_add_transition);
   if (descriptor_contents != NULL) {
     Map* maybe_transition_map =
         GetElementsTransitionMapFromDescriptor(descriptor_contents,
@@ -2226,41 +2216,34 @@ static Map* LookupElementsTransitionMap(Map* original_map,
 }
 
 
-// Adds an entry to |original_map|'s descriptor array for a transition to
-// |transitioned_map| when its elements_kind is changed to |elements_kind|,
-// using |sentinel_name| as key for the entry.
-static MaybeObject* AddElementsTransition(Map* original_map,
-                                          ElementsKind elements_kind,
-                                          Map* transitioned_map,
-                                          String* sentinel_name) {
+MaybeObject* Map::AddElementsTransition(ElementsKind elements_kind,
+                                        Map* transitioned_map) {
   // The map transition graph should be a tree, therefore the transition
   // from SMI to FAST elements is not done directly, but by going through
   // DOUBLE elements first.
-  if (original_map->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
+  if (this->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
       elements_kind == FAST_ELEMENTS) {
     bool safe_to_add = true;
-    Map* double_map = LookupElementsTransitionMap(
-        original_map, FAST_DOUBLE_ELEMENTS, sentinel_name, &safe_to_add);
+    Map* double_map = this->LookupElementsTransitionMap(
+        FAST_DOUBLE_ELEMENTS, &safe_to_add);
     // This method is only called when safe_to_add_transition has been found
     // to be true earlier.
     ASSERT(safe_to_add);
 
     if (double_map == NULL) {
-      MaybeObject* maybe_map = original_map->CopyDropTransitions();
+      MaybeObject* maybe_map = this->CopyDropTransitions();
       if (!maybe_map->To(&double_map)) return maybe_map;
       double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
-      MaybeObject* maybe_double_transition = AddElementsTransition(
-          original_map, FAST_DOUBLE_ELEMENTS, double_map, sentinel_name);
+      MaybeObject* maybe_double_transition = this->AddElementsTransition(
+          FAST_DOUBLE_ELEMENTS, double_map);
       if (maybe_double_transition->IsFailure()) return maybe_double_transition;
     }
-    return AddElementsTransition(
-        double_map, FAST_ELEMENTS, transitioned_map, sentinel_name);
+    return double_map->AddElementsTransition(FAST_ELEMENTS, transitioned_map);
   }
 
-  DescriptorArray* descriptors = original_map->instance_descriptors();
   bool safe_to_add_transition = true;
   Object* descriptor_contents = GetDescriptorContents(
-      original_map, sentinel_name, &safe_to_add_transition);
+      elements_transition_sentinel_name(), &safe_to_add_transition);
   // This method is only called when safe_to_add_transition has been found
   // to be true earlier.
   ASSERT(safe_to_add_transition);
@@ -2272,24 +2255,22 @@ static MaybeObject* AddElementsTransition(Map* original_map,
     return maybe_new_contents;
   }
 
-  ElementsTransitionDescriptor desc(sentinel_name, new_contents);
+  ElementsTransitionDescriptor desc(elements_transition_sentinel_name(),
+                                    new_contents);
   Object* new_descriptors;
   MaybeObject* maybe_new_descriptors =
-      descriptors->CopyInsert(&desc, KEEP_TRANSITIONS);
+      instance_descriptors()->CopyInsert(&desc, KEEP_TRANSITIONS);
   if (!maybe_new_descriptors->ToObject(&new_descriptors)) {
     return maybe_new_descriptors;
   }
-  descriptors = DescriptorArray::cast(new_descriptors);
-  original_map->set_instance_descriptors(descriptors);
-  return original_map;
+  set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  return this;
 }
 
 
 MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind to_kind) {
-  Heap* current_heap = GetHeap();
   Map* current_map = map();
   ElementsKind from_kind = current_map->elements_kind();
-  String* elements_transition_sentinel_name = current_heap->empty_symbol();
 
   if (from_kind == to_kind) return current_map;
 
@@ -2309,9 +2290,8 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind to_kind) {
   if (safe_to_add_transition) {
     // It's only safe to manipulate the descriptor array if it would be
     // safe to add a transition.
-    Map* maybe_transition_map = LookupElementsTransitionMap(
-        current_map, to_kind, elements_transition_sentinel_name,
-        &safe_to_add_transition);
+    Map* maybe_transition_map = current_map->LookupElementsTransitionMap(
+        to_kind, &safe_to_add_transition);
     if (maybe_transition_map != NULL) {
       return maybe_transition_map;
     }
@@ -2334,8 +2314,8 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind to_kind) {
       (GetIsolate()->context()->global_context()->object_function()->map() !=
        map());
   if (allow_map_transition) {
-    MaybeObject* maybe_transition = AddElementsTransition(
-        current_map, to_kind, new_map, elements_transition_sentinel_name);
+    MaybeObject* maybe_transition =
+        current_map->AddElementsTransition(to_kind, new_map);
     if (maybe_transition->IsFailure()) return maybe_transition;
   }
   return new_map;

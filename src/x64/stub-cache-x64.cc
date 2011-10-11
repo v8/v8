@@ -2603,59 +2603,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreElementWithTransition(
-    Map* transitioned_map,
-    Map* untransitioned_map_1,
-    Map* untransitioned_map_2) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-
-  // The order of map occurrences in the generated code below is important.
-  // Both IC code and Crankshaft rely on |transitioned_map| being the first
-  // map in the stub.
-
-  Code* notransition_stub;
-  ElementsKind elements_kind = transitioned_map->elements_kind();
-  bool is_js_array = transitioned_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
-  if (!maybe_stub->To(&notransition_stub)) return maybe_stub;
-
-  Label just_store, miss;
-  __ JumpIfSmi(rdx, &miss, Label::kNear);
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  // rbx: receiver->map().
-  __ Cmp(rbx, Handle<Map>(transitioned_map));
-  __ j(equal, &just_store);
-  ASSERT_NE(untransitioned_map_1, NULL);
-  __ Cmp(rbx, Handle<Map>(untransitioned_map_1));
-  Code* generic_stub = (strict_mode_ == kStrictMode)
-      ? isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic_Strict)
-      : isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic);
-  __ j(equal, Handle<Code>(generic_stub), RelocInfo::CODE_TARGET);
-  if (untransitioned_map_2 != NULL) {
-    __ Cmp(rbx, Handle<Map>(untransitioned_map_2));
-    __ j(equal, Handle<Code>(generic_stub), RelocInfo::CODE_TARGET);
-  }
-  __ bind(&miss);
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  __ bind(&just_store);
-  __ jmp(Handle<Code>(notransition_stub), RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
-}
-
-
-MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
+MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapList* receiver_maps,
-    CodeList* handler_ics) {
+    CodeList* handler_stubs,
+    MapList* transitioned_maps) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key
@@ -2663,18 +2614,25 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
   //  -- rsp[0] : return address
   // -----------------------------------
   Label miss;
-  __ JumpIfSmi(rdx, &miss);
+  __ JumpIfSmi(rdx, &miss, Label::kNear);
 
-  Register map_reg = rbx;
-  __ movq(map_reg, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
-  for (int current = 0; current < receiver_count; ++current) {
+  for (int i = 0; i < receiver_count; ++i) {
     // Check map and tail call if there's a match
-    Handle<Map> map(receiver_maps->at(current));
-    __ Cmp(map_reg, map);
-    __ j(equal,
-         Handle<Code>(handler_ics->at(current)),
-         RelocInfo::CODE_TARGET);
+    Handle<Map> map(receiver_maps->at(i));
+    __ Cmp(rdi, map);
+    if (transitioned_maps->at(i) == NULL) {
+      __ j(equal, Handle<Code>(handler_stubs->at(i)), RelocInfo::CODE_TARGET);
+    } else {
+      Label next_map;
+      __ j(not_equal, &next_map, Label::kNear);
+      __ movq(rbx,
+              Handle<Map>(transitioned_maps->at(i)),
+              RelocInfo::EMBEDDED_OBJECT);
+      __ jmp(Handle<Code>(handler_stubs->at(i)), RelocInfo::CODE_TARGET);
+      __ bind(&next_map);
+    }
   }
 
   __ bind(&miss);
@@ -3110,7 +3068,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
   // ----------- S t a t e -------------

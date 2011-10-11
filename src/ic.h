@@ -368,30 +368,20 @@ class KeyedIC: public IC {
                            StrictModeFlag strict_mode,
                            Code* default_stub);
 
-  virtual MaybeObject* ConstructMegamorphicStub(
-      MapList* receiver_maps,
-      CodeList* targets,
-      StrictModeFlag strict_mode) = 0;
-
- private:
-  void GetReceiverMapsForStub(Code* stub, MapList* result);
+  virtual MaybeObject* ComputePolymorphicStub(MapList* receiver_maps,
+                                              StrictModeFlag strict_mode) = 0;
 
   MaybeObject* ComputeMonomorphicStubWithoutMapCheck(
       Map* receiver_map,
       StrictModeFlag strict_mode);
 
+ private:
+  void GetReceiverMapsForStub(Code* stub, MapList* result);
+
   MaybeObject* ComputeMonomorphicStub(JSObject* receiver,
                                       StubKind stub_kind,
                                       StrictModeFlag strict_mode,
                                       Code* default_stub);
-
-  MaybeObject* ComputePolymorphicStubWithTransition(JSObject* receiver,
-                                                    MapList* receiver_maps,
-                                                    Map* new_map,
-                                                    StrictModeFlag strict_mode);
-
-  MaybeObject* ComputePolymorphicStub(MapList* receiver_maps,
-                                      StrictModeFlag strict_mode);
 
   MaybeObject* ComputeTransitionedMap(JSObject* receiver, StubKind stub_kind);
 
@@ -440,9 +430,8 @@ class KeyedLoadIC: public KeyedIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
-  virtual MaybeObject* ConstructMegamorphicStub(
+  virtual MaybeObject* ComputePolymorphicStub(
       MapList* receiver_maps,
-      CodeList* targets,
       StrictModeFlag strict_mode);
 
   virtual Code* string_stub() {
@@ -591,9 +580,8 @@ class KeyedStoreIC: public KeyedIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual MaybeObject* ConstructMegamorphicStub(
+  virtual MaybeObject* ComputePolymorphicStub(
       MapList* receiver_maps,
-      CodeList* targets,
       StrictModeFlag strict_mode);
 
   private:

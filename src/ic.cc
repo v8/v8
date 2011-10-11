@@ -1084,14 +1084,22 @@ MaybeObject* KeyedLoadIC::GetElementStubWithoutMapCheck(
 }
 
 
-MaybeObject* KeyedLoadIC::ConstructMegamorphicStub(
+MaybeObject* KeyedLoadIC::ComputePolymorphicStub(
     MapList* receiver_maps,
-    CodeList* targets,
     StrictModeFlag strict_mode) {
+  CodeList handler_ics(receiver_maps->length());
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Map* receiver_map(receiver_maps->at(i));
+    MaybeObject* maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
+        receiver_map, strict_mode);
+    Code* cached_stub;
+    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
+    handler_ics.Add(cached_stub);
+  }
   Object* object;
   KeyedLoadStubCompiler compiler;
-  MaybeObject* maybe_code = compiler.CompileLoadMegamorphic(receiver_maps,
-                                                            targets);
+  MaybeObject* maybe_code = compiler.CompileLoadPolymorphic(receiver_maps,
+                                                            &handler_ics);
   if (!maybe_code->ToObject(&object)) return maybe_code;
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
   PROFILE(isolate(), CodeCreateEvent(
@@ -1625,13 +1633,16 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
   } else {
     GetReceiverMapsForStub(target(), &target_receiver_maps);
   }
-  Map* new_map = receiver->map();
+  bool map_added =
+      AddOneReceiverMapIfMissing(&target_receiver_maps, receiver->map());
   if (IsTransitionStubKind(stub_kind)) {
     MaybeObject* maybe_map = ComputeTransitionedMap(receiver, stub_kind);
+    Map* new_map = NULL;
     if (!maybe_map->To(&new_map)) return maybe_map;
+    map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps, new_map);
   }
-  if (!AddOneReceiverMapIfMissing(&target_receiver_maps, new_map)) {
-    // If the miss wasn't due to an unseen map, a MEGAMORPHIC stub
+  if (!map_added) {
+    // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     return generic_stub;
   }
@@ -1652,13 +1663,8 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
     ASSERT(maybe_cached_stub->IsCode());
     return Code::cast(maybe_cached_stub);
   }
-  MaybeObject* maybe_stub = NULL;
-  if (IsTransitionStubKind(stub_kind)) {
-    maybe_stub = ComputePolymorphicStubWithTransition(
-        receiver, &target_receiver_maps, new_map, strict_mode);
-  } else {
-    maybe_stub = ComputePolymorphicStub(&target_receiver_maps, strict_mode);
-  }
+  MaybeObject* maybe_stub =
+      ComputePolymorphicStub(&target_receiver_maps, strict_mode);
   Code* stub;
   if (!maybe_stub->To(&stub)) return maybe_stub;
   MaybeObject* maybe_update = cache->Update(&target_receiver_maps, flags, stub);
@@ -1707,45 +1713,6 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 }
 
 
-MaybeObject* KeyedIC::ComputePolymorphicStubWithTransition(
-    JSObject* receiver,
-    MapList* receiver_maps,
-    Map* new_map,
-    StrictModeFlag strict_mode) {
-  Map* existing_transitionable_map = NULL;
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Map* map = receiver_maps->at(i);
-    if (map != receiver->map() && map != new_map) {
-      existing_transitionable_map = map;
-      break;
-    }
-  }
-  KeyedStoreStubCompiler compiler(strict_mode);
-  return compiler.CompileStoreElementWithTransition(
-      new_map,
-      receiver->map(),
-      existing_transitionable_map);
-}
-
-
-MaybeObject* KeyedIC::ComputePolymorphicStub(
-    MapList* receiver_maps,
-    StrictModeFlag strict_mode) {
-  // Collect MONOMORPHIC stubs for all target_receiver_maps.
-  CodeList handler_ics(receiver_maps->length());
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Map* receiver_map(receiver_maps->at(i));
-    MaybeObject* maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-        receiver_map, strict_mode);
-    Code* cached_stub;
-    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
-    handler_ics.Add(cached_stub);
-  }
-  // Build the MEGAMORPHIC stub.
-  return ConstructMegamorphicStub(receiver_maps, &handler_ics, strict_mode);
-}
-
-
 MaybeObject* KeyedIC::ComputeTransitionedMap(JSObject* receiver,
                                              StubKind stub_kind) {
   switch (stub_kind) {
@@ -1768,14 +1735,88 @@ MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
 }
 
 
-MaybeObject* KeyedStoreIC::ConstructMegamorphicStub(
+// If |map| is contained in |maps_list|, returns |map|; otherwise returns NULL.
+Map* GetMapIfPresent(Map* map, MapList* maps_list) {
+  for (int i = 0; i < maps_list->length(); ++i) {
+    if (maps_list->at(i) == map) return map;
+  }
+  return NULL;
+}
+
+
+// Returns the most generic transitioned map for |map| that's found in
+// |maps_list|, or NULL if no transitioned map for |map| is found at all.
+Map* GetTransitionedMap(Map* map, MapList* maps_list) {
+  ElementsKind elements_kind = map->elements_kind();
+  if (elements_kind == FAST_ELEMENTS) {
+    return NULL;
+  }
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    bool dummy = true;
+    Map* fast_map = map->LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
+    if (fast_map == NULL) return NULL;
+    return GetMapIfPresent(fast_map, maps_list);
+  }
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    bool dummy = true;
+    Map* double_map = map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS,
+                                                       &dummy);
+    // In the current implementation, if the DOUBLE map doesn't exist, the
+    // FAST map can't exist either.
+    if (double_map == NULL) return NULL;
+    Map* fast_map = map->LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
+    if (fast_map == NULL) {
+      return GetMapIfPresent(double_map, maps_list);
+    }
+    // Both double_map and fast_map are non-NULL. Return fast_map if it's in
+    // maps_list, double_map otherwise.
+    Map* fast_map_present = GetMapIfPresent(fast_map, maps_list);
+    if (fast_map_present != NULL) return fast_map_present;
+    return GetMapIfPresent(double_map, maps_list);
+  }
+  return NULL;
+}
+
+
+MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     MapList* receiver_maps,
-    CodeList* targets,
     StrictModeFlag strict_mode) {
+  // TODO(yangguo): <remove>
+  Code* generic_stub = (strict_mode == kStrictMode)
+      ? isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic_Strict)
+      : isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic);
+  // </remove>
+
+  // Collect MONOMORPHIC stubs for all target_receiver_maps.
+  CodeList handler_ics(receiver_maps->length());
+  MapList transitioned_maps(receiver_maps->length());
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Map* receiver_map(receiver_maps->at(i));
+    MaybeObject* maybe_cached_stub = NULL;
+    Map* transitioned_map = GetTransitionedMap(receiver_map, receiver_maps);
+    if (transitioned_map != NULL) {
+      // TODO(yangguo): Enable this code!
+      // maybe_cached_stub = FastElementsConversionStub(
+      //     receiver_map->elements_kind(),  // original elements_kind
+      //     transitioned_map->elements_kind(),
+      //     receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
+      //     strict_mode_).TryGetCode();
+      // TODO(yangguo): <remove>
+      maybe_cached_stub = generic_stub;
+      // </remove>
+    } else {
+      maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
+          receiver_map, strict_mode);
+    }
+    Code* cached_stub;
+    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
+    handler_ics.Add(cached_stub);
+    transitioned_maps.Add(transitioned_map);
+  }
   Object* object;
   KeyedStoreStubCompiler compiler(strict_mode);
-  MaybeObject* maybe_code = compiler.CompileStoreMegamorphic(receiver_maps,
-                                                             targets);
+  MaybeObject* maybe_code = compiler.CompileStorePolymorphic(
+      receiver_maps, &handler_ics, &transitioned_maps);
   if (!maybe_code->ToObject(&object)) return maybe_code;
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(), CodeCreateEvent(

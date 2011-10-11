@@ -4270,6 +4270,24 @@ class Map: public HeapObject {
     return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
   }
 
+  // Returns the contents of this map's descriptor array for the given string.
+  // May return NULL. |safe_to_add_transition| is set to false and NULL
+  // is returned if adding transitions is not allowed.
+  Object* GetDescriptorContents(String* sentinel_name,
+                                bool* safe_to_add_transitions);
+
+  // Returns the map that this map transitions to if its elements_kind
+  // is changed to |elements_kind|, or NULL if no such map is cached yet.
+  // |safe_to_add_transitions| is set to false if adding transitions is not
+  // allowed.
+  Map* LookupElementsTransitionMap(ElementsKind elements_kind,
+                                   bool* safe_to_add_transition);
+
+  // Adds an entry to this map's descriptor array for a transition to
+  // |transitioned_map| when its elements_kind is changed to |elements_kind|.
+  MaybeObject* AddElementsTransition(ElementsKind elements_kind,
+                                     Map* transitioned_map);
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void MapPrint() {
@@ -4387,6 +4405,7 @@ class Map: public HeapObject {
                               kSize> BodyDescriptor;
 
  private:
+  String* elements_transition_sentinel_name();
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
 
