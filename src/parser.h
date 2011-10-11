@@ -651,7 +651,7 @@ class Parser {
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
   // Parser support
-  VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
+  VariableProxy* Declare(Handle<String> name, VariableMode mode,
                          FunctionLiteral* fun,
                          bool resolve,
                          bool* ok);

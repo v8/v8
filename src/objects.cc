@@ -12182,7 +12182,7 @@ int BreakPointInfo::GetBreakPointCount() {
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
 }
-#endif
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 } }  // namespace v8::internal

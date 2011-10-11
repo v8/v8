@@ -2311,7 +2311,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleDeclaration(scope->function(), Variable::CONST, NULL);
+      HandleDeclaration(scope->function(), CONST, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -3141,7 +3141,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   Variable* variable = expr->var();
-  if (variable->mode() == Variable::LET) {
+  if (variable->mode() == LET) {
     return Bailout("reference to let variable");
   }
   switch (variable->location()) {
@@ -3188,7 +3188,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     case Variable::PARAMETER:
     case Variable::LOCAL: {
       HValue* value = environment()->Lookup(variable);
-      if (variable->mode() == Variable::CONST &&
+      if (variable->mode() == CONST &&
           value == graph()->GetConstantHole()) {
         return Bailout("reference to uninitialized const variable");
       }
@@ -3196,7 +3196,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     }
 
     case Variable::CONTEXT: {
-      if (variable->mode() == Variable::CONST) {
+      if (variable->mode() == CONST) {
         return Bailout("reference to const context slot");
       }
       HValue* context = BuildContextChainWalk(variable);
@@ -3663,7 +3663,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == Variable::CONST || var->mode() == Variable::LET)  {
+    if (var->mode() == CONST || var->mode() == LET)  {
       return Bailout("unsupported let or const compound assignment");
     }
 
@@ -3808,7 +3808,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
     HandlePropertyAssignment(expr);
   } else if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == Variable::CONST) {
+    if (var->mode() == CONST) {
       if (expr->op() != Token::INIT_CONST) {
         return Bailout("non-initializer assignment to const");
       }
@@ -3819,7 +3819,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       // variables (e.g. initialization inside a loop).
       HValue* old_value = environment()->Lookup(var);
       AddInstruction(new HUseConst(old_value));
-    } else if (var->mode() == Variable::LET) {
+    } else if (var->mode() == LET) {
       return Bailout("unsupported assignment to let");
     }
 
@@ -3847,7 +3847,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       }
 
       case Variable::CONTEXT: {
-        ASSERT(var->mode() != Variable::CONST);
+        ASSERT(var->mode() != CONST);
         // Bail out if we try to mutate a parameter value in a function using
         // the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
@@ -5403,7 +5403,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == Variable::CONST)  {
+    if (var->mode() == CONST)  {
       return Bailout("unsupported count operation with const");
     }
     // Argument of the count operation is a variable, not a property.
@@ -5977,9 +5977,9 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
 
 
 void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
-                                      Variable::Mode mode,
+                                      VariableMode mode,
                                       FunctionLiteral* function) {
-  if (mode == Variable::LET) return Bailout("unsupported let declaration");
+  if (mode == LET) return Bailout("unsupported let declaration");
   Variable* var = proxy->var();
   switch (var->location()) {
     case Variable::UNALLOCATED:
@@ -5987,9 +5987,9 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
     case Variable::PARAMETER:
     case Variable::LOCAL:
     case Variable::CONTEXT:
-      if (mode == Variable::CONST || function != NULL) {
+      if (mode == CONST || function != NULL) {
         HValue* value = NULL;
-        if (mode == Variable::CONST) {
+        if (mode == CONST) {
           value = graph()->GetConstantHole();
         } else {
           VisitForValue(function);

@@ -782,7 +782,7 @@ class HGraphBuilder: public AstVisitor {
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
   void HandleDeclaration(VariableProxy* proxy,
-                         Variable::Mode mode,
+                         VariableMode mode,
                          FunctionLiteral* function);
 
   void VisitDelete(UnaryOperation* expr);

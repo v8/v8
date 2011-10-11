@@ -3011,6 +3011,68 @@ class JSFunctionResultCache: public FixedArray {
 };
 
 
+// This object provides quick access to scope info details for runtime
+// routines w/o the need to explicitly create a ScopeInfo object.
+class SerializedScopeInfo : public FixedArray {
+ public :
+  static SerializedScopeInfo* cast(Object* object) {
+    ASSERT(object->IsSerializedScopeInfo());
+    return reinterpret_cast<SerializedScopeInfo*>(object);
+  }
+
+  // Does this scope call eval?
+  bool CallsEval();
+
+  // Is this scope a strict mode scope?
+  bool IsStrictMode();
+
+  // Return the number of stack slots for code.
+  int NumberOfStackSlots();
+
+  // Return the number of context slots for code.
+  int NumberOfContextSlots();
+
+  // Return if this has context slots besides MIN_CONTEXT_SLOTS;
+  bool HasHeapAllocatedLocals();
+
+  // Lookup support for serialized scope info. Returns the
+  // the stack slot index for a given slot name if the slot is
+  // present; otherwise returns a value < 0. The name must be a symbol
+  // (canonicalized).
+  int StackSlotIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // context slot index for a given slot name if the slot is present; otherwise
+  // returns a value < 0. The name must be a symbol (canonicalized).
+  // If the slot is present and mode != NULL, sets *mode to the corresponding
+  // mode for that variable.
+  int ContextSlotIndex(String* name, VariableMode* mode);
+
+  // Lookup support for serialized scope info. Returns the
+  // parameter index for a given parameter name if the parameter is present;
+  // otherwise returns a value < 0. The name must be a symbol (canonicalized).
+  int ParameterIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // function context slot index if the function name is present (named
+  // function expressions, only), otherwise returns a value < 0. The name
+  // must be a symbol (canonicalized).
+  int FunctionContextSlotIndex(String* name);
+
+  static Handle<SerializedScopeInfo> Create(Scope* scope);
+
+  // Serializes empty scope info.
+  static SerializedScopeInfo* Empty();
+
+ private:
+  Object** ContextEntriesAddr();
+
+  Object** ParameterEntriesAddr();
+
+  Object** StackSlotEntriesAddr();
+};
+
+
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
