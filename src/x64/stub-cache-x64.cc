@@ -3799,6 +3799,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
 
   __ bind(&transition_elements_kind);
+  // Restore smi-tagging of rcx.
+  __ Integer32ToSmi(rcx, rcx);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 }
