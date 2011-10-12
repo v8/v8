@@ -293,7 +293,7 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
-    if (harmony_block_scoping_) {
+    if (harmony_scoping_) {
       ParseSourceElement(CHECK_OK);
     } else {
       ParseStatement(CHECK_OK);

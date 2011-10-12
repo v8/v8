@@ -98,9 +98,10 @@ private:
 
 // Flags for experimental language features.
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
+DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
-DEFINE_bool(harmony_block_scoping, false, "enable harmony block scoping")
+DEFINE_bool(harmony, false, "enable all harmony features")
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")

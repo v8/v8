@@ -2029,10 +2029,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
 
   // Push the strict mode flag. In harmony mode every eval call
   // is a strict mode eval call.
-  StrictModeFlag strict_mode = strict_mode_flag();
-  if (FLAG_harmony_block_scoping) {
-    strict_mode = kStrictMode;
-  }
+  StrictModeFlag strict_mode =
+      FLAG_harmony_scoping ? kStrictMode : strict_mode_flag();
   __ Push(Smi::FromInt(strict_mode));
 
   __ CallRuntime(flag == SKIP_CONTEXT_LOOKUP

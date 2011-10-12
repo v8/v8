@@ -587,7 +587,7 @@ Parser::Parser(Handle<Script> script,
       fni_(NULL),
       stack_overflow_(false),
       parenthesized_function_(false),
-      harmony_block_scoping_(false) {
+      harmony_scoping_(false) {
   AstNode::ResetIds();
 }
 
@@ -650,7 +650,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
-    if (ok && harmony_block_scoping_) {
+    if (ok && harmony_scoping_) {
       CheckConflictingVarDeclarations(scope, &ok);
     }
 
@@ -817,9 +817,9 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   isolate()->Throw(*result, &location);
 }
 
-void Parser::SetHarmonyBlockScoping(bool block_scoping) {
-  scanner().SetHarmonyBlockScoping(block_scoping);
-  harmony_block_scoping_ = block_scoping;
+void Parser::SetHarmonyScoping(bool block_scoping) {
+  scanner().SetHarmonyScoping(block_scoping);
+  harmony_scoping_ = block_scoping;
 }
 
 // Base class containing common code for the different finder classes used by
@@ -1390,7 +1390,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
         ASSERT(var->mode() == VAR ||
                var->mode() == CONST ||
                var->mode() == LET);
-        if (harmony_block_scoping_) {
+        if (harmony_scoping_) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
           SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
@@ -1542,14 +1542,14 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   // Even if we're not at the top-level of the global or a function
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
-  VariableMode mode = harmony_block_scoping_ ? LET : VAR;
+  VariableMode mode = harmony_scoping_ ? LET : VAR;
   Declare(name, mode, fun, true, CHECK_OK);
   return EmptyStatement();
 }
 
 
 Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
-  if (harmony_block_scoping_) return ParseScopedBlock(labels, ok);
+  if (harmony_scoping_) return ParseScopedBlock(labels, ok);
 
   // Block ::
   //   '{' Statement* '}'
@@ -2249,7 +2249,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       if (top_scope_->is_strict_mode()) {
         catch_scope->EnableStrictMode();
       }
-      VariableMode mode = harmony_block_scoping_ ? LET : VAR;
+      VariableMode mode = harmony_scoping_ ? LET : VAR;
       catch_variable = catch_scope->DeclareLocal(name, mode);
 
       Scope* saved_scope = top_scope_;
@@ -3714,8 +3714,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION &&
-                  !harmony_block_scoping_)
+  Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
       ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
       : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
@@ -3757,8 +3756,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         reserved_loc = scanner().location();
       }
 
-      top_scope_->DeclareParameter(param_name,
-                                   harmony_block_scoping_ ? LET : VAR);
+      top_scope_->DeclareParameter(param_name, harmony_scoping_ ? LET : VAR);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
@@ -3885,7 +3883,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
   }
 
-  if (harmony_block_scoping_) {
+  if (harmony_scoping_) {
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
@@ -5123,10 +5121,10 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   bool allow_lazy,
                                   ParserRecorder* recorder,
-                                  bool harmony_block_scoping) {
+                                  bool harmony_scoping) {
   Isolate* isolate = Isolate::Current();
   JavaScriptScanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyBlockScoping(harmony_block_scoping);
+  scanner.SetHarmonyScoping(harmony_scoping);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,
@@ -5148,7 +5146,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
                                            v8::Extension* extension,
-                                           bool harmony_block_scoping) {
+                                           bool harmony_scoping) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
@@ -5156,17 +5154,17 @@ ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
     return NULL;
   }
   PartialParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_block_scoping);
+  return DoPreParse(source, allow_lazy, &recorder, harmony_scoping);
 }
 
 
 ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
                                     v8::Extension* extension,
-                                    bool harmony_block_scoping) {
+                                    bool harmony_scoping) {
   Handle<Script> no_script;
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   CompleteParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_block_scoping);
+  return DoPreParse(source, allow_lazy, &recorder, harmony_scoping);
 }
 
 
@@ -5196,11 +5194,10 @@ bool ParserApi::Parse(CompilationInfo* info) {
   ASSERT(info->function() == NULL);
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
-  bool harmony_block_scoping = !info->is_native() &&
-                               FLAG_harmony_block_scoping;
+  bool harmony_scoping = !info->is_native() && FLAG_harmony_scoping;
   if (info->is_lazy()) {
     Parser parser(script, true, NULL, NULL);
-    parser.SetHarmonyBlockScoping(harmony_block_scoping);
+    parser.SetHarmonyScoping(harmony_scoping);
     result = parser.ParseLazy(info);
   } else {
     // Whether we allow %identifier(..) syntax.
@@ -5211,7 +5208,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
                   allow_natives_syntax,
                   info->extension(),
                   pre_data);
-    parser.SetHarmonyBlockScoping(harmony_block_scoping);
+    parser.SetHarmonyScoping(harmony_scoping);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();
