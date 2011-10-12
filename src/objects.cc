@@ -7371,6 +7371,12 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
 }
 
 
+void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  VisitPointer(rinfo->target_object_address());
+}
+
+
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());
 }

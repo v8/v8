@@ -230,6 +230,9 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsCodeTarget(Mode mode) {
     return mode <= LAST_CODE_ENUM;
   }
+  static inline bool IsEmbeddedObject(Mode mode) {
+    return mode == EMBEDDED_OBJECT;
+  }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
