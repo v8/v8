@@ -413,7 +413,7 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
   Handle<Object> target(object, isolate());
   Handle<Object> delegate = Execution::GetFunctionDelegate(target);
 
-  if (delegate->IsJSFunction()) {
+  if (delegate->IsJSFunction() && !object->IsJSFunctionProxy()) {
     // Patch the receiver and use the delegate as the function to
     // invoke. This is used for invoking objects as if they were
     // functions.
@@ -430,6 +430,10 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
 
 void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
                                             Handle<Object> object) {
+  while (callee->IsJSFunctionProxy()) {
+    callee = Handle<Object>(JSFunctionProxy::cast(*callee)->call_trap());
+  }
+
   if (callee->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callee);
     if (function->shared()->strict_mode() || function->IsBuiltin()) {

@@ -2507,6 +2507,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
   *found = true;  // except where defined otherwise...
   Isolate* isolate = GetHeap()->isolate();
   Handle<JSProxy> proxy(this);
+  Handle<Object> handler(this->handler());  // Trap might morph proxy.
   Handle<String> name(name_raw);
   Handle<Object> value(value_raw);
   Handle<Object> args[] = { name };
@@ -2530,7 +2531,9 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     Handle<Object> configurable(v8::internal::GetProperty(desc, conf_name));
     ASSERT(!isolate->has_pending_exception());
     if (configurable->IsFalse()) {
-      Handle<Object> args[] = { Handle<Object>(proxy->handler()), proxy, name };
+      Handle<String> trap =
+          isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+      Handle<Object> args[] = { handler, trap, name };
       Handle<Object> error = isolate->factory()->NewTypeError(
           "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
       return isolate->Throw(*error);
@@ -2610,6 +2613,7 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSProxy> proxy(this);
+  Handle<Object> handler(this->handler());  // Trap might morph proxy.
   Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
 
@@ -2639,7 +2643,9 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (isolate->has_pending_exception()) return NONE;
 
   if (configurable->IsFalse()) {
-    Handle<Object> args[] = { Handle<Object>(proxy->handler()), proxy, name };
+    Handle<String> trap =
+        isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+    Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
     isolate->Throw(*error);
