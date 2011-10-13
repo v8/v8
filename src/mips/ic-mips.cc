@@ -210,7 +210,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update the write barrier. Make sure not to clobber the value.
   __ mov(scratch1, value);
-  __ RecordWrite(elements, scratch2, scratch1);
+  __ RecordWrite(
+      elements, scratch2, scratch1, kRAHasNotBeenSaved, kDontSaveFPRegs);
 }
 
 
@@ -904,9 +905,9 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a2, a1, a3, t0, t1, &notin, &slow);
   __ sw(a0, mapped_location);
-  // Verify mapped_location MemOperand is register, with no offset.
-  ASSERT_EQ(mapped_location.offset(), 0);
-  __ RecordWrite(a3, mapped_location.rm(), t5);
+  __ Addu(t2, a3, t1);
+  __ mov(t5, a0);
+  __ RecordWrite(a3, t2, t5, kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&notin);
@@ -914,8 +915,9 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, a1, a3, t0, &slow);
   __ sw(a0, unmapped_location);
-  ASSERT_EQ(unmapped_location.offset(), 0);
-  __ RecordWrite(a3, unmapped_location.rm(), t5);
+  __ Addu(t2, a3, t0);
+  __ mov(t5, a0);
+  __ RecordWrite(a3, t2, t5, kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
@@ -1290,18 +1292,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Fall through to fast case.
 
   __ bind(&fast);
+  Register scratch_value = t0;
+  Register address = t1;
   // Fast case, store the value to the elements backing store.
-  __ Addu(t4, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(t1, key, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t4, t4, Operand(t1));
-  __ sw(value, MemOperand(t4));
+  __ Addu(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sll(scratch_value, key, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(address, address, scratch_value);
+  __ sw(value, MemOperand(address));
   // Skip write barrier if the written value is a smi.
   __ JumpIfSmi(value, &exit);
 
   // Update write barrier for the elements array address.
-  __ Subu(t3, t4, Operand(elements));
-
-  __ RecordWrite(elements, Operand(t3), t4, t5);
+  __ mov(scratch_value, value);  // Preserve the value which is returned.
+  __ RecordWrite(elements,
+                 address,
+                 scratch_value,
+                 kRAHasNotBeenSaved,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
   __ bind(&exit);
 
   __ mov(v0, a0);  // Return the value written.
