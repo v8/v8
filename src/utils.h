@@ -168,7 +168,6 @@ static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
 
 template <typename T, typename U>
 static inline bool IsAligned(T value, U alignment) {
-  ASSERT(IsPowerOf2(alignment));
   return (value & (alignment - 1)) == 0;
 }
 

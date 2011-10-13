@@ -359,7 +359,6 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
 
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
   CopyWords(reinterpret_cast<Object**>(dst),
             reinterpret_cast<Object**>(src),
             byte_size / kPointerSize);

@@ -390,11 +390,13 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
 
 void StoreBuffer::Verify() {
 #ifdef DEBUG
-  VerifyPointers(heap_->old_pointer_space(),
-                 &StoreBuffer::FindPointersToNewSpaceInRegion);
-  VerifyPointers(heap_->map_space(),
-                 &StoreBuffer::FindPointersToNewSpaceInMapsRegion);
-  VerifyPointers(heap_->lo_space());
+  if (FLAG_enable_slow_asserts || FLAG_verify_heap) {
+    VerifyPointers(heap_->old_pointer_space(),
+                   &StoreBuffer::FindPointersToNewSpaceInRegion);
+    VerifyPointers(heap_->map_space(),
+                   &StoreBuffer::FindPointersToNewSpaceInMapsRegion);
+    VerifyPointers(heap_->lo_space());
+  }
 #endif
 }
 
