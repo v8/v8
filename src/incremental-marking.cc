@@ -739,8 +739,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       }
 
       MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
-      ASSERT(Marking::IsGrey(obj_mark_bit) ||
-             (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
+      SLOW_ASSERT(Marking::IsGrey(obj_mark_bit) ||
+                  (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
       Marking::MarkBlack(obj_mark_bit);
       MemoryChunk::IncrementLiveBytes(obj->address(), size);
     }

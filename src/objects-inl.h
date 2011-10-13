@@ -1300,7 +1300,6 @@ ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 FixedArrayBase* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
-  ASSERT(array->HasValidElements());
   return static_cast<FixedArrayBase*>(array);
 }
 
