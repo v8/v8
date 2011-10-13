@@ -92,6 +92,13 @@ enum BranchDelaySlot {
 };
 
 
+enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum RAStatus { kRAHasNotBeenSaved, kRAHasBeenSaved };
+
+bool AreAliased(Register r1, Register r2, Register r3, Register r4);
+
+
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
@@ -240,6 +247,7 @@ class MacroAssembler: public Assembler {
     Branch(L);
   }
 
+
   // Load an object from the root table.
   void LoadRoot(Register destination,
                 Heap::RootListIndex index);
@@ -255,39 +263,127 @@ class MacroAssembler: public Assembler {
                  Condition cond, Register src1, const Operand& src2);
 
 
-  // Check if object is in new space.
-  // scratch can be object itself, but it will be clobbered.
-  void InNewSpace(Register object,
-                  Register scratch,
-                  Condition cc,  // eq for new space, ne otherwise.
-                  Label* branch);
+  // ---------------------------------------------------------------------------
+  // GC Support
+
+  void IncrementalMarkingRecordWriteHelper(Register object,
+                                           Register value,
+                                           Register address);
+
+  enum RememberedSetFinalAction {
+    kReturnAtEnd,
+    kFallThroughAtEnd
+  };
 
 
-  // For the page containing |object| mark the region covering [address]
-  // dirty. The object address must be in the first 8K of an allocated page.
-  void RecordWriteHelper(Register object,
-                         Register address,
-                         Register scratch);
+  // Record in the remembered set the fact that we have a pointer to new space
+  // at the address pointed to by the addr register.  Only works if addr is not
+  // in new space.
+  void RememberedSetHelper(Register object,  // Used for debug code.
+                           Register addr,
+                           Register scratch,
+                           SaveFPRegsMode save_fp,
+                           RememberedSetFinalAction and_then);
 
-  // For the page containing |object| mark the region covering
-  // [object+offset] dirty. The object address must be in the first 8K
-  // of an allocated page.  The 'scratch' registers are used in the
-  // implementation and all 3 registers are clobbered by the
-  // operation, as well as the 'at' register. RecordWrite updates the
-  // write barrier even when storing smis.
-  void RecordWrite(Register object,
-                   Operand offset,
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     int mask,
+                     Condition cc,
+                     Label* condition_met);
+
+  // Check if object is in new space.  Jumps if the object is not in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfNotInNewSpace(Register object,
+                           Register scratch,
+                           Label* branch) {
+    InNewSpace(object, scratch, ne, branch);
+  }
+
+  // Check if object is in new space.  Jumps if the object is in new space.
+  // The register scratch can be object itself, but scratch will be clobbered.
+  void JumpIfInNewSpace(Register object,
+                        Register scratch,
+                        Label* branch) {
+    InNewSpace(object, scratch, eq, branch);
+  }
+
+  // Check if an object has a given incremental marking color.
+  void HasColor(Register object,
+                Register scratch0,
+                Register scratch1,
+                Label* has_color,
+                int first_bit,
+                int second_bit);
+
+  void JumpIfBlack(Register object,
                    Register scratch0,
-                   Register scratch1);
+                   Register scratch1,
+                   Label* on_black);
 
-  // For the page containing |object| mark the region covering
-  // [address] dirty. The object address must be in the first 8K of an
-  // allocated page.  All 3 registers are clobbered by the operation,
-  // as well as the ip register. RecordWrite updates the write barrier
-  // even when storing smis.
-  void RecordWrite(Register object,
-                   Register address,
-                   Register scratch);
+  // Checks the color of an object.  If the object is already grey or black
+  // then we just fall through, since it is already live.  If it is white and
+  // we can determine that it doesn't need to be scanned, then we just mark it
+  // black and fall through.  For the rest we jump to the label so the
+  // incremental marker can fix its assumptions.
+  void EnsureNotWhite(Register object,
+                      Register scratch1,
+                      Register scratch2,
+                      Register scratch3,
+                      Label* object_is_white_and_not_data);
+
+  // Detects conservatively whether an object is data-only, ie it does need to
+  // be scanned by the garbage collector.
+  void JumpIfDataObject(Register value,
+                        Register scratch,
+                        Label* not_data_object);
+
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  value and scratch registers are clobbered by the operation.
+  // The offset is the offset from the start of the object, not the offset from
+  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  void RecordWriteField(
+      Register object,
+      int offset,
+      Register value,
+      Register scratch,
+      RAStatus ra_status,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
+
+  // As above, but the offset has the tag presubtracted.  For use with
+  // MemOperand(reg, off).
+  inline void RecordWriteContextSlot(
+      Register context,
+      int offset,
+      Register value,
+      Register scratch,
+      RAStatus ra_status,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
+    RecordWriteField(context,
+                     offset + kHeapObjectTag,
+                     value,
+                     scratch,
+                     ra_status,
+                     save_fp,
+                     remembered_set_action,
+                     smi_check);
+  }
+
+  // For a given |object| notify the garbage collector that the slot |address|
+  // has been written.  |value| is the object being stored. The value and
+  // address registers are clobbered by the operation.
+  void RecordWrite(
+      Register object,
+      Register address,
+      Register value,
+      RAStatus ra_status,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
 
   // ---------------------------------------------------------------------------
@@ -773,6 +869,13 @@ class MacroAssembler: public Assembler {
                  Register length,
                  Register scratch);
 
+  // Initialize fields with filler values.  Fields starting at |start_offset|
+  // not including end_offset are overwritten with the value in |filler|.  At
+  // the end the loop, |start_offset| takes the value of |end_offset|.
+  void InitializeFieldsWithFiller(Register start_offset,
+                                  Register end_offset,
+                                  Register filler);
+
   // -------------------------------------------------------------------------
   // Support functions.
 
@@ -795,6 +898,31 @@ class MacroAssembler: public Assembler {
   void CheckFastElements(Register map,
                          Register scratch,
                          Label* fail);
+
+  // Check if a map for a JSObject indicates that the object can have both smi
+  // and HeapObject elements.  Jump to the specified label if it does not.
+  void CheckFastObjectElements(Register map,
+                               Register scratch,
+                               Label* fail);
+
+  // Check if a map for a JSObject indicates that the object has fast smi only
+  // elements.  Jump to the specified label if it does not.
+  void CheckFastSmiOnlyElements(Register map,
+                                Register scratch,
+                                Label* fail);
+
+  // Check to see if maybe_number can be stored as a double in
+  // FastDoubleElements. If it can, store it at the index specified by key in
+  // the FastDoubleElements array elements, otherwise jump to fail.
+  void StoreNumberToDoubleElements(Register value_reg,
+                                   Register key_reg,
+                                   Register receiver_reg,
+                                   Register elements_reg,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Register scratch3,
+                                   Register scratch4,
+                                   Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
@@ -993,11 +1121,11 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, Register scratch, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
   void CallCFunction(ExternalReference function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void CallCFunction(Register function, Register scratch,
+  void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
   void GetCFunctionDoubleResult(const DoubleRegister dst);
@@ -1221,8 +1349,6 @@ class MacroAssembler: public Assembler {
 
  private:
   void CallCFunctionHelper(Register function,
-                           ExternalReference function_reference,
-                           Register scratch,
                            int num_reg_arguments,
                            int num_double_arguments);
 
@@ -1265,6 +1391,19 @@ class MacroAssembler: public Assembler {
                            Heap::RootListIndex map_index,
                            Register scratch1,
                            Register scratch2);
+
+  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cond,  // eq for new space, ne otherwise.
+                  Label* branch);
+
+  // Helper for finding the mark bits for an address.  Afterwards, the
+  // bitmap register points at the word with the mark bits and the mask
+  // the position of the first bit.  Leaves addr_reg unchanged.
+  inline void GetMarkBits(Register addr_reg,
+                          Register bitmap_reg,
+                          Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);

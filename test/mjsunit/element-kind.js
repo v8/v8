@@ -183,7 +183,6 @@ polymorphic(doubles, support_smi_only_arrays
 // Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
-//function crankshaft_test(expected_kind) {
 function crankshaft_test() {
   var a = [get(1), get(2), get(3)];
   assertKind(element_kind.fast_smi_only_elements, a);
@@ -204,3 +203,59 @@ for (var i = 0; i < 3; i++) {
 }
 %OptimizeFunctionOnNextCall(crankshaft_test);
 crankshaft_test();
+
+// Elements_kind transitions for arrays.
+
+// A map can have three different elements_kind transitions: SMI->DOUBLE,
+// DOUBLE->OBJECT, and SMI->OBJECT. No matter in which order these three are
+// created, they must always end up with the same FAST map.
+
+// This test is meaningless without FAST_SMI_ONLY_ELEMENTS.
+if (support_smi_only_arrays) {
+  // Preparation: create one pair of identical objects for each case.
+  var a = [1, 2, 3];
+  var b = [1, 2, 3];
+  assertTrue(%HaveSameMap(a, b));
+  assertKind(element_kind.fast_smi_only_elements, a);
+  var c = [1, 2, 3];
+  c["case2"] = true;
+  var d = [1, 2, 3];
+  d["case2"] = true;
+  assertTrue(%HaveSameMap(c, d));
+  assertFalse(%HaveSameMap(a, c));
+  assertKind(element_kind.fast_smi_only_elements, c);
+  var e = [1, 2, 3];
+  e["case3"] = true;
+  var f = [1, 2, 3];
+  f["case3"] = true;
+  assertTrue(%HaveSameMap(e, f));
+  assertFalse(%HaveSameMap(a, e));
+  assertFalse(%HaveSameMap(c, e));
+  assertKind(element_kind.fast_smi_only_elements, e);
+  // Case 1: SMI->DOUBLE, DOUBLE->OBJECT, SMI->OBJECT.
+  a[0] = 1.5;
+  assertKind(element_kind.fast_double_elements, a);
+  a[0] = "foo";
+  assertKind(element_kind.fast_elements, a);
+  b[0] = "bar";
+  assertTrue(%HaveSameMap(a, b));
+  // Case 2: SMI->DOUBLE, SMI->OBJECT, DOUBLE->OBJECT.
+  c[0] = 1.5;
+  assertKind(element_kind.fast_double_elements, c);
+  assertFalse(%HaveSameMap(c, d));
+  d[0] = "foo";
+  assertKind(element_kind.fast_elements, d);
+  assertFalse(%HaveSameMap(c, d));
+  c[0] = "bar";
+  assertTrue(%HaveSameMap(c, d));
+  // Case 3: SMI->OBJECT, SMI->DOUBLE, DOUBLE->OBJECT.
+  e[0] = "foo";
+  assertKind(element_kind.fast_elements, e);
+  assertFalse(%HaveSameMap(e, f));
+  f[0] = 1.5;
+  assertKind(element_kind.fast_double_elements, f);
+  assertFalse(%HaveSameMap(e, f));
+  f[0] = "bar";
+  assertKind(element_kind.fast_elements, f);
+  assertTrue(%HaveSameMap(e, f));
+}

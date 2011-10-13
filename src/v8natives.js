@@ -690,12 +690,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 
 // ES5 8.12.9.
-function DefineOwnProperty(obj, p, desc, should_throw) {
-  if (%IsJSProxy(obj)) {
-    var attributes = FromGenericPropertyDescriptor(desc);
-    return DefineProxyProperty(obj, p, attributes, should_throw);
-  }
-
+function DefineObjectProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
   if (current_or_access === false) return void 0;
@@ -856,6 +851,63 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
   }
   return true;
+}
+
+
+// ES5 section 15.4.5.1.
+function DefineArrayProperty(obj, p, desc, should_throw) {
+  var length_desc = GetOwnProperty(obj, "length");
+  var length = length_desc.getValue();
+
+  // Step 3 - Special handling for the length property.
+  if (p == "length") {
+    if (!desc.hasValue()) {
+      return DefineObjectProperty(obj, "length", desc, should_throw);
+    }
+    var new_length = ToUint32(desc.getValue());
+    if (new_length != ToNumber(desc.getValue())) {
+      throw new $RangeError('defineProperty() array length out of range');
+    }
+    // TODO(1756): There still are some uncovered corner cases left on how to
+    // handle changes to the length property of arrays.
+    return DefineObjectProperty(obj, "length", desc, should_throw);
+  }
+
+  // Step 4 - Special handling for array index.
+  var index = ToUint32(p);
+  if (index == ToNumber(p) && index != 4294967295) {
+    if ((index >= length && !length_desc.isWritable()) ||
+        !DefineObjectProperty(obj, p, desc, true)) {
+      if (should_throw) {
+        throw MakeTypeError("define_disallowed", [p]);
+      } else {
+        return;
+      }
+    }
+    if (index >= length) {
+      // TODO(mstarzinger): We should actually set the value of the property
+      // descriptor here and pass it to DefineObjectProperty(). Take a look at
+      // ES5 section 15.4.5.1, step 4.e.i and 4.e.ii for details.
+      obj.length = index + 1;
+    }
+    return true;
+  }
+
+  // Step 5 - Fallback to default implementation.
+  return DefineObjectProperty(obj, p, desc, should_throw);
+}
+
+
+// ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
+function DefineOwnProperty(obj, p, desc, should_throw) {
+  if (%IsJSProxy(obj)) {
+    var attributes = FromGenericPropertyDescriptor(desc);
+    return DefineProxyProperty(obj, p, attributes, should_throw);
+  } else if (IS_ARRAY(obj)) {
+    return DefineArrayProperty(obj, p, desc, should_throw);
+  } else {
+    return DefineObjectProperty(obj, p, desc, should_throw);
+  }
 }
 
 

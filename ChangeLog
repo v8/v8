@@ -1,3 +1,19 @@
+2011-10-13: Version 3.7.0
+
+        Fixed array handling for Object.defineOwnProperty (ES5 conformance).
+
+        Fixed issue 1757 (string slices of external strings).
+
+        Fixed issue 1759 (ARM).
+
+        Added flag --noclever-optimizations to disable some things that
+        caused trouble in the past.
+
+        Added flag --stress-compaction for testing.
+
+        Added flag --harmony to activate all experimental Harmony features.
+
+
 2011-10-10: Version 3.6.6
 
         Added a GC pause visualization tool.

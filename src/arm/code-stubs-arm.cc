@@ -4426,10 +4426,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
-  if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-    return;
-  }
 
   // Stack frame on entry.
   //  sp[0]: last_match_info (expected JSArray)
@@ -5088,23 +5084,26 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ cmp(result_, Operand(ip));
   __ b(ne, &call_runtime_);
   // Get the first of the two strings and load its instance type.
-  __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  __ ldr(result_, FieldMemOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ ldr(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
   __ add(scratch_, scratch_, result_);
-  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
+  __ ldr(result_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   __ bind(&assure_seq_string);
-  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+  __ ldr(result_, FieldMemOperand(result_, HeapObject::kMapOffset));
   __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // Check that parent is not an external string. Go to runtime otherwise.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Operand(kStringRepresentationMask));
   __ b(ne, &call_runtime_);
+  // Actually fetch the parent string if it is confirmed to be sequential.
+  STATIC_ASSERT(SlicedString::kParentOffset == ConsString::kFirstOffset);
+  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);

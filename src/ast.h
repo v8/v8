@@ -398,31 +398,29 @@ class Block: public BreakableStatement {
 class Declaration: public AstNode {
  public:
   Declaration(VariableProxy* proxy,
-              Variable::Mode mode,
+              VariableMode mode,
               FunctionLiteral* fun,
               Scope* scope)
       : proxy_(proxy),
         mode_(mode),
         fun_(fun),
         scope_(scope) {
-    ASSERT(mode == Variable::VAR ||
-           mode == Variable::CONST ||
-           mode == Variable::LET);
+    ASSERT(mode == VAR || mode == CONST || mode == LET);
     // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == Variable::VAR || mode == Variable::LET);
+    ASSERT(fun == NULL || mode == VAR || mode == LET);
   }
 
   DECLARE_NODE_TYPE(Declaration)
 
   VariableProxy* proxy() const { return proxy_; }
-  Variable::Mode mode() const { return mode_; }
+  VariableMode mode() const { return mode_; }
   FunctionLiteral* fun() const { return fun_; }  // may be NULL
   virtual bool IsInlineable() const;
   Scope* scope() const { return scope_; }
 
  private:
   VariableProxy* proxy_;
-  Variable::Mode mode_;
+  VariableMode mode_;
   FunctionLiteral* fun_;
 
   // Nested scope from which the declaration originated.

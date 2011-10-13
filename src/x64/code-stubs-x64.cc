@@ -2438,10 +2438,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
-  if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-    return;
-  }
 
   // Stack frame on entry.
   //  rsp[0]: return address
@@ -4084,22 +4080,23 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, &call_runtime_);
   // Get the first of the two strings and load its instance type.
-  __ movq(object_, FieldOperand(object_, ConsString::kFirstOffset));
+  ASSERT(!kScratchRegister.is(scratch_));
+  __ movq(kScratchRegister, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ addq(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
-  __ movq(object_, FieldOperand(object_, SlicedString::kParentOffset));
+  __ movq(kScratchRegister, FieldOperand(object_, SlicedString::kParentOffset));
 
   __ bind(&assure_seq_string);
-  __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
+  __ movq(result_, FieldOperand(kScratchRegister, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
-  __ jmp(&flat_string);
+  __ movq(object_, kScratchRegister);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);

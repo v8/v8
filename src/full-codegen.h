@@ -423,7 +423,7 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific code for a variable, constant, or function
   // declaration.  Functions have an initial value.
   void EmitDeclaration(VariableProxy* proxy,
-                       Variable::Mode mode,
+                       VariableMode mode,
                        FunctionLiteral* function,
                        int* global_count);
 

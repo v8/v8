@@ -190,6 +190,71 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [sp]: function.
+  // [sp + kPointerSize]: serialized scope info
+
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  __ AllocateInNewSpace(FixedArray::SizeFor(length),
+                        v0, a1, a2, &gc, TAG_OBJECT);
+
+  // Load the function from the stack.
+  __ lw(a3, MemOperand(sp, 0));
+
+  // Load the serialized scope info from the stack.
+  __ lw(a1, MemOperand(sp, 1 * kPointerSize));
+
+  // Setup the object header.
+  __ LoadRoot(a2, Heap::kBlockContextMapRootIndex);
+  __ sw(a2, FieldMemOperand(v0, HeapObject::kMapOffset));
+  __ li(a2, Operand(Smi::FromInt(length)));
+  __ sw(a2, FieldMemOperand(v0, FixedArray::kLengthOffset));
+
+  // If this block context is nested in the global context we get a smi
+  // sentinel instead of a function. The block context should get the
+  // canonical empty function of the global context as its closure which
+  // we still have to look up.
+  Label after_sentinel;
+  __ JumpIfNotSmi(a3, &after_sentinel);
+  if (FLAG_debug_code) {
+    const char* message = "Expected 0 as a Smi sentinel";
+    __ Assert(eq, message, a3, Operand(zero_reg));
+  }
+  __ lw(a3, GlobalObjectOperand());
+  __ lw(a3, FieldMemOperand(a3, GlobalObject::kGlobalContextOffset));
+  __ lw(a3, ContextOperand(a3, Context::CLOSURE_INDEX));
+  __ bind(&after_sentinel);
+
+  // Setup the fixed slots.
+  __ sw(a3, ContextOperand(v0, Context::CLOSURE_INDEX));
+  __ sw(cp, ContextOperand(v0, Context::PREVIOUS_INDEX));
+  __ sw(a1, ContextOperand(v0, Context::EXTENSION_INDEX));
+
+  // Copy the global object from the previous context.
+  __ lw(a1, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ sw(a1, ContextOperand(v0, Context::GLOBAL_INDEX));
+
+  // Initialize the rest of the slots to the hole value.
+  __ LoadRoot(a1, Heap::kTheHoleValueRootIndex);
+  for (int i = 0; i < slots_; i++) {
+    __ sw(a1, ContextOperand(v0, i + Context::MIN_CONTEXT_SLOTS));
+  }
+
+  // Remove the on-stack argument and return.
+  __ mov(cp, v0);
+  __ Addu(sp, sp, Operand(2 * kPointerSize));
+  __ Ret();
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(Runtime::kPushBlockContext, 2, 1);
+}
+
+
 void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // Stack layout on entry:
   // [sp]: constant elements.
@@ -886,6 +951,35 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 }
 
 
+bool WriteInt32ToHeapNumberStub::IsPregenerated() {
+  // These variants are compiled ahead of time.  See next method.
+  if (the_int_.is(a1) &&
+      the_heap_number_.is(v0) &&
+      scratch_.is(a2) &&
+      sign_.is(a3)) {
+    return true;
+  }
+  if (the_int_.is(a2) &&
+      the_heap_number_.is(v0) &&
+      scratch_.is(a3) &&
+      sign_.is(a0)) {
+    return true;
+  }
+  // Other register combinations are generated as and when they are needed,
+  // so it is unsafe to call them from stubs (we can't generate a stub while
+  // we are generating a stub).
+  return false;
+}
+
+
+void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime() {
+  WriteInt32ToHeapNumberStub stub1(a1, v0, a2, a3);
+  WriteInt32ToHeapNumberStub stub2(a2, v0, a3, a0);
+  stub1.GetCode()->set_is_pregenerated(true);
+  stub2.GetCode()->set_is_pregenerated(true);
+}
+
+
 // See comment for class, this does NOT work for int32's that are in Smi range.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   Label max_negative_int;
@@ -1253,6 +1347,8 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
       __ Move(f12, a0, a1);
       __ Move(f14, a2, a3);
     }
+
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
        0, 2);
     __ pop(ra);  // Because this function returns int, result is in v0.
@@ -1284,7 +1380,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // If either operand is a JS object or an oddball value, then they are
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
     Label first_non_object;
     // Get the type of the first operand into a2 and compare it with
     // FIRST_SPEC_OBJECT_TYPE.
@@ -1801,6 +1897,35 @@ void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
 }
 
 
+void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
+  // We don't allow a GC during a store buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  __ MultiPush(kJSCallerSaved | ra.bit());
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(FPU);
+    __ MultiPushFPU(kCallerSavedFPU);
+  }
+  const int argument_count = 1;
+  const int fp_argument_count = 0;
+  const Register scratch = a1;
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
+  __ li(a0, Operand(ExternalReference::isolate_address()));
+  __ CallCFunction(
+      ExternalReference::store_buffer_overflow_function(masm->isolate()),
+      argument_count);
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(FPU);
+    __ MultiPopFPU(kCallerSavedFPU);
+  }
+
+  __ MultiPop(kJSCallerSaved | ra.bit());
+  __ Ret();
+}
+
+
 void UnaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name = NULL;  // Make g++ happy.
@@ -2121,6 +2246,9 @@ void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(
 
 
 void BinaryOpStub::Generate(MacroAssembler* masm) {
+  // Explicitly allow generation of nested stubs. It is safe here because
+  // generation code does not use any raw pointers.
+  AllowStubCallsScope allow_stub_calls(masm, true);
   switch (operands_type_) {
     case BinaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
@@ -2925,9 +3053,9 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ Ret();
       } else {
         // Tail call that writes the int32 in a2 to the heap number in v0, using
-        // a3 and a1 as scratch. v0 is preserved and returned.
+        // a3 and a0 as scratch. v0 is preserved and returned.
         __ mov(a0, t1);
-        WriteInt32ToHeapNumberStub stub(a2, v0, a3, a1);
+        WriteInt32ToHeapNumberStub stub(a2, v0, a3, a0);
         __ TailCallStub(&stub);
       }
 
@@ -3484,14 +3612,27 @@ bool CEntryStub::IsPregenerated() {
 
 
 void CodeStub::GenerateStubsAheadOfTime() {
+  CEntryStub::GenerateAheadOfTime();
+  WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime();
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
 }
 
 
 void CodeStub::GenerateFPStubs() {
-  CEntryStub save_doubles(1);
-  save_doubles.SaveDoubles();
+  CEntryStub save_doubles(1, kSaveFPRegs);
   Handle<Code> code = save_doubles.GetCode();
+  code->set_is_pregenerated(true);
+  StoreBufferOverflowStub stub(kSaveFPRegs);
+  stub.GetCode()->set_is_pregenerated(true);
   code->GetIsolate()->set_fp_stubs_generated(true);
+}
+
+
+void CEntryStub::GenerateAheadOfTime() {
+  CEntryStub stub(1, kDontSaveFPRegs);
+  Handle<Code> code = stub.GetCode();
+  code->set_is_pregenerated(true);
 }
 
 
@@ -3517,17 +3658,17 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // s1: pointer to the first argument          (C callee-saved)
   // s2: pointer to builtin function            (C callee-saved)
 
+  Isolate* isolate = masm->isolate();
+
   if (do_gc) {
     // Move result passed in v0 into a0 to call PerformGC.
     __ mov(a0, v0);
     __ PrepareCallCFunction(1, 0, a1);
-    __ CallCFunction(
-        ExternalReference::perform_gc_function(masm->isolate()),
-        1, 0);
+    __ CallCFunction(ExternalReference::perform_gc_function(isolate), 1, 0);
   }
 
   ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth(masm->isolate());
+      ExternalReference::heap_always_allocate_scope_depth(isolate);
   if (always_allocate) {
     __ li(a0, Operand(scope_depth));
     __ lw(a1, MemOperand(a0));
@@ -3616,18 +3757,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
             v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
 
   // Retrieve the pending exception and clear the variable.
-  __ li(t0,
-        Operand(ExternalReference::the_hole_value_location(masm->isolate())));
-  __ lw(a3, MemOperand(t0));
+  __ li(a3, Operand(isolate->factory()->the_hole_value()));
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ lw(v0, MemOperand(t0));
   __ sw(a3, MemOperand(t0));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
   __ Branch(throw_termination_exception, eq,
-            v0, Operand(masm->isolate()->factory()->termination_exception()));
+            v0, Operand(isolate->factory()->termination_exception()));
 
   // Handle normal exception.
   __ jmp(throw_normal_exception);
@@ -3710,6 +3849,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
+  Isolate* isolate = masm->isolate();
 
   // Registers:
   // a0: entry address
@@ -3747,7 +3887,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ li(t2, Operand(Smi::FromInt(marker)));
   __ li(t1, Operand(Smi::FromInt(marker)));
   __ li(t0, Operand(ExternalReference(Isolate::kCEntryFPAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ lw(t0, MemOperand(t0));
   __ Push(t3, t2, t1, t0);
   // Setup frame pointer for the frame to be pushed.
@@ -3771,8 +3911,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress,
-                                masm->isolate());
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
   __ li(t1, Operand(ExternalReference(js_entry_sp)));
   __ lw(t2, MemOperand(t1));
   __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
@@ -3795,7 +3934,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
   __ li(v0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);  // b exposes branch delay slot.
@@ -3810,11 +3949,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ li(t0,
-        Operand(ExternalReference::the_hole_value_location(masm->isolate())));
-  __ lw(t1, MemOperand(t0));
+  __ li(t1, Operand(isolate->factory()->the_hole_value()));
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ sw(t1, MemOperand(t0));
 
   // Invoke the function by calling through JS entry trampoline builtin.
@@ -3837,7 +3974,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
-                                      masm->isolate());
+                                      isolate);
     __ li(t0, Operand(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline, masm->isolate());
@@ -3865,7 +4002,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore the top frame descriptors from the stack.
   __ pop(t1);
   __ li(t0, Operand(ExternalReference(Isolate::kCEntryFPAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ sw(t1, MemOperand(t0));
 
   // Reset the stack to the callee saved registers.
@@ -4471,10 +4608,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
-  if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
-    return;
-  }
 
   // Stack frame on entry.
   //  sp[0]: last_match_info (expected JSArray)
@@ -4486,6 +4619,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   static const int kPreviousIndexOffset = 1 * kPointerSize;
   static const int kSubjectOffset = 2 * kPointerSize;
   static const int kJSRegExpOffset = 3 * kPointerSize;
+
+  Isolate* isolate = masm->isolate();
 
   Label runtime, invoke_regexp;
 
@@ -4502,9 +4637,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Ensure that a RegExp stack is allocated.
   ExternalReference address_of_regexp_stack_memory_address =
       ExternalReference::address_of_regexp_stack_memory_address(
-          masm->isolate());
+          isolate);
   ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(masm->isolate());
+      ExternalReference::address_of_regexp_stack_memory_size(isolate);
   __ li(a0, Operand(address_of_regexp_stack_memory_size));
   __ lw(a0, MemOperand(a0, 0));
   __ Branch(&runtime, eq, a0, Operand(zero_reg));
@@ -4585,7 +4720,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
          FieldMemOperand(a0, JSArray::kElementsOffset));
   __ lw(a0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
   __ Branch(&runtime, ne, a0, Operand(
-      masm->isolate()->factory()->fixed_array_map()));
+      isolate->factory()->fixed_array_map()));
   // Check that the last match info has space for the capture registers and the
   // additional information.
   __ lw(a0,
@@ -4676,7 +4811,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
   // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(masm->isolate()->counters()->regexp_entry_native(),
+  __ IncrementCounter(isolate->counters()->regexp_entry_native(),
                       1, a0, a2);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
@@ -4716,7 +4851,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Argument 5: static offsets vector buffer.
   __ li(a0, Operand(
-        ExternalReference::address_of_static_offsets_vector(masm->isolate())));
+        ExternalReference::address_of_static_offsets_vector(isolate)));
   __ sw(a0, MemOperand(sp, 1 * kPointerSize));
 
   // For arguments 4 and 3 get string length, calculate start of string data
@@ -4774,11 +4909,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ li(a1, Operand(
-      ExternalReference::the_hole_value_location(masm->isolate())));
-  __ lw(a1, MemOperand(a1, 0));
+  __ li(a1, Operand(isolate->factory()->the_hole_value()));
   __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      masm->isolate())));
+                                      isolate)));
   __ lw(v0, MemOperand(a2, 0));
   __ Branch(&runtime, eq, v0, Operand(a1));
 
@@ -4796,7 +4929,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ bind(&failure);
   // For failure and exception return null.
-  __ li(v0, Operand(masm->isolate()->factory()->null_value()));
+  __ li(v0, Operand(isolate->factory()->null_value()));
   __ Addu(sp, sp, Operand(4 * kPointerSize));
   __ Ret();
 
@@ -4816,20 +4949,29 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ sw(a2, FieldMemOperand(last_match_info_elements,
                              RegExpImpl::kLastCaptureCountOffset));
   // Store last subject and last input.
-  __ mov(a3, last_match_info_elements);  // Moved up to reduce latency.
   __ sw(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastSubjectOffset));
-  __ RecordWrite(a3, Operand(RegExpImpl::kLastSubjectOffset), a2, t0);
+  __ mov(a2, subject);
+  __ RecordWriteField(last_match_info_elements,
+                      RegExpImpl::kLastSubjectOffset,
+                      a2,
+                      t3,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs);
   __ sw(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
-  __ mov(a3, last_match_info_elements);
-  __ RecordWrite(a3, Operand(RegExpImpl::kLastInputOffset), a2, t0);
+  __ RecordWriteField(last_match_info_elements,
+                      RegExpImpl::kLastInputOffset,
+                      subject,
+                      t3,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
-      ExternalReference::address_of_static_offsets_vector(masm->isolate());
+      ExternalReference::address_of_static_offsets_vector(isolate);
   __ li(a2, Operand(address_of_static_offsets_vector));
 
   // a1: number of capture registers
@@ -4951,6 +5093,22 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slowcase);
   __ TailCallRuntime(Runtime::kRegExpConstructResult, 3, 1);
+}
+
+
+void CallFunctionStub::FinishCode(Code* code) {
+  code->set_has_function_cache(false);
+}
+
+
+void CallFunctionStub::Clear(Heap* heap, Address address) {
+  UNREACHABLE();
+}
+
+
+Object* CallFunctionStub::GetCachedValue(Address address) {
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -5130,24 +5288,27 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ Branch(&call_runtime_, ne, result_, Operand(t0));
 
   // Get the first of the two strings and load its instance type.
-  __ lw(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  __ lw(result_, FieldMemOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ lw(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
   __ addu(scratch_, scratch_, result_);
-  __ lw(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
+  __ lw(result_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   __ bind(&assure_seq_string);
-  __ lw(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+  __ lw(result_, FieldMemOperand(result_, HeapObject::kMapOffset));
   __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // Check that parent is not an external string. Go to runtime otherwise.
   STATIC_ASSERT(kSeqStringTag == 0);
 
   __ And(t0, result_, Operand(kStringRepresentationMask));
   __ Branch(&call_runtime_, ne, t0, Operand(zero_reg));
+  // Actually fetch the parent string if it is confirmed to be sequential.
+  STATIC_ASSERT(SlicedString::kParentOffset == ConsString::kFirstOffset);
+  __ lw(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
@@ -7019,6 +7180,269 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ bind(&not_in_dictionary);
   __ mov(result, zero_reg);
   __ Ret();
+}
+
+
+struct AheadOfTimeWriteBarrierStubList {
+  Register object, value, address;
+  RememberedSetAction action;
+};
+
+
+struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+  // Used in RegExpExecStub.
+  { s2, s0, t3, EMIT_REMEMBERED_SET },
+  { s2, a2, t3, EMIT_REMEMBERED_SET },
+  // Used in CompileArrayPushCall.
+  // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
+  // Also used in KeyedStoreIC::GenerateGeneric.
+  { a3, t0, t1, EMIT_REMEMBERED_SET },
+  // Used in CompileStoreGlobal.
+  { t0, a1, a2, OMIT_REMEMBERED_SET },
+  // Used in StoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { a1, a2, a3, EMIT_REMEMBERED_SET },
+  { a3, a2, a1, EMIT_REMEMBERED_SET },
+  // Used in KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
+  { a2, a1, a3, EMIT_REMEMBERED_SET },
+  { a3, a1, a2, EMIT_REMEMBERED_SET },
+  // KeyedStoreStubCompiler::GenerateStoreFastElement.
+  { t0, a2, a3, EMIT_REMEMBERED_SET },
+  // Null termination.
+  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+};
+
+
+bool RecordWriteStub::IsPregenerated() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    if (object_.is(entry->object) &&
+        value_.is(entry->value) &&
+        address_.is(entry->address) &&
+        remembered_set_action_ == entry->action &&
+        save_fp_regs_mode_ == kDontSaveFPRegs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool StoreBufferOverflowStub::IsPregenerated() {
+  return save_doubles_ == kDontSaveFPRegs || ISOLATE->fp_stubs_generated();
+}
+
+
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
+  stub1.GetCode()->set_is_pregenerated(true);
+}
+
+
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+       !entry->object.is(no_reg);
+       entry++) {
+    RecordWriteStub stub(entry->object,
+                         entry->value,
+                         entry->address,
+                         entry->action,
+                         kDontSaveFPRegs);
+    stub.GetCode()->set_is_pregenerated(true);
+  }
+}
+
+
+// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
+// the value has just been written into the object, now this stub makes sure
+// we keep the GC informed.  The word in the object where the value has been
+// written is in the address register.
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  Label skip_to_incremental_noncompacting;
+  Label skip_to_incremental_compacting;
+
+  // The first two branch+nop instructions are generated with labels so as to
+  // get the offset fixed up correctly by the bind(Label*) call.  We patch it
+  // back and forth between a "bne zero_reg, zero_reg, ..." (a nop in this
+  // position) and the "beq zero_reg, zero_reg, ..." when we start and stop
+  // incremental heap marking.
+  // See RecordWriteStub::Patch for details.
+  __ beq(zero_reg, zero_reg, &skip_to_incremental_noncompacting);
+  __ nop();
+  __ beq(zero_reg, zero_reg, &skip_to_incremental_compacting);
+  __ nop();
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(object_,
+                           address_,
+                           value_,
+                           save_fp_regs_mode_,
+                           MacroAssembler::kReturnAtEnd);
+  }
+  __ Ret();
+
+  __ bind(&skip_to_incremental_noncompacting);
+  GenerateIncremental(masm, INCREMENTAL);
+
+  __ bind(&skip_to_incremental_compacting);
+  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+
+  // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
+  // Will be checked in IncrementalMarking::ActivateGeneratedStub.
+
+  PatchBranchIntoNop(masm, 0);
+  PatchBranchIntoNop(masm, 2 * Assembler::kInstrSize);
+}
+
+
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
+  regs_.Save(masm);
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    Label dont_need_remembered_set;
+
+    __ lw(regs_.scratch0(), MemOperand(regs_.address(), 0));
+    __ JumpIfNotInNewSpace(regs_.scratch0(),  // Value.
+                           regs_.scratch0(),
+                           &dont_need_remembered_set);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch0(),
+                     1 << MemoryChunk::SCAN_ON_SCAVENGE,
+                     ne,
+                     &dont_need_remembered_set);
+
+    // First notify the incremental marker if necessary, then update the
+    // remembered set.
+    CheckNeedsToInformIncrementalMarker(
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
+    InformIncrementalMarker(masm, mode);
+    regs_.Restore(masm);
+    __ RememberedSetHelper(object_,
+                           address_,
+                           value_,
+                           save_fp_regs_mode_,
+                           MacroAssembler::kReturnAtEnd);
+
+    __ bind(&dont_need_remembered_set);
+  }
+
+  CheckNeedsToInformIncrementalMarker(
+      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
+  InformIncrementalMarker(masm, mode);
+  regs_.Restore(masm);
+  __ Ret();
+}
+
+
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+  int argument_count = 3;
+  __ PrepareCallCFunction(argument_count, regs_.scratch0());
+  Register address =
+      a0.is(regs_.address()) ? regs_.scratch0() : regs_.address();
+  ASSERT(!address.is(regs_.object()));
+  ASSERT(!address.is(a0));
+  __ Move(address, regs_.address());
+  __ Move(a0, regs_.object());
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ Move(a1, address);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ lw(a1, MemOperand(address, 0));
+  }
+  __ li(a2, Operand(ExternalReference::isolate_address()));
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  if (mode == INCREMENTAL_COMPACTION) {
+    __ CallCFunction(
+        ExternalReference::incremental_evacuation_record_write_function(
+            masm->isolate()),
+        argument_count);
+  } else {
+    ASSERT(mode == INCREMENTAL);
+    __ CallCFunction(
+        ExternalReference::incremental_marking_record_write_function(
+            masm->isolate()),
+        argument_count);
+  }
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+}
+
+
+void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
+    MacroAssembler* masm,
+    OnNoNeedToInformIncrementalMarker on_no_need,
+    Mode mode) {
+  Label on_black;
+  Label need_incremental;
+  Label need_incremental_pop_scratch;
+
+  // Let's look at the color of the object:  If it is not black we don't have
+  // to inform the incremental marker.
+  __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(object_,
+                           address_,
+                           value_,
+                           save_fp_regs_mode_,
+                           MacroAssembler::kReturnAtEnd);
+  } else {
+    __ Ret();
+  }
+
+  __ bind(&on_black);
+
+  // Get the value from the slot.
+  __ lw(regs_.scratch0(), MemOperand(regs_.address(), 0));
+
+  if (mode == INCREMENTAL_COMPACTION) {
+    Label ensure_not_white;
+
+    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kEvacuationCandidateMask,
+                     eq,
+                     &ensure_not_white);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch1(),  // Scratch.
+                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
+                     eq,
+                     &need_incremental);
+
+    __ bind(&ensure_not_white);
+  }
+
+  // We need extra registers for this, so we push the object and the address
+  // register temporarily.
+  __ Push(regs_.object(), regs_.address());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),  // Scratch.
+                    regs_.address(),  // Scratch.
+                    &need_incremental_pop_scratch);
+  __ Pop(regs_.object(), regs_.address());
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(object_,
+                           address_,
+                           value_,
+                           save_fp_regs_mode_,
+                           MacroAssembler::kReturnAtEnd);
+  } else {
+    __ Ret();
+  }
+
+  __ bind(&need_incremental_pop_scratch);
+  __ Pop(regs_.object(), regs_.address());
+
+  __ bind(&need_incremental);
+
+  // Fall through when we need to inform the incremental marker.
 }
 
 

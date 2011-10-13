@@ -117,14 +117,12 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
         incremental_marking_(incremental_marking) {
   }
 
-  void VisitEmbeddedPointer(Code* host, Object** p) {
-    Object* obj = *p;
-    if (obj->NonFailureIsHeapObject()) {
-      heap_->mark_compact_collector()->RecordSlot(
-          reinterpret_cast<Object**>(host),
-          p,
-          obj);
-      MarkObject(obj);
+  void VisitEmbeddedPointer(RelocInfo* rinfo) {
+    ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    Object* target = rinfo->target_object();
+    if (target->NonFailureIsHeapObject()) {
+      heap_->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+      MarkObject(target);
     }
   }
 
@@ -346,6 +344,7 @@ bool IncrementalMarking::WorthActivating() {
 #endif
 
   return FLAG_incremental_marking &&
+      !Serializer::enabled() &&
       heap_->PromotedSpaceSize() > kActivationThreshold;
 }
 

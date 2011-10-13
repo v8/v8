@@ -94,12 +94,8 @@ static Mutex* limit_mutex = NULL;
 
 
 void OS::Setup() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly will cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  // Seed the random number generator. We preserve microsecond resolution.
+  uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
 }
@@ -148,9 +144,12 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot,
+  void* mbase = mmap(OS::GetRandomMmapAddr(),
+                     msize,
+                     prot,
                      MAP_PRIVATE | MAP_ANON,
-                     kMmapFd, kMmapFdOffset);
+                     kMmapFd,
+                     kMmapFdOffset);
   if (mbase == MAP_FAILED) {
     LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
@@ -207,7 +206,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   int size = ftell(file);
 
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+           size,
+           PROT_READ | PROT_WRITE,
+           MAP_SHARED,
+           fileno(file),
+           0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -222,7 +226,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     return NULL;
   }
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+          size,
+          PROT_READ | PROT_WRITE,
+          MAP_SHARED,
+          fileno(file),
+          0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -346,7 +355,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(NULL,
+  void* reservation = mmap(OS::GetRandomMmapAddr(),
                            request_size,
                            PROT_NONE,
                            MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
@@ -397,7 +406,7 @@ void VirtualMemory::Reset() {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(NULL,
+  void* result = mmap(OS::GetRandomMmapAddr(),
                       size,
                       PROT_NONE,
                       MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,

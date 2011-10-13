@@ -496,7 +496,7 @@ enum StrictModeFlag {
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.
 enum SmiCheckType {
-  DONT_DO_SMI_CHECK = 0,
+  DONT_DO_SMI_CHECK,
   DO_SMI_CHECK
 };
 
@@ -504,7 +504,7 @@ enum SmiCheckType {
 // Used to specify whether a receiver is implicitly or explicitly
 // provided to a call.
 enum CallKind {
-  CALL_AS_METHOD = 0,
+  CALL_AS_METHOD,
   CALL_AS_FUNCTION
 };
 
@@ -517,6 +517,35 @@ const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
 const uint64_t kLastNonNaNInt64 =
     (static_cast<uint64_t>(kNaNOrInfinityLowerBoundUpper32) << 32);
+
+
+enum VariableMode {
+  // User declared variables:
+  VAR,       // declared via 'var', and 'function' declarations
+
+  CONST,     // declared via 'const' declarations
+
+  LET,       // declared via 'let' declarations
+
+  // Variables introduced by the compiler:
+  DYNAMIC,         // always require dynamic lookup (we don't know
+                   // the declaration)
+
+  DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
+                   // variable is global unless it has been shadowed
+                   // by an eval-introduced variable
+
+  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
+                   // variable is local and where it is unless it
+                   // has been shadowed by an eval-introduced
+                   // variable
+
+  INTERNAL,        // like VAR, but not user-visible (may or may not
+                   // be in a context)
+
+  TEMPORARY        // temporary variables (not user-visible), never
+                   // in a context
+};
 
 } }  // namespace v8::internal
 

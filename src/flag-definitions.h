@@ -98,14 +98,19 @@ private:
 
 // Flags for experimental language features.
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
+DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
-DEFINE_bool(harmony_block_scoping, false, "enable harmony block scoping")
+DEFINE_bool(harmony, false, "enable all harmony features")
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
-DEFINE_bool(string_slices, false, "use string slices")
+DEFINE_bool(string_slices, true, "use string slices")
+
+DEFINE_bool(clever_optimizations,
+            true,
+            "Optimize object size, Array shift, DOM strings and string +")
 
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
@@ -300,9 +305,6 @@ DEFINE_int(random_seed, 0,
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
 
-DEFINE_bool(use_big_map_space, true,
-            "Use big map space, but don't compact if it grew too big.")
-
 DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
            "Maximum number of pages in map space which still allows to encode "
            "forwarding pointers.  That's actually a constant, but it's useful "
@@ -338,7 +340,6 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
-DEFINE_bool(regexp_entry_native, true, "use native code to enter regexp")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
@@ -394,6 +395,15 @@ DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
 DEFINE_string(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
 
+// mark-compact.cc
+DEFINE_bool(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
+DEFINE_bool(stress_compaction, false,
+            "stress the GC compactor to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
+
 //
 // Debug only flags
 //
@@ -441,11 +451,6 @@ DEFINE_bool(print_global_handles, false, "report global handles after GC")
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")
 
-// mark-compact.cc
-DEFINE_bool(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
-
 // objects.cc
 DEFINE_bool(trace_normalization,
             false,
@@ -464,9 +469,6 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "(requires heap_stats)")
 
 DEFINE_bool(trace_isolates, false, "trace isolate state changes")
-
-DEFINE_bool(trace_live_byte_count, false,
-            "trace updates to page live byte count")
 
 // VM state
 DEFINE_bool(log_state_changes, false, "Log state changes.")

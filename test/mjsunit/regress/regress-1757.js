@@ -25,40 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-scoping
+// Flags: --string-slices --expose-externalize-string
 
-// Test debug evaluation for functions without local context, but with
-// nested catch contexts.
-
-function f() {
-  {                   // Line 1.
-    let i = 1;        // Line 2.
-    try {             // Line 3.
-      throw 'stuff';  // Line 4.
-    } catch (e) {     // Line 5.
-      x = 2;          // Line 6.
-    }
-  }
-};
-
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
-// Set breakpoint on line 6.
-var bp = Debug.setBreakPoint(f, 6);
-
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    result = exec_state.frame().evaluate("i").value();
-  }
-};
-
-// Add the debug event listener.
-Debug.setListener(listener);
-result = -1;
-f();
-assertEquals(1, result);
-
-// Clear breakpoint.
-Debug.clearBreakPoint(bp);
-// Get rid of the debug event listener.
-Debug.setListener(null);
+var a = "abcdefghijklmnopqrstuvqxy"+"z";
+externalizeString(a, true);
+assertEquals('b', a.substring(1).charAt(0));

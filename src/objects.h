@@ -3011,6 +3011,68 @@ class JSFunctionResultCache: public FixedArray {
 };
 
 
+// This object provides quick access to scope info details for runtime
+// routines w/o the need to explicitly create a ScopeInfo object.
+class SerializedScopeInfo : public FixedArray {
+ public :
+  static SerializedScopeInfo* cast(Object* object) {
+    ASSERT(object->IsSerializedScopeInfo());
+    return reinterpret_cast<SerializedScopeInfo*>(object);
+  }
+
+  // Does this scope call eval?
+  bool CallsEval();
+
+  // Is this scope a strict mode scope?
+  bool IsStrictMode();
+
+  // Return the number of stack slots for code.
+  int NumberOfStackSlots();
+
+  // Return the number of context slots for code.
+  int NumberOfContextSlots();
+
+  // Return if this has context slots besides MIN_CONTEXT_SLOTS;
+  bool HasHeapAllocatedLocals();
+
+  // Lookup support for serialized scope info. Returns the
+  // the stack slot index for a given slot name if the slot is
+  // present; otherwise returns a value < 0. The name must be a symbol
+  // (canonicalized).
+  int StackSlotIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // context slot index for a given slot name if the slot is present; otherwise
+  // returns a value < 0. The name must be a symbol (canonicalized).
+  // If the slot is present and mode != NULL, sets *mode to the corresponding
+  // mode for that variable.
+  int ContextSlotIndex(String* name, VariableMode* mode);
+
+  // Lookup support for serialized scope info. Returns the
+  // parameter index for a given parameter name if the parameter is present;
+  // otherwise returns a value < 0. The name must be a symbol (canonicalized).
+  int ParameterIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // function context slot index if the function name is present (named
+  // function expressions, only), otherwise returns a value < 0. The name
+  // must be a symbol (canonicalized).
+  int FunctionContextSlotIndex(String* name);
+
+  static Handle<SerializedScopeInfo> Create(Scope* scope);
+
+  // Serializes empty scope info.
+  static SerializedScopeInfo* Empty();
+
+ private:
+  Object** ContextEntriesAddr();
+
+  Object** ParameterEntriesAddr();
+
+  Object** StackSlotEntriesAddr();
+};
+
+
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
@@ -4208,6 +4270,24 @@ class Map: public HeapObject {
     return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
   }
 
+  // Returns the contents of this map's descriptor array for the given string.
+  // May return NULL. |safe_to_add_transition| is set to false and NULL
+  // is returned if adding transitions is not allowed.
+  Object* GetDescriptorContents(String* sentinel_name,
+                                bool* safe_to_add_transitions);
+
+  // Returns the map that this map transitions to if its elements_kind
+  // is changed to |elements_kind|, or NULL if no such map is cached yet.
+  // |safe_to_add_transitions| is set to false if adding transitions is not
+  // allowed.
+  Map* LookupElementsTransitionMap(ElementsKind elements_kind,
+                                   bool* safe_to_add_transition);
+
+  // Adds an entry to this map's descriptor array for a transition to
+  // |transitioned_map| when its elements_kind is changed to |elements_kind|.
+  MaybeObject* AddElementsTransition(ElementsKind elements_kind,
+                                     Map* transitioned_map);
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void MapPrint() {
@@ -4325,6 +4405,7 @@ class Map: public HeapObject {
                               kSize> BodyDescriptor;
 
  private:
+  String* elements_transition_sentinel_name();
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
 
@@ -7453,11 +7534,7 @@ class ObjectVisitor BASE_EMBEDDED {
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }
 
   // Visit pointer embedded into a code object.
-  virtual void VisitEmbeddedPointer(Code* host, Object** p) {
-    // Default implementation for the convenience of users that do
-    // not care about the host object.
-    VisitPointer(p);
-  }
+  virtual void VisitEmbeddedPointer(RelocInfo* rinfo);
 
   // Visits a contiguous arrays of external references (references to the C++
   // heap) in the half-open range [start, end). Any or all of the values

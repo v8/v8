@@ -8178,6 +8178,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 }
 
 
+class ActivationsFinder : public ThreadVisitor {
+ public:
+  explicit ActivationsFinder(JSFunction* function)
+      : function_(function), has_activations_(false) {}
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    if (has_activations_) return;
+
+    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->is_optimized() && frame->function() == function_) {
+        has_activations_ = true;
+        return;
+      }
+    }
+  }
+
+  bool has_activations() { return has_activations_; }
+
+ private:
+  JSFunction* function_;
+  bool has_activations_;
+};
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -8224,17 +8249,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Count the number of optimized activations of the function.
-  int activations = 0;
+  // Find other optimized activations of the function.
+  bool has_other_activations = false;
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->is_optimized() && frame->function() == *function) {
-      activations++;
+      has_other_activations = true;
+      break;
     }
     it.Advance();
   }
 
-  if (activations == 0) {
+  if (!has_other_activations) {
+    ActivationsFinder activations_finder(*function);
+    isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
+    has_other_activations = activations_finder.has_activations();
+  }
+
+  if (!has_other_activations) {
     if (FLAG_trace_deopt) {
       PrintF("[removing optimized code for: ");
       function->PrintName();
@@ -13171,6 +13203,14 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, obj1, args[0]);
+  CONVERT_CHECKED(JSObject, obj2, args[1]);
+  return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
+}
 
 // ----------------------------------------------------------------------------
 // Implementation of Runtime

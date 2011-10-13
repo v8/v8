@@ -432,7 +432,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
-    __ RecordWrite(receiver_reg, Operand(offset), name_reg, scratch);
+    __ mov(name_reg, a0);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch,
+                        kRAHasNotBeenSaved,
+                        kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -445,7 +451,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
-    __ RecordWrite(scratch, Operand(offset), name_reg, receiver_reg);
+    __ mov(name_reg, a0);
+    __ RecordWriteField(scratch,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kRAHasNotBeenSaved,
+                        kDontSaveFPRegs);
   }
 
   // Return the value (register v0).
@@ -1589,7 +1601,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                 DONT_DO_SMI_CHECK);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label exit, with_write_barrier, attempt_to_grow_elements;
+      Label attempt_to_grow_elements;
 
       // Get the array's length into v0 and calculate new length.
       __ lw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1603,11 +1615,15 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Check if we could survive without allocation.
       __ Branch(&attempt_to_grow_elements, gt, v0, Operand(t0));
 
+      // Check if value is a smi.
+      Label with_write_barrier;
+      __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ JumpIfNotSmi(t0, &with_write_barrier);
+
       // Save new length.
       __ sw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
       // Push the element.
-      __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
       __ sll(end_elements, v0, kPointerSizeLog2 - kSmiTagSize);
@@ -1618,14 +1634,32 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ sw(t0, MemOperand(end_elements));
 
       // Check for a smi.
-      __ JumpIfNotSmi(t0, &with_write_barrier);
-      __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
 
       __ bind(&with_write_barrier);
-      __ InNewSpace(elements, t0, eq, &exit);
-      __ RecordWriteHelper(elements, end_elements, t0);
+
+      __ lw(t2, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ CheckFastSmiOnlyElements(t2, t2, &call_builtin);
+
+      // Save new length.
+      __ sw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Push the element.
+      // We may need a register containing the address end_elements below,
+      // so write back the value in end_elements.
+      __ sll(end_elements, v0, kPointerSizeLog2 - kSmiTagSize);
+      __ Addu(end_elements, elements, end_elements);
+      __ Addu(end_elements, end_elements, kEndElementsOffset);
+      __ sw(t0, MemOperand(end_elements));
+
+      __ RecordWrite(elements,
+                     end_elements,
+                     t0,
+                     kRAHasNotBeenSaved,
+                     kDontSaveFPRegs,
+                     EMIT_REMEMBERED_SET,
+                     OMIT_SMI_CHECK);
       __ Drop(argc + 1);
       __ Ret();
 
@@ -1636,6 +1670,15 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       if (!FLAG_inline_new) {
         __ Branch(&call_builtin);
       }
+
+      __ lw(a2, MemOperand(sp, (argc - 1) * kPointerSize));
+      // Growing elements that are SMI-only requires special handling in case
+      // the new element is non-Smi. For now, delegate to the builtin.
+      Label no_fast_elements_check;
+      __ JumpIfSmi(a2, &no_fast_elements_check);
+      __ lw(t3, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(t3, t3, &call_builtin);
+      __ bind(&no_fast_elements_check);
 
       ExternalReference new_space_allocation_top =
           ExternalReference::new_space_allocation_top_address(
@@ -1662,8 +1705,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // Update new_space_allocation_top.
       __ sw(t2, MemOperand(t3));
       // Push the argument.
-      __ lw(t2, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ sw(t2, MemOperand(end_elements));
+      __ sw(a2, MemOperand(end_elements));
       // Fill the rest with holes.
       __ LoadRoot(t2, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
@@ -2732,6 +2774,16 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Store the value in the cell.
   __ sw(a0, FieldMemOperand(t0, JSGlobalPropertyCell::kValueOffset));
   __ mov(v0, a0);  // Stored value must be returned in v0.
+
+  // This trashes a0 but the value is returned in v0 anyway.
+  __ RecordWriteField(t0,
+                      JSGlobalPropertyCell::kValueOffset,
+                      a0,
+                      a2,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET);
+
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1, a1, a3);
   __ Ret();
@@ -3130,7 +3182,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
   // ----------- S t a t e -------------
@@ -3224,9 +3276,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
+MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
     MapList* receiver_maps,
-    CodeList* handler_ics) {
+    CodeList* handler_stubs,
+    MapList* transitioned_maps) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3239,10 +3292,18 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
 
   int receiver_count = receiver_maps->length();
   __ lw(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
-  for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    Handle<Code> code(handler_ics->at(current));
-    __ Jump(code, RelocInfo::CODE_TARGET, eq, a3, Operand(map));
+  for (int i = 0; i < receiver_count; ++i) {
+    Handle<Map> map(receiver_maps->at(i));
+    Handle<Code> code(handler_stubs->at(i));
+    if (transitioned_maps->at(i) == NULL) {
+      __ Jump(code, RelocInfo::CODE_TARGET, eq, a3, Operand(map));
+    } else {
+      Label next_map;
+      __ Branch(&next_map, eq, a3, Operand(map));
+      __ li(t0, Operand(Handle<Map>(transitioned_maps->at(i))));
+      __ Jump(code, RelocInfo::CODE_TARGET);
+      __ bind(&next_map);
+    }
   }
 
   __ bind(&miss);
@@ -3471,7 +3532,7 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
 
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
@@ -3568,6 +3629,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       }
       break;
     case FAST_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -3928,6 +3990,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       break;
     case FAST_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -3992,6 +4055,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -4163,6 +4227,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -4312,8 +4377,10 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
 }
 
 
-void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
-                                                      bool is_js_array) {
+void KeyedStoreStubCompiler::GenerateStoreFastElement(
+    MacroAssembler* masm,
+    bool is_js_array,
+    ElementsKind elements_kind) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -4322,7 +4389,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   //  -- a3    : scratch
   //  -- a4    : scratch (elements)
   // -----------------------------------
-  Label miss_force_generic;
+  Label miss_force_generic, transition_elements_kind;
 
   Register value_reg = a0;
   Register key_reg = a1;
@@ -4356,14 +4423,32 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   // Compare smis.
   __ Branch(&miss_force_generic, hs, key_reg, Operand(scratch));
 
-  __ Addu(scratch,
-          elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ sll(scratch2, key_reg, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(scratch3, scratch2, scratch);
-  __ sw(value_reg, MemOperand(scratch3));
-  __ RecordWrite(scratch, Operand(scratch2), receiver_reg , elements_reg);
-
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    __ JumpIfNotSmi(value_reg, &transition_elements_kind);
+    __ Addu(scratch,
+            elements_reg,
+            Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    __ sll(scratch2, key_reg, kPointerSizeLog2 - kSmiTagSize);
+    __ Addu(scratch, scratch, scratch2);
+    __ sw(value_reg, MemOperand(scratch));
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS);
+    __ Addu(scratch,
+            elements_reg,
+            Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    __ sll(scratch2, key_reg, kPointerSizeLog2 - kSmiTagSize);
+    __ Addu(scratch, scratch, scratch2);
+    __ sw(value_reg, MemOperand(scratch));
+    __ mov(receiver_reg, value_reg);
+  ASSERT(elements_kind == FAST_ELEMENTS);
+    __ RecordWrite(elements_reg,  // Object.
+                   scratch,       // Address.
+                   receiver_reg,  // Value.
+                   kRAHasNotBeenSaved,
+                   kDontSaveFPRegs);
+  }
   // value_reg (a0) is preserved.
   // Done.
   __ Ret();
@@ -4372,6 +4457,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   Handle<Code> ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&transition_elements_kind);
+  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 
@@ -4389,15 +4478,15 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- t2    : scratch (exponent_reg)
   //  -- t3    : scratch4
   // -----------------------------------
-  Label miss_force_generic, smi_value, is_nan, maybe_nan, have_double_value;
+  Label miss_force_generic, transition_elements_kind;
 
   Register value_reg = a0;
   Register key_reg = a1;
   Register receiver_reg = a2;
-  Register scratch = a3;
-  Register elements_reg = t0;
-  Register mantissa_reg = t1;
-  Register exponent_reg = t2;
+  Register elements_reg = a3;
+  Register scratch1 = t0;
+  Register scratch2 = t1;
+  Register scratch3 = t2;
   Register scratch4 = t3;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -4409,90 +4498,25 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   // Check that the key is within bounds.
   if (is_js_array) {
-    __ lw(scratch, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ lw(scratch1, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
   } else {
-    __ lw(scratch,
+    __ lw(scratch1,
           FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
   }
   // Compare smis, unsigned compare catches both negative and out-of-bound
   // indexes.
-  __ Branch(&miss_force_generic, hs, key_reg, Operand(scratch));
+  __ Branch(&miss_force_generic, hs, key_reg, Operand(scratch1));
 
-  // Handle smi values specially.
-  __ JumpIfSmi(value_reg, &smi_value);
+  __ StoreNumberToDoubleElements(value_reg,
+                                 key_reg,
+                                 receiver_reg,
+                                 elements_reg,
+                                 scratch1,
+                                 scratch2,
+                                 scratch3,
+                                 scratch4,
+                                 &transition_elements_kind);
 
-  // Ensure that the object is a heap number
-  __ CheckMap(value_reg,
-              scratch,
-              masm->isolate()->factory()->heap_number_map(),
-              &miss_force_generic,
-              DONT_DO_SMI_CHECK);
-
-  // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
-  // in the exponent.
-  __ li(scratch, Operand(kNaNOrInfinityLowerBoundUpper32));
-  __ lw(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
-  __ Branch(&maybe_nan, ge, exponent_reg, Operand(scratch));
-
-  __ lw(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-
-  __ bind(&have_double_value);
-  __ sll(scratch4, key_reg, kDoubleSizeLog2 - kSmiTagSize);
-  __ Addu(scratch, elements_reg, Operand(scratch4));
-  __ sw(mantissa_reg, FieldMemOperand(scratch, FixedDoubleArray::kHeaderSize));
-  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
-  __ sw(exponent_reg, FieldMemOperand(scratch, offset));
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, value_reg);  // In delay slot.
-
-  __ bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  __ li(scratch, Operand(kNaNOrInfinityLowerBoundUpper32));
-  __ Branch(&is_nan, gt, exponent_reg, Operand(scratch));
-  __ lw(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-  __ Branch(&have_double_value, eq, mantissa_reg, Operand(zero_reg));
-
-  __ bind(&is_nan);
-  // Load canonical NaN for storing into the double array.
-  uint64_t nan_int64 = BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  __ li(mantissa_reg, Operand(static_cast<uint32_t>(nan_int64)));
-  __ li(exponent_reg, Operand(static_cast<uint32_t>(nan_int64 >> 32)));
-  __ jmp(&have_double_value);
-
-  __ bind(&smi_value);
-  __ Addu(scratch, elements_reg,
-          Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
-  __ sll(scratch4, key_reg, kDoubleSizeLog2 - kSmiTagSize);
-  __ Addu(scratch, scratch, scratch4);
-  // scratch is now effective address of the double element
-
-  FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(FPU)) {
-    destination = FloatingPointHelper::kFPURegisters;
-  } else {
-    destination = FloatingPointHelper::kCoreRegisters;
-  }
-
-  Register untagged_value = receiver_reg;
-  __ SmiUntag(untagged_value, value_reg);
-  FloatingPointHelper::ConvertIntToDouble(
-      masm,
-      untagged_value,
-      destination,
-      f0,
-      mantissa_reg,
-      exponent_reg,
-      scratch4,
-      f2);
-  if (destination == FloatingPointHelper::kFPURegisters) {
-    CpuFeatures::Scope scope(FPU);
-    __ sdc1(f0, MemOperand(scratch, 0));
-  } else {
-    __ sw(mantissa_reg, MemOperand(scratch, 0));
-    __ sw(exponent_reg, MemOperand(scratch, Register::kSizeInBytes));
-  }
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, value_reg);  // In delay slot.
 
@@ -4501,6 +4525,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Handle<Code> ic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&transition_elements_kind);
+  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 
