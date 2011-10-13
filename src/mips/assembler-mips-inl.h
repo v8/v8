@@ -271,9 +271,9 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
-               IsPatchedReturnSequence()) ||
-              (RelocInfo::IsDebugBreakSlot(mode) &&
-               IsPatchedDebugBreakSlotSequence())) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence())) &&
              Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif

@@ -278,7 +278,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       // constant.
       if (scope()->is_function_scope() && scope()->function() != NULL) {
         int ignored = 0;
-        EmitDeclaration(scope()->function(), Variable::CONST, NULL, &ignored);
+        EmitDeclaration(scope()->function(), CONST, NULL, &ignored);
       }
       VisitDeclarations(scope()->declarations());
     }
@@ -721,7 +721,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
 
 
 void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
-                                        Variable::Mode mode,
+                                        VariableMode mode,
                                         FunctionLiteral* function,
                                         int* global_count) {
   // If it was not possible to allocate the variable at compile time, we
@@ -739,7 +739,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         Comment cmnt(masm_, "[ Declaration");
         VisitForAccumulatorValue(function);
         __ sw(result_register(), StackOperand(variable));
-      } else if (mode == Variable::CONST || mode == Variable::LET) {
+      } else if (mode == CONST || mode == LET) {
           Comment cmnt(masm_, "[ Declaration");
           __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
           __ sw(t0, StackOperand(variable));
@@ -775,7 +775,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
                                   EMIT_REMEMBERED_SET,
                                   OMIT_SMI_CHECK);
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
-      } else if (mode == Variable::CONST || mode == Variable::LET) {
+      } else if (mode == CONST || mode == LET) {
           Comment cmnt(masm_, "[ Declaration");
           __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
           __ sw(at, ContextOperand(cp, variable->index()));
@@ -788,10 +788,8 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       Comment cmnt(masm_, "[ Declaration");
       __ li(a2, Operand(variable->name()));
       // Declaration nodes are always introduced in one of three modes.
-      ASSERT(mode == Variable::VAR ||
-             mode == Variable::CONST ||
-             mode == Variable::LET);
-      PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
+      ASSERT(mode == VAR || mode == CONST || mode == LET);
+      PropertyAttributes attr = (mode == CONST) ? READ_ONLY : NONE;
       __ li(a1, Operand(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
@@ -801,7 +799,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         __ Push(cp, a2, a1);
         // Push initial value for function declaration.
         VisitForStackValue(function);
-      } else if (mode == Variable::CONST || mode == Variable::LET) {
+      } else if (mode == CONST || mode == LET) {
           __ LoadRoot(a0, Heap::kTheHoleValueRootIndex);
           __ Push(cp, a2, a1, a0);
       } else {
@@ -1223,17 +1221,25 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   // introducing variables.  In those cases, we do not want to
   // perform a runtime call for all variables in the scope
   // containing the eval.
-  if (var->mode() == Variable::DYNAMIC_GLOBAL) {
+  if (var->mode() == DYNAMIC_GLOBAL) {
     EmitLoadGlobalCheckExtensions(var, typeof_state, slow);
     __ Branch(done);
-  } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
+  } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ lw(v0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == CONST ||
+        local->mode() == LET) {
       __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
       __ subu(at, v0, at);  // Sub as compare: at == 0 on eq.
-      __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
-      __ movz(v0, a0, at);  // Conditional move: return Undefined if TheHole.
+      if (local->mode() == CONST) {
+        __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
+        __ movz(v0, a0, at);  // Conditional move: return Undefined if TheHole.
+      } else {  // LET
+        __ Branch(done, ne, at, Operand(zero_reg));
+        __ li(a0, Operand(var->name()));
+        __ push(a0);
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ Branch(done);
   }
@@ -1266,14 +1272,14 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, var->IsContextSlot()
                               ? "Context variable"
                               : "Stack variable");
-      if (var->mode() != Variable::LET && var->mode() != Variable::CONST) {
+      if (var->mode() != LET && var->mode() != CONST) {
         context()->Plug(var);
       } else {
         // Let and const need a read barrier.
         GetVar(v0, var);
         __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
         __ subu(at, v0, at);  // Sub as compare: at == 0 on eq.
-        if (var->mode() == Variable::LET) {
+        if (var->mode() == LET) {
           Label done;
           __ Branch(&done, ne, at, Operand(zero_reg));
           __ li(a0, Operand(var->name()));
@@ -1513,15 +1519,23 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForAccumulatorValue(subexpr);
 
     // Store the subexpression value in the array's elements.
-    __ lw(a1, MemOperand(sp));  // Copy of array literal.
-    __ lw(a1, FieldMemOperand(a1, JSObject::kElementsOffset));
+    __ lw(t6, MemOperand(sp));  // Copy of array literal.
+    __ lw(a1, FieldMemOperand(t6, JSObject::kElementsOffset));
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ sw(result_register(), FieldMemOperand(a1, offset));
 
+    Label no_map_change;
+    __ JumpIfSmi(result_register(), &no_map_change);
     // Update the write barrier for the array store with v0 as the scratch
     // register.
     __ RecordWriteField(
-        a1, offset, result_register(), a2, kRAHasBeenSaved, kDontSaveFPRegs);
+        a1, offset, result_register(), a2, kRAHasBeenSaved, kDontSaveFPRegs,
+        EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+    __ lw(a3, FieldMemOperand(a1, HeapObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(a3, a2, &no_map_change);
+    __ push(t6);  // Copy of array literal.
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
+    __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1873,7 +1887,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     }
 
-  } else if (var->mode() == Variable::LET && op != Token::INIT_LET) {
+  } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     if (var->IsLookupSlot()) {
       __ push(v0);  // Value.
@@ -1903,7 +1917,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
     }
 
-  } else if (var->mode() != Variable::CONST) {
+  } else if (var->mode() != CONST) {
     // Assignment to var or initializing assignment to let.
     if (var->IsStackAllocated() || var->IsContextSlot()) {
       MemOperand location = VarOperand(var, a1);
@@ -2194,7 +2208,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // context lookup in the runtime system.
       Label done;
       Variable* var = proxy->var();
-      if (!var->IsUnallocated() && var->mode() == Variable::DYNAMIC_GLOBAL) {
+      if (!var->IsUnallocated() && var->mode() == DYNAMIC_GLOBAL) {
         Label slow;
         EmitLoadGlobalCheckExtensions(var, NOT_INSIDE_TYPEOF, &slow);
         // Push the function and resolve eval.
@@ -2695,18 +2709,23 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
+  // Assume that there are only two callable types, and one of them is at
+  // either end of the type range for JS object types. Saves extra comparisons.
+  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
   __ GetObjectType(v0, v0, a1);  // Map is now in v0.
   __ Branch(&null, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
-  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
-  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
-  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
-  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
-  __ Branch(&function, ge, a1, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE));
+  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                FIRST_SPEC_OBJECT_TYPE + 1);
+  __ Branch(&function, eq, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-  // Check if the constructor in the map is a function.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_SPEC_OBJECT_TYPE - 1);
+  __ Branch(&function, eq, a1, Operand(LAST_SPEC_OBJECT_TYPE));
+  // Assume that there is no larger type.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
+
+  // Check if the constructor in the map is a JS function.
   __ lw(v0, FieldMemOperand(v0, Map::kConstructorOffset));
   __ GetObjectType(v0, a1, a1);
   __ Branch(&non_function_constructor, ne, a1, Operand(JS_FUNCTION_TYPE));
@@ -3193,10 +3212,16 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // pauses in the middle of scanning a single object.  Therefore the
   // incremental marker is not disturbed, so we don't need to call the
   // RecordWrite stub that notifies the incremental marker.
-  __ RememberedSetHelper(
-      index1, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
-  __ RememberedSetHelper(
-      index2, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(elements,
+                         index1,
+                         scratch2,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(elements,
+                         index2,
+                         scratch2,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
 
   __ bind(&no_remembered_set);
   // We are done. Drop elements from the stack, and return undefined.
@@ -4003,10 +4028,11 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(ne, a1, Operand(zero_reg), if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(v0, if_false);
-    __ GetObjectType(v0, a1, v0);  // Leave map in a1.
-    Split(ge, v0, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE),
-        if_true, if_false, fall_through);
-
+    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
+    __ GetObjectType(v0, v0, a1);
+    __ Branch(if_true, eq, a1, Operand(JS_FUNCTION_TYPE));
+    Split(eq, a1, Operand(JS_FUNCTION_PROXY_TYPE),
+          if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(v0, if_false);
     if (!FLAG_harmony_typeof) {

@@ -279,7 +279,8 @@ class MacroAssembler: public Assembler {
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register.  Only works if addr is not
   // in new space.
-  void RememberedSetHelper(Register addr,
+  void RememberedSetHelper(Register object,  // Used for debug code.
+                           Register addr,
                            Register scratch,
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
@@ -299,7 +300,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Check if object is in new space.  Jumps if the object is in new space.
-  // The register scratch can be object itself, but it will be clobbered.
+  // The register scratch can be object itself, but scratch will be clobbered.
   void JumpIfInNewSpace(Register object,
                         Register scratch,
                         Label* branch) {
@@ -868,6 +869,13 @@ class MacroAssembler: public Assembler {
                  Register length,
                  Register scratch);
 
+  // Initialize fields with filler values.  Fields starting at |start_offset|
+  // not including end_offset are overwritten with the value in |filler|.  At
+  // the end the loop, |start_offset| takes the value of |end_offset|.
+  void InitializeFieldsWithFiller(Register start_offset,
+                                  Register end_offset,
+                                  Register filler);
+
   // -------------------------------------------------------------------------
   // Support functions.
 
@@ -890,6 +898,31 @@ class MacroAssembler: public Assembler {
   void CheckFastElements(Register map,
                          Register scratch,
                          Label* fail);
+
+  // Check if a map for a JSObject indicates that the object can have both smi
+  // and HeapObject elements.  Jump to the specified label if it does not.
+  void CheckFastObjectElements(Register map,
+                               Register scratch,
+                               Label* fail);
+
+  // Check if a map for a JSObject indicates that the object has fast smi only
+  // elements.  Jump to the specified label if it does not.
+  void CheckFastSmiOnlyElements(Register map,
+                                Register scratch,
+                                Label* fail);
+
+  // Check to see if maybe_number can be stored as a double in
+  // FastDoubleElements. If it can, store it at the index specified by key in
+  // the FastDoubleElements array elements, otherwise jump to fail.
+  void StoreNumberToDoubleElements(Register value_reg,
+                                   Register key_reg,
+                                   Register receiver_reg,
+                                   Register elements_reg,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Register scratch3,
+                                   Register scratch4,
+                                   Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
@@ -1088,11 +1121,11 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, Register scratch, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
   void CallCFunction(ExternalReference function,
                      int num_reg_arguments,
                      int num_double_arguments);
-  void CallCFunction(Register function, Register scratch,
+  void CallCFunction(Register function,
                      int num_reg_arguments,
                      int num_double_arguments);
   void GetCFunctionDoubleResult(const DoubleRegister dst);
@@ -1316,8 +1349,6 @@ class MacroAssembler: public Assembler {
 
  private:
   void CallCFunctionHelper(Register function,
-                           ExternalReference function_reference,
-                           Register scratch,
                            int num_reg_arguments,
                            int num_double_arguments);
 

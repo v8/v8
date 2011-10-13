@@ -66,7 +66,7 @@ class StoreBufferOverflowStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool CompilingCallsToThisStubIsGCSafe() { return true; }
+  virtual bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -350,7 +350,7 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
     ASSERT(SignRegisterBits::is_valid(sign_.code()));
   }
 
-  bool CompilingCallsToThisStubIsGCSafe();
+  bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
 
  private:
@@ -363,13 +363,15 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
   class IntRegisterBits: public BitField<int, 0, 4> {};
   class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
+  class SignRegisterBits: public BitField<int, 12, 4> {};
 
   Major MajorKey() { return WriteInt32ToHeapNumber; }
   int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
     return IntRegisterBits::encode(the_int_.code())
            | HeapNumberRegisterBits::encode(the_heap_number_.code())
-           | ScratchRegisterBits::encode(scratch_.code());
+           | ScratchRegisterBits::encode(scratch_.code())
+           | SignRegisterBits::encode(sign_.code());
   }
 
   void Generate(MacroAssembler* masm);
@@ -425,7 +427,7 @@ class RecordWriteStub: public CodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool CompilingCallsToThisStubIsGCSafe();
+  virtual bool IsPregenerated();
   static void GenerateFixedRegStubsAheadOfTime();
   virtual bool SometimesSetsUpAFrame() { return false; }
 
