@@ -1593,7 +1593,7 @@ void KeyedIC::GetReceiverMapsForStub(Code* stub, MapList* result) {
         RelocInfo* info = it.rinfo();
         Object* object = info->target_object();
         ASSERT(object->IsMap());
-        result->Add(Map::cast(object));
+        AddOneReceiverMapIfMissing(result, Map::cast(object));
       }
     }
   }
@@ -1781,12 +1781,6 @@ Map* GetTransitionedMap(Map* map, MapList* maps_list) {
 MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     MapList* receiver_maps,
     StrictModeFlag strict_mode) {
-  // TODO(yangguo): <remove>
-  Code* generic_stub = (strict_mode == kStrictMode)
-      ? isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic_Strict)
-      : isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Generic);
-  // </remove>
-
   // Collect MONOMORPHIC stubs for all target_receiver_maps.
   CodeList handler_ics(receiver_maps->length());
   MapList transitioned_maps(receiver_maps->length());
@@ -1795,15 +1789,11 @@ MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     MaybeObject* maybe_cached_stub = NULL;
     Map* transitioned_map = GetTransitionedMap(receiver_map, receiver_maps);
     if (transitioned_map != NULL) {
-      // TODO(yangguo): Enable this code!
-      // maybe_cached_stub = FastElementsConversionStub(
-      //     receiver_map->elements_kind(),  // original elements_kind
-      //     transitioned_map->elements_kind(),
-      //     receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
-      //     strict_mode_).TryGetCode();
-      // TODO(yangguo): <remove>
-      maybe_cached_stub = generic_stub;
-      // </remove>
+      maybe_cached_stub = FastElementsConversionStub(
+          receiver_map->elements_kind(),  // original elements_kind
+          transitioned_map->elements_kind(),
+          receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
+          strict_mode).TryGetCode();
     } else {
       maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
           receiver_map, strict_mode);

@@ -69,7 +69,8 @@ namespace internal {
   V(KeyedLoadElement)                    \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryLookup)
+  V(StringDictionaryLookup)              \
+  V(FastElementsConversion)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -1023,6 +1024,47 @@ class ToBooleanStub: public CodeStub {
 
   Register tos_;
   Types types_;
+};
+
+
+class FastElementsConversionStub : public CodeStub {
+ public:
+  FastElementsConversionStub(ElementsKind from,
+                             ElementsKind to,
+                             bool is_jsarray,
+                             StrictModeFlag strict_mode)
+      : from_(from),
+        to_(to),
+        is_jsarray_(is_jsarray),
+        strict_mode_(strict_mode) {}
+
+ private:
+  class FromBits:       public BitField<ElementsKind,    0, 8> {};
+  class ToBits:         public BitField<ElementsKind,    8, 8> {};
+  class IsJSArrayBits:  public BitField<bool,           16, 8> {};
+  class StrictModeBits: public BitField<StrictModeFlag, 24, 8> {};
+
+  Major MajorKey() { return FastElementsConversion; }
+  int MinorKey() {
+    return FromBits::encode(from_) |
+        ToBits::encode(to_) |
+        IsJSArrayBits::encode(is_jsarray_) |
+        StrictModeBits::encode(strict_mode_);
+  }
+
+  void Generate(MacroAssembler* masm);
+  static void GenerateSmiOnlyToObject(MacroAssembler* masm);
+  static void GenerateSmiOnlyToDouble(MacroAssembler* masm,
+                                      StrictModeFlag strict_mode);
+  static void GenerateDoubleToObject(MacroAssembler* masm,
+                                     StrictModeFlag strict_mode);
+
+  ElementsKind from_;
+  ElementsKind to_;
+  bool is_jsarray_;
+  StrictModeFlag strict_mode_;
+
+  DISALLOW_COPY_AND_ASSIGN(FastElementsConversionStub);
 };
 
 } }  // namespace v8::internal

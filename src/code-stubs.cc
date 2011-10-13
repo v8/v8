@@ -415,4 +415,28 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 }
 
 
+void FastElementsConversionStub::Generate(MacroAssembler* masm) {
+#if defined(V8_TARGET_ARCH_IA32)
+  if (to_ == FAST_ELEMENTS) {
+    if (from_ == FAST_SMI_ONLY_ELEMENTS) {
+      GenerateSmiOnlyToObject(masm);
+    } else if (from_ == FAST_DOUBLE_ELEMENTS) {
+      GenerateDoubleToObject(masm, strict_mode_);
+    } else {
+      UNREACHABLE();
+    }
+    KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
+                                                     is_jsarray_,
+                                                     FAST_ELEMENTS);
+  } else if (from_ == FAST_SMI_ONLY_ELEMENTS && to_ == FAST_DOUBLE_ELEMENTS) {
+    GenerateSmiOnlyToDouble(masm, strict_mode_);
+    KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm, is_jsarray_);
+  } else {
+    UNREACHABLE();
+  }
+#else
+  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode_);
+#endif  // V8_TARGET_ARCH_IA32
+}
+
 } }  // namespace v8::internal
