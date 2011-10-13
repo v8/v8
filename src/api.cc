@@ -3961,6 +3961,15 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
+  if (!i::Isolate::Current()->IsInitialized()) {
+    // Isolate is unitialized thus heap is not configured yet.
+    heap_statistics->set_total_heap_size(0);
+    heap_statistics->set_total_heap_size_executable(0);
+    heap_statistics->set_used_heap_size(0);
+    heap_statistics->set_heap_size_limit(0);
+    return;
+  }
+
   i::Heap* heap = i::Isolate::Current()->heap();
   heap_statistics->set_total_heap_size(heap->CommittedMemory());
   heap_statistics->set_total_heap_size_executable(
