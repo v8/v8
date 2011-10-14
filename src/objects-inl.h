@@ -1755,7 +1755,11 @@ void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
                 old_length * kDoubleSize);
   } else {
     for (int i = 0; i < old_length; ++i) {
-      set(i, from->get_scalar(i));
+      if (from->is_the_hole(i)) {
+        set_the_hole(i);
+      } else {
+        set(i, from->get_scalar(i));
+      }
     }
   }
   int offset = kHeaderSize + old_length * kDoubleSize;

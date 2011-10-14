@@ -1753,6 +1753,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
           value->AsCall() == NULL &&
           value->AsCallNew() == NULL) {
         fni_->Infer();
+      } else {
+        fni_->RemoveLastFunction();
       }
     }
 
@@ -2503,6 +2505,8 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
          || op == Token::ASSIGN)
         && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
       fni_->Infer();
+    } else {
+      fni_->RemoveLastFunction();
     }
     fni_->Leave();
   }
