@@ -912,11 +912,12 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
+  bool TryLiteralCompare(CompareOperation* expr);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
-                                  HTypeof* typeof_expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
   void HandleLiteralCompareNil(CompareOperation* expr,
-                               HValue* value,
+                               Expression* sub_expr,
                                NilValue nil);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
