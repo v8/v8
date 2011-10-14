@@ -5196,7 +5196,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
   Handle<Script> script = info->script();
   bool harmony_scoping = !info->is_native() && FLAG_harmony_scoping;
   if (info->is_lazy()) {
-    Parser parser(script, true, NULL, NULL);
+    Parser parser(script, info->isolate()->bootstrapper()->IsActive() || info->allows_natives_syntax(), NULL, NULL);
     parser.SetHarmonyScoping(harmony_scoping);
     result = parser.ParseLazy(info);
   } else {
