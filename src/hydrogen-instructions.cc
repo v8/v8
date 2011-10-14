@@ -783,8 +783,7 @@ void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
 
 void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" == ");
-  stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
+  stream->Add(" == %o", *type_literal_);
   HControlInstruction::PrintDataTo(stream);
 }
 
