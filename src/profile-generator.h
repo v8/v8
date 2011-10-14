@@ -584,6 +584,8 @@ class HeapEntry BASE_EMBEDDED {
 
   void Print(int max_depth, int indent);
 
+  Handle<HeapObject> GetHeapObject();
+
   static int EntriesSize(int entries_count,
                          int children_count,
                          int retainers_count);
@@ -762,6 +764,7 @@ class HeapSnapshotsCollection {
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
   uint64_t GetObjectId(Address addr) { return ids_.FindObject(addr); }
+  Handle<HeapObject> FindHeapObjectById(uint64_t id);
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
 
  private:
