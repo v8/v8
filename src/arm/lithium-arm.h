@@ -1260,7 +1260,6 @@ class LStoreContextSlot: public LTemplateInstruction<0, 2, 0> {
   LOperand* context() { return InputAt(0); }
   LOperand* value() { return InputAt(1); }
   int slot_index() { return hydrogen()->slot_index(); }
-  int needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1561,7 +1560,6 @@ class LStoreNamedField: public LTemplateInstruction<0, 2, 0> {
   Handle<Object> name() const { return hydrogen()->name(); }
   bool is_in_object() { return hydrogen()->is_in_object(); }
   int offset() { return hydrogen()->offset(); }
-  bool needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
   Handle<Map> transition() const { return hydrogen()->transition(); }
 };
 

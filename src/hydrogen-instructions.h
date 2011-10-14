@@ -397,6 +397,11 @@ class HType {
     return type_ == kUninitialized;
   }
 
+  bool IsHeapObject() {
+    ASSERT(type_ != kUninitialized);
+    return IsHeapNumber() || IsString() || IsNonPrimitive();
+  }
+
   static HType TypeFromValue(Handle<Object> value);
 
   const char* ToString();
@@ -1101,12 +1106,14 @@ class HChange: public HUnaryOperation {
     ASSERT(!value->representation().IsNone() && !to.IsNone());
     ASSERT(!value->representation().Equals(to));
     set_representation(to);
+    set_type(HType::TaggedNumber());
     SetFlag(kUseGVN);
     if (deoptimize_on_undefined) SetFlag(kDeoptimizeOnUndefined);
     if (is_truncating) SetFlag(kTruncatingToInt32);
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+  virtual HType CalculateInferredType();
 
   Representation from() { return value()->representation(); }
   Representation to() { return representation(); }
@@ -3260,6 +3267,13 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
+static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+  return !value->type().IsBoolean()
+      && !value->type().IsSmi()
+      && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
+}
+
+
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
@@ -3274,6 +3288,9 @@ class HStoreGlobalCell: public HUnaryOperation {
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
   bool RequiresHoleCheck() {
     return !details_.IsDontDelete() || details_.IsReadOnly();
+  }
+  bool NeedsWriteBarrier() {
+    return StoringValueNeedsWriteBarrier(value());
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3353,13 +3370,6 @@ class HLoadContextSlot: public HUnaryOperation {
  private:
   int slot_index_;
 };
-
-
-static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  return !value->type().IsBoolean()
-      && !value->type().IsSmi()
-      && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
-}
 
 
 class HStoreContextSlot: public HTemplateInstruction<2> {
@@ -3948,7 +3958,7 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
   HStringCharFromCode(HValue* context, HValue* char_code) {
     SetOperandAt(0, context);
     SetOperandAt(1, char_code);
-     set_representation(Representation::Tagged());
+    set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
 
@@ -3957,6 +3967,7 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
         ? Representation::Tagged()
         : Representation::Integer32();
   }
+  virtual HType CalculateInferredType();
 
   HValue* context() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
@@ -4034,6 +4045,7 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(ArrayLiteral)
 
@@ -4068,6 +4080,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral)
 
@@ -4097,6 +4110,7 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral)
 
@@ -4121,6 +4135,7 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
 

@@ -2116,12 +2116,18 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   __ mov(FieldOperand(object, offset), value);
 
   // Cells are always in the remembered set.
-  __ RecordWriteField(object,
-                      offset,
-                      value,
-                      address,
-                      kSaveFPRegs,
-                      OMIT_REMEMBERED_SET);
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    HType type = instr->hydrogen()->value()->type();
+    SmiCheck check_needed =
+        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+    __ RecordWriteField(object,
+                        offset,
+                        value,
+                        address,
+                        kSaveFPRegs,
+                        OMIT_REMEMBERED_SET,
+                        check_needed);
+  }
 }
 
 
@@ -2149,10 +2155,19 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
   __ mov(ContextOperand(context, instr->slot_index()), value);
-  if (instr->needs_write_barrier()) {
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    HType type = instr->hydrogen()->value()->type();
+    SmiCheck check_needed =
+        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     Register temp = ToRegister(instr->TempAt(0));
     int offset = Context::SlotOffset(instr->slot_index());
-    __ RecordWriteContextSlot(context, offset, value, temp, kSaveFPRegs);
+    __ RecordWriteContextSlot(context,
+                              offset,
+                              value,
+                              temp,
+                              kSaveFPRegs,
+                              EMIT_REMEMBERED_SET,
+                              check_needed);
   }
 }
 
@@ -3146,21 +3161,36 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   }
 
   // Do the store.
+  HType type = instr->hydrogen()->value()->type();
+  SmiCheck check_needed =
+      type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
   if (instr->is_in_object()) {
     __ mov(FieldOperand(object, offset), value);
-    if (instr->needs_write_barrier()) {
+    if (instr->hydrogen()->NeedsWriteBarrier()) {
       Register temp = ToRegister(instr->TempAt(0));
       // Update the write barrier for the object for in-object properties.
-      __ RecordWriteField(object, offset, value, temp, kSaveFPRegs);
+      __ RecordWriteField(object,
+                          offset,
+                          value,
+                          temp,
+                          kSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          check_needed);
     }
   } else {
     Register temp = ToRegister(instr->TempAt(0));
     __ mov(temp, FieldOperand(object, JSObject::kPropertiesOffset));
     __ mov(FieldOperand(temp, offset), value);
-    if (instr->needs_write_barrier()) {
+    if (instr->hydrogen()->NeedsWriteBarrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
-      __ RecordWriteField(temp, offset, value, object, kSaveFPRegs);
+      __ RecordWriteField(temp,
+                          offset,
+                          value,
+                          object,
+                          kSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          check_needed);
     }
   }
 }
@@ -3259,13 +3289,21 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
+    HType type = instr->hydrogen()->value()->type();
+    SmiCheck check_needed =
+        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     __ lea(key,
            FieldOperand(elements,
                         key,
                         times_pointer_size,
                         FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value, kSaveFPRegs);
+    __ RecordWrite(elements,
+                   key,
+                   value,
+                   kSaveFPRegs,
+                   EMIT_REMEMBERED_SET,
+                   check_needed);
   }
 }
 
@@ -4247,12 +4285,11 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
   Label* true_label = chunk_->GetAssemblyLabel(true_block);
   Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-  Condition final_branch_condition = EmitTypeofIs(true_label,
-                                                  false_label,
-                                                  input,
-                                                  instr->type_literal());
-
-  EmitBranch(true_block, false_block, final_branch_condition);
+  Condition final_branch_condition =
+      EmitTypeofIs(true_label, false_label, input, instr->type_literal());
+  if (final_branch_condition != no_condition) {
+    EmitBranch(true_block, false_block, final_branch_condition);
+  }
 }
 
 
@@ -4319,11 +4356,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = zero;
 
   } else {
-    final_branch_condition = not_equal;
     __ jmp(false_label);
-    // A dead branch instruction will be generated after this point.
   }
-
   return final_branch_condition;
 }
 

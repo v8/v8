@@ -1746,6 +1746,12 @@ HType HInstanceOfKnownGlobal::CalculateInferredType() {
 }
 
 
+HType HChange::CalculateInferredType() {
+  if (from().IsDouble() && to().IsTagged()) return HType::HeapNumber();
+  return type();
+}
+
+
 HType HBitwiseBinaryOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
@@ -1798,6 +1804,31 @@ HType HShr::CalculateInferredType() {
 
 HType HSar::CalculateInferredType() {
   return HType::TaggedNumber();
+}
+
+
+HType HStringCharFromCode::CalculateInferredType() {
+  return HType::String();
+}
+
+
+HType HArrayLiteral::CalculateInferredType() {
+  return HType::JSArray();
+}
+
+
+HType HObjectLiteral::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
+HType HRegExpLiteral::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
+HType HFunctionLiteral::CalculateInferredType() {
+  return HType::JSObject();
 }
 
 
