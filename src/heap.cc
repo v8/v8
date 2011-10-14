@@ -3695,6 +3695,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   int object_size = map->instance_size();
   Object* clone;
 
+  WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
+
   // If we're forced to always allocate, we use the general allocation
   // functions which may leave us with an object in old space.
   if (always_allocate()) {
@@ -3711,6 +3713,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
                  JSObject::kHeaderSize,
                  (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
+    wb_mode = SKIP_WRITE_BARRIER;
     { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
@@ -3739,7 +3742,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
       }
       if (!maybe_elem->ToObject(&elem)) return maybe_elem;
     }
-    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem));
+    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
@@ -3747,7 +3750,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     { MaybeObject* maybe_prop = CopyFixedArray(properties);
       if (!maybe_prop->ToObject(&prop)) return maybe_prop;
     }
-    JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
+    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
   }
   // Return the new clone.
   return clone;
