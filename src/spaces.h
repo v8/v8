@@ -2096,10 +2096,9 @@ class NewSpace : public Space {
     return Capacity();
   }
 
-  // Return the available bytes without growing or switching page in the
-  // active semispace.
+  // Return the available bytes without growing.
   intptr_t Available() {
-    return allocation_info_.limit - allocation_info_.top;
+    return Capacity() - Size();
   }
 
   // Return the maximum capacity of a semispace.
