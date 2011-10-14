@@ -4539,9 +4539,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  CompilationInfo* outer_info = info();
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.
+  CompilationInfo* outer_info = info();
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
@@ -4564,9 +4564,13 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // Don't inline recursive functions.
-  if (*target_shared == outer_info->closure()->shared()) {
-    TraceInline(target, caller, "target is recursive");
-    return false;
+  for (FunctionState* state = function_state();
+       state != NULL;
+       state = state->outer()) {
+    if (state->compilation_info()->closure()->shared() == *target_shared) {
+      TraceInline(target, caller, "target is recursive");
+      return false;
+    }
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
@@ -5071,18 +5075,25 @@ void HGraphBuilder::VisitCall(Call* expr) {
         // The function is lingering in the deoptimization environment.
         // Handle it by case analysis on the AST context.
         if (ast_context()->IsEffect()) {
+          if (current_block() == NULL) return;
+          ASSERT(Top() == function);
           Drop(1);
         } else if (ast_context()->IsValue()) {
+          if (current_block() == NULL) return;
           HValue* result = Pop();
+          ASSERT(Top() == function);
           Drop(1);
           Push(result);
         } else if (ast_context()->IsTest()) {
+          ASSERT(current_block() == NULL);
           TestContext* context = TestContext::cast(ast_context());
-          if (context->if_true()->HasPredecessor()) {
+          if (context->if_true()->HasPredecessor() &&
+              context->if_true()->last_environment()->Top() == function) {
             context->if_true()->last_environment()->Drop(1);
           }
-          if (context->if_false()->HasPredecessor()) {
-            context->if_true()->last_environment()->Drop(1);
+          if (context->if_false()->HasPredecessor() &&
+              context->if_false()->last_environment()->Top() == function) {
+            context->if_false()->last_environment()->Drop(1);
           }
         } else {
           UNREACHABLE();
@@ -5302,7 +5313,6 @@ void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
 
 
 void HGraphBuilder::VisitNot(UnaryOperation* expr) {
-  // TODO(svenpanne) Perhaps a switch/virtual function is nicer here.
   if (ast_context()->IsTest()) {
     TestContext* context = TestContext::cast(ast_context());
     VisitForControl(expr->expression(),
