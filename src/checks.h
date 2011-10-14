@@ -257,8 +257,11 @@ template <int> class StaticAssertionHelper { };
     SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__)
 
 
-extern bool FLAG_enable_slow_asserts;
+namespace v8 { namespace internal {
 
+bool EnableSlowAsserts();
+
+} }  // namespace v8::internal
 
 // The ASSERT macro is equivalent to CHECK except that it only
 // generates code in debug builds.
@@ -270,7 +273,7 @@ extern bool FLAG_enable_slow_asserts;
 #define ASSERT_GE(v1, v2)    CHECK_GE(v1, v2)
 #define ASSERT_LT(v1, v2)    CHECK_LT(v1, v2)
 #define ASSERT_LE(v1, v2)    CHECK_LE(v1, v2)
-#define SLOW_ASSERT(condition) if (FLAG_enable_slow_asserts) CHECK(condition)
+#define SLOW_ASSERT(condition) if (EnableSlowAsserts()) CHECK(condition)
 #else
 #define ASSERT_RESULT(expr)     (expr)
 #define ASSERT(condition)      ((void) 0)
