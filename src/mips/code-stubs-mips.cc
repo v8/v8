@@ -6889,7 +6889,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // The saved ra is after the reserved stack space for the 4 args.
   __ lw(t9, MemOperand(sp, kCArgsSlotsSize));
 
-  if (FLAG_debug_code && EnableSlowAsserts()) {
+  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC.
     // Dereference the address and check for this.
