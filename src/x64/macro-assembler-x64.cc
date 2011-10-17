@@ -354,8 +354,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(value, Immediate(BitCast<int64_t>(kZapValue)));
-    movq(index, Immediate(BitCast<int64_t>(kZapValue)));
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
