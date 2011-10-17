@@ -312,6 +312,7 @@ PreParser::Statement PreParser::ParseVariableStatement(
 
   Statement result = ParseVariableDeclarations(var_context,
                                                NULL,
+                                               NULL,
                                                CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
@@ -325,6 +326,7 @@ PreParser::Statement PreParser::ParseVariableStatement(
 // of 'for-in' loops.
 PreParser::Statement PreParser::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
+    VariableDeclarationProperties* decl_props,
     int* num_decl,
     bool* ok) {
   // VariableDeclarations ::
@@ -375,6 +377,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     if (peek() == i::Token::ASSIGN) {
       Expect(i::Token::ASSIGN, CHECK_OK);
       ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
+      if (decl_props != NULL) *decl_props = kHasInitializers;
     }
   } while (peek() == i::Token::COMMA);
 
@@ -569,9 +572,14 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   if (peek() != i::Token::SEMICOLON) {
     if (peek() == i::Token::VAR || peek() == i::Token::CONST ||
         peek() == i::Token::LET) {
+      bool is_let = peek() == i::Token::LET;
       int decl_count;
-      ParseVariableDeclarations(kForStatement, &decl_count, CHECK_OK);
-      if (peek() == i::Token::IN && decl_count == 1) {
+      VariableDeclarationProperties decl_props = kHasNoInitializers;
+      ParseVariableDeclarations(
+          kForStatement, &decl_props, &decl_count, CHECK_OK);
+      bool accept_IN = decl_count == 1 &&
+          !(is_let && decl_props == kHasInitializers);
+      if (peek() == i::Token::IN && accept_IN) {
         Expect(i::Token::IN, CHECK_OK);
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RPAREN, CHECK_OK);

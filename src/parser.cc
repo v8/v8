@@ -1631,6 +1631,7 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
 
   Handle<String> ignore;
   Block* result = ParseVariableDeclarations(var_context,
+                                            NULL,
                                             &ignore,
                                             CHECK_OK);
   ExpectSemicolon(CHECK_OK);
@@ -1649,9 +1650,11 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 // *var is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is used for the parsing
 // of 'for-in' loops.
-Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                         Handle<String>* out,
-                                         bool* ok) {
+Block* Parser::ParseVariableDeclarations(
+    VariableDeclarationContext var_context,
+    VariableDeclarationProperties* decl_props,
+    Handle<String>* out,
+    bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
@@ -1789,6 +1792,7 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       } else {
         fni_->RemoveLastFunction();
       }
+      if (decl_props != NULL) *decl_props = kHasInitializers;
     }
 
     // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
@@ -2369,13 +2373,21 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
   Statement* init = NULL;
 
+  // Create an in-between scope for let-bound iteration variables.
+  Scope* saved_scope = top_scope_;
+  Scope* for_scope = NewScope(top_scope_, Scope::BLOCK_SCOPE);
+  if (top_scope_->is_strict_mode()) {
+    for_scope->EnableStrictMode();
+  }
+  top_scope_ = for_scope;
+
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       Handle<String> name;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, NULL, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
         VariableProxy* each = top_scope_->NewUnresolved(name);
@@ -2391,12 +2403,71 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Block* result = new(zone()) Block(isolate(), NULL, 2, false);
         result->AddStatement(variable_statement);
         result->AddStatement(loop);
+        top_scope_ = saved_scope;
+        for_scope = for_scope->FinalizeBlockScope();
+        ASSERT(for_scope == NULL);
         // Parsed for-in loop w/ variable/const declaration.
         return result;
       } else {
         init = variable_statement;
       }
+    } else if (peek() == Token::LET) {
+      Handle<String> name;
+      VariableDeclarationProperties decl_props = kHasNoInitializers;
+      Block* variable_statement =
+          ParseVariableDeclarations(kForStatement,
+                                    &decl_props,
+                                    &name,
+                                    CHECK_OK);
+      bool accept_IN = !name.is_null() && decl_props != kHasInitializers;
+      if (peek() == Token::IN && accept_IN) {
+        // Rewrite a for-in statement of the form
+        //
+        //   for (let x in e) b
+        //
+        // into
+        //
+        //   <let x' be a temporary variable>
+        //   for (x' in e) {
+        //     let x;
+        //     x = x';
+        //     b;
+        //   }
 
+        // TODO(keuchel): Move the temporary variable to the block scope, after
+        // implementing stack allocated block scoped variables.
+        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
+        VariableProxy* temp_proxy = new(zone()) VariableProxy(isolate(), temp);
+        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
+        ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
+        Target target(&this->target_stack_, loop);
+
+        Expect(Token::IN, CHECK_OK);
+        Expression* enumerable = ParseExpression(true, CHECK_OK);
+        Expect(Token::RPAREN, CHECK_OK);
+
+        Statement* body = ParseStatement(NULL, CHECK_OK);
+        Block* body_block = new(zone()) Block(isolate(), NULL, 3, false);
+        Assignment* assignment = new(zone()) Assignment(isolate(),
+                                                        Token::ASSIGN,
+                                                        each,
+                                                        temp_proxy,
+                                                        RelocInfo::kNoPosition);
+        Statement* assignment_statement =
+            new(zone()) ExpressionStatement(assignment);
+        body_block->AddStatement(variable_statement);
+        body_block->AddStatement(assignment_statement);
+        body_block->AddStatement(body);
+        loop->Initialize(temp_proxy, enumerable, body_block);
+        top_scope_ = saved_scope;
+        for_scope = for_scope->FinalizeBlockScope();
+        body_block->set_block_scope(for_scope);
+        // Parsed for-in loop w/ let declaration.
+        return loop;
+
+      } else {
+        init = variable_statement;
+      }
     } else {
       Expression* expression = ParseExpression(false, CHECK_OK);
       if (peek() == Token::IN) {
@@ -2418,6 +2489,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
+        top_scope_ = saved_scope;
+        for_scope = for_scope->FinalizeBlockScope();
+        ASSERT(for_scope == NULL);
         // Parsed for-in loop.
         return loop;
 
@@ -2448,8 +2522,30 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::RPAREN, CHECK_OK);
 
   Statement* body = ParseStatement(NULL, CHECK_OK);
-  if (loop) loop->Initialize(init, cond, next, body);
-  return loop;
+  top_scope_ = saved_scope;
+  for_scope = for_scope->FinalizeBlockScope();
+  if (for_scope != NULL) {
+    // Rewrite a for statement of the form
+    //
+    //   for (let x = i; c; n) b
+    //
+    // into
+    //
+    //   {
+    //     let x = i;
+    //     for (; c; n) b
+    //   }
+    ASSERT(init != NULL);
+    Block* result = new(zone()) Block(isolate(), NULL, 2, false);
+    result->AddStatement(init);
+    result->AddStatement(loop);
+    result->set_block_scope(for_scope);
+    if (loop) loop->Initialize(NULL, cond, next, body);
+    return result;
+  } else {
+    if (loop) loop->Initialize(init, cond, next, body);
+    return loop;
+  }
 }
 
 

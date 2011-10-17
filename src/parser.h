@@ -460,6 +460,12 @@ class Parser {
     kForStatement
   };
 
+  // If a list of variable declarations includes any initializers.
+  enum VariableDeclarationProperties {
+    kHasInitializers,
+    kHasNoInitializers
+  };
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() { return isolate_->zone(); }
 
@@ -497,6 +503,7 @@ class Parser {
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                   VariableDeclarationProperties* decl_props,
                                    Handle<String>* out,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,

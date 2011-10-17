@@ -179,6 +179,12 @@ class PreParser {
     kForStatement
   };
 
+  // If a list of variable declarations includes any initializers.
+  enum VariableDeclarationProperties {
+    kHasInitializers,
+    kHasNoInitializers
+  };
+
   class Expression;
 
   class Identifier {
@@ -493,6 +499,7 @@ class PreParser {
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                      VariableDeclarationProperties* decl_props,
                                       int* num_decl,
                                       bool* ok);
   Statement ParseExpressionOrLabelledStatement(bool* ok);
