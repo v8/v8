@@ -190,33 +190,15 @@ assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
     utf.substring(5,1) + utf.substring(3,7));
 
 // Externalizing strings.
-seq = "123456789qwertyuiopasdfghjklzxcvbnm";
-cons = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
-check = "23456789qwertyuiopasdfghjklzxcvbn";
+var a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
+var b = "23456789qwertyuiopasdfghjklzxcvbn"
+assertEquals(a.slice(1,-1), b);
 
-// Externalizing a sequential string changes its encoding from ascii to
-// two-byte.  The encoding of the sliced string must reflect this change too.
-slice = seq.slice(1,-1);
-assertEquals(check, slice);
+assertTrue(isAsciiString(a));
+externalizeString(a, true);
+assertFalse(isAsciiString(a));
 
-// Seq strings can only be externalized once across multiple stress-opt runs.
-if (isAsciiString(seq)) externalizeString(seq, true);
-assertFalse(isAsciiString(seq));
-assertFalse(isAsciiString(slice));
-
-assertEquals(check, seq.slice(1,-1));
-assertEquals(check, slice);
-assertTrue(/3456789qwe/.test(seq));
-assertEquals(5, seq.indexOf("678"));
-assertEquals("12345", seq.split("6")[0]);
-
-// Externalizing a cons string changes its encoding from ascii to two-byte,
-// but the slice depending on the cons string does not, as it still points to
-// the original cons string.
-slice = cons.slice(1,-1);
-assertEquals(check, slice);
-
-assertTrue(isAsciiString(cons));
-externalizeString(cons, true);
-assertFalse(isAsciiString(cons));
-assertTrue(isAsciiString(slice));
+assertEquals(a.slice(1,-1), b);
+assertTrue(/3456789qwe/.test(a));
+assertEquals(5, a.indexOf("678"));
+assertEquals("12345", a.split("6")[0]);
