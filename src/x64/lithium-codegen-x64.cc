@@ -1979,9 +1979,6 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = TokenToCondition(op, false);
-  if (op == Token::GT || op == Token::LTE) {
-    condition = ReverseCondition(condition);
-  }
   Label true_value, done;
   __ testq(rax, rax);
   __ j(condition, &true_value, Label::kNear);

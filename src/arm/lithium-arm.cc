@@ -1404,12 +1404,10 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
-  Token::Value op = instr->token();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
-  bool reversed = (op == Token::GT || op == Token::LTE);
-  LOperand* left = UseFixed(instr->left(), reversed ? r0 : r1);
-  LOperand* right = UseFixed(instr->right(), reversed ? r1 : r0);
+  LOperand* left = UseFixed(instr->left(), r1);
+  LOperand* right = UseFixed(instr->right(), r0);
   LCmpT* result = new LCmpT(left, right);
   return MarkAsCall(DefineFixed(result, r0), instr);
 }

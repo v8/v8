@@ -43,19 +43,6 @@ S8.7_A5_T2: FAIL
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
 S10.4.2.1_A1: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1752
-S11.8.2_A2.3_T1: FAIL
-S11.8.3_A2.3_T1: FAIL
-11.8.2-1: FAIL
-11.8.2-2: FAIL
-11.8.2-3: FAIL
-11.8.2-4: FAIL
-11.8.3-1: FAIL
-11.8.3-2: FAIL
-11.8.3-3: FAIL
-11.8.3-4: FAIL
-11.8.3-5: FAIL
-
 # V8 Bug.
 S13.2.3_A1: FAIL
 

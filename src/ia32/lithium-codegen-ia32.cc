@@ -2029,9 +2029,6 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = ComputeCompareCondition(op);
-  if (op == Token::GT || op == Token::LTE) {
-    condition = ReverseCondition(condition);
-  }
   Label true_value, done;
   __ test(eax, Operand(eax));
   __ j(condition, &true_value, Label::kNear);

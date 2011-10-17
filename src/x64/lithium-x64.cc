@@ -1396,12 +1396,10 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
-  Token::Value op = instr->token();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
-  bool reversed = (op == Token::GT || op == Token::LTE);
-  LOperand* left = UseFixed(instr->left(), reversed ? rax : rdx);
-  LOperand* right = UseFixed(instr->right(), reversed ? rdx : rax);
+  LOperand* left = UseFixed(instr->left(), rdx);
+  LOperand* right = UseFixed(instr->right(), rax);
   LCmpT* result = new LCmpT(left, right);
   return MarkAsCall(DefineFixed(result, rax), instr);
 }

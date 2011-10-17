@@ -4147,33 +4147,25 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         case Token::EQ_STRICT:
         case Token::EQ:
           cc = equal;
-          __ pop(edx);
           break;
         case Token::LT:
           cc = less;
-          __ pop(edx);
           break;
         case Token::GT:
-          // Reverse left and right sizes to obtain ECMA-262 conversion order.
-          cc = less;
-          __ mov(edx, result_register());
-          __ pop(eax);
+          cc = greater;
          break;
         case Token::LTE:
-          // Reverse left and right sizes to obtain ECMA-262 conversion order.
-          cc = greater_equal;
-          __ mov(edx, result_register());
-          __ pop(eax);
+          cc = less_equal;
           break;
         case Token::GTE:
           cc = greater_equal;
-          __ pop(edx);
           break;
         case Token::IN:
         case Token::INSTANCEOF:
         default:
           UNREACHABLE();
       }
+      __ pop(edx);
       decrement_stack_height();
 
       bool inline_smi_code = ShouldInlineSmiCase(op);

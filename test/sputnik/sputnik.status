@@ -162,6 +162,10 @@ S11.1.5_A4.2: FAIL_OK
 S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
+# The expected evaluation order of comparison operations changed.
+S11.8.2_A2.3_T1: FAIL_OK
+S11.8.3_A2.3_T1: FAIL_OK
+
 # Calls builtins without an explicit receiver which means that
 # undefined is passed to the builtin. The tests expect the global
 # object to be passed which was true in ES3 but not in ES5.

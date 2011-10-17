@@ -2176,9 +2176,6 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   __ cmp(r0, Operand(0));  // This instruction also signals no smi code inlined.
 
   Condition condition = ComputeCompareCondition(op);
-  if (op == Token::GT || op == Token::LTE) {
-    condition = ReverseCondition(condition);
-  }
   __ LoadRoot(ToRegister(instr->result()),
               Heap::kTrueValueRootIndex,
               condition);
