@@ -93,24 +93,15 @@ function f() {
   {
     function g1() { }
   }
-  // Non-strict statement positions.
-  if (true) function g2() { }
-  if (true) {} else function g3() { }
-  do function g4() { } while (false)
-  while (false) function g5() { }
-  label: function g6() { }
-  for (;false;) function g7() { }
-  switch (true) { case true: function g8() { } }
-  switch (true) { default: function g9() { } }
 }
 f();
 
 // Test function declarations in statement position in strict mode.
-TestLocalThrows("function f() { 'use strict'; if (true) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; if (true) {} else function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; do function g() {} while (false)", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; while (false) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; label: function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; for (;false;) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; switch (true) { case true: function g() {} }", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; switch (true) { default: function g() {} }", SyntaxError);
+TestLocalThrows("function f() { if (true) function g() {}", SyntaxError);
+TestLocalThrows("function f() { if (true) {} else function g() {}", SyntaxError);
+TestLocalThrows("function f() { do function g() {} while (false)", SyntaxError);
+TestLocalThrows("function f() { while (false) function g() {}", SyntaxError);
+TestLocalThrows("function f() { label: function g() {}", SyntaxError);
+TestLocalThrows("function f() { for (;false;) function g() {}", SyntaxError);
+TestLocalThrows("function f() { switch (true) { case true: function g() {} }", SyntaxError);
+TestLocalThrows("function f() { switch (true) { default: function g() {} }", SyntaxError);

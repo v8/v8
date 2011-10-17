@@ -240,7 +240,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       i::Scanner::Location start_location = scanner_->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
       i::Scanner::Location end_location = scanner_->location();
-      if (strict_mode()) {
+      if (strict_mode() || harmony_scoping_) {
         ReportMessageAt(start_location.beg_pos, end_location.end_pos,
                         "strict_function", NULL);
         *ok = false;

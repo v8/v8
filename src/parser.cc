@@ -1334,7 +1334,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       //    FunctionDeclaration
       // Common language extension is to allow function declaration in place
       // of any statement. This language extension is disabled in strict mode.
-      if (top_scope_->is_strict_mode()) {
+      if (top_scope_->is_strict_mode() || harmony_scoping_) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
         *ok = false;
