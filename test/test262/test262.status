@@ -128,6 +128,12 @@ S15.3.3.1_A4: FAIL
 15.2.3.7-6-a-176: FAIL
 15.2.3.7-6-a-177: FAIL
 
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=893
+15.3.4.5-20-2: FAIL
+15.3.4.5-20-3: FAIL
+15.3.4.5-21-2: FAIL
+15.3.4.5-21-3: FAIL
+
 # Invalid test cases (recent change adding var changes semantics)
 S8.3_A1_T1: FAIL
 S15.3_A3_T1: FAIL
@@ -572,18 +578,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Strict Mode - 'this' value is a boolean which cannot be converted to
 #      wrapper objects when the function is called with an array of arguments
 15.3.4.3-3-s: FAIL
-# Bug? Function.prototype.bind - [[Get]] attribute of 'caller' property in 'F'
-#      is thrower
-15.3.4.5-20-2: FAIL
-# Bug? Function.prototype.bind - [[Set]] attribute of 'caller' property in 'F'
-#      is thrower
-15.3.4.5-20-3: FAIL
-# Bug? Function.prototype.bind - [[Get]] attribute of 'arguments' property in
-#      'F' is thrower
-15.3.4.5-21-2: FAIL
-# Bug? Function.prototype.bind - [[Set]] attribute of 'arguments' property in
-#      'F' is thrower
-15.3.4.5-21-3: FAIL
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
