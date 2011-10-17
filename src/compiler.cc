@@ -480,20 +480,22 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
     ScriptDataImpl* pre_data = input_pre_data;
-    bool harmony_scoping = natives != NATIVES_CODE && FLAG_harmony_scoping;
+    int flags = kNoParsingFlags;
+    if ((natives == NATIVES_CODE) || FLAG_allow_natives_syntax) {
+      flags |= kAllowNativesSyntax;
+    }
+    if (natives != NATIVES_CODE && FLAG_harmony_scoping) {
+      flags |= kHarmonyScoping;
+    }
     if (pre_data == NULL
         && source_length >= FLAG_min_preparse_length) {
       if (source->IsExternalTwoByteString()) {
         ExternalTwoByteStringUC16CharacterStream stream(
             Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream,
-                                              extension,
-                                              harmony_scoping);
+        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
       } else {
         GenericStringUC16CharacterStream stream(source, 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream,
-                                              extension,
-                                              harmony_scoping);
+        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
       }
     }
 

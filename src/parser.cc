@@ -5217,17 +5217,16 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
 static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
-                                  bool allow_lazy,
-                                  ParserRecorder* recorder,
-                                  bool harmony_scoping) {
+                                  int flags,
+                                  ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
   JavaScriptScanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyScoping(harmony_scoping);
+  scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,
                                              recorder,
-                                             allow_lazy,
+                                             flags,
                                              stack_limit)) {
     isolate->StackOverflow();
     return NULL;
@@ -5244,25 +5243,28 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 // even if the preparser data is only used once.
 ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
                                            v8::Extension* extension,
-                                           bool harmony_scoping) {
+                                           int flags) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
     // If we don't allow lazy compilation, the log data will be empty.
     return NULL;
   }
+  flags |= kAllowLazy;
   PartialParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_scoping);
+  return DoPreParse(source, flags, &recorder);
 }
 
 
 ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
                                     v8::Extension* extension,
-                                    bool harmony_scoping) {
+                                    int flags) {
   Handle<Script> no_script;
-  bool allow_lazy = FLAG_lazy && (extension == NULL);
+  if (FLAG_lazy && (extension == NULL)) {
+    flags |= kAllowLazy;
+  }
   CompleteParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_scoping);
+  return DoPreParse(source, flags, &recorder);
 }
 
 

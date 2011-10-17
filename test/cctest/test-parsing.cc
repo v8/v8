@@ -260,14 +260,52 @@ TEST(StandAlonePreParser) {
     i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
     scanner.Initialize(&stream);
 
+    int flags = i::kAllowLazy | i::kAllowNativesSyntax;
     v8::preparser::PreParser::PreParseResult result =
         v8::preparser::PreParser::PreParseProgram(&scanner,
                                                   &log,
-                                                  true,
+                                                  flags,
                                                   stack_limit);
     CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
     i::ScriptDataImpl data(log.ExtractData());
     CHECK(!data.has_error());
+  }
+}
+
+
+TEST(StandAlonePreParserNoNatives) {
+  v8::V8::Initialize();
+
+  int marker;
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  const char* programs[] = {
+      "%ArgleBargle(glop);",
+      "var x = %_IsSmi(42);",
+      NULL
+  };
+
+  uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
+  for (int i = 0; programs[i]; i++) {
+    const char* program = programs[i];
+    i::Utf8ToUC16CharacterStream stream(
+        reinterpret_cast<const i::byte*>(program),
+        static_cast<unsigned>(strlen(program)));
+    i::CompleteParserRecorder log;
+    i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+    scanner.Initialize(&stream);
+
+    // Flags don't allow natives syntax.
+    v8::preparser::PreParser::PreParseResult result =
+        v8::preparser::PreParser::PreParseProgram(&scanner,
+                                                  &log,
+                                                  i::kAllowLazy,
+                                                  stack_limit);
+    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
+    i::ScriptDataImpl data(log.ExtractData());
+    // Data contains syntax error.
+    CHECK(data.has_error());
   }
 }
 

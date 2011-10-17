@@ -33,6 +33,7 @@
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "scopes.h"
+#include "preparser.h"
 
 namespace v8 {
 namespace internal {
@@ -165,13 +166,13 @@ class ParserApi {
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(UC16CharacterStream* source,
                                   v8::Extension* extension,
-                                  bool harmony_scoping);
+                                  int flags);
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
   static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
                                          v8::Extension* extension,
-                                         bool harmony_scoping);
+                                         int flags);
 };
 
 // ----------------------------------------------------------------------------
