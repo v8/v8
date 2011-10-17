@@ -712,12 +712,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Writing a non-smi, check whether array allows non-smi elements.
   // r9: receiver's map
   __ CheckFastObjectElements(r9, &slow, Label::kNear);
-  __ lea(rcx,
-         FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ movq(Operand(rcx, 0), rax);
-  __ movq(rdx, rax);
-  __ RecordWrite(
-      rbx, rcx, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ movq(rdx, rax);  // Preserve the value which is returned.
+  __ RecordWriteArray(
+      rbx, rax, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(&fast_double_with_map_check);

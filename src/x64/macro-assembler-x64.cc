@@ -326,6 +326,40 @@ void MacroAssembler::RecordWriteField(
 }
 
 
+void MacroAssembler::RecordWriteArray(Register object,
+                                      Register value,
+                                      Register index,
+                                      SaveFPRegsMode save_fp,
+                                      RememberedSetAction remembered_set_action,
+                                      SmiCheck smi_check) {
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
+  Label done;
+
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
+
+  // Array access: calculate the destination address. Index is not a smi.
+  Register dst = index;
+  lea(dst, Operand(object, index, times_pointer_size,
+                   FixedArray::kHeaderSize - kHeapObjectTag));
+
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+
+  bind(&done);
+
+  // Clobber clobbered input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    movq(value, Immediate(BitCast<int64_t>(kZapValue)));
+    movq(index, Immediate(BitCast<int64_t>(kZapValue)));
+  }
+}
+
+
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,

@@ -69,6 +69,9 @@ if (support_smi_only_arrays) {
         assertEquals(2*i+1, array_2[i]);
       }
     }
+
+    assertEquals(length, array_1.length);
+    assertEquals(length, array_2.length);
   }
 
   test(false, false, function(a,i,v){ a[i] = v; }, 100);

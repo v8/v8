@@ -7061,9 +7061,8 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
                       OMIT_SMI_CHECK);
 
   __ mov(edi, FieldOperand(esi, FixedArray::kLengthOffset));
-  // Convert and copy elements
-  // esi: source FixedArray
-  // edi: number of elements to convert/copy
+
+  // Prepare for conversion loop.
   ExternalReference canonical_the_hole_nan_reference =
       ExternalReference::address_of_the_hole_nan();
   XMMRegister the_hole_nan = xmm1;
@@ -7073,6 +7072,18 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
               Operand::StaticVariable(canonical_the_hole_nan_reference));
   }
   __ jmp(&entry);
+
+  // Call into runtime if GC is required.
+  __ bind(&gc_required);
+  // Restore registers before jumping into runtime.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(ebx);
+  __ pop(eax);
+  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+
+  // Convert and copy elements
+  // esi: source FixedArray
+  // edi: number of elements to convert/copy
   __ bind(&loop);
   __ sub(edi, Immediate(Smi::FromInt(1)));
   __ mov(ebx, FieldOperand(esi, edi, times_2, FixedArray::kHeaderSize));
@@ -7110,7 +7121,6 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
   __ test(edi, edi);
   __ j(not_zero, &loop);
 
-  Label done;
   __ pop(ebx);
   __ pop(eax);
   // eax: value
@@ -7126,15 +7136,6 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
                       OMIT_SMI_CHECK);
   // Restore esi.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&gc_required);
-  // Restore registers before jumping into runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ pop(ebx);
-  __ pop(eax);
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
-  __ bind(&done);
 }
 
 
@@ -7167,10 +7168,19 @@ void FastElementsConversionStub::GenerateDoubleToObject(
   __ mov(FieldOperand(eax, FixedArray::kLengthOffset), ebx);
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
 
+  __ jmp(&entry);
+
+  // Call into runtime if GC is required.
+  __ bind(&gc_required);
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(ebx);
+  __ pop(edx);
+  __ pop(eax);
+  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+
   // Box doubles into heap numbers.
   // edi: source FixedDoubleArray
   // eax: destination FixedArray
-  __ jmp(&entry);
   __ bind(&loop);
   __ sub(ebx, Immediate(Smi::FromInt(1)));
   // ebx: index of current element (smi-tagged)
@@ -7200,9 +7210,9 @@ void FastElementsConversionStub::GenerateDoubleToObject(
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ jmp(&entry);
+  __ jmp(&entry, Label::kNear);
 
-  // Replace the-hole nan with the-hole pointer.
+  // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
   __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize),
          masm->isolate()->factory()->the_hole_value());
@@ -7235,18 +7245,8 @@ void FastElementsConversionStub::GenerateDoubleToObject(
                       OMIT_SMI_CHECK);
 
   // Restore registers.
-  Label done;
   __ pop(eax);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&gc_required);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ pop(ebx);
-  __ pop(edx);
-  __ pop(eax);
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
-  __ bind(&done);
 }
 
 #undef __

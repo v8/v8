@@ -256,8 +256,8 @@ class MacroAssembler: public Assembler {
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
   // |array| is the array being stored into, |value| is the
-  // object being stored.  |index| is the array index represented as a
-  // Smi. All registers are clobbered by the operation RecordWriteArray
+  // object being stored.  |index| is the array index represented as a non-smi.
+  // All registers are clobbered by the operation RecordWriteArray
   // filters out smis so it does not update the write barrier if the
   // value is a smi.
   void RecordWriteArray(
