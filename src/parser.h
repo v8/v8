@@ -43,6 +43,7 @@ class ParserLog;
 class PositionStack;
 class Target;
 class LexicalScope;
+class SaveScope;
 
 template <typename T> class ZoneListWrapper;
 
@@ -473,7 +474,7 @@ class Parser {
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
 
-  bool inside_with() const { return with_nesting_level_ > 0; }
+  bool inside_with() const { return top_scope_->inside_with(); }
   JavaScriptScanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
@@ -669,7 +670,7 @@ class Parser {
     return &empty;
   }
 
-  Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
+  Scope* NewScope(Scope* parent, Scope::Type type);
 
   Handle<String> LookupSymbol(int symbol_id);
 
@@ -714,7 +715,6 @@ class Parser {
   JavaScriptScanner scanner_;
 
   Scope* top_scope_;
-  int with_nesting_level_;
 
   LexicalScope* lexical_scope_;
   Mode mode_;
@@ -734,6 +734,7 @@ class Parser {
   bool harmony_scoping_;
 
   friend class LexicalScope;
+  friend class SaveScope;
 };
 
 

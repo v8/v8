@@ -1128,7 +1128,6 @@ class VariableProxy: public Expression {
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
-  bool inside_with() const { return inside_with_; }
   int position() const { return position_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
@@ -1140,14 +1139,12 @@ class VariableProxy: public Expression {
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
-  bool inside_with_;
   bool is_trivial_;
   int position_;
 
   VariableProxy(Isolate* isolate,
                 Handle<String> name,
                 bool is_this,
-                bool inside_with,
                 int position = RelocInfo::kNoPosition);
 
   friend class Scope;

@@ -266,8 +266,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 }
 
 
-void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
-                                   bool* outer_scope_calls_non_strict_eval) {
+void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval) {
   // Skip up the context chain checking all the function contexts to see
   // whether they call eval.
   Context* context = this;
@@ -275,14 +274,11 @@ void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
     if (context->IsFunctionContext()) {
       Handle<SerializedScopeInfo> scope_info(
           context->closure()->shared()->scope_info());
-      if (scope_info->CallsEval()) {
-        *outer_scope_calls_eval = true;
-        if (!scope_info->IsStrictMode()) {
-          // No need to go further since the answers will not change from
-          // here.
-          *outer_scope_calls_non_strict_eval = true;
-          return;
-        }
+      if (scope_info->CallsEval() && !scope_info->IsStrictMode()) {
+        // No need to go further since the answers will not change from
+        // here.
+        *outer_scope_calls_non_strict_eval = true;
+        return;
       }
     }
     context = context->previous();

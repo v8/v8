@@ -66,7 +66,6 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
       name_(var->name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
-      inside_with_(false),
       is_trivial_(false),
       position_(RelocInfo::kNoPosition) {
   BindTo(var);
@@ -76,13 +75,11 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
 VariableProxy::VariableProxy(Isolate* isolate,
                              Handle<String> name,
                              bool is_this,
-                             bool inside_with,
                              int position)
     : Expression(isolate),
       name_(name),
       var_(NULL),
       is_this_(is_this),
-      inside_with_(inside_with),
       is_trivial_(false),
       position_(position) {
   // Names must be canonicalized for fast equality checks.

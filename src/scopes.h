@@ -94,7 +94,8 @@ class Scope: public ZoneObject {
     FUNCTION_SCOPE,  // The top-level scope for a function.
     GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
     CATCH_SCOPE,     // The scope introduced by catch.
-    BLOCK_SCOPE      // The scope introduced by a new block.
+    BLOCK_SCOPE,     // The scope introduced by a new block.
+    WITH_SCOPE       // The scope introduced by with.
   };
 
   Scope(Scope* outer_scope, Type type);
@@ -110,7 +111,7 @@ class Scope: public ZoneObject {
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
-  void Initialize(bool inside_with);
+  void Initialize();
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
@@ -149,7 +150,6 @@ class Scope: public ZoneObject {
 
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(Handle<String> name,
-                               bool inside_with,
                                int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
@@ -199,7 +199,7 @@ class Scope: public ZoneObject {
   void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall() { scope_calls_eval_ = true; }
+  void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
 
   // Enable strict mode for the scope (unless disabled by a global flag).
   void EnableStrictMode() {
@@ -215,6 +215,10 @@ class Scope: public ZoneObject {
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
   bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
   bool is_block_scope() const { return type_ == BLOCK_SCOPE; }
+  bool is_with_scope() const { return type_ == WITH_SCOPE; }
+  bool is_declaration_scope() const {
+    return is_eval_scope() || is_function_scope() || is_global_scope();
+  }
   bool is_strict_mode() const { return strict_mode_; }
   bool is_strict_mode_eval_scope() const {
     return is_eval_scope() && is_strict_mode();
@@ -222,7 +226,9 @@ class Scope: public ZoneObject {
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool outer_scope_calls_eval() const { return outer_scope_calls_eval_; }
+  bool calls_non_strict_eval() {
+    return scope_calls_eval_ && !is_strict_mode();
+  }
   bool outer_scope_calls_non_strict_eval() const {
     return outer_scope_calls_non_strict_eval_;
   }
@@ -383,10 +389,8 @@ class Scope: public ZoneObject {
   bool strict_mode_;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_eval_;
   bool outer_scope_calls_non_strict_eval_;
   bool inner_scope_calls_eval_;
-  bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
   // True if it doesn't need scope resolution (e.g., if the scope was
@@ -396,7 +400,7 @@ class Scope: public ZoneObject {
   // Computed as variables are declared.
   int num_var_or_const_;
 
-  // Computed via AllocateVariables; function scopes only.
+  // Computed via AllocateVariables; function, block and catch scopes only.
   int num_stack_slots_;
   int num_heap_slots_;
 
@@ -409,9 +413,57 @@ class Scope: public ZoneObject {
   Variable* NonLocal(Handle<String> name, VariableMode mode);
 
   // Variable resolution.
+  // Possible results of a recursive variable lookup telling if and how a
+  // variable is bound. These are returned in the output parameter *binding_kind
+  // of the LookupRecursive function.
+  enum BindingKind {
+    // The variable reference could be statically resolved to a variable binding
+    // which is returned. There is no 'with' statement between the reference and
+    // the binding and no scope between the reference scope (inclusive) and
+    // binding scope (exclusive) makes a non-strict 'eval' call.
+    BOUND,
+
+    // The variable reference could be statically resolved to a variable binding
+    // which is returned. There is no 'with' statement between the reference and
+    // the binding, but some scope between the reference scope (inclusive) and
+    // binding scope (exclusive) makes a non-strict 'eval' call, that might
+    // possibly introduce variable bindings shadowing the found one. Thus the
+    // found variable binding is just a guess.
+    BOUND_EVAL_SHADOWED,
+
+    // The variable reference could not be statically resolved to any binding
+    // and thus should be considered referencing a global variable. NULL is
+    // returned. The variable reference is not inside any 'with' statement and
+    // no scope between the reference scope (inclusive) and global scope
+    // (exclusive) makes a non-strict 'eval' call.
+    UNBOUND,
+
+    // The variable reference could not be statically resolved to any binding
+    // NULL is returned. The variable reference is not inside any 'with'
+    // statement, but some scope between the reference scope (inclusive) and
+    // global scope (exclusive) makes a non-strict 'eval' call, that might
+    // possibly introduce a variable binding. Thus the reference should be
+    // considered referencing a global variable unless it is shadowed by an
+    // 'eval' introduced binding.
+    UNBOUND_EVAL_SHADOWED,
+
+    // The variable could not be statically resolved and needs to be looked up
+    // dynamically. NULL is returned. There are two possible reasons:
+    // * A 'with' statement has been encountered and there is no variable
+    //   binding for the name between the variable reference and the 'with'.
+    //   The variable potentially references a property of the 'with' object.
+    // * The code is being executed as part of a call to 'eval' and the calling
+    //   context chain contains either a variable binding for the name or it
+    //   contains a 'with' context.
+    DYNAMIC_LOOKUP
+  };
+
+  // Lookup a variable reference given by name recursively starting with this
+  // scope. If the code is executed because of a call to 'eval', the context
+  // parameter should be set to the calling context of 'eval'.
   Variable* LookupRecursive(Handle<String> name,
-                            bool from_inner_function,
-                            Variable** invalidated_local);
+                            Handle<Context> context,
+                            BindingKind* binding_kind);
   void ResolveVariable(Scope* global_scope,
                        Handle<Context> context,
                        VariableProxy* proxy);
@@ -419,9 +471,7 @@ class Scope: public ZoneObject {
                                    Handle<Context> context);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_eval,
-                          bool outer_scope_calls_non_strict_eval,
-                          bool outer_scope_is_eval_scope);
+  bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);
   bool HasTrivialContext() const;
 
   // Predicates.
@@ -438,7 +488,7 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
-  // Construct a function or block scope based on the scope info.
+  // Construct a scope based on the scope info.
   Scope(Scope* inner_scope, Type type, Handle<SerializedScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.

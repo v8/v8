@@ -407,9 +407,9 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, Scope::Type type, bool inside_with) {
+Scope* Parser::NewScope(Scope* parent, Scope::Type type) {
   Scope* result = new(zone()) Scope(parent, type);
-  result->Initialize(inside_with);
+  result->Initialize();
   return result;
 }
 
@@ -459,13 +459,31 @@ class TargetScope BASE_EMBEDDED {
 
 
 // ----------------------------------------------------------------------------
-// LexicalScope is a support class to facilitate manipulation of the
-// Parser's scope stack. The constructor sets the parser's top scope
-// to the incoming scope, and the destructor resets it.
-//
-// Additionally, it stores transient information used during parsing.
-// These scopes are not kept around after parsing or referenced by syntax
-// trees so they can be stack-allocated and hence used by the pre-parser.
+// LexicalScope and SaveScope are stack allocated support classes to facilitate
+// anipulation of the Parser's scope stack. The constructor sets the parser's
+// top scope to the incoming scope, and the destructor resets it. Additionally,
+// LexicalScope stores transient information used during parsing.
+
+
+class SaveScope BASE_EMBEDDED {
+ public:
+  SaveScope(Parser* parser, Scope* scope)
+      : parser_(parser),
+        previous_top_scope_(parser->top_scope_) {
+    parser->top_scope_ = scope;
+  }
+
+  ~SaveScope() {
+    parser_->top_scope_ = previous_top_scope_;
+  }
+
+ private:
+  // Bookkeeping
+  Parser* parser_;
+  // Previous values
+  Scope* previous_top_scope_;
+};
+
 
 class LexicalScope BASE_EMBEDDED {
  public:
@@ -516,7 +534,6 @@ class LexicalScope BASE_EMBEDDED {
   // Previous values
   LexicalScope* lexical_scope_parent_;
   Scope* previous_scope_;
-  int previous_with_nesting_level_;
   unsigned previous_ast_node_id_;
 };
 
@@ -529,11 +546,9 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
     parser_(parser),
     lexical_scope_parent_(parser->lexical_scope_),
     previous_scope_(parser->top_scope_),
-    previous_with_nesting_level_(parser->with_nesting_level_),
     previous_ast_node_id_(isolate->ast_node_id()) {
   parser->top_scope_ = scope;
   parser->lexical_scope_ = this;
-  parser->with_nesting_level_ = 0;
   isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
 }
 
@@ -541,7 +556,6 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
 LexicalScope::~LexicalScope() {
   parser_->top_scope_ = previous_scope_;
   parser_->lexical_scope_ = lexical_scope_parent_;
-  parser_->with_nesting_level_ = previous_with_nesting_level_;
   parser_->isolate()->set_ast_node_id(previous_ast_node_id_);
 }
 
@@ -578,7 +592,6 @@ Parser::Parser(Handle<Script> script,
       script_(script),
       scanner_(isolate_->unicode_cache()),
       top_scope_(NULL),
-      with_nesting_level_(0),
       lexical_scope_(NULL),
       target_stack_(NULL),
       allow_natives_syntax_(allow_natives_syntax),
@@ -637,7 +650,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
-  { Scope* scope = NewScope(top_scope_, type, inside_with());
+  { Scope* scope = NewScope(top_scope_, type);
     LexicalScope lexical_scope(this, scope, isolate());
     if (strict_mode == kStrictMode) {
       top_scope_->EnableStrictMode();
@@ -727,7 +740,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
+    Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE);
     if (!info->closure().is_null()) {
       scope = Scope::DeserializeScopeChain(info, scope);
     }
@@ -1429,7 +1442,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
   VariableProxy* proxy = declaration_scope->NewUnresolved(
-      name, false, scanner().location().beg_pos);
+      name, scanner().location().beg_pos);
   declaration_scope->AddDeclaration(
       new(zone()) Declaration(proxy, mode, fun, top_scope_));
 
@@ -1582,20 +1595,16 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
 
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
-  Scope* saved_scope = top_scope_;
-  Scope* block_scope = NewScope(top_scope_,
-                                Scope::BLOCK_SCOPE,
-                                inside_with());
+  Scope* block_scope = NewScope(top_scope_, Scope::BLOCK_SCOPE);
   if (top_scope_->is_strict_mode()) {
     block_scope->EnableStrictMode();
   }
-  top_scope_ = block_scope;
 
   // Parse the statements and collect escaping labels.
-  TargetCollector collector;
-  Target target(&this->target_stack_, &collector);
   Expect(Token::LBRACE, CHECK_OK);
-  {
+  { SaveScope save_scope(this, block_scope);
+    TargetCollector collector;
+    Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
     InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
@@ -1608,7 +1617,6 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
-  top_scope_ = saved_scope;
 
   block_scope = block_scope->FinalizeBlockScope();
   body->set_block_scope(block_scope);
@@ -1875,14 +1883,10 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     // as the declaration. Thus dynamic lookups are unnecessary even if the
     // block scope is inside a with.
     if (value != NULL) {
-      bool in_with = (mode == VAR) ? inside_with() : false;
-      VariableProxy* proxy =
-          initialization_scope->NewUnresolved(name, in_with);
+      VariableProxy* proxy = initialization_scope->NewUnresolved(name);
       Assignment* assignment =
           new(zone()) Assignment(isolate(), init_op, proxy, value, position);
-      if (block) {
-        block->AddStatement(new(zone()) ExpressionStatement(assignment));
-      }
+      block->AddStatement(new(zone()) ExpressionStatement(assignment));
     }
 
     if (fni_ != NULL) fni_->Leave();
@@ -2105,10 +2109,12 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  ++with_nesting_level_;
   top_scope_->DeclarationScope()->RecordWithStatement();
-  Statement* stmt = ParseStatement(labels, CHECK_OK);
-  --with_nesting_level_;
+  Scope* with_scope = NewScope(top_scope_, Scope::WITH_SCOPE);
+  Statement* stmt;
+  { SaveScope save_scope(this, with_scope);
+    stmt = ParseStatement(labels, CHECK_OK);
+  }
   return new(zone()) WithStatement(expr, stmt);
 }
 
@@ -2245,17 +2251,15 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
-      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
+      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE);
       if (top_scope_->is_strict_mode()) {
         catch_scope->EnableStrictMode();
       }
       VariableMode mode = harmony_scoping_ ? LET : VAR;
       catch_variable = catch_scope->DeclareLocal(name, mode);
 
-      Scope* saved_scope = top_scope_;
-      top_scope_ = catch_scope;
+      SaveScope save_scope(this, catch_scope);
       catch_block = ParseBlock(NULL, CHECK_OK);
-      top_scope_ = saved_scope;
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }
@@ -2374,7 +2378,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
           ParseVariableDeclarations(kForStatement, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
-        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
+        VariableProxy* each = top_scope_->NewUnresolved(name);
         ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
         Target target(&this->target_stack_, loop);
 
@@ -3065,9 +3069,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
-      result = top_scope_->NewUnresolved(name,
-                                         inside_with(),
-                                         scanner().location().beg_pos);
+      result = top_scope_->NewUnresolved(name, scanner().location().beg_pos);
       break;
     }
 
@@ -3714,9 +3716,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
-      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
-      : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
+  Scope* scope = (type == FunctionLiteral::DECLARATION &&
+                  !harmony_scoping_)
+      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE)
+      : NewScope(top_scope_, Scope::FUNCTION_SCOPE);
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
   int materialized_literal_count;
   int expected_property_count;
@@ -3779,8 +3782,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // instead of Variables and Proxis as is the case now.
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
       Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
-      VariableProxy* fproxy =
-          top_scope_->NewUnresolved(function_name, inside_with());
+      VariableProxy* fproxy = top_scope_->NewUnresolved(function_name);
       fproxy->BindTo(fvar);
       body->Add(new(zone()) ExpressionStatement(
           new(zone()) Assignment(isolate(),
