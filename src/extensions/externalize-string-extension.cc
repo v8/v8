@@ -127,8 +127,8 @@ v8::Handle<v8::Value> ExternalizeStringExtension::IsAscii(
     return v8::ThrowException(v8::String::New(
         "isAsciiString() requires a single string argument."));
   }
-  return Utils::OpenHandle(*args[0].As<v8::String>())->IsAsciiRepresentation() ?
-      v8::True() : v8::False();
+  Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
+  return string->IsAsciiRepresentationUnderneath() ? v8::True() : v8::False();
 }
 
 
