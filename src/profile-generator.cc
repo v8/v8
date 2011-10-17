@@ -1930,9 +1930,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
-      TagObject(js_fun->literals(), "(function literals)");
+      TagObject(js_fun->literals_or_bindings(),
+                "(function literals_or_bindings)");
       SetInternalReference(js_fun, entry,
-                           "literals", js_fun->literals(),
+                           "literals_or_bindings",
+                           js_fun->literals_or_bindings(),
                            JSFunction::kLiteralsOffset);
     }
     TagObject(js_obj->properties(), "(object properties)");

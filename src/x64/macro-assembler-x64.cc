@@ -2351,6 +2351,13 @@ void MacroAssembler::Test(const Operand& src, Smi* source) {
 }
 
 
+void MacroAssembler::TestBit(const Operand& src, int bits) {
+  int byte_offset = bits / kBitsPerByte;
+  int bit_in_byte = bits & (kBitsPerByte - 1);
+  testb(Operand(src, byte_offset), Immediate(1 << bit_in_byte));
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -2900,7 +2907,8 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
 
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   testl(function, Immediate(kSmiTagMask));
   j(zero, miss);
@@ -2908,6 +2916,17 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss);
+
+  if (miss_on_bound_function) {
+    movq(kScratchRegister,
+         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    // It's not smi-tagged (stored in the top half of a smi-tagged 8-byte
+    // field).
+    TestBit(FieldOperand(kScratchRegister,
+                         SharedFunctionInfo::kCompilerHintsOffset),
+            SharedFunctionInfo::kBoundFunction);
+    j(not_zero, miss);
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;

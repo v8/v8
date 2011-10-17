@@ -1930,15 +1930,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionMarkNameShouldPrintAsAnonymous) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetBound) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-
-  CONVERT_CHECKED(JSFunction, fun, args[0]);
-  fun->shared()->set_bound(true);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -2014,24 +2005,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetLength) {
   CONVERT_CHECKED(Smi, length, args[1]);
   fun->shared()->set_length(length->value());
   return length;
-}
-
-
-// Creates a local, readonly, property called length with the correct
-// length (when read by the user). This effectively overwrites the
-// interceptor used to normally provide the length.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_BoundFunctionSetLength) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(JSFunction, fun, args[0]);
-  CONVERT_CHECKED(Smi, length, args[1]);
-  MaybeObject* maybe_name =
-      isolate->heap()->AllocateStringFromAscii(CStrVector("length"));
-  String* name;
-  if (!maybe_name->To(&name)) return maybe_name;
-  PropertyAttributes attr =
-      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
-  return fun->AddProperty(name, length, attr, kNonStrictMode);
 }
 
 
@@ -7926,8 +7899,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
 }
 
 
-static SmartArrayPointer<Handle<Object> > GetNonBoundArguments(
-    int bound_argc,
+// Find the arguments of the JavaScript function invocation that called
+// into C++ code. Collect these in a newly allocated array of handles (possibly
+// prefixed by a number of empty handles).
+static SmartArrayPointer<Handle<Object> > GetCallerArguments(
+    int prefix_argc,
     int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it;
@@ -7943,12 +7919,12 @@ static SmartArrayPointer<Handle<Object> > GetNonBoundArguments(
                                             inlined_frame_index,
                                             &args_slots);
 
-    *total_argc = bound_argc + args_count;
+    *total_argc = prefix_argc + args_count;
     SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = args_slots[i].GetValue();
-      param_data[bound_argc + i] = val;
+      param_data[prefix_argc + i] = val;
     }
     return param_data;
   } else {
@@ -7956,49 +7932,131 @@ static SmartArrayPointer<Handle<Object> > GetNonBoundArguments(
     frame = it.frame();
     int args_count = frame->ComputeParametersCount();
 
-    *total_argc = bound_argc + args_count;
+    *total_argc = prefix_argc + args_count;
     SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i));
-      param_data[bound_argc + i] = val;
+      param_data[prefix_argc + i] = val;
     }
     return param_data;
   }
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionBindArguments) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  CONVERT_ARG_CHECKED(JSFunction, bound_function, 0);
+  RUNTIME_ASSERT(args[3]->IsNumber());
+  Handle<Object> bindee = args.at<Object>(1);
+
+  // TODO(lrn): Create bound function in C++ code from premade shared info.
+  bound_function->shared()->set_bound(true);
+  // Get all arguments of calling function (Function.prototype.bind).
+  int argc = 0;
+  SmartArrayPointer<Handle<Object> > arguments = GetCallerArguments(0, &argc);
+  // Don't count the this-arg.
+  if (argc > 0) {
+    ASSERT(*arguments[0] == args[2]);
+    argc--;
+  } else {
+    ASSERT(args[2]->IsUndefined());
+  }
+  // Initialize array of bindings (function, this, and any existing arguments
+  // if the function was already bound).
+  Handle<FixedArray> new_bindings;
+  int i;
+  if (bindee->IsJSFunction() && JSFunction::cast(*bindee)->shared()->bound()) {
+    Handle<FixedArray> old_bindings(
+        JSFunction::cast(*bindee)->function_bindings());
+    new_bindings =
+        isolate->factory()->NewFixedArray(old_bindings->length() + argc);
+    bindee = Handle<Object>(old_bindings->get(JSFunction::kBoundFunctionIndex));
+    i = 0;
+    for (int n = old_bindings->length(); i < n; i++) {
+      new_bindings->set(i, old_bindings->get(i));
+    }
+  } else {
+    int array_size = JSFunction::kBoundArgumentsStartIndex + argc;
+    new_bindings = isolate->factory()->NewFixedArray(array_size);
+    new_bindings->set(JSFunction::kBoundFunctionIndex, *bindee);
+    new_bindings->set(JSFunction::kBoundThisIndex, args[2]);
+    i = 2;
+  }
+  // Copy arguments, skipping the first which is "this_arg".
+  for (int j = 0; j < argc; j++, i++) {
+    new_bindings->set(i, *arguments[j + 1]);
+  }
+  new_bindings->set_map(isolate->heap()->fixed_cow_array_map());
+  bound_function->set_function_bindings(*new_bindings);
+
+  // Update length.
+  Handle<String> length_symbol = isolate->factory()->length_symbol();
+  Handle<Object> new_length(args.at<Object>(3));
+  PropertyAttributes attr =
+      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
+  ForceSetProperty(bound_function, length_symbol, new_length, attr);
+  return *bound_function;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BoundFunctionGetBindings) {
+  HandleScope handles(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, callable, 0);
+  if (callable->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
+    if (function->shared()->bound()) {
+      Handle<FixedArray> bindings(function->function_bindings());
+      ASSERT(bindings->map() == isolate->heap()->fixed_cow_array_map());
+      return *isolate->factory()->NewJSArrayWithElements(bindings);
+    }
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
   // First argument is a function to use as a constructor.
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  RUNTIME_ASSERT(function->shared()->bound());
 
-  // Second argument is either null or an array of bound arguments.
-  Handle<FixedArray> bound_args;
-  int bound_argc = 0;
-  if (!args[1]->IsNull()) {
-    CONVERT_ARG_CHECKED(JSArray, params, 1);
-    RUNTIME_ASSERT(params->HasFastTypeElements());
-    bound_args = Handle<FixedArray>(FixedArray::cast(params->elements()));
-    bound_argc = Smi::cast(params->length())->value();
-  }
+  // The argument is a bound function. Extract its bound arguments
+  // and callable.
+  Handle<FixedArray> bound_args =
+      Handle<FixedArray>(FixedArray::cast(function->function_bindings()));
+  int bound_argc = bound_args->length() - JSFunction::kBoundArgumentsStartIndex;
+  Handle<Object> bound_function(
+      JSReceiver::cast(bound_args->get(JSFunction::kBoundFunctionIndex)));
+  ASSERT(!bound_function->IsJSFunction() ||
+         !Handle<JSFunction>::cast(bound_function)->shared()->bound());
 
   int total_argc = 0;
   SmartArrayPointer<Handle<Object> > param_data =
-      GetNonBoundArguments(bound_argc, &total_argc);
+      GetCallerArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
-    Handle<Object> val = Handle<Object>(bound_args->get(i));
-    param_data[i] = val;
+    param_data[i] = Handle<Object>(bound_args->get(
+        JSFunction::kBoundArgumentsStartIndex + i));
   }
+
+  if (!bound_function->IsJSFunction()) {
+    bool exception_thrown;
+    bound_function = Execution::TryGetConstructorDelegate(bound_function,
+                                                          &exception_thrown);
+    if (exception_thrown) return Failure::Exception();
+  }
+  ASSERT(bound_function->IsJSFunction());
 
   bool exception = false;
   Handle<Object> result =
-      Execution::New(function, total_argc, *param_data, &exception);
+      Execution::New(Handle<JSFunction>::cast(bound_function),
+                     total_argc, *param_data, &exception);
   if (exception) {
-      return Failure::Exception();
+    return Failure::Exception();
   }
-
   ASSERT(!result.is_null());
   return *result;
 }

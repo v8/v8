@@ -1492,6 +1492,19 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
 }
 
 
+void MacroAssembler::BooleanBitTest(Register object,
+                                    int field_offset,
+                                    int bit_index) {
+  bit_index += kSmiTagSize + kSmiShiftSize;
+  ASSERT(IsPowerOf2(kBitsPerByte));
+  int byte_index = bit_index / kBitsPerByte;
+  int byte_bit_index = bit_index & (kBitsPerByte - 1);
+  test_b(FieldOperand(object, field_offset + byte_index),
+         static_cast<byte>(1 << byte_bit_index));
+}
+
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
@@ -1522,13 +1535,23 @@ void MacroAssembler::NegativeZeroTest(Register result,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss);
+
+  if (miss_on_bound_function) {
+    // If a bound function, go to miss label.
+    mov(scratch,
+        FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    BooleanBitTest(scratch, SharedFunctionInfo::kCompilerHintsOffset,
+                   SharedFunctionInfo::kBoundFunction);
+    j(not_zero, miss);
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;

@@ -497,16 +497,20 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       pretenure);
 
   result->set_context(*context);
-  int number_of_literals = function_info->num_literals();
-  Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
-  if (number_of_literals > 0) {
-    // Store the object, regexp and array functions in the literals
-    // array prefix.  These functions will be used when creating
-    // object, regexp and array literals in this function.
-    literals->set(JSFunction::kLiteralGlobalContextIndex,
-                  context->global_context());
+  if (!function_info->bound()) {
+    int number_of_literals = function_info->num_literals();
+    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+    if (number_of_literals > 0) {
+      // Store the object, regexp and array functions in the literals
+      // array prefix.  These functions will be used when creating
+      // object, regexp and array literals in this function.
+      literals->set(JSFunction::kLiteralGlobalContextIndex,
+                    context->global_context());
+    }
+    result->set_literals(*literals);
+  } else {
+    result->set_function_bindings(isolate()->heap()->empty_fixed_array());
   }
-  result->set_literals(*literals);
   result->set_next_function_link(isolate()->heap()->undefined_value());
 
   if (V8::UseCrankshaft() &&

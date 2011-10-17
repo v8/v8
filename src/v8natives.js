@@ -1517,53 +1517,51 @@ function FunctionToString() {
 // ES5 15.3.4.5
 function FunctionBind(this_arg) { // Length is 1.
   if (!IS_SPEC_FUNCTION(this)) {
-      throw new $TypeError('Bind must be called on a function');
+    throw new $TypeError('Bind must be called on a function');
   }
-  // this_arg is not an argument that should be bound.
-  var argc_bound = (%_ArgumentsLength() || 1) - 1;
-  var fn = this;
-
-  if (argc_bound == 0) {
-    var result = function() {
-      if (%_IsConstructCall()) {
-        // %NewObjectFromBound implicitly uses arguments passed to this
-        // function. We do not pass the arguments object explicitly to avoid
-        // materializing it and guarantee that this function will be optimized.
-        return %NewObjectFromBound(fn, null);
-      }
-      return %Apply(fn, this_arg, arguments, 0, %_ArgumentsLength());
-    };
-  } else {
-    var bound_args = new InternalArray(argc_bound);
-    for(var i = 0; i < argc_bound; i++) {
-      bound_args[i] = %_Arguments(i+1);
+  var boundFunction = function () {
+    // This function must not use any object literals (Object, Array, RegExp),
+    // since the literals-array is being used to store the bound data.
+    if (%_IsConstructCall()) {
+      return %NewObjectFromBound(boundFunction);
     }
+    var bindings = %BoundFunctionGetBindings(boundFunction);
 
-    var result = function() {
-      // If this is a construct call we use a special runtime method
-      // to generate the actual object using the bound function.
-      if (%_IsConstructCall()) {
-        // %NewObjectFromBound implicitly uses arguments passed to this
-        // function. We do not pass the arguments object explicitly to avoid
-        // materializing it and guarantee that this function will be optimized.
-        return %NewObjectFromBound(fn, bound_args);
-      }
+    var argc = %_ArgumentsLength();
+    if (argc == 0) {
+      return %Apply(bindings[0], bindings[1], bindings, 2, bindings.length - 2);
+    }
+    if (bindings.length === 2) {
+      return %Apply(bindings[0], bindings[1], arguments, 0, argc);
+    }
+    var bound_argc = bindings.length - 2;
+    var argv = new InternalArray(bound_argc + argc);
+    for (var i = 0; i < bound_argc; i++) {
+      argv[i] = bindings[i + 2];
+    }
+    for (var j = 0; j < argc; j++) {
+      argv[i++] = %_Arguments(j);
+    }
+    return %Apply(bindings[0], bindings[1], argv, 0, bound_argc + argc);
+  };
 
-      // Combine the args we got from the bind call with the args
-      // given as argument to the invocation.
+  %FunctionRemovePrototype(boundFunction);
+  var new_length = 0;
+  if (%_ClassOf(this) == "Function") {
+    // Function or FunctionProxy.
+    var old_length = this.length;
+    // FunctionProxies might provide a non-UInt32 value. If so, ignore it.
+    if ((typeof old_length === "number") &&
+        ((old_length >>> 0) === old_length)) {
       var argc = %_ArgumentsLength();
-      var args = new InternalArray(argc + argc_bound);
-      // Add bound arguments.
-      for (var i = 0; i < argc_bound; i++) {
-        args[i] = bound_args[i];
-      }
-      // Add arguments from call.
-      for (var i = 0; i < argc; i++) {
-        args[argc_bound + i] = %_Arguments(i);
-      }
-      return %Apply(fn, this_arg, args, 0, argc + argc_bound);
-    };
+      if (argc > 0) argc--;  // Don't count the thisArg as parameter.
+      new_length = old_length - argc;
+      if (new_length < 0) new_length = 0;
+    }
   }
+  // This runtime function finds any remaining arguments on the stack,
+  // so we don't pass the arguments object.
+  var result = %FunctionBindArguments(boundFunction, this, this_arg, new_length);
 
   // We already have caller and arguments properties on functions,
   // which are non-configurable. It therefore makes no sence to
@@ -1571,17 +1569,7 @@ function FunctionBind(this_arg) { // Length is 1.
   // that bind should make these throw a TypeError if get or set
   // is called and make them non-enumerable and non-configurable.
   // To be consistent with our normal functions we leave this as it is.
-
-  %FunctionRemovePrototype(result);
-  %FunctionSetBound(result);
-  // Set the correct length. If this is a function proxy, this.length might
-  // throw, or return a bogus result. Leave length alone in that case.
-  // TODO(rossberg): This is underspecified in the current proxy proposal.
-  try {
-    var old_length = ToInteger(this.length);
-    var length = (old_length - argc_bound) > 0 ? old_length - argc_bound : 0;
-    %BoundFunctionSetLength(result, length);
-  } catch(x) {}
+  // TODO(lrn): Do set these to be thrower.
   return result;
 }
 

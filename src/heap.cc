@@ -3269,7 +3269,7 @@ void Heap::InitializeFunction(JSFunction* function,
   function->set_code(shared->code());
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array());
+  function->set_literals_or_bindings(empty_fixed_array());
   function->set_next_function_link(undefined_value());
 }
 

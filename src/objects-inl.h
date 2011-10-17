@@ -3307,7 +3307,7 @@ ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
+ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
 ACCESSORS(JSFunction,
           next_function_link,
           Object,
@@ -3826,7 +3826,36 @@ bool JSFunction::is_compiled() {
 }
 
 
+FixedArray* JSFunction::literals() {
+  ASSERT(!shared()->bound());
+  return literals_or_bindings();
+}
+
+
+void JSFunction::set_literals(FixedArray* literals) {
+  ASSERT(!shared()->bound());
+  set_literals_or_bindings(literals);
+}
+
+
+FixedArray* JSFunction::function_bindings() {
+  ASSERT(shared()->bound());
+  return literals_or_bindings();
+}
+
+
+void JSFunction::set_function_bindings(FixedArray* bindings) {
+  ASSERT(shared()->bound());
+  // Bound function literal may be initialized to the empty fixed array
+  // before the bindings are set.
+  ASSERT(bindings == GetHeap()->empty_fixed_array() ||
+         bindings->map() == GetHeap()->fixed_cow_array_map());
+  set_literals_or_bindings(bindings);
+}
+
+
 int JSFunction::NumberOfLiterals() {
+  ASSERT(!shared()->bound());
   return literals()->length();
 }
 

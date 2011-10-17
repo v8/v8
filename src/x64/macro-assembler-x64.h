@@ -726,6 +726,7 @@ class MacroAssembler: public Assembler {
   void Push(Smi* smi);
   void Test(const Operand& dst, Smi* source);
 
+
   // ---------------------------------------------------------------------------
   // String macros.
 
@@ -770,6 +771,9 @@ class MacroAssembler: public Assembler {
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
+
+  // Bit-field support.
+  void TestBit(const Operand& dst, int bit_index);
 
   // Handle support
   void Move(Register dst, Handle<Object> source);
@@ -1074,7 +1078,8 @@ class MacroAssembler: public Assembler {
   // clobbered.
   void TryGetFunctionPrototype(Register function,
                                Register result,
-                               Label* miss);
+                               Label* miss,
+                               bool miss_on_bound_function = false);
 
   // Generates code for reporting that an illegal operation has
   // occurred.

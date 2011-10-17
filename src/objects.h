@@ -5038,7 +5038,7 @@ class SharedFunctionInfo: public HeapObject {
  public:
   // Constants for optimizing codegen for strict mode function and
   // native tests.
-  // Allows to use byte-widgh instructions.
+  // Allows to use byte-width instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
@@ -5116,7 +5116,8 @@ class JSFunction: public JSObject {
   // Check whether or not this function is inlineable.
   bool IsInlineable();
 
-  // [literals]: Fixed array holding the materialized literals.
+  // [literals_or_bindings]: Fixed array holding either
+  // the materialized literals or the bindings of a bound function.
   //
   // If the function contains object, regexp or array literals, the
   // literals array prefix contains the object, regexp, and array
@@ -5125,7 +5126,17 @@ class JSFunction: public JSObject {
   // or array functions.  Performing a dynamic lookup, we might end up
   // using the functions from a new context that we should not have
   // access to.
-  DECL_ACCESSORS(literals, FixedArray)
+  //
+  // On bound functions, the array is a (copy-on-write) fixed-array containing
+  // the function that was bound, bound this-value and any bound
+  // arguments. Bound functions never contain literals.
+  DECL_ACCESSORS(literals_or_bindings, FixedArray)
+
+  inline FixedArray* literals();
+  inline void set_literals(FixedArray* literals);
+
+  inline FixedArray* function_bindings();
+  inline void set_function_bindings(FixedArray* bindings);
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
@@ -5212,6 +5223,11 @@ class JSFunction: public JSObject {
   // Layout of the literals array.
   static const int kLiteralsPrefixSize = 1;
   static const int kLiteralGlobalContextIndex = 0;
+
+  // Layout of the bound-function binding array.
+  static const int kBoundFunctionIndex = 0;
+  static const int kBoundThisIndex = 1;
+  static const int kBoundArgumentsStartIndex = 2;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);

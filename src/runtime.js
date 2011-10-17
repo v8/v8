@@ -375,6 +375,12 @@ function INSTANCE_OF(F) {
     return 1;
   }
 
+  // Check if function is bound, if so, get [[BoundFunction]] from it
+  // and use that instead of F.
+  var bindings = %BoundFunctionGetBindings(F);
+  if (bindings) {
+    F = bindings[kBoundFunctionIndex];  // Always a non-bound function.
+  }
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
   if (!IS_SPEC_OBJECT(O)) {

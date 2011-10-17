@@ -211,14 +211,14 @@ namespace internal {
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2, 1) \
   F(FunctionSetLength, 2, 1) \
-  F(BoundFunctionSetLength, 2, 1)    \
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionSetReadOnlyPrototype, 1, 1) \
   F(FunctionGetName, 1, 1) \
   F(FunctionSetName, 2, 1) \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1) \
   F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1) \
-  F(FunctionSetBound, 1, 1) \
+  F(FunctionBindArguments, 4, 1) \
+  F(BoundFunctionGetBindings, 1, 1) \
   F(FunctionRemovePrototype, 1, 1) \
   F(FunctionGetSourceCode, 1, 1) \
   F(FunctionGetScript, 1, 1) \
@@ -304,7 +304,7 @@ namespace internal {
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \
-  F(NewObjectFromBound, 2, 1) \
+  F(NewObjectFromBound, 1, 1) \
   F(FinalizeInstanceSize, 1, 1) \
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \

@@ -2030,13 +2030,23 @@ void MacroAssembler::DispatchMap(Register obj,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
   b(ne, miss);
+
+  if (miss_on_bound_function) {
+    ldr(scratch,
+        FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    ldr(scratch,
+        FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
+    tst(scratch, Operand(1 << SharedFunctionInfo::kBoundFunction));
+    b(ne, miss);
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;

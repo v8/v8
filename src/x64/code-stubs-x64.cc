@@ -3879,7 +3879,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ bind(&miss);
   }
 
-  __ TryGetFunctionPrototype(rdx, rbx, &slow);
+  __ TryGetFunctionPrototype(rdx, rbx, &slow, true);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(rbx, &slow);
