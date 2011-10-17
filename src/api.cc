@@ -3636,8 +3636,13 @@ int String::WriteUtf8(char* buffer,
   ENTER_V8(isolate);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (str->IsAsciiRepresentation()) {
-    if (capacity == -1) capacity = str->length() + 1;
-    int len = i::Min(capacity, str->length());
+    int len;
+    if (capacity == -1) {
+      capacity = str->length() + 1;
+      len = str->length();
+    } else {
+      len = i::Min(capacity, str->length());
+    }
     i::String::WriteToFlat(*str, buffer, 0, len);
     if (nchars_ref != NULL) *nchars_ref = len;
     if (!(options & NO_NULL_TERMINATION) && capacity > len) {
