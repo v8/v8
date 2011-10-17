@@ -587,11 +587,10 @@ void HInstruction::Verify() {
     HBasicBlock* other_block = other_operand->block();
     if (cur_block == other_block) {
       if (!other_operand->IsPhi()) {
-        HInstruction* cur = cur_block->first();
+        HInstruction* cur = this->previous();
         while (cur != NULL) {
-          ASSERT(cur != this);  // We should reach other_operand before!
           if (cur == other_operand) break;
-          cur = cur->next();
+          cur = cur->previous();
         }
         // Must reach other operand in the same block!
         ASSERT(cur == other_operand);
