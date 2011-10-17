@@ -3634,13 +3634,25 @@ int String::WriteUtf8(char* buffer,
   if (IsDeadCheck(isolate, "v8::String::WriteUtf8()")) return 0;
   LOG_API(isolate, "String::WriteUtf8");
   ENTER_V8(isolate);
-  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (str->IsAsciiRepresentation()) {
+    if (capacity == -1) capacity = str->length() + 1;
+    int len = i::Min(capacity, str->length());
+    i::String::WriteToFlat(*str, buffer, 0, len);
+    if (nchars_ref != NULL) *nchars_ref = len;
+    if (!(options & NO_NULL_TERMINATION) && capacity > len) {
+      buffer[len] = '\0';
+      return len + 1;
+    }
+    return len;
+  }
+
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
-    str->TryFlatten();
+    FlattenString(str);
   }
   write_input_buffer.Reset(0, *str);
   int len = str->length();

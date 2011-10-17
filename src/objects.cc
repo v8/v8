@@ -5519,24 +5519,6 @@ bool String::LooksValid() {
 }
 
 
-int String::Utf8Length() {
-  if (IsAsciiRepresentation()) return length();
-  // Attempt to flatten before accessing the string.  It probably
-  // doesn't make Utf8Length faster, but it is very likely that
-  // the string will be accessed later (for example by WriteUtf8)
-  // so it's still a good idea.
-  Heap* heap = GetHeap();
-  TryFlatten();
-  Access<StringInputBuffer> buffer(
-      heap->isolate()->objects_string_input_buffer());
-  buffer->Reset(0, this);
-  int result = 0;
-  while (buffer->has_more())
-    result += unibrow::Utf8::Length(buffer->GetNext());
-  return result;
-}
-
-
 String::FlatContent String::GetFlatContent() {
   int length = this->length();
   StringShape shape(this);
@@ -5956,6 +5938,73 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
 
   UNREACHABLE();
+  return 0;
+}
+
+
+// This method determines the type of string involved and then gets the UTF8
+// length of the string.  It doesn't flatten the string and has log(n) recursion
+// for a string of length n.
+int String::Utf8Length(String* input, int from, int to) {
+  if (from == to) return 0;
+  int total = 0;
+  while (true) {
+    if (input->IsAsciiRepresentation()) return total + to - from;
+    switch (StringShape(input).representation_tag()) {
+      case kConsStringTag: {
+        ConsString* str = ConsString::cast(input);
+        String* first = str->first();
+        String* second = str->second();
+        int first_length = first->length();
+        if (first_length - from < to - first_length) {
+          if (first_length > from) {
+            // Left hand side is shorter.
+            total += Utf8Length(first, from, first_length);
+            input = second;
+            from = 0;
+            to -= first_length;
+          } else {
+            // We only need the right hand side.
+            input = second;
+            from -= first_length;
+            to -= first_length;
+          }
+        } else {
+          if (first_length <= to) {
+            // Right hand side is shorter.
+            total += Utf8Length(second, 0, to - first_length);
+            input = first;
+            to = first_length;
+          } else {
+            // We only need the left hand side.
+            input = first;
+          }
+        }
+        continue;
+      }
+      case kExternalStringTag:
+      case kSeqStringTag: {
+        Vector<const uc16> vector = input->GetFlatContent().ToUC16Vector();
+        const uc16* p = vector.start();
+        for (int i = from; i < to; i++) {
+          total += unibrow::Utf8::Length(p[i]);
+        }
+        return total;
+      }
+      case kSlicedStringTag: {
+        SlicedString* str = SlicedString::cast(input);
+        int offset = str->offset();
+        input = str->parent();
+        from += offset;
+        to += offset;
+        continue;
+      }
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return 0;
+  }
   return 0;
 }
 
