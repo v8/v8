@@ -678,7 +678,7 @@ class Parser {
     return &empty;
   }
 
-  Scope* NewScope(Scope* parent, Scope::Type type);
+  Scope* NewScope(Scope* parent, ScopeType type);
 
   Handle<String> LookupSymbol(int symbol_id);
 

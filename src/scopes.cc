@@ -114,7 +114,7 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 
 
 // Dummy constructor
-Scope::Scope(Type type)
+Scope::Scope(ScopeType type)
     : isolate_(Isolate::Current()),
       inner_scopes_(0),
       variables_(false),
@@ -127,7 +127,7 @@ Scope::Scope(Type type)
 }
 
 
-Scope::Scope(Scope* outer_scope, Type type)
+Scope::Scope(Scope* outer_scope, ScopeType type)
     : isolate_(Isolate::Current()),
       inner_scopes_(4),
       variables_(),
@@ -146,7 +146,7 @@ Scope::Scope(Scope* outer_scope, Type type)
 
 
 Scope::Scope(Scope* inner_scope,
-             Type type,
+             ScopeType type,
              Handle<SerializedScopeInfo> scope_info)
     : isolate_(Isolate::Current()),
       inner_scopes_(4),
@@ -185,7 +185,7 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
 }
 
 
-void Scope::SetDefaults(Type type,
+void Scope::SetDefaults(ScopeType type,
                         Scope* outer_scope,
                         Handle<SerializedScopeInfo> scope_info) {
   outer_scope_ = outer_scope;
@@ -208,6 +208,8 @@ void Scope::SetDefaults(Type type,
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
   scope_info_ = scope_info;
+  start_position_ = RelocInfo::kNoPosition;
+  end_position_ = RelocInfo::kNoPosition;
 }
 
 
@@ -630,15 +632,33 @@ Handle<SerializedScopeInfo> Scope::GetSerializedScopeInfo() {
 }
 
 
+void Scope::GetNestedScopeChain(
+    List<Handle<SerializedScopeInfo> >* chain,
+    int position) {
+  chain->Add(Handle<SerializedScopeInfo>(GetSerializedScopeInfo()));
+
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    Scope* scope = inner_scopes_[i];
+    int beg_pos = scope->start_position();
+    int end_pos = scope->end_position();
+    ASSERT(beg_pos >= 0 && end_pos >= 0);
+    if (beg_pos <= position && position <= end_pos) {
+      scope->GetNestedScopeChain(chain, position);
+      return;
+    }
+  }
+}
+
+
 #ifdef DEBUG
-static const char* Header(Scope::Type type) {
+static const char* Header(ScopeType type) {
   switch (type) {
-    case Scope::EVAL_SCOPE: return "eval";
-    case Scope::FUNCTION_SCOPE: return "function";
-    case Scope::GLOBAL_SCOPE: return "global";
-    case Scope::CATCH_SCOPE: return "catch";
-    case Scope::BLOCK_SCOPE: return "block";
-    case Scope::WITH_SCOPE: return "with";
+    case EVAL_SCOPE: return "eval";
+    case FUNCTION_SCOPE: return "function";
+    case GLOBAL_SCOPE: return "global";
+    case CATCH_SCOPE: return "catch";
+    case BLOCK_SCOPE: return "block";
+    case WITH_SCOPE: return "with";
   }
   UNREACHABLE();
   return NULL;

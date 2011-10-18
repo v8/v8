@@ -3020,6 +3020,9 @@ class SerializedScopeInfo : public FixedArray {
     return reinterpret_cast<SerializedScopeInfo*>(object);
   }
 
+  // Return the type of this scope.
+  ScopeType Type();
+
   // Does this scope call eval?
   bool CallsEval();
 
@@ -3034,6 +3037,9 @@ class SerializedScopeInfo : public FixedArray {
 
   // Return if this has context slots besides MIN_CONTEXT_SLOTS;
   bool HasHeapAllocatedLocals();
+
+  // Return if contexts are allocated for this scope.
+  bool HasContext();
 
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
