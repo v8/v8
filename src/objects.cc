@@ -4093,19 +4093,27 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 }
 
 
-// Search for a getter or setter in an elements dictionary.  Returns either
-// undefined if the element is read-only, or the getter/setter pair (fixed
-// array) if there is an existing one, or the hole value if the element does
-// not exist or is a normal non-getter/setter data element.
-static Object* FindGetterSetterInDictionary(NumberDictionary* dictionary,
-                                            uint32_t index,
-                                            Heap* heap) {
+// Search for a getter or setter in an elements dictionary and update its
+// attributes.  Returns either undefined if the element is read-only, or the
+// getter/setter pair (fixed array) if there is an existing one, or the hole
+// value if the element does not exist or is a normal non-getter/setter data
+// element.
+static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
+                                              uint32_t index,
+                                              PropertyAttributes attributes,
+                                              Heap* heap) {
   int entry = dictionary->FindEntry(index);
   if (entry != NumberDictionary::kNotFound) {
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.IsReadOnly()) return heap->undefined_value();
-    if (details.type() == CALLBACKS && result->IsFixedArray()) return result;
+    if (details.type() == CALLBACKS && result->IsFixedArray()) {
+      if (details.attributes() != attributes) {
+        dictionary->DetailsAtPut(entry,
+                                 PropertyDetails(attributes, CALLBACKS, index));
+      }
+      return result;
+    }
   }
   return heap->the_hole_value();
 }
@@ -4147,8 +4155,10 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
         // elements.
         return heap->undefined_value();
       case DICTIONARY_ELEMENTS: {
-        Object* probe =
-            FindGetterSetterInDictionary(element_dictionary(), index, heap);
+        Object* probe = UpdateGetterSetterInDictionary(element_dictionary(),
+                                                       index,
+                                                       attributes,
+                                                       heap);
         if (!probe->IsTheHole()) return probe;
         // Otherwise allow to override it.
         break;
@@ -4165,7 +4175,10 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
           FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
           if (arguments->IsDictionary()) {
             NumberDictionary* dictionary = NumberDictionary::cast(arguments);
-            probe = FindGetterSetterInDictionary(dictionary, index, heap);
+            probe = UpdateGetterSetterInDictionary(dictionary,
+                                                   index,
+                                                   attributes,
+                                                   heap);
             if (!probe->IsTheHole()) return probe;
           }
         }
