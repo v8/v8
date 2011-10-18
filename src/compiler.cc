@@ -59,7 +59,6 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
       script_(script),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(NONOPT);
 }
@@ -74,7 +73,6 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
 }
@@ -90,7 +88,6 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
 }
@@ -309,9 +306,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
 
 static bool GenerateCode(CompilationInfo* info) {
-  return V8::UseCrankshaft() ?
-    MakeCrankshaftCode(info) :
-    FullCodeGenerator::MakeCode(info);
+  return info->IsCompilingForDebugging() || !V8::UseCrankshaft() ?
+      FullCodeGenerator::MakeCode(info) :
+      MakeCrankshaftCode(info);
 }
 
 

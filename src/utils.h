@@ -143,6 +143,16 @@ static int PointerValueCompare(const T* a, const T* b) {
 }
 
 
+// Compare function to compare the object pointer value of two
+// handlified objects. The handles are passed as pointers to the
+// handles.
+template<typename T> class Handle;  // Forward declaration.
+template <typename T>
+static int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
+  return Compare<T*>(*(*a), *(*b));
+}
+
+
 // Returns the smallest power of two which is >= x. If you pass in a
 // number that is already a power of two, it is returned as is.
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,

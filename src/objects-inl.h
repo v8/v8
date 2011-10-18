@@ -2982,6 +2982,21 @@ void Code::set_has_debug_break_slots(bool value) {
 }
 
 
+bool Code::is_compiled_optimizable() {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsIsCompiledOptimizable::decode(flags);
+}
+
+
+void Code::set_compiled_optimizable(bool value) {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
 int Code::allow_osr_at_loop_nesting_level() {
   ASSERT(kind() == FUNCTION);
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
