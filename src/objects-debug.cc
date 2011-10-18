@@ -263,6 +263,12 @@ void ExternalDoubleArray::ExternalDoubleArrayVerify() {
 void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
+
+  if (GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
+    ASSERT(this->elements()->IsFixedArray());
+    ASSERT(this->elements()->length() >= 2);
+  }
+
   if (HasFastProperties()) {
     CHECK_EQ(map()->unused_property_fields(),
              (map()->inobject_properties() + properties()->length() -

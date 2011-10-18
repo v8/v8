@@ -4088,14 +4088,16 @@ ElementsKind JSObject::GetElementsKind() {
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
   Map* map = fixed_array->map();
     ASSERT(((kind == FAST_ELEMENTS || kind == FAST_SMI_ONLY_ELEMENTS) &&
-          (map == GetHeap()->fixed_array_map() ||
-           map == GetHeap()->fixed_cow_array_map())) ||
-         (kind == FAST_DOUBLE_ELEMENTS &&
-          fixed_array->IsFixedDoubleArray()) ||
-         (kind == DICTIONARY_ELEMENTS &&
-          fixed_array->IsFixedArray() &&
-          fixed_array->IsDictionary()) ||
-         (kind > DICTIONARY_ELEMENTS));
+            (map == GetHeap()->fixed_array_map() ||
+             map == GetHeap()->fixed_cow_array_map())) ||
+           (kind == FAST_DOUBLE_ELEMENTS &&
+            fixed_array->IsFixedDoubleArray()) ||
+           (kind == DICTIONARY_ELEMENTS &&
+            fixed_array->IsFixedArray() &&
+            fixed_array->IsDictionary()) ||
+           (kind > DICTIONARY_ELEMENTS));
+    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
+           (elements()->IsFixedArray() && elements()->length() >= 2));
 #endif
   return kind;
 }

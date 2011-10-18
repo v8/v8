@@ -1084,11 +1084,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   {  // --- aliased_arguments_boilerplate_
-    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
-    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
-    new_map->set_pre_allocated_property_fields(2);
-    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
-    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
     // Set up a well-formed parameter map to make assertions happy.
     Handle<FixedArray> elements = factory->NewFixedArray(2);
     elements->set_map(heap->non_strict_arguments_elements_map());
@@ -1097,12 +1092,16 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     elements->set(0, *array);
     array = factory->NewFixedArray(0);
     elements->set(1, *array);
-    Handle<Map> non_strict_arguments_elements_map =
-        factory->GetElementsTransitionMap(result,
-                                          NON_STRICT_ARGUMENTS_ELEMENTS);
-    result->set_map(*non_strict_arguments_elements_map);
-    ASSERT(result->HasNonStrictArgumentsElements());
+
+    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
+    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
+    new_map->set_pre_allocated_property_fields(2);
+    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
+    // Set elements kind after allocating the object because
+    // NewJSObjectFromMap assumes a fast elements map.
+    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
     result->set_elements(*elements);
+    ASSERT(result->HasNonStrictArgumentsElements());
     global_context()->set_aliased_arguments_boilerplate(*result);
   }
 
