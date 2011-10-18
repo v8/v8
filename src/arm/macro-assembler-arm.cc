@@ -2044,7 +2044,8 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     ldr(scratch,
         FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    tst(scratch, Operand(1 << SharedFunctionInfo::kBoundFunction));
+    tst(scratch,
+        Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
     b(ne, miss);
   }
 

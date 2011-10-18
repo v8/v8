@@ -3674,13 +3674,24 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   GetObjectType(function, result, scratch);
   Branch(miss, ne, scratch, Operand(JS_FUNCTION_TYPE));
+
+  if (miss_on_bound_function) {
+    lw(scratch,
+       FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    lw(scratch,
+       FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
+    And(scratch, scratch,
+        Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
+    Branch(miss, ne, scratch, Operand(zero_reg));
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
