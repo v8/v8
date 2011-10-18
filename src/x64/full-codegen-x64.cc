@@ -3957,7 +3957,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Condition cc = no_condition;
       switch (op) {
         case Token::EQ_STRICT:
-          // Fall through.
         case Token::EQ:
           cc = equal;
           __ pop(rdx);
