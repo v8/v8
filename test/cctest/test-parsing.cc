@@ -839,12 +839,12 @@ TEST(ScopePositions) {
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   for (int i = 0; source_data[i].outer_prefix; i++) {
-    size_t kPrefixLen = strlen(source_data[i].outer_prefix);
-    size_t kInnerLen = strlen(source_data[i].inner_source);
-    size_t kSuffixLen = strlen(source_data[i].outer_suffix);
-    size_t kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
+    int kPrefixLen = i::StrLength(source_data[i].outer_prefix);
+    int kInnerLen = i::StrLength(source_data[i].inner_source);
+    int kSuffixLen = i::StrLength(source_data[i].outer_suffix);
+    int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
-    size_t length;
+    int length;
     length = i::OS::SNPrintF(program, "%s%s%s",
                              source_data[i].outer_prefix,
                              source_data[i].inner_source,
