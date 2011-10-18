@@ -3156,7 +3156,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
 
-      LookupResult lookup;
+      LookupResult lookup(isolate());
       GlobalPropertyAccess type =
           LookupGlobalProperty(variable, &lookup, false);
 
@@ -3471,7 +3471,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
   Handle<String> name = Handle<String>::cast(key->handle());
   ASSERT(!name.is_null());
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   SmallMapList* types = expr->GetReceiverTypes();
   bool is_monomorphic = expr->IsMonomorphic() &&
       ComputeStoredField(types->first(), name, &lookup);
@@ -3495,7 +3495,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   HBasicBlock* join = NULL;
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
-    LookupResult lookup;
+    LookupResult lookup(isolate());
     if (ComputeStoredField(map, name, &lookup)) {
       if (count == 0) {
         AddInstruction(new(zone()) HCheckNonSmi(object));  // Only needed once.
@@ -3578,7 +3578,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     ASSERT(!name.is_null());
 
     SmallMapList* types = expr->GetReceiverTypes();
-    LookupResult lookup;
+    LookupResult lookup(isolate());
 
     if (expr->IsMonomorphic()) {
       instr = BuildStoreNamed(object, value, expr);
@@ -3623,7 +3623,7 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                                    HValue* value,
                                                    int position,
                                                    int ast_id) {
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
   if (type == kUseCell) {
     Handle<GlobalObject> global(info()->global_object());
@@ -3938,7 +3938,7 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Property* expr,
                                             Handle<Map> map,
                                             Handle<String> name) {
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   map->LookupInDescriptors(NULL, *name, &lookup);
   if (lookup.IsProperty() && lookup.type() == FIELD) {
     return BuildLoadNamedField(obj,
@@ -5012,7 +5012,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       // If there is a global property cell for the name at compile time and
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
-      LookupResult lookup;
+      LookupResult lookup(isolate());
       GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, false);
       if (type == kUseCell &&
           !info()->global_object()->IsAccessCheckNeeded()) {
@@ -5869,7 +5869,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         !info()->global_object()->IsAccessCheckNeeded()) {
       Handle<String> name = proxy->name();
       Handle<GlobalObject> global(info()->global_object());
-      LookupResult lookup;
+      LookupResult lookup(isolate());
       global->Lookup(*name, &lookup);
       if (lookup.IsProperty() &&
           lookup.type() == NORMAL &&

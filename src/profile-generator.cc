@@ -2166,15 +2166,16 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj,
 
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
-  if (object->IsJSFunction()) return HEAP->closure_symbol();
+  Heap* heap = object->GetHeap();
+  if (object->IsJSFunction()) return heap->closure_symbol();
   String* constructor_name = object->constructor_name();
-  if (constructor_name == HEAP->Object_symbol()) {
+  if (constructor_name == heap->Object_symbol()) {
     // Look up an immediate "constructor" property, if it is a function,
     // return its name. This is for instances of binding objects, which
     // have prototype constructor type "Object".
     Object* constructor_prop = NULL;
-    LookupResult result;
-    object->LocalLookupRealNamedProperty(HEAP->constructor_symbol(), &result);
+    LookupResult result(heap->isolate());
+    object->LocalLookupRealNamedProperty(heap->constructor_symbol(), &result);
     if (result.IsProperty()) {
       constructor_prop = result.GetLazyValue();
     }

@@ -154,7 +154,7 @@ void Object::Lookup(String* name, LookupResult* result) {
 MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
                                              String* name,
                                              PropertyAttributes* attributes) {
-  LookupResult result;
+  LookupResult result(name->GetIsolate());
   Lookup(name, &result);
   MaybeObject* value = GetProperty(receiver, &result, name, attributes);
   ASSERT(*attributes <= ABSENT);
@@ -310,7 +310,7 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
       case FIELD:
       case CONSTANT_FUNCTION: {
         // Search ALL_CAN_READ accessors in prototype chain.
-        LookupResult r;
+        LookupResult r(GetIsolate());
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
         if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(receiver,
@@ -323,7 +323,7 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
       case INTERCEPTOR: {
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
-        LookupResult r;
+        LookupResult r(GetIsolate());
         result->holder()->LookupRealNamedProperty(name, &r);
         if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(receiver,
@@ -370,7 +370,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case CONSTANT_FUNCTION: {
         if (!continue_search) break;
         // Search ALL_CAN_READ accessors in prototype chain.
-        LookupResult r;
+        LookupResult r(GetIsolate());
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
         if (r.IsProperty()) {
           return GetPropertyAttributeWithFailedAccessCheck(receiver,
@@ -384,7 +384,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case INTERCEPTOR: {
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
-        LookupResult r;
+        LookupResult r(GetIsolate());
         if (continue_search) {
           result->holder()->LookupRealNamedProperty(name, &r);
         } else {
@@ -404,7 +404,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     }
   }
 
-  GetHeap()->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  GetIsolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
   return ABSENT;
 }
 
@@ -1658,7 +1658,7 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   // Check local property, ignore interceptor.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
@@ -1840,7 +1840,7 @@ MaybeObject* JSReceiver::SetProperty(String* name,
                                      Object* value,
                                      PropertyAttributes attributes,
                                      StrictModeFlag strict_mode) {
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookup(name, &result);
   return SetProperty(&result, name, value, attributes, strict_mode);
 }
@@ -2006,9 +2006,9 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
     PropertyAttributes attributes,
     bool* found,
     StrictModeFlag strict_mode) {
-  LookupResult result;
-  LookupCallbackSetterInPrototypes(name, &result);
   Heap* heap = GetHeap();
+  LookupResult result(heap->isolate());
+  LookupCallbackSetterInPrototypes(name, &result);
   if (result.IsFound()) {
     *found = true;
     if (result.type() == CALLBACKS) {
@@ -2020,7 +2020,7 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
     } else if (result.type() == HANDLER) {
       // We could not find a local property so let's check whether there is an
       // accessor that wants to handle the property.
-      LookupResult accessor_result;
+      LookupResult accessor_result(heap->isolate());
       LookupCallbackSetterInPrototypes(name, &accessor_result);
       if (accessor_result.IsFound()) {
         if (accessor_result.type() == CALLBACKS) {
@@ -2423,7 +2423,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
         case INTERCEPTOR: {
           // Try lookup real named properties. Note that only property can be
           // set is callbacks marked as ALL_CAN_WRITE on the prototype chain.
-          LookupResult r;
+          LookupResult r(GetIsolate());
           LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
             return SetPropertyWithFailedAccessCheck(&r,
@@ -2441,10 +2441,10 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     }
   }
 
-  Heap* heap = GetHeap();
-  HandleScope scope(heap->isolate());
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
   Handle<Object> value_handle(value);
-  heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
+  isolate->ReportFailedAccessCheck(this, v8::ACCESS_SET);
   return *value_handle;
 }
 
@@ -2865,12 +2865,12 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
-  LookupResult result;
+  Isolate* isolate = GetIsolate();
+  LookupResult result(isolate);
   LocalLookup(name, &result);
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(&result,
                                               name,
                                               value,
@@ -2941,7 +2941,7 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
       String* name,
       bool continue_search) {
   // Check local property, ignore interceptor.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsProperty()) return result.GetAttributes();
 
@@ -3017,7 +3017,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
         ? NONE : ABSENT;
   }
   // Named property.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   Lookup(key, &result);
   return GetPropertyAttribute(receiver, &result, key, true);
 }
@@ -3066,7 +3066,7 @@ PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
     return ABSENT;
   }
   // Named property.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookup(name, &result);
   return GetPropertyAttribute(this, &result, name, false);
 }
@@ -3573,7 +3573,7 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
 MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
                                                      DeleteMode mode) {
   // Check local property, ignore interceptor.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
   if (!result.IsProperty()) return GetHeap()->true_value();
 
@@ -3722,7 +3722,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   if (name->AsArrayIndex(&index)) {
     return DeleteElement(index, mode);
   } else {
-    LookupResult result;
+    LookupResult result(isolate);
     LocalLookup(name, &result);
     if (!result.IsProperty()) return isolate->heap()->true_value();
     // Ignore attributes if forcing a deletion.
@@ -4152,7 +4152,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     }
   } else {
     // Lookup the name.
-    LookupResult result;
+    LookupResult result(heap->isolate());
     LocalLookup(name, &result);
     if (result.IsProperty()) {
       if (result.IsReadOnly()) return heap->undefined_value();
@@ -4182,8 +4182,8 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
 
 
 bool JSObject::CanSetCallback(String* name) {
-  ASSERT(!IsAccessCheckNeeded()
-         || Isolate::Current()->MayNamedAccess(this, name, v8::ACCESS_SET));
+  ASSERT(!IsAccessCheckNeeded() ||
+         GetIsolate()->MayNamedAccess(this, name, v8::ACCESS_SET));
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
@@ -4191,7 +4191,7 @@ bool JSObject::CanSetCallback(String* name) {
   // certain accessors such as window.location should not be allowed
   // to be overwritten because allowing overwriting could potentially
   // cause security problems.
-  LookupResult callback_result;
+  LookupResult callback_result(GetIsolate());
   LookupCallback(name, &callback_result);
   if (callback_result.IsProperty()) {
     Object* obj = callback_result.GetCallbackObject();
@@ -4388,7 +4388,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
     }
   } else {
     // Lookup the name.
-    LookupResult result;
+    LookupResult result(isolate);
     LocalLookup(name, &result);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
@@ -4446,7 +4446,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
     for (Object* obj = this;
          obj != heap->null_value();
          obj = JSObject::cast(obj)->GetPrototype()) {
-      LookupResult result;
+      LookupResult result(heap->isolate());
       JSObject::cast(obj)->LocalLookup(name, &result);
       if (result.IsProperty()) {
         if (result.IsReadOnly()) return heap->undefined_value();
@@ -7088,7 +7088,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
        obj = obj->GetPrototype()) {
     JSObject* js_object = JSObject::cast(obj);
     for (int i = 0; i < this_property_assignments_count(); i++) {
-      LookupResult result;
+      LookupResult result(heap->isolate());
       String* name = GetThisPropertyAssignmentName(i);
       js_object->LocalLookupRealNamedProperty(name, &result);
       if (result.IsProperty() && result.type() == CALLBACKS) {
@@ -9634,7 +9634,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsProperty()) {
     return GetProperty(receiver, &result, name, attributes);
@@ -9652,7 +9652,7 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
-  LookupResult result;
+  LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsProperty()) {
     return GetProperty(receiver, &result, name, attributes);
@@ -9703,15 +9703,15 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
 
 bool JSObject::HasRealNamedProperty(String* key) {
   // Check access rights if needed.
+  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
   }
 
-  LookupResult result;
+  LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
   return result.IsProperty() && (result.type() != INTERCEPTOR);
 }
@@ -9780,15 +9780,15 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
 
 bool JSObject::HasRealNamedCallbackProperty(String* key) {
   // Check access rights if needed.
+  Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccess(this, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
       return false;
     }
   }
 
-  LookupResult result;
+  LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
   return result.IsProperty() && (result.type() == CALLBACKS);
 }

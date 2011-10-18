@@ -2504,7 +2504,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
 
   // Get the receiver from the stack.
@@ -2908,7 +2908,7 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
   GenerateLoadInterceptor(object,
                           holder,
@@ -3066,7 +3066,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
   GenerateLoadInterceptor(receiver,
                           holder,

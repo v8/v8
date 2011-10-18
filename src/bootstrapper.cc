@@ -1065,7 +1065,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             DONT_ENUM);
 
 #ifdef DEBUG
-    LookupResult lookup;
+    LookupResult lookup(isolate);
     result->LocalLookup(heap->callee_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsCalleeIndex);
@@ -1162,7 +1162,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             DONT_ENUM);
 
 #ifdef DEBUG
-    LookupResult lookup;
+    LookupResult lookup(isolate);
     result->LocalLookup(heap->length_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
@@ -2088,7 +2088,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case CALLBACKS: {
-          LookupResult result;
+          LookupResult result(isolate());
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
           if (result.IsProperty()) continue;
@@ -2126,7 +2126,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       if (properties->IsKey(raw_key)) {
         ASSERT(raw_key->IsString());
         // If the property is already there we skip it.
-        LookupResult result;
+        LookupResult result(isolate());
         to->LocalLookup(String::cast(raw_key), &result);
         if (result.IsProperty()) continue;
         // Set the property.

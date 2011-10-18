@@ -483,7 +483,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   }
 
   // Lookup the property in the object.
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupForRead(*object, *name, &lookup);
 
   if (!lookup.IsProperty()) {
@@ -935,7 +935,7 @@ MaybeObject* LoadIC::Load(State state,
   if (name->AsArrayIndex(&index)) return object->GetElement(index);
 
   // Named lookup in the object.
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupForRead(*object, *name, &lookup);
 
   // If we did not find a property, check if we need to throw an exception.
@@ -1203,7 +1203,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     // Named lookup.
-    LookupResult lookup;
+    LookupResult lookup(isolate());
     LookupForRead(*object, *name, &lookup);
 
     // If we did not find a property, check if we need to throw an exception.
@@ -1435,7 +1435,7 @@ MaybeObject* StoreIC::Store(State state,
 
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
-    LookupResult lookup;
+    LookupResult lookup(isolate());
 
     if (LookupForWrite(*receiver, *name, &lookup)) {
       // Generate a stub for this store.
@@ -1849,7 +1849,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     }
 
     // Lookup the property locally in the receiver.
-    LookupResult lookup;
+    LookupResult lookup(isolate());
     receiver->LocalLookup(*name, &lookup);
 
     // Update inline cache and stub cache.

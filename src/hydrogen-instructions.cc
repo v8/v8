@@ -1390,7 +1390,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
-    LookupResult lookup;
+    LookupResult lookup(map->GetIsolate());
     map->LookupInDescriptors(NULL, *name, &lookup);
     if (lookup.IsProperty()) {
       switch (lookup.type()) {

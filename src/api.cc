@@ -3110,7 +3110,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup;
+  i::LookupResult lookup(isolate);
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
@@ -3123,7 +3123,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup;
+  i::LookupResult lookup(isolate);
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }

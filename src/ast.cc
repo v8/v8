@@ -720,7 +720,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
     holder_ = Handle<JSObject>::null();
   }
   while (true) {
-    LookupResult lookup;
+    LookupResult lookup(type->GetIsolate());
     type->LookupInDescriptors(NULL, *name, &lookup);
     // If the function wasn't found directly in the map, we start
     // looking upwards through the prototype chain.

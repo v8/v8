@@ -961,7 +961,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
   HandleScope scope(isolate);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
-  LookupResult result;
+  LookupResult result(isolate);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
@@ -1240,7 +1240,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     if (value->IsUndefined() || is_const_property) {
       // Lookup the property in the global object, and don't set the
       // value of the variable if the property is already there.
-      LookupResult lookup;
+      LookupResult lookup(isolate);
       global->Lookup(*name, &lookup);
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
@@ -1267,7 +1267,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       value = function;
     }
 
-    LookupResult lookup;
+    LookupResult lookup(isolate);
     global->LocalLookup(*name, &lookup);
 
     // Compute the property attributes. According to ECMA-262, section
@@ -1399,7 +1399,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
     // not real JSObjects.
     if (initial_value->IsTheHole() &&
         !object->IsJSContextExtensionObject()) {
-      LookupResult lookup;
+      LookupResult lookup(isolate);
       object->Lookup(*name, &lookup);
       if (lookup.IsProperty() && (lookup.type() == CALLBACKS)) {
         return ThrowRedeclarationError(isolate, "const", name);
@@ -1443,7 +1443,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // Note that objects can have hidden prototypes, so we need to traverse
   // the whole chain of hidden prototypes to do a 'local' lookup.
   Object* object = global;
-  LookupResult lookup;
+  LookupResult lookup(isolate);
   while (object->IsJSObject() &&
          JSObject::cast(object)->map()->is_hidden_prototype()) {
     JSObject* raw_holder = JSObject::cast(object);
@@ -1497,7 +1497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
   // We use SetLocalPropertyIgnoreAttributes instead
-  LookupResult lookup;
+  LookupResult lookup(isolate);
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
     return global->SetLocalPropertyIgnoreAttributes(*name,
@@ -1614,7 +1614,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
     // This is the property that was introduced by the const declaration.
     // Set it if it hasn't been set before.  NOTE: We cannot use
     // GetProperty() to get the current value as it 'unholes' the value.
-    LookupResult lookup;
+    LookupResult lookup(isolate);
     object->LocalLookupRealNamedProperty(*name, &lookup);
     ASSERT(lookup.IsProperty());  // the property was declared
     ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
@@ -4135,7 +4135,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         return value->IsTheHole() ? isolate->heap()->undefined_value() : value;
       }
       // Lookup cache miss.  Perform lookup and update the cache if appropriate.
-      LookupResult result;
+      LookupResult result(isolate);
       receiver->LocalLookup(key, &result);
       if (result.IsProperty() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
@@ -4190,7 +4190,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   RUNTIME_ASSERT(!obj->IsNull());
-  LookupResult result;
+  LookupResult result(isolate);
   obj->LocalLookupRealNamedProperty(name, &result);
 
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
@@ -4274,7 +4274,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     return *obj_value;
   }
 
-  LookupResult result;
+  LookupResult result(isolate);
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // To be compatible with safari we do not change the value on API objects
@@ -10361,7 +10361,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   // Try local lookup on each of the objects.
   Handle<JSObject> jsproto = obj;
   for (int i = 0; i < length; i++) {
-    LookupResult result;
+    LookupResult result(isolate);
     jsproto->LocalLookup(*name, &result);
     if (result.IsProperty()) {
       // LookupResult is not GC safe as it holds raw object pointers.
@@ -10418,7 +10418,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetProperty) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
-  LookupResult result;
+  LookupResult result(isolate);
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
     return DebugLookupResultValue(isolate->heap(), *obj, *name, &result, NULL);
