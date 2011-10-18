@@ -746,7 +746,7 @@ TEST(RegExpScanning) {
 }
 
 
-TEST(ScopePositiosn) {
+TEST(ScopePositions) {
   // Test the parser for correctly setting the start and end positions
   // of a scope. We check the scope positions of exactly one scope
   // nested in the global scope of a program. 'inner source' is the
@@ -843,21 +843,23 @@ TEST(ScopePositiosn) {
     size_t kInnerLen = strlen(source_data[i].inner_source);
     size_t kSuffixLen = strlen(source_data[i].outer_suffix);
     size_t kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
-    i::SmartArrayPointer<char> program(
-        reinterpret_cast<char*>(malloc(kProgramSize + 1)));
-    snprintf(*program, kProgramSize + 1, "%s%s%s",
-             source_data[i].outer_prefix,
-             source_data[i].inner_source,
-             source_data[i].outer_suffix);
+    i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
+    size_t length;
+    length = i::OS::SNPrintF(program, "%s%s%s",
+                             source_data[i].outer_prefix,
+                             source_data[i].inner_source,
+                             source_data[i].outer_suffix);
+    ASSERT(length == kProgramSize);
 
     // Parse program source.
     i::Handle<i::String> source(
-        FACTORY->NewStringFromAscii(i::CStrVector(*program)));
+        FACTORY->NewStringFromAscii(i::CStrVector(program.start())));
     i::Handle<i::Script> script = FACTORY->NewScript(source);
     i::Parser parser(script, false, NULL, NULL);
     parser.SetHarmonyScoping(true);
     i::FunctionLiteral* function =
         parser.ParseProgram(source, true, i::kNonStrictMode);
+    ASSERT(function != NULL);
 
     // Check scope types and positions.
     i::Scope* scope = function->scope();
