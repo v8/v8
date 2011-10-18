@@ -206,7 +206,7 @@ class LCodeGen BASE_EMBEDDED {
                                LInstruction* instr);
 
   // Generate a direct call to a known function.  Expects the function
-  // to be in edi.
+  // to be in r1.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,

@@ -1007,7 +1007,10 @@ void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
   for (uint32_t i = 0; i < table_length; ++i) {
     uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    RevertStackCheckCodeAt(pc_after, check_code, replacement_code);
+    RevertStackCheckCodeAt(unoptimized_code,
+                           pc_after,
+                           check_code,
+                           replacement_code);
     stack_check_cursor += 2 * kIntSize;
   }
 }

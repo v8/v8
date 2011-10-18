@@ -127,6 +127,7 @@ class IncrementalMarking {
   inline void RecordWriteIntoCode(HeapObject* obj,
                                   RelocInfo* rinfo,
                                   Object* value);
+  void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
   void RecordWriteOfCodeEntry(JSFunction* host, Object** slot, Code* value);
 
