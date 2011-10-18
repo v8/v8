@@ -246,11 +246,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           Handle<String> name,
-                           LookupResult* result);
-
-
 Handle<Object> GetElement(Handle<Object> obj,
                           uint32_t index);
 

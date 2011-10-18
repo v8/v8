@@ -3093,7 +3093,13 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // If the property being looked up is a callback, it can throw
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(receiver, name, lookup);
+  PropertyAttributes attributes;
+  i::Handle<i::Object> result = i::Object::GetProperty(isolate,
+                                                       receiver,
+                                                       receiver,
+                                                       lookup,
+                                                       name,
+                                                       &attributes);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 

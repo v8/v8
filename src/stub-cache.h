@@ -76,41 +76,35 @@ class StubCache {
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
-  MUST_USE_RESULT MaybeObject* ComputeLoadNonexistent(
-      String* name,
-      JSObject* receiver);
+  Handle<Code> ComputeLoadNonexistent(Handle<String> name,
+                                      Handle<JSObject> receiver);
 
-  MUST_USE_RESULT MaybeObject* ComputeLoadField(String* name,
-                                                JSObject* receiver,
-                                                JSObject* holder,
-                                                int field_index);
+  Handle<Code> ComputeLoadField(Handle<String> name,
+                                Handle<JSObject> receiver,
+                                Handle<JSObject> holder,
+                                int field_index);
 
-  MUST_USE_RESULT MaybeObject* ComputeLoadCallback(
-      String* name,
-      JSObject* receiver,
-      JSObject* holder,
-      AccessorInfo* callback);
+  Handle<Code> ComputeLoadCallback(Handle<String> name,
+                                   Handle<JSObject> receiver,
+                                   Handle<JSObject> holder,
+                                   Handle<AccessorInfo> callback);
 
-  MUST_USE_RESULT MaybeObject* ComputeLoadConstant(String* name,
-                                                   JSObject* receiver,
-                                                   JSObject* holder,
-                                                   Object* value);
+  Handle<Code> ComputeLoadConstant(Handle<String> name,
+                                   Handle<JSObject> receiver,
+                                   Handle<JSObject> holder,
+                                   Handle<Object> value);
 
-  MUST_USE_RESULT MaybeObject* ComputeLoadInterceptor(
-      String* name,
-      JSObject* receiver,
-      JSObject* holder);
+  Handle<Code> ComputeLoadInterceptor(Handle<String> name,
+                                      Handle<JSObject> receiver,
+                                      Handle<JSObject> holder);
 
-  MUST_USE_RESULT MaybeObject* ComputeLoadNormal();
+  Handle<Code> ComputeLoadNormal();
 
-
-  MUST_USE_RESULT MaybeObject* ComputeLoadGlobal(
-      String* name,
-      JSObject* receiver,
-      GlobalObject* holder,
-      JSGlobalPropertyCell* cell,
-      bool is_dont_delete);
-
+  Handle<Code> ComputeLoadGlobal(Handle<String> name,
+                                 Handle<JSObject> receiver,
+                                 Handle<GlobalObject> holder,
+                                 Handle<JSGlobalPropertyCell> cell,
+                                 bool is_dont_delete);
 
   // ---
 
@@ -330,6 +324,7 @@ class StubCache {
 
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
+  Factory* factory() { return isolate()->factory(); }
 
  private:
   explicit StubCache(Isolate* isolate);
@@ -410,8 +405,8 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
 // The stub compiler compiles stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
-  StubCompiler()
-      : scope_(), masm_(Isolate::Current(), NULL, 256), failure_(NULL) { }
+  explicit StubCompiler(Isolate* isolate)
+      : isolate_(isolate), masm_(isolate, NULL, 256), failure_(NULL) { }
 
   MUST_USE_RESULT MaybeObject* CompileCallInitialize(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);
@@ -567,12 +562,12 @@ class StubCompiler BASE_EMBEDDED {
                                     String* name,
                                     LookupResult* lookup);
 
-  Isolate* isolate() { return scope_.isolate(); }
+  Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
 
  private:
-  HandleScope scope_;
+  Isolate* isolate_;
   MacroAssembler masm_;
   Failure* failure_;
 };
@@ -580,28 +575,59 @@ class StubCompiler BASE_EMBEDDED {
 
 class LoadStubCompiler: public StubCompiler {
  public:
+  explicit LoadStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
+
+  Handle<Code> CompileLoadNonexistent(Handle<String> name,
+                                      Handle<JSObject> object,
+                                      Handle<JSObject> last);
+
   MUST_USE_RESULT MaybeObject* CompileLoadNonexistent(String* name,
                                                       JSObject* object,
                                                       JSObject* last);
+
+  Handle<Code> CompileLoadField(Handle<JSObject> object,
+                                Handle<JSObject> holder,
+                                int index,
+                                Handle<String> name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadField(JSObject* object,
                                                 JSObject* holder,
                                                 int index,
                                                 String* name);
 
+  Handle<Code> CompileLoadCallback(Handle<String> name,
+                                   Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   Handle<AccessorInfo> callback);
+
   MUST_USE_RESULT MaybeObject* CompileLoadCallback(String* name,
                                                    JSObject* object,
                                                    JSObject* holder,
                                                    AccessorInfo* callback);
+
+  Handle<Code> CompileLoadConstant(Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   Handle<Object> value,
+                                   Handle<String> name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadConstant(JSObject* object,
                                                    JSObject* holder,
                                                    Object* value,
                                                    String* name);
 
+  Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
+                                      Handle<JSObject> holder,
+                                      Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileLoadInterceptor(JSObject* object,
                                                       JSObject* holder,
                                                       String* name);
+
+  Handle<Code> CompileLoadGlobal(Handle<JSObject> object,
+                                 Handle<GlobalObject> holder,
+                                 Handle<JSGlobalPropertyCell> cell,
+                                 Handle<String> name,
+                                 bool is_dont_delete);
 
   MUST_USE_RESULT MaybeObject* CompileLoadGlobal(JSObject* object,
                                                  GlobalObject* holder,
@@ -616,6 +642,7 @@ class LoadStubCompiler: public StubCompiler {
 
 class KeyedLoadStubCompiler: public StubCompiler {
  public:
+  explicit KeyedLoadStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
   MUST_USE_RESULT MaybeObject* CompileLoadField(String* name,
                                                 JSObject* object,
                                                 JSObject* holder,
@@ -663,8 +690,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
-  explicit StoreStubCompiler(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
+  StoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
+    : StubCompiler(isolate), strict_mode_(strict_mode) { }
 
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
@@ -690,8 +717,8 @@ class StoreStubCompiler: public StubCompiler {
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
-  explicit KeyedStoreStubCompiler(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
+  KeyedStoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
+    : StubCompiler(isolate), strict_mode_(strict_mode) { }
 
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
@@ -742,7 +769,8 @@ class CallOptimization;
 
 class CallStubCompiler: public StubCompiler {
  public:
-  CallStubCompiler(int argc,
+  CallStubCompiler(Isolate* isolate,
+                   int argc,
                    Code::Kind kind,
                    Code::ExtraICState extra_ic_state,
                    InlineCacheHolderFlag cache_holder);
@@ -835,7 +863,7 @@ class CallStubCompiler: public StubCompiler {
 
 class ConstructStubCompiler: public StubCompiler {
  public:
-  explicit ConstructStubCompiler() {}
+  explicit ConstructStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
 
   MUST_USE_RESULT MaybeObject* CompileConstructStub(JSFunction* function);
 

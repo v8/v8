@@ -371,8 +371,7 @@ static bool HasInterceptorGetter(JSObject* object) {
 static void LookupForRead(Object* object,
                           String* name,
                           LookupResult* lookup) {
-  AssertNoAllocation no_gc;  // pointers must stay valid
-
+  AssertNoAllocation no_gc;
   // Skip all the objects with named interceptors, but
   // without actual getter.
   while (true) {
@@ -398,6 +397,44 @@ static void LookupForRead(Object* object,
     }
 
     Object* proto = holder->GetPrototype();
+    if (proto->IsNull()) {
+      lookup->NotFound();
+      return;
+    }
+
+    object = proto;
+  }
+}
+
+
+static void LookupForRead(Handle<Object> object,
+                          Handle<String> name,
+                          LookupResult* lookup) {
+  // Skip all the objects with named interceptors, but
+  // without actual getter.
+  while (true) {
+    object->Lookup(*name, lookup);
+    // Besides normal conditions (property not found or it's not
+    // an interceptor), bail out if lookup is not cacheable: we won't
+    // be able to IC it anyway and regular lookup should work fine.
+    if (!lookup->IsFound()
+        || (lookup->type() != INTERCEPTOR)
+        || !lookup->IsCacheable()) {
+      return;
+    }
+
+    Handle<JSObject> holder(lookup->holder());
+    if (HasInterceptorGetter(*holder)) {
+      return;
+    }
+
+    holder->LocalLookupRealNamedProperty(*name, lookup);
+    if (lookup->IsProperty()) {
+      ASSERT(lookup->type() != INTERCEPTOR);
+      return;
+    }
+
+    Handle<Object> proto(holder->GetPrototype());
     if (proto->IsNull()) {
       lookup->NotFound();
       return;
@@ -850,53 +887,44 @@ MaybeObject* LoadIC::Load(State state,
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
         name->Equals(isolate()->heap()->length_symbol())) {
-      AssertNoAllocation no_allocation;
-      Code* stub = NULL;
+      Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
-        if (object->IsString()) {
-          stub = isolate()->builtins()->builtin(
-              Builtins::kLoadIC_StringLength);
-        } else {
-          stub = isolate()->builtins()->builtin(
-              Builtins::kLoadIC_StringWrapperLength);
-        }
+        stub = object->IsString()
+            ? isolate()->builtins()->LoadIC_StringLength()
+            : isolate()->builtins()->LoadIC_StringWrapperLength();
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        stub = isolate()->builtins()->builtin(
-            Builtins::kLoadIC_StringWrapperLength);
+        stub = isolate()->builtins()->LoadIC_StringWrapperLength();
       } else if (state != MEGAMORPHIC) {
         stub = megamorphic_stub();
       }
-      if (stub != NULL) {
-        set_target(stub);
+      if (!stub.is_null()) {
+        set_target(*stub);
 #ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
 #endif
       }
       // Get the string if we have a string wrapper object.
-      if (object->IsJSValue()) {
-        return Smi::FromInt(
-            String::cast(Handle<JSValue>::cast(object)->value())->length());
-      }
-      return Smi::FromInt(String::cast(*object)->length());
+      Handle<Object> string = object->IsJSValue()
+          ? Handle<Object>(Handle<JSValue>::cast(object)->value())
+          : object;
+      return Smi::FromInt(String::cast(*string)->length());
     }
 
     // Use specialized code for getting the length of arrays.
     if (object->IsJSArray() &&
         name->Equals(isolate()->heap()->length_symbol())) {
-      AssertNoAllocation no_allocation;
-      Code* stub = NULL;
+      Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->builtin(
-            Builtins::kLoadIC_ArrayLength);
+        stub = isolate()->builtins()->LoadIC_ArrayLength();
       } else if (state != MEGAMORPHIC) {
         stub = megamorphic_stub();
       }
-      if (stub != NULL) {
-        set_target(stub);
+      if (!stub.is_null()) {
+        set_target(*stub);
 #ifdef DEBUG
         if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
@@ -907,23 +935,20 @@ MaybeObject* LoadIC::Load(State state,
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_symbol()) &&
-        JSFunction::cast(*object)->should_have_prototype()) {
-      { AssertNoAllocation no_allocation;
-        Code* stub = NULL;
-        if (state == UNINITIALIZED) {
-          stub = pre_monomorphic_stub();
-        } else if (state == PREMONOMORPHIC) {
-          stub = isolate()->builtins()->builtin(
-              Builtins::kLoadIC_FunctionPrototype);
-        } else if (state != MEGAMORPHIC) {
-          stub = megamorphic_stub();
-        }
-        if (stub != NULL) {
-          set_target(stub);
+        Handle<JSFunction>::cast(object)->should_have_prototype()) {
+      Handle<Code> stub;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
+        stub = isolate()->builtins()->LoadIC_FunctionPrototype();
+      } else if (state != MEGAMORPHIC) {
+        stub = megamorphic_stub();
+      }
+      if (!stub.is_null()) {
+        set_target(*stub);
 #ifdef DEBUG
-          if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
-        }
       }
       return Accessors::FunctionGetPrototype(*object, 0);
     }
@@ -936,7 +961,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // Named lookup in the object.
   LookupResult lookup(isolate());
-  LookupForRead(*object, *name, &lookup);
+  LookupForRead(object, name, &lookup);
 
   // If we did not find a property, check if we need to throw an exception.
   if (!lookup.IsProperty()) {
@@ -955,17 +980,15 @@ MaybeObject* LoadIC::Load(State state,
   if (lookup.IsProperty() &&
       (lookup.type() == INTERCEPTOR || lookup.type() == HANDLER)) {
     // Get the property.
-    Object* result;
-    { MaybeObject* maybe_result =
-          object->GetProperty(*object, &lookup, *name, &attr);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
+    Handle<Object> result =
+        Object::GetProperty(isolate(), object, object, &lookup, name, &attr);
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
     // If the property is not present, check if we need to throw an
     // exception.
     if (attr == ABSENT && IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
-    return result;
+    return *result;
   }
 
   // Get the property.
@@ -988,91 +1011,75 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
   // Compute the code stub for this load.
-  MaybeObject* maybe_code = NULL;
-  Object* code;
+  Handle<Code> code;
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    maybe_code = pre_monomorphic_stub();
+    code = pre_monomorphic_stub();
   } else if (!lookup->IsProperty()) {
     // Nonexistent property. The result is undefined.
-    maybe_code = isolate()->stub_cache()->ComputeLoadNonexistent(*name,
-                                                                 *receiver);
+    code = isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
   } else {
     // Compute monomorphic stub.
+    Handle<JSObject> holder(lookup->holder());
     switch (lookup->type()) {
-      case FIELD: {
-        maybe_code = isolate()->stub_cache()->ComputeLoadField(
-            *name,
-            *receiver,
-            lookup->holder(),
-            lookup->GetFieldIndex());
+      case FIELD:
+        code = isolate()->stub_cache()->ComputeLoadField(
+            name, receiver, holder, lookup->GetFieldIndex());
         break;
-      }
       case CONSTANT_FUNCTION: {
-        Object* constant = lookup->GetConstantFunction();
-        maybe_code = isolate()->stub_cache()->ComputeLoadConstant(
-            *name, *receiver, lookup->holder(), constant);
+        Handle<Object> constant(lookup->GetConstantFunction());
+        code = isolate()->stub_cache()->ComputeLoadConstant(
+            name, receiver, holder, constant);
         break;
       }
-      case NORMAL: {
-        if (lookup->holder()->IsGlobalObject()) {
-          GlobalObject* global = GlobalObject::cast(lookup->holder());
-          JSGlobalPropertyCell* cell =
-              JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          maybe_code = isolate()->stub_cache()->ComputeLoadGlobal(*name,
-                                                    *receiver,
-                                                    global,
-                                                    cell,
-                                                    lookup->IsDontDelete());
+      case NORMAL:
+        if (holder->IsGlobalObject()) {
+          Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
+          Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+          code = isolate()->stub_cache()->ComputeLoadGlobal(
+              name, receiver, global, cell, lookup->IsDontDelete());
         } else {
           // There is only one shared stub for loading normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
-          if (lookup->holder() != *receiver) return;
-          maybe_code = isolate()->stub_cache()->ComputeLoadNormal();
+          if (!holder.is_identical_to(receiver)) return;
+          code = isolate()->stub_cache()->ComputeLoadNormal();
         }
         break;
-      }
       case CALLBACKS: {
-        if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
-        AccessorInfo* callback =
-            AccessorInfo::cast(lookup->GetCallbackObject());
+        Handle<Object> callback_object(lookup->GetCallbackObject());
+        if (!callback_object->IsAccessorInfo()) return;
+        Handle<AccessorInfo> callback =
+            Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        maybe_code = isolate()->stub_cache()->ComputeLoadCallback(
-            *name, *receiver, lookup->holder(), callback);
+        code = isolate()->stub_cache()->ComputeLoadCallback(
+            name, receiver, holder, callback);
         break;
       }
-      case INTERCEPTOR: {
-        ASSERT(HasInterceptorGetter(lookup->holder()));
-        maybe_code = isolate()->stub_cache()->ComputeLoadInterceptor(
-            *name, *receiver, lookup->holder());
+      case INTERCEPTOR:
+        ASSERT(HasInterceptorGetter(*holder));
+        code = isolate()->stub_cache()->ComputeLoadInterceptor(
+            name, receiver, holder);
         break;
-      }
       default:
         return;
     }
   }
 
-  // If we're unable to compute the stub (not enough memory left), we
-  // simply avoid updating the caches.
-  if (maybe_code == NULL || !maybe_code->ToObject(&code)) return;
-
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED || state == PREMONOMORPHIC ||
+  if (state == UNINITIALIZED ||
+      state == PREMONOMORPHIC ||
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(Code::cast(code));
+    set_target(*code);
   } else if (state == MONOMORPHIC) {
-    set_target(megamorphic_stub());
+    set_target(*megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
     // Cache code holding map should be consistent with
     // GenerateMonomorphicCacheProbe.
-    Map* map = JSObject::cast(object->IsJSObject() ? *object :
-                              object->GetPrototype())->map();
-
-    isolate()->stub_cache()->Set(*name, map, Code::cast(code));
+    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
   }
 
 #ifdef DEBUG
@@ -1101,7 +1108,8 @@ MaybeObject* KeyedLoadIC::ComputePolymorphicStub(
     handler_ics.Add(cached_stub);
   }
   Object* object;
-  KeyedLoadStubCompiler compiler;
+  HandleScope scope(isolate());
+  KeyedLoadStubCompiler compiler(isolate());
   MaybeObject* maybe_code = compiler.CompileLoadPolymorphic(receiver_maps,
                                                             &handler_ics);
   if (!maybe_code->ToObject(&object)) return maybe_code;
@@ -1808,7 +1816,8 @@ MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     transitioned_maps.Add(transitioned_map);
   }
   Object* object;
-  KeyedStoreStubCompiler compiler(strict_mode);
+  HandleScope scope(isolate());
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode);
   MaybeObject* maybe_code = compiler.CompileStorePolymorphic(
       receiver_maps, &handler_ics, &transitioned_maps);
   if (!maybe_code->ToObject(&object)) return maybe_code;
@@ -2052,7 +2061,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
-  NoHandleAllocation na;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   LoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);

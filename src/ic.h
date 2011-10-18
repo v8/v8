@@ -321,17 +321,15 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   // Stub accessors.
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kLoadIC_Megamorphic);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->LoadIC_Megamorphic();
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kLoadIC_Initialize);
   }
-  Code* pre_monomorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kLoadIC_PreMonomorphic);
+  Handle<Code> pre_monomorphic_stub() {
+    return isolate()->builtins()->LoadIC_PreMonomorphic();
   }
 
   static void Clear(Address address, Code* target);

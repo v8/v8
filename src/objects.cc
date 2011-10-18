@@ -528,6 +528,19 @@ bool JSObject::IsDirty() {
 }
 
 
+Handle<Object> Object::GetProperty(Isolate* isolate,
+                                   Handle<Object> object,
+                                   Handle<Object> receiver,
+                                   LookupResult* result,
+                                   Handle<String> key,
+                                   PropertyAttributes* attributes) {
+  CALL_HEAP_FUNCTION(
+      isolate,
+      object->GetProperty(*receiver, result, *key, attributes),
+      Object);
+}
+
+
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
                                  String* name,
@@ -3114,6 +3127,15 @@ void NormalizedMapCache::Clear() {
   for (int i = 0; i != entries; i++) {
     set_undefined(i);
   }
+}
+
+
+void JSObject::UpdateMapCodeCache(Isolate* isolate,
+                                  Handle<JSObject> object,
+                                  Handle<String> name,
+                                  Handle<Code> code) {
+  CALL_HEAP_FUNCTION_VOID(isolate,
+                          object->UpdateMapCodeCache(*name, *code));
 }
 
 

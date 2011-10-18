@@ -912,10 +912,19 @@ class Object : public MaybeObject {
       Object* receiver,
       String* key,
       PropertyAttributes* attributes);
+
+  static Handle<Object> GetProperty(Isolate* isolate,
+                                    Handle<Object> object,
+                                    Handle<Object> receiver,
+                                    LookupResult* result,
+                                    Handle<String> key,
+                                    PropertyAttributes* attributes);
+
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
                                            String* key,
                                            PropertyAttributes* attributes);
+
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
@@ -1834,6 +1843,11 @@ class JSObject: public JSReceiver {
   // Convert and update the elements backing store to be a NumberDictionary
   // dictionary.  Returns the backing after conversion.
   MUST_USE_RESULT MaybeObject* NormalizeElements();
+
+  static void UpdateMapCodeCache(Isolate* isolate,
+                                 Handle<JSObject> object,
+                                 Handle<String> name,
+                                 Handle<Code> code);
 
   MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
 
