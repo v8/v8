@@ -30,10 +30,6 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
-# A bound function should fail on access to 'caller' and 'arguments'.
-S15.3.4.5_A1: FAIL
-S15.3.4.5_A2: FAIL
-
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
@@ -42,9 +38,6 @@ S8.7_A5_T2: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
 S10.4.2.1_A1: FAIL
-
-# V8 Bug.
-S13.2.3_A1: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
 S15.3.3.1_A4: FAIL
@@ -127,12 +120,6 @@ S15.3.3.1_A4: FAIL
 15.2.3.7-6-a-175: FAIL
 15.2.3.7-6-a-176: FAIL
 15.2.3.7-6-a-177: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=893
-15.3.4.5-20-2: FAIL
-15.3.4.5-20-3: FAIL
-15.3.4.5-21-2: FAIL
-15.3.4.5-21-3: FAIL
 
 # Invalid test cases (recent change adding var changes semantics)
 S8.3_A1_T1: FAIL

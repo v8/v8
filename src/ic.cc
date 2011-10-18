@@ -1413,6 +1413,7 @@ MaybeObject* StoreIC::Store(State state,
       return TypeError("strict_read_only_property", object, name);
     }
     // Ignore other stores where the receiver is not a JSObject.
+    // TODO(1475): Must check prototype chains of object wrappers.
     return *value;
   }
 
@@ -1444,7 +1445,6 @@ MaybeObject* StoreIC::Store(State state,
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup(isolate());
-
     if (LookupForWrite(*receiver, *name, &lookup)) {
       // Generate a stub for this store.
       UpdateCaches(&lookup, state, strict_mode, receiver, name, value);

@@ -1520,6 +1520,8 @@ function FunctionBind(this_arg) { // Length is 1.
     throw new $TypeError('Bind must be called on a function');
   }
   var boundFunction = function () {
+    // Poison .arguments and .caller, but is otherwise not detectable.
+    "use strict";
     // This function must not use any object literals (Object, Array, RegExp),
     // since the literals-array is being used to store the bound data.
     if (%_IsConstructCall()) {

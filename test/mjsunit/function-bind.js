@@ -263,3 +263,34 @@ assertEquals(["foo", 0, undefined], s());
 
 s = soo.bind(true);
 assertEquals([true, 0, undefined], s());
+
+// Test that .arguments and .caller are poisoned according to the ES5 spec.
+
+// Check that property descriptors are correct (unconfigurable, unenumerable,
+// and both get and set is the ThrowTypeError function).
+var cdesc = Object.getOwnPropertyDescriptor(f, "caller");
+var adesc = Object.getOwnPropertyDescriptor(f, "arguments");
+
+assertFalse(cdesc.enumerable);
+assertFalse(cdesc.configurable);
+
+assertFalse(adesc.enumerable);
+assertFalse(adesc.configurable);
+
+assertSame(cdesc.get, cdesc.set);
+assertSame(cdesc.get, adesc.get);
+assertSame(cdesc.get, adesc.set);
+
+assertTrue(cdesc.get instanceof Function);
+assertEquals(0, cdesc.get.length);
+assertThrows(cdesc.get, TypeError);
+
+assertThrows(function() { return f.caller; }, TypeError);
+assertThrows(function() { f.caller = 42; }, TypeError);
+assertThrows(function() { return f.arguments; }, TypeError);
+assertThrows(function() { f.arguments = 42; }, TypeError);
+
+// Shouldn't throw. Accessing the functions caller must throw if
+// the caller is strict and the callee isn't. A bound function is built-in,
+// but not considered strict.
+(function foo() { return foo.caller; }).bind()();

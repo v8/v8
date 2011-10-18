@@ -522,7 +522,7 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
                                     ? 4
                                     : 5);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE | READ_ONLY);
+      DONT_ENUM | DONT_DELETE);
 
   {  // length
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
@@ -547,8 +547,8 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
 
   // prototype
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
-      attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+    if (prototypeMode != ADD_WRITEABLE_PROTOTYPE) {
+      attributes = static_cast<PropertyAttributes>(attributes | READ_ONLY);
     }
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionPrototype);
