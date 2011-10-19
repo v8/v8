@@ -704,7 +704,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     if (should_throw) {
       throw MakeTypeError("define_disallowed", [p]);
     } else {
-      return;
+      return false;
     }
   }
 
@@ -734,7 +734,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         if (should_throw) {
           throw MakeTypeError("redefine_disallowed", [p]);
         } else {
-          return;
+          return false;
         }
       }
       // Step 8
@@ -744,7 +744,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
           if (should_throw) {
             throw MakeTypeError("redefine_disallowed", [p]);
           } else {
-            return;
+            return false;
           }
         }
         // Step 10a
@@ -753,7 +753,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
             if (should_throw) {
               throw MakeTypeError("redefine_disallowed", [p]);
             } else {
-              return;
+              return false;
             }
           }
           if (!current.isWritable() && desc.hasValue() &&
@@ -761,7 +761,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
             if (should_throw) {
               throw MakeTypeError("redefine_disallowed", [p]);
             } else {
-              return;
+              return false;
             }
           }
         }
@@ -771,14 +771,14 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
             if (should_throw) {
               throw MakeTypeError("redefine_disallowed", [p]);
             } else {
-              return;
+              return false;
             }
           }
           if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             if (should_throw) {
               throw MakeTypeError("redefine_disallowed", [p]);
             } else {
-              return;
+              return false;
             }
           }
         }
@@ -881,7 +881,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       if (should_throw) {
         throw MakeTypeError("define_disallowed", [p]);
       } else {
-        return;
+        return false;
       }
     }
     if (index >= length) {
