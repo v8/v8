@@ -41,32 +41,38 @@ if (support_smi_only_arrays) {
     assertTrue(%HasFastSmiOnlyElements(array_1));
     assertTrue(%HasFastSmiOnlyElements(array_2));
     for (var i = 0; i < length; i++) {
-      if (i == length - 8 && test_double) {
+      if (i == length - 5 && test_double) {
+        // Trigger conversion to fast double elements at length-5.
         set(array_1, i, 0.5);
         set(array_2, i, 0.5);
         assertTrue(%HasFastDoubleElements(array_1));
         assertTrue(%HasFastDoubleElements(array_2));
-      } else if (i == length - 5 && test_object) {
+      } else if (i == length - 3 && test_object) {
+        // Trigger conversion to fast object elements at length-3.
         set(array_1, i, 'object');
         set(array_2, i, 'object');
         assertTrue(%HasFastElements(array_1));
         assertTrue(%HasFastElements(array_2));
-      } else {
+      } else if (i != length - 7) {
+        // Set the element to an integer but leave a hole at length-7.
         set(array_1, i, 2*i+1);
         set(array_2, i, 2*i+1);
       }
     }
 
     for (var i = 0; i < length; i++) {
-      if (i == length - 8 && test_double) {
+      if (i == length - 5 && test_double) {
         assertEquals(0.5, array_1[i]);
         assertEquals(0.5, array_2[i]);
-      } else if (i == length - 5 && test_object) {
+      } else if (i == length - 3 && test_object) {
         assertEquals('object', array_1[i]);
         assertEquals('object', array_2[i]);
-      } else {
+      } else if (i != length - 7) {
         assertEquals(2*i+1, array_1[i]);
         assertEquals(2*i+1, array_2[i]);
+      } else {
+        assertEquals(undefined, array_1[i]);
+        assertEquals(undefined, array_2[i]);
       }
     }
 
@@ -74,10 +80,10 @@ if (support_smi_only_arrays) {
     assertEquals(length, array_2.length);
   }
 
-  test(false, false, function(a,i,v){ a[i] = v; }, 100);
-  test(true,  false, function(a,i,v){ a[i] = v; }, 100);
-  test(false, true,  function(a,i,v){ a[i] = v; }, 100);
-  test(true,  true,  function(a,i,v){ a[i] = v; }, 100);
+  test(false, false, function(a,i,v){ a[i] = v; }, 20);
+  test(true,  false, function(a,i,v){ a[i] = v; }, 20);
+  test(false, true,  function(a,i,v){ a[i] = v; }, 20);
+  test(true,  true,  function(a,i,v){ a[i] = v; }, 10);
 
   test(false, false, function(a,i,v){ a[i] = v; }, 10000);
   test(true,  false, function(a,i,v){ a[i] = v; }, 10000);

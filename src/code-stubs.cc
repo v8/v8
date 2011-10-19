@@ -416,7 +416,6 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 
 void FastElementsConversionStub::Generate(MacroAssembler* masm) {
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
   if (to_ == FAST_ELEMENTS) {
     if (from_ == FAST_SMI_ONLY_ELEMENTS) {
       GenerateSmiOnlyToObject(masm);
@@ -434,9 +433,6 @@ void FastElementsConversionStub::Generate(MacroAssembler* masm) {
   } else {
     UNREACHABLE();
   }
-#else
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode_);
-#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 }
 
 } }  // namespace v8::internal

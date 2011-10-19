@@ -6019,7 +6019,7 @@ void FastElementsConversionStub::GenerateDoubleToObject(
 
   // Prepare for conversion loop.
   __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
-  __ Move(rdi, masm->isolate()->factory()->the_hole_value());
+  __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
   __ jmp(&entry);

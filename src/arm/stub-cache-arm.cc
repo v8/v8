@@ -3299,8 +3299,8 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
       __ Jump(code, RelocInfo::CODE_TARGET, eq);
     } else {
       Label next_map;
-      __ b(eq, &next_map);
-      __ mov(r4, Operand(Handle<Map>(transitioned_maps->at(i))));
+      __ b(ne, &next_map);
+      __ mov(r3, Operand(Handle<Map>(transitioned_maps->at(i))));
       __ Jump(code, RelocInfo::CODE_TARGET, al);
       __ bind(&next_map);
     }
