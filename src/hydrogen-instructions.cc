@@ -787,6 +787,16 @@ void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+HValue* HConstant::Canonicalize() {
+  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+}
+
+
+HValue* HTypeof::Canonicalize() {
+  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+}
+
+
 void HTypeof::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }

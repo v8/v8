@@ -5789,35 +5789,65 @@ Representation HGraphBuilder::ToRepresentation(TypeInfo info) {
 
 
 void HGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
-                                               Expression* sub_expr,
+                                               HTypeof* typeof_expr,
                                                Handle<String> check) {
-  CHECK_ALIVE(VisitForTypeOf(sub_expr));
-  HValue* value = Pop();
+  // Note: The HTypeof itself is removed during canonicalization, if possible.
+  HValue* value = typeof_expr->value();
   HTypeofIsAndBranch* instr = new(zone()) HTypeofIsAndBranch(value, check);
   instr->set_position(expr->position());
   return ast_context()->ReturnControl(instr, expr->id());
 }
 
 
-bool HGraphBuilder::TryLiteralCompare(CompareOperation* expr) {
-  Expression *sub_expr;
-  Handle<String> check;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    HandleLiteralCompareTypeof(expr, sub_expr, check);
+static bool MatchLiteralCompareNil(HValue* left,
+                                   Token::Value op,
+                                   HValue* right,
+                                   Handle<Object> nil,
+                                   HValue** expr) {
+  if (left->IsConstant() &&
+      HConstant::cast(left)->handle().is_identical_to(nil) &&
+      Token::IsEqualityOp(op)) {
+    *expr = right;
     return true;
   }
-
-  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
-    HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
-    return true;
-  }
-
-  if (expr->IsLiteralCompareNull(&sub_expr)) {
-    HandleLiteralCompareNil(expr, sub_expr, kNullValue);
-    return true;
-  }
-
   return false;
+}
+
+
+static bool MatchLiteralCompareTypeof(HValue* left,
+                                      Token::Value op,
+                                      HValue* right,
+                                      HTypeof** typeof_expr,
+                                      Handle<String>* check) {
+  if (left->IsTypeof() &&
+      Token::IsEqualityOp(op) &&
+      right->IsConstant() &&
+      HConstant::cast(right)->HasStringValue()) {
+    *typeof_expr = HTypeof::cast(left);
+    *check = Handle<String>::cast(HConstant::cast(right)->handle());
+    return true;
+  }
+  return false;
+}
+
+
+static bool IsLiteralCompareTypeof(HValue* left,
+                                   Token::Value op,
+                                   HValue* right,
+                                   HTypeof** typeof_expr,
+                                   Handle<String>* check) {
+  return MatchLiteralCompareTypeof(left, op, right, typeof_expr, check) ||
+      MatchLiteralCompareTypeof(right, op, left, typeof_expr, check);
+}
+
+
+static bool IsLiteralCompareNil(HValue* left,
+                                Token::Value op,
+                                HValue* right,
+                                Handle<Object> nil,
+                                HValue** expr) {
+  return MatchLiteralCompareNil(left, op, right, nil, expr) ||
+      MatchLiteralCompareNil(right, op, left, nil, expr);
 }
 
 
@@ -5838,11 +5868,9 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  // Check for special cases that compare against literals.
-  if (TryLiteralCompare(expr)) return;
-
   TypeInfo type_info = oracle()->CompareType(expr);
   // Check if this expression was ever executed according to type feedback.
+  // Note that for the special typeof/null/undefined cases we get unknown here.
   if (type_info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
@@ -5856,6 +5884,20 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* right = Pop();
   HValue* left = Pop();
   Token::Value op = expr->op();
+
+  HTypeof* typeof_expr = NULL;
+  Handle<String> check;
+  if (IsLiteralCompareTypeof(left, op, right, &typeof_expr, &check)) {
+    return HandleLiteralCompareTypeof(expr, typeof_expr, check);
+  }
+  HValue* sub_expr = NULL;
+  Factory* f = graph()->isolate()->factory();
+  if (IsLiteralCompareNil(left, op, right, f->undefined_value(), &sub_expr)) {
+    return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
+  }
+  if (IsLiteralCompareNil(left, op, right, f->null_value(), &sub_expr)) {
+    return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
+  }
 
   if (op == Token::INSTANCEOF) {
     // Check to see if the rhs of the instanceof is a global function not
@@ -5945,13 +5987,11 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
 
 
 void HGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
-                                            Expression* sub_expr,
+                                            HValue* value,
                                             NilValue nil) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  CHECK_ALIVE(VisitForValue(sub_expr));
-  HValue* value = Pop();
   EqualityKind kind =
       expr->op() == Token::EQ_STRICT ? kStrictEquality : kNonStrictEquality;
   HIsNilAndBranch* instr = new(zone()) HIsNilAndBranch(value, kind, nil);
