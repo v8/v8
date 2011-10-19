@@ -1078,10 +1078,12 @@ function ObjectDefineProperties(obj, properties) {
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
   var names = GetOwnEnumerablePropertyNames(props);
+  var descriptors = new InternalArray();
   for (var i = 0; i < names.length; i++) {
-    var name = names[i];
-    var desc = ToPropertyDescriptor(props[name]);
-    DefineOwnProperty(obj, name, desc, true);
+    descriptors.push(ToPropertyDescriptor(props[names[i]]));
+  }
+  for (var i = 0; i < names.length; i++) {
+    DefineOwnProperty(obj, names[i], descriptors[i], true);
   }
   return obj;
 }
