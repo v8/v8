@@ -2199,6 +2199,9 @@ class FixedDoubleArray: public FixedArrayBase {
   // Checking for the hole.
   inline bool is_the_hole(int index);
 
+  // Copy operations
+  MUST_USE_RESULT inline MaybeObject* Copy();
+
   // Garbage collection support.
   inline static int SizeFor(int length) {
     return kHeaderSize + length * kDoubleSize;

@@ -263,7 +263,12 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [sp + (2 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int elements_size = 0;
+  if (length_ > 0) {
+    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
+        ? FixedDoubleArray::SizeFor(length_)
+        : FixedArray::SizeFor(length_);
+  }
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into r3 and check if we need to create a
@@ -283,6 +288,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
+      message = "Expected (writable) fixed double array";
+      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -322,6 +330,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
 
     // Copy the elements array.
+    ASSERT((elements_size % kPointerSize) == 0);
     __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
   }
 

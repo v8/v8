@@ -4130,11 +4130,17 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
+
+  Handle<FixedArray> constant_elements = instr->hydrogen()->constant_elements();
+  ASSERT_EQ(2, constant_elements->length());
+  ElementsKind constant_elements_kind =
+      static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+
   // Setup the parameters to the stub/runtime call.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ push(Immediate(instr->hydrogen()->constant_elements()));
+  __ push(Immediate(constant_elements));
 
   // Pick the right runtime function or stub to call.
   int length = instr->hydrogen()->length();
@@ -4150,7 +4156,9 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
   } else {
     FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::CLONE_ELEMENTS;
+        constant_elements_kind == FAST_DOUBLE_ELEMENTS
+        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
+        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, length);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }

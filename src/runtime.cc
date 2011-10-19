@@ -432,64 +432,77 @@ static Handle<Object> CreateArrayLiteralBoilerplate(
   // Create the JSArray.
   Handle<JSFunction> constructor(
       JSFunction::GlobalContextFromLiterals(*literals)->array_function());
-  Handle<Object> object = isolate->factory()->NewJSObject(constructor);
+  Handle<JSArray> object =
+      Handle<JSArray>::cast(isolate->factory()->NewJSObject(constructor));
 
-  if (elements->length() > kSmiOnlyLiteralMinimumLength) {
-    Handle<Map> smi_array_map = isolate->factory()->GetElementsTransitionMap(
-        Handle<JSObject>::cast(object),
-        FAST_SMI_ONLY_ELEMENTS);
-    HeapObject::cast(*object)->set_map(*smi_array_map);
+  ElementsKind constant_elements_kind =
+      static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
+  Handle<FixedArrayBase> constant_elements_values(
+      FixedArrayBase::cast(elements->get(1)));
+
+  ASSERT(FLAG_smi_only_arrays || constant_elements_kind == FAST_ELEMENTS ||
+         constant_elements_kind == FAST_SMI_ONLY_ELEMENTS);
+  bool allow_literal_kind_transition = FLAG_smi_only_arrays &&
+      constant_elements_kind > object->GetElementsKind();
+
+  if (!FLAG_smi_only_arrays &&
+      constant_elements_values->length() > kSmiOnlyLiteralMinimumLength &&
+      constant_elements_kind != object->GetElementsKind()) {
+    allow_literal_kind_transition = true;
   }
 
-  const bool is_cow =
-      (elements->map() == isolate->heap()->fixed_cow_array_map());
-  Handle<FixedArray> copied_elements =
-      is_cow ? elements : isolate->factory()->CopyFixedArray(elements);
+  // If the ElementsKind of the constant values of the array literal are less
+  // specific than the ElementsKind of the boilerplate array object, change the
+  // boilerplate array object's map to reflect that kind.
+  if (allow_literal_kind_transition) {
+    Handle<Map> transitioned_array_map =
+        isolate->factory()->GetElementsTransitionMap(object,
+                                                     constant_elements_kind);
+    object->set_map(*transitioned_array_map);
+  }
 
-  Handle<FixedArray> content = Handle<FixedArray>::cast(copied_elements);
-  bool has_non_smi = false;
-  if (is_cow) {
-    // Copy-on-write arrays must be shallow (and simple).
-    for (int i = 0; i < content->length(); i++) {
-      Object* current = content->get(i);
-      ASSERT(!current->IsFixedArray());
-      if (!current->IsSmi() && !current->IsTheHole()) {
-        has_non_smi = true;
-      }
-    }
-#if DEBUG
-    for (int i = 0; i < content->length(); i++) {
-      ASSERT(!content->get(i)->IsFixedArray());
-    }
-#endif
+  Handle<FixedArrayBase> copied_elements_values;
+  if (constant_elements_kind == FAST_DOUBLE_ELEMENTS) {
+    ASSERT(FLAG_smi_only_arrays);
+    copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
+        Handle<FixedDoubleArray>::cast(constant_elements_values));
   } else {
-    for (int i = 0; i < content->length(); i++) {
-      Object* current = content->get(i);
-      if (current->IsFixedArray()) {
-        // The value contains the constant_properties of a
-        // simple object or array literal.
-        Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
-        Handle<Object> result =
-            CreateLiteralBoilerplate(isolate, literals, fa);
-        if (result.is_null()) return result;
-        content->set(i, *result);
-        has_non_smi = true;
-      } else {
-        if (!current->IsSmi() && !current->IsTheHole()) {
-          has_non_smi = true;
+    ASSERT(constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+           constant_elements_kind == FAST_ELEMENTS);
+    const bool is_cow =
+        (constant_elements_values->map() ==
+         isolate->heap()->fixed_cow_array_map());
+    if (is_cow) {
+      copied_elements_values = constant_elements_values;
+#if DEBUG
+      Handle<FixedArray> fixed_array_values =
+          Handle<FixedArray>::cast(copied_elements_values);
+      for (int i = 0; i < fixed_array_values->length(); i++) {
+        ASSERT(!fixed_array_values->get(i)->IsFixedArray());
+      }
+#endif
+    } else {
+      Handle<FixedArray> fixed_array_values =
+          Handle<FixedArray>::cast(constant_elements_values);
+      Handle<FixedArray> fixed_array_values_copy =
+          isolate->factory()->CopyFixedArray(fixed_array_values);
+      copied_elements_values = fixed_array_values_copy;
+      for (int i = 0; i < fixed_array_values->length(); i++) {
+        Object* current = fixed_array_values->get(i);
+        if (current->IsFixedArray()) {
+          // The value contains the constant_properties of a
+          // simple object or array literal.
+          Handle<FixedArray> fa(FixedArray::cast(fixed_array_values->get(i)));
+          Handle<Object> result =
+              CreateLiteralBoilerplate(isolate, literals, fa);
+          if (result.is_null()) return result;
+          fixed_array_values_copy->set(i, *result);
         }
       }
     }
   }
-
-  // Set the elements.
-  Handle<JSArray> js_object(Handle<JSArray>::cast(object));
-  isolate->factory()->SetContent(js_object, content);
-
-  if (has_non_smi && js_object->HasFastSmiOnlyElements()) {
-    isolate->factory()->EnsureCanContainNonSmiElements(js_object);
-  }
-
+  object->set_elements(*copied_elements_values);
+  object->set_length(Smi::FromInt(copied_elements_values->length()));
   return object;
 }
 
@@ -1658,19 +1671,6 @@ RUNTIME_FUNCTION(MaybeObject*,
   CONVERT_SMI_ARG_CHECKED(properties, 1);
   if (object->HasFastProperties()) {
     NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
-  }
-  return *object;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NonSmiElementStored) {
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  if (object->HasFastSmiOnlyElements()) {
-    MaybeObject* maybe_map = object->GetElementsTransitionMap(FAST_ELEMENTS);
-    Map* map;
-    if (!maybe_map->To<Map>(&map)) return maybe_map;
-    object->set_map(Map::cast(map));
   }
   return *object;
 }
@@ -7735,14 +7735,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
   int year, month, day;
   DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
 
-  RUNTIME_ASSERT(res_array->elements()->map() ==
-                 isolate->heap()->fixed_array_map());
-  FixedArray* elms = FixedArray::cast(res_array->elements());
-  RUNTIME_ASSERT(elms->length() == 3);
+  FixedArrayBase* elms_base = FixedArrayBase::cast(res_array->elements());
+  RUNTIME_ASSERT(elms_base->length() == 3);
+  RUNTIME_ASSERT(res_array->GetElementsKind() <= FAST_DOUBLE_ELEMENTS);
 
-  elms->set(0, Smi::FromInt(year));
-  elms->set(1, Smi::FromInt(month));
-  elms->set(2, Smi::FromInt(day));
+  if (res_array->HasFastDoubleElements()) {
+    FixedDoubleArray* elms = FixedDoubleArray::cast(res_array->elements());
+    elms->set(0, year);
+    elms->set(1, month);
+    elms->set(2, day);
+  } else {
+    FixedArray* elms = FixedArray::cast(res_array->elements());
+    elms->set(0, Smi::FromInt(year));
+    elms->set(1, Smi::FromInt(month));
+    elms->set(2, Smi::FromInt(day));
+  }
 
   return isolate->heap()->undefined_value();
 }

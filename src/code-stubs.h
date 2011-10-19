@@ -363,6 +363,7 @@ class FastCloneShallowArrayStub : public CodeStub {
 
   enum Mode {
     CLONE_ELEMENTS,
+    CLONE_DOUBLE_ELEMENTS,
     COPY_ON_WRITE_ELEMENTS
   };
 
@@ -381,8 +382,8 @@ class FastCloneShallowArrayStub : public CodeStub {
 
   Major MajorKey() { return FastCloneShallowArray; }
   int MinorKey() {
-    ASSERT(mode_ == 0 || mode_ == 1);
-    return (length_ << 1) | mode_;
+    ASSERT(mode_ == 0 || mode_ == 1 || mode_ == 2);
+    return length_ * 3 +  mode_;
   }
 };
 

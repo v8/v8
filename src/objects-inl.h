@@ -4583,6 +4583,12 @@ MaybeObject* FixedArray::Copy() {
 }
 
 
+MaybeObject* FixedDoubleArray::Copy() {
+  if (length() == 0) return this;
+  return GetHeap()->CopyFixedDoubleArray(this);
+}
+
+
 Relocatable::Relocatable(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
   isolate_ = isolate;

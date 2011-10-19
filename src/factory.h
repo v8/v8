@@ -50,7 +50,7 @@ class Factory {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new uninitialized fixed double array.
-  Handle<FixedArray> NewFixedDoubleArray(
+  Handle<FixedDoubleArray> NewFixedDoubleArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -221,6 +221,9 @@ class Factory {
                                        ElementsKind elements_kind);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
+
+  Handle<FixedDoubleArray> CopyFixedDoubleArray(
+      Handle<FixedDoubleArray> array);
 
   // Numbers (eg, literals) are pretenured by the parser.
   Handle<Object> NewNumber(double value,

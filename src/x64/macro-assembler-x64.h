@@ -864,12 +864,12 @@ class MacroAssembler: public Assembler {
                                 Label::Distance distance = Label::kFar);
 
   // Check to see if maybe_number can be stored as a double in
-  // FastDoubleElements. If it can, store it at the index specified by key in
-  // the FastDoubleElements array elements, otherwise jump to fail.
-  // Note that key must not be smi-tagged.
+  // FastDoubleElements. If it can, store it at the index specified by index in
+  // the FastDoubleElements array elements, otherwise jump to fail.  Note that
+  // index must not be smi-tagged.
   void StoreNumberToDoubleElements(Register maybe_number,
                                    Register elements,
-                                   Register key,
+                                   Register index,
                                    XMMRegister xmm_scratch,
                                    Label* fail);
 

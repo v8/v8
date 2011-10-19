@@ -227,7 +227,12 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [rsp + (3 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int elements_size = 0;
+  if (length_ > 0) {
+    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
+        ? FixedDoubleArray::SizeFor(length_)
+        : FixedArray::SizeFor(length_);
+  }
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into rcx and check if we need to create a
@@ -247,6 +252,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
+      message = "Expected (writable) fixed double array";
+      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -280,9 +288,24 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
 
     // Copy the elements array.
-    for (int i = 0; i < elements_size; i += kPointerSize) {
-      __ movq(rbx, FieldOperand(rcx, i));
-      __ movq(FieldOperand(rdx, i), rbx);
+    if (mode_ == CLONE_ELEMENTS) {
+      for (int i = 0; i < elements_size; i += kPointerSize) {
+        __ movq(rbx, FieldOperand(rcx, i));
+        __ movq(FieldOperand(rdx, i), rbx);
+      }
+    } else {
+      ASSERT(mode_ == CLONE_DOUBLE_ELEMENTS);
+      int i;
+      for (i = 0; i < FixedDoubleArray::kHeaderSize; i += kPointerSize) {
+        __ movq(rbx, FieldOperand(rcx, i));
+        __ movq(FieldOperand(rdx, i), rbx);
+      }
+      while (i < elements_size) {
+        __ movsd(xmm0, FieldOperand(rcx, i));
+        __ movsd(FieldOperand(rdx, i), xmm0);
+        i += kDoubleSize;
+      }
+      ASSERT(i == elements_size);
     }
   }
 

@@ -59,13 +59,13 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 
-Handle<FixedArray> Factory::NewFixedDoubleArray(int size,
-                                                PretenureFlag pretenure) {
+Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
+                                                      PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
-      FixedArray);
+      FixedDoubleArray);
 }
 
 
@@ -468,6 +468,12 @@ Handle<Map> Factory::GetElementsTransitionMap(
 
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
+}
+
+
+Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
+    Handle<FixedDoubleArray> array) {
+  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
 }
 
 

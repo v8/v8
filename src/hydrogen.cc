@@ -3337,11 +3337,8 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* value = Pop();
     if (!Smi::IsValid(i)) return Bailout("Non-smi key in array literal");
 
-    // Load the elements array before the first store.
-    if (elements == NULL)  {
-      elements = new(zone()) HLoadElements(literal);
-      AddInstruction(elements);
-    }
+    elements = new(zone()) HLoadElements(literal);
+    AddInstruction(elements);
 
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
@@ -3365,10 +3362,10 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     set_current_block(check_smi_only_elements);
     HCompareConstantEqAndBranch* smi_elements_check =
         new(zone()) HCompareConstantEqAndBranch(elements_kind,
-                                                FAST_SMI_ONLY_ELEMENTS,
+                                                FAST_ELEMENTS,
                                                 Token::EQ_STRICT);
-    smi_elements_check->SetSuccessorAt(0, store_generic);
-    smi_elements_check->SetSuccessorAt(1, store_fast_edgesplit2);
+    smi_elements_check->SetSuccessorAt(0, store_fast_edgesplit2);
+    smi_elements_check->SetSuccessorAt(1, store_generic);
     current_block()->Finish(smi_elements_check);
     store_fast_edgesplit2->Finish(new(zone()) HGoto(store_fast));
 

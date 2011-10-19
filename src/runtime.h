@@ -278,7 +278,7 @@ namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
-  F(CreateArrayLiteralBoilerplate, 3, 1) \
+  F(CreateArrayLiteralBoilerplate, 4, 1) \
   F(CloneLiteralBoilerplate, 1, 1) \
   F(CloneShallowLiteralBoilerplate, 1, 1) \
   F(CreateObjectLiteral, 4, 1) \
@@ -330,8 +330,6 @@ namespace internal {
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   \
-  /* Arrays */ \
-  F(NonSmiElementStored, 1, 1) \
   /* Debugging */ \
   F(DebugPrint, 1, 1) \
   F(DebugTrace, 0, 1) \

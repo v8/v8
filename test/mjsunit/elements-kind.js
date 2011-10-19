@@ -196,30 +196,6 @@ for (var i = 0; i < 3; i++) {
 polymorphic(smis, elements_kind.fast_smi_only);
 polymorphic(strings, elements_kind.fast);
 polymorphic(doubles, elements_kind.fast);
-
-// Crankshaft support for smi-only elements in dynamic array literals.
-function get(foo) { return foo; }  // Used to generate dynamic values.
-
-function crankshaft_test() {
-  var a = [get(1), get(2), get(3)];
-  assertKind(elements_kind.fast_smi_only, a);
-  var b = [get(1), get(2), get("three")];
-  assertKind(elements_kind.fast, b);
-  var c = [get(1), get(2), get(3.5)];
-  // The full code generator doesn't support conversion to fast_double
-  // yet. Crankshaft does, but only with --smi-only-arrays support.
-  if ((%GetOptimizationStatus(crankshaft_test) & 1) &&
-      support_smi_only_arrays) {
-    assertKind(elements_kind.fast_double, c);
-  } else {
-    assertKind(elements_kind.fast, c);
-  }
-}
-for (var i = 0; i < 3; i++) {
-  crankshaft_test();
-}
-%OptimizeFunctionOnNextCall(crankshaft_test);
-crankshaft_test();
 */
 
 // Elements_kind transitions for arrays.

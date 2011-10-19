@@ -3288,9 +3288,11 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // Update the scope information before the pre-parsing bailout.
   int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
 
-  // Allocate a fixed array with all the literals.
-  Handle<FixedArray> literals =
+  // Allocate a fixed array to hold all the object literals.
+  Handle<FixedArray> object_literals =
       isolate()->factory()->NewFixedArray(values->length(), TENURED);
+  Handle<FixedDoubleArray> double_literals;
+  ElementsKind elements_kind = FAST_SMI_ONLY_ELEMENTS;
 
   // Fill in the literals.
   bool is_simple = true;
@@ -3302,18 +3304,74 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
     if (boilerplate_value->IsUndefined()) {
-      literals->set_the_hole(i);
+      object_literals->set_the_hole(i);
+      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        double_literals->set_the_hole(i);
+      }
       is_simple = false;
     } else {
-      literals->set(i, *boilerplate_value);
+      // Examine each literal element, and adjust the ElementsKind if the
+      // literal element is not of a type that can be stored in the current
+      // ElementsKind.  Start with FAST_SMI_ONLY_ELEMENTS, and transition to
+      // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
+      // the tagged value, no matter what the ElementsKind is in case we
+      // ultimately end up in FAST_ELEMENTS.
+      object_literals->set(i, *boilerplate_value);
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+        // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
+        // FAST_ELEMENTS is required.
+        if (!boilerplate_value->IsSmi()) {
+          if (boilerplate_value->IsNumber() && FLAG_smi_only_arrays) {
+            // Allocate a double array on the FAST_DOUBLE_ELEMENTS transition to
+            // avoid over-allocating in TENURED space.
+            double_literals = isolate()->factory()->NewFixedDoubleArray(
+                values->length(), TENURED);
+            // Copy the contents of the FAST_SMI_ONLY_ELEMENT array to the
+            // FAST_DOUBLE_ELEMENTS array so that they are in sync.
+            for (int j = 0; j < i; ++j) {
+              Object* smi_value = object_literals->get(j);
+              if (smi_value->IsTheHole()) {
+                double_literals->set_the_hole(j);
+              } else {
+                double_literals->set(j, Smi::cast(smi_value)->value());
+              }
+            }
+            double_literals->set(i, boilerplate_value->Number());
+            elements_kind = FAST_DOUBLE_ELEMENTS;
+          } else {
+            elements_kind = FAST_ELEMENTS;
+          }
+        }
+      } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        // Continue to store double values in to FAST_DOUBLE_ELEMENTS arrays
+        // until the first value is seen that can't be stored as a double.
+        if (boilerplate_value->IsNumber()) {
+          double_literals->set(i, boilerplate_value->Number());
+        } else {
+          elements_kind = FAST_ELEMENTS;
+        }
+      }
     }
   }
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
-  if (is_simple && depth == 1 && values->length() > 0) {
-    literals->set_map(isolate()->heap()->fixed_cow_array_map());
+  if (is_simple && depth == 1 && values->length() > 0 &&
+      elements_kind != FAST_DOUBLE_ELEMENTS) {
+    object_literals->set_map(isolate()->heap()->fixed_cow_array_map());
   }
+
+  Handle<FixedArrayBase> element_values = elements_kind == FAST_DOUBLE_ELEMENTS
+      ? Handle<FixedArrayBase>(double_literals)
+      : Handle<FixedArrayBase>(object_literals);
+
+  // Remember both the literal's constant values as well as the ElementsKind
+  // in a 2-element FixedArray.
+  Handle<FixedArray> literals =
+      isolate()->factory()->NewFixedArray(2, TENURED);
+
+  literals->set(0, Smi::FromInt(elements_kind));
+  literals->set(1, *element_values);
 
   return new(zone()) ArrayLiteral(
       isolate(), literals, values, literal_index, is_simple, depth);
