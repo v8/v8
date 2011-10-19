@@ -469,7 +469,7 @@ function APPLY_PREPARE(args) {
   }
 
   // Make sure the arguments list has the right type.
-  if (args != null && !IS_ARRAY(args) && !IS_ARGUMENTS(args)) {
+  if (args != null && !IS_SPEC_OBJECT(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

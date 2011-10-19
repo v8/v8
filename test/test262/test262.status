@@ -448,15 +448,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
 #      4)
 15.2.3.7-6-a-285: FAIL
-# Bug? Strict Mode - 'this' value is a string which cannot be converted to
-#      wrapper objects when the function is called with an array of arguments
-15.3.4.3-1-s: FAIL
-# Bug? Strict Mode - 'this' value is a number which cannot be converted to
-#      wrapper objects when the function is called with an array of arguments
-15.3.4.3-2-s: FAIL
-# Bug? Strict Mode - 'this' value is a boolean which cannot be converted to
-#      wrapper objects when the function is called with an array of arguments
-15.3.4.3-3-s: FAIL
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
