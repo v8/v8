@@ -2442,7 +2442,7 @@ class CellSpace : public FixedSpace {
 
 class LargeObjectSpace : public Space {
  public:
-  LargeObjectSpace(Heap* heap, AllocationSpace id);
+  LargeObjectSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id);
   virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.
@@ -2512,6 +2512,7 @@ class LargeObjectSpace : public Space {
   bool SlowContains(Address addr) { return !FindObject(addr)->IsFailure(); }
 
  private:
+  intptr_t max_capacity_;
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
   intptr_t size_;  // allocated bytes

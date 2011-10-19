@@ -2291,8 +2291,11 @@ HeapObject* LargeObjectIterator::Next() {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
+LargeObjectSpace::LargeObjectSpace(Heap* heap,
+                                   intptr_t max_capacity,
+                                   AllocationSpace id)
     : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
+      max_capacity_(max_capacity),
       first_page_(NULL),
       size_(0),
       page_count_(0),
@@ -2329,6 +2332,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
+    return Failure::RetryAfterGC(identity());
+  }
+
+  if (Size() + object_size > max_capacity_) {
     return Failure::RetryAfterGC(identity());
   }
 
