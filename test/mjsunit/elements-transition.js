@@ -83,7 +83,7 @@ if (support_smi_only_arrays) {
   test(false, false, function(a,i,v){ a[i] = v; }, 20);
   test(true,  false, function(a,i,v){ a[i] = v; }, 20);
   test(false, true,  function(a,i,v){ a[i] = v; }, 20);
-  test(true,  true,  function(a,i,v){ a[i] = v; }, 10);
+  test(true,  true,  function(a,i,v){ a[i] = v; }, 20);
 
   test(false, false, function(a,i,v){ a[i] = v; }, 10000);
   test(true,  false, function(a,i,v){ a[i] = v; }, 10000);

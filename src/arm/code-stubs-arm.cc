@@ -6941,7 +6941,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // and FastElementsConversionStub::GenerateDoubleToObject
   { r2, r3, r9, EMIT_REMEMBERED_SET },
   // FastElementsConversionStub::GenerateDoubleToObject
-  { r6, r0, r2, EMIT_REMEMBERED_SET },
+  { r6, r2, r0, EMIT_REMEMBERED_SET },
   { r2, r6, r9, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
@@ -7255,16 +7255,16 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
 
   // Prepare for conversion loop.
   __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r6, r6, Operand(FixedDoubleArray::kHeaderSize));
-  __ add(r4, r6, Operand(r5, LSL, 2));
-  __ mov(r5, Operand(kHoleNanLower32));
-  __ mov(r7, Operand(kHoleNanUpper32));
+  __ add(r7, r6, Operand(FixedDoubleArray::kHeaderSize));
+  __ add(r6, r7, Operand(r5, LSL, 2));
+  __ mov(r4, Operand(kHoleNanLower32));
+  __ mov(r5, Operand(kHoleNanUpper32));
   // r3: begin of source FixedArray element fields, not tagged
-  // r4: end of destination FixedDoubleArray, not tagged
-  // r6: begin of FixedDoubleArray element fields, not tagged
-  // r5: kHoleNanLower32
-  // r7: kHoleNanUpper32
-  if (vfp3_supported) __ Push(r0, r1);
+  // r4: kHoleNanLower32
+  // r5: kHoleNanUpper32
+  // r6: end of destination FixedDoubleArray, not tagged
+  // r7: begin of FixedDoubleArray element fields, not tagged
+  if (vfp3_supported) __ Push(r1, r0);
 
   __ b(&entry);
 
@@ -7284,8 +7284,8 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, r9);
     __ vcvt_f64_s32(d0, s0);
-    __ vstr(d0, r6, 0);
-    __ add(r6, r6, Operand(8));
+    __ vstr(d0, r7, 0);
+    __ add(r7, r7, Operand(8));
   } else {
     FloatingPointHelper::ConvertIntToDouble(masm,
                                             r9,
@@ -7295,21 +7295,19 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
                                             r1,
                                             ip,
                                             s0);
-    __ str(r0, MemOperand(r6, 4, PostIndex));  // mantissa
-    __ str(r1, MemOperand(r6, 4, PostIndex));  // exponent
+    __ Strd(r0, r1, MemOperand(r7, 8, PostIndex));
   }
   __ b(&entry);
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
-  __ str(r5, MemOperand(r6, 4, PostIndex));  // mantissa
-  __ str(r7, MemOperand(r6, 4, PostIndex));  // exponent
+  __ Strd(r4, r5, MemOperand(r7, 8, PostIndex));
 
   __ bind(&entry);
-  __ cmp(r6, r4);
+  __ cmp(r7, r6);
   __ b(lt, &loop);
 
-  if (vfp3_supported) __ Pop(r0, r1);
+  if (vfp3_supported) __ Pop(r1, r0);
 }
 
 
@@ -7326,7 +7324,7 @@ void FastElementsConversionStub::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required;
 
   __ push(lr);
-  __ Push(r0, r1, r2, r3);
+  __ Push(r3, r2, r1, r0);
 
   __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
@@ -7361,28 +7359,27 @@ void FastElementsConversionStub::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ Pop(r2, r3);
-  __ Pop(r0, r1);
+  __ Pop(r3, r2, r1, r0);
   __ pop(lr);
   KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
 
   __ bind(&loop);
-  __ ldr(lr, MemOperand(r4, 8, PostIndex));
+  __ ldr(r1, MemOperand(r4, 8, PostIndex));
   // lr: current element's upper 32 bit
   // r4: address of next element's upper 32 bit
-  __ cmp(lr, Operand(kHoleNanUpper32));
+  __ cmp(r1, Operand(kHoleNanUpper32));
   __ b(eq, &convert_hole);
 
   // Non-hole double, copy value into a heap number.
-  __ AllocateHeapNumber(r0, r1, r2, r9, &gc_required);
-  __ str(lr, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-  __ ldr(lr, MemOperand(r4, 12, NegOffset));
-  __ str(lr, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-  __ mov(r2, r3);
-  __ str(r0, MemOperand(r3, 4, PostIndex));
+  __ AllocateHeapNumber(r2, r0, lr, r9, &gc_required);
+  // r2: new heap number
+  __ ldr(r0, MemOperand(r4, 12, NegOffset));
+  __ Strd(r0, r1, FieldMemOperand(r2, HeapNumber::kValueOffset));
+  __ mov(r0, r3);
+  __ str(r2, MemOperand(r3, 4, PostIndex));
   __ RecordWrite(r6,
-                 r2,
                  r0,
+                 r2,
                  kLRHasBeenSaved,
                  kDontSaveFPRegs,
                  EMIT_REMEMBERED_SET,
@@ -7397,8 +7394,7 @@ void FastElementsConversionStub::GenerateDoubleToObject(
   __ cmp(r3, r5);
   __ b(lt, &loop);
 
-  __ Pop(r2, r3);
-  __ Pop(r0, r1);
+  __ Pop(r3, r2, r1, r0);
   // Update receiver's map.
   __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ RecordWriteField(r2,
