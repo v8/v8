@@ -1371,17 +1371,17 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForWrite(JSObject* receiver,
-                           String* name,
+static bool LookupForWrite(Handle<JSObject> receiver,
+                           Handle<String> name,
                            LookupResult* lookup) {
-  receiver->LocalLookup(name, lookup);
+  receiver->LocalLookup(*name, lookup);
   if (!StoreICableLookup(lookup)) {
     return false;
   }
 
   if (lookup->type() == INTERCEPTOR &&
       receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
-    receiver->LocalLookupRealNamedProperty(name, lookup);
+    receiver->LocalLookupRealNamedProperty(*name, lookup);
     return StoreICableLookup(lookup);
   }
 
@@ -1422,30 +1422,30 @@ MaybeObject* StoreIC::Store(State state,
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    HandleScope scope(isolate());
     Handle<Object> result = SetElement(receiver, index, value, strict_mode);
-    if (result.is_null()) return Failure::Exception();
+    RETURN_IF_EMPTY_HANDLE(isolate(), result);
     return *value;
   }
 
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
       && name->Equals(isolate()->heap()->length_symbol())
-      && JSArray::cast(*receiver)->AllowsSetElementsLength()) {
+      && Handle<JSArray>::cast(receiver)->AllowsSetElementsLength()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
-    Builtins::Name target = (strict_mode == kStrictMode)
-        ? Builtins::kStoreIC_ArrayLength_Strict
-        : Builtins::kStoreIC_ArrayLength;
-    set_target(isolate()->builtins()->builtin(target));
+    Handle<Code> stub = (strict_mode == kStrictMode)
+        ? isolate()->builtins()->StoreIC_ArrayLength_Strict()
+        : isolate()->builtins()->StoreIC_ArrayLength();
+    set_target(*stub);
     return receiver->SetProperty(*name, *value, NONE, strict_mode);
   }
 
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup(isolate());
-    if (LookupForWrite(*receiver, *name, &lookup)) {
+
+    if (LookupForWrite(receiver, name, &lookup)) {
       // Generate a stub for this store.
       UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
     } else {
@@ -1462,13 +1462,14 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   if (receiver->IsJSGlobalProxy()) {
+    // TODO(ulan): find out why we patch this site even with --no-use-ic
     // Generate a generic stub that goes to the runtime when we see a global
     // proxy as receiver.
-    Code* stub = (strict_mode == kStrictMode)
+    Handle<Code> stub = (strict_mode == kStrictMode)
         ? global_proxy_stub_strict()
         : global_proxy_stub();
-    if (target() != stub) {
-      set_target(stub);
+    if (target() != *stub) {
+      set_target(*stub);
 #ifdef DEBUG
       TraceIC("StoreIC", name, state, target());
 #endif
@@ -1499,77 +1500,70 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  MaybeObject* maybe_code = NULL;
-  Object* code = NULL;
+  Handle<Code> code;
   switch (type) {
-    case FIELD: {
-      maybe_code = isolate()->stub_cache()->ComputeStoreField(
-          *name, *receiver, lookup->GetFieldIndex(), NULL, strict_mode);
+    case FIELD:
+      code = isolate()->stub_cache()->ComputeStoreField(name,
+                                                        receiver,
+                                                        lookup->GetFieldIndex(),
+                                                        Handle<Map>::null(),
+                                                        strict_mode);
       break;
-    }
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() != NONE) return;
-      HandleScope scope(isolate());
       ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
-      maybe_code = isolate()->stub_cache()->ComputeStoreField(
-          *name, *receiver, index, *transition, strict_mode);
+      code = isolate()->stub_cache()->ComputeStoreField(
+          name, receiver, index, transition, strict_mode);
       break;
     }
-    case NORMAL: {
+    case NORMAL:
       if (receiver->IsGlobalObject()) {
         // The stub generated for the global object picks the value directly
         // from the property cell. So the property must be directly on the
         // global object.
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-        JSGlobalPropertyCell* cell =
-            JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-        maybe_code = isolate()->stub_cache()->ComputeStoreGlobal(
-            *name, *global, cell, strict_mode);
+        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        code = isolate()->stub_cache()->ComputeStoreGlobal(
+            name, global, cell, strict_mode);
       } else {
         if (lookup->holder() != *receiver) return;
-        maybe_code = isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
+        code = isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
       }
       break;
-    }
     case CALLBACKS: {
-      if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
-      AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
+      Handle<Object> callback_object(lookup->GetCallbackObject());
+      if (!callback_object->IsAccessorInfo()) return;
+      Handle<AccessorInfo> callback =
+          Handle<AccessorInfo>::cast(callback_object);
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
-      maybe_code = isolate()->stub_cache()->ComputeStoreCallback(
-          *name, *receiver, callback, strict_mode);
+      code = isolate()->stub_cache()->ComputeStoreCallback(
+          name, receiver, callback, strict_mode);
       break;
     }
-    case INTERCEPTOR: {
+    case INTERCEPTOR:
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
-      maybe_code = isolate()->stub_cache()->ComputeStoreInterceptor(
-          *name, *receiver, strict_mode);
+      code = isolate()->stub_cache()->ComputeStoreInterceptor(
+          name, receiver, strict_mode);
       break;
-    }
     default:
       return;
   }
 
-  // If we're unable to compute the stub (not enough memory left), we
-  // simply avoid updating the caches.
-  if (maybe_code == NULL || !maybe_code->ToObject(&code)) return;
-
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(Code::cast(code));
+    set_target(*code);
   } else if (state == MONOMORPHIC) {
     // Only move to megamorphic if the target changes.
-    if (target() != Code::cast(code)) {
+    if (target() != *code) {
       set_target((strict_mode == kStrictMode)
                    ? megamorphic_stub_strict()
                    : megamorphic_stub());
     }
   } else if (state == MEGAMORPHIC) {
     // Update the stub cache.
-    isolate()->stub_cache()->Set(*name,
-                                 receiver->map(),
-                                 Code::cast(code));
+    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
   }
 
 #ifdef DEBUG
@@ -2090,7 +2084,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
-  NoHandleAllocation na;
+  HandleScope scope;
   ASSERT(args.length() == 3);
   StoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);

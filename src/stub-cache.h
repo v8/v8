@@ -144,32 +144,27 @@ class StubCache {
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreField(
-      String* name,
-      JSObject* receiver,
-      int field_index,
-      Map* transition,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeStoreField(Handle<String> name,
+                                 Handle<JSObject> receiver,
+                                 int field_index,
+                                 Handle<Map> transition,
+                                 StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreNormal(
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeStoreNormal(StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreGlobal(
-      String* name,
-      GlobalObject* receiver,
-      JSGlobalPropertyCell* cell,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeStoreGlobal(Handle<String> name,
+                                  Handle<GlobalObject> receiver,
+                                  Handle<JSGlobalPropertyCell> cell,
+                                  StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreCallback(
-      String* name,
-      JSObject* receiver,
-      AccessorInfo* callback,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeStoreCallback(Handle<String> name,
+                                    Handle<JSObject> receiver,
+                                    Handle<AccessorInfo> callback,
+                                    StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreInterceptor(
-      String* name,
-      JSObject* receiver,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeStoreInterceptor(Handle<String> name,
+                                       Handle<JSObject> receiver,
+                                       StrictModeFlag strict_mode);
 
   // ---
 
@@ -693,16 +688,34 @@ class StoreStubCompiler: public StubCompiler {
   StoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
     : StubCompiler(isolate), strict_mode_(strict_mode) { }
 
+
+  Handle<Code> CompileStoreField(Handle<JSObject> object,
+                                 int index,
+                                 Handle<Map> transition,
+                                 Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
                                                  String* name);
 
+  Handle<Code> CompileStoreCallback(Handle<JSObject> object,
+                                    Handle<AccessorInfo> callback,
+                                    Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileStoreCallback(JSObject* object,
-                                                    AccessorInfo* callbacks,
+                                                    AccessorInfo* callback,
                                                     String* name);
+  Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
+                                       Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileStoreInterceptor(JSObject* object,
                                                        String* name);
+
+  Handle<Code> CompileStoreGlobal(Handle<GlobalObject> object,
+                                  Handle<JSGlobalPropertyCell> holder,
+                                  Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileStoreGlobal(GlobalObject* object,
                                                   JSGlobalPropertyCell* holder,
                                                   String* name);

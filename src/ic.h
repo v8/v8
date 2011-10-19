@@ -532,13 +532,11 @@ class StoreIC: public IC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kStoreIC_Initialize_Strict);
   }
-  Code* global_proxy_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kStoreIC_GlobalProxy);
+  Handle<Code> global_proxy_stub() {
+    return isolate()->builtins()->StoreIC_GlobalProxy();
   }
-  Code* global_proxy_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kStoreIC_GlobalProxy_Strict);
+  Handle<Code> global_proxy_stub_strict() {
+    return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
 
   static void Clear(Address address, Code* target);
