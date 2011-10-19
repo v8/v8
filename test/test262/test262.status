@@ -322,12 +322,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 
 ######################### UNANALYZED FAILURES ##########################
 
-# Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
-#      property to true successfully when [[Enumerable]] attribute of 'name'
-#      is false and [[Configurable]] attribute of 'name' is true,  the 'desc'
-#      is a generic descriptor which only contains [[Enumerable]] attribute
-#      as true, 'name' property is an index data property (8.12.9 step 8)
-15.2.3.6-4-82-18: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
 #      formal parameters, 'name' is own property of 'O' which is also defined in
 #      [[ParameterMap]] of 'O', and 'desc' is data descriptor, test updating

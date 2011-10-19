@@ -4232,11 +4232,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   uint32_t index;
   bool is_element = name->AsArrayIndex(&index);
 
-  // Special case for elements if any of the flags are true.
+  // Special case for elements if any of the flags might be involved.
   // If elements are in fast case we always implicitly assume that:
   // DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
-  if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
-      is_element) {
+  if (is_element && (attr != NONE ||
+      js_object->HasLocalElement(index) == JSObject::DICTIONARY_ELEMENT)) {
     // Normalize the elements to enable attributes on the property.
     if (js_object->IsJSGlobalProxy()) {
       // We do not need to do access checks here since these has already
