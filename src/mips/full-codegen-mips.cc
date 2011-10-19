@@ -4100,36 +4100,26 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         case Token::EQ_STRICT:
         case Token::EQ:
           cc = eq;
-          __ mov(a0, result_register());
-          __ pop(a1);
           break;
         case Token::LT:
           cc = lt;
-          __ mov(a0, result_register());
-          __ pop(a1);
           break;
         case Token::GT:
-          // Reverse left and right sides to obtain ECMA-262 conversion order.
-          cc = lt;
-          __ mov(a1, result_register());
-          __ pop(a0);
+          cc = gt;
          break;
         case Token::LTE:
-          // Reverse left and right sides to obtain ECMA-262 conversion order.
-          cc = ge;
-          __ mov(a1, result_register());
-          __ pop(a0);
+          cc = le;
           break;
         case Token::GTE:
           cc = ge;
-          __ mov(a0, result_register());
-          __ pop(a1);
           break;
         case Token::IN:
         case Token::INSTANCEOF:
         default:
           UNREACHABLE();
       }
+      __ mov(a0, result_register());
+      __ pop(a1);
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
       JumpPatchSite patch_site(masm_);

@@ -1560,11 +1560,9 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
     case Token::LT:
       return lt;
     case Token::GT:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return lt;
+      return gt;
     case Token::LTE:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return ge;
+      return le;
     case Token::GTE:
       return ge;
     default:
