@@ -237,7 +237,11 @@ function crankshaft_test() {
   var b = [get(1), get(2), get("three")];
   assertKind(elements_kind.fast, b);
   var c = [get(1), get(2), get(3.5)];
-  assertKind(elements_kind.fast_double, c);
+  if (support_smi_only_arrays) {
+    assertKind(elements_kind.fast_double, c);
+  } else {
+    assertKind(elements_kind.fast, c);
+  }
 }
 for (var i = 0; i < 3; i++) {
   crankshaft_test();
