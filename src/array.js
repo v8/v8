@@ -1017,16 +1017,18 @@ function ArrayFilter(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var result = [];
-  var result_length = 0;
+  var result = new $Array();
+  var accumulator = new InternalArray();
+  var accumulator_length = 0;
   for (var i = 0; i < length; i++) {
     var current = array[i];
     if (!IS_UNDEFINED(current) || i in array) {
       if (%_CallFunction(receiver, current, i, array, f)) {
-        result[result_length++] = current;
+        accumulator[accumulator_length++] = current;
       }
     }
   }
+  %MoveArrayContents(accumulator, result);
   return result;
 }
 

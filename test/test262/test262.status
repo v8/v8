@@ -475,24 +475,9 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.map - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.19-8-b-16: FAIL
-# Bug? Array.prototype.filter - properties can be added to prototype after
-#      current position are visited on an Array-like object
-15.4.4.20-9-b-6: FAIL
 # Bug? Array.prototype.filter - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.20-9-b-16: FAIL
-# Bug? Array.prototype.filter - element to be retrieved is own data property
-#      that overrides an inherited accessor property on an Array
-15.4.4.20-9-c-i-6: FAIL
-# Bug? Array.prototype.filter - element to be retrieved is own accessor property
-#      that overrides an inherited accessor property on an Array
-15.4.4.20-9-c-i-14: FAIL
-# Bug? Array.prototype.filter - element to be retrieved is inherited accessor
-#      property on an Array
-15.4.4.20-9-c-i-16: FAIL
-# Bug? Array.prototype.filter - element to be retrieved is inherited accessor
-#      property without a get function on an Array
-15.4.4.20-9-c-i-22: FAIL
 # Bug? Array.prototype.reduce - decreasing length of array in step 8 does not
 #      delete non-configurable properties
 15.4.4.21-9-b-16: FAIL
