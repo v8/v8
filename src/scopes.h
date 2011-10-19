@@ -89,7 +89,16 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType type);
+  enum Type {
+    EVAL_SCOPE,      // The top-level scope for an eval source.
+    FUNCTION_SCOPE,  // The top-level scope for a function.
+    GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+    CATCH_SCOPE,     // The scope introduced by catch.
+    BLOCK_SCOPE,     // The scope introduced by a new block.
+    WITH_SCOPE       // The scope introduced by with.
+  };
+
+  Scope(Scope* outer_scope, Type type);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -197,37 +206,6 @@ class Scope: public ZoneObject {
     strict_mode_ = FLAG_strict_mode;
   }
 
-  // Position in the source where this scope begins and ends.
-  //
-  // * For the scope of a with statement
-  //     with (obj) stmt
-  //   start position: start position of first token of 'stmt'
-  //   end position: end position of last token of 'stmt'
-  // * For the scope of a block
-  //     { stmts }
-  //   start position: start position of '{'
-  //   end position: end position of '}'
-  // * For the scope of a function literal or decalaration
-  //     function fun(a,b) { stmts }
-  //   start position: start position of '('
-  //   end position: end position of '}'
-  // * For the scope of a catch block
-  //     try { stms } catch(e) { stmts }
-  //   start position: start position of '('
-  //   end position: end position of ')'
-  // * For the scope of a for-statement
-  //     for (let x ...) stmt
-  //   start position: start position of '('
-  //   end position: end position of last token of 'stmt'
-  int start_position() const { return start_position_; }
-  void set_start_position(int statement_pos) {
-    start_position_ = statement_pos;
-  }
-  int end_position() const { return end_position_; }
-  void set_end_position(int statement_pos) {
-    end_position_ = statement_pos;
-  }
-
   // ---------------------------------------------------------------------------
   // Predicates.
 
@@ -266,9 +244,6 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Accessors.
 
-  // The type of this scope.
-  ScopeType type() const { return type_; }
-
   // The variable corresponding the 'this' value.
   Variable* receiver() { return receiver_; }
 
@@ -295,8 +270,6 @@ class Scope: public ZoneObject {
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
-  // Inner scope list.
-  ZoneList<Scope*>* inner_scopes() { return &inner_scopes_; }
 
   // ---------------------------------------------------------------------------
   // Variable allocation.
@@ -340,13 +313,6 @@ class Scope: public ZoneObject {
 
   Handle<SerializedScopeInfo> GetSerializedScopeInfo();
 
-  // Get the chain of nested scopes within this scope for the source statement
-  // position. The scopes will be added to the list from the outermost scope to
-  // the innermost scope. Only nested block, catch or with scopes are tracked
-  // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(List<Handle<SerializedScopeInfo> >* chain,
-                           int statement_position);
-
   // ---------------------------------------------------------------------------
   // Strict mode support.
   bool IsDeclared(Handle<String> name) {
@@ -370,7 +336,7 @@ class Scope: public ZoneObject {
  protected:
   friend class ParserFactory;
 
-  explicit Scope(ScopeType type);
+  explicit Scope(Type type);
 
   Isolate* const isolate_;
 
@@ -379,7 +345,7 @@ class Scope: public ZoneObject {
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
 
   // The scope type.
-  ScopeType type_;
+  Type type_;
 
   // Debugging support.
   Handle<String> scope_name_;
@@ -421,9 +387,6 @@ class Scope: public ZoneObject {
   bool scope_calls_eval_;
   // This scope is a strict mode scope.
   bool strict_mode_;
-  // Source positions.
-  int start_position_;
-  int end_position_;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_non_strict_eval_;
@@ -526,9 +489,7 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope,
-        ScopeType type,
-        Handle<SerializedScopeInfo> scope_info);
+  Scope(Scope* inner_scope, Type type, Handle<SerializedScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
@@ -540,7 +501,7 @@ class Scope: public ZoneObject {
     }
   }
 
-  void SetDefaults(ScopeType type,
+  void SetDefaults(Type type,
                    Scope* outer_scope,
                    Handle<SerializedScopeInfo> scope_info);
 };
