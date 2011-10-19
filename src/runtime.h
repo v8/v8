@@ -368,6 +368,8 @@ namespace internal {
   F(HasExternalUnsignedIntElements, 1, 1) \
   F(HasExternalFloatElements, 1, 1) \
   F(HasExternalDoubleElements, 1, 1) \
+  F(TransitionElementsSmiToDouble, 1, 1) \
+  F(TransitionElementsDoubleToObject, 1, 1) \
   F(HaveSameMap, 2, 1) \
   /* profiler */ \
   F(ProfilerResume, 0, 1) \

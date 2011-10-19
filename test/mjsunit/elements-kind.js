@@ -158,45 +158,92 @@ var smi_only = [1, 2, 3];
 for (var i = 0; i < 3; i++) monomorphic(smi_only);
 %OptimizeFunctionOnNextCall(monomorphic);
 monomorphic(smi_only);
-function polymorphic(array, expected_kind) {
-  array[1] = 42;
-  assertKind(expected_kind, array);
-  var a = array[1];
-  assertEquals(42, a);
-}
-var smis = [1, 2, 3];
-var strings = [0, 0, 0]; strings[0] = "one";
-var doubles = [0, 0, 0]; doubles[0] = 1.5;
-assertKind(support_smi_only_arrays
-               ? elements_kind.fast_double
-               : elements_kind.fast,
-           doubles);
-for (var i = 0; i < 3; i++) {
-  polymorphic(smis, elements_kind.fast_smi_only);
-}
-for (var i = 0; i < 3; i++) {
-  polymorphic(strings, elements_kind.fast);
-}
-/* In the first iteration, feeding polymorphic with a fast double elements
- * array leads to a miss and is then routed to runtime code.  No conversion
- * is done in there.  The second time the store is handled by the newly
- * created IC, which converts the fast double elements into fast elements
- * since arrays with fast elements have been handled earlier in polymorphic.
- * Since the x64 and arm port of the generated code conversion does not yet
- * exist, this test is skipped for now.
-for (var i = 0; i < 3; i++) {
-  polymorphic(doubles, i == 0 && support_smi_only_arrays
-                           ? elements_kind.fast_double
-                           : elements_kind.fast);
-}
-*/
 
-/* Element transitions have not been implemented in crankshaft yet.
-%OptimizeFunctionOnNextCall(polymorphic);
-polymorphic(smis, elements_kind.fast_smi_only);
-polymorphic(strings, elements_kind.fast);
-polymorphic(doubles, elements_kind.fast);
-*/
+if (support_smi_only_arrays) {
+  function construct_smis() {
+    var a = [0, 0, 0];
+    a[0] = 0;  // Send the COW array map to the steak house.
+    assertKind(elements_kind.fast_smi_only, a);
+    return a;
+  }
+  function construct_doubles() {
+    var a = construct_smis();
+    a[0] = 1.5;
+    assertKind(elements_kind.fast_double, a);
+    return a;
+  }
+  function construct_objects() {
+    var a = construct_smis();
+    a[0] = "one";
+    assertKind(elements_kind.fast, a);
+    return a;
+  }
+
+  // Test crankshafted transition SMI->DOUBLE.
+  function convert_to_double(array) {
+    array[1] = 2.5;
+    assertKind(elements_kind.fast_double, array);
+    assertEquals(2.5, array[1]);
+  }
+  var smis = construct_smis();
+  for (var i = 0; i < 3; i++) convert_to_double(smis);
+  %OptimizeFunctionOnNextCall(convert_to_double);
+  smis = construct_smis();
+  convert_to_double(smis);
+  // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
+  function convert_to_fast(array) {
+    array[1] = "two";
+    assertKind(elements_kind.fast, array);
+    assertEquals("two", array[1]);
+  }
+  smis = construct_smis();
+  for (var i = 0; i < 3; i++) convert_to_fast(smis);
+  var doubles = construct_doubles();
+  for (var i = 0; i < 3; i++) convert_to_fast(doubles);
+  smis = construct_smis();
+  doubles = construct_doubles();
+  %OptimizeFunctionOnNextCall(convert_to_fast);
+  convert_to_fast(smis);
+  convert_to_fast(doubles);
+  // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
+  // transition to FAST directly).
+  function convert_mixed(array, value, kind) {
+    array[1] = value;
+    assertKind(kind, array);
+    assertEquals(value, array[1]);
+  }
+  smis = construct_smis();
+  for (var i = 0; i < 3; i++) {
+    convert_mixed(smis, 1.5, elements_kind.fast_double);
+  }
+  doubles = construct_doubles();
+  for (var i = 0; i < 3; i++) {
+    convert_mixed(doubles, "three", elements_kind.fast);
+  }
+  smis = construct_smis();
+  doubles = construct_doubles();
+  %OptimizeFunctionOnNextCall(convert_mixed);
+  convert_mixed(smis, 1, elements_kind.fast);
+  convert_mixed(doubles, 1, elements_kind.fast);
+  assertTrue(%HaveSameMap(smis, doubles));
+}
+
+// Crankshaft support for smi-only elements in dynamic array literals.
+function get(foo) { return foo; }  // Used to generate dynamic values.
+
+function crankshaft_test() {
+  var a = [get(1), get(2), get(3)];
+  assertKind(elements_kind.fast_smi_only, a);
+  var b = [get(1), get(2), get("three")];
+  assertKind(elements_kind.fast, b);
+  var c = [get(1), get(2), get(3.5)];
+  assertKind(elements_kind.fast_double, c);
+}
+for (var i = 0; i < 3; i++) {
+  crankshaft_test();
+}
+%OptimizeFunctionOnNextCall(crankshaft_test);
+crankshaft_test();
 
 // Elements_kind transitions for arrays.
 

@@ -171,6 +171,7 @@ class LChunkBuilder;
   V(Throw)                                     \
   V(ToFastProperties)                          \
   V(ToInt32)                                   \
+  V(TransitionElementsKind)                    \
   V(Typeof)                                    \
   V(TypeofIsAndBranch)                         \
   V(UnaryMathOperation)                        \
@@ -3902,6 +3903,44 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
 
  private:
   bool strict_mode_;
+};
+
+
+class HTransitionElementsKind: public HTemplateInstruction<1> {
+ public:
+  HTransitionElementsKind(HValue* object,
+                          Handle<Map> original_map,
+                          Handle<Map> transitioned_map)
+      : original_map_(original_map),
+        transitioned_map_(transitioned_map) {
+    SetOperandAt(0, object);
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
+    set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* object() { return OperandAt(0); }
+  Handle<Map> original_map() { return original_map_; }
+  Handle<Map> transitioned_map() { return transitioned_map_; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(TransitionElementsKind)
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    HTransitionElementsKind* instr = HTransitionElementsKind::cast(other);
+    return original_map_.is_identical_to(instr->original_map()) &&
+        transitioned_map_.is_identical_to(instr->transitioned_map());
+  }
+
+ private:
+  Handle<Map> original_map_;
+  Handle<Map> transitioned_map_;
 };
 
 

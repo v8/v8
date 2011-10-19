@@ -1644,6 +1644,12 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 }
 
 
+void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
+}
+
+
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");

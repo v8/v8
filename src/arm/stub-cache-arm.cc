@@ -1619,7 +1619,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ bind(&with_write_barrier);
 
       __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(r6, r6, &call_builtin);
+      __ CheckFastObjectElements(r6, r6, &call_builtin);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));

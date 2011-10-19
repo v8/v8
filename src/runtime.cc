@@ -4536,6 +4536,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
+MaybeObject* TransitionElements(Handle<Object> object,
+                                ElementsKind to_kind,
+                                Isolate* isolate) {
+  HandleScope scope(isolate);
+  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
+  ElementsKind from_kind =
+      Handle<JSObject>::cast(object)->map()->elements_kind();
+  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
+    Handle<Object> result =
+        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
+    if (result.is_null()) return isolate->ThrowIllegalOperation();
+    return *result;
+  }
+  return isolate->ThrowIllegalOperation();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+  Handle<Object> object = args.at<Object>(0);
+  return TransitionElements(object, FAST_DOUBLE_ELEMENTS, isolate);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+  Handle<Object> object = args.at<Object>(0);
+  return TransitionElements(object, FAST_ELEMENTS, isolate);
+}
+
+
 // Set the native flag on the function.
 // This is used to decide if we should transform null and undefined
 // into the global object when doing call and apply.

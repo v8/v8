@@ -2108,6 +2108,39 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
+// If |map| is contained in |maps_list|, returns |map|; otherwise returns NULL.
+static bool ContainsMap(MapList* maps_list, Map* map) {
+  for (int i = 0; i < maps_list->length(); ++i) {
+    if (maps_list->at(i) == map) return true;
+  }
+  return false;
+}
+
+
+Map* Map::FindTransitionedMap(MapList* candidates) {
+  ElementsKind elms_kind = elements_kind();
+  if (elms_kind == FAST_DOUBLE_ELEMENTS) {
+    bool dummy = true;
+    Map* fast_map = LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
+    if (fast_map == NULL) return NULL;
+    if (ContainsMap(candidates, fast_map)) return fast_map;
+    return NULL;
+  }
+  if (elms_kind == FAST_SMI_ONLY_ELEMENTS) {
+    bool dummy = true;
+    Map* double_map = LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, &dummy);
+    // In the current implementation, if the DOUBLE map doesn't exist, the
+    // FAST map can't exist either.
+    if (double_map == NULL) return NULL;
+    Map* fast_map = double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
+                                                            &dummy);
+    if (fast_map != NULL && ContainsMap(candidates, fast_map)) return fast_map;
+    if (ContainsMap(candidates, double_map)) return double_map;
+  }
+  return NULL;
+}
+
+
 static Map* GetElementsTransitionMapFromDescriptor(Object* descriptor_contents,
                                                    ElementsKind elements_kind) {
   if (descriptor_contents->IsMap()) {
@@ -9461,6 +9494,51 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   // complaints from the compiler.
   UNREACHABLE();
   return isolate->heap()->null_value();
+}
+
+
+MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
+    ElementsKind to_kind) {
+  ElementsKind from_kind = map()->elements_kind();
+  FixedArrayBase* elms = FixedArrayBase::cast(elements());
+  uint32_t capacity = static_cast<uint32_t>(elms->length());
+  uint32_t length = capacity;
+  if (IsJSArray()) {
+    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+  }
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS) {
+    if (to_kind == FAST_DOUBLE_ELEMENTS) {
+      MaybeObject* maybe_result =
+          SetFastDoubleElementsCapacityAndLength(capacity, length);
+      if (maybe_result->IsFailure()) return maybe_result;
+      return this;
+    } else if (to_kind == FAST_ELEMENTS) {
+      MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
+      Map* new_map;
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+      set_map(new_map);
+      return this;
+    }
+  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+    MaybeObject* maybe_result = SetFastElementsCapacityAndLength(
+        capacity, length, kDontAllowSmiOnlyElements);
+    if (maybe_result->IsFailure()) return maybe_result;
+    return this;
+  }
+  // This method should never be called for any other case than the ones
+  // handled above.
+  UNREACHABLE();
+  return GetIsolate()->heap()->null_value();
+}
+
+
+// static
+bool Map::IsValidElementsTransition(ElementsKind from_kind,
+                                    ElementsKind to_kind) {
+  return
+      (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+          (to_kind == FAST_DOUBLE_ELEMENTS || to_kind == FAST_ELEMENTS)) ||
+      (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS);
 }
 
 

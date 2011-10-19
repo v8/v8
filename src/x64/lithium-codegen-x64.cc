@@ -3257,6 +3257,47 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
+  Register object_reg = ToRegister(instr->object());
+  Register new_map_reg = ToRegister(instr->new_map_reg());
+
+  Handle<Map> from_map = instr->original_map();
+  Handle<Map> to_map = instr->transitioned_map();
+  ElementsKind from_kind = from_map->elements_kind();
+  ElementsKind to_kind = to_map->elements_kind();
+
+  Label not_applicable;
+  __ Cmp(FieldOperand(object_reg, HeapObject::kMapOffset), from_map);
+  __ j(not_equal, &not_applicable);
+  __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) {
+    __ movq(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
+    // Write barrier.
+    ASSERT_NE(instr->temp_reg(), NULL);
+    __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
+                        ToRegister(instr->temp_reg()), kDontSaveFPRegs);
+  } else if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      to_kind == FAST_DOUBLE_ELEMENTS) {
+    Register fixed_object_reg = ToRegister(instr->temp_reg());
+    ASSERT(fixed_object_reg.is(rdx));
+    ASSERT(new_map_reg.is(rbx));
+    __ movq(fixed_object_reg, object_reg);
+    CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
+             RelocInfo::CODE_TARGET, instr);
+  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+    Register fixed_object_reg = ToRegister(instr->temp_reg());
+    ASSERT(fixed_object_reg.is(rdx));
+    ASSERT(new_map_reg.is(rbx));
+    __ movq(fixed_object_reg, object_reg);
+    CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
+             RelocInfo::CODE_TARGET, instr);
+  } else {
+    UNREACHABLE();
+  }
+  __ bind(&not_applicable);
+}
+
+
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
   EmitPushTaggedOperand(instr->left());
   EmitPushTaggedOperand(instr->right());

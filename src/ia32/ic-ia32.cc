@@ -1580,6 +1580,37 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
+void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+
+  __ pop(ebx);
+  __ push(edx);
+  __ push(ebx);  // return address
+
+  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
+}
+
+
+void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+
+  __ pop(ebx);
+  __ push(edx);
+  __ push(ebx);  // return address
+
+  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
+}
+
+
 #undef __
 
 

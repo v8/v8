@@ -569,6 +569,8 @@ class KeyedStoreIC: public KeyedIC {
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
   static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateTransitionElementsSmiToDouble(MacroAssembler* masm);
+  static void GenerateTransitionElementsDoubleToObject(MacroAssembler* masm);
 
   virtual MaybeObject* GetElementStubWithoutMapCheck(
       bool is_js_array,

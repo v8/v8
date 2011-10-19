@@ -156,6 +156,7 @@ class LCodeGen;
   V(ThisFunction)                               \
   V(Throw)                                      \
   V(ToFastProperties)                           \
+  V(TransitionElementsKind)                     \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
@@ -1730,6 +1731,30 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
   bool strict_mode() { return hydrogen()->strict_mode(); }
+};
+
+
+class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
+ public:
+  LTransitionElementsKind(LOperand* object,
+                          LOperand* new_map_temp,
+                          LOperand* temp_reg) {
+    inputs_[0] = object;
+    temps_[0] = new_map_temp;
+    temps_[1] = temp_reg;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(TransitionElementsKind,
+                               "transition-elements-kind")
+  DECLARE_HYDROGEN_ACCESSOR(TransitionElementsKind)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* new_map_reg() { return temps_[0]; }
+  LOperand* temp_reg() { return temps_[1]; }
+  Handle<Map> original_map() { return hydrogen()->original_map(); }
+  Handle<Map> transitioned_map() { return hydrogen()->transitioned_map(); }
 };
 
 

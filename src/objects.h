@@ -1798,6 +1798,8 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
       ElementsKind elements_kind);
 
+  MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
+
   // Converts a descriptor of any other type to a real field,
   // backed by the properties array.  Descriptors of visible
   // types, such as CONSTANT_FUNCTION, keep their enumeration order.
@@ -4151,6 +4153,9 @@ class Map: public HeapObject {
     return elements_kind() == DICTIONARY_ELEMENTS;
   }
 
+  static bool IsValidElementsTransition(ElementsKind from_kind,
+                                        ElementsKind to_kind);
+
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);
@@ -4316,6 +4321,11 @@ class Map: public HeapObject {
   // |transitioned_map| when its elements_kind is changed to |elements_kind|.
   MaybeObject* AddElementsTransition(ElementsKind elements_kind,
                                      Map* transitioned_map);
+
+  // Returns the transitioned map for this map with the most generic
+  // elements_kind that's found in |candidates|, or NULL if no match is
+  // found at all.
+  Map* FindTransitionedMap(MapList* candidates);
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT

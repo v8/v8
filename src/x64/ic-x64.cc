@@ -1601,6 +1601,37 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
 }
 
 
+void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+
+  __ pop(rbx);
+  __ push(rdx);
+  __ push(rbx);  // return address
+
+  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
+}
+
+
+void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+
+  __ pop(rbx);
+  __ push(rdx);
+  __ push(rbx);  // return address
+
+  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
+}
+
+
 #undef __
 
 

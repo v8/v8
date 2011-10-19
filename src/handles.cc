@@ -486,6 +486,14 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
 }
 
 
+Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->TransitionElementsKind(to_kind),
+                     Object);
+}
+
+
 Handle<JSObject> Copy(Handle<JSObject> obj) {
   Isolate* isolate = obj->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,

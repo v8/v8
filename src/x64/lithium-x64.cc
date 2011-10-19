@@ -447,6 +447,12 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
+}
+
+
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new LInstructionGap(block);
   int index = -1;
@@ -1951,6 +1957,27 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
   LStoreKeyedGeneric* result = new LStoreKeyedGeneric(object, key, value);
   return MarkAsCall(result, instr);
+}
+
+
+LInstruction* LChunkBuilder::DoTransitionElementsKind(
+    HTransitionElementsKind* instr) {
+  if (instr->original_map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
+      instr->transitioned_map()->elements_kind() == FAST_ELEMENTS) {
+    LOperand* object = UseRegister(instr->object());
+    LOperand* new_map_reg = TempRegister();
+    LOperand* temp_reg = TempRegister();
+    LTransitionElementsKind* result =
+        new LTransitionElementsKind(object, new_map_reg, temp_reg);
+    return DefineSameAsFirst(result);
+  } else {
+    LOperand* object = UseFixed(instr->object(), rax);
+    LOperand* fixed_object_reg = FixedTemp(rdx);
+    LOperand* new_map_reg = FixedTemp(rbx);
+    LTransitionElementsKind* result =
+        new LTransitionElementsKind(object, new_map_reg, fixed_object_reg);
+    return MarkAsCall(DefineFixed(result, rax), instr);
+  }
 }
 
 

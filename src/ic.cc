@@ -1721,49 +1721,6 @@ MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
 }
 
 
-// If |map| is contained in |maps_list|, returns |map|; otherwise returns NULL.
-Map* GetMapIfPresent(Map* map, MapList* maps_list) {
-  for (int i = 0; i < maps_list->length(); ++i) {
-    if (maps_list->at(i) == map) return map;
-  }
-  return NULL;
-}
-
-
-// Returns the most generic transitioned map for |map| that's found in
-// |maps_list|, or NULL if no transitioned map for |map| is found at all.
-Map* GetTransitionedMap(Map* map, MapList* maps_list) {
-  ElementsKind elements_kind = map->elements_kind();
-  if (elements_kind == FAST_ELEMENTS) {
-    return NULL;
-  }
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-    bool dummy = true;
-    Map* fast_map = map->LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
-    if (fast_map == NULL) return NULL;
-    return GetMapIfPresent(fast_map, maps_list);
-  }
-  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    bool dummy = true;
-    Map* double_map = map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS,
-                                                       &dummy);
-    // In the current implementation, if the DOUBLE map doesn't exist, the
-    // FAST map can't exist either.
-    if (double_map == NULL) return NULL;
-    Map* fast_map = map->LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
-    if (fast_map == NULL) {
-      return GetMapIfPresent(double_map, maps_list);
-    }
-    // Both double_map and fast_map are non-NULL. Return fast_map if it's in
-    // maps_list, double_map otherwise.
-    Map* fast_map_present = GetMapIfPresent(fast_map, maps_list);
-    if (fast_map_present != NULL) return fast_map_present;
-    return GetMapIfPresent(double_map, maps_list);
-  }
-  return NULL;
-}
-
-
 MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     MapList* receiver_maps,
     StrictModeFlag strict_mode) {
@@ -1773,7 +1730,7 @@ MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Map* receiver_map(receiver_maps->at(i));
     MaybeObject* maybe_cached_stub = NULL;
-    Map* transitioned_map = GetTransitionedMap(receiver_map, receiver_maps);
+    Map* transitioned_map = receiver_map->FindTransitionedMap(receiver_maps);
     if (transitioned_map != NULL) {
       maybe_cached_stub = FastElementsConversionStub(
           receiver_map->elements_kind(),  // original elements_kind

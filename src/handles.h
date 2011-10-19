@@ -240,6 +240,9 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
                              Handle<Object> value,
                              StrictModeFlag strict_mode);
 
+Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind);
+
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
 

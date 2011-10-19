@@ -1244,6 +1244,31 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
+void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- r2     : receiver
+  //  -- lr     : return address
+  // -----------------------------------
+  // Must return the modified receiver in r0.
+
+  __ push(r2);
+  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
+}
+
+
+void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
+    MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- r2     : receiver
+  //  -- lr     : return address
+  // -----------------------------------
+  // Must return the modified receiver in r0.
+
+  __ push(r2);
+  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
+}
+
+
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                               StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
