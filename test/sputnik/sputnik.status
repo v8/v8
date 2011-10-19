@@ -187,6 +187,10 @@ S15.1.1.2_A2_T1: FAIL_OK  # Infinity
 S15.1.1.3_A2_T1: FAIL_OK  # undefined
 S15.1.1.3_A2_T2: FAIL_OK  # undefined
 
+# Function.prototype.apply can handle arbitrary object as argument list.
+S15.3.4.3_A6_T1: FAIL_OK
+S15.3.4.3_A6_T4: FAIL_OK
+
 # Array.prototype.to[Locale]String is generic in ES5.
 S15.4.4.2_A2_T1: FAIL_OK
 S15.4.4.3_A2_T1: FAIL_OK
