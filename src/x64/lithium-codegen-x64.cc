@@ -2572,7 +2572,7 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 
 void LCodeGen::DoThisFunction(LThisFunction* instr) {
   Register result = ToRegister(instr->result());
-  __ movq(result, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  LoadHeapObject(result, instr->hydrogen()->closure());
 }
 
 

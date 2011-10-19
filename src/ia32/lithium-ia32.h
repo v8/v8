@@ -1311,7 +1311,9 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 
 
 class LThisFunction: public LTemplateInstruction<1, 0, 0> {
+ public:
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
+  DECLARE_HYDROGEN_ACCESSOR(ThisFunction)
 };
 
 

@@ -465,7 +465,7 @@ bool FunctionLiteral::IsInlineable() const {
 
 
 bool ThisFunction::IsInlineable() const {
-  return false;
+  return true;
 }
 
 

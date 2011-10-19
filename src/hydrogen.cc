@@ -6001,7 +6001,8 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HThisFunction* self = new(zone()) HThisFunction;
+  HThisFunction* self = new(zone()) HThisFunction(
+      function_state()->compilation_info()->closure());
   return ast_context()->ReturnInstruction(self, expr->id());
 }
 
