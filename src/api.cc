@@ -2794,7 +2794,7 @@ Local<Value> v8::Object::Get(uint32_t index) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetElement(self, index);
+  i::Handle<i::Object> result = i::Object::GetElement(self, index);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
@@ -3093,13 +3093,10 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // If the property being looked up is a callback, it can throw
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
-  PropertyAttributes attributes;
-  i::Handle<i::Object> result = i::Object::GetProperty(isolate,
-                                                       receiver,
-                                                       receiver,
-                                                       lookup,
-                                                       name,
-                                                       &attributes);
+  PropertyAttributes ignored;
+  i::Handle<i::Object> result =
+      i::Object::GetProperty(receiver, receiver, lookup, name,
+                             &ignored);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 

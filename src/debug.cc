@@ -1940,7 +1940,9 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   }
 
   // Ensure shared in compiled. Return false if this failed.
-  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+  if (!SharedFunctionInfo::EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+    return false;
+  }
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);

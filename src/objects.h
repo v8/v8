@@ -913,8 +913,7 @@ class Object : public MaybeObject {
       String* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetProperty(Isolate* isolate,
-                                    Handle<Object> object,
+  static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
                                     Handle<String> key,
@@ -928,6 +927,7 @@ class Object : public MaybeObject {
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
+  static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
   inline MaybeObject* GetElement(uint32_t index);
   // For use when we know that no exception can be thrown.
   inline Object* GetElementNoExceptionThrown(uint32_t index);
@@ -4917,6 +4917,13 @@ class SharedFunctionInfo: public HeapObject {
   void SharedFunctionInfoVerify();
 #endif
 
+  // Helpers to compile the shared code.  Returns true on success, false on
+  // failure (e.g., stack overflow during compilation).
+  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                             ClearExceptionFlag flag);
+  static bool CompileLazy(Handle<SharedFunctionInfo> shared,
+                          ClearExceptionFlag flag);
+
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
 
@@ -5137,6 +5144,14 @@ class JSFunction: public JSObject {
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
+
+  // Helpers to compile this function.  Returns true on success, false on
+  // failure (e.g., stack overflow during compilation).
+  static bool CompileLazy(Handle<JSFunction> function,
+                          ClearExceptionFlag flag);
+  static bool CompileOptimized(Handle<JSFunction> function,
+                               int osr_ast_id,
+                               ClearExceptionFlag flag);
 
   // Tells whether or not the function is already marked for lazy
   // recompilation.

@@ -234,6 +234,14 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
+Handle<Object> Object::GetElement(Handle<Object> object, uint32_t index) {
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate, object->GetElement(index), Object);
+}
+
+
 MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
                                             uint32_t index) {
   String* name;
@@ -528,12 +536,14 @@ bool JSObject::IsDirty() {
 }
 
 
-Handle<Object> Object::GetProperty(Isolate* isolate,
-                                   Handle<Object> object,
+Handle<Object> Object::GetProperty(Handle<Object> object,
                                    Handle<Object> receiver,
                                    LookupResult* result,
                                    Handle<String> key,
                                    PropertyAttributes* attributes) {
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
       object->GetProperty(*receiver, result, *key, attributes),
@@ -6938,6 +6948,57 @@ void JSFunction::MarkForLazyRecompilation() {
          code()->optimizable());
   Builtins* builtins = GetIsolate()->builtins();
   ReplaceCode(builtins->builtin(Builtins::kLazyRecompile));
+}
+
+
+bool SharedFunctionInfo::EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                                        ClearExceptionFlag flag) {
+  return shared->is_compiled() || CompileLazy(shared, flag);
+}
+
+
+static bool CompileLazyHelper(CompilationInfo* info,
+                              ClearExceptionFlag flag) {
+  // Compile the source information to a code object.
+  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
+  ASSERT(!info->isolate()->has_pending_exception());
+  bool result = Compiler::CompileLazy(info);
+  ASSERT(result != Isolate::Current()->has_pending_exception());
+  if (!result && flag == CLEAR_EXCEPTION) {
+    info->isolate()->clear_pending_exception();
+  }
+  return result;
+}
+
+
+bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
+                                     ClearExceptionFlag flag) {
+  CompilationInfo info(shared);
+  return CompileLazyHelper(&info, flag);
+}
+
+
+bool JSFunction::CompileLazy(Handle<JSFunction> function,
+                             ClearExceptionFlag flag) {
+  bool result = true;
+  if (function->shared()->is_compiled()) {
+    function->ReplaceCode(function->shared()->code());
+    function->shared()->set_code_age(0);
+  } else {
+    CompilationInfo info(function);
+    result = CompileLazyHelper(&info, flag);
+    ASSERT(!result || function->is_compiled());
+  }
+  return result;
+}
+
+
+bool JSFunction::CompileOptimized(Handle<JSFunction> function,
+                                  int osr_ast_id,
+                                  ClearExceptionFlag flag) {
+  CompilationInfo info(function);
+  info.SetOptimizing(osr_ast_id);
+  return CompileLazyHelper(&info, flag);
 }
 
 

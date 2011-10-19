@@ -626,16 +626,14 @@ class Runtime : public AllStatic {
 
   static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
 
-  // TODO(1240886): The following three methods are *not* handle safe,
-  // but accept handle arguments. This seems fragile.
+  // TODO(1240886): Some of the following methods are *not* handle safe, but
+  // accept handle arguments. This seems fragile.
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
   MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
                                                          Handle<Object> object,
                                                          uint32_t index);
-  MUST_USE_RESULT static MaybeObject* GetElement(Handle<Object> object,
-                                                 uint32_t index);
 
   MUST_USE_RESULT static MaybeObject* SetObjectProperty(
       Isolate* isolate,

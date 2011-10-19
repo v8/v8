@@ -557,6 +557,13 @@ enum VariableMode {
                    // in a context
 };
 
+
+enum ClearExceptionFlag {
+  KEEP_EXCEPTION,
+  CLEAR_EXCEPTION
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_V8GLOBALS_H_

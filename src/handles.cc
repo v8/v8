@@ -376,13 +376,6 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
-Handle<Object> GetElement(Handle<Object> obj,
-                          uint32_t index) {
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate, Runtime::GetElement(obj, index), Object);
-}
-
-
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
@@ -887,54 +880,5 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
                      ObjectHashTable);
 }
 
-
-bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                    ClearExceptionFlag flag) {
-  return shared->is_compiled() || CompileLazyShared(shared, flag);
-}
-
-
-static bool CompileLazyHelper(CompilationInfo* info,
-                              ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
-  ASSERT(!info->isolate()->has_pending_exception());
-  bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) {
-    info->isolate()->clear_pending_exception();
-  }
-  return result;
-}
-
-
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag) {
-  CompilationInfo info(shared);
-  return CompileLazyHelper(&info, flag);
-}
-
-
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
-  } else {
-    CompilationInfo info(function);
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  return result;
-}
-
-
-bool CompileOptimized(Handle<JSFunction> function,
-                      int osr_ast_id,
-                      ClearExceptionFlag flag) {
-  CompilationInfo info(function);
-  info.SetOptimizing(osr_ast_id);
-  return CompileLazyHelper(&info, flag);
-}
 
 } }  // namespace v8::internal

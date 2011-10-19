@@ -246,9 +246,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
-Handle<Object> GetElement(Handle<Object> obj,
-                          uint32_t index);
-
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
@@ -344,22 +341,6 @@ Handle<Object> PreventExtensions(Handle<JSObject> object);
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
                                                Handle<JSReceiver> key,
                                                Handle<Object> value);
-
-// Does lazy compilation of the given function. Returns true on success and
-// false if the compilation resulted in a stack overflow.
-enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
-
-bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                    ClearExceptionFlag flag);
-
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag);
-
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
-
-bool CompileOptimized(Handle<JSFunction> function,
-                      int osr_ast_id,
-                      ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

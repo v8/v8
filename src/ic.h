@@ -203,6 +203,7 @@ class CallICBase: public IC {
       : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
 
  public:
+  // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(State state,
                                             Code::ExtraICState extra_ic_state,
                                             Handle<Object> object,
@@ -222,18 +223,18 @@ class CallICBase: public IC {
       Handle<Object> object,
       Handle<String> name);
 
-  // Update the inline cache and the global stub cache based on the
-  // lookup result.
+  // Update the inline cache and the global stub cache based on the lookup
+  // result.
   void UpdateCaches(LookupResult* lookup,
                     State state,
                     Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
 
-  // Returns a JSFunction if the object can be called as a function,
-  // and patches the stack to be ready for the call.
-  // Otherwise, it returns the undefined value.
-  Object* TryCallAsFunction(Object* object);
+  // Returns a JSFunction if the object can be called as a function, and
+  // patches the stack to be ready for the call.  Otherwise, it returns the
+  // undefined value.
+  Handle<Object> TryCallAsFunction(Handle<Object> object);
 
   void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
 

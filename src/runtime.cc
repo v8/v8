@@ -1005,7 +1005,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        Handle<Object> value = GetElement(obj, index);
+        Handle<Object> value = Object::GetElement(obj, index);
         RETURN_IF_EMPTY_HANDLE(isolate, value);
         elms->set(VALUE_INDEX, *value);
         elms->set(WRITABLE_INDEX, heap->true_value());
@@ -1049,7 +1049,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
           case NORMAL: {
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-            Handle<Object> value = GetElement(obj, index);
+            Handle<Object> value = Object::GetElement(obj, index);
             ASSERT(!value.is_null());
             elms->set(VALUE_INDEX, *value);
             elms->set(WRITABLE_INDEX, heap->ToBoolean(!details.IsReadOnly()));
@@ -2110,7 +2110,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
     Handle<SharedFunctionInfo> shared(fun->shared());
 
-    if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
+    if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
     }
     // Since we don't store the source for this we should never
@@ -4042,11 +4042,6 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
     return prototype->GetElement(index);
   }
 
-  return GetElement(object, index);
-}
-
-
-MaybeObject* Runtime::GetElement(Handle<Object> object, uint32_t index) {
   return object->GetElement(index);
 }
 
@@ -8141,9 +8136,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
   // available. We cannot use EnsureCompiled because that forces a
   // compilation through the shared function info which makes it
   // impossible for us to optimize.
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  if (!function->is_compiled()) CompileLazy(function, CLEAR_EXCEPTION);
+  if (!function->is_compiled()) {
+    JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
+  }
 
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   if (!function->has_initial_map() &&
       shared->IsInobjectSlackTrackingInProgress()) {
     // The tracking is already in progress for another function. We can only
@@ -8194,7 +8191,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyCompile) {
 
   // Compile the target function.
   ASSERT(!function->is_compiled());
-  if (!CompileLazy(function, KEEP_EXCEPTION)) {
+  if (!JSFunction::CompileLazy(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -8231,7 +8228,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
-  if (CompileOptimized(function, AstNode::kNoNumber, CLEAR_EXCEPTION)) {
+  if (JSFunction::CompileOptimized(function,
+                                   AstNode::kNoNumber,
+                                   CLEAR_EXCEPTION)) {
     return function->code();
   }
   if (FLAG_trace_opt) {
@@ -8472,7 +8471,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     // Try to compile the optimized code.  A true return value from
     // CompileOptimized means that compilation succeeded, not necessarily
     // that optimization succeeded.
-    if (CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
+    if (JSFunction::CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
         function->IsOptimized()) {
       DeoptimizationInputData* data = DeoptimizationInputData::cast(
           function->code()->deoptimization_data());
@@ -9847,8 +9846,8 @@ static bool IterateElements(Isolate* isolate,
         } else if (receiver->HasElement(j)) {
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
-          element_value = GetElement(receiver, j);
-          if (element_value.is_null()) return false;
+          element_value = Object::GetElement(receiver, j);
+          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
           visitor->visit(j, element_value);
         }
       }
@@ -9866,8 +9865,8 @@ static bool IterateElements(Isolate* isolate,
       while (j < n) {
         HandleScope loop_scope;
         uint32_t index = indices[j];
-        Handle<Object> element = GetElement(receiver, index);
-        if (element.is_null()) return false;
+        Handle<Object> element = Object::GetElement(receiver, index);
+        RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element, false);
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
         do {
@@ -10117,9 +10116,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SwapElements) {
   }
 
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
-  Handle<Object> tmp1 = GetElement(jsobject, index1);
+  Handle<Object> tmp1 = Object::GetElement(jsobject, index1);
   RETURN_IF_EMPTY_HANDLE(isolate, tmp1);
-  Handle<Object> tmp2 = GetElement(jsobject, index2);
+  Handle<Object> tmp2 = Object::GetElement(jsobject, index2);
   RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
 
   RETURN_IF_EMPTY_HANDLE(isolate,
@@ -11629,7 +11628,7 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
     if (!done) {
       // If the candidate is not compiled compile it to reveal any inner
       // functions which might contain the requested source position.
-      CompileLazyShared(target, KEEP_EXCEPTION);
+      SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
     }
   }  // End while loop.
 
@@ -12376,7 +12375,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleFunction) {
   // Get the function and make sure it is compiled.
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
   Handle<SharedFunctionInfo> shared(func->shared());
-  if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -12392,7 +12391,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleConstructor) {
   // Get the function and make sure it is compiled.
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
   Handle<SharedFunctionInfo> shared(func->shared());
-  if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   shared->construct_stub()->PrintLn();

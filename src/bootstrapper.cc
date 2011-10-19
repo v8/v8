@@ -2007,7 +2007,9 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     builtins->set_javascript_builtin(id, *function);
     Handle<SharedFunctionInfo> shared
         = Handle<SharedFunctionInfo>(function->shared());
-    if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+    if (!SharedFunctionInfo::EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+      return false;
+    }
     // Set the code object on the function object.
     function->ReplaceCode(function->shared()->code());
     builtins->set_javascript_builtin_code(id, shared->code());

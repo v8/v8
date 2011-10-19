@@ -527,7 +527,9 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;
     Handle<JSFunction> handle(function);
-    if (!CompileLazy(handle, KEEP_EXCEPTION)) return Failure::Exception();
+    if (!JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
+      return Failure::Exception();
+    }
     return Smi::FromInt(handle->shared()->length());
   } else {
     return Smi::FromInt(function->shared()->length());
