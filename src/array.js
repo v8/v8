@@ -1013,6 +1013,8 @@ function ArrayFilter(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver)) {
+    receiver = ToObject(receiver);
   }
 
   var result = [];
@@ -1045,6 +1047,8 @@ function ArrayForEach(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver)) {
+    receiver = ToObject(receiver);
   }
 
   for (var i = 0; i < length; i++) {
@@ -1074,6 +1078,8 @@ function ArraySome(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver)) {
+    receiver = ToObject(receiver);
   }
 
   for (var i = 0; i < length; i++) {
@@ -1102,6 +1108,8 @@ function ArrayEvery(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver)) {
+    receiver = ToObject(receiver);
   }
 
   for (var i = 0; i < length; i++) {
@@ -1129,6 +1137,8 @@ function ArrayMap(f, receiver) {
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
+  } else if (!IS_SPEC_OBJECT(receiver)) {
+    receiver = ToObject(receiver);
   }
 
   var result = new $Array();
