@@ -6932,7 +6932,7 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // and FastElementsConversionStub::GenerateDoubleToObject
   { r2, r3, r9, EMIT_REMEMBERED_SET },
   // FastElementsConversionStub::GenerateDoubleToObject
-  { r6, r0, r3, EMIT_REMEMBERED_SET },
+  { r6, r0, r2, EMIT_REMEMBERED_SET },
   { r2, r6, r9, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
@@ -7336,15 +7336,15 @@ void FastElementsConversionStub::GenerateDoubleToObject(
 
   // Prepare for conversion loop.
   __ add(r4, r4, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
-  __ add(r3, r6, Operand(FixedArray::kHeaderSize - 4));
+  __ add(r3, r6, Operand(FixedArray::kHeaderSize));
   __ add(r6, r6, Operand(kHeapObjectTag));
   __ add(r5, r3, Operand(r5, LSL, 1));
   __ LoadRoot(r7, Heap::kTheHoleValueRootIndex);
   __ LoadRoot(r9, Heap::kHeapNumberMapRootIndex);
-  // Using offsetted addresses to fully take advantage of pre/post-indexing
-  // r3: begin of destination FixedArray element fields, not tagged, -4
+  // Using offsetted addresses in r4 to fully take advantage of post-indexing.
+  // r3: begin of destination FixedArray element fields, not tagged
   // r4: begin of source FixedDoubleArray element fields, not tagged, +4
-  // r5: end of destination FixedArray, not tagged, -4
+  // r5: end of destination FixedArray, not tagged
   // r6: destination FixedArray
   // r7: the-hole pointer
   // r9: heap number map
@@ -7369,9 +7369,10 @@ void FastElementsConversionStub::GenerateDoubleToObject(
   __ str(lr, FieldMemOperand(r0, HeapNumber::kExponentOffset));
   __ ldr(lr, MemOperand(r4, 12, NegOffset));
   __ str(lr, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-  __ str(r0, MemOperand(r3, 4, PreIndex));
+  __ mov(r2, r3);
+  __ str(r0, MemOperand(r3, 4, PostIndex));
   __ RecordWrite(r6,
-                 r3,
+                 r2,
                  r0,
                  kLRHasBeenSaved,
                  kDontSaveFPRegs,
@@ -7381,7 +7382,7 @@ void FastElementsConversionStub::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ str(r7, MemOperand(r3, 4, PreIndex));
+  __ str(r7, MemOperand(r3, 4, PostIndex));
 
   __ bind(&entry);
   __ cmp(r3, r5);
