@@ -5942,7 +5942,9 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 }
 
 
-void FastElementsConversionStub::GenerateSmiOnlyToObject(MacroAssembler* masm) {
+void FastElementsConversionStub::GenerateSmiOnlyToObject(
+    MacroAssembler* masm,
+    StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rbx    : target map
