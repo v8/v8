@@ -1137,6 +1137,23 @@ static int native_compare_doubles(double y, double x) {
 }
 
 
+bool EvalComparison(Token::Value op, double op1, double op2) {
+  ASSERT(Token::IsCompareOp(op));
+  switch (op) {
+    case Token::EQ:
+    case Token::EQ_STRICT: return (op1 == op2);
+    case Token::NE: return (op1 != op2);
+    case Token::LT: return (op1 < op2);
+    case Token::GT: return (op1 > op2);
+    case Token::LTE: return (op1 <= op2);
+    case Token::GTE: return (op1 >= op2);
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
+
+
 ExternalReference ExternalReference::double_fp_operation(
     Token::Value operation, Isolate* isolate) {
   typedef double BinaryFPOperation(double x, double y);

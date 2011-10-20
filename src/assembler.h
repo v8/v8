@@ -847,6 +847,8 @@ static inline int NumberOfBitsSet(uint32_t x) {
   return num_bits_set;
 }
 
+bool EvalComparison(Token::Value op, double op1, double op2);
+
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);

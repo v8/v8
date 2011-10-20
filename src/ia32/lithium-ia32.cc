@@ -1456,15 +1456,22 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
   if (r.IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     return new LCmpIDAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
-    LOperand* left = UseRegisterAtStart(instr->left());
-    LOperand* right = UseRegisterAtStart(instr->right());
+    LOperand* left;
+    LOperand* right;
+    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
+      left = UseRegisterOrConstantAtStart(instr->left());
+      right = UseRegisterOrConstantAtStart(instr->right());
+    } else {
+      left = UseRegisterAtStart(instr->left());
+      right = UseRegisterAtStart(instr->right());
+    }
     return new LCmpIDAndBranch(left, right);
   }
 }

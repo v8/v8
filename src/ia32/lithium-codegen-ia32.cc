@@ -355,6 +355,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+double LCodeGen::ToDouble(LConstantOperand* op) const {
+  Handle<Object> value = chunk_->LookupLiteral(op);
+  return value->Number();
+}
+
+
 Immediate LCodeGen::ToImmediate(LOperand* op) {
   LConstantOperand* const_op = LConstantOperand::cast(op);
   Handle<Object> literal = chunk_->LookupLiteral(const_op);
@@ -1574,32 +1580,40 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
-  if (right->IsConstantOperand()) {
-    __ cmp(ToOperand(left), ToImmediate(right));
-  } else {
-    __ cmp(ToRegister(left), ToOperand(right));
-  }
-}
-
-
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
-
-  if (instr->is_double()) {
-    // Don't base result on EFLAGS when a NaN is involved. Instead
-    // jump to the false block.
-    __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
-  } else {
-    EmitCmpI(left, right);
-  }
-
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  EmitBranch(true_block, false_block, cc);
+
+  if (left->IsConstantOperand() && right->IsConstantOperand()) {
+    // We can statically evaluate the comparison.
+    double left_val = ToDouble(LConstantOperand::cast(left));
+    double right_val = ToDouble(LConstantOperand::cast(right));
+    int next_block =
+      EvalComparison(instr->op(), left_val, right_val) ? true_block
+                                                       : false_block;
+    EmitGoto(next_block);
+  } else {
+    if (instr->is_double()) {
+      // Don't base result on EFLAGS when a NaN is involved. Instead
+      // jump to the false block.
+      __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
+    } else {
+      if (right->IsConstantOperand()) {
+        __ cmp(ToRegister(left), ToImmediate(right));
+      } else if (left->IsConstantOperand()) {
+        __ cmp(ToOperand(right), ToImmediate(left));
+        // We transposed the operands. Reverse the condition.
+        cc = ReverseCondition(cc);
+      } else {
+        __ cmp(ToRegister(left), ToOperand(right));
+      }
+    }
+    EmitBranch(true_block, false_block, cc);
+  }
 }
 
 

@@ -410,6 +410,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+double LCodeGen::ToDouble(LConstantOperand* op) const {
+  Handle<Object> value = chunk_->LookupLiteral(op);
+  return value->Number();
+}
+
+
 Operand LCodeGen::ToOperand(LOperand* op) {
   if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
@@ -1705,30 +1711,44 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
-  __ cmp(ToRegister(left), ToRegister(right));
-}
-
-
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
+  Condition cond = TokenToCondition(instr->op(), false);
 
-  if (instr->is_double()) {
-    // Compare left and right as doubles and load the
-    // resulting flags into the normal status register.
-    __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
-    // If a NaN is involved, i.e. the result is unordered (V set),
-    // jump to false block label.
-    __ b(vs, chunk_->GetAssemblyLabel(false_block));
+  if (left->IsConstantOperand() && right->IsConstantOperand()) {
+    // We can statically evaluate the comparison.
+    double left_val = ToDouble(LConstantOperand::cast(left));
+    double right_val = ToDouble(LConstantOperand::cast(right));
+    int next_block =
+      EvalComparison(instr->op(), left_val, right_val) ? true_block
+                                                       : false_block;
+    EmitGoto(next_block);
   } else {
-    EmitCmpI(left, right);
+    if (instr->is_double()) {
+      // Compare left and right operands as doubles and load the
+      // resulting flags into the normal status register.
+      __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
+      // If a NaN is involved, i.e. the result is unordered (V set),
+      // jump to false block label.
+      __ b(vs, chunk_->GetAssemblyLabel(false_block));
+    } else {
+      if (right->IsConstantOperand()) {
+        __ cmp(ToRegister(left),
+               Operand(ToInteger32(LConstantOperand::cast(right))));
+      } else if (left->IsConstantOperand()) {
+        __ cmp(ToRegister(right),
+               Operand(ToInteger32(LConstantOperand::cast(left))));
+        // We transposed the operands. Reverse the condition.
+        cond = ReverseCondition(cond);
+      } else {
+        __ cmp(ToRegister(left), ToRegister(right));
+      }
+    }
+    EmitBranch(true_block, false_block, cond);
   }
-
-  Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  EmitBranch(true_block, false_block, cc);
 }
 
 

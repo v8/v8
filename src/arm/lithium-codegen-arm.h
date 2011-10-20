@@ -86,6 +86,7 @@ class LCodeGen BASE_EMBEDDED {
                                         SwVfpRegister flt_scratch,
                                         DoubleRegister dbl_scratch);
   int ToInteger32(LConstantOperand* op) const;
+  double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
   MemOperand ToMemOperand(LOperand* op) const;
   // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
@@ -263,7 +264,6 @@ class LCodeGen BASE_EMBEDDED {
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   void EmitBranch(int left_block, int right_block, Condition cc);
-  void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
                         bool deoptimize_on_undefined,

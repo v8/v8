@@ -374,6 +374,12 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 }
 
 
+double LCodeGen::ToDouble(LConstantOperand* op) const {
+  Handle<Object> value = chunk_->LookupLiteral(op);
+  return value->Number();
+}
+
+
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   Handle<Object> literal = chunk_->LookupLiteral(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
@@ -1526,39 +1532,51 @@ inline Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 }
 
 
-void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
-  if (right->IsConstantOperand()) {
-    int32_t value = ToInteger32(LConstantOperand::cast(right));
-    if (left->IsRegister()) {
-      __ cmpl(ToRegister(left), Immediate(value));
-    } else {
-      __ cmpl(ToOperand(left), Immediate(value));
-    }
-  } else if (right->IsRegister()) {
-    __ cmpl(ToRegister(left), ToRegister(right));
-  } else {
-    __ cmpl(ToRegister(left), ToOperand(right));
-  }
-}
-
-
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
-
-  if (instr->is_double()) {
-    // Don't base result on EFLAGS when a NaN is involved. Instead
-    // jump to the false block.
-    __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
-  } else {
-    EmitCmpI(left, right);
-  }
-
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  EmitBranch(true_block, false_block, cc);
+
+  if (left->IsConstantOperand() && right->IsConstantOperand()) {
+    // We can statically evaluate the comparison.
+    double left_val = ToDouble(LConstantOperand::cast(left));
+    double right_val = ToDouble(LConstantOperand::cast(right));
+    int next_block =
+      EvalComparison(instr->op(), left_val, right_val) ? true_block
+                                                       : false_block;
+    EmitGoto(next_block);
+  } else {
+    if (instr->is_double()) {
+      // Don't base result on EFLAGS when a NaN is involved. Instead
+      // jump to the false block.
+      __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
+    } else {
+      int32_t value;
+      if (right->IsConstantOperand()) {
+        value = ToInteger32(LConstantOperand::cast(right));
+        __ cmpl(ToRegister(left), Immediate(value));
+      } else if (left->IsConstantOperand()) {
+        value = ToInteger32(LConstantOperand::cast(left));
+        if (right->IsRegister()) {
+          __ cmpl(ToRegister(right), Immediate(value));
+        } else {
+          __ cmpl(ToOperand(right), Immediate(value));
+        }
+        // We transposed the operands. Reverse the condition.
+        cc = ReverseCondition(cc);
+      } else {
+        if (right->IsRegister()) {
+          __ cmpl(ToRegister(left), ToRegister(right));
+        } else {
+          __ cmpl(ToRegister(left), ToOperand(right));
+        }
+      }
+    }
+    EmitBranch(true_block, false_block, cc);
+  }
 }
 
 
