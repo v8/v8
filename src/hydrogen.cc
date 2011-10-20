@@ -4034,11 +4034,8 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
 HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* key,
                                                            HValue* val,
-                                                           Expression* expr,
+                                                           Handle<Map> map,
                                                            bool is_store) {
-  ASSERT(expr->IsMonomorphic());
-  Handle<Map> map = expr->GetMonomorphicReceiverType();
-  AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
   bool fast_smi_only_elements = map->has_fast_smi_only_elements();
   bool fast_elements = map->has_fast_elements();
@@ -4088,7 +4085,6 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                                                       bool* has_side_effects) {
   *has_side_effects = false;
   AddInstruction(new(zone()) HCheckNonSmi(object));
-  AddInstruction(HCheckInstanceType::NewIsSpecObject(object));
   SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
 
@@ -4120,6 +4116,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     }
   }
 
+  int num_untransitionable_maps = 0;
+  Handle<Map> untransitionable_map;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
@@ -4132,9 +4130,22 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
       if (map->elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
         todo_external_array = true;
       }
+      num_untransitionable_maps++;
+      untransitionable_map = map;
     }
   }
 
+  // If only one map is left after transitioning, handle this case
+  // monomorphically.
+  if (num_untransitionable_maps == 1) {
+    HInstruction* instr = AddInstruction(BuildMonomorphicElementAccess(
+        object, key, val, untransitionable_map, is_store));
+    *has_side_effects |= instr->HasSideEffects();
+    instr->set_position(position);
+    return is_store ? NULL : instr;
+  }
+
+  AddInstruction(HCheckInstanceType::NewIsSpecObject(object));
   HBasicBlock* join = graph()->CreateBasicBlock();
 
   HInstruction* elements_kind_instr =
@@ -4266,7 +4277,9 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
   ASSERT(!expr->IsPropertyName());
   HInstruction* instr = NULL;
   if (expr->IsMonomorphic()) {
-    instr = BuildMonomorphicElementAccess(obj, key, val, expr, is_store);
+    Handle<Map> map = expr->GetMonomorphicReceiverType();
+    AddInstruction(new(zone()) HCheckNonSmi(obj));
+    instr = BuildMonomorphicElementAccess(obj, key, val, map, is_store);
   } else if (expr->GetReceiverTypes() != NULL &&
              !expr->GetReceiverTypes()->is_empty()) {
     return HandlePolymorphicElementAccess(

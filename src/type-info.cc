@@ -423,6 +423,14 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
 }
 
 
+static void AddMapIfMissing(Handle<Map> map, SmallMapList* list) {
+  for (int i = 0; i < list->length(); ++i) {
+    if (list->at(i).is_identical_to(map)) return;
+  }
+  list->Add(map);
+}
+
+
 void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
                                                    SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
@@ -436,7 +444,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
       RelocInfo* info = it.rinfo();
       Object* object = info->target_object();
       if (object->IsMap()) {
-        types->Add(Handle<Map>(Map::cast(object)));
+        AddMapIfMissing(Handle<Map>(Map::cast(object)), types);
       }
     }
   }

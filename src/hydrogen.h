@@ -950,7 +950,7 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
                                               HValue* val,
-                                              Expression* expr,
+                                              Handle<Map> map,
                                               bool is_store);
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
