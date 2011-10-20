@@ -5766,56 +5766,51 @@ class HeapObjectsFilter {
 class UnreachableObjectsFilter : public HeapObjectsFilter {
  public:
   UnreachableObjectsFilter() {
-    MarkUnreachableObjects();
+    MarkReachableObjects();
+  }
+
+  ~UnreachableObjectsFilter() {
+    Isolate::Current()->heap()->mark_compact_collector()->ClearMarkbits();
   }
 
   bool SkipObject(HeapObject* object) {
-    if (IntrusiveMarking::IsMarked(object)) {
-      IntrusiveMarking::ClearMark(object);
-      return true;
-    } else {
-      return false;
-    }
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    return !mark_bit.Get();
   }
 
  private:
-  class UnmarkingVisitor : public ObjectVisitor {
+  class MarkingVisitor : public ObjectVisitor {
    public:
-    UnmarkingVisitor() : list_(10) {}
+    MarkingVisitor() : marking_stack_(10) {}
 
     void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
-        if (IntrusiveMarking::IsMarked(obj)) {
-          IntrusiveMarking::ClearMark(obj);
-          list_.Add(obj);
+        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        if (!mark_bit.Get()) {
+          mark_bit.Set();
+          marking_stack_.Add(obj);
         }
       }
     }
 
-    bool can_process() { return !list_.is_empty(); }
-
-    void ProcessNext() {
-      HeapObject* obj = list_.RemoveLast();
-      obj->Iterate(this);
+    void TransitiveClosure() {
+      while (!marking_stack_.is_empty()) {
+        HeapObject* obj = marking_stack_.RemoveLast();
+        obj->Iterate(this);
+      }
     }
 
    private:
-    List<HeapObject*> list_;
+    List<HeapObject*> marking_stack_;
   };
 
-  void MarkUnreachableObjects() {
-    HeapIterator iterator;
-    for (HeapObject* obj = iterator.next();
-         obj != NULL;
-         obj = iterator.next()) {
-      IntrusiveMarking::SetMark(obj);
-    }
-    UnmarkingVisitor visitor;
-    HEAP->IterateRoots(&visitor, VISIT_ALL);
-    while (visitor.can_process())
-      visitor.ProcessNext();
+  void MarkReachableObjects() {
+    Heap* heap = Isolate::Current()->heap();
+    MarkingVisitor visitor;
+    heap->IterateRoots(&visitor, VISIT_ALL);
+    visitor.TransitiveClosure();
   }
 
   AssertNoAllocation no_alloc;
@@ -5843,13 +5838,8 @@ HeapIterator::~HeapIterator() {
 
 void HeapIterator::Init() {
   // Start the iteration.
-  space_iterator_ = filtering_ == kNoFiltering ? new SpaceIterator :
-      new SpaceIterator(Isolate::Current()->heap()->
-                        GcSafeSizeOfOldObjectFunction());
+  space_iterator_ = new SpaceIterator;
   switch (filtering_) {
-    case kFilterFreeListNodes:
-      // TODO(gc): Not handled.
-      break;
     case kFilterUnreachable:
       filter_ = new UnreachableObjectsFilter;
       break;

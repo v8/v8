@@ -1954,7 +1954,6 @@ class HeapIterator BASE_EMBEDDED {
  public:
   enum HeapObjectsFiltering {
     kNoFiltering,
-    kFilterFreeListNodes,
     kFilterUnreachable
   };
 

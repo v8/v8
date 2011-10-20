@@ -538,6 +538,8 @@ class MarkCompactCollector {
 
   void InvalidateCode(Code* code);
 
+  void ClearMarkbits();
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -716,7 +718,6 @@ class MarkCompactCollector {
   void EvacuateNewSpaceAndCandidates();
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
-
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------

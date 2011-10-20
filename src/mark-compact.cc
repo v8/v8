@@ -330,7 +330,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 #endif
 
 
-static void ClearMarkbits(PagedSpace* space) {
+static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
@@ -339,7 +339,7 @@ static void ClearMarkbits(PagedSpace* space) {
 }
 
 
-static void ClearMarkbits(NewSpace* space) {
+static void ClearMarkbitsInNewSpace(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
@@ -348,15 +348,15 @@ static void ClearMarkbits(NewSpace* space) {
 }
 
 
-static void ClearMarkbits(Heap* heap) {
-  ClearMarkbits(heap->code_space());
-  ClearMarkbits(heap->map_space());
-  ClearMarkbits(heap->old_pointer_space());
-  ClearMarkbits(heap->old_data_space());
-  ClearMarkbits(heap->cell_space());
-  ClearMarkbits(heap->new_space());
+void MarkCompactCollector::ClearMarkbits() {
+  ClearMarkbitsInPagedSpace(heap_->code_space());
+  ClearMarkbitsInPagedSpace(heap_->map_space());
+  ClearMarkbitsInPagedSpace(heap_->old_pointer_space());
+  ClearMarkbitsInPagedSpace(heap_->old_data_space());
+  ClearMarkbitsInPagedSpace(heap_->cell_space());
+  ClearMarkbitsInNewSpace(heap_->new_space());
 
-  LargeObjectIterator it(heap->lo_space());
+  LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     mark_bit.Clear();
@@ -504,7 +504,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Clear marking bits for precise sweeping to collect all garbage.
   if (was_marked_incrementally_ && PreciseSweepingRequired()) {
     heap()->incremental_marking()->Abort();
-    ClearMarkbits(heap_);
+    ClearMarkbits();
     AbortCompaction();
     was_marked_incrementally_ = false;
   }
