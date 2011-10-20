@@ -834,8 +834,8 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
 }
 
 
-ExternalReference ExternalReference::roots_address(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->roots_address());
+ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
+  return ExternalReference(isolate->heap()->roots_array_start());
 }
 
 

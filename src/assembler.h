@@ -593,8 +593,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
   static ExternalReference keyed_lookup_cache_field_offsets(Isolate* isolate);
 
-  // Static variable Heap::roots_address()
-  static ExternalReference roots_address(Isolate* isolate);
+  // Static variable Heap::roots_array_start()
+  static ExternalReference roots_array_start(Isolate* isolate);
 
   // Static variable StackGuard::address_of_jslimit()
   static ExternalReference address_of_stack_limit(Isolate* isolate);

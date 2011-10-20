@@ -64,18 +64,27 @@ inline Heap* _inline_get_heap_();
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
-  V(Oddball, arguments_marker, ArgumentsMarker)                                \
-  V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
+  V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
+  V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
+  V(Map, meta_map, MetaMap)                                                    \
+  V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
+  V(Map, code_map, CodeMap)                                                    \
   V(Map, serialized_scope_info_map, SerializedScopeInfoMap)                    \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
-  V(Map, meta_map, MetaMap)                                                    \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
+  V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
+  V(String, empty_string, EmptyString)                                         \
+  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Smi, stack_limit, StackLimit)                                              \
+  V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
+  V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
@@ -83,11 +92,6 @@ inline Heap* _inline_get_heap_();
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(Object, termination_exception, TerminationException)                       \
-  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
-  V(ByteArray, empty_byte_array, EmptyByteArray)                               \
-  V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
-  V(String, empty_string, EmptyString)                                         \
-  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, string_map, StringMap)                                                \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, symbol_map, SymbolMap)                                                \
@@ -95,7 +99,6 @@ inline Heap* _inline_get_heap_();
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
-  V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
   V(Map, external_symbol_map, ExternalSymbolMap)                               \
@@ -120,10 +123,7 @@ inline Heap* _inline_get_heap_();
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
   V(Map, block_context_map, BlockContextMap)                                   \
-  V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
-  V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
-  V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
   V(HeapNumber, nan_value, NanValue)                                           \
@@ -1097,7 +1097,7 @@ class Heap {
   inline void SetLastScriptId(Object* last_script_id);
 
   // Generated code can embed this address to get access to the roots.
-  Object** roots_address() { return roots_; }
+  Object** roots_array_start() { return roots_; }
 
   Address* store_buffer_top_address() {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
@@ -1474,7 +1474,7 @@ class Heap {
   int unflattened_strings_length_;
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
-  inline void set_##name(type* value) {                                 \
+  inline void set_##name(type* value) {                                        \
     roots_[k##camel_name##RootIndex] = value;                                  \
   }
   ROOT_LIST(ROOT_ACCESSOR)

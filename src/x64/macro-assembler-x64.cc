@@ -55,7 +55,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
   Address roots_register_value = kRootRegisterBias +
-      reinterpret_cast<Address>(isolate->heap()->roots_address());
+      reinterpret_cast<Address>(isolate->heap()->roots_array_start());
   intptr_t delta = other.address() - roots_register_value;
   return delta;
 }

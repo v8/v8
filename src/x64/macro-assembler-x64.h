@@ -319,9 +319,9 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void InitializeRootRegister() {
-    ExternalReference roots_address =
-        ExternalReference::roots_address(isolate());
-    movq(kRootRegister, roots_address);
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    movq(kRootRegister, roots_array_start);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
 

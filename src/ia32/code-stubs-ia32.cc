@@ -3882,11 +3882,11 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Register scratch = scratch2;
 
   // Load the number string cache.
-  ExternalReference roots_address =
-      ExternalReference::roots_address(masm->isolate());
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(masm->isolate());
   __ mov(scratch, Immediate(Heap::kNumberStringCacheRootIndex));
   __ mov(number_string_cache,
-         Operand::StaticArray(scratch, times_pointer_size, roots_address));
+         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
@@ -4854,8 +4854,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
-  ExternalReference roots_address =
-      ExternalReference::roots_address(masm->isolate());
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(masm->isolate());
 
   ASSERT_EQ(object.code(), InstanceofStub::left().code());
   ASSERT_EQ(function.code(), InstanceofStub::right().code());
@@ -4877,16 +4877,17 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Look up the function and the map in the instanceof cache.
     Label miss;
     __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-    __ cmp(function,
-           Operand::StaticArray(scratch, times_pointer_size, roots_address));
+    __ cmp(function, Operand::StaticArray(scratch,
+                                          times_pointer_size,
+                                          roots_array_start));
     __ j(not_equal, &miss, Label::kNear);
     __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
     __ cmp(map, Operand::StaticArray(
-        scratch, times_pointer_size, roots_address));
+        scratch, times_pointer_size, roots_array_start));
     __ j(not_equal, &miss, Label::kNear);
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(eax, Operand::StaticArray(
-        scratch, times_pointer_size, roots_address));
+        scratch, times_pointer_size, roots_array_start));
     __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
     __ bind(&miss);
   }
@@ -4902,9 +4903,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // map and function. The cached answer will be set when it is known below.
   if (!HasCallSiteInlineCheck()) {
   __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), map);
+  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
+         map);
   __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address),
+  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
          function);
   } else {
     // The constants for the code patching are based on no push instructions
@@ -4941,7 +4943,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Set(eax, Immediate(0));
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(Operand::StaticArray(scratch,
-                                times_pointer_size, roots_address), eax);
+                                times_pointer_size, roots_array_start), eax);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->true_value());
@@ -4963,7 +4965,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Set(eax, Immediate(Smi::FromInt(1)));
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(Operand::StaticArray(
-        scratch, times_pointer_size, roots_address), eax);
+        scratch, times_pointer_size, roots_array_start), eax);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->false_value());
@@ -5752,11 +5754,11 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Load the symbol table.
   Register symbol_table = c2;
-  ExternalReference roots_address =
-      ExternalReference::roots_address(masm->isolate());
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(masm->isolate());
   __ mov(scratch, Immediate(Heap::kSymbolTableRootIndex));
   __ mov(symbol_table,
-         Operand::StaticArray(scratch, times_pointer_size, roots_address));
+         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
 
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
