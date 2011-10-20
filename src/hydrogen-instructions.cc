@@ -1146,15 +1146,16 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 
 
 void HSimulate::PrintDataTo(StringStream* stream) {
-  stream->Add("id=%d ", ast_id());
-  if (pop_count_ > 0) stream->Add("pop %d", pop_count_);
+  stream->Add("id=%d", ast_id());
+  if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
     for (int i = 0; i < values_.length(); ++i) {
-      if (!HasAssignedIndexAt(i)) {
-        stream->Add(" push ");
-      } else {
+      if (i > 0) stream->Add(",");
+      if (HasAssignedIndexAt(i)) {
         stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
+      } else {
+        stream->Add(" push ");
       }
       values_[i]->PrintNameTo(stream);
     }
@@ -1456,14 +1457,14 @@ bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
 
 void HLoadNamedFieldPolymorphic::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add(" .");
+  stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
 }
 
 
 void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add(" .");
+  stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
 }
 
@@ -1560,10 +1561,10 @@ void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
 void HStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
-  ASSERT(name()->IsString());
   stream->Add(*String::cast(*name())->ToCString());
   stream->Add(" = ");
   value()->PrintNameTo(stream);
+  stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
