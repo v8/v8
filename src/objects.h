@@ -4258,6 +4258,9 @@ class Map: public HeapObject {
   inline void ClearCodeCache(Heap* heap);
 
   // Update code cache.
+  static void UpdateCodeCache(Handle<Map> map,
+                              Handle<String> name,
+                              Handle<Code> code);
   MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
 
   // Returns the found code or undefined if absent.

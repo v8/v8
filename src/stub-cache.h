@@ -108,39 +108,33 @@ class StubCache {
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadField(String* name,
-                                                     JSObject* receiver,
-                                                     JSObject* holder,
-                                                     int field_index);
+  Handle<Code> ComputeKeyedLoadField(Handle<String> name,
+                                     Handle<JSObject> receiver,
+                                     Handle<JSObject> holder,
+                                     int field_index);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadCallback(
-      String* name,
-      JSObject* receiver,
-      JSObject* holder,
-      AccessorInfo* callback);
+  Handle<Code> ComputeKeyedLoadCallback(Handle<String> name,
+                                        Handle<JSObject> receiver,
+                                        Handle<JSObject> holder,
+                                        Handle<AccessorInfo> callback);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadConstant(
-      String* name,
-      JSObject* receiver,
-      JSObject* holder,
-      Object* value);
+  Handle<Code> ComputeKeyedLoadConstant(Handle<String> name,
+                                        Handle<JSObject> receiver,
+                                        Handle<JSObject> holder,
+                                        Handle<Object> value);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadInterceptor(
-      String* name,
-      JSObject* receiver,
-      JSObject* holder);
+  Handle<Code> ComputeKeyedLoadInterceptor(Handle<String> name,
+                                           Handle<JSObject> receiver,
+                                           Handle<JSObject> holder);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadArrayLength(
-      String* name,
-      JSArray* receiver);
+  Handle<Code> ComputeKeyedLoadArrayLength(Handle<String> name,
+                                           Handle<JSArray> receiver);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadStringLength(
-      String* name,
-      String* receiver);
+  Handle<Code> ComputeKeyedLoadStringLength(Handle<String> name,
+                                            Handle<String> receiver);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadFunctionPrototype(
-      String* name,
-      JSFunction* receiver);
+  Handle<Code> ComputeKeyedLoadFunctionPrototype(Handle<String> name,
+                                                 Handle<JSFunction> receiver);
 
   // ---
 
@@ -638,27 +632,55 @@ class LoadStubCompiler: public StubCompiler {
 class KeyedLoadStubCompiler: public StubCompiler {
  public:
   explicit KeyedLoadStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
+
+  Handle<Code> CompileLoadField(Handle<String> name,
+                                Handle<JSObject> object,
+                                Handle<JSObject> holder,
+                                int index);
+
   MUST_USE_RESULT MaybeObject* CompileLoadField(String* name,
                                                 JSObject* object,
                                                 JSObject* holder,
                                                 int index);
+
+  Handle<Code> CompileLoadCallback(Handle<String> name,
+                                   Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   Handle<AccessorInfo> callback);
 
   MUST_USE_RESULT MaybeObject* CompileLoadCallback(String* name,
                                                    JSObject* object,
                                                    JSObject* holder,
                                                    AccessorInfo* callback);
 
+  Handle<Code> CompileLoadConstant(Handle<String> name,
+                                   Handle<JSObject> object,
+                                   Handle<JSObject> holder,
+                                   Handle<Object> value);
+
   MUST_USE_RESULT MaybeObject* CompileLoadConstant(String* name,
                                                    JSObject* object,
                                                    JSObject* holder,
                                                    Object* value);
 
+  Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
+                                      Handle<JSObject> holder,
+                                      Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileLoadInterceptor(JSObject* object,
                                                       JSObject* holder,
                                                       String* name);
 
+  Handle<Code> CompileLoadArrayLength(Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileLoadArrayLength(String* name);
+
+  Handle<Code> CompileLoadStringLength(Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileLoadStringLength(String* name);
+
+  Handle<Code> CompileLoadFunctionPrototype(Handle<String> name);
+
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);

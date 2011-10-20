@@ -4655,6 +4655,13 @@ MaybeObject* Map::CopyDropTransitions() {
   return new_map;
 }
 
+void Map::UpdateCodeCache(Handle<Map> map,
+                          Handle<String> name,
+                          Handle<Code> code) {
+  Isolate* isolate = map->GetIsolate();
+  CALL_HEAP_FUNCTION_VOID(isolate,
+                          map->UpdateCodeCache(*name, *code));
+}
 
 MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
   // Allocate the code cache if not present.

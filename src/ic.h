@@ -356,11 +356,16 @@ class KeyedIC: public IC {
       ElementsKind elements_kind) = 0;
 
  protected:
-  virtual Code* string_stub() {
-    return NULL;
+  virtual Handle<Code> string_stub() {
+    return Handle<Code>::null();
   }
 
   virtual Code::Kind kind() const = 0;
+
+  Handle<Code> ComputeStub(Handle<JSObject> receiver,
+                           StubKind stub_kind,
+                           StrictModeFlag strict_mode,
+                           Handle<Code> default_stub);
 
   MaybeObject* ComputeStub(JSObject* receiver,
                            StubKind stub_kind,
@@ -433,9 +438,8 @@ class KeyedLoadIC: public KeyedIC {
       MapList* receiver_maps,
       StrictModeFlag strict_mode);
 
-  virtual Code* string_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_String);
+  virtual Handle<Code> string_stub() {
+    return isolate()->builtins()->KeyedLoadIC_String();
   }
 
  private:
@@ -450,25 +454,20 @@ class KeyedLoadIC: public KeyedIC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedLoadIC_Initialize);
   }
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_Generic);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Code* generic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_Generic);
+  Handle<Code> generic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Code* pre_monomorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_PreMonomorphic);
+  Handle<Code> pre_monomorphic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();
   }
-  Code* indexed_interceptor_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_IndexedInterceptor);
+  Handle<Code> indexed_interceptor_stub() {
+    return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
-  Code* non_strict_arguments_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_NonStrictArguments);
+  Handle<Code> non_strict_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
   }
 
   static void Clear(Address address, Code* target);
