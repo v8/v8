@@ -7023,7 +7023,9 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 }
 
 
-void FastElementsConversionStub::GenerateSmiOnlyToObject(MacroAssembler* masm) {
+void FastElementsConversionStub::GenerateSmiOnlyToObject(MacroAssembler* masm,
+                                                         StrictModeFlag
+                                                         strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ebx    : target map
@@ -7032,14 +7034,18 @@ void FastElementsConversionStub::GenerateSmiOnlyToObject(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   // Set transitioned map.
-  __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  if (FLAG_trace_elements_transitions) {
+    KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+  } else {
+    __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
+    __ RecordWriteField(edx,
+                        HeapObject::kMapOffset,
+                        ebx,
+                        edi,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+  }
 }
 
 
@@ -7052,30 +7058,33 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required;
-  __ push(eax);
-  __ push(ebx);
+  if (FLAG_trace_elements_transitions) {
+    KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+  } else {
+    Label loop, entry, convert_hole, gc_required;
 
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
+    __ push(eax);
+    __ push(ebx);
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+    __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
 
-  // Allocate new FixedDoubleArray.
-  // edx: receiver
-  // edi: length of source FixedArray (smi-tagged)
-  __ lea(esi, Operand(edi, times_4, FixedDoubleArray::kHeaderSize));
-  __ AllocateInNewSpace(esi, eax, ebx, no_reg, &gc_required, TAG_OBJECT);
+    // Allocate new FixedDoubleArray.
+    // edx: receiver
+    // edi: length of source FixedArray (smi-tagged)
+    __ lea(esi, Operand(edi, times_4, FixedDoubleArray::kHeaderSize));
+    __ AllocateInNewSpace(esi, eax, ebx, no_reg, &gc_required, TAG_OBJECT);
 
-  // eax: destination FixedDoubleArray
-  // edi: number of elements
-  // edx: receiver
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
-         Immediate(masm->isolate()->factory()->fixed_double_array_map()));
-  __ mov(FieldOperand(eax, FixedDoubleArray::kLengthOffset), edi);
-  __ mov(esi, FieldOperand(edx, JSObject::kElementsOffset));
-  // Replace receiver's backing store with newly created FixedDoubleArray.
-  __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
-  __ mov(ebx, eax);
-  __ RecordWriteField(edx,
+    // eax: destination FixedDoubleArray
+    // edi: number of elements
+    // edx: receiver
+    __ mov(FieldOperand(eax, HeapObject::kMapOffset),
+           Immediate(masm->isolate()->factory()->fixed_double_array_map()));
+    __ mov(FieldOperand(eax, FixedDoubleArray::kLengthOffset), edi);
+    __ mov(esi, FieldOperand(edx, JSObject::kElementsOffset));
+    // Replace receiver's backing store with newly created FixedDoubleArray.
+    __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
+    __ mov(ebx, eax);
+    __ RecordWriteField(edx,
                       JSObject::kElementsOffset,
                       ebx,
                       edi,
@@ -7083,82 +7092,83 @@ void FastElementsConversionStub::GenerateSmiOnlyToDouble(
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
-  __ mov(edi, FieldOperand(esi, FixedArray::kLengthOffset));
+    __ mov(edi, FieldOperand(esi, FixedArray::kLengthOffset));
 
-  // Prepare for conversion loop.
-  ExternalReference canonical_the_hole_nan_reference =
-      ExternalReference::address_of_the_hole_nan();
-  XMMRegister the_hole_nan = xmm1;
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(the_hole_nan,
-              Operand::StaticVariable(canonical_the_hole_nan_reference));
-  }
-  __ jmp(&entry);
+    // Prepare for conversion loop.
+    ExternalReference canonical_the_hole_nan_reference =
+        ExternalReference::address_of_the_hole_nan();
+    XMMRegister the_hole_nan = xmm1;
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ movdbl(the_hole_nan,
+                Operand::StaticVariable(canonical_the_hole_nan_reference));
+    }
+    __ jmp(&entry);
 
-  // Call into runtime if GC is required.
-  __ bind(&gc_required);
-  // Restore registers before jumping into runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ pop(ebx);
-  __ pop(eax);
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
-
-  // Convert and copy elements
-  // esi: source FixedArray
-  // edi: number of elements to convert/copy
-  __ bind(&loop);
-  __ sub(edi, Immediate(Smi::FromInt(1)));
-  __ mov(ebx, FieldOperand(esi, edi, times_2, FixedArray::kHeaderSize));
-  // ebx: current element from source
-  // edi: index of current element
-  __ JumpIfNotSmi(ebx, &convert_hole);
-
-  // Normal smi, convert it to double and store.
-  __ SmiUntag(ebx);
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope fscope(SSE2);
-    __ cvtsi2sd(xmm0, ebx);
-    __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
-              xmm0);
-  } else {
-    __ push(ebx);
-    __ fild_s(Operand(esp, 0));
+    // Call into runtime if GC is required.
+    __ bind(&gc_required);
+    // Restore registers before jumping into runtime.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ pop(ebx);
-    __ fstp_d(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize));
+    __ pop(eax);
+    KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+
+    // Convert and copy elements
+    // esi: source FixedArray
+    // edi: number of elements to convert/copy
+    __ bind(&loop);
+    __ sub(edi, Immediate(Smi::FromInt(1)));
+    __ mov(ebx, FieldOperand(esi, edi, times_2, FixedArray::kHeaderSize));
+    // ebx: current element from source
+    // edi: index of current element
+    __ JumpIfNotSmi(ebx, &convert_hole);
+
+    // Normal smi, convert it to double and store.
+    __ SmiUntag(ebx);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ cvtsi2sd(xmm0, ebx);
+      __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
+                xmm0);
+    } else {
+      __ push(ebx);
+      __ fild_s(Operand(esp, 0));
+      __ pop(ebx);
+      __ fstp_d(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize));
+    }
+    __ jmp(&entry);
+
+    // Found hole, store hole_nan_as_double instead.
+    __ bind(&convert_hole);
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
+                the_hole_nan);
+    } else {
+      __ fld_d(Operand::StaticVariable(canonical_the_hole_nan_reference));
+      __ fstp_d(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize));
+    }
+
+    __ bind(&entry);
+    __ test(edi, edi);
+    __ j(not_zero, &loop);
+
+    __ pop(ebx);
+    __ pop(eax);
+    // eax: value
+    // ebx: target map
+    // Set transitioned map.
+    __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
+    __ RecordWriteField(edx,
+                        HeapObject::kMapOffset,
+                        ebx,
+                        edi,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    // Restore esi.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   }
-  __ jmp(&entry);
-
-  // Found hole, store hole_nan_as_double instead.
-  __ bind(&convert_hole);
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
-    __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),
-              the_hole_nan);
-  } else {
-    __ fld_d(Operand::StaticVariable(canonical_the_hole_nan_reference));
-    __ fstp_d(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize));
-  }
-
-  __ bind(&entry);
-  __ test(edi, edi);
-  __ j(not_zero, &loop);
-
-  __ pop(ebx);
-  __ pop(eax);
-  // eax: value
-  // ebx: target map
-  // Set transitioned map.
-  __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
-  // Restore esi.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -7171,105 +7181,111 @@ void FastElementsConversionStub::GenerateDoubleToObject(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required;
-  __ push(eax);
-  __ push(edx);
-  __ push(ebx);
-
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ mov(ebx, FieldOperand(edi, FixedDoubleArray::kLengthOffset));
-
-  // Allocate new FixedArray.
-  // ebx: length of source FixedDoubleArray (smi-tagged)
-  __ lea(edi, Operand(ebx, times_2, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
-
-  // eax: destination FixedArray
-  // ebx: number of elements
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset),
-         Immediate(masm->isolate()->factory()->fixed_array_map()));
-  __ mov(FieldOperand(eax, FixedArray::kLengthOffset), ebx);
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-
-  __ jmp(&entry);
-
-  // Call into runtime if GC is required.
-  __ bind(&gc_required);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ pop(ebx);
-  __ pop(edx);
-  __ pop(eax);
-  KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
-
-  // Box doubles into heap numbers.
-  // edi: source FixedDoubleArray
-  // eax: destination FixedArray
-  __ bind(&loop);
-  __ sub(ebx, Immediate(Smi::FromInt(1)));
-  // ebx: index of current element (smi-tagged)
-  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
-  __ cmp(FieldOperand(edi, ebx, times_4, offset), Immediate(kHoleNanUpper32));
-  __ j(equal, &convert_hole);
-
-  // Non-hole double, copy value into a heap number.
-  __ AllocateHeapNumber(edx, esi, no_reg, &gc_required);
-  // edx: new heap number
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope fscope(SSE2);
-    __ movdbl(xmm0,
-              FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
-    __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
+  if (FLAG_trace_elements_transitions) {
+    KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
   } else {
-    __ mov(esi, FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
-    __ mov(FieldOperand(edx, HeapNumber::kValueOffset), esi);
-    __ mov(esi, FieldOperand(edi, ebx, times_4, offset));
-    __ mov(FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize), esi);
+    Label loop, entry, convert_hole, gc_required;
+    __ push(eax);
+    __ push(edx);
+    __ push(ebx);
+
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+    __ mov(ebx, FieldOperand(edi, FixedDoubleArray::kLengthOffset));
+
+    // Allocate new FixedArray.
+    // ebx: length of source FixedDoubleArray (smi-tagged)
+    __ lea(edi, Operand(ebx, times_2, FixedArray::kHeaderSize));
+    __ AllocateInNewSpace(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
+
+    // eax: destination FixedArray
+    // ebx: number of elements
+    __ mov(FieldOperand(eax, HeapObject::kMapOffset),
+           Immediate(masm->isolate()->factory()->fixed_array_map()));
+    __ mov(FieldOperand(eax, FixedArray::kLengthOffset), ebx);
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+
+    __ jmp(&entry);
+
+    // Call into runtime if GC is required.
+    __ bind(&gc_required);
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ pop(ebx);
+    __ pop(edx);
+    __ pop(eax);
+    KeyedStoreIC::GenerateRuntimeSetProperty(masm, strict_mode);
+
+    // Box doubles into heap numbers.
+    // edi: source FixedDoubleArray
+    // eax: destination FixedArray
+    __ bind(&loop);
+    __ sub(ebx, Immediate(Smi::FromInt(1)));
+    // ebx: index of current element (smi-tagged)
+    uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+    __ cmp(FieldOperand(edi, ebx, times_4, offset), Immediate(kHoleNanUpper32));
+    __ j(equal, &convert_hole);
+
+    // Non-hole double, copy value into a heap number.
+    __ AllocateHeapNumber(edx, esi, no_reg, &gc_required);
+    // edx: new heap number
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope fscope(SSE2);
+      __ movdbl(xmm0,
+                FieldOperand(edi, ebx, times_4, FixedDoubleArray::kHeaderSize));
+      __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
+    } else {
+      __ mov(esi, FieldOperand(edi, ebx, times_4,
+                               FixedDoubleArray::kHeaderSize));
+      __ mov(FieldOperand(edx, HeapNumber::kValueOffset), esi);
+      __ mov(esi, FieldOperand(edi, ebx, times_4, offset));
+      __ mov(FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize), esi);
+    }
+    __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize), edx);
+    __ mov(esi, ebx);
+    __ RecordWriteArray(eax,
+                        edx,
+                        esi,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    __ jmp(&entry, Label::kNear);
+
+    // Replace the-hole NaN with the-hole pointer.
+    __ bind(&convert_hole);
+    __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize),
+           masm->isolate()->factory()->the_hole_value());
+
+    __ bind(&entry);
+    __ test(ebx, ebx);
+    __ j(not_zero, &loop);
+
+    __ pop(ebx);
+    __ pop(edx);
+    // ebx: target map
+    // edx: receiver
+    // Set transitioned map.
+    __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
+    __ RecordWriteField(edx,
+                        HeapObject::kMapOffset,
+                        ebx,
+                        edi,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    // Replace receiver's backing store with newly created and filled
+    // FixedArray.
+    __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
+    __ RecordWriteField(edx,
+                        JSObject::kElementsOffset,
+                        eax,
+                        edi,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+
+    // Restore registers.
+    __ pop(eax);
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   }
-  __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize), edx);
-  __ mov(esi, ebx);
-  __ RecordWriteArray(eax,
-                      edx,
-                      esi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
-  __ jmp(&entry, Label::kNear);
-
-  // Replace the-hole NaN with the-hole pointer.
-  __ bind(&convert_hole);
-  __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize),
-         masm->isolate()->factory()->the_hole_value());
-
-  __ bind(&entry);
-  __ test(ebx, ebx);
-  __ j(not_zero, &loop);
-
-  __ pop(ebx);
-  __ pop(edx);
-  // ebx: target map
-  // edx: receiver
-  // Set transitioned map.
-  __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
-  // Replace receiver's backing store with newly created and filled FixedArray.
-  __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
-  __ RecordWriteField(edx,
-                      JSObject::kElementsOffset,
-                      eax,
-                      edi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
-
-  // Restore registers.
-  __ pop(eax);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 }
 
 #undef __

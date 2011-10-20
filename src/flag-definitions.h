@@ -527,6 +527,9 @@ DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 #define FLAG FLAG_READONLY
 #endif
 
+// elements.cc
+DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
+
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")
 

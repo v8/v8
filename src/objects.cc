@@ -1097,6 +1097,27 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
 }
 
 
+void JSObject::PrintElementsTransition(
+    FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
+    ElementsKind to_kind, FixedArrayBase* to_elements) {
+  if (from_kind != to_kind) {
+    PrintF(file, "elements transition [");
+    PrintElementsKind(file, from_kind);
+    PrintF(file, " -> ");
+    PrintElementsKind(file, to_kind);
+    PrintF(file, "] in ");
+    JavaScriptFrame::PrintTop(file, false, true);
+    PrintF(file, " for ");
+    ShortPrint(file);
+    PrintF(file, " from ");
+    from_elements->ShortPrint(file);
+    PrintF(file, " to ");
+    to_elements->ShortPrint(file);
+    PrintF(file, "\n");
+  }
+}
+
+
 void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
   Heap* heap = GetHeap();
   if (!heap->Contains(this)) {
@@ -1124,6 +1145,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       break;
     case FIXED_ARRAY_TYPE:
       accumulator->Add("<FixedArray[%u]>", FixedArray::cast(this)->length());
+      break;
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      accumulator->Add("<FixedDoubleArray[%u]>",
+                       FixedDoubleArray::cast(this)->length());
       break;
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
@@ -8038,13 +8063,15 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     new_map = Map::cast(object);
   }
 
+  FixedArrayBase* old_elements_raw = elements();
   ElementsKind elements_kind = GetElementsKind();
   switch (elements_kind) {
     case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       AssertNoAllocation no_gc;
       WriteBarrierMode mode(new_elements->GetWriteBarrierMode(no_gc));
-      CopyFastElementsToFast(FixedArray::cast(elements()), new_elements, mode);
+      CopyFastElementsToFast(FixedArray::cast(old_elements_raw),
+                             new_elements, mode);
       set_map(new_map);
       set_elements(new_elements);
       break;
@@ -8052,7 +8079,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     case DICTIONARY_ELEMENTS: {
       AssertNoAllocation no_gc;
       WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
-      CopySlowElementsToFast(NumberDictionary::cast(elements()),
+      CopySlowElementsToFast(NumberDictionary::cast(old_elements_raw),
                              new_elements,
                              mode);
       set_map(new_map);
@@ -8064,7 +8091,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
       // The object's map and the parameter map are unchanged, the unaliased
       // arguments are copied to the new backing store.
-      FixedArray* parameter_map = FixedArray::cast(elements());
+      FixedArray* parameter_map = FixedArray::cast(old_elements_raw);
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       if (arguments->IsDictionary()) {
         CopySlowElementsToFast(NumberDictionary::cast(arguments),
@@ -8077,7 +8104,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       break;
     }
     case FAST_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* old_elements = FixedDoubleArray::cast(elements());
+      FixedDoubleArray* old_elements = FixedDoubleArray::cast(old_elements_raw);
       uint32_t old_length = static_cast<uint32_t>(old_elements->length());
       // Fill out the new array with this content and array holes.
       for (uint32_t i = 0; i < old_length; i++) {
@@ -8115,6 +8142,11 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       break;
   }
 
+  if (FLAG_trace_elements_transitions) {
+    PrintElementsTransition(stdout, elements_kind, old_elements_raw,
+                            FAST_ELEMENTS, new_elements);
+  }
+
   // Update the length if necessary.
   if (IsJSArray()) {
     JSArray::cast(this)->set_length(Smi::FromInt(length));
@@ -8144,24 +8176,31 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   }
   Map* new_map = Map::cast(obj);
 
+  FixedArrayBase* old_elements = elements();
+  ElementsKind elements_kind(GetElementsKind());
   AssertNoAllocation no_gc;
-  switch (GetElementsKind()) {
+  switch (elements_kind) {
     case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
-      elems->Initialize(FixedArray::cast(elements()));
+      elems->Initialize(FixedArray::cast(old_elements));
       break;
     }
     case FAST_DOUBLE_ELEMENTS: {
-      elems->Initialize(FixedDoubleArray::cast(elements()));
+      elems->Initialize(FixedDoubleArray::cast(old_elements));
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      elems->Initialize(NumberDictionary::cast(elements()));
+      elems->Initialize(NumberDictionary::cast(old_elements));
       break;
     }
     default:
       UNREACHABLE();
       break;
+  }
+
+  if (FLAG_trace_elements_transitions) {
+    PrintElementsTransition(stdout, elements_kind, old_elements,
+                            FAST_DOUBLE_ELEMENTS, elems);
   }
 
   ASSERT(new_map->has_fast_double_elements());
@@ -8183,13 +8222,14 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
 
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
-  switch (GetElementsKind()) {
+  FixedArrayBase* old_elements = elements();
+  ElementsKind elements_kind = GetElementsKind();
+  switch (elements_kind) {
     case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
       // Make sure we never try to shrink dense arrays into sparse arrays.
-      ASSERT(static_cast<uint32_t>(
-          FixedArrayBase::cast(elements())->length()) <= new_length);
+      ASSERT(static_cast<uint32_t>(old_elements->length()) <= new_length);
       MaybeObject* result = NormalizeElements();
       if (result->IsFailure()) return result;
 
@@ -8221,6 +8261,12 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
       UNREACHABLE();
       break;
   }
+
+  if (FLAG_trace_elements_transitions) {
+    PrintElementsTransition(stdout, elements_kind, old_elements,
+                            DICTIONARY_ELEMENTS, elements());
+  }
+
   return this;
 }
 
@@ -9148,6 +9194,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     Map* new_map;
     if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
     set_map(new_map);
+    if (FLAG_trace_elements_transitions) {
+      PrintElementsTransition(stdout, FAST_SMI_ONLY_ELEMENTS, elements(),
+                              FAST_ELEMENTS, elements());
+    }
   }
   // Increase backing store capacity if that's been decided previously.
   if (new_capacity != capacity) {

@@ -9045,42 +9045,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
 }
 
 
-// NOTE: These PrintXXX functions are defined for all builds (not just
-// DEBUG builds) because we may want to be able to trace function
-// calls in all modes.
-static void PrintString(String* str) {
-  // not uncommon to have empty strings
-  if (str->length() > 0) {
-    SmartArrayPointer<char> s =
-        str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    PrintF("%s", *s);
-  }
-}
-
-
-static void PrintObject(Object* obj) {
-  if (obj->IsSmi()) {
-    PrintF("%d", Smi::cast(obj)->value());
-  } else if (obj->IsString() || obj->IsSymbol()) {
-    PrintString(String::cast(obj));
-  } else if (obj->IsNumber()) {
-    PrintF("%g", obj->Number());
-  } else if (obj->IsFailure()) {
-    PrintF("<failure>");
-  } else if (obj->IsUndefined()) {
-    PrintF("<undefined>");
-  } else if (obj->IsNull()) {
-    PrintF("<null>");
-  } else if (obj->IsTrue()) {
-    PrintF("<true>");
-  } else if (obj->IsFalse()) {
-    PrintF("<false>");
-  } else {
-    PrintF("%p", reinterpret_cast<void*>(obj));
-  }
-}
-
-
 static int StackSize() {
   int n = 0;
   for (JavaScriptFrameIterator it; !it.done(); it.Advance()) n++;
@@ -9099,35 +9063,30 @@ static void PrintTransition(Object* result) {
   }
 
   if (result == NULL) {
-    // constructor calls
-    JavaScriptFrameIterator it;
-    JavaScriptFrame* frame = it.frame();
-    if (frame->IsConstructor()) PrintF("new ");
-    // function name
-    Object* fun = frame->function();
-    if (fun->IsJSFunction()) {
-      PrintObject(JSFunction::cast(fun)->shared()->name());
-    } else {
-      PrintObject(fun);
-    }
-    // function arguments
-    // (we are intentionally only printing the actually
-    // supplied parameters, not all parameters required)
-    PrintF("(this=");
-    PrintObject(frame->receiver());
-    const int length = frame->ComputeParametersCount();
-    for (int i = 0; i < length; i++) {
-      PrintF(", ");
-      PrintObject(frame->GetParameter(i));
-    }
-    PrintF(") {\n");
-
+    JavaScriptFrame::PrintTop(stdout, true, false);
+    PrintF(" {\n");
   } else {
     // function result
     PrintF("} -> ");
-    PrintObject(result);
+    result->ShortPrint();
     PrintF("\n");
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TraceElementsKindTransition) {
+  ASSERT(args.length() == 5);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_SMI_ARG_CHECKED(from_kind, 1);
+  CONVERT_ARG_CHECKED(FixedArrayBase, from_elements, 2);
+  CONVERT_SMI_ARG_CHECKED(to_kind, 3);
+  CONVERT_ARG_CHECKED(FixedArrayBase, to_elements, 4);
+  NoHandleAllocation ha;
+  PrintF("*");
+  obj->PrintElementsTransition(stdout,
+      static_cast<ElementsKind>(from_kind), *from_elements,
+      static_cast<ElementsKind>(to_kind), *to_elements);
+  return isolate->heap()->undefined_value();
 }
 
 

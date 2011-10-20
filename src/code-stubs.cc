@@ -418,7 +418,7 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 void FastElementsConversionStub::Generate(MacroAssembler* masm) {
   if (to_ == FAST_ELEMENTS) {
     if (from_ == FAST_SMI_ONLY_ELEMENTS) {
-      GenerateSmiOnlyToObject(masm);
+      GenerateSmiOnlyToObject(masm, strict_mode_);
     } else if (from_ == FAST_DOUBLE_ELEMENTS) {
       GenerateDoubleToObject(masm, strict_mode_);
     } else {

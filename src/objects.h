@@ -173,6 +173,8 @@ enum ElementsKind {
 static const int kElementsKindCount =
     LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
+void PrintElementsKind(FILE* out, ElementsKind kind);
+
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
@@ -856,6 +858,8 @@ class Object : public MaybeObject {
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+
+  inline bool IsFixedArrayBase();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -1911,6 +1915,10 @@ class JSObject: public JSReceiver {
   }
   void PrintElements(FILE* out);
 #endif
+
+  void PrintElementsTransition(
+      FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
+      ElementsKind to_kind, FixedArrayBase* to_elements);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.

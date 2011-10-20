@@ -245,7 +245,7 @@ void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
 }
 
 
-static void PrintElementsKind(FILE* out, ElementsKind kind) {
+void PrintElementsKind(FILE* out, ElementsKind kind) {
   switch (kind) {
     case FAST_SMI_ONLY_ELEMENTS:
       PrintF(out, "FAST_SMI_ONLY_ELEMENTS");

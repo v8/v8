@@ -112,6 +112,11 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
+bool Object::IsFixedArrayBase() {
+  return IsFixedArray() || IsFixedDoubleArray();
+}
+
+
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check.
   if (!this->IsJSObject()) return false;

@@ -1054,7 +1054,8 @@ class FastElementsConversionStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-  static void GenerateSmiOnlyToObject(MacroAssembler* masm);
+  static void GenerateSmiOnlyToObject(MacroAssembler* masm,
+                                      StrictModeFlag strict_mode);
   static void GenerateSmiOnlyToDouble(MacroAssembler* masm,
                                       StrictModeFlag strict_mode);
   static void GenerateDoubleToObject(MacroAssembler* masm,
