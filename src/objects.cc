@@ -3246,10 +3246,10 @@ void NormalizedMapCache::Clear() {
 }
 
 
-void JSObject::UpdateMapCodeCache(Isolate* isolate,
-                                  Handle<JSObject> object,
+void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
                                   Handle<String> name,
                                   Handle<Code> code) {
+  Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION_VOID(isolate,
                           object->UpdateMapCodeCache(*name, *code));
 }

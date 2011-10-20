@@ -175,90 +175,73 @@ class StubCache {
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeCallField(
-      int argc,
-      Code::Kind,
-      Code::ExtraICState extra_ic_state,
-      String* name,
-      Object* object,
-      JSObject* holder,
-      int index);
+  Handle<Code> ComputeCallField(int argc,
+                                Code::Kind,
+                                Code::ExtraICState extra_state,
+                                Handle<String> name,
+                                Handle<Object> object,
+                                Handle<JSObject> holder,
+                                int index);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallConstant(
-      int argc,
-      Code::Kind,
-      Code::ExtraICState extra_ic_state,
-      String* name,
-      Object* object,
-      JSObject* holder,
-      JSFunction* function);
+  Handle<Code> ComputeCallConstant(int argc,
+                                   Code::Kind,
+                                   Code::ExtraICState extra_state,
+                                   Handle<String> name,
+                                   Handle<Object> object,
+                                   Handle<JSObject> holder,
+                                   Handle<JSFunction> function);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallNormal(
-      int argc,
-      Code::Kind,
-      Code::ExtraICState extra_ic_state,
-      String* name,
-      JSObject* receiver);
+  Handle<Code> ComputeCallInterceptor(int argc,
+                                      Code::Kind,
+                                      Code::ExtraICState extra_state,
+                                      Handle<String> name,
+                                      Handle<Object> object,
+                                      Handle<JSObject> holder);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallInterceptor(
-      int argc,
-      Code::Kind,
-      Code::ExtraICState extra_ic_state,
-      String* name,
-      Object* object,
-      JSObject* holder);
-
-  MUST_USE_RESULT MaybeObject* ComputeCallGlobal(
-      int argc,
-      Code::Kind,
-      Code::ExtraICState extra_ic_state,
-      String* name,
-      JSObject* receiver,
-      GlobalObject* holder,
-      JSGlobalPropertyCell* cell,
-      JSFunction* function);
+  Handle<Code> ComputeCallGlobal(int argc,
+                                 Code::Kind,
+                                 Code::ExtraICState extra_state,
+                                 Handle<String> name,
+                                 Handle<JSObject> receiver,
+                                 Handle<GlobalObject> holder,
+                                 Handle<JSGlobalPropertyCell> cell,
+                                 Handle<JSFunction> function);
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeCallInitialize(int argc,
-                                                     RelocInfo::Mode mode,
-                                                     Code::Kind kind);
-
-  Handle<Code> ComputeCallInitialize(int argc,
-                                     RelocInfo::Mode mode);
+  Handle<Code> ComputeCallInitialize(int argc, RelocInfo::Mode mode);
 
   Handle<Code> ComputeKeyedCallInitialize(int argc);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallPreMonomorphic(
-      int argc,
-      Code::Kind kind,
-      Code::ExtraICState extra_ic_state);
+  Handle<Code> ComputeCallPreMonomorphic(int argc,
+                                         Code::Kind kind,
+                                         Code::ExtraICState extra_state);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallNormal(int argc,
-                                                 Code::Kind kind,
-                                                 Code::ExtraICState state);
+  Handle<Code> ComputeCallNormal(int argc,
+                                 Code::Kind kind,
+                                 Code::ExtraICState state);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallArguments(int argc,
-                                                    Code::Kind kind);
+  Handle<Code> ComputeCallArguments(int argc, Code::Kind kind);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallMegamorphic(int argc,
-                                                      Code::Kind kind,
-                                                      Code::ExtraICState state);
+  Handle<Code> ComputeCallMegamorphic(int argc,
+                                      Code::Kind kind,
+                                      Code::ExtraICState state);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallMiss(int argc,
-                                               Code::Kind kind,
-                                               Code::ExtraICState state);
+  Handle<Code> ComputeCallMiss(int argc,
+                               Code::Kind kind,
+                               Code::ExtraICState state);
+
+  MUST_USE_RESULT MaybeObject* TryComputeCallMiss(int argc,
+                                                  Code::Kind kind,
+                                                  Code::ExtraICState state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  MUST_USE_RESULT Code* FindCallInitialize(int argc,
-                                           RelocInfo::Mode mode,
-                                           Code::Kind kind);
+  Code* FindCallInitialize(int argc, RelocInfo::Mode mode, Code::Kind kind);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  MUST_USE_RESULT MaybeObject* ComputeCallDebugBreak(int argc, Code::Kind kind);
+  Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallDebugPrepareStepIn(int argc,
-                                                             Code::Kind kind);
+  Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind);
 #endif
 
   // Update cache for entry hash(name, map).
@@ -317,12 +300,9 @@ class StubCache {
  private:
   explicit StubCache(Isolate* isolate);
 
-  friend class Isolate;
-  friend class SCTableReference;
-  static const int kPrimaryTableSize = 2048;
-  static const int kSecondaryTableSize = 512;
-  Entry primary_[kPrimaryTableSize];
-  Entry secondary_[kSecondaryTableSize];
+  Handle<Code> ComputeCallInitialize(int argc,
+                                     RelocInfo::Mode mode,
+                                     Code::Kind kind);
 
   // Computes the hashed offsets for primary and secondary caches.
   static int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
@@ -367,7 +347,15 @@ class StubCache {
         reinterpret_cast<Address>(table) + (offset << shift_amount));
   }
 
+  static const int kPrimaryTableSize = 2048;
+  static const int kSecondaryTableSize = 512;
+
+  Entry primary_[kPrimaryTableSize];
+  Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
+
+  friend class Isolate;
+  friend class SCTableReference;
 
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
@@ -396,15 +384,31 @@ class StubCompiler BASE_EMBEDDED {
   explicit StubCompiler(Isolate* isolate)
       : isolate_(isolate), masm_(isolate, NULL, 256), failure_(NULL) { }
 
-  MUST_USE_RESULT MaybeObject* CompileCallInitialize(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallNormal(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallMegamorphic(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallArguments(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallMiss(Code::Flags flags);
+  Handle<Code> CompileCallInitialize(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallInitialize(Code::Flags flags);
+
+  Handle<Code> CompileCallPreMonomorphic(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallPreMonomorphic(Code::Flags flags);
+
+  Handle<Code> CompileCallNormal(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallNormal(Code::Flags flags);
+
+  Handle<Code> CompileCallMegamorphic(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallMegamorphic(Code::Flags flags);
+
+  Handle<Code> CompileCallArguments(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallArguments(Code::Flags flags);
+
+  Handle<Code> CompileCallMiss(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallMiss(Code::Flags flags);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  MUST_USE_RESULT MaybeObject* CompileCallDebugBreak(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* CompileCallDebugPrepareStepIn(Code::Flags flags);
+  Handle<Code> CompileCallDebugBreak(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallDebugBreak(Code::Flags flags);
+
+  Handle<Code> CompileCallDebugPrepareStepIn(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* TryCompileCallDebugPrepareStepIn(
+      Code::Flags flags);
 #endif
 
   // Static functions for generating parts of stubs.
@@ -811,33 +815,50 @@ class CallStubCompiler: public StubCompiler {
   CallStubCompiler(Isolate* isolate,
                    int argc,
                    Code::Kind kind,
-                   Code::ExtraICState extra_ic_state,
+                   Code::ExtraICState extra_state,
                    InlineCacheHolderFlag cache_holder);
 
-  MUST_USE_RESULT MaybeObject* CompileCallField(
-      JSObject* object,
-      JSObject* holder,
-      int index,
-      String* name);
+  Handle<Code> CompileCallField(Handle<JSObject> object,
+                                Handle<JSObject> holder,
+                                int index,
+                                Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileCallConstant(
-      Object* object,
-      JSObject* holder,
-      JSFunction* function,
-      String* name,
-      CheckType check);
+  MUST_USE_RESULT MaybeObject* CompileCallField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
+                                                String* name);
 
-  MUST_USE_RESULT MaybeObject* CompileCallInterceptor(
-      JSObject* object,
-      JSObject* holder,
-      String* name);
+  Handle<Code> CompileCallConstant(Handle<Object> object,
+                                   Handle<JSObject> holder,
+                                   Handle<JSFunction> function,
+                                   Handle<String> name,
+                                   CheckType check);
 
-  MUST_USE_RESULT MaybeObject* CompileCallGlobal(
-      JSObject* object,
-      GlobalObject* holder,
-      JSGlobalPropertyCell* cell,
-      JSFunction* function,
-      String* name);
+  MUST_USE_RESULT MaybeObject* CompileCallConstant(Object* object,
+                                                   JSObject* holder,
+                                                   JSFunction* function,
+                                                   String* name,
+                                                   CheckType check);
+
+  Handle<Code> CompileCallInterceptor(Handle<JSObject> object,
+                                      Handle<JSObject> holder,
+                                      Handle<String> name);
+
+  MUST_USE_RESULT MaybeObject* CompileCallInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name);
+
+  Handle<Code> CompileCallGlobal(Handle<JSObject> object,
+                                 Handle<GlobalObject> holder,
+                                 Handle<JSGlobalPropertyCell> cell,
+                                 Handle<JSFunction> function,
+                                 Handle<String> name);
+
+  MUST_USE_RESULT MaybeObject* CompileCallGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 JSFunction* function,
+                                                 String* name);
 
   static bool HasCustomCallGenerator(JSFunction* function);
 
@@ -870,7 +891,7 @@ class CallStubCompiler: public StubCompiler {
 
   const ParameterCount arguments_;
   const Code::Kind kind_;
-  const Code::ExtraICState extra_ic_state_;
+  const Code::ExtraICState extra_state_;
   const InlineCacheHolderFlag cache_holder_;
 
   const ParameterCount& arguments() { return arguments_; }

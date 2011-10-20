@@ -87,19 +87,13 @@ static void PrintLn(v8::Local<v8::Value> value) {
 
 static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(
-      isolate,
-      isolate->stub_cache()->ComputeCallDebugBreak(argc, kind),
-      Code);
+  return isolate->stub_cache()->ComputeCallDebugBreak(argc, kind);
 }
 
 
 static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(
-      isolate,
-      isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind),
-      Code);
+  return isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind);
 }
 
 

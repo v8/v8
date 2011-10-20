@@ -100,7 +100,11 @@ void IC::TraceIC(const char* type,
     PrintF("]\n");
   }
 }
-#endif
+#endif  // DEBUG
+
+
+#define TRACE_IC(type, name, old_state, new_target)             \
+  ASSERT((TraceIC(type, name, old_state, new_target), true))
 
 
 IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
@@ -578,89 +582,57 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
 }
 
 
-MaybeObject* CallICBase::ComputeMonomorphicStub(
-    LookupResult* lookup,
-    State state,
-    Code::ExtraICState extra_ic_state,
-    Handle<Object> object,
-    Handle<String> name) {
+Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
+                                                State state,
+                                                Code::ExtraICState extra_state,
+                                                Handle<Object> object,
+                                                Handle<String> name) {
   int argc = target()->arguments_count();
-  MaybeObject* maybe_code = NULL;
+  Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD: {
       int index = lookup->GetFieldIndex();
-      maybe_code = isolate()->stub_cache()->ComputeCallField(argc,
-                                                             kind_,
-                                                             extra_ic_state,
-                                                             *name,
-                                                             *object,
-                                                             lookup->holder(),
-                                                             index);
-      break;
+      return isolate()->stub_cache()->ComputeCallField(
+          argc, kind_, extra_state, name, object, holder, index);
     }
     case CONSTANT_FUNCTION: {
       // Get the constant function and compute the code stub for this
       // call; used for rewriting to monomorphic state and making sure
       // that the code stub is in the stub cache.
-      JSFunction* function = lookup->GetConstantFunction();
-      maybe_code =
-          isolate()->stub_cache()->ComputeCallConstant(argc,
-                                                       kind_,
-                                                       extra_ic_state,
-                                                       *name,
-                                                       *object,
-                                                       lookup->holder(),
-                                                       function);
-      break;
+      Handle<JSFunction> function(lookup->GetConstantFunction());
+      return isolate()->stub_cache()->ComputeCallConstant(
+          argc, kind_, extra_state, name, object, holder, function);
     }
     case NORMAL: {
-      if (!object->IsJSObject()) return NULL;
+      // If we return a null handle, the IC will not be patched.
+      if (!object->IsJSObject()) return Handle<Code>::null();
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
-      if (lookup->holder()->IsGlobalObject()) {
-        GlobalObject* global = GlobalObject::cast(lookup->holder());
-        JSGlobalPropertyCell* cell =
-            JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-        if (!cell->value()->IsJSFunction()) return NULL;
-        JSFunction* function = JSFunction::cast(cell->value());
-        maybe_code = isolate()->stub_cache()->ComputeCallGlobal(argc,
-                                                                kind_,
-                                                                extra_ic_state,
-                                                                *name,
-                                                                *receiver,
-                                                                global,
-                                                                cell,
-                                                                function);
+      if (holder->IsGlobalObject()) {
+        Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
+        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        if (!cell->value()->IsJSFunction()) return Handle<Code>::null();
+        Handle<JSFunction> function(JSFunction::cast(cell->value()));
+        return isolate()->stub_cache()->ComputeCallGlobal(
+            argc, kind_, extra_state, name, receiver, global, cell, function);
       } else {
         // There is only one shared stub for calling normalized
         // properties. It does not traverse the prototype chain, so the
         // property must be found in the receiver for the stub to be
         // applicable.
-        if (lookup->holder() != *receiver) return NULL;
-        maybe_code = isolate()->stub_cache()->ComputeCallNormal(argc,
-                                                                kind_,
-                                                                extra_ic_state,
-                                                                *name,
-                                                                *receiver);
+        if (!holder.is_identical_to(receiver)) return Handle<Code>::null();
+        return isolate()->stub_cache()->ComputeCallNormal(
+            argc, kind_, extra_state);
       }
       break;
     }
-    case INTERCEPTOR: {
-      ASSERT(HasInterceptorGetter(lookup->holder()));
-      maybe_code = isolate()->stub_cache()->ComputeCallInterceptor(
-          argc,
-          kind_,
-          extra_ic_state,
-          *name,
-          *object,
-          lookup->holder());
-      break;
-    }
+    case INTERCEPTOR:
+      ASSERT(HasInterceptorGetter(*holder));
+      return isolate()->stub_cache()->ComputeCallInterceptor(
+          argc, kind_, extra_state, name, object, holder);
     default:
-      maybe_code = NULL;
-      break;
+      return Handle<Code>::null();
   }
-  return maybe_code;
 }
 
 
@@ -682,75 +654,57 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
-  MaybeObject* maybe_code = NULL;
   bool had_proto_failure = false;
+  Handle<Code> code;
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    maybe_code =
-        isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                           kind_,
-                                                           extra_ic_state);
+    code = isolate()->stub_cache()->ComputeCallPreMonomorphic(
+        argc, kind_, extra_ic_state);
   } else if (state == MONOMORPHIC) {
     if (kind_ == Code::CALL_IC &&
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
-      maybe_code = ComputeMonomorphicStub(lookup,
-                                          state,
-                                          extra_ic_state,
-                                          object,
-                                          name);
+      code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
+                                    object, name);
     } else if (kind_ == Code::CALL_IC &&
                TryRemoveInvalidPrototypeDependentStub(target(),
                                                       *object,
                                                       *name)) {
       had_proto_failure = true;
-      maybe_code = ComputeMonomorphicStub(lookup,
-                                          state,
-                                          extra_ic_state,
-                                          object,
-                                          name);
+      code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
+                                    object, name);
     } else {
-      maybe_code =
-          isolate()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                          kind_,
-                                                          extra_ic_state);
+      code = isolate()->stub_cache()->ComputeCallMegamorphic(
+          argc, kind_, extra_ic_state);
     }
   } else {
-    maybe_code = ComputeMonomorphicStub(lookup,
-                                        state,
-                                        extra_ic_state,
-                                        object,
-                                        name);
+    code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
+                                  object, name);
   }
 
-  // If we're unable to compute the stub (not enough memory left), we
-  // simply avoid updating the caches.
-  Object* code;
-  if (maybe_code == NULL || !maybe_code->ToObject(&code)) return;
+  // If there's no appropriate stub we simply avoid updating the caches.
+  if (code.is_null()) return;
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED ||
       state == PREMONOMORPHIC ||
       state == MONOMORPHIC ||
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(Code::cast(code));
+    set_target(*code);
   } else if (state == MEGAMORPHIC) {
     // Cache code holding map should be consistent with
     // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
-    Map* map = JSObject::cast(object->IsJSObject() ? *object :
-                              object->GetPrototype())->map();
-
+    Handle<JSObject> cache_object = object->IsJSObject()
+        ? Handle<JSObject>::cast(object)
+        : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
     // Update the stub cache.
-    isolate()->stub_cache()->Set(*name, map, Code::cast(code));
+    isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
   }
 
-  USE(had_proto_failure);
-#ifdef DEBUG
   if (had_proto_failure) state = MONOMORPHIC_PROTOTYPE_FAILURE;
-  TraceIC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
-          name, state, target());
-#endif
+  TRACE_IC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
+           name, state, target());
 }
 
 
@@ -774,25 +728,15 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
         isolate()->factory()->non_strict_arguments_elements_map();
     if (object->IsJSObject() &&
         Handle<JSObject>::cast(object)->elements()->map() == *map) {
-      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallArguments(
+      Handle<Code> code = isolate()->stub_cache()->ComputeCallArguments(
           argc, Code::KEYED_CALL_IC);
-      Code* code = NULL;
-      if (maybe_code->To(&code)) {
-        set_target(code);
-#ifdef DEBUG
-        TraceIC("KeyedCallIC", key, state, target());
-#endif
-      }
+      set_target(*code);
+      TRACE_IC("KeyedCallIC", key, state, target());
     } else if (!object->IsAccessCheckNeeded()) {
-      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
+      Handle<Code> code = isolate()->stub_cache()->ComputeCallMegamorphic(
           argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
-      Code* code;
-      if (maybe_code->To(&code)) {
-        set_target(code);
-#ifdef DEBUG
-        TraceIC("KeyedCallIC", key, state, target());
-#endif
-      }
+      set_target(*code);
+      TRACE_IC("KeyedCallIC", key, state, target());
     }
   }
 
@@ -1023,9 +967,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     isolate()->stub_cache()->Set(*name, receiver->map(), *code);
   }
 
-#ifdef DEBUG
-  TraceIC("LoadIC", name, state, target());
-#endif
+  TRACE_IC("LoadIC", name, state, target());
 }
 
 
@@ -1096,9 +1038,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
                                                                   string);
         ASSERT(!code.is_null());
         set_target(*code);
-#ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
-#endif  // DEBUG
+        TRACE_IC("KeyedLoadIC", name, state, target());
         return Smi::FromInt(string->length());
       }
 
@@ -1110,9 +1050,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
             isolate()->stub_cache()->ComputeKeyedLoadArrayLength(name, array);
         ASSERT(!code.is_null());
         set_target(*code);
-#ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
-#endif  // DEBUG
+        TRACE_IC("KeyedLoadIC", name, state, target());
         return array->length();
       }
 
@@ -1126,9 +1064,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
                 name, function);
         ASSERT(!code.is_null());
         set_target(*code);
-#ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
-#endif  // DEBUG
+        TRACE_IC("KeyedLoadIC", name, state, target());
         return Accessors::FunctionGetPrototype(*object, 0);
       }
     }
@@ -1198,9 +1134,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     if (!stub.is_null()) set_target(*stub);
   }
 
-#ifdef DEBUG
-  TraceIC("KeyedLoadIC", key, state, target());
-#endif  // DEBUG
+  TRACE_IC("KeyedLoadIC", key, state, target());
 
   // Get the property.
   return Runtime::GetObjectProperty(isolate(), object, key);
@@ -1273,9 +1207,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
     set_target(*megamorphic_stub());
   }
 
-#ifdef DEBUG
-  TraceIC("KeyedLoadIC", name, state, target());
-#endif
+  TRACE_IC("KeyedLoadIC", name, state, target());
 }
 
 
@@ -1390,9 +1322,7 @@ MaybeObject* StoreIC::Store(State state,
         : global_proxy_stub();
     if (target() != *stub) {
       set_target(*stub);
-#ifdef DEBUG
-      TraceIC("StoreIC", name, state, target());
-#endif
+      TRACE_IC("StoreIC", name, state, target());
     }
   }
 
@@ -1486,9 +1416,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     isolate()->stub_cache()->Set(*name, receiver->map(), *code);
   }
 
-#ifdef DEBUG
-  TraceIC("StoreIC", name, state, target());
-#endif
+  TRACE_IC("StoreIC", name, state, target());
 }
 
 
@@ -1789,9 +1717,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     if (!stub.is_null()) set_target(*stub);
   }
 
-#ifdef DEBUG
-  TraceIC("KeyedStoreIC", key, state, target());
-#endif
+  TRACE_IC("KeyedStoreIC", key, state, target());
 
   // Set the property.
   return Runtime::SetObjectProperty(
@@ -1863,10 +1789,11 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                  : *megamorphic_stub());
   }
 
-#ifdef DEBUG
-  TraceIC("KeyedStoreIC", name, state, target());
-#endif
+  TRACE_IC("KeyedStoreIC", name, state, target());
 }
+
+
+#undef TRACE_IC
 
 
 // ----------------------------------------------------------------------------

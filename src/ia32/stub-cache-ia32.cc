@@ -486,11 +486,11 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   CallInterceptorCompiler(StubCompiler* stub_compiler,
                           const ParameterCount& arguments,
                           Register name,
-                          Code::ExtraICState extra_ic_state)
+                          Code::ExtraICState extra_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
         name_(name),
-        extra_ic_state_(extra_ic_state) {}
+        extra_state_(extra_state) {}
 
   MaybeObject* Compile(MacroAssembler* masm,
                        JSObject* object,
@@ -614,7 +614,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           GenerateFastApiCall(masm, optimization, arguments_.immediate());
       if (result->IsFailure()) return result;
     } else {
-      CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
           ? CALL_AS_FUNCTION
           : CALL_AS_METHOD;
       __ InvokeFunction(optimization.constant_function(), arguments_,
@@ -700,7 +700,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
-  Code::ExtraICState extra_ic_state_;
+  Code::ExtraICState extra_state_;
 };
 
 
@@ -1337,9 +1337,9 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 
 MaybeObject* CallStubCompiler::GenerateMissBranch() {
   MaybeObject* maybe_obj =
-      isolate()->stub_cache()->ComputeCallMiss(arguments().immediate(),
-                                               kind_,
-                                               extra_ic_state_);
+      isolate()->stub_cache()->TryComputeCallMiss(arguments().immediate(),
+                                                  kind_,
+                                                  extra_state_);
   Object* obj;
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ jmp(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
@@ -1389,7 +1389,7 @@ MUST_USE_RESULT MaybeObject* CallStubCompiler::CompileCallField(
   }
 
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION,
@@ -1700,7 +1700,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   Label* index_out_of_range_label = &index_out_of_range;
 
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_ic_state_) ==
+      (CallICBase::StringStubState::decode(extra_state_) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
@@ -1786,7 +1786,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   Label* index_out_of_range_label = &index_out_of_range;
 
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_ic_state_) ==
+      (CallICBase::StringStubState::decode(extra_state_) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
@@ -1908,7 +1908,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
@@ -2339,7 +2339,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(
       UNREACHABLE();
   }
 
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
@@ -2378,7 +2378,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), ecx, extra_ic_state_);
+  CallInterceptorCompiler compiler(this, arguments(), ecx, extra_state_);
   MaybeObject* result = compiler.Compile(masm(),
                                          object,
                                          holder,
@@ -2408,7 +2408,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Invoke the function.
   __ mov(edi, eax);
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION,
@@ -2470,24 +2470,16 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(
   // Jump to the cached code (tail call).
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->call_global_inline(), 1);
-  ASSERT(function->is_compiled());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    __ InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-                  expected, arguments(), JUMP_FUNCTION,
-                  NullCallWrapper(), call_kind);
-  } else {
-    Handle<Code> code(function->code());
-    __ InvokeCode(code, expected, arguments(),
-                  RelocInfo::CODE_TARGET, JUMP_FUNCTION,
-                  NullCallWrapper(), call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  __ InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
+                expected, arguments(), JUMP_FUNCTION,
+                NullCallWrapper(), call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);

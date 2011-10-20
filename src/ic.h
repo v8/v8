@@ -216,12 +216,12 @@ class CallICBase: public IC {
                              Handle<Object> object,
                              Code::ExtraICState* extra_ic_state);
 
-  MUST_USE_RESULT MaybeObject* ComputeMonomorphicStub(
-      LookupResult* lookup,
-      State state,
-      Code::ExtraICState extra_ic_state,
-      Handle<Object> object,
-      Handle<String> name);
+  // Compute a monomorphic stub if possible, otherwise return a null handle.
+  Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
+                                      State state,
+                                      Code::ExtraICState extra_state,
+                                      Handle<Object> object,
+                                      Handle<String> name);
 
   // Update the inline cache and the global stub cache based on the lookup
   // result.

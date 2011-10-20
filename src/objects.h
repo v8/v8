@@ -1850,8 +1850,7 @@ class JSObject: public JSReceiver {
   // dictionary.  Returns the backing after conversion.
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
-  static void UpdateMapCodeCache(Isolate* isolate,
-                                 Handle<JSObject> object,
+  static void UpdateMapCodeCache(Handle<JSObject> object,
                                  Handle<String> name,
                                  Handle<Code> code);
 
