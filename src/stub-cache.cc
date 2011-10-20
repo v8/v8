@@ -687,35 +687,39 @@ Handle<Code> StubCache::ComputeStoreInterceptor(Handle<String> name,
   return code;
 }
 
+Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
+                                                       int index,
+                                                       Handle<Map> transition,
+                                                       Handle<String> name) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     CompileStoreField(*object, index,
+                                       (transition.is_null()
+                                           ? NULL
+                                           : *transition),
+                                       *name),
+                     Code);
+}
 
-MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
-                                               JSObject* receiver,
+Handle<Code> StubCache::ComputeKeyedStoreField(Handle<String> name,
+                                               Handle<JSObject> receiver,
                                                int field_index,
-                                               Map* transition,
+                                               Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
-  PropertyType type = (transition == NULL) ? FIELD : MAP_TRANSITION;
+  PropertyType type = (transition.is_null()) ? FIELD : MAP_TRANSITION;
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::KEYED_STORE_IC, type, strict_mode);
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    HandleScope scope(isolate());
-    KeyedStoreStubCompiler compiler(isolate(), strict_mode);
-    { MaybeObject* maybe_code =
-          compiler.CompileStoreField(receiver, field_index, transition, name);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(isolate(),
-            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
-                            Code::cast(code), name));
-    GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, name, Code::cast(code)));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode);
+  Handle<Code> code =
+      compiler.CompileStoreField(receiver, field_index, transition, name);
+  PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));
+  JSObject::UpdateMapCodeCache(isolate_, receiver, name, code);
   return code;
 }
+
 
 #define CALL_LOGGER_TAG(kind, type) \
     (kind == Code::CALL_IC ? Logger::type : Logger::KEYED_##type)

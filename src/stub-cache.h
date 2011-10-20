@@ -162,12 +162,11 @@ class StubCache {
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedStoreField(
-      String* name,
-      JSObject* receiver,
-      int field_index,
-      Map* transition,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeKeyedStoreField(Handle<String> name,
+                                      Handle<JSObject> receiver,
+                                      int field_index,
+                                      Handle<Map> transition,
+                                      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreElement(
       JSObject* receiver,
@@ -754,6 +753,11 @@ class KeyedStoreStubCompiler: public StubCompiler {
  public:
   KeyedStoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
     : StubCompiler(isolate), strict_mode_(strict_mode) { }
+
+  Handle<Code> CompileStoreField(Handle<JSObject> object,
+                                 int index,
+                                 Handle<Map> transition,
+                                 Handle<String> name);
 
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,

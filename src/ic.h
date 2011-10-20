@@ -603,29 +603,24 @@ class KeyedStoreIC: public KeyedIC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Initialize);
   }
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic);
-  }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Initialize_Strict);
   }
-  Code* megamorphic_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic_Strict);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->KeyedStoreIC_Generic();
   }
-  Code* generic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic);
+  Handle<Code> megamorphic_stub_strict() {
+    return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
   }
-  Code* generic_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic_Strict);
+  Handle<Code> generic_stub() {
+    return isolate()->builtins()->KeyedStoreIC_Generic();
   }
-  Code* non_strict_arguments_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_NonStrictArguments);
+  Handle<Code> generic_stub_strict() {
+    return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+  }
+  Handle<Code> non_strict_arguments_stub() {
+    return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
   }
 
   static void Clear(Address address, Code* target);

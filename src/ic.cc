@@ -1736,9 +1736,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
     // Check if the given name is an array index.
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
-      HandleScope scope(isolate());
       Handle<Object> result = SetElement(receiver, index, value, strict_mode);
-      if (result.is_null()) return Failure::Exception();
+      RETURN_IF_EMPTY_HANDLE(isolate(), result);
       return *value;
     }
 
@@ -1761,17 +1760,16 @@ MaybeObject* KeyedStoreIC::Store(State state,
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
-    Code* stub = (strict_mode == kStrictMode)
+    Handle<Code> stub = (strict_mode == kStrictMode)
         ? generic_stub_strict()
         : generic_stub();
     if (object->IsJSObject()) {
-      JSObject* receiver = JSObject::cast(*object);
-      Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
-      Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
-      if (elements_map == heap->non_strict_arguments_elements_map()) {
+      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+      if (receiver->elements()->map() ==
+          isolate()->heap()->non_strict_arguments_elements_map()) {
         stub = non_strict_arguments_stub();
       } else if (!force_generic) {
-        if (key->IsSmi() && (target() != non_strict_arguments_stub())) {
+        if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = STORE_NO_TRANSITION;
           if (receiver->GetElementsKind() == FAST_SMI_ONLY_ELEMENTS) {
             if (value->IsHeapNumber()) {
@@ -1784,17 +1782,11 @@ MaybeObject* KeyedStoreIC::Store(State state,
               stub_kind = STORE_TRANSITION_DOUBLE_TO_OBJECT;
             }
           }
-          HandleScope scope(isolate());
-          MaybeObject* maybe_stub = ComputeStub(receiver,
-                                                stub_kind,
-                                                strict_mode,
-                                                stub);
-          stub = maybe_stub->IsFailure() ?
-              NULL : Code::cast(maybe_stub->ToObjectUnchecked());
+          stub = ComputeStub(receiver, stub_kind, strict_mode, stub);
         }
       }
     }
-    if (stub != NULL) set_target(stub);
+    if (!stub.is_null()) set_target(*stub);
   }
 
 #ifdef DEBUG
@@ -1831,50 +1823,44 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  MaybeObject* maybe_code = NULL;
-  Object* code = NULL;
+  Handle<Code> code;
 
   switch (type) {
-    case FIELD: {
-      maybe_code = isolate()->stub_cache()->ComputeKeyedStoreField(
-          *name, *receiver, lookup->GetFieldIndex(), NULL, strict_mode);
+    case FIELD:
+      code = isolate()->stub_cache()->ComputeKeyedStoreField(
+          name, receiver, lookup->GetFieldIndex(),
+          Handle<Map>::null(), strict_mode);
       break;
-    }
-    case MAP_TRANSITION: {
+    case MAP_TRANSITION:
       if (lookup->GetAttributes() == NONE) {
-        HandleScope scope(isolate());
         ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
-        maybe_code = isolate()->stub_cache()->ComputeKeyedStoreField(
-            *name, *receiver, index, *transition, strict_mode);
+        code = isolate()->stub_cache()->ComputeKeyedStoreField(
+            name, receiver, index, transition, strict_mode);
         break;
       }
       // fall through.
-    }
-    default: {
+    default:
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
-      maybe_code = (strict_mode == kStrictMode)
+      code = (strict_mode == kStrictMode)
           ? generic_stub_strict()
           : generic_stub();
       break;
-    }
   }
 
-  // If we're unable to compute the stub (not enough memory left), we
-  // simply avoid updating the caches.
-  if (maybe_code == NULL || !maybe_code->ToObject(&code)) return;
+  ASSERT(!code.is_null());
 
   // Patch the call site depending on the state of the cache.  Make
   // sure to always rewrite from monomorphic to megamorphic.
   ASSERT(state != MONOMORPHIC_PROTOTYPE_FAILURE);
   if (state == UNINITIALIZED || state == PREMONOMORPHIC) {
-    set_target(Code::cast(code));
+    set_target(*code);
   } else if (state == MONOMORPHIC) {
     set_target((strict_mode == kStrictMode)
-                 ? megamorphic_stub_strict()
-                 : megamorphic_stub());
+                 ? *megamorphic_stub_strict()
+                 : *megamorphic_stub());
   }
 
 #ifdef DEBUG
@@ -2035,7 +2021,7 @@ RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
-  NoHandleAllocation na;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
@@ -2069,7 +2055,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
-  NoHandleAllocation na;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
