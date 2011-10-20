@@ -4096,24 +4096,22 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
   // Elements_kind transition support.
   MapList transition_target(maps->length());
-  if (is_store) {
-    // Collect possible transition targets.
-    MapList possible_transitioned_maps(maps->length());
-    for (int i = 0; i < maps->length(); ++i) {
-      Handle<Map> map = maps->at(i);
-      ElementsKind elements_kind = map->elements_kind();
-      if (elements_kind == FAST_DOUBLE_ELEMENTS ||
-          elements_kind == FAST_ELEMENTS) {
-        possible_transitioned_maps.Add(*map);
-      }
+  // Collect possible transition targets.
+  MapList possible_transitioned_maps(maps->length());
+  for (int i = 0; i < maps->length(); ++i) {
+    Handle<Map> map = maps->at(i);
+    ElementsKind elements_kind = map->elements_kind();
+    if (elements_kind == FAST_DOUBLE_ELEMENTS ||
+        elements_kind == FAST_ELEMENTS) {
+      possible_transitioned_maps.Add(*map);
     }
-    // Get transition target for each map (NULL == no transition).
-    for (int i = 0; i < maps->length(); ++i) {
-      Handle<Map> map = maps->at(i);
-      Map* transitioned_map =
-          map->FindTransitionedMap(&possible_transitioned_maps);
-      transition_target.Add(transitioned_map);
-    }
+  }
+  // Get transition target for each map (NULL == no transition).
+  for (int i = 0; i < maps->length(); ++i) {
+    Handle<Map> map = maps->at(i);
+    Map* transitioned_map =
+        map->FindTransitionedMap(&possible_transitioned_maps);
+    transition_target.Add(transitioned_map);
   }
 
   int num_untransitionable_maps = 0;
@@ -4121,8 +4119,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
-    ASSERT(!is_store || (transition_target.length() == maps->length()));
-    if (is_store && transition_target.at(i) != NULL) {
+    if (transition_target.at(i) != NULL) {
       object = AddInstruction(new(zone()) HTransitionElementsKind(
           object, map, Handle<Map>(transition_target.at(i))));
     } else {
