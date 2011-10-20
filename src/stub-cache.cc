@@ -113,7 +113,8 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
                                                       Handle<JSObject> object,
                                                       Handle<JSObject> last) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadNonexistent(*name, *object, *last),
+                     (set_failure(NULL),
+                      CompileLoadNonexistent(*name, *object, *last)),
                      Code);
 }
 
@@ -156,7 +157,8 @@ Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
                                                 int index,
                                                 Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadField(*object, *holder, index, *name),
+                     (set_failure(NULL),
+                      CompileLoadField(*object, *holder, index, *name)),
                      Code);
 }
 
@@ -186,7 +188,8 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
     Handle<JSObject> holder,
     Handle<AccessorInfo> callback) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadCallback(*name, *object, *holder, *callback),
+                     (set_failure(NULL),
+                      CompileLoadCallback(*name, *object, *holder, *callback)),
                      Code);
 }
 
@@ -216,7 +219,8 @@ Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
                                                    Handle<Object> value,
                                                    Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadConstant(*object, *holder, *value, *name),
+                     (set_failure(NULL),
+                      CompileLoadConstant(*object, *holder, *value, *name)),
                      Code);
 }
 
@@ -245,7 +249,8 @@ Handle<Code> LoadStubCompiler::CompileLoadInterceptor(Handle<JSObject> object,
                                                       Handle<JSObject> holder,
                                                       Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadInterceptor(*object, *holder, *name),
+                     (set_failure(NULL),
+                      CompileLoadInterceptor(*object, *holder, *name)),
                      Code);
 }
 
@@ -279,11 +284,9 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     Handle<String> name,
     bool is_dont_delete) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadGlobal(*object,
-                                       *holder,
-                                       *cell,
-                                       *name,
-                                       is_dont_delete),
+                     (set_failure(NULL),
+                      CompileLoadGlobal(
+                          *object, *holder, *cell, *name, is_dont_delete)),
                      Code);
 }
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
@@ -311,7 +314,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
                                                      Handle<JSObject> holder,
                                                      int index) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadField(*name, *object, *holder, index),
+                     (set_failure(NULL),
+                      CompileLoadField(*name, *object, *holder, index)),
                      Code);
 }
 
@@ -340,7 +344,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(Handle<String> name,
                                                         Handle<JSObject> holder,
                                                         Handle<Object> value) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadConstant(*name, *object, *holder, *value),
+                     (set_failure(NULL),
+                      CompileLoadConstant(*name, *object, *holder, *value)),
                      Code);
 }
 
@@ -370,7 +375,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
     Handle<JSObject> holder,
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadInterceptor(*object, *holder, *name),
+                     (set_failure(NULL),
+                      CompileLoadInterceptor(*object, *holder, *name)),
                      Code);
 }
 
@@ -399,7 +405,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
     Handle<JSObject> holder,
     Handle<AccessorInfo> callback) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadCallback(*name, *object, *holder, *callback),
+                     (set_failure(NULL),
+                      CompileLoadCallback(*name, *object, *holder, *callback)),
                      Code);
 }
 
@@ -428,7 +435,8 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadArrayLength(*name),
+                     (set_failure(NULL),
+                      CompileLoadArrayLength(*name)),
                      Code);
 }
 
@@ -451,7 +459,8 @@ Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
 Handle<Code> KeyedLoadStubCompiler::CompileLoadStringLength(
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadStringLength(*name),
+                     (set_failure(NULL),
+                      CompileLoadStringLength(*name)),
                      Code);
 }
 
@@ -475,7 +484,8 @@ Handle<Code> StubCache::ComputeKeyedLoadStringLength(Handle<String> name,
 Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileLoadFunctionPrototype(*name),
+                     (set_failure(NULL),
+                      CompileLoadFunctionPrototype(*name)),
                      Code);
 }
 
@@ -502,12 +512,12 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                   Handle<Map> transition,
                                                   Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileStoreField(*object,
-                                       index,
-                                       (transition.is_null()
-                                           ? NULL
-                                           : *transition),
-                                       *name),
+                     (set_failure(NULL),
+                      CompileStoreField(
+                          *object,
+                          index,
+                          (transition.is_null() ? NULL : *transition),
+                          *name)),
                      Code);
 }
 
@@ -611,7 +621,8 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
     Handle<JSGlobalPropertyCell> holder,
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileStoreGlobal(*object, *holder, *name),
+                     (set_failure(NULL),
+                      CompileStoreGlobal(*object, *holder, *name)),
                      Code);
 }
 
@@ -639,7 +650,8 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<AccessorInfo> callback,
     Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileStoreCallback(*object, *callback, *name),
+                     (set_failure(NULL),
+                      CompileStoreCallback(*object, *callback, *name)),
                      Code);
 }
 
@@ -666,7 +678,8 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(Handle<JSObject> object,
                                                         Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileStoreInterceptor(*object, *name),
+                     (set_failure(NULL),
+                      CompileStoreInterceptor(*object, *name)),
                      Code);
 }
 
@@ -692,11 +705,12 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                        Handle<Map> transition,
                                                        Handle<String> name) {
   CALL_HEAP_FUNCTION(isolate(),
-                     CompileStoreField(*object, index,
-                                       (transition.is_null()
-                                           ? NULL
-                                           : *transition),
-                                       *name),
+                     (set_failure(NULL),
+                      CompileStoreField(
+                          *object,
+                          index,
+                          (transition.is_null() ? NULL : *transition),
+                          *name)),
                      Code);
 }
 
