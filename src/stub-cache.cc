@@ -985,7 +985,8 @@ Handle<Code> StubCache::ComputeCallInitialize(int argc, RelocInfo::Mode mode) {
 
 
 Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc) {
-  return ComputeCallInitialize(argc, RelocInfo::CODE_TARGET, Code::KEYED_CALL_IC);
+  return ComputeCallInitialize(argc, RelocInfo::CODE_TARGET,
+                               Code::KEYED_CALL_IC);
 }
 
 
@@ -1622,9 +1623,10 @@ MaybeObject* StubCompiler::TryCompileCallDebugBreak(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallDebugPrepareStepIn(flags)),
-                     Code);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      (set_failure(NULL), TryCompileCallDebugPrepareStepIn(flags)),
+      Code);
 }
 
 
