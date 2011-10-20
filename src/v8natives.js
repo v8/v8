@@ -373,6 +373,7 @@ function IsDataDescriptor(desc) {
 
 // ES5 8.10.3.
 function IsGenericDescriptor(desc) {
+  if (IS_UNDEFINED(desc)) return false;
   return !(IsAccessorDescriptor(desc) || IsDataDescriptor(desc));
 }
 
