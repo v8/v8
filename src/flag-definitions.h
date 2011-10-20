@@ -186,6 +186,8 @@ DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
+DEFINE_bool(builtins_in_stack_traces, false,
+            "show built-in functions in stack traces")
 DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
 // builtins-ia32.cc

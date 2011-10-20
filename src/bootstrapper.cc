@@ -362,6 +362,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   if (is_ecma_native) {
     function->shared()->set_instance_class_name(*symbol);
   }
+  function->shared()->set_native(true);
   return function;
 }
 

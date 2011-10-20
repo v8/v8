@@ -1126,6 +1126,7 @@ function SetUpError() {
         return new f(m);
       }
     });
+    %SetNativeFlag(f);
   }
 
   DefineError(function Error() { });

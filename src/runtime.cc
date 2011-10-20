@@ -2116,7 +2116,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     // Since we don't store the source for this we should never
     // optimize this.
     shared->code()->set_optimizable(false);
-
     // Set the code, scope info, formal parameter count,
     // and the length of the target function.
     target->shared()->set_code(shared->code());
@@ -12924,34 +12923,32 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame,
                                   Object* caller,
                                   bool* seen_caller) {
   // Only display JS frames.
-  if (!raw_frame->is_java_script())
+  if (!raw_frame->is_java_script()) {
     return false;
+  }
   JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
   Object* raw_fun = frame->function();
   // Not sure when this can happen but skip it just in case.
-  if (!raw_fun->IsJSFunction())
+  if (!raw_fun->IsJSFunction()) {
     return false;
+  }
   if ((raw_fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
   }
   // Skip all frames until we've seen the caller.
   if (!(*seen_caller)) return false;
-  // Also, skip the most obvious builtin calls. We recognize builtins
-  // as (1) functions called with the builtins object as the receiver and
-  // as (2) functions from native scripts called with undefined as the
-  // receiver (direct calls to helper functions in the builtins
-  // code). Some builtin calls (such as Number.ADD which is invoked
-  // using 'call') are very difficult to recognize so we're leaving
-  // them in for now.
-  if (frame->receiver()->IsJSBuiltinsObject()) {
-    return false;
-  }
-  JSFunction* fun = JSFunction::cast(raw_fun);
-  Object* raw_script = fun->shared()->script();
-  if (frame->receiver()->IsUndefined() && raw_script->IsScript()) {
-    int script_type = Script::cast(raw_script)->type()->value();
-    return script_type != Script::TYPE_NATIVE;
+  // Also, skip non-visible built-in functions and any call with the builtins
+  // object as receiver, so as to not reveal either the builtins object or
+  // an internal function.
+  // The --builtins-in-stack-traces command line flag allows including
+  // internal call sites in the stack trace for debugging purposes.
+  if (!FLAG_builtins_in_stack_traces) {
+    JSFunction* fun = JSFunction::cast(raw_fun);
+    if (frame->receiver()->IsJSBuiltinsObject() ||
+        (fun->IsBuiltin() && !fun->shared()->native())) {
+      return false;
+    }
   }
   return true;
 }
