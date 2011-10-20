@@ -1582,15 +1582,22 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- ebx    : target map
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
   // Must return the modified receiver in eax.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    __ mov(eax, edx);
+    __ Ret();
+    __ bind(&fail);
+  }
 
   __ pop(ebx);
   __ push(edx);
   __ push(ebx);  // return address
-
   __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
 }
 
@@ -1598,15 +1605,22 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- ebx    : target map
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
   // Must return the modified receiver in eax.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateDoubleToObject(masm, &fail);
+    __ mov(eax, edx);
+    __ Ret();
+    __ bind(&fail);
+  }
 
   __ pop(ebx);
   __ push(edx);
   __ push(ebx);  // return address
-
   __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
 }
 

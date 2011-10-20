@@ -490,6 +490,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       44,
       "canonical_nan");
+  Add(ExternalReference::address_of_the_hole_nan().address(),
+      UNCLASSIFIED,
+      45,
+      "the_hole_nan");
 }
 
 

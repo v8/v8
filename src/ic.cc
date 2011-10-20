@@ -1686,7 +1686,7 @@ MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
     MaybeObject* maybe_cached_stub = NULL;
     Map* transitioned_map = receiver_map->FindTransitionedMap(receiver_maps);
     if (transitioned_map != NULL) {
-      maybe_cached_stub = FastElementsConversionStub(
+      maybe_cached_stub = ElementsTransitionAndStoreStub(
           receiver_map->elements_kind(),  // original elements_kind
           transitioned_map->elements_kind(),
           receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array

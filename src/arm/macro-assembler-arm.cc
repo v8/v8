@@ -1602,6 +1602,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
+  ASSERT(!object_size.is(ip));
   ASSERT(!result.is(ip));
   ASSERT(!scratch1.is(ip));
   ASSERT(!scratch2.is(ip));

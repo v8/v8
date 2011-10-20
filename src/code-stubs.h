@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "globals.h"
+#include "codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +71,7 @@ namespace internal {
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
-  V(FastElementsConversion)
+  V(ElementsTransitionAndStore)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -1028,12 +1029,12 @@ class ToBooleanStub: public CodeStub {
 };
 
 
-class FastElementsConversionStub : public CodeStub {
+class ElementsTransitionAndStoreStub : public CodeStub {
  public:
-  FastElementsConversionStub(ElementsKind from,
-                             ElementsKind to,
-                             bool is_jsarray,
-                             StrictModeFlag strict_mode)
+  ElementsTransitionAndStoreStub(ElementsKind from,
+                                 ElementsKind to,
+                                 bool is_jsarray,
+                                 StrictModeFlag strict_mode)
       : from_(from),
         to_(to),
         is_jsarray_(is_jsarray),
@@ -1045,7 +1046,7 @@ class FastElementsConversionStub : public CodeStub {
   class IsJSArrayBits:  public BitField<bool,           16, 8> {};
   class StrictModeBits: public BitField<StrictModeFlag, 24, 8> {};
 
-  Major MajorKey() { return FastElementsConversion; }
+  Major MajorKey() { return ElementsTransitionAndStore; }
   int MinorKey() {
     return FromBits::encode(from_) |
         ToBits::encode(to_) |
@@ -1054,19 +1055,13 @@ class FastElementsConversionStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-  static void GenerateSmiOnlyToObject(MacroAssembler* masm,
-                                      StrictModeFlag strict_mode);
-  static void GenerateSmiOnlyToDouble(MacroAssembler* masm,
-                                      StrictModeFlag strict_mode);
-  static void GenerateDoubleToObject(MacroAssembler* masm,
-                                     StrictModeFlag strict_mode);
 
   ElementsKind from_;
   ElementsKind to_;
   bool is_jsarray_;
   StrictModeFlag strict_mode_;
 
-  DISALLOW_COPY_AND_ASSIGN(FastElementsConversionStub);
+  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
 };
 
 } }  // namespace v8::internal
