@@ -7666,6 +7666,8 @@ void Code::Relocate(intptr_t delta) {
 
 
 void Code::CopyFrom(const CodeDesc& desc) {
+  ASSERT(Marking::Color(this) == Marking::WHITE_OBJECT);
+
   // copy code
   memmove(instruction_start(), desc.buffer, desc.instr_size);
 
@@ -7685,16 +7687,17 @@ void Code::CopyFrom(const CodeDesc& desc) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(*p);
+      it.rinfo()->set_target_object(*p, SKIP_WRITE_BARRIER);
     } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
       Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
-      it.rinfo()->set_target_cell(*cell);
+      it.rinfo()->set_target_cell(*cell, SKIP_WRITE_BARRIER);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(code->instruction_start());
+      it.rinfo()->set_target_address(code->instruction_start(),
+                                     SKIP_WRITE_BARRIER);
     } else {
       it.rinfo()->apply(delta);
     }

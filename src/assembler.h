@@ -279,14 +279,17 @@ class RelocInfo BASE_EMBEDDED {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
   INLINE(Address target_address());
-  INLINE(void set_target_address(Address target));
+  INLINE(void set_target_address(Address target,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
-  INLINE(void set_target_object(Object* target));
+  INLINE(void set_target_object(Object* target,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
   INLINE(JSGlobalPropertyCell* target_cell());
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
-  INLINE(void set_target_cell(JSGlobalPropertyCell* cell));
+  INLINE(void set_target_cell(JSGlobalPropertyCell* cell,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
 
 
   // Read the address of the word containing the target_address in an
