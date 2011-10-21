@@ -194,7 +194,8 @@ class Context: public FixedArray {
     PREVIOUS_INDEX,
     // The extension slot is used for either the global object (in global
     // contexts), eval extension object (function contexts), subject of with
-    // (with contexts), or the variable name (catch contexts).
+    // (with contexts), or the variable name (catch contexts), the serialized
+    // scope info (block contexts).
     EXTENSION_INDEX,
     GLOBAL_INDEX,
     MIN_CONTEXT_SLOTS,

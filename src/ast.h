@@ -1617,8 +1617,6 @@ class FunctionLiteral: public Expression {
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
                   int num_parameters,
-                  int start_position,
-                  int end_position,
                   Type type,
                   bool has_duplicate_parameters)
       : Expression(isolate),
@@ -1631,8 +1629,6 @@ class FunctionLiteral: public Expression {
             has_only_simple_this_property_assignments),
         this_property_assignments_(this_property_assignments),
         num_parameters_(num_parameters),
-        start_position_(start_position),
-        end_position_(end_position),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
         is_expression_(type != DECLARATION),
@@ -1648,8 +1644,8 @@ class FunctionLiteral: public Expression {
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
-  int start_position() const { return start_position_; }
-  int end_position() const { return end_position_; }
+  int start_position() const;
+  int end_position() const;
   bool is_expression() const { return is_expression_; }
   bool is_anonymous() const { return is_anonymous_; }
   bool strict_mode() const;

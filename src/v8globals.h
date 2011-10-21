@@ -509,6 +509,16 @@ enum CallKind {
 };
 
 
+enum ScopeType {
+  EVAL_SCOPE,      // The top-level scope for an eval source.
+  FUNCTION_SCOPE,  // The top-level scope for a function.
+  GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+  CATCH_SCOPE,     // The scope introduced by catch.
+  BLOCK_SCOPE,     // The scope introduced by a new block.
+  WITH_SCOPE       // The scope introduced by with.
+};
+
+
 static const uint32_t kHoleNanUpper32 = 0x7FFFFFFF;
 static const uint32_t kHoleNanLower32 = 0xFFFFFFFF;
 static const uint32_t kNaNOrInfinityLowerBoundUpper32 = 0x7FF00000;

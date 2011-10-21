@@ -407,7 +407,7 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, Scope::Type type) {
+Scope* Parser::NewScope(Scope* parent, ScopeType type) {
   Scope* result = new(zone()) Scope(parent, type);
   result->Initialize();
   return result;
@@ -643,14 +643,13 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
   mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
   if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
 
-  Scope::Type type =
-    in_global_context
-      ? Scope::GLOBAL_SCOPE
-      : Scope::EVAL_SCOPE;
+  ScopeType type = in_global_context ? GLOBAL_SCOPE : EVAL_SCOPE;
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, type);
+    scope->set_start_position(0);
+    scope->set_end_position(source->length());
     LexicalScope lexical_scope(this, scope, isolate());
     if (strict_mode == kStrictMode) {
       top_scope_->EnableStrictMode();
@@ -678,8 +677,6 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           lexical_scope.only_simple_this_property_assignments(),
           lexical_scope.this_property_assignments(),
           0,
-          0,
-          source->length(),
           FunctionLiteral::ANONYMOUS_EXPRESSION,
           false);  // Does not have duplicate parameters.
     } else if (stack_overflow_) {
@@ -740,7 +737,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE);
+    Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
     if (!info->closure().is_null()) {
       scope = Scope::DeserializeScopeChain(info, scope);
     }
@@ -1595,13 +1592,14 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
 
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
-  Scope* block_scope = NewScope(top_scope_, Scope::BLOCK_SCOPE);
+  Scope* block_scope = NewScope(top_scope_, BLOCK_SCOPE);
   if (top_scope_->is_strict_mode()) {
     block_scope->EnableStrictMode();
   }
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK);
+  block_scope->set_start_position(scanner().location().beg_pos);
   { SaveScope save_scope(this, block_scope);
     TargetCollector collector;
     Target target(&this->target_stack_, &collector);
@@ -1617,7 +1615,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
-
+  block_scope->set_end_position(scanner().location().end_pos);
   block_scope = block_scope->FinalizeBlockScope();
   body->set_block_scope(block_scope);
   return body;
@@ -2114,10 +2112,12 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::RPAREN, CHECK_OK);
 
   top_scope_->DeclarationScope()->RecordWithStatement();
-  Scope* with_scope = NewScope(top_scope_, Scope::WITH_SCOPE);
+  Scope* with_scope = NewScope(top_scope_, WITH_SCOPE);
   Statement* stmt;
   { SaveScope save_scope(this, with_scope);
+    with_scope->set_start_position(scanner().peek_location().beg_pos);
     stmt = ParseStatement(labels, CHECK_OK);
+    with_scope->set_end_position(scanner().location().end_pos);
   }
   return new(zone()) WithStatement(expr, stmt);
 }
@@ -2243,6 +2243,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Consume(Token::CATCH);
 
     Expect(Token::LPAREN, CHECK_OK);
+    catch_scope = NewScope(top_scope_, CATCH_SCOPE);
+    if (top_scope_->is_strict_mode()) {
+      catch_scope->EnableStrictMode();
+    }
+    catch_scope->set_start_position(scanner().location().beg_pos);
     name = ParseIdentifier(CHECK_OK);
 
     if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
@@ -2255,10 +2260,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
-      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE);
-      if (top_scope_->is_strict_mode()) {
-        catch_scope->EnableStrictMode();
-      }
       VariableMode mode = harmony_scoping_ ? LET : VAR;
       catch_variable = catch_scope->DeclareLocal(name, mode);
 
@@ -2267,7 +2268,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }
-
+    catch_scope->set_end_position(scanner().location().end_pos);
     tok = peek();
   }
 
@@ -2375,7 +2376,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
   // Create an in-between scope for let-bound iteration variables.
   Scope* saved_scope = top_scope_;
-  Scope* for_scope = NewScope(top_scope_, Scope::BLOCK_SCOPE);
+  Scope* for_scope = NewScope(top_scope_, BLOCK_SCOPE);
   if (top_scope_->is_strict_mode()) {
     for_scope->EnableStrictMode();
   }
@@ -2383,6 +2384,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
+  for_scope->set_start_position(scanner().location().beg_pos);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       Handle<String> name;
@@ -2404,6 +2406,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         result->AddStatement(variable_statement);
         result->AddStatement(loop);
         top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
         ASSERT(for_scope == NULL);
         // Parsed for-in loop w/ variable/const declaration.
@@ -2460,6 +2463,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         body_block->AddStatement(body);
         loop->Initialize(temp_proxy, enumerable, body_block);
         top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
         body_block->set_block_scope(for_scope);
         // Parsed for-in loop w/ let declaration.
@@ -2490,6 +2494,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
         top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
         ASSERT(for_scope == NULL);
         // Parsed for-in loop.
@@ -2523,6 +2528,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
   Statement* body = ParseStatement(NULL, CHECK_OK);
   top_scope_ = saved_scope;
+  for_scope->set_end_position(scanner().location().end_pos);
   for_scope = for_scope->FinalizeBlockScope();
   if (for_scope != NULL) {
     // Rewrite a for statement of the form
@@ -3870,15 +3876,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION &&
-                  !harmony_scoping_)
-      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE)
-      : NewScope(top_scope_, Scope::FUNCTION_SCOPE);
+  Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
+      ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
+      : NewScope(top_scope_, FUNCTION_SCOPE);
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
   int materialized_literal_count;
   int expected_property_count;
-  int start_pos;
-  int end_pos;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
   bool has_duplicate_parameters = false;
@@ -3889,7 +3892,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
-    start_pos = scanner().location().beg_pos;
+    scope->set_start_position(scanner().location().beg_pos);
     Scanner::Location name_loc = Scanner::Location::invalid();
     Scanner::Location dupe_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
@@ -3964,15 +3967,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         // compile after all.
         is_lazily_compiled = false;
       } else {
-        end_pos = entry.end_pos();
-        if (end_pos <= function_block_pos) {
+        scope->set_end_position(entry.end_pos());
+        if (scope->end_position() <= function_block_pos) {
           // End position greater than end of stream is safe, and hard to check.
           ReportInvalidPreparseData(function_name, CHECK_OK);
         }
         isolate()->counters()->total_preparse_skipped()->Increment(
-            end_pos - function_block_pos);
+            scope->end_position() - function_block_pos);
         // Seek to position just before terminal '}'.
-        scanner().SeekForward(end_pos - 1);
+        scanner().SeekForward(scope->end_position() - 1);
         materialized_literal_count = entry.literal_count();
         expected_property_count = entry.property_count();
         if (entry.strict_mode()) top_scope_->EnableStrictMode();
@@ -3992,12 +3995,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       this_property_assignments = lexical_scope.this_property_assignments();
 
       Expect(Token::RBRACE, CHECK_OK);
-      end_pos = scanner().location().end_pos;
+      scope->set_end_position(scanner().location().end_pos);
     }
 
     // Validate strict mode.
     if (top_scope_->is_strict_mode()) {
       if (IsEvalOrArguments(function_name)) {
+        int start_pos = scope->start_position();
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -4020,6 +4024,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         return NULL;
       }
       if (name_is_strict_reserved) {
+        int start_pos = scope->start_position();
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -4035,7 +4040,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         *ok = false;
         return NULL;
       }
-      CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
+      CheckOctalLiteral(scope->start_position(),
+                        scope->end_position(),
+                        CHECK_OK);
     }
   }
 
@@ -4053,8 +4060,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                   only_simple_this_property_assignments,
                                   this_property_assignments,
                                   num_parameters,
-                                  start_pos,
-                                  end_pos,
                                   type,
                                   has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
