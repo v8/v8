@@ -787,9 +787,19 @@ void Deserializer::ReadChunk(Object** current,
             ASSIGN_DEST_SPACE(space_number)                                    \
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
+            if (source_space != CELL_SPACE &&                                  \
+                source_space != CODE_SPACE &&                                  \
+                source_space != OLD_DATA_SPACE) {                              \
+              emit_write_barrier = true;                                       \
+            }                                                                  \
             int root_id = source_->GetInt();                                   \
             new_object = isolate->heap()->roots_array_start()[root_id];        \
           } else if (where == kPartialSnapshotCache) {                         \
+            if (source_space != CELL_SPACE &&                                  \
+                source_space != CODE_SPACE &&                                  \
+                source_space != OLD_DATA_SPACE) {                              \
+              emit_write_barrier = true;                                       \
+            }                                                                  \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
                 [cache_index];                                                 \
@@ -924,24 +934,30 @@ void Deserializer::ReadChunk(Object** current,
       SIXTEEN_CASES(kRootArrayLowConstants)
       SIXTEEN_CASES(kRootArrayHighConstants) {
         int root_id = RootArrayConstantFromByteCode(data);
-        *current++ = isolate->heap()->roots_array_start()[root_id];
+        Object* object = isolate->heap()->roots_array_start()[root_id];
+        ASSERT(!isolate->heap()->InNewSpace(object));
+        *current++ = object;
         break;
       }
 
       case kRepeat: {
         int repeats = source_->GetInt();
         Object* object = current[-1];
+        ASSERT(!isolate->heap()->InNewSpace(object));
         for (int i = 0; i < repeats; i++) current[i] = object;
         current += repeats;
         break;
       }
 
+      STATIC_ASSERT(kRootArrayNumberOfConstantEncodings ==
+                    Heap::kOldSpaceRoots);
       STATIC_ASSERT(kMaxRepeats == 12);
       FOUR_CASES(kConstantRepeat)
       FOUR_CASES(kConstantRepeat + 4)
       FOUR_CASES(kConstantRepeat + 8) {
         int repeats = RepeatsForCode(data);
         Object* object = current[-1];
+        ASSERT(!isolate->heap()->InNewSpace(object));
         for (int i = 0; i < repeats; i++) current[i] = object;
         current += repeats;
         break;
@@ -1430,11 +1446,18 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
     if (current < end) OutputRawData(reinterpret_cast<Address>(current));
 
     while (current < end && !(*current)->IsSmi()) {
+      HeapObject* current_contents = HeapObject::cast(*current);
+      int root_index = serializer_->RootIndex(current_contents);
+      // Repeats are not subject to the write barrier so there are only some
+      // objects that can be used in a repeat encoding.  These are the early
+      // ones in the root array that are never in new space.
       if (current != start &&
-          current[0] == current[-1] &&
-          !HEAP->InNewSpace(*current)) {
+          root_index != kInvalidRootIndex &&
+          root_index < kRootArrayNumberOfConstantEncodings &&
+          current_contents == current[-1]) {
+        ASSERT(!HEAP->InNewSpace(current_contents));
         int repeat_count = 1;
-        while (current < end - 1 && current[repeat_count] == current[0]) {
+        while (current < end - 1 && current[repeat_count] == current_contents) {
           repeat_count++;
         }
         current += repeat_count;
@@ -1446,7 +1469,7 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
           sink_->Put(CodeForRepeats(repeat_count), "SerializeRepeats");
         }
       } else {
-        serializer_->SerializeObject(*current, kPlain, kStartOfObject);
+        serializer_->SerializeObject(current_contents, kPlain, kStartOfObject);
         bytes_processed_so_far_ += kPointerSize;
         current++;
       }

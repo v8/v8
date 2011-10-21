@@ -68,6 +68,7 @@ inline Heap* _inline_get_heap_();
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
+  V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -85,6 +86,9 @@ inline Heap* _inline_get_heap_();
   V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
+  /* The first 32 roots above this line should be boring from a GC point of */ \
+  /* view.  This means they are never in new space and never on a page that */ \
+  /* is being compacted.                                                    */ \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
@@ -93,7 +97,6 @@ inline Heap* _inline_get_heap_();
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(Object, termination_exception, TerminationException)                       \
   V(Map, string_map, StringMap)                                                \
-  V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, cons_string_map, ConsStringMap)                                       \
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
@@ -1419,6 +1422,9 @@ class Heap {
   // around a GC).
   inline void CompletelyClearInstanceofCache();
 
+  // The roots that have an index less than this are always in old space.
+  static const int kOldSpaceRoots = 0x20;
+
  private:
   Heap();
 
@@ -1475,6 +1481,9 @@ class Heap {
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   inline void set_##name(type* value) {                                        \
+    /* The deserializer makes use of the fact that these common roots are */   \
+    /* never in new space and never on a page that is being compacted.    */   \
+    ASSERT(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value));  \
     roots_[k##camel_name##RootIndex] = value;                                  \
   }
   ROOT_LIST(ROOT_ACCESSOR)
