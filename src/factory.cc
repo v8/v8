@@ -831,10 +831,13 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Number of descriptors added to the result so far.
   int descriptor_count = 0;
 
+  // Ensure that marking will not progress and change color of objects.
+  DescriptorArray::WhitenessWitness witness(*result);
+
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
     if (array->GetType(i) != NULL_DESCRIPTOR) {
-      result->CopyFrom(descriptor_count++, *array, i);
+      result->CopyFrom(descriptor_count++, *array, i, witness);
     }
   }
 
@@ -854,7 +857,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     if (result->LinearSearch(*key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Set(descriptor_count, &desc);
+      result->Set(descriptor_count, &desc, witness);
       descriptor_count++;
     } else {
       duplicates++;
@@ -868,13 +871,13 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(number_of_descriptors);
     for (int i = 0; i < number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i);
+      new_result->CopyFrom(i, *result, i, witness);
     }
     result = new_result;
   }
 
   // Sort the result before returning.
-  result->Sort();
+  result->Sort(witness);
   return result;
 }
 

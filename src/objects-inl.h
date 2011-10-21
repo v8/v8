@@ -1813,15 +1813,13 @@ void FixedArray::set(int index,
 }
 
 
-void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
+void FixedArray::NoWriteBarrierSet(FixedArray* array,
+                                   int index,
+                                   Object* value) {
   ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
-  array->GetHeap()->incremental_marking()->RecordWrite(
-      array,
-      HeapObject::RawField(array, kHeaderSize + index * kPointerSize),
-      value);
 }
 
 
@@ -1909,10 +1907,12 @@ void DescriptorArray::set_bit_field3_storage(int value) {
 }
 
 
-void DescriptorArray::fast_swap(FixedArray* array, int first, int second) {
+void DescriptorArray::NoWriteBarrierSwap(FixedArray* array,
+                                         int first,
+                                         int second) {
   Object* tmp = array->get(first);
-  fast_set(array, first, array->get(second));
-  fast_set(array, second, tmp);
+  NoWriteBarrierSet(array, first, array->get(second));
+  NoWriteBarrierSet(array, second, tmp);
 }
 
 
@@ -2020,7 +2020,9 @@ void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
+void DescriptorArray::Set(int descriptor_number,
+                          Descriptor* desc,
+                          const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
@@ -2028,26 +2030,53 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   ASSERT(!HEAP->InNewSpace(desc->GetKey()));
   ASSERT(!HEAP->InNewSpace(desc->GetValue()));
 
-  fast_set(this, ToKeyIndex(descriptor_number), desc->GetKey());
+  NoWriteBarrierSet(this,
+                    ToKeyIndex(descriptor_number),
+                    desc->GetKey());
   FixedArray* content_array = GetContentArray();
-  fast_set(content_array, ToValueIndex(descriptor_number), desc->GetValue());
-  fast_set(content_array, ToDetailsIndex(descriptor_number),
-           desc->GetDetails().AsSmi());
+  NoWriteBarrierSet(content_array,
+                    ToValueIndex(descriptor_number),
+                    desc->GetValue());
+  NoWriteBarrierSet(content_array,
+                    ToDetailsIndex(descriptor_number),
+                    desc->GetDetails().AsSmi());
 }
 
 
-void DescriptorArray::CopyFrom(int index, DescriptorArray* src, int src_index) {
+void DescriptorArray::CopyFrom(int index,
+                               DescriptorArray* src,
+                               int src_index,
+                               const WhitenessWitness& witness) {
   Descriptor desc;
   src->Get(src_index, &desc);
-  Set(index, &desc);
+  Set(index, &desc, witness);
 }
 
 
-void DescriptorArray::Swap(int first, int second) {
-  fast_swap(this, ToKeyIndex(first), ToKeyIndex(second));
+void DescriptorArray::NoWriteBarrierSwapDescriptors(int first, int second) {
+  NoWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
   FixedArray* content_array = GetContentArray();
-  fast_swap(content_array, ToValueIndex(first), ToValueIndex(second));
-  fast_swap(content_array, ToDetailsIndex(first),  ToDetailsIndex(second));
+  NoWriteBarrierSwap(content_array,
+                     ToValueIndex(first),
+                     ToValueIndex(second));
+  NoWriteBarrierSwap(content_array,
+                     ToDetailsIndex(first),
+                     ToDetailsIndex(second));
+}
+
+
+DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
+    : marking_(array->GetHeap()->incremental_marking()) {
+  marking_->EnterNoMarkingScope();
+  if (array->number_of_descriptors() > 0) {
+    ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
+    ASSERT(Marking::Color(array->GetContentArray()) == Marking::WHITE_OBJECT);
+  }
+}
+
+
+DescriptorArray::WhitenessWitness::~WhitenessWitness() {
+  marking_->LeaveNoMarkingScope();
 }
 
 
@@ -4461,7 +4490,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
   FixedArray::set(index, key, mode);
   FixedArray::set(index+1, value, mode);
-  FixedArray::fast_set(this, index+2, details.AsSmi());
+  FixedArray::set(index+2, details.AsSmi());
 }
 
 

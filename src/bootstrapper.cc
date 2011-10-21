@@ -376,26 +376,28 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+  DescriptorArray::WhitenessWitness witness(*descriptors);
+
   {  // Add length.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
     CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
-    descriptors->Set(0, &d);
+    descriptors->Set(0, &d, witness);
   }
   {  // Add name.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
     CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
-    descriptors->Set(1, &d);
+    descriptors->Set(1, &d, witness);
   }
   {  // Add arguments.
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionArguments);
     CallbacksDescriptor d(*factory()->arguments_symbol(), *foreign, attributes);
-    descriptors->Set(2, &d);
+    descriptors->Set(2, &d, witness);
   }
   {  // Add caller.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionCaller);
     CallbacksDescriptor d(*factory()->caller_symbol(), *foreign, attributes);
-    descriptors->Set(3, &d);
+    descriptors->Set(3, &d, witness);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
@@ -405,9 +407,9 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionPrototype);
     CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
-    descriptors->Set(4, &d);
+    descriptors->Set(4, &d, witness);
   }
-  descriptors->Sort();
+  descriptors->Sort(witness);
   return descriptors;
 }
 
@@ -525,25 +527,27 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE);
 
+  DescriptorArray::WhitenessWitness witness(*descriptors);
+
   {  // length
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
     CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
-    descriptors->Set(0, &d);
+    descriptors->Set(0, &d, witness);
   }
   {  // name
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
     CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
-    descriptors->Set(1, &d);
+    descriptors->Set(1, &d, witness);
   }
   {  // arguments
     CallbacksDescriptor d(*factory()->arguments_symbol(),
                           *arguments,
                           attributes);
-    descriptors->Set(2, &d);
+    descriptors->Set(2, &d, witness);
   }
   {  // caller
     CallbacksDescriptor d(*factory()->caller_symbol(), *caller, attributes);
-    descriptors->Set(3, &d);
+    descriptors->Set(3, &d, witness);
   }
 
   // prototype
@@ -554,10 +558,10 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionPrototype);
     CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
-    descriptors->Set(4, &d);
+    descriptors->Set(4, &d, witness);
   }
 
-  descriptors->Sort();
+  descriptors->Sort(witness);
   return descriptors;
 }
 
@@ -942,6 +946,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     ASSERT_EQ(0, initial_map->inobject_properties());
 
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(5);
+    DescriptorArray::WhitenessWitness witness(*descriptors);
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
     int enum_index = 0;
@@ -951,7 +956,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kSourceFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(0, &field);
+      descriptors->Set(0, &field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
@@ -959,7 +964,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kGlobalFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(1, &field);
+      descriptors->Set(1, &field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
@@ -967,7 +972,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kIgnoreCaseFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(2, &field);
+      descriptors->Set(2, &field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
@@ -975,7 +980,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kMultilineFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(3, &field);
+      descriptors->Set(3, &field, witness);
     }
     {
       // ECMA-262, section 15.10.7.5.
@@ -985,10 +990,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kLastIndexFieldIndex,
                             writable,
                             enum_index++);
-      descriptors->Set(4, &field);
+      descriptors->Set(4, &field, witness);
     }
     descriptors->SetNextEnumerationIndex(enum_index);
-    descriptors->Sort();
+    descriptors->Sort(witness);
 
     initial_map->set_inobject_properties(5);
     initial_map->set_pre_allocated_property_fields(5);
@@ -1125,19 +1130,20 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
+    DescriptorArray::WhitenessWitness witness(*descriptors);
     {  // length
       FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM);
-      descriptors->Set(0, &d);
+      descriptors->Set(0, &d, witness);
     }
     {  // callee
       CallbacksDescriptor d(*factory->callee_symbol(), *callee, attributes);
-      descriptors->Set(1, &d);
+      descriptors->Set(1, &d, witness);
     }
     {  // caller
       CallbacksDescriptor d(*factory->caller_symbol(), *caller, attributes);
-      descriptors->Set(2, &d);
+      descriptors->Set(2, &d, witness);
     }
-    descriptors->Sort();
+    descriptors->Sort(witness);
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
@@ -1696,7 +1702,9 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> reresult_descriptors =
         factory()->NewDescriptorArray(3);
 
-    reresult_descriptors->CopyFrom(0, *array_descriptors, 0);
+    DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
+
+    reresult_descriptors->CopyFrom(0, *array_descriptors, 0, witness);
 
     int enum_index = 0;
     {
@@ -1704,7 +1712,7 @@ bool Genesis::InstallNatives() {
                                   JSRegExpResult::kIndexIndex,
                                   NONE,
                                   enum_index++);
-      reresult_descriptors->Set(1, &index_field);
+      reresult_descriptors->Set(1, &index_field, witness);
     }
 
     {
@@ -1712,9 +1720,9 @@ bool Genesis::InstallNatives() {
                                   JSRegExpResult::kInputIndex,
                                   NONE,
                                   enum_index++);
-      reresult_descriptors->Set(2, &input_field);
+      reresult_descriptors->Set(2, &input_field, witness);
     }
-    reresult_descriptors->Sort();
+    reresult_descriptors->Sort(witness);
 
     initial_map->set_inobject_properties(2);
     initial_map->set_pre_allocated_property_fields(2);

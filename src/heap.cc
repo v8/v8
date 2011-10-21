@@ -3434,22 +3434,22 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       // Inline constructor can only handle inobject properties.
       fun->shared()->ForbidInlineConstructor();
     } else {
-      Object* descriptors_obj;
+      DescriptorArray* descriptors;
       { MaybeObject* maybe_descriptors_obj = DescriptorArray::Allocate(count);
-        if (!maybe_descriptors_obj->ToObject(&descriptors_obj)) {
+        if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
           return maybe_descriptors_obj;
         }
       }
-      DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
+      DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsSymbol());
         FieldDescriptor field(name, i, NONE);
         field.SetEnumerationIndex(i);
-        descriptors->Set(i, &field);
+        descriptors->Set(i, &field, witness);
       }
       descriptors->SetNextEnumerationIndex(count);
-      descriptors->SortUnchecked();
+      descriptors->SortUnchecked(witness);
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required

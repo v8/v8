@@ -5396,9 +5396,9 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
     if (IsEmpty()) return;  // Do nothing for empty descriptor array.
     FixedArray::cast(bridge_storage)->
       set(kEnumCacheBridgeCacheIndex, new_cache);
-    fast_set(FixedArray::cast(bridge_storage),
-             kEnumCacheBridgeEnumIndex,
-             get(kEnumerationIndexIndex));
+    NoWriteBarrierSet(FixedArray::cast(bridge_storage),
+                      kEnumCacheBridgeEnumIndex,
+                      get(kEnumerationIndexIndex));
     set(kEnumerationIndexIndex, bridge_storage);
   }
 }
@@ -5459,10 +5459,16 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
       ++new_size;
     }
   }
+
+  DescriptorArray* new_descriptors;
   { MaybeObject* maybe_result = Allocate(new_size);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->To<DescriptorArray>(&new_descriptors)) {
+      return maybe_result;
+    }
   }
-  DescriptorArray* new_descriptors = DescriptorArray::cast(result);
+
+  DescriptorArray::WhitenessWitness witness(new_descriptors);
+
   // Set the enumeration index in the descriptors and set the enumeration index
   // in the result.
   int enumeration_index = NextEnumerationIndex();
@@ -5490,16 +5496,16 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
     }
     if (IsNullDescriptor(from_index)) continue;
     if (remove_transitions && IsTransition(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index);
+    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
 
-  new_descriptors->Set(to_index++, descriptor);
+  new_descriptors->Set(to_index++, descriptor, witness);
   if (replacing) from_index++;
 
   for (; from_index < number_of_descriptors(); from_index++) {
     if (IsNullDescriptor(from_index)) continue;
     if (remove_transitions && IsTransition(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index);
+    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
 
   ASSERT(to_index == new_descriptors->number_of_descriptors());
@@ -5521,16 +5527,21 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   }
 
   // Allocate the new descriptor array.
-  Object* result;
+  DescriptorArray* new_descriptors;
   { MaybeObject* maybe_result = Allocate(number_of_descriptors() - num_removed);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->To<DescriptorArray>(&new_descriptors)) {
+      return maybe_result;
+    }
   }
-  DescriptorArray* new_descriptors = DescriptorArray::cast(result);
+
+  DescriptorArray::WhitenessWitness witness(new_descriptors);
 
   // Copy the content.
   int next_descriptor = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    if (IsProperty(i)) new_descriptors->CopyFrom(next_descriptor++, this, i);
+    if (IsProperty(i)) {
+      new_descriptors->CopyFrom(next_descriptor++, this, i, witness);
+    }
   }
   ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
 
@@ -5538,7 +5549,7 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
 }
 
 
-void DescriptorArray::SortUnchecked() {
+void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   // In-place heap sort.
   int len = number_of_descriptors();
 
@@ -5559,7 +5570,7 @@ void DescriptorArray::SortUnchecked() {
         }
       }
       if (child_hash <= parent_hash) break;
-      Swap(parent_index, child_index);
+      NoWriteBarrierSwapDescriptors(parent_index, child_index);
       // Now element at child_index could be < its children.
       parent_index = child_index;  // parent_hash remains correct.
     }
@@ -5568,8 +5579,8 @@ void DescriptorArray::SortUnchecked() {
   // Extract elements and create sorted array.
   for (int i = len - 1; i > 0; --i) {
     // Put max element at the back of the array.
-    Swap(0, i);
-    // Sift down the new top element.
+    NoWriteBarrierSwapDescriptors(0, i);
+    // Shift down the new top element.
     int parent_index = 0;
     const uint32_t parent_hash = GetKey(parent_index)->Hash();
     const int max_parent_index = (i / 2) - 1;
@@ -5584,15 +5595,15 @@ void DescriptorArray::SortUnchecked() {
         }
       }
       if (child_hash <= parent_hash) break;
-      Swap(parent_index, child_index);
+      NoWriteBarrierSwapDescriptors(parent_index, child_index);
       parent_index = child_index;
     }
   }
 }
 
 
-void DescriptorArray::Sort() {
-  SortUnchecked();
+void DescriptorArray::Sort(const WhitenessWitness& witness) {
+  SortUnchecked(witness);
   SLOW_ASSERT(IsSortedNoDuplicates());
 }
 
@@ -11709,8 +11720,8 @@ void CompilationCacheTable::Remove(Object* value) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
-      fast_set(this, entry_index, null_value);
-      fast_set(this, value_index, null_value);
+      NoWriteBarrierSet(this, entry_index, null_value);
+      NoWriteBarrierSet(this, value_index, null_value);
       ElementRemoved();
     }
   }
@@ -12182,14 +12193,15 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   }
 
   // Allocate the instance descriptor.
-  Object* descriptors_unchecked;
-  { MaybeObject* maybe_descriptors_unchecked =
+  DescriptorArray* descriptors;
+  { MaybeObject* maybe_descriptors =
         DescriptorArray::Allocate(instance_descriptor_length);
-    if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
-      return maybe_descriptors_unchecked;
+    if (!maybe_descriptors->To<DescriptorArray>(&descriptors)) {
+      return maybe_descriptors;
     }
   }
-  DescriptorArray* descriptors = DescriptorArray::cast(descriptors_unchecked);
+
+  DescriptorArray::WhitenessWitness witness(descriptors);
 
   int inobject_props = obj->map()->inobject_properties();
   int number_of_allocated_fields =
@@ -12227,7 +12239,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
                                      JSFunction::cast(value),
                                      details.attributes(),
                                      details.index());
-        descriptors->Set(next_descriptor++, &d);
+        descriptors->Set(next_descriptor++, &d, witness);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
           obj->InObjectPropertyAtPut(current_offset,
@@ -12241,13 +12253,13 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
                           current_offset++,
                           details.attributes(),
                           details.index());
-        descriptors->Set(next_descriptor++, &d);
+        descriptors->Set(next_descriptor++, &d, witness);
       } else if (type == CALLBACKS) {
         CallbacksDescriptor d(String::cast(key),
                               value,
                               details.attributes(),
                               details.index());
-        descriptors->Set(next_descriptor++, &d);
+        descriptors->Set(next_descriptor++, &d, witness);
       } else {
         UNREACHABLE();
       }
@@ -12255,7 +12267,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   }
   ASSERT(current_offset == number_of_fields);
 
-  descriptors->Sort();
+  descriptors->Sort(witness);
   // Allocate new map.
   Object* new_map;
   { MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();

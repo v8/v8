@@ -50,7 +50,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       steps_took_since_last_gc_(0),
       should_hurry_(false),
       allocation_marking_factor_(0),
-      allocated_(0) {
+      allocated_(0),
+      no_marking_scope_depth_(0) {
 }
 
 
@@ -701,6 +702,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   allocated_ += allocated_bytes;
 
   if (allocated_ < kAllocatedThreshold) return;
+
+  if (state_ == MARKING && no_marking_scope_depth_ > 0) return;
 
   intptr_t bytes_to_process = allocated_ * allocation_marking_factor_;
 

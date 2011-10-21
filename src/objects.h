@@ -40,6 +40,7 @@
 #endif
 #include "v8checks.h"
 
+
 //
 // Most object types in the V8 JavaScript are described in this file.
 //
@@ -2185,7 +2186,9 @@ class FixedArray: public FixedArrayBase {
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
-  static inline void fast_set(FixedArray* array, int index, Object* value);
+  static inline void NoWriteBarrierSet(FixedArray* array,
+                                       int index,
+                                       Object* value);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
@@ -2250,6 +2253,9 @@ class FixedDoubleArray: public FixedArrayBase {
 };
 
 
+class IncrementalMarking;
+
+
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
 // TODO(1399): It should be possible to make room for bit_field3 in the map
@@ -2291,7 +2297,7 @@ class DescriptorArray: public FixedArray {
   // Set next enumeration index and flush any enum cache.
   void SetNextEnumerationIndex(int value) {
     if (!IsEmpty()) {
-      fast_set(this, kEnumerationIndexIndex, Smi::FromInt(value));
+      set(kEnumerationIndexIndex, Smi::FromInt(value));
     }
   }
   bool HasEnumCache() {
@@ -2328,13 +2334,27 @@ class DescriptorArray: public FixedArray {
   inline bool IsNullDescriptor(int descriptor_number);
   inline bool IsDontEnum(int descriptor_number);
 
+  class WhitenessWitness {
+   public:
+    inline explicit WhitenessWitness(DescriptorArray* array);
+    inline ~WhitenessWitness();
+
+   private:
+    IncrementalMarking* marking_;
+  };
+
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
-  inline void Set(int descriptor_number, Descriptor* desc);
+  inline void Set(int descriptor_number,
+                  Descriptor* desc,
+                  const WhitenessWitness&);
 
   // Transfer complete descriptor from another descriptor array to
   // this one.
-  inline void CopyFrom(int index, DescriptorArray* src, int src_index);
+  inline void CopyFrom(int index,
+                       DescriptorArray* src,
+                       int src_index,
+                       const WhitenessWitness&);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -2351,11 +2371,11 @@ class DescriptorArray: public FixedArray {
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Does not check for duplicates.
-  void SortUnchecked();
+  void SortUnchecked(const WhitenessWitness&);
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Checks the result for duplicates.
-  void Sort();
+  void Sort(const WhitenessWitness&);
 
   // Search the instance descriptors for given name.
   inline int Search(String* name);
@@ -2448,10 +2468,12 @@ class DescriptorArray: public FixedArray {
         NULL_DESCRIPTOR;
   }
   // Swap operation on FixedArray without using write barriers.
-  static inline void fast_swap(FixedArray* array, int first, int second);
+  static inline void NoWriteBarrierSwap(FixedArray* array,
+                                        int first,
+                                        int second);
 
   // Swap descriptor first and second.
-  inline void Swap(int first, int second);
+  inline void NoWriteBarrierSwapDescriptors(int first, int second);
 
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));
@@ -2593,12 +2615,12 @@ class HashTable: public FixedArray {
 
   // Update the number of elements in the hash table.
   void SetNumberOfElements(int nof) {
-    fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
+    set(kNumberOfElementsIndex, Smi::FromInt(nof));
   }
 
   // Update the number of deleted elements in the hash table.
   void SetNumberOfDeletedElements(int nod) {
-    fast_set(this, kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
+    set(kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
   }
 
   // Sets the capacity of the hash table.
@@ -2608,7 +2630,7 @@ class HashTable: public FixedArray {
     // and non-zero.
     ASSERT(capacity > 0);
     ASSERT(capacity <= kMaxCapacity);
-    fast_set(this, kCapacityIndex, Smi::FromInt(capacity));
+    set(kCapacityIndex, Smi::FromInt(capacity));
   }
 
 
@@ -2816,7 +2838,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
-    this->fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
+    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
   int NextEnumerationIndex() {
