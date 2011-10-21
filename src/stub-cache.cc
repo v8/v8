@@ -542,8 +542,23 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 }
 
 
-MaybeObject* StubCache::ComputeKeyedLoadOrStoreElement(
-    JSObject* receiver,
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     (set_failure(NULL), CompileLoadElement(*map)),
+                     Code);
+}
+
+
+Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     (set_failure(NULL),
+                      CompileStoreElement(*map)),
+                      Code);
+}
+
+
+Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
+    Handle<JSObject> receiver,
     KeyedIC::StubKind stub_kind,
     StrictModeFlag strict_mode) {
   Code::Flags flags =
@@ -552,59 +567,89 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreElement(
                                      : Code::KEYED_STORE_IC,
           NORMAL,
           strict_mode);
-  String* name = NULL;
+  Handle<String> name;
   switch (stub_kind) {
     case KeyedIC::LOAD:
-      name = isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
+      name = isolate()->factory()->KeyedLoadElementMonomorphic_symbol();
       break;
     case KeyedIC::STORE_NO_TRANSITION:
-      name = isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
+      name = isolate()->factory()->KeyedStoreElementMonomorphic_symbol();
       break;
     default:
       UNREACHABLE();
       break;
   }
-  Object* maybe_code = receiver->map()->FindInCodeCache(name, flags);
-  if (!maybe_code->IsUndefined()) return Code::cast(maybe_code);
+  Handle<Map> receiver_map(receiver->map());
+  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  Map* receiver_map = receiver->map();
-  MaybeObject* maybe_new_code = NULL;
+  Handle<Code> code;
   switch (stub_kind) {
     case KeyedIC::LOAD: {
-      HandleScope scope(isolate_);
       KeyedLoadStubCompiler compiler(isolate_);
-      maybe_new_code = compiler.CompileLoadElement(receiver_map);
+      code = compiler.CompileLoadElement(receiver_map);
       break;
     }
     case KeyedIC::STORE_NO_TRANSITION: {
-      HandleScope scope(isolate_);
       KeyedStoreStubCompiler compiler(isolate_, strict_mode);
-      maybe_new_code = compiler.CompileStoreElement(receiver_map);
+      code = compiler.CompileStoreElement(receiver_map);
       break;
     }
     default:
       UNREACHABLE();
       break;
   }
-  Code* code = NULL;
-  if (!maybe_new_code->To(&code)) return maybe_new_code;
+
+  ASSERT(!code.is_null());
 
   if (stub_kind == KeyedIC::LOAD) {
-    PROFILE(isolate_,
-            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
-                            Code::cast(code), 0));
+    PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, 0));
   } else {
-    PROFILE(isolate_,
-            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
-                            Code::cast(code), 0));
+    PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, 0));
   }
-  ASSERT(code->IsCode());
-  Object* result;
-  { MaybeObject* maybe_result =
-        receiver->UpdateMapCodeCache(name, Code::cast(code));
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
+}
+
+
+Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_stubs) {
+  MapList raw_receiver_maps(receiver_maps->length());
+  CodeList raw_handler_stubs(handler_stubs->length());
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      (set_failure(NULL),
+       raw_receiver_maps.Clear(),
+       raw_handler_stubs.Clear(),
+       CompileLoadPolymorphic(UnwrapHandleList(&raw_receiver_maps,
+                                               receiver_maps),
+                              UnwrapHandleList(&raw_handler_stubs,
+                                               handler_stubs))),
+      Code);
+}
+
+
+Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_stubs,
+    MapHandleList* transitioned_maps) {
+  MapList raw_receiver_maps(receiver_maps->length());
+  CodeList raw_handler_stubs(handler_stubs->length());
+  MapList raw_transitioned_maps(transitioned_maps->length());
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      (set_failure(NULL),
+       raw_receiver_maps.Clear(),
+       raw_handler_stubs.Clear(),
+       raw_transitioned_maps.Clear(),
+       CompileStorePolymorphic(UnwrapHandleList(&raw_receiver_maps,
+                                                receiver_maps),
+                               UnwrapHandleList(&raw_handler_stubs,
+                                                handler_stubs),
+                               UnwrapHandleList(&raw_transitioned_maps,
+                                                transitioned_maps))),
+      Code);
 }
 
 

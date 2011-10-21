@@ -971,36 +971,30 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-MaybeObject* KeyedLoadIC::GetElementStubWithoutMapCheck(
+Handle<Code> KeyedLoadIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
     ElementsKind elements_kind) {
-  return KeyedLoadElementStub(elements_kind).TryGetCode();
+  return KeyedLoadElementStub(elements_kind).GetCode();
 }
 
 
-MaybeObject* KeyedLoadIC::ComputePolymorphicStub(
-    MapList* receiver_maps,
+Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
+    MapHandleList* receiver_maps,
     StrictModeFlag strict_mode) {
-  CodeList handler_ics(receiver_maps->length());
+  CodeHandleList handler_ics(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); ++i) {
-    Map* receiver_map(receiver_maps->at(i));
-    MaybeObject* maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
+    Handle<Map> receiver_map = receiver_maps->at(i);
+    Handle<Code> cached_stub = ComputeMonomorphicStubWithoutMapCheck(
         receiver_map, strict_mode);
-    Code* cached_stub;
-    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
     handler_ics.Add(cached_stub);
   }
-  Object* object;
-  HandleScope scope(isolate());
   KeyedLoadStubCompiler compiler(isolate());
-  MaybeObject* maybe_code = compiler.CompileLoadPolymorphic(receiver_maps,
-                                                            &handler_ics);
-  if (!maybe_code->ToObject(&object)) return maybe_code;
+  Handle<Code> code = compiler.CompileLoadPolymorphic(
+      receiver_maps, &handler_ics);
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
-  PROFILE(isolate(), CodeCreateEvent(
-      Logger::KEYED_LOAD_MEGAMORPHIC_IC_TAG,
-      Code::cast(object), 0));
-  return object;
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::KEYED_LOAD_MEGAMORPHIC_IC_TAG, *code, 0));
+  return code;
 }
 
 
@@ -1034,8 +1028,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
           name->Equals(isolate()->heap()->length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadStringLength(name,
-                                                                  string);
+            isolate()->stub_cache()->ComputeKeyedLoadStringLength(name, string);
         ASSERT(!code.is_null());
         set_target(*code);
         TRACE_IC("KeyedLoadIC", name, state, target());
@@ -1420,10 +1413,12 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-static bool AddOneReceiverMapIfMissing(MapList* receiver_maps,
-                                       Map* new_receiver_map) {
+static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
+                                       Handle<Map> new_receiver_map) {
+  ASSERT(!new_receiver_map.is_null());
   for (int current = 0; current < receiver_maps->length(); ++current) {
-    if (receiver_maps->at(current) == new_receiver_map) {
+    if (!receiver_maps->at(current).is_null() &&
+        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
       return false;
     }
   }
@@ -1432,22 +1427,23 @@ static bool AddOneReceiverMapIfMissing(MapList* receiver_maps,
 }
 
 
-void KeyedIC::GetReceiverMapsForStub(Code* stub, MapList* result) {
+void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
+                                     MapHandleList* result) {
   ASSERT(stub->is_inline_cache_stub());
-  if (!string_stub().is_null() && stub == *string_stub()) {
-    return result->Add(isolate()->heap()->string_map());
+  if (!string_stub().is_null() && stub.is_identical_to(string_stub())) {
+    return result->Add(isolate()->factory()->string_map());
   } else if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
     if (stub->ic_state() == MONOMORPHIC) {
-      result->Add(Map::cast(stub->FindFirstMap()));
+      result->Add(Handle<Map>(stub->FindFirstMap()));
     } else {
       ASSERT(stub->ic_state() == MEGAMORPHIC);
       AssertNoAllocation no_allocation;
       int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-      for (RelocIterator it(stub, mask); !it.done(); it.next()) {
+      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
         RelocInfo* info = it.rinfo();
-        Object* object = info->target_object();
+        Handle<Object> object(info->target_object());
         ASSERT(object->IsMap());
-        AddOneReceiverMapIfMissing(result, Map::cast(object));
+        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
       }
     }
   }
@@ -1458,33 +1454,13 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
                                   StubKind stub_kind,
                                   StrictModeFlag strict_mode,
                                   Handle<Code> generic_stub) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     ComputeStub(*receiver,
-                                 stub_kind,
-                                 strict_mode,
-                                 *generic_stub),
-                     Code);
-}
-
-
-
-MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
-                                  StubKind stub_kind,
-                                  StrictModeFlag strict_mode,
-                                  Code* generic_stub) {
   State ic_state = target()->ic_state();
   if ((ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) &&
       !IsTransitionStubKind(stub_kind)) {
-    Code* monomorphic_stub;
-    MaybeObject* maybe_stub = ComputeMonomorphicStub(receiver,
-                                                     stub_kind,
-                                                     strict_mode,
-                                                     generic_stub);
-    if (!maybe_stub->To(&monomorphic_stub)) return maybe_stub;
-
-    return monomorphic_stub;
+    return ComputeMonomorphicStub(
+        receiver, stub_kind, strict_mode, generic_stub);
   }
-  ASSERT(target() != generic_stub);
+  ASSERT(target() != *generic_stub);
 
   // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
   // via megamorphic stubs, since they don't have a map in their relocation info
@@ -1495,18 +1471,17 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
-  MapList target_receiver_maps;
+  MapHandleList target_receiver_maps;
+  Handle<Map> receiver_map(receiver->map());
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
-    target_receiver_maps.Add(receiver->map());
+    target_receiver_maps.Add(receiver_map);
   } else {
-    GetReceiverMapsForStub(target(), &target_receiver_maps);
+    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
   }
   bool map_added =
-      AddOneReceiverMapIfMissing(&target_receiver_maps, receiver->map());
+      AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
   if (IsTransitionStubKind(stub_kind)) {
-    MaybeObject* maybe_map = ComputeTransitionedMap(receiver, stub_kind);
-    Map* new_map = NULL;
-    if (!maybe_map->To(&new_map)) return maybe_map;
+    Handle<Map> new_map = ComputeTransitionedMap(receiver, stub_kind);
     map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps, new_map);
   }
   if (!map_added) {
@@ -1521,32 +1496,25 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
     return generic_stub;
   }
 
-  PolymorphicCodeCache* cache = isolate()->heap()->polymorphic_code_cache();
-  Code::Flags flags = Code::ComputeFlags(this->kind(),
-                                         MEGAMORPHIC,
-                                         strict_mode);
-  Object* maybe_cached_stub = cache->Lookup(&target_receiver_maps, flags);
-  // If there is a cached stub, use it.
-  if (!maybe_cached_stub->IsUndefined()) {
-    ASSERT(maybe_cached_stub->IsCode());
-    return Code::cast(maybe_cached_stub);
-  }
-  MaybeObject* maybe_stub =
+  Handle<PolymorphicCodeCache> cache =
+      isolate()->factory()->polymorphic_code_cache();
+  Code::Flags flags = Code::ComputeFlags(kind(), MEGAMORPHIC, strict_mode);
+  Handle<Object> probe = cache->Lookup(&target_receiver_maps, flags);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  Handle<Code> stub =
       ComputePolymorphicStub(&target_receiver_maps, strict_mode);
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  MaybeObject* maybe_update = cache->Update(&target_receiver_maps, flags, stub);
-  if (maybe_update->IsFailure()) return maybe_update;
+  PolymorphicCodeCache::Update(cache, &target_receiver_maps, flags, stub);
   return stub;
 }
 
 
-MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
-    Map* receiver_map,
+Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
+    Handle<Map> receiver_map,
     StrictModeFlag strict_mode) {
   if ((receiver_map->instance_type() & kNotStringTag) == 0) {
     ASSERT(!string_stub().is_null());
-    return *string_stub();
+    return string_stub();
   } else {
     ASSERT(receiver_map->has_dictionary_elements() ||
            receiver_map->has_fast_elements() ||
@@ -1560,85 +1528,78 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
 }
 
 
-MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
+Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<JSObject> receiver,
                                              StubKind stub_kind,
                                              StrictModeFlag strict_mode,
-                                             Code* generic_stub) {
-  Code* result = NULL;
+                                             Handle<Code> generic_stub) {
   if (receiver->HasFastElements() ||
       receiver->HasFastSmiOnlyElements() ||
       receiver->HasExternalArrayElements() ||
       receiver->HasFastDoubleElements() ||
       receiver->HasDictionaryElements()) {
-    MaybeObject* maybe_stub =
-        isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
-            receiver, stub_kind, strict_mode);
-    if (!maybe_stub->To(&result)) return maybe_stub;
+    return isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
+        receiver, stub_kind, strict_mode);
   } else {
-    result = generic_stub;
+    return generic_stub;
   }
-  return result;
 }
 
 
-MaybeObject* KeyedIC::ComputeTransitionedMap(JSObject* receiver,
-                                             StubKind stub_kind) {
+Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
+                                            StubKind stub_kind) {
   switch (stub_kind) {
     case KeyedIC::STORE_TRANSITION_SMI_TO_OBJECT:
     case KeyedIC::STORE_TRANSITION_DOUBLE_TO_OBJECT:
-      return receiver->GetElementsTransitionMap(FAST_ELEMENTS);
+      return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
+      break;
     case KeyedIC::STORE_TRANSITION_SMI_TO_DOUBLE:
-      return receiver->GetElementsTransitionMap(FAST_DOUBLE_ELEMENTS);
+      return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
+      break;
     default:
       UNREACHABLE();
-      return NULL;
+      return Handle<Map>::null();
   }
 }
 
 
-MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
+Handle<Code> KeyedStoreIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
     ElementsKind elements_kind) {
-  return KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
+  return KeyedStoreElementStub(is_js_array, elements_kind).GetCode();
 }
 
 
-MaybeObject* KeyedStoreIC::ComputePolymorphicStub(
-    MapList* receiver_maps,
-    StrictModeFlag strict_mode) {
+Handle<Code> KeyedStoreIC::ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                                  StrictModeFlag strict_mode) {
   // Collect MONOMORPHIC stubs for all target_receiver_maps.
-  CodeList handler_ics(receiver_maps->length());
-  MapList transitioned_maps(receiver_maps->length());
+  CodeHandleList handler_ics(receiver_maps->length());
+  MapHandleList transitioned_maps(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); ++i) {
-    Map* receiver_map(receiver_maps->at(i));
-    MaybeObject* maybe_cached_stub = NULL;
-    Map* transitioned_map = receiver_map->FindTransitionedMap(receiver_maps);
-    if (transitioned_map != NULL) {
-      maybe_cached_stub = ElementsTransitionAndStoreStub(
+    Handle<Map> receiver_map(receiver_maps->at(i));
+    Handle<Code> cached_stub;
+    Handle<Map> transitioned_map =
+        receiver_map->FindTransitionedMap(receiver_maps);
+    if (!transitioned_map.is_null()) {
+      cached_stub = ElementsTransitionAndStoreStub(
           receiver_map->elements_kind(),  // original elements_kind
           transitioned_map->elements_kind(),
           receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
-          strict_mode).TryGetCode();
+          strict_mode).GetCode();
     } else {
-      maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-          receiver_map, strict_mode);
+      cached_stub = ComputeMonomorphicStubWithoutMapCheck(receiver_map,
+                                                          strict_mode);
     }
-    Code* cached_stub;
-    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
+    ASSERT(!cached_stub.is_null());
     handler_ics.Add(cached_stub);
     transitioned_maps.Add(transitioned_map);
   }
-  Object* object;
-  HandleScope scope(isolate());
   KeyedStoreStubCompiler compiler(isolate(), strict_mode);
-  MaybeObject* maybe_code = compiler.CompileStorePolymorphic(
+  Handle<Code> code = compiler.CompileStorePolymorphic(
       receiver_maps, &handler_ics, &transitioned_maps);
-  if (!maybe_code->ToObject(&object)) return maybe_code;
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
-  PROFILE(isolate(), CodeCreateEvent(
-      Logger::KEYED_STORE_MEGAMORPHIC_IC_TAG,
-      Code::cast(object), 0));
-  return object;
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::KEYED_STORE_MEGAMORPHIC_IC_TAG, *code, 0));
+  return code;
 }
 
 

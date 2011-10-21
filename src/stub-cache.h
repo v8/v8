@@ -168,10 +168,9 @@ class StubCache {
                                       Handle<Map> transition,
                                       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreElement(
-      JSObject* receiver,
-      KeyedIC::StubKind stub_kind,
-      StrictModeFlag strict_mode);
+  Handle<Code> ComputeKeyedLoadOrStoreElement(Handle<JSObject> receiver,
+                                              KeyedIC::StubKind stub_kind,
+                                              StrictModeFlag strict_mode);
 
   // ---
 
@@ -687,7 +686,12 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
+  Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
+
   MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);
+
+  Handle<Code> CompileLoadPolymorphic(MapHandleList* receiver_maps,
+                                      CodeHandleList* handler_ics);
 
   MUST_USE_RESULT MaybeObject* CompileLoadPolymorphic(
       MapList* receiver_maps,
@@ -769,7 +773,13 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  Map* transition,
                                                  String* name);
 
+  Handle<Code> CompileStoreElement(Handle<Map> receiver_map);
+
   MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
+
+  Handle<Code> CompileStorePolymorphic(MapHandleList* receiver_maps,
+                                       CodeHandleList* handler_stubs,
+                                       MapHandleList* transitioned_maps);
 
   MUST_USE_RESULT MaybeObject* CompileStorePolymorphic(
       MapList* receiver_maps,

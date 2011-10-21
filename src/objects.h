@@ -1800,6 +1800,8 @@ class JSObject: public JSReceiver {
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
+  static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
+                                              ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
       ElementsKind elements_kind);
 
@@ -4355,9 +4357,11 @@ class Map: public HeapObject {
                                      Map* transitioned_map);
 
   // Returns the transitioned map for this map with the most generic
-  // elements_kind that's found in |candidates|, or NULL if no match is
+  // elements_kind that's found in |candidates|, or null handle if no match is
   // found at all.
+  Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
+
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -5859,9 +5863,18 @@ class PolymorphicCodeCache: public Struct {
  public:
   DECL_ACCESSORS(cache, Object)
 
+  static void Update(Handle<PolymorphicCodeCache> cache,
+                     MapHandleList* maps,
+                     Code::Flags flags,
+                     Handle<Code> code);
+
   MUST_USE_RESULT MaybeObject* Update(MapList* maps,
                                       Code::Flags flags,
                                       Code* code);
+
+  // Returns an undefined value if the entry is not found.
+  Handle<Object> Lookup(MapHandleList* maps, Code::Flags flags);
+
   Object* Lookup(MapList* maps, Code::Flags flags);
 
   static inline PolymorphicCodeCache* cast(Object* obj);

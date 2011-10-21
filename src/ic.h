@@ -365,7 +365,7 @@ class KeyedIC: public IC {
   explicit KeyedIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {}
   virtual ~KeyedIC() {}
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind) = 0;
 
@@ -381,27 +381,23 @@ class KeyedIC: public IC {
                            StrictModeFlag strict_mode,
                            Handle<Code> default_stub);
 
-  MaybeObject* ComputeStub(JSObject* receiver,
-                           StubKind stub_kind,
-                           StrictModeFlag strict_mode,
-                           Code* default_stub);
-
-  virtual MaybeObject* ComputePolymorphicStub(MapList* receiver_maps,
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
                                               StrictModeFlag strict_mode) = 0;
 
-  MaybeObject* ComputeMonomorphicStubWithoutMapCheck(
-      Map* receiver_map,
+  Handle<Code> ComputeMonomorphicStubWithoutMapCheck(
+      Handle<Map> receiver_map,
       StrictModeFlag strict_mode);
 
  private:
-  void GetReceiverMapsForStub(Code* stub, MapList* result);
+  void GetReceiverMapsForStub(Handle<Code> stub, MapHandleList* result);
 
-  MaybeObject* ComputeMonomorphicStub(JSObject* receiver,
+  Handle<Code> ComputeMonomorphicStub(Handle<JSObject> receiver,
                                       StubKind stub_kind,
                                       StrictModeFlag strict_mode,
-                                      Code* default_stub);
+                                      Handle<Code> default_stub);
 
-  MaybeObject* ComputeTransitionedMap(JSObject* receiver, StubKind stub_kind);
+  Handle<Map> ComputeTransitionedMap(Handle<JSObject> receiver,
+                                     StubKind stub_kind);
 
   static bool IsTransitionStubKind(StubKind stub_kind) {
     return stub_kind > STORE_NO_TRANSITION;
@@ -441,16 +437,15 @@ class KeyedLoadIC: public KeyedIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
-  virtual MaybeObject* ComputePolymorphicStub(
-      MapList* receiver_maps,
-      StrictModeFlag strict_mode);
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                              StrictModeFlag strict_mode);
 
   virtual Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
@@ -585,16 +580,15 @@ class KeyedStoreIC: public KeyedIC {
   static void GenerateTransitionElementsSmiToDouble(MacroAssembler* masm);
   static void GenerateTransitionElementsDoubleToObject(MacroAssembler* masm);
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual MaybeObject* ComputePolymorphicStub(
-      MapList* receiver_maps,
-      StrictModeFlag strict_mode);
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                              StrictModeFlag strict_mode);
 
   private:
   // Update the inline cache.

@@ -2190,6 +2190,14 @@ static bool ContainsMap(MapList* maps_list, Map* map) {
 }
 
 
+Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
+  MapList raw_candidates(candidates->length());
+  Map* result = FindTransitionedMap(UnwrapHandleList(&raw_candidates,
+                                                     candidates));
+  return (result == NULL) ? Handle<Map>::null() : Handle<Map>(result);
+}
+
+
 Map* Map::FindTransitionedMap(MapList* candidates) {
   ElementsKind elms_kind = elements_kind();
   if (elms_kind == FAST_DOUBLE_ELEMENTS) {
@@ -2394,6 +2402,15 @@ MaybeObject* Map::AddElementsTransition(ElementsKind elements_kind,
   }
   set_instance_descriptors(DescriptorArray::cast(new_descriptors));
   return this;
+}
+
+
+Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
+                                               ElementsKind to_kind) {
+  Isolate* isolate = object->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     object->GetElementsTransitionMap(to_kind),
+                     Map);
 }
 
 
@@ -5124,6 +5141,19 @@ void CodeCacheHashTable::RemoveByIndex(int index) {
 }
 
 
+void PolymorphicCodeCache::Update(Handle<PolymorphicCodeCache> cache,
+                                  MapHandleList* maps,
+                                  Code::Flags flags,
+                                  Handle<Code> code) {
+  Isolate* isolate = cache->GetIsolate();
+  List<Map*> raw_maps(maps->length());
+  CALL_HEAP_FUNCTION_VOID(
+      isolate,
+      (raw_maps.Clear(),
+       cache->Update(UnwrapHandleList(&raw_maps, maps), flags, *code)));
+}
+
+
 MaybeObject* PolymorphicCodeCache::Update(MapList* maps,
                                           Code::Flags flags,
                                           Code* code) {
@@ -5149,6 +5179,13 @@ MaybeObject* PolymorphicCodeCache::Update(MapList* maps,
   }
   set_cache(new_cache);
   return this;
+}
+
+
+Handle<Object> PolymorphicCodeCache::Lookup(MapHandleList* maps,
+                                            Code::Flags flags) {
+  List<Map*> raw_maps(maps->length());
+  return Handle<Object>(Lookup(UnwrapHandleList(&raw_maps, maps), flags));
 }
 
 

@@ -236,6 +236,19 @@ int SortedListBSearch(const List<T>& list, T elem) {
   return SortedListBSearch<T>(list, elem, PointerValueCompare<T>);
 }
 
+
+template <class T>
+List<T*>* UnwrapHandleList(List<T*>* destination, List<Handle<T> >* source) {
+  ASSERT(destination->is_empty());
+  int length = source->length();
+  for (int i = 0; i < length; ++i) {
+    Handle<T> handle = source->at(i);
+    destination->Add(handle.is_null() ? NULL : *handle);
+  }
+  return destination;
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_LIST_INL_H_
