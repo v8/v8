@@ -1951,6 +1951,10 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(obj, entry, 1, cs->first());
       SetInternalReference(obj, entry, 2, cs->second());
     }
+    if (obj->IsSlicedString()) {
+      SlicedString* ss = SlicedString::cast(obj);
+      SetInternalReference(obj, entry, "parent", ss->parent());
+    }
     extract_indexed_refs = false;
   } else if (obj->IsGlobalContext()) {
     Context* context = Context::cast(obj);
