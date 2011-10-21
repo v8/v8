@@ -1640,7 +1640,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ bind(&with_write_barrier);
 
       __ lw(t2, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(t2, t2, &call_builtin);
+      __ CheckFastObjectElements(t2, t2, &call_builtin);
 
       // Save new length.
       __ sw(v0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -3293,8 +3293,8 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
       __ Jump(code, RelocInfo::CODE_TARGET, eq, a3, Operand(map));
     } else {
       Label next_map;
-      __ Branch(&next_map, eq, a3, Operand(map));
-      __ li(t0, Operand(Handle<Map>(transitioned_maps->at(i))));
+      __ Branch(&next_map, ne, a3, Operand(map));
+      __ li(a3, Operand(Handle<Map>(transitioned_maps->at(i))));
       __ Jump(code, RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }

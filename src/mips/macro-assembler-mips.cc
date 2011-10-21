@@ -2873,6 +2873,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
+  ASSERT(!object_size.is(t9));
   ASSERT(!scratch1.is(t9) && !scratch2.is(t9) && !result.is(t9));
 
   // Check relative positions of allocation top and limit addresses.
