@@ -969,10 +969,10 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
 }
 
 
-static void GenerateCallMiss(MacroAssembler* masm,
-                             int argc,
-                             IC::UtilityId id,
-                             Code::ExtraICState extra_ic_state) {
+void CallICBase::GenerateMiss(MacroAssembler* masm,
+                              int argc,
+                              IC::UtilityId id,
+                              Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -1029,7 +1029,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   }
 
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   ParameterCount actual(argc);
@@ -1071,21 +1071,6 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   GenerateCallNormal(masm, argc);
   GenerateMiss(masm, argc, Code::kNoExtraICState);
-}
-
-
-void CallIC::GenerateMiss(MacroAssembler* masm,
-                          int argc,
-                          Code::ExtraICState extra_ic_state) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kCallIC_Miss, extra_ic_state);
 }
 
 
@@ -1256,19 +1241,6 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   GenerateCallNormal(masm, argc);
   __ bind(&miss);
   GenerateMiss(masm, argc);
-}
-
-
-void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss, Code::kNoExtraICState);
 }
 
 

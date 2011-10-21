@@ -198,11 +198,6 @@ class CallICBase: public IC {
   class Contextual: public BitField<bool, 0, 1> {};
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
 
- protected:
-  CallICBase(Code::Kind kind, Isolate* isolate)
-      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
-
- public:
   // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(State state,
                                             Code::ExtraICState extra_ic_state,
@@ -210,7 +205,8 @@ class CallICBase: public IC {
                                             Handle<String> name);
 
  protected:
-  Code::Kind kind_;
+  CallICBase(Code::Kind kind, Isolate* isolate)
+      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
 
   bool TryUpdateExtraICState(LookupResult* lookup,
                              Handle<Object> object,
@@ -240,6 +236,14 @@ class CallICBase: public IC {
 
   static void Clear(Address address, Code* target);
 
+  // Platform-specific generation of misses for call and keyed call.
+  static void GenerateMiss(MacroAssembler* masm,
+                           int argc,
+                           IC::UtilityId id,
+                           Code::ExtraICState extra_state);
+
+  Code::Kind kind_;
+
   friend class IC;
 };
 
@@ -253,15 +257,20 @@ class CallIC: public CallICBase {
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm,
                                  int argc,
-                                 Code::ExtraICState extra_ic_state) {
-    GenerateMiss(masm, argc, extra_ic_state);
+                                 Code::ExtraICState extra_state) {
+    GenerateMiss(masm, argc, extra_state);
   }
+
   static void GenerateMiss(MacroAssembler* masm,
                            int argc,
-                           Code::ExtraICState extra_ic_state);
+                           Code::ExtraICState extra_state) {
+    CallICBase::GenerateMiss(masm, argc, IC::kCallIC_Miss, extra_state);
+  }
+
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   int argc,
                                   Code::ExtraICState extra_ic_state);
+
   static void GenerateNormal(MacroAssembler* masm, int argc);
 };
 
@@ -281,7 +290,12 @@ class KeyedCallIC: public CallICBase {
   static void GenerateInitialize(MacroAssembler* masm, int argc) {
     GenerateMiss(masm, argc);
   }
-  static void GenerateMiss(MacroAssembler* masm, int argc);
+
+  static void GenerateMiss(MacroAssembler* masm, int argc) {
+    CallICBase::GenerateMiss(masm, argc, IC::kKeyedCallIC_Miss,
+                             Code::kNoExtraICState);
+  }
+
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
   static void GenerateNonStrictArguments(MacroAssembler* masm, int argc);
