@@ -3616,24 +3616,16 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  ASSERT(function->is_compiled());
-
   // Get the function and setup the context.
   li(a1, Operand(Handle<JSFunction>(function)));
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
-  // Invoke the cached code.
-  Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-    InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
-  } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
 }
 
 
