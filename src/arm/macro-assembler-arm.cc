@@ -3151,8 +3151,10 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
-  mov(zeros, Operand(0, RelocInfo::NONE));
+  // Order of the next two lines is important: zeros register
+  // can be the same as source register.
   Move(scratch, source);
+  mov(zeros, Operand(0, RelocInfo::NONE));
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);
