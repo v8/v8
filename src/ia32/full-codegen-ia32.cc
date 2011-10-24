@@ -2832,9 +2832,10 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(1, ebx);
-  __ mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()),
-                   1);
+  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ mov(eax, FieldOperand(eax, GlobalObject::kGlobalContextOffset));
+  __ mov(Operand(esp, 0), eax);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:

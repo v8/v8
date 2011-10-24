@@ -1227,6 +1227,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   // Initialize the data slot.
   global_context()->set_data(heap->undefined_value());
+
+  {
+    // Initialize the random seed slot.
+    Handle<ByteArray> zeroed_byte_array(
+        factory->NewByteArray(kRandomStateSize));
+    global_context()->set_random_seed(*zeroed_byte_array);
+    memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
+  }
 }
 
 

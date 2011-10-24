@@ -2706,9 +2706,12 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(1);
 #ifdef _WIN64
-  __ LoadAddress(rcx, ExternalReference::isolate_address());
+  __ movq(rcx, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalContextOffset));
+
 #else
-  __ LoadAddress(rdi, ExternalReference::isolate_address());
+  __ movq(rdi, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
 #endif
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 

@@ -4105,8 +4105,9 @@ Persistent<Context> v8::Context::New(
   }
   // Leave V8.
 
-  if (env.is_null())
+  if (env.is_null()) {
     return Persistent<Context>();
+  }
   return Persistent<Context>(Utils::ToLocal(env));
 }
 

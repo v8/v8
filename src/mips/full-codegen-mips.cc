@@ -2850,7 +2850,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   if (CpuFeatures::IsSupported(FPU)) {
     __ PrepareCallCFunction(1, a0);
-    __ li(a0, Operand(ExternalReference::isolate_address()));
+    __ lw(a0, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ lw(a0, FieldOperand(a0, GlobalObject::kGlobalContextOffset));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
 
@@ -2868,7 +2869,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   } else {
     __ PrepareCallCFunction(2, a0);
     __ mov(a0, s0);
-    __ li(a1, Operand(ExternalReference::isolate_address()));
+    __ lw(a1, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ lw(a1, FieldOperand(a1, GlobalObject::kGlobalContextOffset));
     __ CallCFunction(
         ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
   }

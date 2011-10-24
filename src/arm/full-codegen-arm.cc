@@ -2828,7 +2828,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   if (CpuFeatures::IsSupported(VFP3)) {
     __ PrepareCallCFunction(1, r0);
-    __ mov(r0, Operand(ExternalReference::isolate_address()));
+    __ ldr(r0, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalContextOffset));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
     CpuFeatures::Scope scope(VFP3);
@@ -2848,8 +2849,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ mov(r0, r4);
   } else {
     __ PrepareCallCFunction(2, r0);
+    __ ldr(r1, ContextOperand(context_register(), Context::GLOBAL_INDEX));
     __ mov(r0, Operand(r4));
-    __ mov(r1, Operand(ExternalReference::isolate_address()));
+    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
     __ CallCFunction(
         ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
   }
