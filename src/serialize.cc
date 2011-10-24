@@ -757,7 +757,7 @@ static const int kUnknownOffsetFromStart = -1;
 void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
-                             Address address) {
+                             Address current_object_address) {
   Isolate* const isolate = isolate_;
   while (current < limit) {
     int data = source_->Get();
@@ -845,9 +845,11 @@ void Deserializer::ReadChunk(Object** current,
             *current = new_object;                                             \
           }                                                                    \
         }                                                                      \
-        if (emit_write_barrier) {                                              \
-          isolate->heap()->RecordWrite(address, static_cast<int>(              \
-              reinterpret_cast<Address>(current) - address));                  \
+        if (emit_write_barrier && current_object_address != NULL) {            \
+          Address current_address = reinterpret_cast<Address>(current);        \
+          isolate->heap()->RecordWrite(                                        \
+              current_object_address,                                          \
+              static_cast<int>(current_address - current_object_address));     \
         }                                                                      \
         if (!current_was_incremented) {                                        \
           current++;   /* Increment current if it wasn't done above. */        \
