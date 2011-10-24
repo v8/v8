@@ -1466,14 +1466,6 @@ Handle<Code> StubCompiler::CompileCallInitialize(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallPreMonomorphic(flags)),
-                     Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallPreMonomorphic(Code::Flags flags) {
-  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   // The code of the PreMonomorphic stub is the same as the code
   // of the Initialized stub.  They just differ on the code object flags.
@@ -1484,31 +1476,17 @@ MaybeObject* StubCompiler::TryCompileCallPreMonomorphic(Code::Flags flags) {
   } else {
     KeyedCallIC::GenerateInitialize(masm(), argc);
   }
-  Object* result;
-  { MaybeObject* maybe_result =
-        TryGetCodeWithFlags(flags, "CompileCallPreMonomorphic");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
   isolate()->counters()->call_premonomorphic_stubs()->Increment();
-  Code* code = Code::cast(result);
-  USE(code);
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
-                          code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, Code::cast(code)));
-  return result;
+                          *code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, *code));
+  return code;
 }
 
 
 Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallNormal(flags)),
-                     Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallNormal(Code::Flags flags) {
-  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1519,18 +1497,13 @@ MaybeObject* StubCompiler::TryCompileCallNormal(Code::Flags flags) {
   } else {
     KeyedCallIC::GenerateNormal(masm(), argc);
   }
-  Object* result;
-  { MaybeObject* maybe_result = TryGetCodeWithFlags(flags, "CompileCallNormal");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallNormal");
   isolate()->counters()->call_normal_stubs()->Increment();
-  Code* code = Code::cast(result);
-  USE(code);
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
-                          code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, Code::cast(code)));
-  return result;
+                          *code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, *code));
+  return code;
 }
 
 
@@ -1595,12 +1568,26 @@ MaybeObject* StubCompiler::TryCompileCallArguments(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileCallMiss(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallMiss(flags)),
-                     Code);
+  int argc = Code::ExtractArgumentsCountFromFlags(flags);
+  Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Code::ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
+  if (kind == Code::CALL_IC) {
+    CallIC::GenerateMiss(masm(), argc, extra_state);
+  } else {
+    KeyedCallIC::GenerateMiss(masm(), argc);
+  }
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallMiss");
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
+                          *code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, *code));
+  return code;
 }
 
 
+// TODO(kmillikin): This annoying raw pointer implementation should be
+// eliminated when the stub compiler no longer needs it.
 MaybeObject* StubCompiler::TryCompileCallMiss(Code::Flags flags) {
   HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);

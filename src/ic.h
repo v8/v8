@@ -236,11 +236,14 @@ class CallICBase: public IC {
 
   static void Clear(Address address, Code* target);
 
-  // Platform-specific generation of misses for call and keyed call.
+  // Platform-specific code generation functions used by both call and
+  // keyed call.
   static void GenerateMiss(MacroAssembler* masm,
                            int argc,
                            IC::UtilityId id,
                            Code::ExtraICState extra_state);
+
+  static void GenerateNormal(MacroAssembler* masm, int argc);
 
   Code::Kind kind_;
 
@@ -271,7 +274,10 @@ class CallIC: public CallICBase {
                                   int argc,
                                   Code::ExtraICState extra_ic_state);
 
-  static void GenerateNormal(MacroAssembler* masm, int argc);
+  static void GenerateNormal(MacroAssembler* masm, int argc) {
+    CallICBase::GenerateNormal(masm, argc);
+    GenerateMiss(masm, argc, Code::kNoExtraICState);
+  }
 };
 
 

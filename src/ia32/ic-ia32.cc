@@ -944,8 +944,9 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
                     NullCallWrapper(), CALL_AS_METHOD);
 }
 
+
 // The generated code falls through if the call should be handled by runtime.
-static void GenerateCallNormal(MacroAssembler* masm, int argc) {
+void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -1057,20 +1058,6 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
   GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, extra_ic_state);
 
   GenerateMiss(masm, argc, extra_ic_state);
-}
-
-
-void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- ecx                 : name
-  //  -- esp[0]              : return address
-  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
-  //  -- ...
-  //  -- esp[(argc + 1) * 4] : receiver
-  // -----------------------------------
-
-  GenerateCallNormal(masm, argc);
-  GenerateMiss(masm, argc, Code::kNoExtraICState);
 }
 
 
@@ -1238,7 +1225,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ JumpIfSmi(ecx, &miss);
   Condition cond = masm->IsObjectStringType(ecx, eax, eax);
   __ j(NegateCondition(cond), &miss);
-  GenerateCallNormal(masm, argc);
+  CallICBase::GenerateNormal(masm, argc);
   __ bind(&miss);
   GenerateMiss(masm, argc);
 }

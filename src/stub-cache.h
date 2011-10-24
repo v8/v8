@@ -392,8 +392,6 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> CompileCallArguments(Code::Flags flags);
   Handle<Code> CompileCallMiss(Code::Flags flags);
 
-  MUST_USE_RESULT MaybeObject* TryCompileCallPreMonomorphic(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* TryCompileCallNormal(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* TryCompileCallMegamorphic(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* TryCompileCallArguments(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* TryCompileCallMiss(Code::Flags flags);
