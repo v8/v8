@@ -5365,6 +5365,7 @@ class HeapDebugUtils {
 
 bool Heap::Setup(bool create_heap_objects) {
 #ifdef DEBUG
+  allocation_timeout_ = FLAG_gc_interval;
   debug_utils_ = new HeapDebugUtils(this);
 #endif
 
