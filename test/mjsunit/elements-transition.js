@@ -89,6 +89,19 @@ if (support_smi_only_arrays) {
   test(true,  false, function(a,i,v){ a[i] = v; }, 10000);
   test(false, true,  function(a,i,v){ a[i] = v; }, 10000);
   test(true,  true,  function(a,i,v){ a[i] = v; }, 10000);
+
+  // Check COW arrays
+  function get_cow() { return [1, 2, 3]; }
+
+  function transition(x) { x[0] = 1.5; }
+
+  var ignore = get_cow();
+  transition(ignore);  // Handled by runtime.
+  var a = get_cow();
+  var b = get_cow();
+  transition(a);  // Handled by IC.
+  assertEquals(1.5, a[0]);
+  assertEquals(1, b[0]);
 } else {
   print("Test skipped because smi only arrays are not supported.");
 }
