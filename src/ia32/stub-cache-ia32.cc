@@ -165,25 +165,23 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register scratch,
                               Register extra,
                               Register extra2) {
-  Isolate* isolate = Isolate::Current();
   Label miss;
-  USE(extra2);  // The register extra2 is not used on the ia32 platform.
 
-  // Make sure that code is valid. The shifting code relies on the
-  // entry size being 8.
+  // Assert that code is valid.  The shifting code relies on the entry size
+  // being 8.
   ASSERT(sizeof(Entry) == 8);
 
-  // Make sure the flags does not name a specific type.
+  // Assert the flags do not name a specific type.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
 
-  // Make sure that there are no register conflicts.
+  // Assert that there are no register conflicts.
   ASSERT(!scratch.is(receiver));
   ASSERT(!scratch.is(name));
   ASSERT(!extra.is(receiver));
   ASSERT(!extra.is(name));
   ASSERT(!extra.is(scratch));
 
-  // Check scratch and extra registers are valid, and extra2 is unused.
+  // Assert scratch and extra registers are valid, and extra2 is unused.
   ASSERT(!scratch.is(no_reg));
   ASSERT(extra2.is(no_reg));
 
@@ -197,7 +195,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, kPrimary, name, scratch, extra);
+  ProbeTable(isolate(), masm, flags, kPrimary, name, scratch, extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(scratch, FieldOperand(name, String::kHashFieldOffset));
@@ -209,7 +207,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ and_(scratch, (kSecondaryTableSize - 1) << kHeapObjectTagSize);
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, kSecondary, name, scratch, extra);
+  ProbeTable(isolate(), masm, flags, kSecondary, name, scratch, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

@@ -392,17 +392,11 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> CompileCallArguments(Code::Flags flags);
   Handle<Code> CompileCallMiss(Code::Flags flags);
 
-  MUST_USE_RESULT MaybeObject* TryCompileCallMegamorphic(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* TryCompileCallArguments(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* TryCompileCallMiss(Code::Flags flags);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<Code> CompileCallDebugBreak(Code::Flags flags);
   Handle<Code> CompileCallDebugPrepareStepIn(Code::Flags flags);
-
-  MUST_USE_RESULT MaybeObject* TryCompileCallDebugBreak(Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* TryCompileCallDebugPrepareStepIn(
-      Code::Flags flags);
 #endif
 
   // Static functions for generating parts of stubs.

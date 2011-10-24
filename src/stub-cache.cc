@@ -1508,14 +1508,6 @@ Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
 
 
 Handle<Code> StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallMegamorphic(flags)),
-                     Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallMegamorphic(Code::Flags flags) {
-  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   Code::ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
@@ -1524,46 +1516,26 @@ MaybeObject* StubCompiler::TryCompileCallMegamorphic(Code::Flags flags) {
   } else {
     KeyedCallIC::GenerateMegamorphic(masm(), argc);
   }
-  Object* result;
-  { MaybeObject* maybe_result =
-        TryGetCodeWithFlags(flags, "CompileCallMegamorphic");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallMegamorphic");
   isolate()->counters()->call_megamorphic_stubs()->Increment();
-  Code* code = Code::cast(result);
-  USE(code);
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
-                          code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, Code::cast(code)));
-  return result;
+                          *code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
+  return code;
 }
 
 
 Handle<Code> StubCompiler::CompileCallArguments(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallArguments(flags)),
-                     Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallArguments(Code::Flags flags) {
-  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   KeyedCallIC::GenerateNonStrictArguments(masm(), argc);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  Object* result;
-  { MaybeObject* maybe_result =
-        TryGetCodeWithFlags(flags, "CompileCallArguments");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Code* code = Code::cast(result);
-  USE(code);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallArguments");
   PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
-                          code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, Code::cast(code)));
-  return result;
+          CodeCreateEvent(CALL_LOGGER_TAG(Code::ExtractKindFromFlags(flags),
+                                          CALL_MEGAMORPHIC_TAG),
+                          *code, code->arguments_count()));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
+  return code;
 }
 
 
@@ -1615,43 +1587,19 @@ MaybeObject* StubCompiler::TryCompileCallMiss(Code::Flags flags) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<Code> StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), TryCompileCallDebugBreak(flags)),
-                     Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallDebugBreak(Code::Flags flags) {
-  HandleScope scope(isolate());
   Debug::GenerateCallICDebugBreak(masm());
-  Object* result;
-  { MaybeObject* maybe_result =
-        TryGetCodeWithFlags(flags, "CompileCallDebugBreak");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Code* code = Code::cast(result);
-  USE(code);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  USE(kind);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallDebugBreak");
   PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_DEBUG_BREAK_TAG),
-                          code, code->arguments_count()));
-  return result;
+          CodeCreateEvent(CALL_LOGGER_TAG(Code::ExtractKindFromFlags(flags),
+                                          CALL_DEBUG_BREAK_TAG),
+                          *code, code->arguments_count()));
+  return code;
 }
 
 
 Handle<Code> StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL), TryCompileCallDebugPrepareStepIn(flags)),
-      Code);
-}
-
-
-MaybeObject* StubCompiler::TryCompileCallDebugPrepareStepIn(Code::Flags flags) {
-  HandleScope scope(isolate());
-  // Use the same code for the the step in preparations as we do for
-  // the miss case.
+  // Use the same code for the the step in preparations as we do for the
+  // miss case.
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1660,23 +1608,18 @@ MaybeObject* StubCompiler::TryCompileCallDebugPrepareStepIn(Code::Flags flags) {
   } else {
     KeyedCallIC::GenerateMiss(masm(), argc);
   }
-  Object* result;
-  { MaybeObject* maybe_result =
-        TryGetCodeWithFlags(flags, "CompileCallDebugPrepareStepIn");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Code* code = Code::cast(result);
-  USE(code);
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileCallDebugPrepareStepIn");
   PROFILE(isolate(),
           CodeCreateEvent(
               CALL_LOGGER_TAG(kind, CALL_DEBUG_PREPARE_STEP_IN_TAG),
-              code,
+              *code,
               code->arguments_count()));
-  return result;
+  return code;
 }
-#endif
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #undef CALL_LOGGER_TAG
+
 
 Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
                                             const char* name) {

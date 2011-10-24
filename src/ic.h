@@ -245,6 +245,11 @@ class CallICBase: public IC {
 
   static void GenerateNormal(MacroAssembler* masm, int argc);
 
+  static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                            int argc,
+                                            Code::Kind kind,
+                                            Code::ExtraICState extra_state);
+
   Code::Kind kind_;
 
   friend class IC;
