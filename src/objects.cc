@@ -2181,46 +2181,50 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
-// If |map| is contained in |maps_list|, returns |map|; otherwise returns NULL.
-static bool ContainsMap(MapList* maps_list, Map* map) {
-  for (int i = 0; i < maps_list->length(); ++i) {
-    if (maps_list->at(i) == map) return true;
+static bool ContainsMap(MapHandleList* maps, Handle<Map> map) {
+  ASSERT(!map.is_null());
+  for (int i = 0; i < maps->length(); ++i) {
+    if (!maps->at(i).is_null() && maps->at(i).is_identical_to(map)) return true;
   }
   return false;
 }
 
 
-Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
-  MapList raw_candidates(candidates->length());
-  Map* result = FindTransitionedMap(UnwrapHandleList(&raw_candidates,
-                                                     candidates));
-  return (result == NULL) ? Handle<Map>::null() : Handle<Map>(result);
+template <class T>
+static Handle<T> MaybeNull(T* p) {
+  if (p == NULL) return Handle<T>::null();
+  return Handle<T>(p);
 }
 
 
-Map* Map::FindTransitionedMap(MapList* candidates) {
+Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
   ElementsKind elms_kind = elements_kind();
   if (elms_kind == FAST_DOUBLE_ELEMENTS) {
     bool dummy = true;
-    Map* fast_map = LookupElementsTransitionMap(FAST_ELEMENTS, &dummy);
-    if (fast_map == NULL) return NULL;
-    if (ContainsMap(candidates, fast_map)) return fast_map;
-    return NULL;
+    Handle<Map> fast_map =
+        MaybeNull(LookupElementsTransitionMap(FAST_ELEMENTS, &dummy));
+    if (!fast_map.is_null() && ContainsMap(candidates, fast_map)) {
+      return fast_map;
+    }
+    return Handle<Map>::null();
   }
   if (elms_kind == FAST_SMI_ONLY_ELEMENTS) {
     bool dummy = true;
-    Map* double_map = LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, &dummy);
+    Handle<Map> double_map =
+        MaybeNull(LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, &dummy));
     // In the current implementation, if the DOUBLE map doesn't exist, the
     // FAST map can't exist either.
-    if (double_map == NULL) return NULL;
-    Map* fast_map = double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
-                                                            &dummy);
-    if (fast_map != NULL && ContainsMap(candidates, fast_map)) return fast_map;
+    if (double_map.is_null()) return Handle<Map>::null();
+    Handle<Map> fast_map =
+        MaybeNull(double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
+                                                          &dummy));
+    if (!fast_map.is_null() && ContainsMap(candidates, fast_map)) {
+      return fast_map;
+    }
     if (ContainsMap(candidates, double_map)) return double_map;
   }
-  return NULL;
+  return Handle<Map>::null();
 }
-
 
 static Map* GetElementsTransitionMapFromDescriptor(Object* descriptor_contents,
                                                    ElementsKind elements_kind) {
