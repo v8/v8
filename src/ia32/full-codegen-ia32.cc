@@ -2155,7 +2155,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
     flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   }
   CallFunctionStub stub(arg_count, flags);
-  __ CallStub(&stub);
+  __ CallStub(&stub, expr->id());
   if (record_call_target) {
     // There is a one element cache in the instruction stream.
 #ifdef DEBUG

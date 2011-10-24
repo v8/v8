@@ -164,10 +164,11 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 }
 
 
-void HBasicBlock::Goto(HBasicBlock* block) {
+void HBasicBlock::Goto(HBasicBlock* block, bool drop_extra) {
   if (block->IsInlineReturnTarget()) {
     AddInstruction(new(zone()) HLeaveInlined);
     last_environment_ = last_environment()->outer();
+    if (drop_extra) last_environment_->Drop(1);
   }
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(block);
@@ -175,11 +176,14 @@ void HBasicBlock::Goto(HBasicBlock* block) {
 }
 
 
-void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
+void HBasicBlock::AddLeaveInlined(HValue* return_value,
+                                  HBasicBlock* target,
+                                  bool drop_extra) {
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
   AddInstruction(new(zone()) HLeaveInlined);
   last_environment_ = last_environment()->outer();
+  if (drop_extra) last_environment_->Drop(1);
   last_environment()->Push(return_value);
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(target);
@@ -541,7 +545,7 @@ HConstant* HGraph::GetConstantHole() {
 HGraphBuilder::HGraphBuilder(CompilationInfo* info,
                              TypeFeedbackOracle* oracle)
     : function_state_(NULL),
-      initial_function_state_(this, info, oracle),
+      initial_function_state_(this, info, oracle, false),
       ast_context_(NULL),
       break_scope_(NULL),
       graph_(NULL),
@@ -2005,11 +2009,13 @@ void HGraph::ComputeMinusZeroChecks() {
 // a (possibly inlined) function.
 FunctionState::FunctionState(HGraphBuilder* owner,
                              CompilationInfo* info,
-                             TypeFeedbackOracle* oracle)
+                             TypeFeedbackOracle* oracle,
+                             bool drop_extra)
     : owner_(owner),
       compilation_info_(info),
       oracle_(oracle),
       call_context_(NULL),
+      drop_extra_(drop_extra),
       function_return_(NULL),
       test_context_(NULL),
       outer_(owner->function_state()) {
@@ -2168,8 +2174,8 @@ void TestContext::ReturnControl(HControlInstruction* instr, int ast_id) {
   instr->SetSuccessorAt(0, empty_true);
   instr->SetSuccessorAt(1, empty_false);
   owner()->current_block()->Finish(instr);
-  empty_true->Goto(if_true());
-  empty_false->Goto(if_false());
+  empty_true->Goto(if_true(), owner()->function_state()->drop_extra());
+  empty_false->Goto(if_false(), owner()->function_state()->drop_extra());
   owner()->set_current_block(NULL);
 }
 
@@ -2190,8 +2196,8 @@ void TestContext::BuildBranch(HValue* value) {
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
-  empty_true->Goto(if_true());
-  empty_false->Goto(if_false());
+  empty_true->Goto(if_true(), owner()->function_state()->drop_extra());
+  empty_false->Goto(if_false(), owner()->function_state()->drop_extra());
   builder->set_current_block(NULL);
 }
 
@@ -2652,12 +2658,14 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
                       test->if_false());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return());
+      current_block()->Goto(function_return(), function_state()->drop_extra());
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
       HValue* return_value = environment()->Pop();
-      current_block()->AddLeaveInlined(return_value, function_return());
+      current_block()->AddLeaveInlined(return_value,
+                                       function_return(),
+                                       function_state()->drop_extra());
     }
     set_current_block(NULL);
   }
@@ -4546,7 +4554,7 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target,
 }
 
 
-bool HGraphBuilder::TryInline(Call* expr) {
+bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   if (!FLAG_use_inlining) return false;
 
   // The function call we are inlining is a method call if the call
@@ -4574,9 +4582,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  CompilationInfo* outer_info = info();
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.
+  CompilationInfo* outer_info = info();
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
@@ -4599,9 +4607,13 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // Don't inline recursive functions.
-  if (*target_shared == outer_info->closure()->shared()) {
-    TraceInline(target, caller, "target is recursive");
-    return false;
+  for (FunctionState* state = function_state();
+       state != NULL;
+       state = state->outer()) {
+    if (state->compilation_info()->closure()->shared() == *target_shared) {
+      TraceInline(target, caller, "target is recursive");
+      return false;
+    }
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
@@ -4698,7 +4710,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
       Handle<Code>(target_shared->code()),
       Handle<Context>(target->context()->global_context()),
       isolate());
-  FunctionState target_state(this, &target_info, &target_oracle);
+  FunctionState target_state(this, &target_info, &target_oracle, drop_extra);
 
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
@@ -4747,9 +4759,11 @@ bool HGraphBuilder::TryInline(Call* expr) {
       ASSERT(function_return() != NULL);
       ASSERT(call_context()->IsEffect() || call_context()->IsValue());
       if (call_context()->IsEffect()) {
-        current_block()->Goto(function_return());
+        current_block()->Goto(function_return(), drop_extra);
       } else {
-        current_block()->AddLeaveInlined(undefined, function_return());
+        current_block()->AddLeaveInlined(undefined,
+                                         function_return(),
+                                         drop_extra);
       }
     } else {
       // The graph builder assumes control can reach both branches of a
@@ -4757,13 +4771,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
       // simply jumping to the false target.
       //
       // TODO(3168478): refactor to avoid this.
+      ASSERT(call_context()->IsTest());
       HBasicBlock* empty_true = graph()->CreateBasicBlock();
       HBasicBlock* empty_false = graph()->CreateBasicBlock();
       HBranch* test = new(zone()) HBranch(undefined, empty_true, empty_false);
       current_block()->Finish(test);
 
-      empty_true->Goto(inlined_test_context()->if_true());
-      empty_false->Goto(inlined_test_context()->if_false());
+      empty_true->Goto(inlined_test_context()->if_true(), drop_extra);
+      empty_false->Goto(inlined_test_context()->if_false(), drop_extra);
     }
   }
 
@@ -4780,12 +4795,12 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (if_true->HasPredecessor()) {
       if_true->SetJoinId(expr->id());
       HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-      if_true->Goto(true_target);
+      if_true->Goto(true_target, drop_extra);
     }
     if (if_false->HasPredecessor()) {
       if_false->SetJoinId(expr->id());
       HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-      if_false->Goto(false_target);
+      if_false->Goto(false_target, drop_extra);
     }
     set_current_block(NULL);
 
@@ -5102,26 +5117,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       PushAndAdd(receiver);
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
       AddInstruction(new(zone()) HCheckFunction(function, expr->target()));
-      if (TryInline(expr)) {
-        // The function is lingering in the deoptimization environment.
-        // Handle it by case analysis on the AST context.
-        if (ast_context()->IsEffect()) {
-          Drop(1);
-        } else if (ast_context()->IsValue()) {
-          HValue* result = Pop();
-          Drop(1);
-          Push(result);
-        } else if (ast_context()->IsTest()) {
-          TestContext* context = TestContext::cast(ast_context());
-          if (context->if_true()->HasPredecessor()) {
-            context->if_true()->last_environment()->Drop(1);
-          }
-          if (context->if_false()->HasPredecessor()) {
-            context->if_true()->last_environment()->Drop(1);
-          }
-        } else {
-          UNREACHABLE();
-        }
+      if (TryInline(expr, true)) {   // Drop function from environment.
         return;
       } else {
         call = PreProcessCall(new(zone()) HInvokeFunction(context,
@@ -5337,7 +5333,6 @@ void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
 
 
 void HGraphBuilder::VisitNot(UnaryOperation* expr) {
-  // TODO(svenpanne) Perhaps a switch/virtual function is nicer here.
   if (ast_context()->IsTest()) {
     TestContext* context = TestContext::cast(ast_context());
     VisitForControl(expr->expression(),
