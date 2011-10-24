@@ -28,9 +28,6 @@
 // Flags: --harmony-proxies
 
 
-// TODO(rossberg): for-in not implemented on proxies.
-
-
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
@@ -719,17 +716,17 @@ function TestDefine2(create, handler) {
   assertEquals("zzz", key)
   assertEquals(0, Object.getOwnPropertyNames(desc).length)
 
-// TODO(rossberg): This test requires for-in on proxies.
-//  var d = create({
-//    get: function(r, k) { return (k === "value") ? 77 : void 0 },
-//    getOwnPropertyNames: function() { return ["value"] }
-//  })
-//  assertEquals(1, Object.getOwnPropertyNames(d).length)
-//  assertEquals(77, d.value)
-//  assertEquals(p, Object.defineProperty(p, "p", d))
-//  assertEquals("p", key)
-//  assertEquals(1, Object.getOwnPropertyNames(desc).length)
-//  assertEquals(77, desc.value)
+  var d = create({
+    get: function(r, k) { return (k === "value") ? 77 : void 0 },
+    getOwnPropertyNames: function() { return ["value"] },
+    enumerate: function() { return ["value"] }
+  })
+  assertEquals(1, Object.getOwnPropertyNames(d).length)
+  assertEquals(77, d.value)
+  assertEquals(p, Object.defineProperty(p, "p", d))
+  assertEquals("p", key)
+  assertEquals(1, Object.getOwnPropertyNames(desc).length)
+  assertEquals(77, desc.value)
 
   var props = {
     '11': {},
@@ -774,17 +771,16 @@ function TestDefineThrow2(create, handler) {
   assertThrows(function(){ Object.defineProperty(p, "a", {value: 44})}, "myexn")
   assertThrows(function(){ Object.defineProperty(p, 0, {value: 44})}, "myexn")
 
-// TODO(rossberg): These tests require for-in on proxies.
-//  var d1 = create({
-//    get: function(r, k) { throw "myexn" },
-//    getOwnPropertyNames: function() { return ["value"] }
-//  })
-//  assertThrows(function(){ Object.defineProperty(p, "p", d1) }, "myexn")
-//  var d2 = create({
-//    get: function(r, k) { return 77 },
-//    getOwnPropertyNames: function() { throw "myexn" }
-//  })
-//  assertThrows(function(){ Object.defineProperty(p, "p", d2) }, "myexn")
+  var d1 = create({
+    get: function(r, k) { throw "myexn" },
+    getOwnPropertyNames: function() { return ["value"] }
+  })
+  assertThrows(function(){ Object.defineProperty(p, "p", d1) }, "myexn")
+  var d2 = create({
+    get: function(r, k) { return 77 },
+    getOwnPropertyNames: function() { throw "myexn" }
+  })
+  assertThrows(function(){ Object.defineProperty(p, "p", d2) }, "myexn")
 
   var props = {bla: {get value() { throw "otherexn" }}}
   assertThrows(function(){ Object.defineProperties(p, props) }, "otherexn")
@@ -1606,7 +1602,9 @@ TestKeys(["[object Object]"], {
 
 TestKeys(["a", "0"], {
   getOwnPropertyNames: function() { return ["a", 23, "zz", "", 0] },
-  getOwnPropertyDescriptor: function(k) { return {enumerable: k.length == 1} }
+  getOwnPropertyDescriptor: function(k) {
+    return k == "" ? undefined : {enumerable: k.length == 1}
+  }
 })
 
 TestKeys(["23", "zz", ""], {
@@ -1620,10 +1618,12 @@ TestKeys(["23", "zz", ""], {
 
 TestKeys(["a", "b", "c", "5"], {
   get getOwnPropertyNames() {
-    return function() { return ["0", 4, "a", "b", "c", 5] }
+    return function() { return ["0", 4, "a", "b", "c", 5, "ety"] }
   },
   get getOwnPropertyDescriptor() {
-    return function(k) { return {enumerable: k >= "44"} }
+    return function(k) {
+      return k == "ety" ? undefined : {enumerable: k >= "44"}
+    }
   }
 })
 

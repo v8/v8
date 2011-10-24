@@ -4092,15 +4092,16 @@ MaybeObject* JSObject::PreventExtensions() {
 
 
 // Tests for the fast common case for property enumeration:
-// - This object and all prototypes has an enum cache (which means that it has
-//   no interceptors and needs no access checks).
+// - This object and all prototypes has an enum cache (which means that
+//   it is no proxy, has no interceptors and needs no access checks).
 // - This object has no elements.
 // - No prototype has enumerable properties/elements.
-bool JSObject::IsSimpleEnum() {
+bool JSReceiver::IsSimpleEnum() {
   Heap* heap = GetHeap();
   for (Object* o = this;
        o != heap->null_value();
        o = JSObject::cast(o)->GetPrototype()) {
+    if (!o->IsJSObject()) return false;
     JSObject* curr = JSObject::cast(o);
     if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
     ASSERT(!curr->HasNamedInterceptor());

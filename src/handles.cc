@@ -691,7 +691,7 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 
 
 // Compute the property keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
@@ -713,7 +713,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 
 
 // Compute the element keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
                                                    Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
@@ -744,8 +744,9 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
-                                          KeyCollectionType type) {
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
+                                          KeyCollectionType type,
+                                          bool* threw) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
@@ -760,6 +761,16 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
   for (Handle<Object> p = object;
        *p != isolate->heap()->null_value();
        p = Handle<Object>(p->GetPrototype(), isolate)) {
+    if (p->IsJSProxy()) {
+      Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
+      Handle<Object> args[] = { proxy };
+      Handle<Object> names = Execution::Call(
+          isolate->proxy_enumerate(), object, ARRAY_SIZE(args), args, threw);
+      if (*threw) return content;
+      content = AddKeysFromJSArray(content, Handle<JSArray>::cast(names));
+      break;
+    }
+
     Handle<JSObject> current(JSObject::cast(*p), isolate);
 
     // Check access rights if required.
@@ -826,11 +837,11 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 }
 
 
-Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
+Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw) {
   Isolate* isolate = object->GetIsolate();
   isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
-                                                       INCLUDE_PROTOS);
+  Handle<FixedArray> elements =
+      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS, threw);
   return isolate->factory()->NewJSArrayWithElements(elements);
 }
 

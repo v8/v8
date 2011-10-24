@@ -4749,8 +4749,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNames) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  return *GetKeysFor(object);
+  CONVERT_ARG_CHECKED(JSReceiver, object, 0);
+  bool threw = false;
+  Handle<JSArray> result = GetKeysFor(object, &threw);
+  if (threw) return Failure::Exception();
+  return *result;
 }
 
 
@@ -4762,14 +4765,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNames) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNamesFast) {
   ASSERT(args.length() == 1);
 
-  CONVERT_CHECKED(JSObject, raw_object, args[0]);
+  CONVERT_CHECKED(JSReceiver, raw_object, args[0]);
 
   if (raw_object->IsSimpleEnum()) return raw_object->map();
 
   HandleScope scope(isolate);
-  Handle<JSObject> object(raw_object);
-  Handle<FixedArray> content = GetKeysInFixedArrayFor(object,
-                                                      INCLUDE_PROTOS);
+  Handle<JSReceiver> object(raw_object);
+  bool threw = false;
+  Handle<FixedArray> content =
+      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS, &threw);
+  if (threw) return Failure::Exception();
 
   // Test again, since cache may have been built by preceding call.
   if (object->IsSimpleEnum()) return object->map();
@@ -4966,8 +4971,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
     object = Handle<JSObject>::cast(proto);
   }
 
-  Handle<FixedArray> contents = GetKeysInFixedArrayFor(object,
-                                                       LOCAL_ONLY);
+  bool threw = false;
+  Handle<FixedArray> contents =
+      GetKeysInFixedArrayFor(object, LOCAL_ONLY, &threw);
+  if (threw) return Failure::Exception();
+
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
   // property array and since the result is mutable we have to create
   // a fresh clone on each invocation.
@@ -10132,7 +10140,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
   if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
     // keys that are not integers in the range 0 to length-1.
-    Handle<FixedArray> keys = GetKeysInFixedArrayFor(array, INCLUDE_PROTOS);
+    bool threw = false;
+    Handle<FixedArray> keys =
+        GetKeysInFixedArrayFor(array, INCLUDE_PROTOS, &threw);
+    if (threw) return Failure::Exception();
+
     int keys_length = keys->length();
     for (int i = 0; i < keys_length; i++) {
       Object* key = keys->get(i);
@@ -10951,7 +10963,11 @@ static Handle<JSObject> MaterializeLocalScope(
       if (function_context->has_extension() &&
           !function_context->IsGlobalContext()) {
         Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-        Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
+        bool threw = false;
+        Handle<FixedArray> keys =
+            GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS, &threw);
+        if (threw) return Handle<JSObject>();
+
         for (int i = 0; i < keys->length(); i++) {
           // Names of variables introduced by eval are strings.
           ASSERT(keys->get(i)->IsString());
@@ -10999,7 +11015,11 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
   // be variables introduced by eval.
   if (context->has_extension()) {
     Handle<JSObject> ext(JSObject::cast(context->extension()));
-    Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
+    bool threw = false;
+    Handle<FixedArray> keys =
+        GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS, &threw);
+    if (threw) return Handle<JSObject>();
+
     for (int i = 0; i < keys->length(); i++) {
       // Names of variables introduced by eval are strings.
       ASSERT(keys->get(i)->IsString());

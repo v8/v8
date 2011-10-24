@@ -937,14 +937,14 @@ function ToStringArray(obj, trap) {
   }
   var n = ToUint32(obj.length);
   var array = new $Array(n);
-  var names = {}
+  var names = {}  // TODO(rossberg): use sets once they are ready.
   for (var index = 0; index < n; index++) {
     var s = ToString(obj[index]);
     if (s in names) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s])
     }
     array[index] = s;
-    names.s = 0;
+    names[s] = 0;
   }
   return array;
 }

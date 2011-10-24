@@ -890,11 +890,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&done_convert);
   __ push(rax);
 
+  // Check for proxies.
+  Label call_runtime;
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(rax, LAST_JS_PROXY_TYPE, rcx);
+  __ j(below_equal, &call_runtime);
+
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next, call_runtime;
+  Label next;
   Register empty_fixed_array_value = r8;
   __ LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
   Register empty_descriptor_array_value = r9;
@@ -970,9 +976,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ jmp(&loop);
 
   // We got a fixed array in register rax. Iterate through that.
+  Label non_proxy;
   __ bind(&fixed_array);
-  __ Push(Smi::FromInt(0));  // Map (0) - force slow check.
-  __ push(rax);
+  __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
+  __ movq(rcx, Operand(rsp, 0 * kPointerSize));  // Get enumerated object
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(rcx, LAST_JS_PROXY_TYPE, rcx);
+  __ j(above, &non_proxy);
+  __ Move(rbx, Smi::FromInt(0));  // Zero indicates proxy
+  __ bind(&non_proxy);
+  __ push(rbx);  // Smi
+  __ push(rax);  // Array
   __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   __ push(rax);  // Fixed array length (as smi).
   __ Push(Smi::FromInt(0));  // Initial index.
@@ -991,15 +1005,20 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
                             index.scale,
                             FixedArray::kHeaderSize));
 
-  // Get the expected map from the stack or a zero map in the
+  // Get the expected map from the stack or a smi in the
   // permanent slow case into register rdx.
   __ movq(rdx, Operand(rsp, 3 * kPointerSize));
 
   // Check if the expected map still matches that of the enumerable.
-  // If not, we have to filter the key.
+  // If not, we may have to filter the key.
   Label update_each;
   __ movq(rcx, Operand(rsp, 4 * kPointerSize));
   __ cmpq(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ j(equal, &update_each, Label::kNear);
+
+  // For proxies, no filtering is done.
+  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
+  __ Cmp(rdx, Smi::FromInt(0));
   __ j(equal, &update_each, Label::kNear);
 
   // Convert the entry to a string or null if it isn't a property

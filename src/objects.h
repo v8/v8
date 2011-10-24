@@ -1365,6 +1365,9 @@ class JSReceiver: public HeapObject {
                                           StrictModeFlag strict_mode,
                                           bool check_prototype);
 
+  // Tests for the fast common case for property enumeration.
+  bool IsSimpleEnum();
+
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
 
@@ -1616,9 +1619,6 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
-
-  // Tests for the fast common case for property enumeration.
-  bool IsSimpleEnum();
 
   inline void ValidateSmiOnlyElements();
 

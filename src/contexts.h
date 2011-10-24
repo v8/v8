@@ -139,6 +139,7 @@ enum BindingFlags {
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap) \
   V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap) \
+  V(PROXY_ENUMERATE, JSFunction, proxy_enumerate) \
   V(RANDOM_SEED_INDEX, ByteArray, random_seed)
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -260,6 +261,7 @@ class Context: public FixedArray {
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,
     DERIVED_SET_TRAP_INDEX,
+    PROXY_ENUMERATE,
     RANDOM_SEED_INDEX,
 
     // Properties from here are treated as weak references by the full GC.

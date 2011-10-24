@@ -238,7 +238,6 @@ enum BuiltinExtraArguments {
   V(DELETE, 2)                           \
   V(IN, 1)                               \
   V(INSTANCE_OF, 1)                      \
-  V(GET_KEYS, 0)                         \
   V(FILTER_KEY, 1)                       \
   V(CALL_NON_FUNCTION, 0)                \
   V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0) \

@@ -1376,6 +1376,7 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
+    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
 }
 

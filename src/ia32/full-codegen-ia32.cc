@@ -920,11 +920,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);
   increment_stack_height();
 
+  // Check for proxies.
+  Label call_runtime;
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
+  __ j(below_equal, &call_runtime);
+
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next, call_runtime;
+  Label next;
   __ mov(ecx, eax);
   __ bind(&next);
 
@@ -995,9 +1001,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ jmp(&loop);
 
   // We got a fixed array in register eax. Iterate through that.
+  Label non_proxy;
   __ bind(&fixed_array);
-  __ push(Immediate(Smi::FromInt(0)));  // Map (0) - force slow check.
-  __ push(eax);
+  __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check
+  __ mov(ecx, Operand(esp, 0 * kPointerSize));  // Get enumerated object
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(ecx, LAST_JS_PROXY_TYPE, ecx);
+  __ j(above, &non_proxy);
+  __ mov(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
+  __ bind(&non_proxy);
+  __ push(ebx);  // Smi
+  __ push(eax);  // Array
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
@@ -1014,16 +1028,22 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
   __ mov(ebx, FieldOperand(ebx, eax, times_2, FixedArray::kHeaderSize));
 
-  // Get the expected map from the stack or a zero map in the
+  // Get the expected map from the stack or a smi in the
   // permanent slow case into register edx.
   __ mov(edx, Operand(esp, 3 * kPointerSize));
 
   // Check if the expected map still matches that of the enumerable.
-  // If not, we have to filter the key.
+  // If not, we may have to filter the key.
   Label update_each;
   __ mov(ecx, Operand(esp, 4 * kPointerSize));
   __ cmp(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
+
+  // For proxies, no filtering is done.
+  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
+  ASSERT(Smi::FromInt(0) == 0);
+  __ test(edx, edx);
+  __ j(zero, &update_each);
 
   // Convert the entry to a string or null if it isn't a property
   // anymore. If the property has been removed while iterating, we

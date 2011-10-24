@@ -153,9 +153,32 @@ function DerivedKeysTrap() {
   var enumerableNames = []
   for (var i = 0, count = 0; i < names.length; ++i) {
     var name = names[i]
-    if (this.getOwnPropertyDescriptor(TO_STRING_INLINE(name)).enumerable) {
+    var desc = this.getOwnPropertyDescriptor(TO_STRING_INLINE(name))
+    if (!IS_UNDEFINED(desc) && desc.enumerable) {
       enumerableNames[count++] = names[i]
     }
   }
   return enumerableNames
+}
+
+function DerivedEnumerateTrap() {
+  var names = this.getPropertyNames()
+  var enumerableNames = []
+  for (var i = 0, count = 0; i < names.length; ++i) {
+    var name = names[i]
+    var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
+    if (!IS_UNDEFINED(desc) && desc.enumerable) {
+      enumerableNames[count++] = names[i]
+    }
+  }
+  return enumerableNames
+}
+
+function ProxyEnumerate(proxy) {
+  var handler = %GetHandler(proxy)
+  if (IS_UNDEFINED(handler.enumerate)) {
+    return %Apply(DerivedEnumerateTrap, handler, [], 0, 0)
+  } else {
+    return ToStringArray(handler.enumerate(), "enumerate")
+  }
 }

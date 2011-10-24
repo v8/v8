@@ -392,13 +392,6 @@ function INSTANCE_OF(F) {
 }
 
 
-// Get an array of property keys for the given object. Used in
-// for-in statements.
-function GET_KEYS() {
-  return %GetPropertyNames(this);
-}
-
-
 // Filter a given key against an object by checking if the object
 // has a property with the given key; return the key as a string if
 // it has. Otherwise returns 0 (smi). Used in for-in statements.
