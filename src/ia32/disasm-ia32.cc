@@ -268,8 +268,8 @@ class DisassemblerIA32 {
  public:
   DisassemblerIA32(const NameConverter& converter,
                    bool abort_on_unimplemented = true)
-      : instruction_table_(InstructionTabel::get_instance()),
-        converter_(converter),
+      : converter_(converter),
+        instruction_table_(InstructionTable::get_instance()),
         tmp_buffer_pos_(0),
         abort_on_unimplemented_(abort_on_unimplemented) {
     tmp_buffer_[0] = '\0';
