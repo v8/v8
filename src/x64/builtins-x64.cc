@@ -993,10 +993,6 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
-// Number of empty elements to allocate for an empty array.
-static const int kPreallocatedArrayElements = 4;
-
-
 // Allocate an empty JSArray. The allocated array is put into the result
 // register. If the parameter initial_capacity is larger than zero an elements
 // backing store is allocated with this size and filled with the hole values.
@@ -1007,8 +1003,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch1,
                                  Register scratch2,
                                  Register scratch3,
-                                 int initial_capacity,
                                  Label* gc_required) {
+  int initial_capacity = JSArray::kPreallocatedArrayElements;
   ASSERT(initial_capacity >= 0);
 
   // Load the initial map from the array function.
@@ -1067,7 +1063,6 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
-  ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
   __ Move(scratch3, FACTORY->the_hole_value());
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
@@ -1101,38 +1096,28 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 // register elements_array is scratched.
 static void AllocateJSArray(MacroAssembler* masm,
                             Register array_function,  // Array function.
-                            Register array_size,  // As a smi.
+                            Register array_size,  // As a smi, cannot be 0.
                             Register result,
                             Register elements_array,
                             Register elements_array_end,
                             Register scratch,
                             bool fill_with_hole,
                             Label* gc_required) {
-  Label not_empty, allocated;
-
   // Load the initial map from the array function.
   __ movq(elements_array,
           FieldOperand(array_function,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
-  // Check whether an empty sized array is requested.
-  __ testq(array_size, array_size);
-  __ j(not_zero, &not_empty);
-
-  // If an empty array is requested allocate a small elements array anyway. This
-  // keeps the code below free of special casing for the empty array.
-  int size = JSArray::kSize + FixedArray::SizeFor(kPreallocatedArrayElements);
-  __ AllocateInNewSpace(size,
-                        result,
-                        elements_array_end,
-                        scratch,
-                        gc_required,
-                        TAG_OBJECT);
-  __ jmp(&allocated);
+  if (FLAG_debug_code) {  // Assert that array size is not zero.
+    Label not_empty;
+    __ testq(array_size, array_size);
+    __ j(not_zero, &not_empty);
+    __ int3();
+    __ bind(&not_empty);
+  }
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
-  __ bind(&not_empty);
   SmiIndex index =
       masm->SmiToIndex(kScratchRegister, array_size, kPointerSizeLog2);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
@@ -1150,7 +1135,6 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array: initial map
   // elements_array_end: start of next object
   // array_size: size of array (smi)
-  __ bind(&allocated);
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
   __ Move(elements_array, FACTORY->empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
@@ -1172,15 +1156,6 @@ static void AllocateJSArray(MacroAssembler* masm,
   // array_size: size of array (smi)
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
           FACTORY->fixed_array_map());
-  Label not_empty_2, fill_array;
-  __ SmiTest(array_size);
-  __ j(not_zero, &not_empty_2);
-  // Length of the FixedArray is the number of pre-allocated elements even
-  // though the actual JSArray has length 0.
-  __ Move(FieldOperand(elements_array, FixedArray::kLengthOffset),
-          Smi::FromInt(kPreallocatedArrayElements));
-  __ jmp(&fill_array);
-  __ bind(&not_empty_2);
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ movq(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
@@ -1189,7 +1164,6 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
-  __ bind(&fill_array);
   if (fill_with_hole) {
     Label loop, entry;
     __ Move(scratch, FACTORY->the_hole_value());
@@ -1222,12 +1196,13 @@ static void AllocateJSArray(MacroAssembler* masm,
 // a construct call and a normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label *call_generic_code) {
-  Label argc_one_or_more, argc_two_or_more;
+  Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array;
 
   // Check for array construction with zero arguments.
   __ testq(rax, rax);
   __ j(not_zero, &argc_one_or_more);
 
+  __ bind(&empty_array);
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
                        rdi,
@@ -1235,7 +1210,6 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        rcx,
                        rdx,
                        r8,
-                       kPreallocatedArrayElements,
                        call_generic_code);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->array_function_native(), 1);
@@ -1248,6 +1222,16 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ cmpq(rax, Immediate(1));
   __ j(not_equal, &argc_two_or_more);
   __ movq(rdx, Operand(rsp, kPointerSize));  // Get the argument from the stack.
+
+  __ SmiTest(rdx);
+  __ j(not_zero, &not_empty_array);
+  __ pop(r8);  // Adjust stack.
+  __ Drop(1);
+  __ push(r8);
+  __ movq(rax, Immediate(0));  // Treat this as a call with argc of zero.
+  __ jmp(&empty_array);
+
+  __ bind(&not_empty_array);
   __ JumpUnlessNonNegativeSmi(rdx, call_generic_code);
 
   // Handle construction of an empty array of a certain size. Bail out if size
