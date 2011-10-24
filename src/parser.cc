@@ -636,6 +636,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
                                         bool in_global_context,
                                         StrictModeFlag strict_mode,
                                         ZoneScope* zone_scope) {
+  ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
@@ -651,9 +652,8 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     scope->set_start_position(0);
     scope->set_end_position(source->length());
     LexicalScope lexical_scope(this, scope, isolate());
-    if (strict_mode == kStrictMode) {
-      top_scope_->EnableStrictMode();
-    }
+    ASSERT(top_scope_->strict_mode_flag() == kNonStrictMode);
+    top_scope_->SetStrictModeFlag(strict_mode);
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
@@ -724,6 +724,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
                                    ZoneScope* zone_scope) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
+  ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
 
   Handle<String> name(String::cast(shared_info->name()));
@@ -742,11 +743,10 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
       scope = Scope::DeserializeScopeChain(info, scope);
     }
     LexicalScope lexical_scope(this, scope, isolate());
-
-    if (shared_info->strict_mode()) {
-      top_scope_->EnableStrictMode();
-    }
-
+    ASSERT(scope->strict_mode_flag() == kNonStrictMode ||
+           scope->strict_mode_flag() == info->strict_mode_flag());
+    ASSERT(info->strict_mode_flag() == shared_info->strict_mode_flag());
+    scope->SetStrictModeFlag(shared_info->strict_mode_flag());
     FunctionLiteral::Type type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
@@ -1193,7 +1193,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
-          top_scope_->EnableStrictMode();
+          top_scope_->SetStrictModeFlag(kStrictMode);
           // "use strict" is the only directive for now.
           directive_prologue = false;
         }
@@ -1593,9 +1593,6 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
   Scope* block_scope = NewScope(top_scope_, BLOCK_SCOPE);
-  if (top_scope_->is_strict_mode()) {
-    block_scope->EnableStrictMode();
-  }
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK);
@@ -1842,9 +1839,7 @@ Block* Parser::ParseVariableDeclarations(
       } else {
         // Add strict mode.
         // We may want to pass singleton to avoid Literal allocations.
-        StrictModeFlag flag = initialization_scope->is_strict_mode()
-            ? kStrictMode
-            : kNonStrictMode;
+        StrictModeFlag flag = initialization_scope->strict_mode_flag();
         arguments->Add(NewNumberLiteral(flag));
 
         // Be careful not to assign a value to the global variable if
@@ -2244,9 +2239,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     Expect(Token::LPAREN, CHECK_OK);
     catch_scope = NewScope(top_scope_, CATCH_SCOPE);
-    if (top_scope_->is_strict_mode()) {
-      catch_scope->EnableStrictMode();
-    }
     catch_scope->set_start_position(scanner().location().beg_pos);
     name = ParseIdentifier(CHECK_OK);
 
@@ -2377,9 +2369,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   // Create an in-between scope for let-bound iteration variables.
   Scope* saved_scope = top_scope_;
   Scope* for_scope = NewScope(top_scope_, BLOCK_SCOPE);
-  if (top_scope_->is_strict_mode()) {
-    for_scope->EnableStrictMode();
-  }
   top_scope_ = for_scope;
 
   Expect(Token::FOR, CHECK_OK);
@@ -3978,7 +3967,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         scanner().SeekForward(scope->end_position() - 1);
         materialized_literal_count = entry.literal_count();
         expected_property_count = entry.property_count();
-        if (entry.strict_mode()) top_scope_->EnableStrictMode();
+        if (entry.strict_mode()) top_scope_->SetStrictModeFlag(kStrictMode);
         only_simple_this_property_assignments = false;
         this_property_assignments = isolate()->factory()->empty_fixed_array();
         Expect(Token::RBRACE, CHECK_OK);
@@ -5390,7 +5379,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
       Handle<String> source = Handle<String>(String::cast(script->source()));
       result = parser.ParseProgram(source,
                                    info->is_global(),
-                                   info->StrictMode());
+                                   info->strict_mode_flag());
     }
   }
   info->SetFunction(result);

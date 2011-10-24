@@ -4313,8 +4313,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
   if (!pretenure && shared_info->num_literals() == 0) {
-    FastNewClosureStub stub(
-        shared_info->strict_mode() ? kStrictMode : kNonStrictMode);
+    FastNewClosureStub stub(shared_info->strict_mode_flag());
     __ push(Immediate(shared_info));
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else {

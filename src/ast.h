@@ -1648,7 +1648,8 @@ class FunctionLiteral: public Expression {
   int end_position() const;
   bool is_expression() const { return is_expression_; }
   bool is_anonymous() const { return is_anonymous_; }
-  bool strict_mode() const;
+  bool strict_mode() const { return strict_mode_flag() == kStrictMode; }
+  StrictModeFlag strict_mode_flag() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

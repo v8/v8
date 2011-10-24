@@ -11711,7 +11711,7 @@ MaybeObject* CompilationCacheTable::PutEval(String* src,
                                             SharedFunctionInfo* value) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      value->strict_mode() ? kStrictMode : kNonStrictMode);
+                      value->strict_mode_flag());
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;

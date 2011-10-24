@@ -131,8 +131,8 @@ class LCodeGen BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  int strict_mode_flag() const {
-    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
+  StrictModeFlag strict_mode_flag() const {
+    return info()->strict_mode_flag();
   }
   bool dynamic_frame_alignment() const { return dynamic_frame_alignment_; }
   void set_dynamic_frame_alignment(bool value) {

@@ -547,11 +547,10 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  int flags = 0;
-  if (is_eval()) flags |= kDeclareGlobalsEvalFlag;
-  if (is_strict_mode()) flags |= kDeclareGlobalsStrictModeFlag;
-  if (is_native()) flags |= kDeclareGlobalsNativeFlag;
-  return flags;
+  ASSERT(DeclareGlobalsStrictModeFlag::is_valid(strict_mode_flag()));
+  return DeclareGlobalsEvalFlag::encode(is_eval()) |
+      DeclareGlobalsStrictModeFlag::encode(strict_mode_flag()) |
+      DeclareGlobalsNativeFlag::encode(is_native());
 }
 
 

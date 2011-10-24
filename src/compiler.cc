@@ -558,7 +558,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (strict_mode == kStrictMode) info.MarkAsStrictMode();
+    info.SetStrictModeFlag(strict_mode);
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
@@ -566,6 +566,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       // If caller is strict mode, the result must be strict as well,
       // but not the other way around. Consider:
       // eval("'use strict'; ...");
+      // TODO(keuchel): adapt this for extended mode.
       ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
       compilation_cache->PutEval(source, context, is_global, result);
     }
@@ -597,10 +598,13 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
     // After parsing we know function's strict mode. Remember it.
-    if (info->function()->strict_mode()) {
-      shared->set_strict_mode(true);
-      info->MarkAsStrictMode();
-    }
+    StrictModeFlag strict_mode = info->function()->strict_mode_flag();
+    ASSERT(info->strict_mode_flag() == kNonStrictMode ||
+           info->strict_mode_flag() == strict_mode);
+    ASSERT(shared->strict_mode_flag() == kNonStrictMode ||
+           shared->strict_mode_flag() == strict_mode);
+    info->SetStrictModeFlag(strict_mode);
+    shared->set_strict_mode_flag(strict_mode);
 
     // Compile the code.
     if (!MakeCode(info)) {
@@ -680,7 +684,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfo info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
-  if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
+  info.SetStrictModeFlag(literal->scope()->strict_mode_flag());
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to
@@ -746,7 +750,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-  function_info->set_strict_mode(lit->strict_mode());
+  function_info->set_strict_mode_flag(lit->strict_mode_flag());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
 }

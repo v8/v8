@@ -1055,7 +1055,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(info->strict_mode() ? kStrictMode : kNonStrictMode);
+    FastNewClosureStub stub(info->strict_mode_flag());
     __ Push(info);
     __ CallStub(&stub);
   } else {

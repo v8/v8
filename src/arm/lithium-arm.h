@@ -1582,7 +1582,8 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 2, 0> {
   LOperand* object() { return inputs_[0]; }
   LOperand* value() { return inputs_[1]; }
   Handle<Object> name() const { return hydrogen()->name(); }
-  bool strict_mode() { return hydrogen()->strict_mode(); }
+  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+  bool strict_mode() { return strict_mode_flag() == kStrictMode; }
 };
 
 

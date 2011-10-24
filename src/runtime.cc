@@ -1288,10 +1288,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // non-deletable. However, neither SpiderMonkey nor KJS creates the
     // property as read-only, so we don't either.
     int attr = NONE;
-    if ((flags & kDeclareGlobalsEvalFlag) == 0) {
+    if (!DeclareGlobalsEvalFlag::decode(flags)) {
       attr |= DONT_DELETE;
     }
-    bool is_native = (flags & kDeclareGlobalsNativeFlag) != 0;
+    bool is_native = DeclareGlobalsNativeFlag::decode(flags);
     if (is_const_property || (is_native && is_function_declaration)) {
       attr |= READ_ONLY;
     }
@@ -1316,9 +1316,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
                                                               value,
                                                               attributes));
     } else {
-      StrictModeFlag strict_mode =
-          ((flags & kDeclareGlobalsStrictModeFlag) != 0) ? kStrictMode
-                                                         : kNonStrictMode;
+      StrictModeFlag strict_mode = DeclareGlobalsStrictModeFlag::decode(flags);
       RETURN_IF_EMPTY_HANDLE(isolate,
                              SetProperty(global,
                                          name,

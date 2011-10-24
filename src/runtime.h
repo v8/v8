@@ -676,11 +676,9 @@ class Runtime : public AllStatic {
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-enum kDeclareGlobalsFlags {
-  kDeclareGlobalsEvalFlag = 1 << 0,
-  kDeclareGlobalsStrictModeFlag = 1 << 1,
-  kDeclareGlobalsNativeFlag = 1 << 2
-};
+class DeclareGlobalsEvalFlag:       public BitField<bool,           0, 1> {};
+class DeclareGlobalsStrictModeFlag: public BitField<StrictModeFlag, 1, 1> {};
+class DeclareGlobalsNativeFlag:     public BitField<bool,           2, 1> {};
 
 } }  // namespace v8::internal
 

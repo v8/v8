@@ -769,8 +769,8 @@ class HGraphBuilder: public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  bool function_strict_mode() {
-    return function_state()->compilation_info()->is_strict_mode();
+  StrictModeFlag function_strict_mode_flag() {
+    return function_state()->compilation_info()->strict_mode_flag();
   }
 
   // Generators for inline runtime functions.

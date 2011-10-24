@@ -4871,7 +4871,11 @@ class SharedFunctionInfo: public HeapObject {
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates whether the function is a strict mode function.
-  DECL_BOOLEAN_ACCESSORS(strict_mode)
+  inline bool strict_mode();
+
+  // Indicates the mode of the function.
+  inline StrictModeFlag strict_mode_flag();
+  inline void set_strict_mode_flag(StrictModeFlag strict_mode_flag);
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)

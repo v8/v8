@@ -3720,9 +3720,9 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
                      HValue* object,
                      Handle<String> name,
                      HValue* value,
-                     bool strict_mode)
+                     StrictModeFlag strict_mode_flag)
       : name_(name),
-        strict_mode_(strict_mode) {
+        strict_mode_flag_(strict_mode_flag) {
     SetOperandAt(0, object);
     SetOperandAt(1, value);
     SetOperandAt(2, context);
@@ -3733,7 +3733,7 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
   HValue* value() { return OperandAt(1); }
   HValue* context() { return OperandAt(2); }
   Handle<String> name() { return name_; }
-  bool strict_mode() { return strict_mode_; }
+  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -3745,7 +3745,7 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 
  private:
   Handle<String> name_;
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
 };
 
 

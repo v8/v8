@@ -3276,7 +3276,7 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                 literal,
                                 name,
                                 value,
-                                function_strict_mode());
+                                function_strict_mode_flag());
             AddInstruction(store);
             AddSimulate(key->id());
           } else {
@@ -3454,7 +3454,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                          object,
                          name,
                          value,
-                         function_strict_mode());
+                         function_strict_mode_flag());
 }
 
 
@@ -3639,7 +3639,7 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                         global_object,
                                         var->name(),
                                         value,
-                                        function_strict_mode());
+                                        function_strict_mode_flag());
     instr->set_position(position);
     AddInstruction(instr);
     ASSERT(instr->HasSideEffects());
@@ -4304,7 +4304,7 @@ HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                          object,
                          key,
                          value,
-                         function_strict_mode());
+                         function_strict_mode_flag());
 }
 
 bool HGraphBuilder::TryArgumentsAccess(Property* expr) {

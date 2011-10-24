@@ -3599,8 +3599,23 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, strict_mode,
-               kStrictModeFunction)
+StrictModeFlag SharedFunctionInfo::strict_mode_flag() {
+  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
+      ? kStrictMode : kNonStrictMode;
+}
+
+
+void SharedFunctionInfo::set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
+  ASSERT(strict_mode_flag == kStrictMode ||
+         strict_mode_flag == kNonStrictMode);
+  bool value = strict_mode_flag == kStrictMode;
+  set_compiler_hints(
+      BooleanBit::set(compiler_hints(), kStrictModeFunction, value));
+}
+
+
+BOOL_GETTER(SharedFunctionInfo, compiler_hints, strict_mode,
+            kStrictModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,

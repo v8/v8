@@ -52,7 +52,10 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_strict_mode() const { return IsStrictMode::decode(flags_); }
+  bool is_strict_mode() const { return strict_mode_flag() == kStrictMode; }
+  StrictModeFlag strict_mode_flag() const {
+    return StrictModeFlagField::decode(flags_);
+  }
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -73,11 +76,10 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
-  void MarkAsStrictMode() {
-    flags_ |= IsStrictMode::encode(true);
-  }
-  StrictModeFlag StrictMode() {
-    return is_strict_mode() ? kStrictMode : kNonStrictMode;
+  void SetStrictModeFlag(StrictModeFlag strict_mode_flag) {
+    ASSERT(StrictModeFlagField::decode(flags_) == kNonStrictMode ||
+           StrictModeFlagField::decode(flags_) == strict_mode_flag);
+    flags_ = StrictModeFlagField::update(flags_, strict_mode_flag);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -186,8 +188,9 @@ class CompilationInfo BASE_EMBEDDED {
     if (script_->type()->value() == Script::TYPE_NATIVE) {
       MarkAsNative();
     }
-    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
-      MarkAsStrictMode();
+    if (!shared_info_.is_null()) {
+      ASSERT(strict_mode_flag() == kNonStrictMode);
+      SetStrictModeFlag(shared_info_->strict_mode_flag());
     }
   }
 
@@ -207,7 +210,7 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class IsStrictMode: public BitField<bool, 4, 1> {};
+  class StrictModeFlagField: public BitField<StrictModeFlag, 4, 1> {};
   // Is this a function from our natives.
   class IsNative: public BitField<bool, 6, 1> {};
   // Is this code being compiled with support for deoptimization..

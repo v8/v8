@@ -121,8 +121,8 @@ int FunctionLiteral::end_position() const {
 }
 
 
-bool FunctionLiteral::strict_mode() const {
-  return scope()->is_strict_mode();
+StrictModeFlag FunctionLiteral::strict_mode_flag() const {
+  return scope()->strict_mode_flag();
 }
 
 

@@ -200,7 +200,8 @@ void Scope::SetDefaults(ScopeType type,
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
   // Inherit the strict mode from the parent scope.
-  strict_mode_ = (outer_scope != NULL) && outer_scope->strict_mode_;
+  strict_mode_flag_ = (outer_scope != NULL)
+      ? outer_scope->strict_mode_flag_ : kNonStrictMode;
   outer_scope_calls_non_strict_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
