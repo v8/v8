@@ -926,8 +926,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch2,
                                  Register scratch3,
                                  Label* gc_required) {
-  int initial_capacity = JSArray::kPreallocatedArrayElements;
-  ASSERT(initial_capacity >= 0);
+  const int initial_capacity = JSArray::kPreallocatedArrayElements;
+  STATIC_ASSERT(initial_capacity >= 0);
   // Load the initial map from the array function.
   __ mov(scratch1, FieldOperand(array_function,
                                 JSFunction::kPrototypeOrInitialMapOffset));

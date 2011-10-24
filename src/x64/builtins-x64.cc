@@ -670,7 +670,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testq(rax, rax);
     __ j(not_zero, &done);
     __ pop(rbx);
-    __ Push(FACTORY->undefined_value());
+    __ Push(masm->isolate()->factory()->undefined_value());
     __ push(rbx);
     __ incq(rax);
     __ bind(&done);
@@ -1004,8 +1004,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch2,
                                  Register scratch3,
                                  Label* gc_required) {
-  int initial_capacity = JSArray::kPreallocatedArrayElements;
-  ASSERT(initial_capacity >= 0);
+  const int initial_capacity = JSArray::kPreallocatedArrayElements;
+  STATIC_ASSERT(initial_capacity >= 0);
 
   // Load the initial map from the array function.
   __ movq(scratch1, FieldOperand(array_function,
@@ -1029,9 +1029,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // result: JSObject
   // scratch1: initial map
   // scratch2: start of next object
+  Factory* factory = masm->isolate()->factory();
   __ movq(FieldOperand(result, JSObject::kMapOffset), scratch1);
   __ Move(FieldOperand(result, JSArray::kPropertiesOffset),
-          FACTORY->empty_fixed_array());
+          factory->empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
   __ Move(FieldOperand(result, JSArray::kLengthOffset), Smi::FromInt(0));
 
@@ -1039,7 +1040,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // fixed array.
   if (initial_capacity == 0) {
     __ Move(FieldOperand(result, JSArray::kElementsOffset),
-            FACTORY->empty_fixed_array());
+            factory->empty_fixed_array());
     return;
   }
 
@@ -1056,14 +1057,14 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array
   // scratch2: start of next object
   __ Move(FieldOperand(scratch1, HeapObject::kMapOffset),
-          FACTORY->fixed_array_map());
+          factory->fixed_array_map());
   __ Move(FieldOperand(scratch1, FixedArray::kLengthOffset),
           Smi::FromInt(initial_capacity));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
-  __ Move(scratch3, FACTORY->the_hole_value());
+  __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
@@ -1109,11 +1110,8 @@ static void AllocateJSArray(MacroAssembler* masm,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
   if (FLAG_debug_code) {  // Assert that array size is not zero.
-    Label not_empty;
     __ testq(array_size, array_size);
-    __ j(not_zero, &not_empty);
-    __ int3();
-    __ bind(&not_empty);
+    __ Assert(not_zero, "array size is unexpectedly 0");
   }
 
   // Allocate the JSArray object together with space for a FixedArray with the
@@ -1135,8 +1133,9 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array: initial map
   // elements_array_end: start of next object
   // array_size: size of array (smi)
+  Factory* factory = masm->isolate()->factory();
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
-  __ Move(elements_array, FACTORY->empty_fixed_array());
+  __ Move(elements_array, factory->empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
   __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
@@ -1155,7 +1154,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
-          FACTORY->fixed_array_map());
+          factory->fixed_array_map());
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ movq(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
@@ -1166,7 +1165,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   if (fill_with_hole) {
     Label loop, entry;
-    __ Move(scratch, FACTORY->the_hole_value());
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
     __ lea(elements_array, Operand(elements_array,
                                    FixedArray::kHeaderSize - kHeapObjectTag));
     __ jmp(&entry);

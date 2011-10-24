@@ -96,8 +96,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch2,
                                  Register scratch3,
                                  Label* gc_required) {
-  int initial_capacity = JSArray::kPreallocatedArrayElements;
-  ASSERT(initial_capacity >= 0);
+  const int initial_capacity = JSArray::kPreallocatedArrayElements;
+  STATIC_ASSERT(initial_capacity >= 0);
   // Load the initial map from the array function.
   __ ldr(scratch1, FieldMemOperand(array_function,
                                    JSFunction::kPrototypeOrInitialMapOffset));
@@ -147,11 +147,24 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
   __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
 
-  // Fill the FixedArray with the hole value.
+  // Fill the FixedArray with the hole value. Inline the code if short.
+  if (initial_capacity == 0) return;
   ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
   __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
-  for (int i = 0; i < initial_capacity; i++) {
+  static const int kLoopUnfoldLimit = 4;
+  if (initial_capacity <= kLoopUnfoldLimit) {
+    for (int i = 0; i < initial_capacity; i++) {
+      __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
+    }
+  } else {
+    Label loop, entry;
+    __ add(scratch2, scratch1, Operand(initial_capacity * kPointerSize));
+    __ b(&entry);
+    __ bind(&loop);
     __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
+    __ bind(&entry);
+    __ cmp(scratch1, scratch2);
+    __ b(lt, &loop);
   }
 }
 
@@ -180,11 +193,8 @@ static void AllocateJSArray(MacroAssembler* masm,
                          JSFunction::kPrototypeOrInitialMapOffset));
 
   if (FLAG_debug_code) {  // Assert that array size is not zero.
-    Label not_empty;
     __ tst(array_size, array_size);
-    __ b(ne, &not_empty);
-    __ Abort("array size is unexpectedly 0");
-    __ bind(&not_empty);
+    __ Assert(ne, "array size is unexpectedly 0");
   }
 
   // Allocate the JSArray object together with space for a FixedArray with the
