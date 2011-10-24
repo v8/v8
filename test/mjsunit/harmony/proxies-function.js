@@ -286,23 +286,10 @@ function TestConstruct2(proto, constructTrap, handler) {
   assertEquals(42, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
 
-// TODO(rossberg): does not work yet.
-//  var ff = Function.prototype.bind.call(f, o, 10)
-//  var o = new ff(32)
-//  assertEquals(undefined, receiver)
-//  assertEquals(42, o.sum)
-//  assertSame(proto, Object.getPrototypeOf(o))
-
   var f = CreateFrozen(handler, function() {}, constructTrap)
   var o = new f(11, 32)
   assertEquals(undefined, receiver)
   assertEquals(43, o.sum)
-  assertSame(proto, Object.getPrototypeOf(o))
-
-  var ff = Function.prototype.bind.call(f, o, 10)
-  var o = new ff(32)
-  assertEquals(undefined, receiver)
-  assertEquals(42, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
 }
 
@@ -331,25 +318,11 @@ function TestConstructFromCall2(proto, returnsThis, callTrap, handler) {
   assertEquals(42, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
 
-// TODO(rossberg): does not work yet.
-//  var ff = Function.prototype.bind.call(f, o, 10)
-//  var o = new ff(32)
-//  assertEquals(undefined, receiver)
-//  assertEquals(42, o.sum)
-//  assertSame(proto, Object.getPrototypeOf(o))
-
   var f = CreateFrozen(handler, callTrap)
   var o = new f(11, 32)
   if (returnsThis) assertEquals(o, receiver)
   assertEquals(43, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
-
-// TODO(rossberg): does not work yet.
-//  var ff = Function.prototype.bind.call(f, o, 10)
-//  var o = new ff(32)
-//  assertEquals(undefined, receiver)
-//  assertEquals(42, o.sum)
-//  assertSame(proto, Object.getPrototypeOf(o))
 }
 
 TestConstructFromCall(Object.prototype, true, ReturnUndef)

@@ -32,7 +32,10 @@ var $Proxy = global.Proxy
 $Proxy.create = function(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError("handler_non_object", ["create"])
-  if (!IS_SPEC_OBJECT(proto)) proto = null  // Mozilla does this...
+  if (IS_UNDEFINED(proto))
+    proto = null
+  else if (!(IS_SPEC_OBJECT(proto) || proto === null))
+    throw MakeTypeError("proto_non_object", ["create"])
   return %CreateJSProxy(handler, proto)
 }
 
@@ -41,20 +44,20 @@ $Proxy.createFunction = function(handler, callTrap, constructTrap) {
     throw MakeTypeError("handler_non_object", ["create"])
   if (!IS_SPEC_FUNCTION(callTrap))
     throw MakeTypeError("trap_function_expected", ["createFunction", "call"])
-  var construct
   if (IS_UNDEFINED(constructTrap)) {
-    construct = DerivedConstructTrap(callTrap)
+    constructTrap = DerivedConstructTrap(callTrap)
   } else if (IS_SPEC_FUNCTION(constructTrap)) {
-    construct = function() {
-      // Make sure the trap receives 'undefined' as this.
-      return %Apply(constructTrap, void 0, arguments, 0, %_ArgumentsLength());
+    // Make sure the trap receives 'undefined' as this.
+    var construct = constructTrap
+    constructTrap = function() {
+      return %Apply(construct, void 0, arguments, 0, %_ArgumentsLength());
     }
   } else {
     throw MakeTypeError("trap_function_expected",
                         ["createFunction", "construct"])
   }
   return %CreateJSFunctionProxy(
-    handler, callTrap, construct, $Function.prototype)
+    handler, callTrap, constructTrap, $Function.prototype)
 }
 
 

@@ -1464,7 +1464,7 @@ function TestPrototype() {
   var p1 = Proxy.create({})
   var p2 = Proxy.create({}, o1)
   var p3 = Proxy.create({}, p2)
-  var p4 = Proxy.create({}, 666)
+  var p4 = Proxy.create({}, null)
   var o2 = Object.create(p3)
 
   assertSame(Object.getPrototypeOf(o1), Object.prototype)

@@ -185,6 +185,7 @@ function FormatMessage(message) {
       "define_disallowed",            ["Cannot define property:", "%0", ", object is not extensible."],
       "non_extensible_proto",         ["%0", " is not extensible"],
       "handler_non_object",           ["Proxy.", "%0", " called with non-object as handler"],
+      "proto_non_object",             ["Proxy.", "%0", " called with non-object as prototype"],
       "trap_function_expected",       ["Proxy.", "%0", " called with non-function for '", "%1", "' trap"],
       "handler_trap_missing",         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       "handler_trap_must_be_callable", ["Proxy handler ", "%0", " has non-callable '", "%1", "' trap"],
