@@ -790,14 +790,14 @@ void Deserializer::ReadChunk(Object** current,
             ASSIGN_DEST_SPACE(space_number)                                    \
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
-            emit_write_barrier = true;                                         \
             int root_id = source_->GetInt();                                   \
             new_object = isolate->heap()->roots_array_start()[root_id];        \
+            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
           } else if (where == kPartialSnapshotCache) {                         \
-            emit_write_barrier = true;                                         \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
                 [cache_index];                                                 \
+            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
           } else if (where == kExternalReference) {                            \
             int reference_id = source_->GetInt();                              \
             Address address = external_reference_decoder_->                    \
