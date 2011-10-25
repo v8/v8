@@ -669,10 +669,6 @@ class MarkCompactCollector {
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
 
-#ifdef DEBUG
-  void UpdateLiveObjectCount(HeapObject* obj);
-#endif
-
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
@@ -720,35 +716,6 @@ class MarkCompactCollector {
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
 #ifdef DEBUG
-  // -----------------------------------------------------------------------
-  // Debugging variables, functions and classes
-  // Counters used for debugging the marking phase of mark-compact or
-  // mark-sweep collection.
-
-  // Size of live objects in Heap::to_space_.
-  int live_young_objects_size_;
-
-  // Size of live objects in Heap::old_pointer_space_.
-  int live_old_pointer_objects_size_;
-
-  // Size of live objects in Heap::old_data_space_.
-  int live_old_data_objects_size_;
-
-  // Size of live objects in Heap::code_space_.
-  int live_code_objects_size_;
-
-  // Size of live objects in Heap::map_space_.
-  int live_map_objects_size_;
-
-  // Size of live objects in Heap::cell_space_.
-  int live_cell_objects_size_;
-
-  // Size of live objects in Heap::lo_space_.
-  int live_lo_objects_size_;
-
-  // Number of live bytes in this collection.
-  int live_bytes_;
-
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);
 
