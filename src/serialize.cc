@@ -762,7 +762,7 @@ void Deserializer::ReadChunk(Object** current,
   bool write_barrier_needed = (current_object_address != NULL &&
                                source_space != NEW_SPACE &&
                                source_space != CELL_SPACE &&
-                               source_space == OLD_DATA_SPACE);
+                               source_space != OLD_DATA_SPACE);
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
