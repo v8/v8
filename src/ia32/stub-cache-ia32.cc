@@ -754,15 +754,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
-  Code* code = NULL;
-  if (kind == Code::LOAD_IC) {
-    code = masm->isolate()->builtins()->builtin(Builtins::kLoadIC_Miss);
-  } else {
-    code = masm->isolate()->builtins()->builtin(Builtins::kKeyedLoadIC_Miss);
-  }
-
-  Handle<Code> ic(code);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  Handle<Code> code = (kind == Code::LOAD_IC)
+      ? masm->isolate()->builtins()->LoadIC_Miss()
+      : masm->isolate()->builtins()->KeyedLoadIC_Miss();
+  __ jmp(code, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1219,25 +1214,24 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadField(JSObject* object,
-                                     JSObject* holder,
+void StubCompiler::GenerateLoadField(Handle<JSObject> object,
+                                     Handle<JSObject> holder,
                                      Register receiver,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
                                      int index,
-                                     String* name,
+                                     Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss);
 
   // Check the prototype chain.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  Register reg = CheckPrototypes(
+      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
 
   // Get the value from the properties.
-  GenerateFastPropertyLoad(masm(), eax, reg, Handle<JSObject>(holder), index);
+  GenerateFastPropertyLoad(masm(), eax, reg, holder, index);
   __ ret(0);
 }
 
@@ -1309,24 +1303,24 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadConstant(JSObject* object,
-                                        JSObject* holder,
+void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
+                                        Handle<JSObject> holder,
                                         Register receiver,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
-                                        Object* value,
-                                        String* name,
+                                        Handle<Object> value,
+                                        Handle<String> name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, receiver, holder,
-                  scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(
+      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
-  __ mov(eax, Handle<Object>(value));
+  __ mov(eax, value);
   __ ret(0);
 }
 
@@ -2996,9 +2990,9 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
-                                                      JSObject* object,
-                                                      JSObject* last) {
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
+                                                      Handle<JSObject> object,
+                                                      Handle<JSObject> last) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
   //  -- ecx    : name
@@ -3019,15 +3013,8 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
   if (last->IsGlobalObject()) {
-    MaybeObject* cell = TryGenerateCheckPropertyCell(masm(),
-                                                     GlobalObject::cast(last),
-                                                     name,
-                                                     edx,
-                                                     &miss);
-    if (cell->IsFailure()) {
-      miss.Unuse();
-      return cell;
-    }
+    GenerateCheckPropertyCell(
+        masm(), Handle<GlobalObject>::cast(last), name, edx, &miss);
   }
 
   // Return undefined if maps of the full prototype chain are still the
@@ -3039,14 +3026,14 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NONEXISTENT, isolate()->heap()->empty_string());
+  return GetCode(NONEXISTENT, factory()->empty_string());
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
-                                                JSObject* holder,
+Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
+                                                Handle<JSObject> holder,
                                                 int index,
-                                                String* name) {
+                                                Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
   //  -- ecx    : name
@@ -3085,14 +3072,14 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS, name);
+  return TryGetCode(CALLBACKS, name);
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadConstant(JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* value,
-                                                   String* name) {
+Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
+                                                   Handle<JSObject> holder,
+                                                   Handle<Object> value,
+                                                   Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
   //  -- ecx    : name
@@ -3139,7 +3126,7 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR, name);
+  return TryGetCode(INTERCEPTOR, name);
 }
 
 
@@ -3192,13 +3179,13 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NORMAL, name);
+  return TryGetCode(NORMAL, name);
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
-                                                     JSObject* receiver,
-                                                     JSObject* holder,
+Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
+                                                     Handle<JSObject> receiver,
+                                                     Handle<JSObject> holder,
                                                      int index) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -3211,7 +3198,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
   __ IncrementCounter(counters->keyed_load_field(), 1);
 
   // Check that the name has not changed.
-  __ cmp(eax, Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(name));
   __ j(not_equal, &miss);
 
   GenerateLoadField(receiver, holder, edx, ebx, ecx, edi, index, name, &miss);
@@ -3257,14 +3244,15 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS, name);
+  return TryGetCode(CALLBACKS, name);
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                        JSObject* receiver,
-                                                        JSObject* holder,
-                                                        Object* value) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
+    Handle<String> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    Handle<Object> value) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3276,11 +3264,11 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   __ IncrementCounter(counters->keyed_load_constant_function(), 1);
 
   // Check that the name has not changed.
-  __ cmp(eax, Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadConstant(receiver, holder, edx, ebx, ecx, edi,
-                       value, name, &miss);
+  GenerateLoadConstant(
+      receiver, holder, edx, ebx, ecx, edi, value, name, &miss);
   __ bind(&miss);
   __ DecrementCounter(counters->keyed_load_constant_function(), 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -3324,11 +3312,12 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR, name);
+  return TryGetCode(INTERCEPTOR, name);
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3340,7 +3329,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   __ IncrementCounter(counters->keyed_load_array_length(), 1);
 
   // Check that the name has not changed.
-  __ cmp(eax, Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(name));
   __ j(not_equal, &miss);
 
   GenerateLoadArrayLength(masm(), edx, ecx, &miss);
@@ -3353,7 +3342,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadStringLength(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3365,7 +3355,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ IncrementCounter(counters->keyed_load_string_length(), 1);
 
   // Check that the name has not changed.
-  __ cmp(eax, Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(name));
   __ j(not_equal, &miss);
 
   GenerateLoadStringLength(masm(), edx, ecx, ebx, &miss, true);
@@ -3378,7 +3368,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3390,7 +3381,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   __ IncrementCounter(counters->keyed_load_function_prototype(), 1);
 
   // Check that the name has not changed.
-  __ cmp(eax, Immediate(Handle<String>(name)));
+  __ cmp(eax, Immediate(name));
   __ j(not_equal, &miss);
 
   GenerateLoadFunctionPrototype(masm(), edx, ecx, ebx, &miss);
@@ -3421,7 +3412,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL);
+  return TryGetCode(NORMAL, NULL);
 }
 
 
@@ -3449,7 +3440,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return TryGetCode(NORMAL, NULL, MEGAMORPHIC);
 }
 
 

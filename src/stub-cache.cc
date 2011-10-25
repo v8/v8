@@ -109,16 +109,6 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
-                                                      Handle<JSObject> object,
-                                                      Handle<JSObject> last) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadNonexistent(*name, *object, *last)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
                                                Handle<JSObject> receiver) {
   ASSERT(receiver->IsGlobalObject() || receiver->HasFastProperties());
@@ -149,17 +139,6 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *cache_name, *code));
   JSObject::UpdateMapCodeCache(receiver, cache_name, code);
   return code;
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
-                                                Handle<JSObject> holder,
-                                                int index,
-                                                Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadField(*object, *holder, index, *name)),
-                     Code);
 }
 
 
@@ -211,17 +190,6 @@ Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
-                                                   Handle<JSObject> holder,
-                                                   Handle<Object> value,
-                                                   Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadConstant(*object, *holder, *value, *name)),
-                     Code);
 }
 
 
@@ -277,6 +245,7 @@ Handle<Code> StubCache::ComputeLoadNormal() {
   return isolate_->builtins()->LoadIC_Normal();
 }
 
+
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     Handle<JSObject> object,
     Handle<GlobalObject> holder,
@@ -289,6 +258,8 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
                           *object, *holder, *cell, *name, is_dont_delete)),
                      Code);
 }
+
+
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
@@ -309,17 +280,6 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
-                                                     Handle<JSObject> object,
-                                                     Handle<JSObject> holder,
-                                                     int index) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadField(*name, *object, *holder, index)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
                                               Handle<JSObject> receiver,
                                               Handle<JSObject> holder,
@@ -336,17 +296,6 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(Handle<String> name,
-                                                        Handle<JSObject> object,
-                                                        Handle<JSObject> holder,
-                                                        Handle<Object> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadConstant(*name, *object, *holder, *value)),
-                     Code);
 }
 
 
@@ -432,14 +381,6 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadArrayLength(*name)),
-                     Code);
-}
-
 Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
                                                     Handle<JSArray> receiver) {
   Code::Flags flags =
@@ -456,14 +397,6 @@ Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadStringLength(
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadStringLength(*name)),
-                     Code);
-}
-
 Handle<Code> StubCache::ComputeKeyedLoadStringLength(Handle<String> name,
                                                      Handle<String> receiver) {
   Code::Flags flags =
@@ -478,15 +411,6 @@ Handle<Code> StubCache::ComputeKeyedLoadStringLength(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
   Map::UpdateCodeCache(map, name, code);
   return code;
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadFunctionPrototype(*name)),
-                     Code);
 }
 
 
@@ -1672,8 +1596,18 @@ void StubCompiler::LookupPostInterceptor(JSObject* holder,
 }
 
 
+Handle<Code> LoadStubCompiler::GetCode(PropertyType type, Handle<String> name) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
+  Handle<Code> code = GetCodeWithFlags(flags, name);
+  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  return code;
+}
 
-MaybeObject* LoadStubCompiler::GetCode(PropertyType type, String* name) {
+
+// TODO(ulan): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* LoadStubCompiler::TryGetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
   MaybeObject* result = TryGetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
@@ -1689,7 +1623,20 @@ MaybeObject* LoadStubCompiler::GetCode(PropertyType type, String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type,
+Handle<Code> KeyedLoadStubCompiler::GetCode(PropertyType type,
+                                            Handle<String> name,
+                                            InlineCacheState state) {
+  Code::Flags flags = Code::ComputeFlags(
+      Code::KEYED_LOAD_IC, state, Code::kNoExtraICState, type);
+  Handle<Code> code = GetCodeWithFlags(flags, name);
+  PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  return code;
+}
+
+// TODO(ulan): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* KeyedLoadStubCompiler::TryGetCode(PropertyType type,
                                             String* name,
                                             InlineCacheState state) {
   Code::Flags flags = Code::ComputeFlags(

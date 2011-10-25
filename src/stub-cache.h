@@ -528,14 +528,14 @@ class StubCompiler BASE_EMBEDDED {
   MacroAssembler* masm() { return &masm_; }
   void set_failure(Failure* failure) { failure_ = failure; }
 
-  void GenerateLoadField(JSObject* object,
-                         JSObject* holder,
+  void GenerateLoadField(Handle<JSObject> object,
+                         Handle<JSObject> holder,
                          Register receiver,
                          Register scratch1,
                          Register scratch2,
                          Register scratch3,
                          int index,
-                         String* name,
+                         Handle<String> name,
                          Label* miss);
 
   MaybeObject* GenerateLoadCallback(JSObject* object,
@@ -549,14 +549,14 @@ class StubCompiler BASE_EMBEDDED {
                                     String* name,
                                     Label* miss);
 
-  void GenerateLoadConstant(JSObject* object,
-                            JSObject* holder,
+  void GenerateLoadConstant(Handle<JSObject> object,
+                            Handle<JSObject> holder,
                             Register receiver,
                             Register scratch1,
                             Register scratch2,
                             Register scratch3,
-                            Object* value,
-                            String* name,
+                            Handle<Object> value,
+                            Handle<String> name,
                             Label* miss);
 
   void GenerateLoadInterceptor(JSObject* object,
@@ -593,19 +593,10 @@ class LoadStubCompiler: public StubCompiler {
                                       Handle<JSObject> object,
                                       Handle<JSObject> last);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadNonexistent(String* name,
-                                                      JSObject* object,
-                                                      JSObject* last);
-
   Handle<Code> CompileLoadField(Handle<JSObject> object,
                                 Handle<JSObject> holder,
                                 int index,
                                 Handle<String> name);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadField(JSObject* object,
-                                                JSObject* holder,
-                                                int index,
-                                                String* name);
 
   Handle<Code> CompileLoadCallback(Handle<String> name,
                                    Handle<JSObject> object,
@@ -621,11 +612,6 @@ class LoadStubCompiler: public StubCompiler {
                                    Handle<JSObject> holder,
                                    Handle<Object> value,
                                    Handle<String> name);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadConstant(JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* value,
-                                                   String* name);
 
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
@@ -648,7 +634,9 @@ class LoadStubCompiler: public StubCompiler {
                                                  bool is_dont_delete);
 
  private:
-  MUST_USE_RESULT MaybeObject* GetCode(PropertyType type, String* name);
+  MUST_USE_RESULT MaybeObject* TryGetCode(PropertyType type, String* name);
+
+  Handle<Code> GetCode(PropertyType type, Handle<String> name);
 };
 
 
@@ -660,11 +648,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
                                 Handle<JSObject> object,
                                 Handle<JSObject> holder,
                                 int index);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadField(String* name,
-                                                JSObject* object,
-                                                JSObject* holder,
-                                                int index);
 
   Handle<Code> CompileLoadCallback(Handle<String> name,
                                    Handle<JSObject> object,
@@ -681,11 +664,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
                                    Handle<JSObject> holder,
                                    Handle<Object> value);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadConstant(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* value);
-
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
                                       Handle<String> name);
@@ -696,15 +674,9 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   Handle<Code> CompileLoadArrayLength(Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadArrayLength(String* name);
-
   Handle<Code> CompileLoadStringLength(Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadStringLength(String* name);
-
   Handle<Code> CompileLoadFunctionPrototype(Handle<String> name);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -727,8 +699,12 @@ class KeyedLoadStubCompiler: public StubCompiler {
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
  private:
-  MaybeObject* GetCode(PropertyType type,
+  MaybeObject* TryGetCode(PropertyType type,
                        String* name,
+                       InlineCacheState state = MONOMORPHIC);
+
+  Handle<Code> GetCode(PropertyType type,
+                       Handle<String> name,
                        InlineCacheState state = MONOMORPHIC);
 };
 
