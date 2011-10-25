@@ -38,6 +38,7 @@
 #include "macro-assembler.h"
 #include "natives.h"
 #include "objects-visiting.h"
+#include "platform.h"
 #include "snapshot.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
@@ -2006,6 +2007,12 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
       false);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) {
+    // We print out the name of the extension that fail to install.
+    // When an error is thrown during bootstrapping we automatically print
+    // the line number at which this happened to the console in the isolate
+    // error throwing functionality.
+    OS::PrintError("Error installing extension '%s'.\n",
+                   current->extension()->name());
     isolate->clear_pending_exception();
   }
   current->set_state(v8::INSTALLED);
