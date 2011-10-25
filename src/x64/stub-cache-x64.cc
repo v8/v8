@@ -1488,8 +1488,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
       __ JumpIfSmi(rdi, &no_fast_elements_check);
-      __ movq(rsi, FieldOperand(rdx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(rsi, &call_builtin, Label::kFar);
+      __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(rcx, &call_builtin, Label::kFar);
       __ bind(&no_fast_elements_check);
 
       ExternalReference new_space_allocation_top =

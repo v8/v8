@@ -1511,8 +1511,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
       __ JumpIfSmi(edi, &no_fast_elements_check);
-      __ mov(esi, FieldOperand(edx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(esi, &call_builtin, Label::kFar);
+      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+      __ CheckFastObjectElements(ecx, &call_builtin, Label::kFar);
       __ bind(&no_fast_elements_check);
 
       // We could be lucky and the elements array could be at the top of
