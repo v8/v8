@@ -693,7 +693,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     PROFILE(isolate_, CodeMovingGCEvent());
   }
 
-  VerifySymbolTable();
+  if (FLAG_verify_heap) {
+    VerifySymbolTable();
+  }
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
@@ -789,7 +791,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     global_gc_epilogue_callback_();
   }
-  VerifySymbolTable();
+  if (FLAG_verify_heap) {
+    VerifySymbolTable();
+  }
 
   return next_gc_likely_to_collect_more;
 }
@@ -983,7 +987,7 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 
 void Heap::Scavenge() {
 #ifdef DEBUG
-  if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
+  if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
 
   gc_state_ = SCAVENGE;
@@ -1112,7 +1116,9 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-  external_string_table_.Verify();
+  if (FLAG_verify_heap) {
+    external_string_table_.Verify();
+  }
 
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
@@ -2910,7 +2916,9 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
 
   ASSERT(buffer->IsFlat());
 #if DEBUG
-  buffer->StringVerify();
+  if (FLAG_verify_heap) {
+    buffer->StringVerify();
+  }
 #endif
 
   Object* result;
@@ -3156,7 +3164,9 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->CopyFrom(desc);
 
 #ifdef DEBUG
-  code->Verify();
+  if (FLAG_verify_heap) {
+    code->Verify();
+  }
 #endif
   return code;
 }
@@ -3236,7 +3246,9 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   new_code->Relocate(new_addr - old_addr);
 
 #ifdef DEBUG
-  code->Verify();
+  if (FLAG_verify_heap) {
+    code->Verify();
+  }
 #endif
   return new_code;
 }
@@ -6345,7 +6357,9 @@ void ExternalStringTable::CleanUp() {
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);
-  Verify();
+  if (FLAG_verify_heap) {
+    Verify();
+  }
 }
 
 

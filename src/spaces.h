@@ -1132,11 +1132,6 @@ class HeapObjectIterator: public ObjectIterator {
                          Address end,
                          PageMode mode,
                          HeapObjectCallback size_func);
-
-#ifdef DEBUG
-  // Verifies whether fields have valid values.
-  void Verify();
-#endif
 };
 
 

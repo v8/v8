@@ -95,10 +95,6 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
   cur_end_ = end;
   page_mode_ = mode;
   size_func_ = size_f;
-
-#ifdef DEBUG
-  Verify();
-#endif
 }
 
 
@@ -121,13 +117,6 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   ASSERT(cur_page->WasSweptPrecisely());
   return true;
 }
-
-
-#ifdef DEBUG
-void HeapObjectIterator::Verify() {
-  // TODO(gc): We should do something here.
-}
-#endif
 
 
 // -----------------------------------------------------------------------------

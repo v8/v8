@@ -473,7 +473,7 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
 
 #ifdef DEBUG
   // Marking bits are cleared by the sweeper.
-  if (FLAG_enable_slow_asserts) {
+  if (FLAG_verify_heap) {
     heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
   }
 #endif

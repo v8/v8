@@ -3231,7 +3231,9 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
   if (result->IsMap() &&
       Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
 #ifdef DEBUG
-    Map::cast(result)->SharedMapVerify();
+    if (FLAG_verify_heap) {
+      Map::cast(result)->SharedMapVerify();
+    }
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit.
       Object* fresh;
@@ -4727,7 +4729,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
 #ifdef DEBUG
-  if (Map::cast(result)->is_shared()) {
+  if (FLAG_verify_heap && Map::cast(result)->is_shared()) {
     Map::cast(result)->SharedMapVerify();
   }
 #endif

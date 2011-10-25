@@ -13199,7 +13199,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
   }
 
 #ifdef DEBUG
-  cache_handle->JSFunctionResultCacheVerify();
+  if (FLAG_verify_heap) {
+    cache_handle->JSFunctionResultCacheVerify();
+  }
 #endif
 
   // Function invocation may have cleared the cache.  Reread all the data.
@@ -13228,7 +13230,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
   cache_handle->set_finger_index(index);
 
 #ifdef DEBUG
-  cache_handle->JSFunctionResultCacheVerify();
+  if (FLAG_verify_heap) {
+    cache_handle->JSFunctionResultCacheVerify();
+  }
 #endif
 
   return *value;

@@ -765,7 +765,10 @@ bool Object::IsJSFunctionResultCache() {
     return false;
   }
 #ifdef DEBUG
-  reinterpret_cast<JSFunctionResultCache*>(this)->JSFunctionResultCacheVerify();
+  if (FLAG_verify_heap) {
+    reinterpret_cast<JSFunctionResultCache*>(this)->
+        JSFunctionResultCacheVerify();
+  }
 #endif
   return true;
 }
@@ -777,7 +780,9 @@ bool Object::IsNormalizedMapCache() {
     return false;
   }
 #ifdef DEBUG
-  reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
+  if (FLAG_verify_heap) {
+    reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
+  }
 #endif
   return true;
 }

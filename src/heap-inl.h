@@ -590,7 +590,9 @@ void ExternalStringTable::AddOldString(String* string) {
 
 void ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
-  Verify();
+  if (FLAG_verify_heap) {
+    Verify();
+  }
 }
 
 
