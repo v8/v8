@@ -356,7 +356,13 @@ class Deserializer: public SerializerDeserializer {
     UNREACHABLE();
   }
 
-  void ReadChunk(Object** start, Object** end, int space, Address address);
+  // Fills in some heap data in an area from start to end (non-inclusive).  The
+  // space id is used for the write barrier.  The object_address is the address
+  // of the object we are writing into, or NULL if we are not writing into an
+  // object, ie if we are writing a series of tagged values that are not on the
+  // heap.
+  void ReadChunk(
+      Object** start, Object** end, int space, Address object_address);
   HeapObject* GetAddressFromStart(int space);
   inline HeapObject* GetAddressFromEnd(int space);
   Address Allocate(int space_number, Space* space, int size);
