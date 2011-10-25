@@ -416,8 +416,10 @@ class StubCompiler BASE_EMBEDDED {
                                                         Label* miss);
 
   static void GenerateFastPropertyLoad(MacroAssembler* masm,
-                                       Register dst, Register src,
-                                       JSObject* holder, int index);
+                                       Register dst,
+                                       Register src,
+                                       Handle<JSObject> holder,
+                                       int index);
 
   static void GenerateLoadArrayLength(MacroAssembler* masm,
                                       Register receiver,
@@ -466,7 +468,30 @@ class StubCompiler BASE_EMBEDDED {
   // The function can optionally (when save_at_depth !=
   // kInvalidProtoDepth) save the object at the given depth by moving
   // it to [esp + kPointerSize].
+  Register CheckPrototypes(Handle<JSObject> object,
+                           Register object_reg,
+                           Handle<JSObject> holder,
+                           Register holder_reg,
+                           Register scratch1,
+                           Register scratch2,
+                           Handle<String> name,
+                           Label* miss) {
+    return CheckPrototypes(object, object_reg, holder, holder_reg, scratch1,
+                           scratch2, name, kInvalidProtoDepth, miss);
+  }
 
+  Register CheckPrototypes(Handle<JSObject> object,
+                           Register object_reg,
+                           Handle<JSObject> holder,
+                           Register holder_reg,
+                           Register scratch1,
+                           Register scratch2,
+                           Handle<String> name,
+                           int save_at_depth,
+                           Label* miss);
+
+  // TODO(kmillikin): Eliminate this function when the stub cache is fully
+  // handlified.
   Register CheckPrototypes(JSObject* object,
                            Register object_reg,
                            JSObject* holder,
@@ -479,6 +504,8 @@ class StubCompiler BASE_EMBEDDED {
                            scratch2, name, kInvalidProtoDepth, miss);
   }
 
+  // TODO(kmillikin): Eliminate this function when the stub cache is fully
+  // handlified.
   Register CheckPrototypes(JSObject* object,
                            Register object_reg,
                            JSObject* holder,
@@ -491,6 +518,7 @@ class StubCompiler BASE_EMBEDDED {
 
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
+  Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<String> name);
 
   MUST_USE_RESULT MaybeObject* TryGetCodeWithFlags(Code::Flags flags,
                                                    const char* name);
@@ -826,11 +854,6 @@ class CallStubCompiler: public StubCompiler {
                                 int index,
                                 Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileCallField(JSObject* object,
-                                                JSObject* holder,
-                                                int index,
-                                                String* name);
-
   Handle<Code> CompileCallConstant(Handle<Object> object,
                                    Handle<JSObject> holder,
                                    Handle<JSFunction> function,
@@ -899,13 +922,15 @@ class CallStubCompiler: public StubCompiler {
 
   const ParameterCount& arguments() { return arguments_; }
 
-  MUST_USE_RESULT MaybeObject* GetCode(PropertyType type, String* name);
+  Handle<Code> GetCode(PropertyType type, Handle<String> name);
+  Handle<Code> GetCode(Handle<JSFunction> function);
 
-  // Convenience function. Calls GetCode above passing
-  // CONSTANT_FUNCTION type and the name of the given function.
-  MUST_USE_RESULT MaybeObject* GetCode(JSFunction* function);
+  // TODO(kmillikin): Eliminate these functions when the stub cache is fully
+  // handlified.
+  MUST_USE_RESULT MaybeObject* TryGetCode(PropertyType type, String* name);
+  MUST_USE_RESULT MaybeObject* TryGetCode(JSFunction* function);
 
-  void GenerateNameCheck(String* name, Label* miss);
+  void GenerateNameCheck(Handle<String> name, Label* miss);
 
   void GenerateGlobalReceiverCheck(JSObject* object,
                                    JSObject* holder,
@@ -918,9 +943,12 @@ class CallStubCompiler: public StubCompiler {
                                     JSFunction* function,
                                     Label* miss);
 
-  // Generates a jump to CallIC miss stub. Returns Failure if the jump cannot
-  // be generated.
-  MUST_USE_RESULT MaybeObject* GenerateMissBranch();
+  // Generates a jump to CallIC miss stub.
+  void GenerateMissBranch();
+
+  // TODO(kmillikin): Eliminate this function when the stub cache is fully
+  // handlified.
+  MUST_USE_RESULT MaybeObject* TryGenerateMissBranch();
 };
 
 

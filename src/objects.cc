@@ -11472,6 +11472,16 @@ JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
+Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
+    Handle<GlobalObject> global,
+    Handle<String> name) {
+  Isolate* isolate = global->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     global->EnsurePropertyCell(*name),
+                     JSGlobalPropertyCell);
+}
+
+
 MaybeObject* GlobalObject::EnsurePropertyCell(String* name) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindEntry(name);

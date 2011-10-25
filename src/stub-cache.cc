@@ -835,17 +835,6 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
 }
 
 
-Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
-                                                Handle<JSObject> holder,
-                                                int index,
-                                                Handle<String> name) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL), CompileCallField(*object, *holder, index, *name)),
-      Code);
-}
-
-
 Handle<Code> StubCache::ComputeCallField(int argc,
                                          Code::Kind kind,
                                          Code::ExtraICState extra_state,
@@ -1634,6 +1623,14 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
 }
 
 
+Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
+                                            Handle<String> name) {
+  return (FLAG_print_code_stubs && !name.is_null())
+      ? GetCodeWithFlags(flags, *name->ToCString())
+      : GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
+}
+
+
 MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
                                                const char* name) {
   // Check for allocation failures during stub compilation.
@@ -1654,7 +1651,7 @@ MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
 
 MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
                                                String* name) {
-  if (FLAG_print_code_stubs && (name != NULL)) {
+  if (FLAG_print_code_stubs && name != NULL) {
     return TryGetCodeWithFlags(flags, *name->ToCString());
   }
   return TryGetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
@@ -1814,7 +1811,29 @@ MaybeObject* CallStubCompiler::CompileCustomCall(Object* object,
 }
 
 
-MaybeObject* CallStubCompiler::GetCode(PropertyType type, String* name) {
+Handle<Code> CallStubCompiler::GetCode(PropertyType type, Handle<String> name) {
+  int argc = arguments_.immediate();
+  Code::Flags flags = Code::ComputeMonomorphicFlags(kind_,
+                                                    type,
+                                                    extra_state_,
+                                                    cache_holder_,
+                                                    argc);
+  return GetCodeWithFlags(flags, name);
+}
+
+
+Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
+  Handle<String> function_name;
+  if (function->shared()->name()->IsString()) {
+    function_name = Handle<String>(String::cast(function->shared()->name()));
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* CallStubCompiler::TryGetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind_,
                                                     type,
@@ -1825,12 +1844,14 @@ MaybeObject* CallStubCompiler::GetCode(PropertyType type, String* name) {
 }
 
 
-MaybeObject* CallStubCompiler::GetCode(JSFunction* function) {
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* CallStubCompiler::TryGetCode(JSFunction* function) {
   String* function_name = NULL;
   if (function->shared()->name()->IsString()) {
     function_name = String::cast(function->shared()->name());
   }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return TryGetCode(CONSTANT_FUNCTION, function_name);
 }
 
 
