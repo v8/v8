@@ -1503,6 +1503,9 @@ int HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
         block->block_id() < dominated->block_id() &&
         visited_on_paths_.Add(block->block_id())) {
       side_effects |= block_side_effects_[block->block_id()];
+      if (block->IsLoopHeader()) {
+        side_effects |= loop_side_effects_[block->block_id()];
+      }
       side_effects |= CollectSideEffectsOnPathsToDominatedBlock(
           dominator, block);
     }
