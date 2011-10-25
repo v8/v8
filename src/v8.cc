@@ -63,7 +63,7 @@ bool V8::Initialize(Deserializer* des) {
     FLAG_harmony_typeof = true;
     FLAG_harmony_scoping = true;
     FLAG_harmony_proxies = true;
-    FLAG_harmony_weakmaps = true;
+    FLAG_harmony_collections = true;
   }
 
   InitializeOncePerProcess();

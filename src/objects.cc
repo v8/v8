@@ -771,6 +771,49 @@ Object* Object::GetPrototype() {
 }
 
 
+MaybeObject* Object::GetHash(CreationFlag flag) {
+  // The object is either a number, a string, an odd-ball,
+  // a real JS object, or a Harmony proxy.
+  if (IsNumber()) {
+    uint32_t hash = ComputeLongHash(double_to_uint64(Number()));
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (IsString()) {
+    uint32_t hash = String::cast(this)->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (IsOddball()) {
+    uint32_t hash = Oddball::cast(this)->to_string()->Hash();
+    return Smi::FromInt(hash);
+  }
+  if (IsJSReceiver()) {
+    return JSReceiver::cast(this)->GetIdentityHash(flag);
+  }
+
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+
+bool Object::SameValue(Object* other) {
+  if (other == this) return true;
+  if (!IsHeapObject() || !other->IsHeapObject()) return false;
+
+  // The object is either a number, a string, an odd-ball,
+  // a real JS object, or a Harmony proxy.
+  if (IsNumber() && other->IsNumber()) {
+    double this_value = Number();
+    double other_value = other->Number();
+    return (this_value == other_value) ||
+        (isnan(this_value) && isnan(other_value));
+  }
+  if (IsString() && other->IsString()) {
+    return String::cast(this)->Equals(String::cast(other));
+  }
+  return false;
+}
+
+
 void Object::ShortPrint(FILE* out) {
   HeapStringAllocator allocator;
   StringStream accumulator(&allocator);
@@ -1343,6 +1386,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_REGEXP_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
@@ -10983,7 +11028,9 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape, JSReceiver*>;
+template class HashTable<ObjectHashTableShape<1>, Object*>;
+
+template class HashTable<ObjectHashTableShape<2>, Object*>;
 
 template class Dictionary<StringDictionaryShape, String*>;
 
@@ -12340,20 +12387,72 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 }
 
 
-Object* ObjectHashTable::Lookup(JSReceiver* key) {
+bool ObjectHashSet::Contains(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
-  MaybeObject* maybe_hash = key->GetIdentityHash(OMIT_CREATION);
-  if (maybe_hash->IsFailure()) return GetHeap()->undefined_value();
+  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
+    if (maybe_hash->IsFailure()) return false;
+  }
+  return (FindEntry(key) != kNotFound);
+}
+
+
+MaybeObject* ObjectHashSet::Add(Object* key) {
+  // Make sure the key object has an identity hash code.
+  int hash;
+  { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
+    if (maybe_hash->IsFailure()) return maybe_hash;
+    hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+  }
+  int entry = FindEntry(key);
+
+  // Check whether key is already present.
+  if (entry != kNotFound) return this;
+
+  // Check whether the hash set should be extended and add entry.
+  Object* obj;
+  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  ObjectHashSet* table = ObjectHashSet::cast(obj);
+  entry = table->FindInsertionEntry(hash);
+  table->set(EntryToIndex(entry), key);
+  table->ElementAdded();
+  return table;
+}
+
+
+MaybeObject* ObjectHashSet::Remove(Object* key) {
+  // If the object does not have an identity hash, it was never used as a key.
+  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
+    if (maybe_hash->IsFailure()) return this;
+  }
+  int entry = FindEntry(key);
+
+  // Check whether key is actually present.
+  if (entry == kNotFound) return this;
+
+  // Remove entry and try to shrink this hash set.
+  set_null(EntryToIndex(entry));
+  ElementRemoved();
+  return Shrink(key);
+}
+
+
+Object* ObjectHashTable::Lookup(Object* key) {
+  // If the object does not have an identity hash, it was never used as a key.
+  { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
+    if (maybe_hash->IsFailure()) GetHeap()->undefined_value();
+  }
   int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
 
-MaybeObject* ObjectHashTable::Put(JSReceiver* key, Object* value) {
+MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
   // Make sure the key object has an identity hash code.
   int hash;
-  { MaybeObject* maybe_hash = key->GetIdentityHash(ALLOW_CREATION);
+  { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
     if (maybe_hash->IsFailure()) return maybe_hash;
     hash = Smi::cast(maybe_hash->ToObjectUnchecked())->value();
   }
@@ -12383,7 +12482,7 @@ MaybeObject* ObjectHashTable::Put(JSReceiver* key, Object* value) {
 }
 
 
-void ObjectHashTable::AddEntry(int entry, JSReceiver* key, Object* value) {
+void ObjectHashTable::AddEntry(int entry, Object* key, Object* value) {
   set(EntryToIndex(entry), key);
   set(EntryToIndex(entry) + 1, value);
   ElementAdded();

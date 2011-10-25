@@ -342,8 +342,14 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 
 Handle<Object> PreventExtensions(Handle<JSObject> object);
 
+Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
+                                       Handle<Object> key);
+
+Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
+                                          Handle<Object> key);
+
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSReceiver> key,
+                                               Handle<Object> key,
                                                Handle<Object> value);
 
 class NoHandleAllocation BASE_EMBEDDED {

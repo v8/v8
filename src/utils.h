@@ -266,6 +266,18 @@ static inline uint32_t ComputeIntegerHash(uint32_t key) {
 }
 
 
+static inline uint32_t ComputeLongHash(uint64_t key) {
+  uint64_t hash = key;
+  hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
+  hash = hash ^ (hash >> 31);
+  hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
+  hash = hash ^ (hash >> 11);
+  hash = hash + (hash << 6);
+  hash = hash ^ (hash >> 22);
+  return (uint32_t) hash;
+}
+
+
 static inline uint32_t ComputePointerHash(void* ptr) {
   return ComputeIntegerHash(
       static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));

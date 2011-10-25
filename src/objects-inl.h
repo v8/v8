@@ -67,6 +67,13 @@ PropertyDetails PropertyDetails::AsDeleted() {
 }
 
 
+#define TYPE_CHECKER(type, instancetype)                                \
+  bool Object::Is##type() {                                             \
+  return Object::IsHeapObject() &&                                      \
+      HeapObject::cast(this)->map()->instance_type() == instancetype;   \
+  }
+
+
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
     ASSERT(object->Is##type());                 \
@@ -152,10 +159,7 @@ bool Object::NonFailureIsHeapObject() {
 }
 
 
-bool Object::IsHeapNumber() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == HEAP_NUMBER_TYPE;
-}
+TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 
 
 bool Object::IsString() {
@@ -408,16 +412,8 @@ bool Object::IsNumber() {
 }
 
 
-bool Object::IsByteArray() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == BYTE_ARRAY_TYPE;
-}
-
-
-bool Object::IsFreeSpace() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == FREE_SPACE_TYPE;
-}
+TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
+TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 
 
 bool Object::IsFiller() {
@@ -427,11 +423,7 @@ bool Object::IsFiller() {
 }
 
 
-bool Object::IsExternalPixelArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-          EXTERNAL_PIXEL_ARRAY_TYPE;
-}
+TYPE_CHECKER(ExternalPixelArray, EXTERNAL_PIXEL_ARRAY_TYPE)
 
 
 bool Object::IsExternalArray() {
@@ -444,60 +436,14 @@ bool Object::IsExternalArray() {
 }
 
 
-bool Object::IsExternalByteArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_BYTE_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalUnsignedByteArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalShortArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_SHORT_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalUnsignedShortArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalIntArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_INT_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalUnsignedIntArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_UNSIGNED_INT_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalFloatArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_FLOAT_ARRAY_TYPE;
-}
-
-
-bool Object::IsExternalDoubleArray() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() ==
-      EXTERNAL_DOUBLE_ARRAY_TYPE;
-}
+TYPE_CHECKER(ExternalByteArray, EXTERNAL_BYTE_ARRAY_TYPE)
+TYPE_CHECKER(ExternalUnsignedByteArray, EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)
+TYPE_CHECKER(ExternalShortArray, EXTERNAL_SHORT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalUnsignedShortArray, EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
+TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
 
 
 bool MaybeObject::IsFailure() {
@@ -554,42 +500,14 @@ bool Object::IsJSProxy() {
 }
 
 
-bool Object::IsJSFunctionProxy() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_PROXY_TYPE;
-}
-
-
-bool Object::IsJSWeakMap() {
-  return Object::IsJSObject() &&
-      HeapObject::cast(this)->map()->instance_type() == JS_WEAK_MAP_TYPE;
-}
-
-
-bool Object::IsJSContextExtensionObject() {
-  return IsHeapObject()
-      && (HeapObject::cast(this)->map()->instance_type() ==
-          JS_CONTEXT_EXTENSION_OBJECT_TYPE);
-}
-
-
-bool Object::IsMap() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == MAP_TYPE;
-}
-
-
-bool Object::IsFixedArray() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == FIXED_ARRAY_TYPE;
-}
-
-
-bool Object::IsFixedDoubleArray() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() ==
-          FIXED_DOUBLE_ARRAY_TYPE;
-}
+TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
+TYPE_CHECKER(JSSet, JS_SET_TYPE)
+TYPE_CHECKER(JSMap, JS_MAP_TYPE)
+TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
+TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
+TYPE_CHECKER(Map, MAP_TYPE)
+TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 
 
 bool Object::IsDescriptorArray() {
@@ -652,10 +570,7 @@ bool Object::IsSerializedScopeInfo() {
 }
 
 
-bool Object::IsJSFunction() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_TYPE;
-}
+TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 
 
 template <> inline bool Is<JSFunction>(Object* obj) {
@@ -663,43 +578,12 @@ template <> inline bool Is<JSFunction>(Object* obj) {
 }
 
 
-bool Object::IsCode() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == CODE_TYPE;
-}
-
-
-bool Object::IsOddball() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() == ODDBALL_TYPE;
-}
-
-
-bool Object::IsJSGlobalPropertyCell() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type()
-      == JS_GLOBAL_PROPERTY_CELL_TYPE;
-}
-
-
-bool Object::IsSharedFunctionInfo() {
-  return Object::IsHeapObject() &&
-      (HeapObject::cast(this)->map()->instance_type() ==
-       SHARED_FUNCTION_INFO_TYPE);
-}
-
-
-bool Object::IsJSValue() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == JS_VALUE_TYPE;
-}
-
-
-bool Object::IsJSMessageObject() {
-  return Object::IsHeapObject()
-      && (HeapObject::cast(this)->map()->instance_type() ==
-          JS_MESSAGE_OBJECT_TYPE);
-}
+TYPE_CHECKER(Code, CODE_TYPE)
+TYPE_CHECKER(Oddball, ODDBALL_TYPE)
+TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
+TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
+TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 
 
 bool Object::IsStringWrapper() {
@@ -707,10 +591,7 @@ bool Object::IsStringWrapper() {
 }
 
 
-bool Object::IsForeign() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == FOREIGN_TYPE;
-}
+TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 
 
 bool Object::IsBoolean() {
@@ -719,16 +600,8 @@ bool Object::IsBoolean() {
 }
 
 
-bool Object::IsJSArray() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == JS_ARRAY_TYPE;
-}
-
-
-bool Object::IsJSRegExp() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
-}
+TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
+TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
 
 template <> inline bool Is<JSArray>(Object* obj) {
@@ -831,18 +704,8 @@ bool Object::IsGlobalObject() {
 }
 
 
-bool Object::IsJSGlobalObject() {
-  return IsHeapObject() &&
-      (HeapObject::cast(this)->map()->instance_type() ==
-       JS_GLOBAL_OBJECT_TYPE);
-}
-
-
-bool Object::IsJSBuiltinsObject() {
-  return IsHeapObject() &&
-      (HeapObject::cast(this)->map()->instance_type() ==
-       JS_BUILTINS_OBJECT_TYPE);
-}
+TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
+TYPE_CHECKER(JSBuiltinsObject, JS_BUILTINS_OBJECT_TYPE)
 
 
 bool Object::IsUndetectableObject() {
@@ -2184,6 +2047,8 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
+CAST_ACCESSOR(JSSet)
+CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
@@ -3971,6 +3836,8 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 }
 
 
+ACCESSORS(JSSet, table, Object, kTableOffset)
+ACCESSORS(JSMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, next, Object, kNextOffset)
 
@@ -4559,27 +4426,31 @@ MaybeObject* StringDictionaryShape::AsObject(String* key) {
 }
 
 
-bool ObjectHashTableShape::IsMatch(JSReceiver* key, Object* other) {
-  return key == JSReceiver::cast(other);
+template <int entrysize>
+bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+  return key->SameValue(other);
 }
 
 
-uint32_t ObjectHashTableShape::Hash(JSReceiver* key) {
-  MaybeObject* maybe_hash = key->GetIdentityHash(OMIT_CREATION);
-  ASSERT(!maybe_hash->IsFailure());
-  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+template <int entrysize>
+uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
+  ASSERT(!key->IsUndefined() && !key->IsNull());
+  MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
+  return Smi::cast(maybe_hash->ToObjectChecked())->value();
 }
 
 
-uint32_t ObjectHashTableShape::HashForObject(JSReceiver* key, Object* other) {
-  MaybeObject* maybe_hash =
-      JSReceiver::cast(other)->GetIdentityHash(OMIT_CREATION);
-  ASSERT(!maybe_hash->IsFailure());
-  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
+template <int entrysize>
+uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
+                                                        Object* other) {
+  ASSERT(!other->IsUndefined() && !other->IsNull());
+  MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
+  return Smi::cast(maybe_hash->ToObjectChecked())->value();
 }
 
 
-MaybeObject* ObjectHashTableShape::AsObject(JSReceiver* key) {
+template <int entrysize>
+MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Object* key) {
   return key;
 }
 

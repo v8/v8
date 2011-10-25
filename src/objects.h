@@ -53,6 +53,8 @@
 //       - JSReceiver  (suitable for property access)
 //         - JSObject
 //           - JSArray
+//           - JSSet
+//           - JSMap
 //           - JSWeakMap
 //           - JSRegExp
 //           - JSFunction
@@ -631,6 +633,8 @@ enum InstanceType {
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
+  JS_SET_TYPE,
+  JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
 
   JS_REGEXP_TYPE,
@@ -823,6 +827,8 @@ class MaybeObject BASE_EMBEDDED {
   V(JSArray)                                   \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
+  V(JSSet)                                     \
+  V(JSMap)                                     \
   V(JSWeakMap)                                 \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
@@ -940,6 +946,16 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype();
+
+  // Returns the permanent hash code associated with this object depending on
+  // the actual object type.  Might return a failure in case no hash was
+  // created yet or GC was caused by creation.
+  MUST_USE_RESULT MaybeObject* GetHash(CreationFlag flag);
+
+  // Checks whether this object has the same value as the given one.  This
+  // function is implemented according to ES5, section 9.12 and can be used
+  // to implement the Harmony "egal" function.
+  bool SameValue(Object* other);
 
   // Tries to convert an object to an array index.  Returns true and sets
   // the output parameter if it succeeds.
@@ -1393,7 +1409,7 @@ class JSReceiver: public HeapObject {
                                             bool skip_hidden_prototypes);
 
   // Retrieves a permanent object identity hash code. The undefined value might
-  // be returned in case no has been created yet and OMIT_CREATION was used.
+  // be returned in case no hash was created yet and OMIT_CREATION was used.
   inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
 
   // Lookup a property.  If found, the result is valid and has
@@ -2981,20 +2997,41 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 };
 
 
+template <int entrysize>
 class ObjectHashTableShape {
  public:
-  static inline bool IsMatch(JSReceiver* key, Object* other);
-  static inline uint32_t Hash(JSReceiver* key);
-  static inline uint32_t HashForObject(JSReceiver* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(JSReceiver* key);
+  static inline bool IsMatch(Object* key, Object* other);
+  static inline uint32_t Hash(Object* key);
+  static inline uint32_t HashForObject(Object* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(Object* key);
   static const int kPrefixSize = 0;
-  static const int kEntrySize = 2;
+  static const int kEntrySize = entrysize;
 };
 
 
-// ObjectHashTable maps keys that are JavaScript objects to object values by
+// ObjectHashSet holds keys that are arbitrary objects by using the identity
+// hash of the key for hashing purposes.
+class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
+ public:
+  static inline ObjectHashSet* cast(Object* obj) {
+    ASSERT(obj->IsHashTable());
+    return reinterpret_cast<ObjectHashSet*>(obj);
+  }
+
+  // Looks up whether the given key is part of this hash set.
+  bool Contains(Object* key);
+
+  // Adds the given key to this hash set.
+  MUST_USE_RESULT MaybeObject* Add(Object* key);
+
+  // Removes the given key from this hash set.
+  MUST_USE_RESULT MaybeObject* Remove(Object* key);
+};
+
+
+// ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTableShape, JSReceiver*> {
+class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -3003,16 +3040,16 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape, JSReceiver*> {
 
   // Looks up the value associated with the given key. The undefined value is
   // returned in case the key is not present.
-  Object* Lookup(JSReceiver* key);
+  Object* Lookup(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the undefined value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(JSReceiver* key, Object* value);
+  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
 
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, JSReceiver* key, Object* value);
+  void AddEntry(int entry, Object* key, Object* value);
   void RemoveEntry(int entry, Heap* heap);
   inline void RemoveEntry(int entry);
 
@@ -7040,6 +7077,60 @@ class JSFunctionProxy: public JSProxy {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);
+};
+
+
+// The JSSet describes EcmaScript Harmony maps
+class JSSet: public JSObject {
+ public:
+  // [set]: the backing hash set containing keys.
+  DECL_ACCESSORS(table, Object)
+
+  // Casting.
+  static inline JSSet* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void JSSetPrint() {
+    JSSetPrint(stdout);
+  }
+  void JSSetPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSSetVerify();
+#endif
+
+  static const int kTableOffset = JSObject::kHeaderSize;
+  static const int kSize = kTableOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
+};
+
+
+// The JSMap describes EcmaScript Harmony maps
+class JSMap: public JSObject {
+ public:
+  // [table]: the backing hash table mapping keys to values.
+  DECL_ACCESSORS(table, Object)
+
+  // Casting.
+  static inline JSMap* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void JSMapPrint() {
+    JSMapPrint(stdout);
+  }
+  void JSMapPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSMapVerify();
+#endif
+
+  static const int kTableOffset = JSObject::kHeaderSize;
+  static const int kSize = kTableOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
 };
 
 

@@ -296,6 +296,17 @@ namespace internal {
   F(GetConstructTrap, 1, 1) \
   F(Fix, 1, 1) \
   \
+  /* Harmony sets */ \
+  F(SetInitialize, 1, 1) \
+  F(SetAdd, 2, 1) \
+  F(SetHas, 2, 1) \
+  F(SetDelete, 2, 1) \
+  \
+  /* Harmony maps */ \
+  F(MapInitialize, 1, 1) \
+  F(MapGet, 2, 1) \
+  F(MapSet, 3, 1) \
+  \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
   F(WeakMapGet, 2, 1) \

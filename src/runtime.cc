@@ -717,6 +717,82 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInitialize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSSet, holder, 0);
+  Handle<ObjectHashSet> table = isolate->factory()->NewObjectHashSet(0);
+  holder->set_table(*table);
+  return *holder;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSSet, holder, 0);
+  Handle<Object> key(args[1]);
+  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  table = ObjectHashSetAdd(table, key);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_symbol();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHas) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSSet, holder, 0);
+  Handle<Object> key(args[1]);
+  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  return isolate->heap()->ToBoolean(table->Contains(*key));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSSet, holder, 0);
+  Handle<Object> key(args[1]);
+  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  table = ObjectHashSetRemove(table, key);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_symbol();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapInitialize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSMap, holder, 0);
+  Handle<ObjectHashTable> table = isolate->factory()->NewObjectHashTable(0);
+  holder->set_table(*table);
+  return *holder;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGet) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSMap, holder, 0);
+  Handle<Object> key(args[1]);
+  return ObjectHashTable::cast(holder->table())->Lookup(*key);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(JSMap, holder, 0);
+  Handle<Object> key(args[1]);
+  Handle<Object> value(args[2]);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
+  holder->set_table(*new_table);
+  return *value;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);

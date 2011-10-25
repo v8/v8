@@ -85,6 +85,14 @@ Handle<NumberDictionary> Factory::NewNumberDictionary(int at_least_space_for) {
 }
 
 
+Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(isolate(),
+                     ObjectHashSet::Allocate(at_least_space_for),
+                     ObjectHashSet);
+}
+
+
 Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),

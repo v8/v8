@@ -1243,12 +1243,26 @@ void Genesis::InitializeExperimentalGlobal() {
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
-  // longer need to live behind a flag, so WeakMap gets added to the snapshot.
-  if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
-    Handle<JSObject> prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                    prototype, Builtins::kIllegal, true);
+  // longer need to live behind a flag, so functions get added to the snapshot.
+  if (FLAG_harmony_collections) {
+    {  // -- S e t
+      Handle<JSObject> prototype =
+          factory()->NewJSObject(isolate()->object_function(), TENURED);
+      InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
+                      prototype, Builtins::kIllegal, true);
+    }
+    {  // -- M a p
+      Handle<JSObject> prototype =
+          factory()->NewJSObject(isolate()->object_function(), TENURED);
+      InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
+                      prototype, Builtins::kIllegal, true);
+    }
+    {  // -- W e a k M a p
+      Handle<JSObject> prototype =
+          factory()->NewJSObject(isolate()->object_function(), TENURED);
+      InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                      prototype, Builtins::kIllegal, true);
+    }
   }
 }
 
@@ -1759,9 +1773,9 @@ bool Genesis::InstallExperimentalNatives() {
                "native proxy.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
-    if (FLAG_harmony_weakmaps &&
+    if (FLAG_harmony_collections &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native weakmap.js") == 0) {
+               "native collection.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
