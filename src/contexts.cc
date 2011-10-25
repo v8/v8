@@ -174,6 +174,10 @@ Handle<Object> Context::Lookup(Handle<String> name,
             *attributes = READ_ONLY;
             *binding_flags = IMMUTABLE_CHECK_INITIALIZED;
             break;
+          case CONST_HARMONY:
+            *attributes = READ_ONLY;
+            *binding_flags = IMMUTABLE_CHECK_INITIALIZED_HARMONY;
+            break;
           case DYNAMIC:
           case DYNAMIC_GLOBAL:
           case DYNAMIC_LOCAL:
@@ -187,7 +191,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Check the slot corresponding to the intermediate context holding
       // only the function name variable.
       if (follow_context_chain && context->IsFunctionContext()) {
-        int function_index = scope_info->FunctionContextSlotIndex(*name);
+        VariableMode mode;
+        int function_index = scope_info->FunctionContextSlotIndex(*name, &mode);
         if (function_index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
@@ -195,7 +200,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          *binding_flags = IMMUTABLE_IS_INITIALIZED;
+          ASSERT(mode == CONST || mode == CONST_HARMONY);
+          *binding_flags = (mode == CONST)
+              ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
           return context;
         }
       }
@@ -255,7 +262,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     if (param_index >= 0) return false;
 
     // Check context only holding the function name variable.
-    index = scope_info->FunctionContextSlotIndex(*name);
+    index = scope_info->FunctionContextSlotIndex(*name, NULL);
     if (index >= 0) return false;
     context = context->previous();
   }

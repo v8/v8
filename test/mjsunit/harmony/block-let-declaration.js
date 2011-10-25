@@ -32,15 +32,18 @@
 // Global
 let x;
 let y = 2;
+const z = 4;
 
 // Block local
 {
   let y;
   let x = 3;
+  const z = 5;
 }
 
 assertEquals(undefined, x);
 assertEquals(2,y);
+assertEquals(4,z);
 
 if (true) {
   let y;
@@ -58,7 +61,7 @@ function TestLocalDoesNotThrow(str) {
   assertDoesNotThrow("(function(){" + str + "})()");
 }
 
-// Test let declarations statement positions.
+// Test let declarations in statement positions.
 TestLocalThrows("if (true) let x;", SyntaxError);
 TestLocalThrows("if (true) {} else let x;", SyntaxError);
 TestLocalThrows("do let x; while (false)", SyntaxError);
@@ -68,7 +71,32 @@ TestLocalThrows("for (;false;) let x;", SyntaxError);
 TestLocalThrows("switch (true) { case true: let x; }", SyntaxError);
 TestLocalThrows("switch (true) { default: let x; }", SyntaxError);
 
-// Test var declarations statement positions.
+// Test const declarations with initialisers in statement positions.
+TestLocalThrows("if (true) const x = 1;", SyntaxError);
+TestLocalThrows("if (true) {} else const x = 1;", SyntaxError);
+TestLocalThrows("do const x = 1; while (false)", SyntaxError);
+TestLocalThrows("while (false) const x = 1;", SyntaxError);
+TestLocalThrows("label: const x = 1;", SyntaxError);
+TestLocalThrows("for (;false;) const x = 1;", SyntaxError);
+TestLocalThrows("switch (true) { case true: const x = 1; }", SyntaxError);
+TestLocalThrows("switch (true) { default: const x = 1; }", SyntaxError);
+
+// Test const declarations without initialisers.
+TestLocalThrows("const x;", SyntaxError);
+TestLocalThrows("const x = 1, y;", SyntaxError);
+TestLocalThrows("const x, y = 1;", SyntaxError);
+
+// Test const declarations without initialisers in statement positions.
+TestLocalThrows("if (true) const x;", SyntaxError);
+TestLocalThrows("if (true) {} else const x;", SyntaxError);
+TestLocalThrows("do const x; while (false)", SyntaxError);
+TestLocalThrows("while (false) const x;", SyntaxError);
+TestLocalThrows("label: const x;", SyntaxError);
+TestLocalThrows("for (;false;) const x;", SyntaxError);
+TestLocalThrows("switch (true) { case true: const x; }", SyntaxError);
+TestLocalThrows("switch (true) { default: const x; }", SyntaxError);
+
+// Test var declarations in statement positions.
 TestLocalDoesNotThrow("if (true) var x;");
 TestLocalDoesNotThrow("if (true) {} else var x;");
 TestLocalDoesNotThrow("do var x; while (false)");

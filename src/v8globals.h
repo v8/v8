@@ -531,11 +531,13 @@ const uint64_t kLastNonNaNInt64 =
 
 enum VariableMode {
   // User declared variables:
-  VAR,       // declared via 'var', and 'function' declarations
+  VAR,             // declared via 'var', and 'function' declarations
 
-  CONST,     // declared via 'const' declarations
+  CONST,           // declared via 'const' declarations
 
-  LET,       // declared via 'let' declarations
+  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
+
+  LET,             // declared via 'let' declarations
 
   // Variables introduced by the compiler:
   DYNAMIC,         // always require dynamic lookup (we don't know

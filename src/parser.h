@@ -500,7 +500,6 @@ class Parser {
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
-  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
@@ -523,6 +522,9 @@ class Parser {
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
+
+  // Support for hamony block scoped bindings.
+  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
   Expression* ParseExpression(bool accept_IN, bool* ok);
   Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);

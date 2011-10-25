@@ -6048,7 +6048,9 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
 void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
                                       VariableMode mode,
                                       FunctionLiteral* function) {
-  if (mode == LET) return Bailout("unsupported let declaration");
+  if (mode == LET || mode == CONST_HARMONY) {
+    return Bailout("unsupported harmony declaration");
+  }
   Variable* var = proxy->var();
   switch (var->location()) {
     case Variable::UNALLOCATED:

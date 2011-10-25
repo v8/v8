@@ -118,6 +118,15 @@ class Variable: public ZoneObject {
             mode_ == DYNAMIC_GLOBAL ||
             mode_ == DYNAMIC_LOCAL);
   }
+  bool is_const_mode() const {
+    return (mode_ == CONST ||
+            mode_ == CONST_HARMONY);
+  }
+  bool binding_needs_init() const {
+    return (mode_ == LET ||
+            mode_ == CONST ||
+            mode_ == CONST_HARMONY);
+  }
 
   bool is_global() const;
   bool is_this() const { return kind_ == THIS; }

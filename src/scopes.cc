@@ -379,7 +379,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
     index = scope_info_->ParameterIndex(*name);
     if (index < 0) {
       // Check the function name.
-      index = scope_info_->FunctionContextSlotIndex(*name);
+      index = scope_info_->FunctionContextSlotIndex(*name, NULL);
       if (index < 0) return NULL;
     }
   }
@@ -402,10 +402,10 @@ Variable* Scope::Lookup(Handle<String> name) {
 }
 
 
-Variable* Scope::DeclareFunctionVar(Handle<String> name) {
+Variable* Scope::DeclareFunctionVar(Handle<String> name, VariableMode mode) {
   ASSERT(is_function_scope() && function_ == NULL);
   Variable* function_var =
-      new Variable(this, name, CONST, true, Variable::NORMAL);
+      new Variable(this, name, mode, true, Variable::NORMAL);
   function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
   return function_var;
 }
@@ -425,7 +425,10 @@ Variable* Scope::DeclareLocal(Handle<String> name, VariableMode mode) {
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == VAR || mode == CONST || mode == LET);
+  ASSERT(mode == VAR ||
+         mode == CONST ||
+         mode == CONST_HARMONY ||
+         mode == LET);
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }

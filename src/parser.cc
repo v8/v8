@@ -1138,14 +1138,14 @@ Statement* Parser::ParseSourceElement(ZoneStringList* labels,
   // In harmony mode we allow additionally the following productions
   // SourceElement:
   //    LetDeclaration
+  //    ConstDeclaration
 
   if (peek() == Token::FUNCTION) {
     return ParseFunctionDeclaration(ok);
-  } else if (peek() == Token::LET) {
+  } else if (peek() == Token::LET || peek() == Token::CONST) {
     return ParseVariableStatement(kSourceElement, ok);
-  } else {
-    return ParseStatement(labels, ok);
   }
+  return ParseStatement(labels, ok);
 }
 
 
@@ -1363,6 +1363,10 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // If we are inside a function, a declaration of a var/const variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
+  // Let/const variables in harmony mode are always added to the immediately
+  // enclosing scope.
+  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
+      ? top_scope_ : top_scope_->DeclarationScope();
 
   // If a function scope exists, then we can statically declare this
   // variable and also set its mode. In any case, a Declaration node
@@ -1372,9 +1376,8 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the calling function context.
   // Similarly, strict mode eval scope does not leak variable declarations to
   // the caller's scope so we declare all locals, too.
-
-  Scope* declaration_scope = mode == LET ? top_scope_
-      : top_scope_->DeclarationScope();
+  // Also for block scoped let/const bindings the variable can be
+  // statically declared.
   if (declaration_scope->is_function_scope() ||
       declaration_scope->is_strict_mode_eval_scope() ||
       declaration_scope->is_block_scope()) {
@@ -1399,6 +1402,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
         // We only have vars, consts and lets in declarations.
         ASSERT(var->mode() == VAR ||
                var->mode() == CONST ||
+               var->mode() == CONST_HARMONY ||
                var->mode() == LET);
         if (harmony_scoping_) {
           // In harmony mode we treat re-declarations as early errors. See
@@ -1410,8 +1414,8 @@ VariableProxy* Parser::Declare(Handle<String> name,
           *ok = false;
           return NULL;
         }
-        const char* type = (var->mode() == VAR) ? "var" :
-                           (var->mode() == CONST) ? "const" : "let";
+        const char* type = (var->mode() == VAR)
+            ? "var" : var->is_const_mode() ? "const" : "let";
         Handle<String> type_string =
             isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
         Expression* expression =
@@ -1444,7 +1448,8 @@ VariableProxy* Parser::Declare(Handle<String> name,
       new(zone()) Declaration(proxy, mode, fun, top_scope_));
 
   // For global const variables we bind the proxy to a variable.
-  if (mode == CONST && declaration_scope->is_global_scope()) {
+  if ((mode == CONST || mode == CONST_HARMONY) &&
+      declaration_scope->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
     var = new(zone()) Variable(declaration_scope, name, CONST, true, kind);
@@ -1651,8 +1656,18 @@ Block* Parser::ParseVariableDeclarations(
     Handle<String>* out,
     bool* ok) {
   // VariableDeclarations ::
-  //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
-
+  //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
+  //
+  // The ES6 Draft Rev3 specifies the following grammar for const declarations
+  //
+  // ConstDeclaration ::
+  //   const ConstBinding (',' ConstBinding)* ';'
+  // ConstBinding ::
+  //   Identifier '=' AssignmentExpression
+  //
+  // TODO(ES6):
+  // ConstBinding ::
+  //   BindingPattern '=' AssignmentExpression
   VariableMode mode = VAR;
   // True if the binding needs initialization. 'let' and 'const' declared
   // bindings are created uninitialized by their declaration nodes and
@@ -1665,19 +1680,32 @@ Block* Parser::ParseVariableDeclarations(
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
-    if (top_scope_->is_strict_mode()) {
+    if (harmony_scoping_) {
+      if (var_context != kSourceElement &&
+          var_context != kForStatement) {
+        // In harmony mode 'const' declarations are only allowed in source
+        // element positions.
+        ReportMessage("unprotected_const", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      mode = CONST_HARMONY;
+      init_op = Token::INIT_CONST_HARMONY;
+    } else if (top_scope_->is_strict_mode()) {
       ReportMessage("strict_const", Vector<const char*>::empty());
       *ok = false;
       return NULL;
+    } else {
+      mode = CONST;
+      init_op = Token::INIT_CONST;
     }
-    mode = CONST;
     is_const = true;
     needs_init = true;
-    init_op = Token::INIT_CONST;
   } else if (peek() == Token::LET) {
     Consume(Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
+      // Let declarations are only allowed in source element positions.
       ASSERT(var_context == kStatement);
       ReportMessage("unprotected_let", Vector<const char*>::empty());
       *ok = false;
@@ -1690,7 +1718,7 @@ Block* Parser::ParseVariableDeclarations(
     UNREACHABLE();  // by current callers
   }
 
-  Scope* declaration_scope = (mode == LET)
+  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
       ? top_scope_ : top_scope_->DeclarationScope();
   // The scope of a var/const declared variable anywhere inside a function
   // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
@@ -1735,8 +1763,10 @@ Block* Parser::ParseVariableDeclarations(
     // If we have a const declaration, in an inner scope, the proxy is always
     // bound to the declared variable (independent of possibly surrounding with
     // statements).
-    Declare(name, mode, NULL, is_const /* always bound for CONST! */,
-            CHECK_OK);
+    // For let/const declarations in harmony mode, we can also immediately
+    // pre-resolve the proxy because it resides in the same scope as the
+    // declaration.
+    Declare(name, mode, NULL, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
@@ -1775,7 +1805,8 @@ Block* Parser::ParseVariableDeclarations(
     Scope* initialization_scope = is_const ? declaration_scope : top_scope_;
     Expression* value = NULL;
     int position = -1;
-    if (peek() == Token::ASSIGN) {
+    // Harmony consts have non-optional initializers.
+    if (peek() == Token::ASSIGN || mode == CONST_HARMONY) {
       Expect(Token::ASSIGN, CHECK_OK);
       position = scanner().location().beg_pos;
       value = ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
@@ -1814,7 +1845,6 @@ Block* Parser::ParseVariableDeclarations(
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
-
     if (initialization_scope->is_global_scope()) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments = new(zone()) ZoneList<Expression*>(3);
@@ -1876,9 +1906,9 @@ Block* Parser::ParseVariableDeclarations(
     // dynamically looked-up variables and constants (the start context
     // for constant lookups is always the function context, while it is
     // the top context for var declared variables). Sigh...
-    // For 'let' declared variables the initialization is in the same scope
-    // as the declaration. Thus dynamic lookups are unnecessary even if the
-    // block scope is inside a with.
+    // For 'let' and 'const' declared variables in harmony mode the
+    // initialization is in the same scope as the declaration. Thus dynamic
+    // lookups are unnecessary even if the block scope is inside a with.
     if (value != NULL) {
       VariableProxy* proxy = initialization_scope->NewUnresolved(name);
       Assignment* assignment =
@@ -3927,12 +3957,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
-      Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
+      VariableMode fvar_mode;
+      Token::Value fvar_init_op;
+      if (harmony_scoping_) {
+        fvar_mode = CONST_HARMONY;
+        fvar_init_op = Token::INIT_CONST_HARMONY;
+      } else {
+        fvar_mode = CONST;
+        fvar_init_op = Token::INIT_CONST;
+      }
+      Variable* fvar = top_scope_->DeclareFunctionVar(function_name, fvar_mode);
       VariableProxy* fproxy = top_scope_->NewUnresolved(function_name);
       fproxy->BindTo(fvar);
       body->Add(new(zone()) ExpressionStatement(
           new(zone()) Assignment(isolate(),
-                                 Token::INIT_CONST,
+                                 fvar_init_op,
                                  fproxy,
                                  new(zone()) ThisFunction(isolate()),
                                  RelocInfo::kNoPosition)));

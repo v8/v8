@@ -405,7 +405,10 @@ class Declaration: public AstNode {
         mode_(mode),
         fun_(fun),
         scope_(scope) {
-    ASSERT(mode == VAR || mode == CONST || mode == LET);
+    ASSERT(mode == VAR ||
+           mode == CONST ||
+           mode == CONST_HARMONY ||
+           mode == LET);
     // At the moment there are no "const functions"'s in JavaScript...
     ASSERT(fun == NULL || mode == VAR || mode == LET);
   }

@@ -521,8 +521,8 @@ void FullCodeGenerator::VisitDeclarations(
       if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
         if (decl->fun() == NULL) {
-          if (var->mode() == CONST) {
-            // In case this is const property use the hole.
+          if (var->binding_needs_init()) {
+            // In case this binding needs initialization use the hole.
             array->set_the_hole(j++);
           } else {
             array->set_undefined(j++);

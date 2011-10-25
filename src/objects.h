@@ -3113,7 +3113,7 @@ class SerializedScopeInfo : public FixedArray {
   // function context slot index if the function name is present (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be a symbol (canonicalized).
-  int FunctionContextSlotIndex(String* name);
+  int FunctionContextSlotIndex(String* name, VariableMode* mode);
 
   static Handle<SerializedScopeInfo> Create(Scope* scope);
 

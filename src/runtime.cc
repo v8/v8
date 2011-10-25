@@ -8865,13 +8865,26 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     Handle<Object> receiver = isolate->factory()->the_hole_value();
     Object* value = Context::cast(*holder)->get(index);
     // Check for uninitialized bindings.
-    if (binding_flags == MUTABLE_CHECK_INITIALIZED && value->IsTheHole()) {
-      Handle<Object> reference_error =
-          isolate->factory()->NewReferenceError("not_defined",
-                                                HandleVector(&name, 1));
-      return MakePair(isolate->Throw(*reference_error), NULL);
-    } else {
-      return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
+    switch (binding_flags) {
+      case MUTABLE_CHECK_INITIALIZED:
+      case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
+        if (value->IsTheHole()) {
+          Handle<Object> reference_error =
+              isolate->factory()->NewReferenceError("not_defined",
+                                                    HandleVector(&name, 1));
+          return MakePair(isolate->Throw(*reference_error), NULL);
+        }
+        // FALLTHROUGH
+      case MUTABLE_IS_INITIALIZED:
+      case IMMUTABLE_IS_INITIALIZED:
+      case IMMUTABLE_IS_INITIALIZED_HARMONY:
+        ASSERT(!value->IsTheHole());
+        return MakePair(value, *receiver);
+      case IMMUTABLE_CHECK_INITIALIZED:
+        return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
+      case MISSING_BINDING:
+        UNREACHABLE();
+        return MakePair(NULL, NULL);
     }
   }
 

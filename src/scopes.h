@@ -122,7 +122,7 @@ class Scope: public ZoneObject {
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  Variable* DeclareFunctionVar(Handle<String> name);
+  Variable* DeclareFunctionVar(Handle<String> name, VariableMode mode);
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation

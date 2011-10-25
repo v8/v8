@@ -266,7 +266,10 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       // constant.
       if (scope()->is_function_scope() && scope()->function() != NULL) {
         int ignored = 0;
-        EmitDeclaration(scope()->function(), CONST, NULL, &ignored);
+        VariableProxy* proxy = scope()->function();
+        ASSERT(proxy->var()->mode() == CONST ||
+               proxy->var()->mode() == CONST_HARMONY);
+        EmitDeclaration(proxy, proxy->var()->mode(), NULL, &ignored);
       }
       VisitDeclarations(scope()->declarations());
     }
@@ -711,6 +714,8 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
   // need to "declare" it at runtime to make sure it actually exists in the
   // local context.
   Variable* variable = proxy->var();
+  bool binding_needs_init =
+      mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
       ++(*global_count);
@@ -722,7 +727,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         Comment cmnt(masm_, "[ Declaration");
         VisitForAccumulatorValue(function);
         __ mov(StackOperand(variable), result_register());
-      } else if (mode == CONST || mode == LET) {
+      } else if (binding_needs_init) {
         Comment cmnt(masm_, "[ Declaration");
         __ mov(StackOperand(variable),
                Immediate(isolate()->factory()->the_hole_value()));
@@ -754,7 +759,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
                                   EMIT_REMEMBERED_SET,
                                   OMIT_SMI_CHECK);
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
-      } else if (mode == CONST || mode == LET) {
+      } else if (binding_needs_init) {
         Comment cmnt(masm_, "[ Declaration");
         __ mov(ContextOperand(esi, variable->index()),
                Immediate(isolate()->factory()->the_hole_value()));
@@ -767,9 +772,13 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       Comment cmnt(masm_, "[ Declaration");
       __ push(esi);
       __ push(Immediate(variable->name()));
-      // Declaration nodes are always introduced in one of three modes.
-      ASSERT(mode == VAR || mode == CONST || mode == LET);
-      PropertyAttributes attr = (mode == CONST) ? READ_ONLY : NONE;
+      // Declaration nodes are always introduced in one of four modes.
+      ASSERT(mode == VAR ||
+             mode == CONST ||
+             mode == CONST_HARMONY ||
+             mode == LET);
+      PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
+          ? READ_ONLY : NONE;
       __ push(Immediate(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
@@ -778,7 +787,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       increment_stack_height(3);
       if (function != NULL) {
         VisitForStackValue(function);
-      } else if (mode == CONST || mode == LET) {
+      } else if (binding_needs_init) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
         increment_stack_height();
       } else {
@@ -1226,12 +1235,13 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
     Variable* local = var->local_if_not_shadowed();
     __ mov(eax, ContextSlotOperandCheckExtensions(local, slow));
     if (local->mode() == CONST ||
+        local->mode() == CONST_HARMONY ||
         local->mode() == LET) {
       __ cmp(eax, isolate()->factory()->the_hole_value());
       __ j(not_equal, done);
       if (local->mode() == CONST) {
         __ mov(eax, isolate()->factory()->undefined_value());
-      } else {  // LET
+      } else {  // LET || CONST_HARMONY
         __ push(Immediate(var->name()));
         __ CallRuntime(Runtime::kThrowReferenceError, 1);
       }
@@ -1267,7 +1277,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, var->IsContextSlot()
                               ? "Context variable"
                               : "Stack variable");
-      if (var->mode() != LET && var->mode() != CONST) {
+      if (!var->binding_needs_init()) {
         context()->Plug(var);
       } else {
         // Let and const need a read barrier.
@@ -1275,10 +1285,14 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         GetVar(eax, var);
         __ cmp(eax, isolate()->factory()->the_hole_value());
         __ j(not_equal, &done, Label::kNear);
-        if (var->mode() == LET) {
+        if (var->mode() == LET || var->mode() == CONST_HARMONY) {
+          // Throw a reference error when using an uninitialized let/const
+          // binding in harmony mode.
           __ push(Immediate(var->name()));
           __ CallRuntime(Runtime::kThrowReferenceError, 1);
-        } else {  // CONST
+        } else {
+          // Uninitalized const bindings outside of harmony mode are unholed.
+          ASSERT(var->mode() == CONST);
           __ mov(eax, isolate()->factory()->undefined_value());
         }
         __ bind(&done);
@@ -1961,8 +1975,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
     }
 
-  } else if (var->mode() != CONST) {
-    // Assignment to var or initializing assignment to let.
+  } else if (!var->is_const_mode() || op == Token::INIT_CONST_HARMONY) {
+    // Assignment to var or initializing assignment to let/const
+    // in harmony mode.
     if (var->IsStackAllocated() || var->IsContextSlot()) {
       MemOperand location = VarOperand(var, ecx);
       if (FLAG_debug_code && op == Token::INIT_LET) {

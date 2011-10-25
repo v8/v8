@@ -139,7 +139,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
       ASSERT(proxy->var()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
       context_slots_.Add(FACTORY->empty_symbol());
-      context_modes_.Add(INTERNAL);
+      context_modes_.Add(proxy->var()->mode());
     }
   }
 }
@@ -540,16 +540,24 @@ int SerializedScopeInfo::ParameterIndex(String* name) {
 }
 
 
-int SerializedScopeInfo::FunctionContextSlotIndex(String* name) {
+int SerializedScopeInfo::FunctionContextSlotIndex(String* name,
+                                                  VariableMode* mode) {
   ASSERT(name->IsSymbol());
   if (length() > 0) {
     Object** p = data_start();
     if (*p == name) {
       p = ContextEntriesAddr();
       int number_of_context_slots;
-      ReadInt(p, &number_of_context_slots);
+      p = ReadInt(p, &number_of_context_slots);
       ASSERT(number_of_context_slots != 0);
       // The function context slot is the last entry.
+      if (mode != NULL) {
+        // Seek to context slot entry.
+        p += (number_of_context_slots - 1) * 2;
+        // Seek to mode.
+        ++p;
+        ReadInt(p, mode);
+      }
       return number_of_context_slots + Context::MIN_CONTEXT_SLOTS - 1;
     }
   }

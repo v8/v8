@@ -125,11 +125,13 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   // In harmony mode we allow additionally the following productions
   // SourceElement:
   //    LetDeclaration
+  //    ConstDeclaration
 
   switch (peek()) {
     case i::Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
     case i::Token::LET:
+    case i::Token::CONST:
       return ParseVariableStatement(kSourceElement, ok);
     default:
       return ParseStatement(ok);
@@ -331,11 +333,32 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
-
+  //
+  // The ES6 Draft Rev3 specifies the following grammar for const declarations
+  //
+  // ConstDeclaration ::
+  //   const ConstBinding (',' ConstBinding)* ';'
+  // ConstBinding ::
+  //   Identifier '=' AssignmentExpression
+  //
+  // TODO(ES6):
+  // ConstBinding ::
+  //   BindingPattern '=' AssignmentExpression
+  bool require_initializer = false;
   if (peek() == i::Token::VAR) {
     Consume(i::Token::VAR);
   } else if (peek() == i::Token::CONST) {
-    if (strict_mode()) {
+    if (harmony_scoping_) {
+      if (var_context != kSourceElement &&
+          var_context != kForStatement) {
+        i::Scanner::Location location = scanner_->peek_location();
+        ReportMessageAt(location.beg_pos, location.end_pos,
+                        "unprotected_const", NULL);
+        *ok = false;
+        return Statement::Default();
+      }
+      require_initializer = true;
+    } else if (strict_mode()) {
       i::Scanner::Location location = scanner_->peek_location();
       ReportMessageAt(location, "strict_const", NULL);
       *ok = false;
@@ -374,7 +397,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       return Statement::Default();
     }
     nvars++;
-    if (peek() == i::Token::ASSIGN) {
+    if (peek() == i::Token::ASSIGN || require_initializer) {
       Expect(i::Token::ASSIGN, CHECK_OK);
       ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
       if (decl_props != NULL) *decl_props = kHasInitializers;
