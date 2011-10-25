@@ -63,7 +63,9 @@ static inline void CheckHelper(const char* file,
 
 // The CHECK macro checks that the given condition is true; if not, it
 // prints a message to stderr and aborts.
-#define CHECK(condition) CheckHelper(__FILE__, __LINE__, #condition, condition)
+#define CHECK(condition) do {                                             \
+    if (!(condition)) CheckHelper(__FILE__, __LINE__, #condition, false); \
+  } while(0)
 
 
 // Helper function used by the CHECK_EQ function when given int
