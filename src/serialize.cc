@@ -759,6 +759,10 @@ void Deserializer::ReadChunk(Object** current,
                              int source_space,
                              Address current_object_address) {
   Isolate* const isolate = isolate_;
+  bool write_barrier_needed = (current_object_address != NULL &&
+                               source_space != NEW_SPACE &&
+                               source_space != CELL_SPACE &&
+                               source_space == OLD_DATA_SPACE);
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
@@ -778,28 +782,18 @@ void Deserializer::ReadChunk(Object** current,
         if (where == kNewObject && how == kPlain && within == kStartOfObject) {\
           ASSIGN_DEST_SPACE(space_number)                                      \
           ReadObject(space_number, dest_space, current);                       \
-          emit_write_barrier = (space_number == NEW_SPACE &&                   \
-                                source_space != NEW_SPACE &&                   \
-                                source_space != CELL_SPACE);                   \
+          emit_write_barrier = (space_number == NEW_SPACE);                    \
         } else {                                                               \
           Object* new_object = NULL;  /* May not be a real Object pointer. */  \
           if (where == kNewObject) {                                           \
             ASSIGN_DEST_SPACE(space_number)                                    \
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
-            if (source_space != CELL_SPACE &&                                  \
-                source_space != CODE_SPACE &&                                  \
-                source_space != OLD_DATA_SPACE) {                              \
-              emit_write_barrier = true;                                       \
-            }                                                                  \
+            emit_write_barrier = true;                                         \
             int root_id = source_->GetInt();                                   \
             new_object = isolate->heap()->roots_array_start()[root_id];        \
           } else if (where == kPartialSnapshotCache) {                         \
-            if (source_space != CELL_SPACE &&                                  \
-                source_space != CODE_SPACE &&                                  \
-                source_space != OLD_DATA_SPACE) {                              \
-              emit_write_barrier = true;                                       \
-            }                                                                  \
+            emit_write_barrier = true;                                         \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
                 [cache_index];                                                 \
@@ -809,16 +803,12 @@ void Deserializer::ReadChunk(Object** current,
                 Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
-            emit_write_barrier = (space_number == NEW_SPACE &&                 \
-                                  source_space != NEW_SPACE &&                 \
-                                  source_space != CELL_SPACE);                 \
+            emit_write_barrier = (space_number == NEW_SPACE);                  \
             new_object = GetAddressFromEnd(data & kSpaceMask);                 \
           } else {                                                             \
             ASSERT(where == kFromStart);                                       \
             if (offset_from_start == kUnknownOffsetFromStart) {                \
-              emit_write_barrier = (space_number == NEW_SPACE &&               \
-                                    source_space != NEW_SPACE &&               \
-                                    source_space != CELL_SPACE);               \
+              emit_write_barrier = (space_number == NEW_SPACE);                \
               new_object = GetAddressFromStart(data & kSpaceMask);             \
             } else {                                                           \
               Address object_address = pages_[space_number][0] +               \
@@ -845,14 +835,14 @@ void Deserializer::ReadChunk(Object** current,
             *current = new_object;                                             \
           }                                                                    \
         }                                                                      \
-        if (emit_write_barrier && current_object_address != NULL) {            \
+        if (emit_write_barrier && write_barrier_needed) {                      \
           Address current_address = reinterpret_cast<Address>(current);        \
           isolate->heap()->RecordWrite(                                        \
               current_object_address,                                          \
               static_cast<int>(current_address - current_object_address));     \
         }                                                                      \
         if (!current_was_incremented) {                                        \
-          current++;   /* Increment current if it wasn't done above. */        \
+          current++;                                                           \
         }                                                                      \
         break;                                                                 \
       }                                                                        \
