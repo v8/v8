@@ -1612,6 +1612,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 
+    // Handle proxies.
+    if (object->IsJSProxy()) {
+      return JSProxy::cast(*object)->SetProperty(
+          *name, *value, NONE, strict_mode);
+    }
+
     // If the object is undefined or null it's illegal to try to set any
     // properties on it; throw a TypeError in that case.
     if (object->IsUndefined() || object->IsNull()) {
