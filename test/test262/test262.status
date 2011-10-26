@@ -502,9 +502,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Date.prototype.toISOString - value of year is Infinity
 #      Date.prototype.toISOString throw the RangeError
 15.9.5.43-0-15: FAIL
-# Bug? Error.prototype.toString return the value of 'msg' when 'name' is empty
-#      string and 'msg' isn't undefined
-15.11.4.4-8-1: FAIL
 
 ############################ SKIPPED TESTS #############################
 

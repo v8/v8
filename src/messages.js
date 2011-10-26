@@ -83,7 +83,7 @@ function IsNativeErrorObject(obj) {
 // objects between script tags in a browser setting.
 function ToStringCheckErrorObject(obj) {
   if (IsNativeErrorObject(obj)) {
-    return %_CallFunction(obj, errorToString);
+    return %_CallFunction(obj, ErrorToString);
   } else {
     return ToString(obj);
   }
@@ -1146,42 +1146,43 @@ $Error.captureStackTrace = captureStackTrace;
 
 %SetProperty($Error.prototype, 'message', '', DONT_ENUM);
 
-// Global list of error objects visited during errorToString. This is
+// Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.
 const visited_errors = new InternalArray();
 const cyclic_error_marker = new $Object();
 
-function errorToStringDetectCycle(error) {
+function ErrorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
   try {
     var type = error.type;
+    var name = error.name
+    name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
+    var message = error.message;
     var hasMessage = %_CallFunction(error, "message", ObjectHasOwnProperty);
     if (type && !hasMessage) {
-      var formatted = FormatMessage(%NewMessageObject(type, error.arguments));
-      return error.name + ": " + formatted;
+      message = FormatMessage(%NewMessageObject(type, error.arguments));
     }
-    var message = hasMessage ? (": " + error.message) : "";
-    return error.name + message;
+    message = IS_UNDEFINED(message) ? "" : TO_STRING_INLINE(message);
+    if (name === "") return message;
+    if (message === "") return name;
+    return name + ": " + message;
   } finally {
     visited_errors.length = visited_errors.length - 1;
   }
 }
 
-function errorToString() {
+function ErrorToString() {
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     throw MakeTypeError("called_on_null_or_undefined",
                         ["Error.prototype.toString"]);
   }
-  // This helper function is needed because access to properties on
-  // the builtins object do not work inside of a catch clause.
-  function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
 
   try {
-    return errorToStringDetectCycle(this);
+    return ErrorToStringDetectCycle(this);
   } catch(e) {
     // If this error message was encountered already return the empty
     // string for it instead of recursively formatting it.
-    if (isCyclicErrorMarker(e)) {
+    if (e === cyclic_error_marker) {
       return '';
     }
     throw e;
@@ -1189,7 +1190,7 @@ function errorToString() {
 }
 
 
-InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
+InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().

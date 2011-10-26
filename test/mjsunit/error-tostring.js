@@ -25,22 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test printing of cyclic errors which return the empty string for
-// compatibility with Safari and Firefox.
+
+// Test default string representation of an Error object.
 
 var e = new Error();
-assertEquals('Error', e + '');
+assertEquals('Error', e.toString());
+
+
+// Test printing of cyclic errors which return the empty string for
+// compatibility with Safari and Firefox.
 
 e = new Error();
 e.name = e;
 e.message = e;
-e.stack = e;
-e.arguments = e;
-assertEquals(': ', e + '');
+e.stack = "Does not occur in output";
+e.arguments = "Does not occur in output";
+e.type = "Does not occur in output";
+assertEquals('', e.toString());
 
 e = new Error();
 e.name = [ e ];
 e.message = [ e ];
-e.stack = [ e ];
-e.arguments = [ e ];
-assertEquals(': ', e + '');
+e.stack = "Does not occur in output";
+e.arguments = "Does not occur in output";
+e.type = "Does not occur in output";
+assertEquals('', e.toString());
+
+
+// Test the sequence in which getters and toString operations are called
+// on a given Error object.  Verify the produced string representation.
+
+function testErrorToString(nameValue, messageValue) {
+  var seq = [];
+  var e = {
+    get name() {
+      seq.push(1);
+      return (nameValue === undefined) ? nameValue : {
+        toString: function() { seq.push(2); return nameValue; }
+      };
+    },
+    get message() {
+      seq.push(3);
+      return (messageValue === undefined) ? messageValue : {
+        toString: function() { seq.push(4); return messageValue; }
+      };
+    }
+  };
+  var string = Error.prototype.toString.call(e);
+  return [string,seq];
+}
+
+assertEquals(["Error",[1,3]], testErrorToString(undefined, undefined));
+assertEquals(["e1",[1,2,3]], testErrorToString("e1", undefined));
+assertEquals(["e1: null",[1,2,3,4]], testErrorToString("e1", null));
+assertEquals(["e1",[1,2,3,4]], testErrorToString("e1", ""));
+assertEquals(["Error: e2",[1,3,4]], testErrorToString(undefined, "e2"));
+assertEquals(["null: e2",[1,2,3,4]], testErrorToString(null, "e2"));
+assertEquals(["e2",[1,2,3,4]], testErrorToString("", "e2"));
+assertEquals(["e1: e2",[1,2,3,4]], testErrorToString("e1", "e2"));
