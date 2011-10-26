@@ -951,11 +951,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&done_convert);
   __ push(a0);
 
+  // Check for proxies.
+  Label call_runtime;
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ GetObjectType(a0, a1, a1);
+  __ Branch(&call_runtime, le, a1, Operand(LAST_JS_PROXY_TYPE));
+
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next, call_runtime;
+  Label next;
   // Preload a couple of values used in the loop.
   Register  empty_fixed_array_value = t2;
   __ LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
@@ -1029,9 +1035,16 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ jmp(&loop);
 
   // We got a fixed array in register v0. Iterate through that.
+  Label non_proxy;
   __ bind(&fixed_array);
-  __ li(a1, Operand(Smi::FromInt(0)));  // Map (0) - force slow check.
-  __ Push(a1, v0);
+  __ li(a1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
+  __ lw(a2, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ GetObjectType(a2, a3, a3);
+  __ Branch(&non_proxy, gt, a3, Operand(LAST_JS_PROXY_TYPE));
+  __ li(a1, Operand(Smi::FromInt(0)));  // Zero indicates proxy
+  __ bind(&non_proxy);
+  __ Push(a1, v0);  // Smi and array
   __ lw(a1, FieldMemOperand(v0, FixedArray::kLengthOffset));
   __ li(a0, Operand(Smi::FromInt(0)));
   __ Push(a1, a0);  // Fixed array length (as smi) and initial index.
@@ -1050,16 +1063,21 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ addu(t0, a2, t0);  // Array base + scaled (smi) index.
   __ lw(a3, MemOperand(t0));  // Current entry.
 
-  // Get the expected map from the stack or a zero map in the
+  // Get the expected map from the stack or a smi in the
   // permanent slow case into register a2.
   __ lw(a2, MemOperand(sp, 3 * kPointerSize));
 
   // Check if the expected map still matches that of the enumerable.
-  // If not, we have to filter the key.
+  // If not, we may have to filter the key.
   Label update_each;
   __ lw(a1, MemOperand(sp, 4 * kPointerSize));
   __ lw(t0, FieldMemOperand(a1, HeapObject::kMapOffset));
   __ Branch(&update_each, eq, t0, Operand(a2));
+
+  // For proxies, no filtering is done.
+  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
+  ASSERT_EQ(Smi::FromInt(0), 0);
+  __ Branch(&update_each, eq, a2, Operand(zero_reg));
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we
@@ -2868,7 +2886,6 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ lw(a0, ContextOperand(cp, Context::GLOBAL_INDEX));
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
-
 
     CpuFeatures::Scope scope(FPU);
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
