@@ -246,20 +246,6 @@ Handle<Code> StubCache::ComputeLoadNormal() {
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadGlobal(
-    Handle<JSObject> object,
-    Handle<GlobalObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
-    Handle<String> name,
-    bool is_dont_delete) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadGlobal(
-                          *object, *holder, *cell, *name, is_dont_delete)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
                                           Handle<JSObject> receiver,
                                           Handle<GlobalObject> holder,
@@ -466,13 +452,6 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(Handle<Map> map) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL), CompileLoadElement(*map)),
-                     Code);
-}
-
-
 Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(Handle<Map> map) {
   CALL_HEAP_FUNCTION(isolate(),
                      (set_failure(NULL),
@@ -533,24 +512,6 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
   }
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
-    MapHandleList* receiver_maps,
-    CodeHandleList* handler_stubs) {
-  MapList raw_receiver_maps(receiver_maps->length());
-  CodeList raw_handler_stubs(handler_stubs->length());
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL),
-       raw_receiver_maps.Clear(),
-       raw_handler_stubs.Clear(),
-       CompileLoadPolymorphic(UnwrapHandleList(&raw_receiver_maps,
-                                               receiver_maps),
-                              UnwrapHandleList(&raw_handler_stubs,
-                                               handler_stubs))),
-      Code);
 }
 
 

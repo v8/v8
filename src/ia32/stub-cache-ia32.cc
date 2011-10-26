@@ -3130,11 +3130,12 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
-                                                 GlobalObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 String* name,
-                                                 bool is_dont_delete) {
+Handle<Code> LoadStubCompiler::CompileLoadGlobal(
+    Handle<JSObject> object,
+    Handle<GlobalObject> holder,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<String> name,
+    bool is_dont_delete) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
   //  -- ecx    : name
@@ -3145,7 +3146,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual loads. In this case,
   // the receiver cannot be a smi.
-  if (object != holder) {
+  if (!object.is_identical_to(holder)) {
     __ JumpIfSmi(eax, &miss);
   }
 
@@ -3154,10 +3155,10 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 
   // Get the value from the cell.
   if (Serializer::enabled()) {
-    __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+    __ mov(ebx, Immediate(cell));
     __ mov(ebx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
   } else {
-    __ mov(ebx, Operand::Cell(Handle<JSGlobalPropertyCell>(cell)));
+    __ mov(ebx, Operand::Cell(cell));
   }
 
   // Check for deleted property if property can actually be deleted.
@@ -3179,7 +3180,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, name);
+  return GetCode(NORMAL, name);
 }
 
 
@@ -3394,31 +3395,29 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
+    Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Code* stub;
+
   ElementsKind elements_kind = receiver_map->elements_kind();
-  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Handle<Code> stub = KeyedLoadElementStub(elements_kind).GetCode();
+
+  __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
 
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, NULL);
+  return GetCode(NORMAL, factory()->empty_string());
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
-    MapList* receiver_maps,
-    CodeList* handler_ics) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_ics) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
@@ -3431,16 +3430,15 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   __ mov(map_reg, FieldOperand(edx, HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    __ cmp(map_reg, map);
-    __ j(equal, Handle<Code>(handler_ics->at(current)));
+    __ cmp(map_reg, receiver_maps->at(current));
+    __ j(equal, handler_ics->at(current));
   }
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, factory()->empty_string(), MEGAMORPHIC);
 }
 
 

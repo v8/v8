@@ -627,12 +627,6 @@ class LoadStubCompiler: public StubCompiler {
                                  Handle<String> name,
                                  bool is_dont_delete);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadGlobal(JSObject* object,
-                                                 GlobalObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 String* name,
-                                                 bool is_dont_delete);
-
  private:
   MUST_USE_RESULT MaybeObject* TryGetCode(PropertyType type, String* name);
 
@@ -680,14 +674,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);
-
   Handle<Code> CompileLoadPolymorphic(MapHandleList* receiver_maps,
                                       CodeHandleList* handler_ics);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadPolymorphic(
-      MapList* receiver_maps,
-      CodeList* handler_ics);
 
   static void GenerateLoadExternalArray(MacroAssembler* masm,
                                         ElementsKind elements_kind);
