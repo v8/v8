@@ -716,7 +716,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
           rax);
   __ movq(rdx, rax);  // Preserve the value which is returned.
   __ RecordWriteArray(
-      rbx, rax, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+      rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(&fast_double_with_map_check);
