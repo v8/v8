@@ -179,14 +179,6 @@ int SortedListBSearch(
 template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
 
-// Unwraps each handle in the source list to a pointer at
-// the corresponding position in the destination list.
-// Returns the destination list.
-// Both list must have the same length.
-
-template <class T>
-List<T*>* UnwrapHandleList(List<T*>* destination, List<Handle<T> >* source);
-
 
 } }  // namespace v8::internal
 

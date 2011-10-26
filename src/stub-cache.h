@@ -440,9 +440,9 @@ class StubCompiler BASE_EMBEDDED {
                                             Label* miss_label);
 
   static void GenerateStoreField(MacroAssembler* masm,
-                                 JSObject* object,
+                                 Handle<JSObject> object,
                                  int index,
-                                 Map* transition,
+                                 Handle<Map> transition,
                                  Register receiver_reg,
                                  Register name_reg,
                                  Register scratch,
@@ -688,8 +688,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
  private:
   MaybeObject* TryGetCode(PropertyType type,
-                       String* name,
-                       InlineCacheState state = MONOMORPHIC);
+                          String* name,
+                          InlineCacheState state = MONOMORPHIC);
 
   Handle<Code> GetCode(PropertyType type,
                        Handle<String> name,
@@ -708,11 +708,6 @@ class StoreStubCompiler: public StubCompiler {
                                  Handle<Map> transition,
                                  Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
-                                                 int index,
-                                                 Map* transition,
-                                                 String* name);
-
   Handle<Code> CompileStoreCallback(Handle<JSObject> object,
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
@@ -730,13 +725,10 @@ class StoreStubCompiler: public StubCompiler {
                                   Handle<JSGlobalPropertyCell> holder,
                                   Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreGlobal(GlobalObject* object,
-                                                  JSGlobalPropertyCell* holder,
-                                                  String* name);
-
-
  private:
-  MaybeObject* GetCode(PropertyType type, String* name);
+  MaybeObject* TryGetCode(PropertyType type, String* name);
+
+  Handle<Code> GetCode(PropertyType type, Handle<String> name);
 
   StrictModeFlag strict_mode_;
 };
@@ -752,23 +744,11 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                  Handle<Map> transition,
                                  Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
-                                                 int index,
-                                                 Map* transition,
-                                                 String* name);
-
   Handle<Code> CompileStoreElement(Handle<Map> receiver_map);
-
-  MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
 
   Handle<Code> CompileStorePolymorphic(MapHandleList* receiver_maps,
                                        CodeHandleList* handler_stubs,
                                        MapHandleList* transitioned_maps);
-
-  MUST_USE_RESULT MaybeObject* CompileStorePolymorphic(
-      MapList* receiver_maps,
-      CodeList* handler_stubs,
-      MapList* transitioned_maps);
 
   static void GenerateStoreFastElement(MacroAssembler* masm,
                                        bool is_js_array,
@@ -783,8 +763,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
  private:
-  MaybeObject* GetCode(PropertyType type,
-                       String* name,
+  Handle<Code> GetCode(PropertyType type,
+                       Handle<String> name,
                        InlineCacheState state = MONOMORPHIC);
 
   StrictModeFlag strict_mode_;
