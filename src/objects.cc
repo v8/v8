@@ -3589,6 +3589,9 @@ MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
   Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_symbol());
   if (stored_value->IsSmi()) return stored_value;
 
+  // Do not generate permanent identity hash code if not requested.
+  if (flag == OMIT_CREATION) return GetHeap()->undefined_value();
+
   Smi* hash = GenerateIdentityHash();
   MaybeObject* result = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
                                           hash);
@@ -12390,7 +12393,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 bool ObjectHashSet::Contains(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->IsFailure()) return false;
+    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return false;
   }
   return (FindEntry(key) != kNotFound);
 }
@@ -12424,7 +12427,7 @@ MaybeObject* ObjectHashSet::Add(Object* key) {
 MaybeObject* ObjectHashSet::Remove(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->IsFailure()) return this;
+    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return this;
   }
   int entry = FindEntry(key);
 
@@ -12441,7 +12444,9 @@ MaybeObject* ObjectHashSet::Remove(Object* key) {
 Object* ObjectHashTable::Lookup(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-    if (maybe_hash->IsFailure()) GetHeap()->undefined_value();
+    if (maybe_hash->ToObjectUnchecked()->IsUndefined()) {
+      return GetHeap()->undefined_value();
+    }
   }
   int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
