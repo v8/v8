@@ -605,7 +605,7 @@ class TestContext: public AstContext {
 };
 
 
-class FunctionState BASE_EMBEDDED {
+class FunctionState {
  public:
   FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,

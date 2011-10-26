@@ -30,9 +30,6 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
-# BUG(1785): Temporarily disabled until fixed.
-tools/tickprocessor: SKIP
-
 ##############################################################################
 # Fails.
 regress/regress-1119: FAIL

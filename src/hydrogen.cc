@@ -4713,7 +4713,10 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
       Handle<Code>(target_shared->code()),
       Handle<Context>(target->context()->global_context()),
       isolate());
-  FunctionState target_state(this, &target_info, &target_oracle, drop_extra);
+  // The function state is new-allocated because we need to delete it
+  // in two different places.
+  FunctionState* target_state =
+      new FunctionState(this, &target_info, &target_oracle, drop_extra);
 
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
@@ -4747,6 +4750,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     TraceInline(target, caller, "inline graph construction failed");
     target_shared->DisableOptimization(*target);
     inline_bailout_ = true;
+    delete target_state;
     return true;
   }
 
@@ -4793,19 +4797,21 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     // Pop the return test context from the expression context stack.
     ASSERT(ast_context() == inlined_test_context());
     ClearInlinedTestContext();
+    delete target_state;
 
     // Forward to the real test context.
     if (if_true->HasPredecessor()) {
       if_true->SetJoinId(expr->id());
       HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-      if_true->Goto(true_target, drop_extra);
+      if_true->Goto(true_target, function_state()->drop_extra());
     }
     if (if_false->HasPredecessor()) {
       if_false->SetJoinId(expr->id());
       HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-      if_false->Goto(false_target, drop_extra);
+      if_false->Goto(false_target, function_state()->drop_extra());
     }
     set_current_block(NULL);
+    return true;
 
   } else if (function_return()->HasPredecessor()) {
     function_return()->SetJoinId(expr->id());
@@ -4813,7 +4819,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   } else {
     set_current_block(NULL);
   }
-
+  delete target_state;
   return true;
 }
 
