@@ -712,22 +712,14 @@ class StoreStubCompiler: public StubCompiler {
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreCallback(JSObject* object,
-                                                    AccessorInfo* callback,
-                                                    String* name);
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<String> name);
-
-  MUST_USE_RESULT MaybeObject* CompileStoreInterceptor(JSObject* object,
-                                                       String* name);
 
   Handle<Code> CompileStoreGlobal(Handle<GlobalObject> object,
                                   Handle<JSGlobalPropertyCell> holder,
                                   Handle<String> name);
 
  private:
-  MaybeObject* TryGetCode(PropertyType type, String* name);
-
   Handle<Code> GetCode(PropertyType type, Handle<String> name);
 
   StrictModeFlag strict_mode_;

@@ -2725,9 +2725,10 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
-                                                     AccessorInfo* callback,
-                                                     String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<AccessorInfo> callback,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -2755,7 +2756,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   __ pop(ebx);  // remove the return address
   __ push(edx);  // receiver
-  __ push(Immediate(Handle<AccessorInfo>(callback)));  // callback info
+  __ push(Immediate(callback));  // callback info
   __ push(ecx);  // name
   __ push(eax);  // value
   __ push(ebx);  // restore return address
@@ -2771,12 +2772,13 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return TryGetCode(CALLBACKS, name);
+  return GetCode(CALLBACKS, name);
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
-                                                        String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
+    Handle<JSObject> receiver,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -2820,7 +2822,7 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return TryGetCode(INTERCEPTOR, name);
+  return GetCode(INTERCEPTOR, name);
 }
 
 

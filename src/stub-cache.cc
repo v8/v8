@@ -518,17 +518,6 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
 }
 
 
-Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<JSObject> object,
-    Handle<AccessorInfo> callback,
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileStoreCallback(*object, *callback, *name)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
                                              Handle<JSObject> receiver,
                                              Handle<AccessorInfo> callback,
@@ -545,15 +534,6 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> StoreStubCompiler::CompileStoreInterceptor(Handle<JSObject> object,
-                                                        Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileStoreInterceptor(*object, *name)),
-                     Code);
 }
 
 
@@ -1555,25 +1535,6 @@ Handle<Code> StoreStubCompiler::GetCode(PropertyType type,
   PROFILE(isolate(), CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   return code;
-}
-
-
-// TODO(ulan): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StoreStubCompiler::TryGetCode(PropertyType type, String* name) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::STORE_IC, type, strict_mode_);
-  MaybeObject* result = TryGetCodeWithFlags(flags, name);
-  if (!result->IsFailure()) {
-    PROFILE(isolate(),
-            CodeCreateEvent(Logger::STORE_IC_TAG,
-                            Code::cast(result->ToObjectUnchecked()),
-                            name));
-    GDBJIT(AddCode(GDBJITInterface::STORE_IC,
-                   name,
-                   Code::cast(result->ToObjectUnchecked())));
-  }
-  return result;
 }
 
 
