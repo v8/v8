@@ -6839,6 +6839,11 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
                                                         Register name,
                                                         Register scratch1,
                                                         Register scratch2) {
+  ASSERT(!elements.is(scratch1));
+  ASSERT(!elements.is(scratch2));
+  ASSERT(!name.is(scratch1));
+  ASSERT(!name.is(scratch2));
+
   // Assert that name contains a string.
   if (FLAG_debug_code) __ AbortIfNotString(name);
 
@@ -6882,8 +6887,14 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
       ~(scratch1.bit() | scratch2.bit());
 
   __ stm(db_w, sp, spill_mask);
-  __ Move(r0, elements);
-  __ Move(r1, name);
+  if (name.is(r0)) {
+    ASSERT(!elements.is(r1));
+    __ Move(r1, name);
+    __ Move(r0, elements);
+  } else {
+    __ Move(r0, elements);
+    __ Move(r1, name);
+  }
   StringDictionaryLookupStub stub(POSITIVE_LOOKUP);
   __ CallStub(&stub);
   __ tst(r0, Operand(r0));
