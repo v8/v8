@@ -996,13 +996,17 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
     }
   } else {
     Label loop, entry;
+    __ mov(scratch2, Immediate(initial_capacity));
     __ jmp(&entry);
     __ bind(&loop);
-    __ mov(Operand(scratch1, 0), factory->the_hole_value());
-    __ add(scratch1, Immediate(kPointerSize));
+    __ mov(FieldOperand(scratch1,
+                        scratch2,
+                        times_pointer_size,
+                        FixedArray::kHeaderSize),
+           factory->the_hole_value());
     __ bind(&entry);
-    __ cmp(scratch1, scratch2);
-    __ j(below, &loop);
+    __ dec(scratch2);
+    __ j(not_sign, &loop);
   }
 }
 

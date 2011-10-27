@@ -104,7 +104,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
-  int size = JSArray::kSize + FixedArray::SizeFor(initial_capacity);
+  int size = JSArray::kSize;
+  if (initial_capacity > 0) {
+    size += FixedArray::SizeFor(initial_capacity);
+  }
   __ AllocateInNewSpace(size,
                         result,
                         scratch2,
@@ -124,6 +127,11 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ mov(scratch3,  Operand(0, RelocInfo::NONE));
   __ str(scratch3, FieldMemOperand(result, JSArray::kLengthOffset));
 
+  if (initial_capacity == 0) {
+    __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
+    return;
+  }
+
   // Calculate the location of the elements array and set elements array member
   // of the JSArray.
   // result: JSObject
@@ -132,7 +140,6 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
-  STATIC_ASSERT(kSmiTag == 0);
   __ sub(scratch1, scratch1, Operand(kHeapObjectTag));
 
   // Initialize the FixedArray and fill it with holes. FixedArray length is
@@ -141,15 +148,14 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array (untagged)
   // scratch2: start of next object
   __ LoadRoot(scratch3, Heap::kFixedArrayMapRootIndex);
-  ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
+  STATIC_ASSERT(0 * kPointerSize == FixedArray::kMapOffset);
   __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
   __ mov(scratch3,  Operand(Smi::FromInt(initial_capacity)));
-  ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
+  STATIC_ASSERT(1 * kPointerSize == FixedArray::kLengthOffset);
   __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
-  if (initial_capacity == 0) return;
-  ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
+  STATIC_ASSERT(2 * kPointerSize == FixedArray::kHeaderSize);
   __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   static const int kLoopUnfoldLimit = 4;
   if (initial_capacity <= kLoopUnfoldLimit) {
