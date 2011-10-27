@@ -692,17 +692,16 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
     result = ParseFunctionLiteral(name, RelocInfo::kNoPosition, type, &ok);
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
-    // The only errors should be stack overflows.
-    ASSERT(ok || scanner_.stack_overflow());
   }
 
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
-
-  // If there was a stack overflow we have to get rid of AST and it is
-  // not safe to do before scope has been deleted.
   if (result == NULL) {
-    Top::StackOverflow();
+    if (scanner_.stack_overflow()) {
+      Top::StackOverflow();
+    }
+    // If there was an error we have to get rid of AST and it is
+    // not safe to do before scope has been deleted.
     zone_scope.DeleteOnExit();
   }
   return result;
@@ -4602,7 +4601,10 @@ bool ParserApi::Parse(CompilationInfo* info) {
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
   if (info->is_lazy()) {
-    Parser parser(script, true, NULL, NULL);
+    bool allow_natives_syntax =
+        (script->type()->value() == Script::TYPE_NATIVE) ||
+        FLAG_allow_natives_syntax;
+    Parser parser(script, allow_natives_syntax, NULL, NULL);
     result = parser.ParseLazy(info->shared_info());
   } else {
     bool allow_natives_syntax =
