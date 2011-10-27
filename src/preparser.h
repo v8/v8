@@ -408,16 +408,6 @@ class PreParser {
 
   typedef int Arguments;
 
-  // The Strict Mode (ECMA-262 5th edition, 4.2.2).
-  enum StrictModeFlag {
-    kNonStrictMode,
-    kStrictMode,
-    // This value is never used, but is needed to prevent GCC 4.5 from failing
-    // to compile when we assert that a flag is either kNonStrictMode or
-    // kStrictMode.
-    kInvalidStrictFlag
-  };
-
   class Scope {
    public:
     Scope(Scope** variable, ScopeType type)
@@ -428,7 +418,7 @@ class PreParser {
           expected_properties_(0),
           with_nesting_count_(0),
           strict_mode_flag_((prev_ != NULL) ? prev_->strict_mode_flag()
-                            : kNonStrictMode) {
+                            : i::kNonStrictMode) {
       *variable = this;
     }
     ~Scope() { *variable_ = prev_; }
@@ -438,11 +428,11 @@ class PreParser {
     int expected_properties() { return expected_properties_; }
     int materialized_literal_count() { return materialized_literal_count_; }
     bool IsInsideWith() { return with_nesting_count_ != 0; }
-    bool is_strict_mode() { return strict_mode_flag_ == kStrictMode; }
-    StrictModeFlag strict_mode_flag() {
+    bool is_strict_mode() { return strict_mode_flag_ == i::kStrictMode; }
+    i::StrictModeFlag strict_mode_flag() {
       return strict_mode_flag_;
     }
-    void set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
+    void set_strict_mode_flag(i::StrictModeFlag strict_mode_flag) {
       strict_mode_flag_ = strict_mode_flag;
     }
     void EnterWith() { with_nesting_count_++; }
@@ -455,7 +445,7 @@ class PreParser {
     int materialized_literal_count_;
     int expected_properties_;
     int with_nesting_count_;
-    StrictModeFlag strict_mode_flag_;
+    i::StrictModeFlag strict_mode_flag_;
   };
 
   // Private constructor only used in PreParseProgram.
@@ -591,10 +581,12 @@ class PreParser {
   bool peek_any_identifier();
 
   void set_strict_mode() {
-    scope_->set_strict_mode_flag(kStrictMode);
+    scope_->set_strict_mode_flag(i::kStrictMode);
   }
 
-  bool strict_mode() { return scope_->strict_mode_flag() == kStrictMode; }
+  bool strict_mode() { return scope_->strict_mode_flag() == i::kStrictMode; }
+
+  i::StrictModeFlag strict_mode_flag() { return scope_->strict_mode_flag(); }
 
   void Consume(i::Token::Value token) { Next(); }
 

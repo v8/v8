@@ -426,9 +426,9 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      JSObject* object,
+                                      Handle<JSObject> object,
                                       int index,
-                                      Map* transition,
+                                      Handle<Map> transition,
                                       Register receiver_reg,
                                       Register name_reg,
                                       Register scratch,
@@ -453,11 +453,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
-  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+  if (!transition.is_null() && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ push(receiver_reg);
-    __ li(a2, Operand(Handle<Map>(transition)));
+    __ li(a2, Operand(transition));
     __ Push(a2, a0);
     __ TailCallExternalReference(
            ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
@@ -466,10 +466,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  if (transition != NULL) {
+  if (!transition.is_null()) {
     // Update the map of the object; no write barrier updating is
     // needed because the map is never in new space.
-    __ li(t0, Operand(Handle<Map>(transition)));
+    __ li(t0, Operand(transition));
     __ sw(t0, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
   }
 
@@ -2824,10 +2824,10 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
+Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                   int index,
-                                                  Map* transition,
-                                                  String* name) {
+                                                  Handle<Map> transition,
+                                                  Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -2837,25 +2837,21 @@ MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
   Label miss;
 
   // Name register might be clobbered.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     a1, a2, a3,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, a1, a2, a3, &miss);
   __ bind(&miss);
   __ li(a2, Operand(Handle<String>(name)));  // Restore name.
   Handle<Code> ic = masm()->isolate()->builtins()->Builtins::StoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+  return GetCode(transition.is_null() ? FIELD : MAP_TRANSITION, name);
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
-                                                     AccessorInfo* callback,
-                                                     String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<AccessorInfo> callback,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -2881,7 +2877,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   __ push(a1);  // Receiver.
-  __ li(a3, Operand(Handle<AccessorInfo>(callback)));  // Callback info.
+  __ li(a3, Operand(callback));  // Callback info.
   __ Push(a3, a2, a0);
 
   // Do tail-call to the runtime system.
@@ -2900,8 +2896,9 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
-                                                        String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
+    Handle<JSObject> receiver,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -2947,9 +2944,10 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
-                                                   JSGlobalPropertyCell* cell,
-                                                   String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreGlobal(
+    Handle<GlobalObject> object,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -2966,7 +2964,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // cell could have been deleted and reintroducing the global needs
   // to update the property details in the property dictionary of the
   // global object. We bail out to the runtime system to do that.
-  __ li(t0, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ li(t0, Operand(cell));
   __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
   __ lw(t2, FieldMemOperand(t0, JSGlobalPropertyCell::kValueOffset));
   __ Branch(&miss, eq, t1, Operand(t2));
@@ -3132,11 +3130,12 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
-                                                 GlobalObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 String* name,
-                                                 bool is_dont_delete) {
+Handle<Code> LoadStubCompiler::CompileLoadGlobal(
+    Handle<JSObject> object,
+    Handle<GlobalObject> holder,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<String> name,
+    bool is_dont_delete) {
   // ----------- S t a t e -------------
   //  -- a0    : receiver
   //  -- a2    : name
@@ -3147,7 +3146,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
-  if (object != holder) {
+  if (!object.is_identical_to(holder)) {
     __ And(t0, a0, Operand(kSmiTagMask));
     __ Branch(&miss, eq, t0, Operand(zero_reg));
   }
@@ -3156,7 +3155,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   CheckPrototypes(object, a0, holder, a3, t0, a1, name, &miss);
 
   // Get the value from the cell.
-  __ li(a3, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ li(a3, Operand(cell));
   __ lw(t0, FieldMemOperand(a3, JSGlobalPropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
@@ -3175,7 +3174,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, name);
+  return GetCode(NORMAL, name);
 }
 
 
@@ -3355,33 +3354,29 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
+    Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   //  -- a0    : key
   //  -- a1    : receiver
   // -----------------------------------
-  Code* stub;
   ElementsKind elements_kind = receiver_map->elements_kind();
-  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(a1,
-                 a2,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Handle<Code> stub = KeyedLoadElementStub(elements_kind).GetCode();
+
+  __ DispatchMap(a1, a2, receiver_map, stub, DO_SMI_CHECK);
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, NULL);
+  return GetCode(NORMAL, factory()->empty_string());
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
-    MapList* receiver_maps,
-    CodeList* handler_ics) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_ics) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   //  -- a0    : key
@@ -3393,9 +3388,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   int receiver_count = receiver_maps->length();
   __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    Handle<Code> code(handler_ics->at(current));
-    __ Jump(code, RelocInfo::CODE_TARGET, eq, a2, Operand(map));
+    __ Jump(handler_ics->at(current), RelocInfo::CODE_TARGET,
+        eq, a2, Operand(receiver_maps->at(current)));
   }
 
   __ bind(&miss);
@@ -3403,14 +3397,14 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   __ Jump(miss_ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return TryGetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, factory()->empty_string(), MEGAMORPHIC);
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                        int index,
-                                                       Map* transition,
-                                                       String* name) {
+                                                       Handle<Map> transition,
+                                                       Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3424,16 +3418,11 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ IncrementCounter(counters->keyed_store_field(), 1, a3, t0);
 
   // Check that the name has not changed.
-  __ Branch(&miss, ne, a1, Operand(Handle<String>(name)));
+  __ Branch(&miss, ne, a1, Operand(name));
 
   // a3 is used as scratch register. a1 and a2 keep their values if a jump to
   // the miss label is generated.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     a2, a1, a3,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, a2, a1, a3, &miss);
   __ bind(&miss);
 
   __ DecrementCounter(counters->keyed_store_field(), 1, a3, t0);
@@ -3441,11 +3430,12 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+  return GetCode(transition.is_null() ? FIELD : MAP_TRANSITION, name);
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
+Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
+    Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3453,30 +3443,25 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- ra    : return address
   //  -- a3    : scratch
   // -----------------------------------
-  Code* stub;
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(a2,
-                 a3,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Handle<Code> stub =
+      KeyedStoreElementStub(is_js_array, elements_kind).GetCode();
+
+  __ DispatchMap(a2, a3, receiver_map, stub, DO_SMI_CHECK);
 
   Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL);
+  return GetCode(NORMAL, factory()->empty_string());
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
-    MapList* receiver_maps,
-    CodeList* handler_stubs,
-    MapList* transitioned_maps) {
+Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_stubs,
+    MapHandleList* transitioned_maps) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -3490,15 +3475,14 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
   int receiver_count = receiver_maps->length();
   __ lw(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
   for (int i = 0; i < receiver_count; ++i) {
-    Handle<Map> map(receiver_maps->at(i));
-    Handle<Code> code(handler_stubs->at(i));
-    if (transitioned_maps->at(i) == NULL) {
-      __ Jump(code, RelocInfo::CODE_TARGET, eq, a3, Operand(map));
+    if (transitioned_maps->at(i).is_null()) {
+      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, eq,
+          a3, Operand(receiver_maps->at(i)));
     } else {
       Label next_map;
-      __ Branch(&next_map, ne, a3, Operand(map));
-      __ li(a3, Operand(Handle<Map>(transitioned_maps->at(i))));
-      __ Jump(code, RelocInfo::CODE_TARGET);
+      __ Branch(&next_map, ne, a3, Operand(receiver_maps->at(i)));
+      __ li(a3, Operand(transitioned_maps->at(i)));
+      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }
   }
@@ -3508,7 +3492,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
   __ Jump(miss_ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, factory()->empty_string(), MEGAMORPHIC);
 }
 
 

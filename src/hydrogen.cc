@@ -5132,11 +5132,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         call = PreProcessCall(new(zone()) HInvokeFunction(context,
                                                           function,
                                                           argument_count));
-        call->set_position(expr->position());
-        AddInstruction(call);
-        AddSimulate(expr->id());
         Drop(1);  // The function.
-        return ast_context()->ReturnValue(call);
       }
 
     } else {

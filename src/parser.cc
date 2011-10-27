@@ -4006,7 +4006,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         scanner().SeekForward(scope->end_position() - 1);
         materialized_literal_count = entry.literal_count();
         expected_property_count = entry.property_count();
-        if (entry.strict_mode()) top_scope_->SetStrictModeFlag(kStrictMode);
+        top_scope_->SetStrictModeFlag(entry.strict_mode_flag());
         only_simple_this_property_assignments = false;
         this_property_assignments = isolate()->factory()->empty_fixed_array();
         Expect(Token::RBRACE, CHECK_OK);

@@ -121,6 +121,9 @@ S15.3.3.1_A4: FAIL
 15.2.3.7-6-a-176: FAIL
 15.2.3.7-6-a-177: FAIL
 
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1790
+15.4.4.22-9-9: FAIL
+
 # Invalid test cases (recent change adding var changes semantics)
 S8.3_A1_T1: FAIL
 S15.3_A3_T1: FAIL
@@ -475,9 +478,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.reduceRight - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.22-9-b-29: FAIL
-# Bug? Array.prototype.reduceRight - modifications to length will change number
-#      of iterations
-15.4.4.22-9-9: FAIL
 # Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
 #      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
 15.9.5.43-0-8: FAIL

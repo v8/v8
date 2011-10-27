@@ -1,3 +1,8 @@
+2011-10-27: Version 3.7.2
+
+        Fix bug in deoptimization.  Known issue with jslint: Issue 1789.
+
+
 2011-10-26: Version 3.7.1
 
         Achieved 33% speedup in debug-mode tests.
