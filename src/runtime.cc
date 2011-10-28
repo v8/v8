@@ -10725,6 +10725,18 @@ static const int kFrameDetailsAtReturnIndex = 7;
 static const int kFrameDetailsFlagsIndex = 8;
 static const int kFrameDetailsFirstDynamicIndex = 9;
 
+
+static SaveContext* FindSavedContextForFrame(Isolate* isolate,
+                                             JavaScriptFrame* frame) {
+  SaveContext* save = isolate->save_context();
+  while (save != NULL && !save->IsBelowFrame(frame)) {
+    save = save->prev();
+  }
+  ASSERT(save != NULL);
+  return save;
+}
+
+
 // Return an array with frame details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -10780,11 +10792,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->below(it.frame())) {
-    save = save->prev();
-  }
-  ASSERT(save != NULL);
+  SaveContext* save = FindSavedContextForFrame(isolate, it.frame());
 
   // Get the frame id.
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()), isolate);
@@ -12062,11 +12070,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->below(frame)) {
-    save = save->prev();
-  }
-  ASSERT(save != NULL);
+  SaveContext* save = FindSavedContextForFrame(isolate, frame);
+
   SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 

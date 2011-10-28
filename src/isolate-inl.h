@@ -45,9 +45,7 @@ SaveContext::SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
   }
   isolate->set_save_context(this);
 
-  // If there is no JS frame under the current C frame, use the value 0.
-  JavaScriptFrameIterator it(isolate);
-  js_sp_ = it.done() ? 0 : it.frame()->sp();
+  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
 
 
