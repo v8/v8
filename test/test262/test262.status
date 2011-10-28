@@ -131,12 +131,6 @@ S15.3_A3_T3: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-# 15.9.5.43-0-9 and 15.9.5.43-0-10. V8 doesn't throw RangeError
-# from Date.prototype.toISOString when string is not a finite number.
-# This is compatible with Firefox and Safari.
-15.9.5.43-0-9: PASS || FAIL
-15.9.5.43-0-10: PASS || FAIL
-
 # We deliberately treat arguments to parseInt() with a leading zero as
 # octal numbers in order to not break the web.
 S15.1.2.2_A5.1_T1: FAIL_OK
@@ -478,24 +472,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.reduceRight - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.22-9-b-29: FAIL
-# Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
-#      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
-15.9.5.43-0-8: FAIL
-# Bug? Date.prototype.toISOString - RangeError is not thrown when value of date
-#      is Date(1970, 0, 100000001, 0, 0, 0, -1), the time zone is UTC(0)
-15.9.5.43-0-11: FAIL
-# Bug? Date.prototype.toISOString - RangeError is not thrown when value of date
-#      is Date(1970, 0, 100000001, 0, 0, 0, 0), the time zone is UTC(0)
-15.9.5.43-0-12: FAIL
-# Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
-#      Date(1970, 0, 100000001, 0, 0, 0, 1), the time zone is UTC(0)
-15.9.5.43-0-13: FAIL
-# Bug? Date.prototype.toISOString - when value of year is -Infinity
-#      Date.prototype.toISOString throw the RangeError
-15.9.5.43-0-14: FAIL
-# Bug? Date.prototype.toISOString - value of year is Infinity
-#      Date.prototype.toISOString throw the RangeError
-15.9.5.43-0-15: FAIL
 
 ############################ SKIPPED TESTS #############################
 

@@ -246,7 +246,7 @@ namespace internal {
   F(DateLocalTimezone, 1, 1) \
   F(DateLocalTimeOffset, 0, 1) \
   F(DateDaylightSavingsOffset, 1, 1) \
-  F(DateMakeDay, 3, 1) \
+  F(DateMakeDay, 2, 1) \
   F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \

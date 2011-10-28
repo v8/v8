@@ -7490,7 +7490,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 }
 
 
-static int MakeDay(int year, int month, int day) {
+static int MakeDay(int year, int month) {
   static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
                                        181, 212, 243, 273, 304, 334};
   static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
@@ -7527,23 +7527,22 @@ static int MakeDay(int year, int month, int day) {
                       year1 / 400 -
                       base_day;
 
-  if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
-    return day_from_year + day_from_month[month] + day - 1;
+  if ((year % 4 != 0) || (year % 100 == 0 && year % 400 != 0)) {
+    return day_from_year + day_from_month[month];
   }
 
-  return day_from_year + day_from_month_leap[month] + day - 1;
+  return day_from_year + day_from_month_leap[month];
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 2);
 
   CONVERT_SMI_ARG_CHECKED(year, 0);
   CONVERT_SMI_ARG_CHECKED(month, 1);
-  CONVERT_SMI_ARG_CHECKED(date, 2);
 
-  return Smi::FromInt(MakeDay(year, month, date));
+  return Smi::FromInt(MakeDay(year, month));
 }
 
 
@@ -7772,7 +7771,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
   month = kMonthInYear[date];
   day = kDayInYear[date];
 
-  ASSERT(MakeDay(year, month, day) == save_date);
+  ASSERT(MakeDay(year, month) + day - 1 == save_date);
 }
 
 
@@ -7786,7 +7785,7 @@ static inline void DateYMDFromTimeSlow(int date,
   year = 400 * (date / kDaysIn400Years) - kYearsOffset;
   date %= kDaysIn400Years;
 
-  ASSERT(MakeDay(year, 0, 1) + date == save_date);
+  ASSERT(MakeDay(year, 0) + date == save_date);
 
   date--;
   int yd1 = date / kDaysIn100Years;
@@ -7809,8 +7808,8 @@ static inline void DateYMDFromTimeSlow(int date,
   ASSERT(is_leap || (date >= 0));
   ASSERT((date < 365) || (is_leap && (date < 366)));
   ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
-  ASSERT(is_leap || ((MakeDay(year, 0, 1) + date) == save_date));
-  ASSERT(!is_leap || ((MakeDay(year, 0, 1) + date + 1) == save_date));
+  ASSERT(is_leap || ((MakeDay(year, 0) + date) == save_date));
+  ASSERT(!is_leap || ((MakeDay(year, 0) + date + 1) == save_date));
 
   if (is_leap) {
     day = kDayInYear[2*365 + 1 + date];
@@ -7820,7 +7819,7 @@ static inline void DateYMDFromTimeSlow(int date,
     month = kMonthInYear[date];
   }
 
-  ASSERT(MakeDay(year, month, day) == save_date);
+  ASSERT(MakeDay(year, month) + day - 1 == save_date);
 }
 
 

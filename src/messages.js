@@ -198,6 +198,7 @@ function FormatMessage(message) {
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
       "stack_overflow",               ["Maximum call stack size exceeded"],
+      "invalid_time_value",           ["Invalid time value"],
       // SyntaxError
       "unable_to_parse",              ["Parse error"],
       "invalid_regexp_flags",         ["Invalid flags supplied to RegExp constructor '", "%0", "'"],

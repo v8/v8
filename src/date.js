@@ -351,13 +351,12 @@ function MakeDay(year, month, date) {
   date = TO_INTEGER_MAP_MINUS_ZERO(date);
 
   if (year < kMinYear || year > kMaxYear ||
-      month < kMinMonth || month > kMaxMonth ||
-      date < kMinDate || date > kMaxDate) {
+      month < kMinMonth || month > kMaxMonth) {
     return $NaN;
   }
 
-  // Now we rely on year, month and date being SMIs.
-  return %DateMakeDay(year, month, date);
+  // Now we rely on year and month being SMIs.
+  return %DateMakeDay(year, month) + date - 1;
 }
 
 
@@ -978,9 +977,10 @@ function PadInt(n, digits) {
 }
 
 
+// ECMA 262 - 15.9.5.43
 function DateToISOString() {
   var t = DATE_VALUE(this);
-  if (NUMBER_IS_NAN(t)) return kInvalidDate;
+  if (NUMBER_IS_NAN(t)) throw MakeRangeError("invalid_time_value", []);
   var year = this.getUTCFullYear();
   var year_string;
   if (year >= 0 && year <= 9999) {
