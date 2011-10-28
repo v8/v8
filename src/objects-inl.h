@@ -1855,7 +1855,7 @@ Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
 AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
   ASSERT(GetType(descriptor_number) == CALLBACKS);
   Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
-  return reinterpret_cast<AccessorDescriptor*>(p->address());
+  return reinterpret_cast<AccessorDescriptor*>(p->foreign_address());
 }
 
 
@@ -3847,13 +3847,13 @@ ObjectHashTable* JSWeakMap::unchecked_table() {
 }
 
 
-Address Foreign::address() {
-  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kAddressOffset));
+Address Foreign::foreign_address() {
+  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kForeignAddressOffset));
 }
 
 
-void Foreign::set_address(Address value) {
-  WRITE_INTPTR_FIELD(this, kAddressOffset, OffsetFrom(value));
+void Foreign::set_foreign_address(Address value) {
+  WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
 }
 
 
@@ -4536,14 +4536,14 @@ int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
 
 void Foreign::ForeignIterateBody(ObjectVisitor* v) {
   v->VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
+      reinterpret_cast<Address*>(FIELD_ADDR(this, kForeignAddressOffset)));
 }
 
 
 template<typename StaticVisitor>
 void Foreign::ForeignIterateBody() {
   StaticVisitor::VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
+      reinterpret_cast<Address*>(FIELD_ADDR(this, kForeignAddressOffset)));
 }
 
 

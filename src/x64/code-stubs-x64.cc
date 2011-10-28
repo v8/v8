@@ -4150,7 +4150,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
   Factory* factory = masm->isolate()->factory();
@@ -4226,7 +4227,8 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharFromCode slow case");
 
   __ bind(&slow_case_);
@@ -4253,7 +4255,8 @@ void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   char_code_at_generator_.GenerateSlow(masm, call_helper);
   char_from_code_generator_.GenerateSlow(masm, call_helper);
 }
@@ -5517,70 +5520,6 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ testq(r0, r0);
   __ j(not_zero, miss);
   __ jmp(done);
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
-    MacroAssembler* masm,
-    Label* miss,
-    Label* done,
-    Register properties,
-    String* name,
-    Register r0) {
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // r0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r0;
-    // Capacity is smi 2^n.
-    __ SmiToInteger32(index, FieldOperand(properties, kCapacityOffset));
-    __ decl(index);
-    __ and_(index,
-            Immediate(name->Hash() + StringDictionary::GetProbeOffset(i)));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
-
-    Register entity_name = r0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    __ movq(entity_name, Operand(properties,
-                                 index,
-                                 times_pointer_size,
-                                 kElementsStartOffset - kHeapObjectTag));
-    __ Cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done);
-
-    // Stop if found the property.
-    __ Cmp(entity_name, Handle<String>(name));
-    __ j(equal, miss);
-
-    // Check if the entry name is not a symbol.
-    __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-             Immediate(kIsSymbolMask));
-    __ j(zero, miss);
-  }
-
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
-  __ Push(Handle<Object>(name));
-  __ push(Immediate(name->Hash()));
-  MaybeObject* result = masm->TryCallStub(&stub);
-  if (result->IsFailure()) return result;
-  __ testq(r0, r0);
-  __ j(not_zero, miss);
-  __ jmp(done);
-  return result;
 }
 
 

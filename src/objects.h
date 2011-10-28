@@ -7174,8 +7174,8 @@ class JSWeakMap: public JSObject {
 class Foreign: public HeapObject {
  public:
   // [address]: field containing the address.
-  inline Address address();
-  inline void set_address(Address value);
+  inline Address foreign_address();
+  inline void set_foreign_address(Address value);
 
   // Casting.
   static inline Foreign* cast(Object* obj);
@@ -7198,10 +7198,10 @@ class Foreign: public HeapObject {
 
   // Layout description.
 
-  static const int kAddressOffset = HeapObject::kHeaderSize;
-  static const int kSize = kAddressOffset + kPointerSize;
+  static const int kForeignAddressOffset = HeapObject::kHeaderSize;
+  static const int kSize = kForeignAddressOffset + kPointerSize;
 
-  STATIC_CHECK(kAddressOffset == Internals::kForeignAddressOffset);
+  STATIC_CHECK(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);

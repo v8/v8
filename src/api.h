@@ -115,7 +115,8 @@ void NeanderObject::set(int offset, v8::internal::Object* value) {
 template <typename T> static inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return reinterpret_cast<T>(
-      reinterpret_cast<intptr_t>(v8::internal::Foreign::cast(obj)->address()));
+      reinterpret_cast<intptr_t>(
+          v8::internal::Foreign::cast(obj)->foreign_address()));
 }
 
 

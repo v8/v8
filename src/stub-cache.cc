@@ -161,18 +161,6 @@ Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadCallback(*name, *object, *holder, *callback)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
                                             Handle<JSObject> receiver,
                                             Handle<JSObject> holder,
@@ -210,16 +198,6 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadInterceptor(Handle<JSObject> object,
-                                                      Handle<JSObject> holder,
-                                                      Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadInterceptor(*object, *holder, *name)),
-                     Code);
 }
 
 
@@ -305,17 +283,6 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<String> name,
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadInterceptor(*object, *holder, *name)),
-                     Code);
-}
-
-
 Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<String> name,
                                                     Handle<JSObject> receiver,
                                                     Handle<JSObject> holder) {
@@ -331,18 +298,6 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<String> name,
   GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     (set_failure(NULL),
-                      CompileLoadCallback(*name, *object, *holder, *callback)),
-                     Code);
 }
 
 
@@ -577,19 +532,6 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<String> name,
 #define CALL_LOGGER_TAG(kind, type) \
     (kind == Code::CALL_IC ? Logger::type : Logger::KEYED_##type)
 
-Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
-                                                   Handle<JSObject> holder,
-                                                   Handle<JSFunction> function,
-                                                   Handle<String> name,
-                                                   CheckType check) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL),
-       CompileCallConstant(*object, *holder, *function, *name, check)),
-      Code);
-}
-
-
 Handle<Code> StubCache::ComputeCallConstant(int argc,
                                             Code::Kind kind,
                                             Code::ExtraICState extra_state,
@@ -669,16 +611,6 @@ Handle<Code> StubCache::ComputeCallField(int argc,
 }
 
 
-Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
-                                                      Handle<JSObject> holder,
-                                                      Handle<String> name) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL), CompileCallInterceptor(*object, *holder, *name)),
-      Code);
-}
-
-
 Handle<Code> StubCache::ComputeCallInterceptor(int argc,
                                                Code::Kind kind,
                                                Code::ExtraICState extra_state,
@@ -713,20 +645,6 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
   JSObject::UpdateMapCodeCache(map_holder, name, code);
   return code;
-}
-
-
-Handle<Code> CallStubCompiler::CompileCallGlobal(
-    Handle<JSObject> object,
-    Handle<GlobalObject> holder,
-    Handle<JSGlobalPropertyCell> cell,
-    Handle<JSFunction> function,
-    Handle<String> name) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      (set_failure(NULL),
-       CompileCallGlobal(*object, *holder, *cell, *function, *name)),
-      Code);
 }
 
 
@@ -902,33 +820,6 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
   StubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileCallMiss(flags);
   FillCache(isolate_, code);
-  return code;
-}
-
-
-// The CallStubCompiler needs a version of ComputeCallMiss that does not
-// perform GC.  This function is temporary, because the stub cache but not
-// yet the stub compiler uses handles.
-MaybeObject* StubCache::TryComputeCallMiss(int argc,
-                                           Code::Kind kind,
-                                           Code::ExtraICState extra_state) {
-  Code::Flags flags =
-      Code::ComputeFlags(kind, MONOMORPHIC_PROTOTYPE_FAILURE, extra_state,
-                         NORMAL, argc, OWN_MAP);
-  NumberDictionary* cache = isolate_->heap()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
-  if (entry != -1) return cache->ValueAt(entry);
-
-  StubCompiler compiler(isolate_);
-  Code* code = NULL;
-  MaybeObject* maybe_code = compiler.TryCompileCallMiss(flags);
-  if (!maybe_code->To(&code)) return maybe_code;
-
-  NumberDictionary* new_cache = NULL;
-  MaybeObject* maybe_new_cache = cache->AtNumberPut(flags, code);
-  if (!maybe_new_cache->To(&new_cache)) return maybe_new_cache;
-  isolate_->heap()->public_set_non_monomorphic_cache(new_cache);
-
   return code;
 }
 
@@ -1343,33 +1234,6 @@ Handle<Code> StubCompiler::CompileCallMiss(Code::Flags flags) {
 }
 
 
-// TODO(kmillikin): This annoying raw pointer implementation should be
-// eliminated when the stub compiler no longer needs it.
-MaybeObject* StubCompiler::TryCompileCallMiss(Code::Flags flags) {
-  HandleScope scope(isolate());
-  int argc = Code::ExtractArgumentsCountFromFlags(flags);
-  Code::Kind kind = Code::ExtractKindFromFlags(flags);
-  Code::ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  if (kind == Code::CALL_IC) {
-    CallIC::GenerateMiss(masm(), argc, extra_state);
-  } else {
-    KeyedCallIC::GenerateMiss(masm(), argc);
-  }
-  Object* result;
-  { MaybeObject* maybe_result = TryGetCodeWithFlags(flags, "CompileCallMiss");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  isolate()->counters()->call_megamorphic_stubs()->Increment();
-  Code* code = Code::cast(result);
-  USE(code);
-  PROFILE(isolate(),
-          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
-                          code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, Code::cast(code)));
-  return result;
-}
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<Code> StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   Debug::GenerateCallICDebugBreak(masm());
@@ -1454,17 +1318,16 @@ MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
 }
 
 
-void StubCompiler::LookupPostInterceptor(JSObject* holder,
-                                         String* name,
+void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
+                                         Handle<String> name,
                                          LookupResult* lookup) {
-  holder->LocalLookupRealNamedProperty(name, lookup);
-  if (!lookup->IsProperty()) {
-    lookup->NotFound();
-    Object* proto = holder->GetPrototype();
-    if (!proto->IsNull()) {
-      proto->Lookup(name, lookup);
-    }
-  }
+  holder->LocalLookupRealNamedProperty(*name, lookup);
+  if (lookup->IsProperty()) return;
+
+  lookup->NotFound();
+  if (holder->GetPrototype()->IsNull()) return;
+
+  holder->GetPrototype()->Lookup(*name, lookup);
 }
 
 
@@ -1477,24 +1340,6 @@ Handle<Code> LoadStubCompiler::GetCode(PropertyType type, Handle<String> name) {
 }
 
 
-// TODO(ulan): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* LoadStubCompiler::TryGetCode(PropertyType type, String* name) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
-  MaybeObject* result = TryGetCodeWithFlags(flags, name);
-  if (!result->IsFailure()) {
-    PROFILE(isolate(),
-            CodeCreateEvent(Logger::LOAD_IC_TAG,
-                            Code::cast(result->ToObjectUnchecked()),
-                            name));
-    GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
-                   name,
-                   Code::cast(result->ToObjectUnchecked())));
-  }
-  return result;
-}
-
-
 Handle<Code> KeyedLoadStubCompiler::GetCode(PropertyType type,
                                             Handle<String> name,
                                             InlineCacheState state) {
@@ -1504,26 +1349,6 @@ Handle<Code> KeyedLoadStubCompiler::GetCode(PropertyType type,
   PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
   return code;
-}
-
-// TODO(ulan): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* KeyedLoadStubCompiler::TryGetCode(PropertyType type,
-                                            String* name,
-                                            InlineCacheState state) {
-  Code::Flags flags = Code::ComputeFlags(
-      Code::KEYED_LOAD_IC, state, Code::kNoExtraICState, type);
-  MaybeObject* result = TryGetCodeWithFlags(flags, name);
-  if (!result->IsFailure()) {
-    PROFILE(isolate(),
-            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
-                            Code::cast(result->ToObjectUnchecked()),
-                            name));
-    GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
-                   name,
-                   Code::cast(result->ToObjectUnchecked())));
-  }
-  return result;
 }
 
 
@@ -1569,39 +1394,36 @@ CallStubCompiler::CallStubCompiler(Isolate* isolate,
 }
 
 
-bool CallStubCompiler::HasCustomCallGenerator(JSFunction* function) {
-  SharedFunctionInfo* info = function->shared();
-  if (info->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = info->builtin_function_id();
+bool CallStubCompiler::HasCustomCallGenerator(Handle<JSFunction> function) {
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
 #define CALL_GENERATOR_CASE(name) if (id == k##name) return true;
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE
   }
+
   CallOptimization optimization(function);
-  if (optimization.is_simple_api_call()) {
-    return true;
-  }
-  return false;
+  return optimization.is_simple_api_call();
 }
 
 
-MaybeObject* CallStubCompiler::CompileCustomCall(Object* object,
-                                                 JSObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 JSFunction* function,
-                                                 String* fname) {
+Handle<Code> CallStubCompiler::CompileCustomCall(
+    Handle<Object> object,
+    Handle<JSObject> holder,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<JSFunction> function,
+    Handle<String> fname) {
   ASSERT(HasCustomCallGenerator(function));
 
-  SharedFunctionInfo* info = function->shared();
-  if (info->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = info->builtin_function_id();
-#define CALL_GENERATOR_CASE(name)                           \
-    if (id == k##name) {                                    \
-      return CallStubCompiler::Compile##name##Call(object,  \
-                                                  holder,   \
-                                                  cell,     \
-                                                  function, \
-                                                  fname);   \
+  if (function->shared()->HasBuiltinFunctionId()) {
+    BuiltinFunctionId id = function->shared()->builtin_function_id();
+#define CALL_GENERATOR_CASE(name)                               \
+    if (id == k##name) {                                        \
+      return CallStubCompiler::Compile##name##Call(object,      \
+                                                   holder,      \
+                                                   cell,        \
+                                                   function,    \
+                                                   fname);      \
     }
     CUSTOM_CALL_IC_GENERATORS(CALL_GENERATOR_CASE)
 #undef CALL_GENERATOR_CASE
@@ -1637,30 +1459,6 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
 }
 
 
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* CallStubCompiler::TryGetCode(PropertyType type, String* name) {
-  int argc = arguments_.immediate();
-  Code::Flags flags = Code::ComputeMonomorphicFlags(kind_,
-                                                    type,
-                                                    extra_state_,
-                                                    cache_holder_,
-                                                    argc);
-  return TryGetCodeWithFlags(flags, name);
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* CallStubCompiler::TryGetCode(JSFunction* function) {
-  String* function_name = NULL;
-  if (function->shared()->name()->IsString()) {
-    function_name = String::cast(function->shared()->name());
-  }
-  return TryGetCode(CONSTANT_FUNCTION, function_name);
-}
-
-
 MaybeObject* ConstructStubCompiler::GetCode() {
   Code::Flags flags = Code::ComputeFlags(Code::STUB);
   Object* result;
@@ -1676,65 +1474,69 @@ MaybeObject* ConstructStubCompiler::GetCode() {
 
 
 CallOptimization::CallOptimization(LookupResult* lookup) {
-  if (!lookup->IsProperty() || !lookup->IsCacheable() ||
+  if (!lookup->IsProperty() ||
+      !lookup->IsCacheable() ||
       lookup->type() != CONSTANT_FUNCTION) {
-    Initialize(NULL);
+    Initialize(Handle<JSFunction>::null());
   } else {
     // We only optimize constant function calls.
-    Initialize(lookup->GetConstantFunction());
+    Initialize(Handle<JSFunction>(lookup->GetConstantFunction()));
   }
 }
 
-CallOptimization::CallOptimization(JSFunction* function) {
+CallOptimization::CallOptimization(Handle<JSFunction> function) {
   Initialize(function);
 }
 
 
-int CallOptimization::GetPrototypeDepthOfExpectedType(JSObject* object,
-                                                      JSObject* holder) const {
-  ASSERT(is_simple_api_call_);
-  if (expected_receiver_type_ == NULL) return 0;
+int CallOptimization::GetPrototypeDepthOfExpectedType(
+    Handle<JSObject> object,
+    Handle<JSObject> holder) const {
+  ASSERT(is_simple_api_call());
+  if (expected_receiver_type_.is_null()) return 0;
   int depth = 0;
-  while (object != holder) {
-    if (object->IsInstanceOf(expected_receiver_type_)) return depth;
-    object = JSObject::cast(object->GetPrototype());
+  while (!object.is_identical_to(holder)) {
+    if (object->IsInstanceOf(*expected_receiver_type_)) return depth;
+    object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
     ++depth;
   }
-  if (holder->IsInstanceOf(expected_receiver_type_)) return depth;
+  if (holder->IsInstanceOf(*expected_receiver_type_)) return depth;
   return kInvalidProtoDepth;
 }
 
 
-void CallOptimization::Initialize(JSFunction* function) {
-  constant_function_ = NULL;
+void CallOptimization::Initialize(Handle<JSFunction> function) {
+  constant_function_ = Handle<JSFunction>::null();
   is_simple_api_call_ = false;
-  expected_receiver_type_ = NULL;
-  api_call_info_ = NULL;
+  expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
+  api_call_info_ = Handle<CallHandlerInfo>::null();
 
-  if (function == NULL || !function->is_compiled()) return;
+  if (function.is_null() || !function->is_compiled()) return;
 
   constant_function_ = function;
   AnalyzePossibleApiFunction(function);
 }
 
 
-void CallOptimization::AnalyzePossibleApiFunction(JSFunction* function) {
-  SharedFunctionInfo* sfi = function->shared();
-  if (!sfi->IsApiFunction()) return;
-  FunctionTemplateInfo* info = sfi->get_api_func_data();
+void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
+  if (!function->shared()->IsApiFunction()) return;
+  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data());
 
   // Require a C++ callback.
   if (info->call_code()->IsUndefined()) return;
-  api_call_info_ = CallHandlerInfo::cast(info->call_code());
+  api_call_info_ =
+      Handle<CallHandlerInfo>(CallHandlerInfo::cast(info->call_code()));
 
   // Accept signatures that either have no restrictions at all or
   // only have restrictions on the receiver.
   if (!info->signature()->IsUndefined()) {
-    SignatureInfo* signature = SignatureInfo::cast(info->signature());
+    Handle<SignatureInfo> signature =
+        Handle<SignatureInfo>(SignatureInfo::cast(info->signature()));
     if (!signature->args()->IsUndefined()) return;
     if (!signature->receiver()->IsUndefined()) {
       expected_receiver_type_ =
-          FunctionTemplateInfo::cast(signature->receiver());
+          Handle<FunctionTemplateInfo>(
+              FunctionTemplateInfo::cast(signature->receiver()));
     }
   }
 

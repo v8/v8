@@ -5033,7 +5033,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         return;
       }
 
-      if (CallStubCompiler::HasCustomCallGenerator(*expr->target()) ||
+      if (CallStubCompiler::HasCustomCallGenerator(expr->target()) ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
         // because it is likely to generate better code.  Also use the IC

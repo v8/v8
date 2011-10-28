@@ -759,7 +759,7 @@ void Code::CodePrint(FILE* out) {
 
 
 void Foreign::ForeignPrint(FILE* out) {
-  PrintF(out, "foreign address : %p", address());
+  PrintF(out, "foreign address : %p", foreign_address());
 }
 
 

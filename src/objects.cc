@@ -220,7 +220,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   if (structure->IsForeign()) {
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(
-            Foreign::cast(structure)->address());
+            Foreign::cast(structure)->foreign_address());
     MaybeObject* value = (callback->getter)(receiver, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
@@ -2006,7 +2006,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
   if (structure->IsForeign()) {
     AccessorDescriptor* callback =
         reinterpret_cast<AccessorDescriptor*>(
-            Foreign::cast(structure)->address());
+            Foreign::cast(structure)->foreign_address());
     MaybeObject* obj = (callback->setter)(this,  value, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;

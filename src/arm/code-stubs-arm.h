@@ -807,17 +807,6 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Handle<String> name,
                                      Register scratch0);
 
-  // TODO(kmillikin): Eliminate this function when the stub cache is fully
-  // handlified.
-  MUST_USE_RESULT static MaybeObject* TryGenerateNegativeLookup(
-      MacroAssembler* masm,
-      Label* miss,
-      Label* done,
-      Register receiver,
-      Register properties,
-      String* name,
-      Register scratch0);
-
   static void GeneratePositiveLookup(MacroAssembler* masm,
                                      Label* miss,
                                      Label* done,

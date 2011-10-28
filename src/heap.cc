@@ -2629,12 +2629,10 @@ MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(foreign_map(), space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  Foreign::cast(result)->set_address(address);
+  Foreign* result;
+  MaybeObject* maybe_result = Allocate(foreign_map(), space);
+  if (!maybe_result->To(&result)) return maybe_result;
+  result->set_foreign_address(address);
   return result;
 }
 
