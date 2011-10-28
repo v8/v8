@@ -106,6 +106,16 @@ namespace internal {
   type name = NumberTo##Type(obj);
 
 
+// Assert that the given argument has a valid value for a StrictModeFlag
+// and store it in a StrictModeFlag variable with the given name.
+#define CONVERT_STRICT_MODE_ARG(name, index)                         \
+  ASSERT(args[index]->IsSmi());                                      \
+  ASSERT(args.smi_at(index) == kStrictMode ||                        \
+         args.smi_at(index) == kNonStrictMode);                      \
+  StrictModeFlag name =                                              \
+      static_cast<StrictModeFlag>(args.smi_at(index));
+
+
 MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
                                                    JSObject* boilerplate) {
   StackLimitCheck check(isolate);
@@ -1515,8 +1525,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
-  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(1));
-  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
+  CONVERT_STRICT_MODE_ARG(strict_mode, 1);
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -4594,10 +4603,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 
   StrictModeFlag strict_mode = kNonStrictMode;
   if (args.length() == 5) {
-    CONVERT_SMI_ARG_CHECKED(strict_unchecked, 4);
-    RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
-                   strict_unchecked == kNonStrictMode);
-    strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
+    CONVERT_STRICT_MODE_ARG(strict_mode_flag, 4);
+    strict_mode = strict_mode_flag;
   }
 
   return Runtime::SetObjectProperty(isolate,
@@ -9011,10 +9018,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   Handle<Object> value(args[0], isolate);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
-  CONVERT_SMI_ARG_CHECKED(strict_unchecked, 3);
-  RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
-                 strict_unchecked == kNonStrictMode);
-  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
+  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
 
   int index;
   PropertyAttributes attributes;
@@ -9487,11 +9491,11 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
-  ASSERT(args[3]->IsSmi());
+  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           static_cast<StrictModeFlag>(args.smi_at(3)));
+                           strict_mode);
 }
 
 
@@ -9508,11 +9512,11 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEvalNoLookup) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
-  ASSERT(args[3]->IsSmi());
+  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           static_cast<StrictModeFlag>(args.smi_at(3)));
+                           strict_mode);
 }
 
 

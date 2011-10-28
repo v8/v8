@@ -10524,8 +10524,10 @@ class StringSharedKey : public HashTableKey {
     FixedArray* pair = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
     if (shared != shared_) return false;
-    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(
-        Smi::cast(pair->get(2))->value());
+    int strict_unchecked = Smi::cast(pair->get(2))->value();
+    ASSERT(strict_unchecked == kStrictMode ||
+           strict_unchecked == kNonStrictMode);
+    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
     if (strict_mode != strict_mode_) return false;
     String* source = String::cast(pair->get(1));
     return source->Equals(source_);
@@ -10557,8 +10559,10 @@ class StringSharedKey : public HashTableKey {
     FixedArray* pair = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
     String* source = String::cast(pair->get(1));
-    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(
-        Smi::cast(pair->get(2))->value());
+    int strict_unchecked = Smi::cast(pair->get(2))->value();
+    ASSERT(strict_unchecked == kStrictMode ||
+           strict_unchecked == kNonStrictMode);
+    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
     return StringSharedHashHelper(source, shared, strict_mode);
   }
 

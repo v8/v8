@@ -77,6 +77,8 @@ class FunctionEntry BASE_EMBEDDED {
   int literal_count() { return backing_[kLiteralCountOffset]; }
   int property_count() { return backing_[kPropertyCountOffset]; }
   StrictModeFlag strict_mode_flag() {
+    ASSERT(backing_[kStrictModeOffset] == kStrictMode ||
+           backing_[kStrictModeOffset] == kNonStrictMode);
     return static_cast<StrictModeFlag>(backing_[kStrictModeOffset]);
   }
 

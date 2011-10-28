@@ -1213,8 +1213,8 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
   Object* value = args[2];
+  ASSERT(args.smi_at(3) == kStrictMode || args.smi_at(3) == kNonStrictMode);
   StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
-  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
   MaybeObject* result = recv->SetPropertyWithInterceptor(
