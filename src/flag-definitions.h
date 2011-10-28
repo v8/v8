@@ -114,11 +114,7 @@ DEFINE_bool(clever_optimizations,
             "Optimize object size, Array shift, DOM strings and string +")
 
 // Flags for Crankshaft.
-#ifdef V8_TARGET_ARCH_MIPS
-  DEFINE_bool(crankshaft, false, "use crankshaft")
-#else
-  DEFINE_bool(crankshaft, true, "use crankshaft")
-#endif
+DEFINE_bool(crankshaft, true, "use crankshaft")
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
 DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
 DEFINE_bool(build_lithium, true, "use lithium chunk builder")
@@ -326,7 +322,8 @@ DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
-DEFINE_bool(check_icache, false, "Check icache flushes in ARM simulator")
+DEFINE_bool(check_icache, false,
+            "Check icache flushes in ARM and MIPS simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")

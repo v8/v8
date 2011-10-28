@@ -1176,24 +1176,93 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 }
 
 
-// These functions are called from C++ but cannot be used in live code.
+static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
+                                             Deoptimizer::BailoutType type) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // Pass the function and deoptimization type to the runtime system.
+    __ li(a0, Operand(Smi::FromInt(static_cast<int>(type))));
+    __ push(a0);
+    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+  }
+
+  // Get the full codegen state from the stack and untag it -> t2.
+  __ lw(t2, MemOperand(sp, 0 * kPointerSize));
+  __ SmiUntag(t2);
+  // Switch on the state.
+  Label with_tos_register, unknown_state;
+  __ Branch(&with_tos_register,
+            ne, t2, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ Addu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&with_tos_register);
+  __ lw(v0, MemOperand(sp, 1 * kPointerSize));
+  __ Branch(&unknown_state, ne, t2, Operand(FullCodeGenerator::TOS_REG));
+
+  __ Addu(sp, sp, Operand(2 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&unknown_state);
+  __ stop("no cases left");
+}
+
+
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
 }
 
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
 }
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  RegList saved_regs =
+      (kJSCallerSaved | kCalleeSaved | ra.bit() | fp.bit()) & ~sp.bit();
+  __ MultiPush(saved_regs);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kNotifyOSR, 0);
+  }
+  __ MultiPop(saved_regs);
+  __ Ret();
 }
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  CpuFeatures::TryForceFeatureScope scope(VFP3);
+  if (!CpuFeatures::IsSupported(FPU)) {
+    __ Abort("Unreachable code: Cannot optimize without FPU support.");
+    return;
+  }
+
+  // Lookup the function in the JavaScript frame and push it as an
+  // argument to the on-stack replacement function.
+  __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(a0);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  }
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  __ Ret(eq, v0, Operand(Smi::FromInt(-1)));
+
+  // Untag the AST id and push it on the stack.
+  __ SmiUntag(v0);
+  __ push(v0);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 
@@ -1395,8 +1464,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   const int kFunctionOffset =  4 * kPointerSize;
 
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
     __ lw(a0, MemOperand(fp, kFunctionOffset));  // Get the function.
     __ push(a0);
     __ lw(a0, MemOperand(fp, kArgsOffset));  // Get the args array.
@@ -1530,8 +1598,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ InvokeFunction(a1, actual, CALL_FUNCTION,
                       NullCallWrapper(), CALL_AS_METHOD);
 
-    scope.GenerateLeaveFrame();
-
+    frame_scope.GenerateLeaveFrame();
     __ Ret(USE_DELAY_SLOT);
     __ Addu(sp, sp, Operand(3 * kPointerSize));  // In delay slot.
 
