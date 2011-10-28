@@ -1,3 +1,9 @@
+2011-10-28: Version 3.7.3
+
+        Slight deoptimization as a workaround for issue with jslint: Issue
+        1789.
+
+
 2011-10-27: Version 3.7.2
 
         Fix bug in deoptimization.  Known issue with jslint: Issue 1789.
