@@ -355,9 +355,7 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   // Convert and copy elements
   // esi: source FixedArray
-  // edi: number of elements to convert/copy
   __ bind(&loop);
-  __ sub(edi, Immediate(Smi::FromInt(1)));
   __ mov(ebx, FieldOperand(esi, edi, times_2, FixedArray::kHeaderSize));
   // ebx: current element from source
   // edi: index of current element
@@ -390,8 +388,8 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   }
 
   __ bind(&entry);
-  __ test(edi, edi);
-  __ j(not_zero, &loop);
+  __ sub(edi, Immediate(Smi::FromInt(1)));
+  __ j(not_sign, &loop);
 
   __ pop(ebx);
   __ pop(eax);
@@ -454,7 +452,6 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // edi: source FixedDoubleArray
   // eax: destination FixedArray
   __ bind(&loop);
-  __ sub(ebx, Immediate(Smi::FromInt(1)));
   // ebx: index of current element (smi-tagged)
   uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
   __ cmp(FieldOperand(edi, ebx, times_4, offset), Immediate(kHoleNanUpper32));
@@ -490,8 +487,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
          masm->isolate()->factory()->the_hole_value());
 
   __ bind(&entry);
-  __ test(ebx, ebx);
-  __ j(not_zero, &loop);
+  __ sub(ebx, Immediate(Smi::FromInt(1)));
+  __ j(not_sign, &loop);
 
   __ pop(ebx);
   __ pop(edx);

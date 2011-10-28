@@ -243,7 +243,6 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   // Conversion loop.
   __ bind(&loop);
-  __ decq(r9);
   __ movq(rbx,
           FieldOperand(r8, r9, times_8, FixedArray::kHeaderSize));
   // r9 : current element's index
@@ -257,8 +256,8 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ bind(&convert_hole);
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
-  __ testq(r9, r9);
-  __ j(not_zero, &loop);
+  __ decq(r9);
+  __ j(not_sign, &loop);
 }
 
 
@@ -301,7 +300,6 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Box doubles into heap numbers.
   __ bind(&loop);
-  __ decq(r9);
   __ movq(r14, FieldOperand(r8,
                             r9,
                             times_pointer_size,
@@ -338,8 +336,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
           rdi);
 
   __ bind(&entry);
-  __ testq(r9, r9);
-  __ j(not_zero, &loop);
+  __ decq(r9);
+  __ j(not_sign, &loop);
 
   // Set transitioned map.
   __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
