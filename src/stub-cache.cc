@@ -1291,33 +1291,6 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
 }
 
 
-MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
-                                               const char* name) {
-  // Check for allocation failures during stub compilation.
-  if (failure_->IsFailure()) return failure_;
-
-  // Create code object in the heap.
-  CodeDesc desc;
-  masm_.GetCode(&desc);
-  MaybeObject* result = heap()->CreateCode(desc, flags, masm_.CodeObject());
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs && !result->IsFailure()) {
-    Code::cast(result->ToObjectUnchecked())->Disassemble(name);
-  }
-#endif
-  return result;
-}
-
-
-MaybeObject* StubCompiler::TryGetCodeWithFlags(Code::Flags flags,
-                                               String* name) {
-  if (FLAG_print_code_stubs && name != NULL) {
-    return TryGetCodeWithFlags(flags, *name->ToCString());
-  }
-  return TryGetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
-}
-
-
 void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          Handle<String> name,
                                          LookupResult* lookup) {
@@ -1459,17 +1432,12 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
 }
 
 
-MaybeObject* ConstructStubCompiler::GetCode() {
+Handle<Code> ConstructStubCompiler::GetCode() {
   Code::Flags flags = Code::ComputeFlags(Code::STUB);
-  Object* result;
-  { MaybeObject* maybe_result = TryGetCodeWithFlags(flags, "ConstructStub");
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Code* code = Code::cast(result);
-  USE(code);
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
-  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", Code::cast(code)));
-  return result;
+  Handle<Code> code = GetCodeWithFlags(flags, "ConstructStub");
+  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, "ConstructStub"));
+  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code));
+  return code;
 }
 
 

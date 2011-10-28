@@ -488,13 +488,6 @@ class StubCompiler BASE_EMBEDDED {
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
   Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<String> name);
 
-  // TODO(kmillikin): Remove these functions once the ConstructStubCompiler
-  // is handlified.
-  MUST_USE_RESULT MaybeObject* TryGetCodeWithFlags(Code::Flags flags,
-                                                   const char* name);
-  MUST_USE_RESULT MaybeObject* TryGetCodeWithFlags(Code::Flags flags,
-                                                   String* name);
-
   MacroAssembler* masm() { return &masm_; }
   void set_failure(Failure* failure) { failure_ = failure; }
 
@@ -812,10 +805,10 @@ class ConstructStubCompiler: public StubCompiler {
  public:
   explicit ConstructStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
 
-  MUST_USE_RESULT MaybeObject* CompileConstructStub(JSFunction* function);
+  Handle<Code> CompileConstructStub(Handle<JSFunction> function);
 
  private:
-  MaybeObject* GetCode();
+  Handle<Code> GetCode();
 };
 
 

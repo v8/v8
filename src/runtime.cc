@@ -8214,13 +8214,9 @@ static void TrySettingInlineConstructStub(Isolate* isolate,
     prototype = Handle<Object>(function->instance_prototype(), isolate);
   }
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
-    HandleScope scope(isolate);
     ConstructStubCompiler compiler(isolate);
-    MaybeObject* code = compiler.CompileConstructStub(*function);
-    if (!code->IsFailure()) {
-      function->shared()->set_construct_stub(
-          Code::cast(code->ToObjectUnchecked()));
-    }
+    Handle<Code> code = compiler.CompileConstructStub(function);
+    function->shared()->set_construct_stub(*code);
   }
 }
 
