@@ -4180,6 +4180,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetProperty) {
 }
 
 
+MaybeObject* TransitionElements(Handle<Object> object,
+                                ElementsKind to_kind,
+                                Isolate* isolate) {
+  HandleScope scope(isolate);
+  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
+  ElementsKind from_kind =
+      Handle<JSObject>::cast(object)->map()->elements_kind();
+  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
+    Handle<Object> result =
+        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
+    if (result.is_null()) return isolate->ThrowIllegalOperation();
+    return *result;
+  }
+  return isolate->ThrowIllegalOperation();
+}
+
+
 // KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
   NoHandleAllocation ha;
@@ -4196,40 +4213,63 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
   //
   // Additionally, we need to make sure that we do not cache results
   // for objects that require access checks.
-  if (args[0]->IsJSObject() &&
-      !args[0]->IsJSGlobalProxy() &&
-      !args[0]->IsAccessCheckNeeded() &&
-      args[1]->IsString()) {
-    JSObject* receiver = JSObject::cast(args[0]);
-    String* key = String::cast(args[1]);
-    if (receiver->HasFastProperties()) {
-      // Attempt to use lookup cache.
-      Map* receiver_map = receiver->map();
-      KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-      int offset = keyed_lookup_cache->Lookup(receiver_map, key);
-      if (offset != -1) {
-        Object* value = receiver->FastPropertyAt(offset);
-        return value->IsTheHole() ? isolate->heap()->undefined_value() : value;
+  if (args[0]->IsJSObject()) {
+    if (!args[0]->IsJSGlobalProxy() &&
+        !args[0]->IsAccessCheckNeeded() &&
+        args[1]->IsString()) {
+      JSObject* receiver = JSObject::cast(args[0]);
+      String* key = String::cast(args[1]);
+      if (receiver->HasFastProperties()) {
+        // Attempt to use lookup cache.
+        Map* receiver_map = receiver->map();
+        KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
+        int offset = keyed_lookup_cache->Lookup(receiver_map, key);
+        if (offset != -1) {
+          Object* value = receiver->FastPropertyAt(offset);
+          return value->IsTheHole()
+              ? isolate->heap()->undefined_value()
+              : value;
+        }
+        // Lookup cache miss.  Perform lookup and update the cache if
+        // appropriate.
+        LookupResult result(isolate);
+        receiver->LocalLookup(key, &result);
+        if (result.IsProperty() && result.type() == FIELD) {
+          int offset = result.GetFieldIndex();
+          keyed_lookup_cache->Update(receiver_map, key, offset);
+          return receiver->FastPropertyAt(offset);
+        }
+      } else {
+        // Attempt dictionary lookup.
+        StringDictionary* dictionary = receiver->property_dictionary();
+        int entry = dictionary->FindEntry(key);
+        if ((entry != StringDictionary::kNotFound) &&
+            (dictionary->DetailsAt(entry).type() == NORMAL)) {
+          Object* value = dictionary->ValueAt(entry);
+          if (!receiver->IsGlobalObject()) return value;
+          value = JSGlobalPropertyCell::cast(value)->value();
+          if (!value->IsTheHole()) return value;
+          // If value is the hole do the general lookup.
+        }
       }
-      // Lookup cache miss.  Perform lookup and update the cache if appropriate.
-      LookupResult result(isolate);
-      receiver->LocalLookup(key, &result);
-      if (result.IsProperty() && result.type() == FIELD) {
-        int offset = result.GetFieldIndex();
-        keyed_lookup_cache->Update(receiver_map, key, offset);
-        return receiver->FastPropertyAt(offset);
-      }
-    } else {
-      // Attempt dictionary lookup.
-      StringDictionary* dictionary = receiver->property_dictionary();
-      int entry = dictionary->FindEntry(key);
-      if ((entry != StringDictionary::kNotFound) &&
-          (dictionary->DetailsAt(entry).type() == NORMAL)) {
-        Object* value = dictionary->ValueAt(entry);
-        if (!receiver->IsGlobalObject()) return value;
-        value = JSGlobalPropertyCell::cast(value)->value();
-        if (!value->IsTheHole()) return value;
-        // If value is the hole do the general lookup.
+    } else if (FLAG_smi_only_arrays && args.at<Object>(1)->IsSmi()) {
+      // JSObject without a string key. If the key is a Smi, check for a
+      // definite out-of-bounds access to elements, which is a strong indicator
+      // that subsequent accesses will also call the runtime. Proactively
+      // transition elements to FAST_ELEMENTS to avoid excessive boxing of
+      // doubles for those future calls in the case that the elements would
+      // become FAST_DOUBLE_ELEMENTS.
+      Handle<JSObject> js_object(args.at<JSObject>(0));
+      ElementsKind elements_kind = js_object->GetElementsKind();
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+          elements_kind == FAST_DOUBLE_ELEMENTS) {
+        FixedArrayBase* elements = js_object->elements();
+        if (args.at<Smi>(1)->value() >= elements->length()) {
+          MaybeObject* maybe_object = TransitionElements(js_object,
+                                                         FAST_ELEMENTS,
+                                                         isolate);
+          if (maybe_object->IsFailure()) return maybe_object;
+        }
       }
     }
   } else if (args[0]->IsString() && args[1]->IsSmi()) {
@@ -4613,23 +4653,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
                                     value,
                                     attributes,
                                     strict_mode);
-}
-
-
-MaybeObject* TransitionElements(Handle<Object> object,
-                                ElementsKind to_kind,
-                                Isolate* isolate) {
-  HandleScope scope(isolate);
-  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
-  ElementsKind from_kind =
-      Handle<JSObject>::cast(object)->map()->elements_kind();
-  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
-    Handle<Object> result =
-        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
-    if (result.is_null()) return isolate->ThrowIllegalOperation();
-    return *result;
-  }
-  return isolate->ThrowIllegalOperation();
 }
 
 
