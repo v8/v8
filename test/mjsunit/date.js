@@ -190,13 +190,8 @@ assertTrue(isNaN(d.getTime()));
 
 
 // Test creation with obscure date values.
-var timezoneOffset = new Date().getTimezoneOffset();
-d = new Date(1970, 0, 1 + 100000001, -24, -timezoneOffset);
-assertFalse(isNaN(d.getTime()));
-assertEquals(8640000000000000, d.getTime())
-d = new Date(1970, 0, 1 - 100000001, 24, -timezoneOffset);
-assertFalse(isNaN(d.getTime()));
-assertEquals(-8640000000000000, d.getTime())
+assertEquals(8640000000000000, Date.UTC(1970, 0, 1 + 100000001, -24));
+assertEquals(-8640000000000000, Date.UTC(1970, 0, 1 - 100000001, 24));
 
 
 // Parsing ES5 ISO-8601 dates.
