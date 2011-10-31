@@ -6979,8 +6979,8 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Having undefined at this place means the name is not contained.
     ASSERT_EQ(kSmiTagSize, 1);
     Register tmp = properties;
-    __ sll(tmp, index, 1);
-    __ Addu(tmp, properties, tmp);
+    __ sll(scratch0, index, 1);
+    __ Addu(tmp, properties, scratch0);
     __ lw(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
     ASSERT(!tmp.is(entity_name));
@@ -6995,8 +6995,8 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
       __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
       __ lbu(entity_name,
              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(tmp, entity_name, Operand(kIsSymbolMask));
-      __ Branch(miss, eq, tmp, Operand(zero_reg));
+      __ And(scratch0, entity_name, Operand(kIsSymbolMask));
+      __ Branch(miss, eq, scratch0, Operand(zero_reg));
 
       // Restore the properties.
       __ lw(properties,
