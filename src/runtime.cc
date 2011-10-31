@@ -4689,6 +4689,44 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
+  RUNTIME_ASSERT(args.length() == 5);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_SMI_ARG_CHECKED(store_index, 1);
+  Handle<Object> value = args.at<Object>(2);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 3);
+  CONVERT_SMI_ARG_CHECKED(literal_index, 4);
+  HandleScope scope;
+
+  Object* raw_boilerplate_object = literals->get(literal_index);
+  Handle<JSArray> boilerplate_object(JSArray::cast(raw_boilerplate_object));
+#if DEBUG
+  ElementsKind elements_kind = object->GetElementsKind();
+#endif
+  ASSERT(elements_kind <= FAST_DOUBLE_ELEMENTS);
+  // Smis should never trigger transitions.
+  ASSERT(!value->IsSmi());
+
+  if (value->IsNumber()) {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+    FixedDoubleArray* double_array =
+        FixedDoubleArray::cast(object->elements());
+    HeapNumber* number = HeapNumber::cast(*value);
+    double_array->set(store_index, number->Number());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+           elements_kind == FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(object, FAST_ELEMENTS);
+    FixedArray* object_array =
+        FixedArray::cast(object->elements());
+    object_array->set(store_index, *value);
+  }
+  return *object;
+}
+
+
 // Set a local property, even if it is READ_ONLY.  If the property does not
 // exist, it will be added with attributes NONE.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {

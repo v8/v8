@@ -98,6 +98,7 @@ namespace internal {
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
+  F(StoreArrayLiteralElement, 5, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
