@@ -1252,28 +1252,17 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-Range* HBitAnd::InferRange() {
+Range* HBitwise::InferRange() {
+  if (op() == Token::BIT_XOR) return HValue::InferRange();
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
       : 0xffffffff;
   int32_t right_mask = (right()->range() != NULL)
       ? right()->range()->Mask()
       : 0xffffffff;
-  int32_t result_mask = left_mask & right_mask;
-  return (result_mask >= 0)
-      ? new Range(0, result_mask)
-      : HValue::InferRange();
-}
-
-
-Range* HBitOr::InferRange() {
-  int32_t left_mask = (left()->range() != NULL)
-      ? left()->range()->Mask()
-      : 0xffffffff;
-  int32_t right_mask = (right()->range() != NULL)
-      ? right()->range()->Mask()
-      : 0xffffffff;
-  int32_t result_mask = left_mask | right_mask;
+  int32_t result_mask = (op() == Token::BIT_AND)
+      ? left_mask & right_mask
+      : left_mask | right_mask;
   return (result_mask >= 0)
       ? new Range(0, result_mask)
       : HValue::InferRange();
@@ -1785,42 +1774,12 @@ HType HAdd::CalculateInferredType() {
 }
 
 
-HType HBitAnd::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HBitXor::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HBitOr::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
 HType HBitNot::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
 HType HUnaryMathOperation::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HShl::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HShr::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HSar::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 

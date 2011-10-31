@@ -67,10 +67,8 @@ class LChunkBuilder;
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
   V(ArrayLiteral)                              \
-  V(BitAnd)                                    \
+  V(Bitwise)                                   \
   V(BitNot)                                    \
-  V(BitOr)                                     \
-  V(BitXor)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
   V(Branch)                                    \
@@ -3028,52 +3026,28 @@ class HDiv: public HArithmeticBinaryOperation {
 };
 
 
-class HBitAnd: public HBitwiseBinaryOperation {
+class HBitwise: public HBitwiseBinaryOperation {
  public:
-  HBitAnd(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
+  HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right), op_(op) {
+        ASSERT(op == Token::BIT_AND ||
+               op == Token::BIT_OR ||
+               op == Token::BIT_XOR);
+      }
+
+  Token::Value op() const { return op_; }
 
   virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(BitAnd)
+  DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange();
-};
 
-
-class HBitXor: public HBitwiseBinaryOperation {
- public:
-  HBitXor(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
-
-  virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitXor)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HBitOr: public HBitwiseBinaryOperation {
- public:
-  HBitOr(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
-
-  virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitOr)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
-  virtual Range* InferRange();
+ private:
+  Token::Value op_;
 };
 
 
@@ -3083,7 +3057,6 @@ class HShl: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Shl)
 
@@ -3098,7 +3071,6 @@ class HShr: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Shr)
 
@@ -3113,7 +3085,6 @@ class HSar: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Sar)
 

@@ -5619,13 +5619,9 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
       instr = new(zone()) HDiv(context, left, right);
       break;
     case Token::BIT_XOR:
-      instr = new(zone()) HBitXor(context, left, right);
-      break;
     case Token::BIT_AND:
-      instr = new(zone()) HBitAnd(context, left, right);
-      break;
     case Token::BIT_OR:
-      instr = new(zone()) HBitOr(context, left, right);
+      instr = new(zone()) HBitwise(expr->op(), context, left, right);
       break;
     case Token::SAR:
       instr = new(zone()) HSar(context, left, right);
