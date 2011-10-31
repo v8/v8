@@ -353,8 +353,8 @@ function updateStats(pause) {
   if (pause > 20) {
     sumOfSquaredPauses += (pause - 20) * (pause - 20);
   }
-  pauseDistribution[pause / 10] |= 0;
-  pauseDistribution[pause / 10]++;
+  pauseDistribution[Math.floor(pause / 10)] |= 0;
+  pauseDistribution[Math.floor(pause / 10)]++;
 }
 
 
