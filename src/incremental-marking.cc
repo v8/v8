@@ -60,6 +60,20 @@ void IncrementalMarking::TearDown() {
 }
 
 
+void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
+                                         Object** slot,
+                                         Object* value) {
+  if (BaseRecordWrite(obj, slot, value) && is_compacting_ && slot != NULL) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      // Object is not going to be rescanned we need to record the slot.
+      heap_->mark_compact_collector()->RecordSlot(
+          HeapObject::RawField(obj, 0), slot, value);
+    }
+  }
+}
+
+
 void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
                                              Object* value,
                                              Isolate* isolate) {
@@ -108,7 +122,7 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
 }
 
 
-void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host,
+void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
                                                 Object** slot,
                                                 Code* value) {
   if (BaseRecordWrite(host, slot, value) && is_compacting_) {
@@ -118,6 +132,30 @@ void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host,
   }
 }
 
+
+void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
+                                                 RelocInfo* rinfo,
+                                                 Object* value) {
+  MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
+  if (Marking::IsWhite(value_bit)) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      BlackToGreyAndUnshift(obj, obj_bit);
+      RestartIfNotMarking();
+    }
+    // Object is either grey or white.  It will be scanned if survives.
+    return;
+  }
+
+  if (is_compacting_) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      // Object is not going to be rescanned.  We need to record the slot.
+      heap_->mark_compact_collector()->RecordRelocSlot(rinfo,
+                                                       Code::cast(value));
+    }
+  }
+}
 
 
 class IncrementalMarkingMarkingVisitor : public ObjectVisitor {

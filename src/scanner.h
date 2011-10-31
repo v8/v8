@@ -169,7 +169,7 @@ class LiteralBuffer {
     }
   }
 
-  inline void AddChar(uc16 character) {
+  INLINE(void AddChar(uc16 character)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_ascii_) {
       if (character < kMaxAsciiCharCodeU) {
@@ -389,7 +389,7 @@ class Scanner {
     next_.literal_chars = free_buffer;
   }
 
-  inline void AddLiteralChar(uc32 c) {
+  INLINE(void AddLiteralChar(uc32 c)) {
     ASSERT_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
