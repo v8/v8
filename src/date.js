@@ -294,8 +294,8 @@ function TimeInYear(year) {
 }
 
 
-var ymd_from_time_cache = [$NaN, $NaN, $NaN];
-var ymd_from_time_cached_time = $NaN;
+var ymd_from_time_cache = [1970, 0, 1];
+var ymd_from_time_cached_time = 0;
 
 function YearFromTime(t) {
   if (t !== ymd_from_time_cached_time) {

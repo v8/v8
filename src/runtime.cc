@@ -7875,19 +7875,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
 
   FixedArrayBase* elms_base = FixedArrayBase::cast(res_array->elements());
   RUNTIME_ASSERT(elms_base->length() == 3);
-  RUNTIME_ASSERT(res_array->GetElementsKind() <= FAST_DOUBLE_ELEMENTS);
+  RUNTIME_ASSERT(res_array->HasFastTypeElements());
 
-  if (res_array->HasFastDoubleElements()) {
-    FixedDoubleArray* elms = FixedDoubleArray::cast(res_array->elements());
-    elms->set(0, year);
-    elms->set(1, month);
-    elms->set(2, day);
-  } else {
-    FixedArray* elms = FixedArray::cast(res_array->elements());
-    elms->set(0, Smi::FromInt(year));
-    elms->set(1, Smi::FromInt(month));
-    elms->set(2, Smi::FromInt(day));
-  }
+  MaybeObject* maybe = res_array->EnsureWritableFastElements();
+  if (maybe->IsFailure()) return maybe;
+  FixedArray* elms = FixedArray::cast(res_array->elements());
+  elms->set(0, Smi::FromInt(year));
+  elms->set(1, Smi::FromInt(month));
+  elms->set(2, Smi::FromInt(day));
 
   return isolate->heap()->undefined_value();
 }
