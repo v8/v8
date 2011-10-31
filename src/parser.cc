@@ -2932,23 +2932,14 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // Keep track of eval() calls since they disable all local variable
         // optimizations.
         // The calls that need special treatment are the
-        // direct (i.e. not aliased) eval calls. These calls are all of the
-        // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain.
+        // direct eval calls. These calls are all of the form eval(...), with
+        // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        // TODO(994): In ES5, it doesn't matter if the "eval" var is declared
-        // in the local scope chain. It only matters that it's called "eval",
-        // is called without a receiver and it refers to the original eval
-        // function.
         VariableProxy* callee = result->AsVariableProxy();
         if (callee != NULL &&
             callee->IsVariable(isolate()->factory()->eval_symbol())) {
-          Handle<String> name = callee->name();
-          Variable* var = top_scope_->Lookup(name);
-          if (var == NULL) {
-            top_scope_->DeclarationScope()->RecordEvalCall();
-          }
+          top_scope_->DeclarationScope()->RecordEvalCall();
         }
         result = NewCall(result, args, pos);
         break;

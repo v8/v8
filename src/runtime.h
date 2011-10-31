@@ -258,7 +258,6 @@ namespace internal {
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
   F(ResolvePossiblyDirectEval, 4, 2) \
-  F(ResolvePossiblyDirectEvalNoLookup, 4, 2) \
   \
   F(SetProperty, -1 /* 4 or 5 */, 1) \
   F(DefineOrRedefineDataProperty, 4, 1) \

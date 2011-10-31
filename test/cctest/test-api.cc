@@ -7787,9 +7787,11 @@ THREADED_TEST(EvalAliasedDynamic) {
                            "  var bar = 2;"
                            "  with (x) { return eval('bar'); }"
                            "}"
-                           "f(this)"));
+                           "result4 = f(this)"));
   script->Run();
-  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(2, current->Global()->Get(v8_str("result4"))->Int32Value());
+
   try_catch.Reset();
 }
 
