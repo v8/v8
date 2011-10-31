@@ -564,7 +564,7 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   // followed by a simulate instruction, we need to insert after the
   // simulate instruction instead.
   HInstruction* next = previous->next_;
-  if (previous->HasSideEffects() && next != NULL) {
+  if (previous->HasObservableSideEffects() && next != NULL) {
     ASSERT(next->IsSimulate());
     previous = next;
     next = previous->next_;
@@ -604,7 +604,7 @@ void HInstruction::Verify() {
 
   // Verify that instructions that may have side-effects are followed
   // by a simulate instruction.
-  if (HasSideEffects() && !IsOsrEntry()) {
+  if (HasObservableSideEffects() && !IsOsrEntry()) {
     ASSERT(next()->IsSimulate());
   }
 

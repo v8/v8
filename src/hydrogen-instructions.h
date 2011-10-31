@@ -181,6 +181,7 @@ class LChunkBuilder;
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
+  V(ElementsKind)                              \
   V(ArrayElements)                             \
   V(DoubleArrayElements)                       \
   V(SpecializedArrayElements)                  \
@@ -619,8 +620,14 @@ class HValue: public ZoneObject {
   void SetAllSideEffects() { flags_ |= AllSideEffects(); }
   void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
   bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
+  bool HasObservableSideEffects() const {
+    return (flags_ & ObservableSideEffects()) != 0;
+  }
 
   int ChangesFlags() const { return flags_ & ChangesFlagsMask(); }
+  int ObservableChangesFlags() const {
+    return flags_ & ChangesFlagsMask() & ObservableSideEffects();
+  }
 
   Range* range() const { return range_; }
   bool HasRange() const { return range_ != NULL; }
@@ -698,6 +705,12 @@ class HValue: public ZoneObject {
   // A flag mask to mark an instruction as having arbitrary side effects.
   static int AllSideEffects() {
     return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
+  }
+
+  // A flag mask of all side effects that can make observable changes in
+  // an executing program (i.e. are not safe to repeat, move or remove);
+  static int ObservableSideEffects() {
+    return ChangesFlagsMask() & ~(1 << kChangesElementsKind);
   }
 
   // Remove the matching use from the use list if present.  Returns the
@@ -1737,7 +1750,7 @@ class HElementsKind: public HUnaryOperation {
   explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1864,6 +1877,7 @@ class HLoadElements: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
+    SetFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3886,7 +3900,7 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetFlag(kChangesElementsKind);
     set_representation(Representation::Tagged());
   }
 

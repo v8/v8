@@ -750,7 +750,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   instr->MarkAsCall();
   instr = AssignPointerMap(instr);
 
-  if (hinstr->HasSideEffects()) {
+  if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
     instr = SetInstructionPendingDeoptimizationEnvironment(
@@ -762,7 +762,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   // Thus we still need to attach environment to this call even if
   // call sequence can not deoptimize eagerly.
   bool needs_environment =
-      (can_deoptimize == CAN_DEOPTIMIZE_EAGERLY) || !hinstr->HasSideEffects();
+      (can_deoptimize == CAN_DEOPTIMIZE_EAGERLY) ||
+      !hinstr->HasObservableSideEffects();
   if (needs_environment && !instr->HasEnvironment()) {
     instr = AssignEnvironment(instr);
   }

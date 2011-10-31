@@ -1346,6 +1346,7 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   explicit HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
       : graph_(graph),
         info_(info),
+        removed_side_effects_(false),
         block_side_effects_(graph->blocks()->length()),
         loop_side_effects_(graph->blocks()->length()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
@@ -1357,7 +1358,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
     ASSERT(!info_->isolate()->heap()->allow_allocation(true));
   }
 
-  void Analyze();
+  // Returns true if values with side effects are removed.
+  bool Analyze();
 
  private:
   int CollectSideEffectsOnPathsToDominatedBlock(HBasicBlock* dominator,
@@ -1377,6 +1379,7 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 
   HGraph* graph_;
   CompilationInfo* info_;
+  bool removed_side_effects_;
 
   // A map of block IDs to their side effects.
   ZoneList<int> block_side_effects_;
@@ -1390,13 +1393,14 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 };
 
 
-void HGlobalValueNumberer::Analyze() {
+bool HGlobalValueNumberer::Analyze() {
   ComputeBlockSideEffects();
   if (FLAG_loop_invariant_code_motion) {
     LoopInvariantCodeMotion();
   }
   HValueMap* map = new(zone()) HValueMap();
   AnalyzeBlock(graph_->entry_block(), map);
+  return removed_side_effects_;
 }
 
 
@@ -1530,11 +1534,12 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
     HInstruction* next = instr->next();
     int flags = instr->ChangesFlags();
     if (flags != 0) {
-      ASSERT(!instr->CheckFlag(HValue::kUseGVN));
       // Clear all instructions in the map that are affected by side effects.
       map->Kill(flags);
       TraceGVN("Instruction %d kills\n", instr->id());
-    } else if (instr->CheckFlag(HValue::kUseGVN)) {
+    }
+    if (instr->CheckFlag(HValue::kUseGVN)) {
+      ASSERT(!instr->HasObservableSideEffects());
       HValue* other = map->Lookup(instr);
       if (other != NULL) {
         ASSERT(instr->Equals(other) && other->Equals(instr));
@@ -1543,6 +1548,7 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
                  instr->Mnemonic(),
                  other->id(),
                  other->Mnemonic());
+        if (instr->HasSideEffects()) removed_side_effects_ = true;
         instr->DeleteAndReplaceWith(other);
       } else {
         map->Add(instr);
@@ -2108,12 +2114,12 @@ void TestContext::ReturnValue(HValue* value) {
 void EffectContext::ReturnInstruction(HInstruction* instr, int ast_id) {
   ASSERT(!instr->IsControlInstruction());
   owner()->AddInstruction(instr);
-  if (instr->HasSideEffects()) owner()->AddSimulate(ast_id);
+  if (instr->HasObservableSideEffects()) owner()->AddSimulate(ast_id);
 }
 
 
 void EffectContext::ReturnControl(HControlInstruction* instr, int ast_id) {
-  ASSERT(!instr->HasSideEffects());
+  ASSERT(!instr->HasObservableSideEffects());
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
   instr->SetSuccessorAt(0, empty_true);
@@ -2131,12 +2137,12 @@ void ValueContext::ReturnInstruction(HInstruction* instr, int ast_id) {
   }
   owner()->AddInstruction(instr);
   owner()->Push(instr);
-  if (instr->HasSideEffects()) owner()->AddSimulate(ast_id);
+  if (instr->HasObservableSideEffects()) owner()->AddSimulate(ast_id);
 }
 
 
 void ValueContext::ReturnControl(HControlInstruction* instr, int ast_id) {
-  ASSERT(!instr->HasSideEffects());
+  ASSERT(!instr->HasObservableSideEffects());
   if (!arguments_allowed() && instr->CheckFlag(HValue::kIsArguments)) {
     return owner()->Bailout("bad value context for arguments object value");
   }
@@ -2161,7 +2167,7 @@ void TestContext::ReturnInstruction(HInstruction* instr, int ast_id) {
   builder->AddInstruction(instr);
   // We expect a simulate after every expression with side effects, though
   // this one isn't actually needed (and wouldn't work if it were targeted).
-  if (instr->HasSideEffects()) {
+  if (instr->HasObservableSideEffects()) {
     builder->Push(instr);
     builder->AddSimulate(ast_id);
     builder->Pop();
@@ -2171,7 +2177,7 @@ void TestContext::ReturnInstruction(HInstruction* instr, int ast_id) {
 
 
 void TestContext::ReturnControl(HControlInstruction* instr, int ast_id) {
-  ASSERT(!instr->HasSideEffects());
+  ASSERT(!instr->HasObservableSideEffects());
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
   instr->SetSuccessorAt(0, empty_true);
@@ -2373,7 +2379,13 @@ HGraph* HGraphBuilder::CreateGraph() {
   if (FLAG_use_gvn) {
     HPhase phase("Global value numbering", graph());
     HGlobalValueNumberer gvn(graph(), info());
-    gvn.Analyze();
+    bool removed_side_effects = gvn.Analyze();
+    // Trigger a second analysis pass to further eliminate duplicate values that
+    // could only be discovered by removing side-effect-generating instructions
+    // during the first pass.
+    if (FLAG_smi_only_arrays && removed_side_effects) {
+      gvn.Analyze();
+    }
   }
 
   if (FLAG_use_range) {
@@ -3546,7 +3558,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
       // The HSimulate for the store should not see the stored value in
       // effect contexts (it is not materialized at expr->id() in the
       // unoptimized code).
-      if (instr->HasSideEffects()) {
+      if (instr->HasObservableSideEffects()) {
         if (ast_context()->IsEffect()) {
           AddSimulate(expr->id());
         } else {
@@ -3619,7 +3631,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
   Push(value);
   instr->set_position(expr->position());
   AddInstruction(instr);
-  if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+  if (instr->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
   return ast_context()->ReturnValue(Pop());
 }
 
@@ -3640,7 +3652,7 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
         new(zone()) HStoreGlobalCell(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);
     AddInstruction(instr);
-    if (instr->HasSideEffects()) AddSimulate(ast_id);
+    if (instr->HasObservableSideEffects()) AddSimulate(ast_id);
   } else {
     HValue* context =  environment()->LookupContext();
     HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -3653,8 +3665,8 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                         function_strict_mode_flag());
     instr->set_position(position);
     AddInstruction(instr);
-    ASSERT(instr->HasSideEffects());
-    if (instr->HasSideEffects()) AddSimulate(ast_id);
+    ASSERT(instr->HasObservableSideEffects());
+    if (instr->HasObservableSideEffects()) AddSimulate(ast_id);
   }
 }
 
@@ -3711,7 +3723,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), Top());
         AddInstruction(instr);
-        if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+        if (instr->HasObservableSideEffects()) {
+          AddSimulate(expr->AssignmentId());
+        }
         break;
       }
 
@@ -3737,7 +3751,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         load = BuildLoadNamedGeneric(obj, prop);
       }
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(expr->CompoundLoadId());
+      if (load->HasObservableSideEffects()) AddSimulate(expr->CompoundLoadId());
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -3745,14 +3759,14 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       HInstruction* instr = BuildBinaryOperation(operation, left, right);
       PushAndAdd(instr);
-      if (instr->HasSideEffects()) AddSimulate(operation->id());
+      if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       HInstruction* store = BuildStoreNamed(obj, instr, prop);
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
       Push(instr);
-      if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
+      if (store->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
       return ast_context()->ReturnValue(Pop());
 
     } else {
@@ -3777,7 +3791,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       HInstruction* instr = BuildBinaryOperation(operation, left, right);
       PushAndAdd(instr);
-      if (instr->HasSideEffects()) AddSimulate(operation->id());
+      if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       expr->RecordTypeFeedback(oracle());
       HandleKeyedElementAccess(obj, key, instr, expr, expr->AssignmentId(),
@@ -3875,7 +3889,9 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), Top());
         AddInstruction(instr);
-        if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+        if (instr->HasObservableSideEffects()) {
+          AddSimulate(expr->AssignmentId());
+        }
         return ast_context()->ReturnValue(Pop());
       }
 
@@ -4148,7 +4164,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   if (num_untransitionable_maps == 1) {
     HInstruction* instr = AddInstruction(BuildMonomorphicElementAccess(
         object, key, val, untransitionable_map, is_store));
-    *has_side_effects |= instr->HasSideEffects();
+    *has_side_effects |= instr->HasObservableSideEffects();
     instr->set_position(position);
     return is_store ? NULL : instr;
   }
@@ -4235,7 +4251,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
           Push(access);
         }
 
-        *has_side_effects |= access->HasSideEffects();
+        *has_side_effects |= access->HasObservableSideEffects();
         if (position != -1) {
           access->set_position(position);
         }
@@ -4256,7 +4272,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         access = AddInstruction(BuildExternalArrayElementAccess(
             external_elements, checked_key, val, elements_kind, is_store));
       }
-      *has_side_effects |= access->HasSideEffects();
+      *has_side_effects |= access->HasObservableSideEffects();
       access->set_position(position);
       if (!is_store) {
         Push(access);
@@ -4301,7 +4317,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
   }
   instr->set_position(position);
   AddInstruction(instr);
-  *has_side_effects = instr->HasSideEffects();
+  *has_side_effects = instr->HasObservableSideEffects();
   return instr;
 }
 
@@ -4900,7 +4916,7 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
             AddInstruction(square_root);
             // MathPowHalf doesn't have side effects so there's no need for
             // an environment simulation here.
-            ASSERT(!square_root->HasSideEffects());
+            ASSERT(!square_root->HasObservableSideEffects());
             result = new(zone()) HDiv(context, double_one, square_root);
           } else if (exponent == 2.0) {
             result = new(zone()) HMul(context, left, left);
@@ -5484,7 +5500,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), after);
         AddInstruction(instr);
-        if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+        if (instr->HasObservableSideEffects()) {
+          AddSimulate(expr->AssignmentId());
+        }
         break;
       }
 
@@ -5513,7 +5531,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         load = BuildLoadNamedGeneric(obj, prop);
       }
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(expr->CountId());
+      if (load->HasObservableSideEffects()) AddSimulate(expr->CountId());
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
@@ -5526,7 +5544,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // necessary.
       environment()->SetExpressionStackAt(0, after);
       if (returns_original_input) environment()->SetExpressionStackAt(1, input);
-      if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
+      if (store->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
 
     } else {
       // Keyed property.
@@ -6076,7 +6094,7 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
           HStoreContextSlot* store =
               new HStoreContextSlot(context, var->index(), value);
           AddInstruction(store);
-          if (store->HasSideEffects()) AddSimulate(proxy->id());
+          if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
         } else {
           environment()->Bind(var, value);
         }
