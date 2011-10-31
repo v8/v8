@@ -2460,7 +2460,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // implementing stack allocated block scoped variables.
         Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
         VariableProxy* temp_proxy = new(zone()) VariableProxy(isolate(), temp);
-        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
+        VariableProxy* each = top_scope_->NewUnresolved(name);
         ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
         Target target(&this->target_stack_, loop);
 
