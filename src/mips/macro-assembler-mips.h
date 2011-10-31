@@ -812,7 +812,7 @@ class MacroAssembler: public Assembler {
                       const CallWrapper& call_wrapper,
                       CallKind call_kind);
 
-  void InvokeFunction(JSFunction* function,
+  void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
                       CallKind call_kind);
@@ -1042,26 +1042,8 @@ class MacroAssembler: public Assembler {
   void CallStub(CodeStub* stub, Condition cond = cc_always,
                 Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
 
-  // Call a code stub and return the code object called.  Try to generate
-  // the code if necessary.  Do not perform a GC but instead return a retry
-  // after GC failure.
-  MUST_USE_RESULT MaybeObject* TryCallStub(CodeStub* stub,
-                                           Condition cond = cc_always,
-                                           Register r1 = zero_reg,
-                                           const Operand& r2 =
-                                               Operand(zero_reg));
-
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
-
-  // Tail call a code stub (jump) and return the code object called.  Try to
-  // generate the code if necessary.  Do not perform a GC but instead return
-  // a retry after GC failure.
-  MUST_USE_RESULT MaybeObject* TryTailCallStub(CodeStub* stub,
-                                               Condition cond = cc_always,
-                                               Register r1 = zero_reg,
-                                               const Operand& r2 =
-                                                   Operand(zero_reg));
 
   void CallJSExitStub(CodeStub* stub);
 
@@ -1082,12 +1064,6 @@ class MacroAssembler: public Assembler {
   void TailCallExternalReference(const ExternalReference& ext,
                                  int num_arguments,
                                  int result_size);
-
-  // Tail call of a runtime routine (jump). Try to generate the code if
-  // necessary. Do not perform a GC but instead return a retry after GC
-  // failure.
-  MUST_USE_RESULT MaybeObject* TryTailCallExternalReference(
-      const ExternalReference& ext, int num_arguments, int result_size);
 
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid,
@@ -1139,15 +1115,14 @@ class MacroAssembler: public Assembler {
   void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
   void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
 
-  // Calls an API function. Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions. Restores context.
-  MaybeObject* TryCallApiFunctionAndReturn(ExternalReference function,
-                                           int stack_space);
+  // Calls an API function.  Allocates HandleScope, extracts returned value
+  // from handle and propagates exceptions.  Restores context.  stack_space
+  // - space to be unwound on exit (includes the call js arguments space and
+  // the additional space allocated for the fast call).
+  void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin);
-
-  MaybeObject* TryJumpToExternalReference(const ExternalReference& ext);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
