@@ -118,7 +118,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define DECLARE_NODE_TYPE(type)                                         \
   virtual void Accept(AstVisitor* v);                                   \
   virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
-  virtual type* As##type() { return this; }
 
 
 class AstNode: public ZoneObject {
@@ -153,7 +152,8 @@ class AstNode: public ZoneObject {
 
   // Type testing & conversion functions overridden by concrete subclasses.
 #define DECLARE_NODE_FUNCTIONS(type)                  \
-  virtual type* As##type() { return NULL; }
+  bool Is##type() { return node_type() == AstNode::k##type; }          \
+  type* As##type() { return Is##type() ? reinterpret_cast<type*>(this) : NULL; }
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
@@ -195,9 +195,6 @@ class Statement: public AstNode {
   Statement() : statement_pos_(RelocInfo::kNoPosition) {}
 
   virtual Statement* AsStatement()  { return this; }
-
-  virtual Assignment* StatementAsSimpleAssignment() { return NULL; }
-  virtual CountOperation* StatementAsCountOperation() { return NULL; }
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
 
@@ -264,7 +261,6 @@ class Expression: public AstNode {
 
   virtual Expression* AsExpression()  { return this; }
 
-  virtual bool IsTrivial() { return false; }
   virtual bool IsValidLeftHandSide() { return false; }
 
   // Helpers for ToBoolean conversion.
@@ -276,30 +272,21 @@ class Expression: public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() { return false; }
 
-  // Mark the expression as being compiled as an expression
-  // statement. This is used to transform postfix increments to
-  // (faster) prefix increments.
-  virtual void MarkAsStatement() { /* do nothing */ }
-
   // True iff the result can be safely overwritten (to avoid allocation).
   // False for operations that can return one of their operands.
   virtual bool ResultOverwriteAllowed() { return false; }
 
   // True iff the expression is a literal represented as a smi.
-  virtual bool IsSmiLiteral() { return false; }
+  bool IsSmiLiteral();
 
   // True iff the expression is a string literal.
-  virtual bool IsStringLiteral() { return false; }
+  bool IsStringLiteral();
 
   // True iff the expression is the null literal.
-  virtual bool IsNullLiteral() { return false; }
+  bool IsNullLiteral();
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
-    UNREACHABLE();
-    return false;
-  }
-  virtual bool IsArrayLength() {
     UNREACHABLE();
     return false;
   }
@@ -367,16 +354,6 @@ class Block: public BreakableStatement {
                bool is_initializer_block);
 
   DECLARE_NODE_TYPE(Block)
-
-  virtual Assignment* StatementAsSimpleAssignment() {
-    if (statements_.length() != 1) return NULL;
-    return statements_[0]->StatementAsSimpleAssignment();
-  }
-
-  virtual CountOperation* StatementAsCountOperation() {
-    if (statements_.length() != 1) return NULL;
-    return statements_[0]->StatementAsCountOperation();
-  }
 
   virtual bool IsInlineable() const;
 
@@ -611,9 +588,6 @@ class ExpressionStatement: public Statement {
   DECLARE_NODE_TYPE(ExpressionStatement)
 
   virtual bool IsInlineable() const;
-
-  virtual Assignment* StatementAsSimpleAssignment();
-  virtual CountOperation* StatementAsCountOperation();
 
   void set_expression(Expression* e) { expression_ = e; }
   Expression* expression() const { return expression_; }
@@ -895,11 +869,6 @@ class Literal: public Expression {
 
   DECLARE_NODE_TYPE(Literal)
 
-  virtual bool IsTrivial() { return true; }
-  virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
-  virtual bool IsStringLiteral() { return handle_->IsString(); }
-  virtual bool IsNullLiteral() { return handle_->IsNull(); }
-
   // Check if this literal is identical to the other literal.
   bool IsIdenticalTo(const Literal* other) const {
     return handle_.is_identical_to(other->handle_);
@@ -1114,12 +1083,6 @@ class VariableProxy: public Expression {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
   }
 
-  virtual bool IsTrivial() {
-    // Reading from a mutable variable is a side effect, but the
-    // variable for 'this' is immutable.
-    return is_this_ || is_trivial_;
-  }
-
   virtual bool IsInlineable() const;
 
   bool IsVariable(Handle<String> n) {
@@ -1187,7 +1150,7 @@ class Property: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
-  virtual bool IsArrayLength() { return is_array_length_; }
+  bool IsArrayLength() { return is_array_length_; }
 
  private:
   Expression* obj_;

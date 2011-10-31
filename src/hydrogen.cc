@@ -4368,7 +4368,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
   CHECK_ALIVE(VisitForValue(expr->obj()));
 
   HInstruction* instr = NULL;
-  if (expr->IsArrayLength()) {
+  if (expr->AsProperty()->IsArrayLength()) {
     HValue* array = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(array));
     HInstruction* mapcheck =
