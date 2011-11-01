@@ -169,11 +169,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     }
   }
 
-  set_stack_height(2 + scope()->num_stack_slots());
-  if (FLAG_verify_stack_height) {
-    verify_stack_height();
-  }
-
   bool function_in_register = true;
 
   // Possibly allocate a local context.
@@ -372,15 +367,6 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
-void FullCodeGenerator::verify_stack_height() {
-  ASSERT(FLAG_verify_stack_height);
-  __ sub(ebp, Immediate(kPointerSize * stack_height()));
-  __ cmp(ebp, esp);
-  __ Assert(equal, "Full codegen stack height not as expected.");
-  __ add(ebp, Immediate(kPointerSize * stack_height()));
-}
-
-
 void FullCodeGenerator::EffectContext::Plug(Variable* var) const {
   ASSERT(var->IsStackAllocated() || var->IsContextSlot());
 }
@@ -397,7 +383,6 @@ void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
   MemOperand operand = codegen()->VarOperand(var, result_register());
   // Memory operands can be pushed directly.
   __ push(operand);
-  codegen()->increment_stack_height();
 }
 
 
@@ -451,7 +436,6 @@ void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
   } else {
     __ push(Immediate(lit));
   }
-  codegen()->increment_stack_height();
 }
 
 
@@ -489,7 +473,6 @@ void FullCodeGenerator::EffectContext::DropAndPlug(int count,
                                                    Register reg) const {
   ASSERT(count > 0);
   __ Drop(count);
-  codegen()->decrement_stack_height(count);
 }
 
 
@@ -499,7 +482,6 @@ void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
   ASSERT(count > 0);
   __ Drop(count);
   __ Move(result_register(), reg);
-  codegen()->decrement_stack_height(count);
 }
 
 
@@ -508,7 +490,6 @@ void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
   ASSERT(count > 0);
   if (count > 1) __ Drop(count - 1);
   __ mov(Operand(esp, 0), reg);
-  codegen()->decrement_stack_height(count - 1);
 }
 
 
@@ -520,7 +501,6 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   __ Move(result_register(), reg);
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(this);
-  codegen()->decrement_stack_height(count);
 }
 
 
@@ -554,7 +534,6 @@ void FullCodeGenerator::StackValueContext::Plug(
   __ bind(materialize_false);
   __ push(Immediate(isolate()->factory()->false_value()));
   __ bind(&done);
-  codegen()->increment_stack_height();
 }
 
 
@@ -582,7 +561,6 @@ void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
       ? isolate()->factory()->true_value()
       : isolate()->factory()->false_value();
   __ push(Immediate(value));
-  codegen()->increment_stack_height();
 }
 
 
@@ -784,18 +762,14 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
-      increment_stack_height(3);
       if (function != NULL) {
         VisitForStackValue(function);
       } else if (binding_needs_init) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
-        increment_stack_height();
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
-        increment_stack_height();
       }
       __ CallRuntime(Runtime::kDeclareContextSlot, 4);
-      decrement_stack_height(4);
       break;
     }
   }
@@ -820,7 +794,6 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
-  int switch_clause_stack_height = stack_height();
   // Keep the switch value on the stack until a case matches.
   VisitForStackValue(stmt->tag());
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
@@ -885,7 +858,6 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ jmp(default_clause->body_target());
   }
 
-  set_stack_height(switch_clause_stack_height);
   // Compile all the case bodies.
   for (int i = 0; i < clauses->length(); i++) {
     Comment cmnt(masm_, "[ Case body");
@@ -927,7 +899,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ bind(&done_convert);
   __ push(eax);
-  increment_stack_height();
 
   // Check for proxies.
   Label call_runtime;
@@ -1025,8 +996,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
-  // 1 ~ The object has already been pushed.
-  increment_stack_height(ForIn::kElementCount - 1);
   // Generate code for doing the condition check.
   __ bind(&loop);
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // Get the current index.
@@ -1088,7 +1057,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(loop_statement.break_label());
   __ add(esp, Immediate(5 * kPointerSize));
 
-  decrement_stack_height(ForIn::kElementCount);
   // Exit and decrement the loop depth.
   __ bind(&exit);
   decrement_loop_depth();
@@ -1410,7 +1378,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     if (!result_saved) {
       __ push(eax);  // Save result on the stack
       result_saved = true;
-      increment_stack_height();
     }
     switch (property->kind()) {
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
@@ -1435,7 +1402,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         // Fall through.
       case ObjectLiteral::Property::PROTOTYPE:
         __ push(Operand(esp, 0));  // Duplicate receiver.
-        increment_stack_height();
         VisitForStackValue(key);
         VisitForStackValue(value);
         if (property->emit_store()) {
@@ -1444,20 +1410,16 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         } else {
           __ Drop(3);
         }
-        decrement_stack_height(3);
         break;
       case ObjectLiteral::Property::SETTER:
       case ObjectLiteral::Property::GETTER:
         __ push(Operand(esp, 0));  // Duplicate receiver.
-        increment_stack_height();
         VisitForStackValue(key);
         __ push(Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
                           Smi::FromInt(1) :
                           Smi::FromInt(0)));
-        increment_stack_height();
         VisitForStackValue(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
-        decrement_stack_height(4);
         break;
       default: UNREACHABLE();
     }
@@ -1532,7 +1494,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     if (!result_saved) {
       __ push(eax);
       result_saved = true;
-      increment_stack_height();
     }
     VisitForAccumulatorValue(subexpr);
 
@@ -1560,9 +1521,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
   // on the left-hand side.
   if (!expr->target()->IsValidLeftHandSide()) {
-    ASSERT(expr->target()->AsThrow() != NULL);
-    VisitInCurrentContext(expr->target());  // Throw does not plug the context
-    context()->Plug(eax);
+    VisitForEffect(expr->target());
     return;
   }
 
@@ -1587,7 +1546,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
         // We need the receiver both on the stack and in the accumulator.
         VisitForAccumulatorValue(property->obj());
         __ push(result_register());
-        increment_stack_height();
       } else {
         VisitForStackValue(property->obj());
       }
@@ -1598,7 +1556,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
         VisitForAccumulatorValue(property->key());
         __ mov(edx, Operand(esp, 0));
         __ push(eax);
-        increment_stack_height();
       } else {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
@@ -1630,7 +1587,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 
     Token::Value op = expr->binary_op();
     __ push(eax);  // Left operand goes on the stack.
-    increment_stack_height();
     VisitForAccumulatorValue(expr->value());
 
     OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
@@ -1700,7 +1656,6 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // stack. Right operand is in eax.
   Label smi_case, done, stub_call;
   __ pop(edx);
-  decrement_stack_height();
   __ mov(ecx, eax);
   __ or_(eax, edx);
   JumpPatchSite patch_site(masm_);
@@ -1792,7 +1747,6 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
   __ pop(edx);
-  decrement_stack_height();
   BinaryOpStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
   __ call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
@@ -1805,9 +1759,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
-    ASSERT(expr->AsThrow() != NULL);
-    VisitInCurrentContext(expr);  // Throw does not plug the context
-    context()->Plug(eax);
+    VisitForEffect(expr);
     return;
   }
 
@@ -1831,11 +1783,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case NAMED_PROPERTY: {
       __ push(eax);  // Preserve value.
-      increment_stack_height();
       VisitForAccumulatorValue(prop->obj());
       __ mov(edx, eax);
       __ pop(eax);  // Restore value.
-      decrement_stack_height();
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->StoreIC_Initialize_Strict()
@@ -1845,14 +1795,11 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case KEYED_PROPERTY: {
       __ push(eax);  // Preserve value.
-      increment_stack_height();
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
       __ mov(ecx, eax);
       __ pop(edx);
-      decrement_stack_height();
       __ pop(eax);  // Restore value.
-      decrement_stack_height();
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
           : isolate()->builtins()->KeyedStoreIC_Initialize();
@@ -1979,7 +1926,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ mov(edx, Operand(esp, 0));
   } else {
     __ pop(edx);
-    decrement_stack_height();
   }
   Handle<Code> ic = is_strict_mode()
       ? isolate()->builtins()->StoreIC_Initialize_Strict()
@@ -1993,7 +1939,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(eax);
     __ Drop(1);
-    decrement_stack_height();
   }
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(eax);
@@ -2015,12 +1960,10 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
 
   __ pop(ecx);
-  decrement_stack_height();
   if (expr->ends_initialization_block()) {
     __ mov(edx, Operand(esp, 0));  // Leave receiver on the stack for later.
   } else {
     __ pop(edx);
-    decrement_stack_height();
   }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
@@ -2036,7 +1979,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ push(edx);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(eax);
-    decrement_stack_height();
   }
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
@@ -2056,7 +1998,6 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
     __ pop(edx);
-    decrement_stack_height();
     EmitKeyedPropertyLoad(expr);
     context()->Plug(eax);
   }
@@ -2083,7 +2024,6 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   RecordJSReturnSite(expr);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  decrement_stack_height(arg_count + 1);
   context()->Plug(eax);
 }
 
@@ -2098,7 +2038,6 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   __ pop(ecx);
   __ push(eax);
   __ push(ecx);
-  increment_stack_height();
 
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
@@ -2117,7 +2056,6 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   RecordJSReturnSite(expr);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  decrement_stack_height(arg_count + 1);
   context()->DropAndPlug(1, eax);  // Drop the key still on the stack.
 }
 
@@ -2161,8 +2099,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   RecordJSReturnSite(expr);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-
-  decrement_stack_height(arg_count + 1);
   context()->DropAndPlug(1, eax);
 }
 
@@ -2210,7 +2146,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForStackValue(callee);
       // Reserved receiver slot.
       __ push(Immediate(isolate()->factory()->undefined_value()));
-      increment_stack_height();
       // Push the arguments.
       for (int i = 0; i < arg_count; i++) {
         VisitForStackValue(args->at(i));
@@ -2233,13 +2168,11 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     RecordJSReturnSite(expr);
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    decrement_stack_height(arg_count + 1);  // Function is left on the stack.
     context()->DropAndPlug(1, eax);
 
   } else if (proxy != NULL && proxy->var()->IsUnallocated()) {
     // Push global object as receiver for the call IC.
     __ push(GlobalObjectOperand());
-    increment_stack_height();
     EmitCallWithIC(expr, proxy->name(), RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (proxy != NULL && proxy->var()->IsLookupSlot()) {
@@ -2258,7 +2191,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     __ push(eax);  // Function.
     __ push(edx);  // Receiver.
-    increment_stack_height(2);
 
     // If fast case code has been generated, emit code to push the function
     // and receiver and have the slow path jump around this code.
@@ -2266,8 +2198,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       Label call;
       __ jmp(&call, Label::kNear);
       __ bind(&done);
-      // Push function.  Stack height already incremented in slow case
-      // above.
+      // Push function.
       __ push(eax);
       // The receiver is implicitly the global receiver. Indicate this by
       // passing the hole to the call function stub.
@@ -2300,7 +2231,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Load global receiver object.
     __ mov(ebx, GlobalObjectOperand());
     __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
-    increment_stack_height();
     // Emit function call.
     EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   }
@@ -2341,8 +2271,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   Handle<Code> construct_builtin =
       isolate()->builtins()->JSConstructCall();
   __ call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
-
-  decrement_stack_height(arg_count + 1);
   context()->Plug(eax);
 }
 
@@ -2655,7 +2583,6 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
                          &if_true, &if_false, &fall_through);
 
   __ pop(ebx);
-  decrement_stack_height();
   __ cmp(eax, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
@@ -2774,7 +2701,6 @@ void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
     VisitForStackValue(args->at(1));
     VisitForStackValue(args->at(2));
     __ CallRuntime(Runtime::kLog, 2);
-    decrement_stack_height(2);
   }
   // Finally, we're expected to leave a value on the top of the stack.
   __ mov(eax, isolate()->factory()->undefined_value());
@@ -2841,7 +2767,6 @@ void FullCodeGenerator::EmitSubString(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
-  decrement_stack_height(3);
   context()->Plug(eax);
 }
 
@@ -2855,7 +2780,6 @@ void FullCodeGenerator::EmitRegExpExec(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(2));
   VisitForStackValue(args->at(3));
   __ CallStub(&stub);
-  decrement_stack_height(4);
   context()->Plug(eax);
 }
 
@@ -2890,7 +2814,6 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   } else {
     __ CallRuntime(Runtime::kMath_pow, 2);
   }
-  decrement_stack_height(2);
   context()->Plug(eax);
 }
 
@@ -2901,7 +2824,6 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));  // Load the object.
   VisitForAccumulatorValue(args->at(1));  // Load the value.
   __ pop(ebx);  // eax = value. ebx = object.
-  decrement_stack_height();
 
   Label done;
   // If the object is a smi, return the value.
@@ -2932,7 +2854,6 @@ void FullCodeGenerator::EmitNumberToString(ZoneList<Expression*>* args) {
 
   NumberToStringStub stub;
   __ CallStub(&stub);
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -2967,7 +2888,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
   Register result = edx;
 
   __ pop(object);
-  decrement_stack_height();
 
   Label need_conversion;
   Label index_out_of_range;
@@ -3016,7 +2936,6 @@ void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
   Register result = eax;
 
   __ pop(object);
-  decrement_stack_height();
 
   Label need_conversion;
   Label index_out_of_range;
@@ -3061,7 +2980,6 @@ void FullCodeGenerator::EmitStringAdd(ZoneList<Expression*>* args) {
 
   StringAddStub stub(NO_STRING_ADD_FLAGS);
   __ CallStub(&stub);
-  decrement_stack_height(2);
   context()->Plug(eax);
 }
 
@@ -3074,7 +2992,6 @@ void FullCodeGenerator::EmitStringCompare(ZoneList<Expression*>* args) {
 
   StringCompareStub stub;
   __ CallStub(&stub);
-  decrement_stack_height(2);
   context()->Plug(eax);
 }
 
@@ -3086,7 +3003,6 @@ void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3098,7 +3014,6 @@ void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3110,7 +3025,6 @@ void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3120,7 +3034,6 @@ void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallRuntime(Runtime::kMath_sqrt, 1);
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3140,7 +3053,6 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   __ InvokeFunction(edi, count, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  decrement_stack_height(arg_count + 1);
   context()->Plug(eax);
 }
 
@@ -3153,7 +3065,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
-  decrement_stack_height(3);
   context()->Plug(eax);
 }
 
@@ -3246,7 +3157,6 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ CallRuntime(Runtime::kSwapElements, 3);
 
   __ bind(&done);
-  decrement_stack_height(3);
   context()->Plug(eax);
 }
 
@@ -3332,7 +3242,6 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   __ mov(eax, Immediate(isolate()->factory()->true_value()));
   __ bind(&done);
 
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3636,7 +3545,6 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ add(esp, Immediate(3 * kPointerSize));
 
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  decrement_stack_height();
   context()->Plug(eax);
 }
 
@@ -3656,7 +3564,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Prepare for calling JS runtime function.
     __ mov(eax, GlobalObjectOperand());
     __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
-    increment_stack_height();
   }
 
   // Push the arguments ("left-to-right").
@@ -3678,11 +3585,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Call the C runtime function.
     __ CallRuntime(expr->function(), arg_count);
   }
-  decrement_stack_height(arg_count);
-  if (expr->is_jsruntime()) {
-    decrement_stack_height();
-  }
-
   context()->Plug(eax);
 }
 
@@ -3699,7 +3601,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForStackValue(property->key());
         __ push(Immediate(Smi::FromInt(strict_mode_flag())));
         __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        decrement_stack_height(2);
         context()->Plug(eax);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
@@ -3769,7 +3670,6 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForTypeofValue(expr->expression());
       }
       __ CallRuntime(Runtime::kTypeof, 1);
-      decrement_stack_height();
       context()->Plug(eax);
       break;
     }
@@ -3823,10 +3723,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
   // as the left-hand side.
   if (!expr->expression()->IsValidLeftHandSide()) {
-    ASSERT(expr->expression()->AsThrow() != NULL);
-    VisitInCurrentContext(expr->expression());
-    // Visiting Throw does not plug the context.
-    context()->Plug(eax);
+    VisitForEffect(expr->expression());
     return;
   }
 
@@ -3851,20 +3748,17 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
       __ push(Immediate(Smi::FromInt(0)));
-      increment_stack_height();
     }
     if (assign_type == NAMED_PROPERTY) {
       // Put the object both on the stack and in the accumulator.
       VisitForAccumulatorValue(prop->obj());
       __ push(eax);
-      increment_stack_height();
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
       __ mov(edx, Operand(esp, 0));
       __ push(eax);
-      increment_stack_height();
       EmitKeyedPropertyLoad(prop);
     }
   }
@@ -3895,7 +3789,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       switch (assign_type) {
         case VARIABLE:
           __ push(eax);
-          increment_stack_height();
           break;
         case NAMED_PROPERTY:
           __ mov(Operand(esp, kPointerSize), eax);
@@ -3969,7 +3862,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       __ pop(edx);
-      decrement_stack_height();
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->StoreIC_Initialize_Strict()
           : isolate()->builtins()->StoreIC_Initialize();
@@ -3987,8 +3879,6 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(ecx);
       __ pop(edx);
-      decrement_stack_height();
-      decrement_stack_height();
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
           : isolate()->builtins()->KeyedStoreIC_Initialize();
@@ -4141,7 +4031,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     case Token::IN:
       VisitForStackValue(expr->right());
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
-      decrement_stack_height(2);
       PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
       __ cmp(eax, isolate()->factory()->true_value());
       Split(equal, if_true, if_false, fall_through);
@@ -4151,7 +4040,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForStackValue(expr->right());
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
-      decrement_stack_height(2);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ test(eax, eax);
       // The stub returns 0 for true.
@@ -4185,7 +4073,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           UNREACHABLE();
       }
       __ pop(edx);
-      decrement_stack_height();
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
       JumpPatchSite patch_site(masm_);
