@@ -47,11 +47,6 @@ namespace internal {
 #define __ ACCESS_MASM(masm_)
 
 
-static unsigned GetPropertyId(Property* property) {
-  return property->id();
-}
-
-
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
 // method EmitPatchInfo to record a marker back to the patchable code. This
@@ -1734,7 +1729,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ mov(r2, Operand(key->handle()));
   // Call load IC. It has arguments receiver and property name r0 and r2.
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  __ Call(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ Call(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 
@@ -1742,7 +1737,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   // Call keyed load IC. It has arguments key and receiver in r0 and r1.
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-  __ Call(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ Call(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 

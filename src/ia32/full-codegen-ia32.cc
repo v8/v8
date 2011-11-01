@@ -44,11 +44,6 @@ namespace internal {
 #define __ ACCESS_MASM(masm_)
 
 
-static unsigned GetPropertyId(Property* property) {
-  return property->id();
-}
-
-
 class JumpPatchSite BASE_EMBEDDED {
  public:
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
@@ -1636,14 +1631,14 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   ASSERT(!key->handle()->IsSmi());
   __ mov(ecx, Immediate(key->handle()));
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  __ call(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ call(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-  __ call(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ call(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 
