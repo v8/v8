@@ -459,7 +459,7 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
-  LInstructionGap* gap = new LInstructionGap(block);
+  LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
     instructions_.Add(gap);
@@ -534,7 +534,7 @@ Representation LChunk::LookupLiteralRepresentation(
 
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
-  chunk_ = new LChunk(info(), graph());
+  chunk_ = new(zone()) LChunk(info(), graph());
   HPhase phase("Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
@@ -570,14 +570,14 @@ LRegister* LChunkBuilder::ToOperand(Register reg) {
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
-  return new LUnallocated(LUnallocated::FIXED_REGISTER,
-                          Register::ToAllocationIndex(reg));
+  return new(zone()) LUnallocated(LUnallocated::FIXED_REGISTER,
+                                  Register::ToAllocationIndex(reg));
 }
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(XMMRegister reg) {
-  return new LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
-                          XMMRegister::ToAllocationIndex(reg));
+  return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
+                                  XMMRegister::ToAllocationIndex(reg));
 }
 
 
@@ -592,30 +592,30 @@ LOperand* LChunkBuilder::UseFixedDouble(HValue* value, XMMRegister reg) {
 
 
 LOperand* LChunkBuilder::UseRegister(HValue* value) {
-  return Use(value, new LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
+  return Use(value, new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
 }
 
 
 LOperand* LChunkBuilder::UseRegisterAtStart(HValue* value) {
   return Use(value,
-             new LUnallocated(LUnallocated::MUST_HAVE_REGISTER,
-                              LUnallocated::USED_AT_START));
+             new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER,
+                                      LUnallocated::USED_AT_START));
 }
 
 
 LOperand* LChunkBuilder::UseTempRegister(HValue* value) {
-  return Use(value, new LUnallocated(LUnallocated::WRITABLE_REGISTER));
+  return Use(value, new(zone()) LUnallocated(LUnallocated::WRITABLE_REGISTER));
 }
 
 
 LOperand* LChunkBuilder::Use(HValue* value) {
-  return Use(value, new LUnallocated(LUnallocated::NONE));
+  return Use(value, new(zone()) LUnallocated(LUnallocated::NONE));
 }
 
 
 LOperand* LChunkBuilder::UseAtStart(HValue* value) {
-  return Use(value, new LUnallocated(LUnallocated::NONE,
-                                     LUnallocated::USED_AT_START));
+  return Use(value, new(zone()) LUnallocated(LUnallocated::NONE,
+                                             LUnallocated::USED_AT_START));
 }
 
 
@@ -650,7 +650,7 @@ LOperand* LChunkBuilder::UseRegisterOrConstantAtStart(HValue* value) {
 LOperand* LChunkBuilder::UseAny(HValue* value) {
   return value->IsConstant()
       ? chunk_->DefineConstantOperand(HConstant::cast(value))
-      :  Use(value, new LUnallocated(LUnallocated::ANY));
+      :  Use(value, new(zone()) LUnallocated(LUnallocated::ANY));
 }
 
 
@@ -675,14 +675,15 @@ LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
 
 template<int I, int T>
 LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::NONE));
+  return Define(instr, new(zone()) LUnallocated(LUnallocated::NONE));
 }
 
 
 template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsRegister(
     LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
+  return Define(instr,
+                new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER));
 }
 
 
@@ -690,14 +691,16 @@ template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsSpilled(
     LTemplateInstruction<1, I, T>* instr,
     int index) {
-  return Define(instr, new LUnallocated(LUnallocated::FIXED_SLOT, index));
+  return Define(instr,
+                new(zone()) LUnallocated(LUnallocated::FIXED_SLOT, index));
 }
 
 
 template<int I, int T>
 LInstruction* LChunkBuilder::DefineSameAsFirst(
     LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
+  return Define(instr,
+                new(zone()) LUnallocated(LUnallocated::SAME_AS_FIRST_INPUT));
 }
 
 
@@ -780,13 +783,14 @@ LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new LPointerMap(position_));
+  instr->set_pointer_map(new(zone()) LPointerMap(position_));
   return instr;
 }
 
 
 LUnallocated* LChunkBuilder::TempRegister() {
-  LUnallocated* operand = new LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
+  LUnallocated* operand =
+      new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
   allocator_->RecordTemporary(operand);
   return operand;
 }
@@ -807,17 +811,17 @@ LOperand* LChunkBuilder::FixedTemp(XMMRegister reg) {
 
 
 LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
-  return new LLabel(instr->block());
+  return new(zone()) LLabel(instr->block());
 }
 
 
 LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
-  return AssignEnvironment(new LDeoptimize);
+  return AssignEnvironment(new(zone()) LDeoptimize);
 }
 
 
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
-  return AssignEnvironment(new LDeoptimize);
+  return AssignEnvironment(new(zone()) LDeoptimize);
 }
 
 
@@ -830,7 +834,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* left = UseFixed(instr->left(), edx);
     LOperand* right = UseFixed(instr->right(), eax);
-    LArithmeticT* result = new LArithmeticT(op, context, left, right);
+    LArithmeticT* result = new(zone()) LArithmeticT(op, context, left, right);
     return MarkAsCall(DefineFixed(result, eax), instr);
   }
 
@@ -864,7 +868,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
   }
 
   LInstruction* result =
-      DefineSameAsFirst(new LShiftI(op, left, right, does_deopt));
+      DefineSameAsFirst(new(zone()) LShiftI(op, left, right, does_deopt));
   return does_deopt ? AssignEnvironment(result) : result;
 }
 
@@ -877,7 +881,7 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(op != Token::MOD);
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterAtStart(instr->right());
-  LArithmeticD* result = new LArithmeticD(op, left, right);
+  LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
   return DefineSameAsFirst(result);
 }
 
@@ -897,7 +901,7 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
   LOperand* left_operand = UseFixed(left, edx);
   LOperand* right_operand = UseFixed(right, eax);
   LArithmeticT* result =
-      new LArithmeticT(op, context, left_operand, right_operand);
+      new(zone()) LArithmeticT(op, context, left_operand, right_operand);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -995,12 +999,13 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
   int ast_id = hydrogen_env->ast_id();
   ASSERT(ast_id != AstNode::kNoNumber);
   int value_count = hydrogen_env->length();
-  LEnvironment* result = new LEnvironment(hydrogen_env->closure(),
-                                          ast_id,
-                                          hydrogen_env->parameter_count(),
-                                          argument_count_,
-                                          value_count,
-                                          outer);
+  LEnvironment* result =
+      new(zone()) LEnvironment(hydrogen_env->closure(),
+                               ast_id,
+                               hydrogen_env->parameter_count(),
+                               argument_count_,
+                               value_count,
+                               outer);
   for (int i = 0; i < value_count; ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
 
@@ -1009,7 +1014,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
     if (value->IsArgumentsObject()) {
       op = NULL;
     } else if (value->IsPushArgument()) {
-      op = new LArgument((*argument_index_accumulator)++);
+      op = new(zone()) LArgument((*argument_index_accumulator)++);
     } else {
       op = UseAny(value);
     }
@@ -1021,7 +1026,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 
 
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
-  return new LGoto(instr->FirstSuccessor()->block_id());
+  return new(zone()) LGoto(instr->FirstSuccessor()->block_id());
 }
 
 
@@ -1033,7 +1038,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
     HBasicBlock* successor = HConstant::cast(v)->ToBoolean()
         ? instr->FirstSuccessor()
         : instr->SecondSuccessor();
-    return new LGoto(successor->block_id());
+    return new(zone()) LGoto(successor->block_id());
   }
   ToBooleanStub::Types expected = instr->expected_input_types();
   // We need a temporary register when we have to access the map *or* we have
@@ -1041,24 +1046,24 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   // involving maps).
   bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
   LOperand* temp = needs_temp ? TempRegister() : NULL;
-  return AssignEnvironment(new LBranch(UseRegister(v), temp));
+  return AssignEnvironment(new(zone()) LBranch(UseRegister(v), temp));
 }
 
 
 LInstruction* LChunkBuilder::DoCompareMap(HCompareMap* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
-  return new LCmpMapAndBranch(value);
+  return new(zone()) LCmpMapAndBranch(value);
 }
 
 
 LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* length) {
-  return DefineAsRegister(new LArgumentsLength(Use(length->value())));
+  return DefineAsRegister(new(zone()) LArgumentsLength(Use(length->value())));
 }
 
 
 LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
-  return DefineAsRegister(new LArgumentsElements);
+  return DefineAsRegister(new(zone()) LArgumentsElements);
 }
 
 
@@ -1066,7 +1071,7 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
   LOperand* left = UseFixed(instr->left(), InstanceofStub::left());
   LOperand* right = UseFixed(instr->right(), InstanceofStub::right());
   LOperand* context = UseFixed(instr->context(), esi);
-  LInstanceOf* result = new LInstanceOf(context, left, right);
+  LInstanceOf* result = new(zone()) LInstanceOf(context, left, right);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1074,7 +1079,7 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstanceOfKnownGlobal* result =
-      new LInstanceOfKnownGlobal(
+      new(zone()) LInstanceOfKnownGlobal(
           UseFixed(instr->context(), esi),
           UseFixed(instr->left(), InstanceofStub::left()),
           FixedTemp(edi));
@@ -1088,11 +1093,11 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* length = UseFixed(instr->length(), ebx);
   LOperand* elements = UseFixed(instr->elements(), ecx);
   LOperand* temp = FixedTemp(edx);
-  LApplyArguments* result = new LApplyArguments(function,
-                                                receiver,
-                                                length,
-                                                elements,
-                                                temp);
+  LApplyArguments* result = new(zone()) LApplyArguments(function,
+                                                        receiver,
+                                                        length,
+                                                        elements,
+                                                        temp);
   return MarkAsCall(DefineFixed(result, eax), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 
@@ -1100,42 +1105,44 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
   ++argument_count_;
   LOperand* argument = UseAny(instr->argument());
-  return new LPushArgument(argument);
+  return new(zone()) LPushArgument(argument);
 }
 
 
 LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
-  return instr->HasNoUses() ? NULL : DefineAsRegister(new LThisFunction);
+  return instr->HasNoUses()
+      ? NULL
+      : DefineAsRegister(new(zone()) LThisFunction);
 }
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new(zone()) LContext);
 }
 
 
 LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LOuterContext(context));
+  return DefineAsRegister(new(zone()) LOuterContext(context));
 }
 
 
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LGlobalObject(context));
+  return DefineAsRegister(new(zone()) LGlobalObject(context));
 }
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
   LOperand* global_object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LGlobalReceiver(global_object));
+  return DefineAsRegister(new(zone()) LGlobalReceiver(global_object));
 }
 
 
 LInstruction* LChunkBuilder::DoCallConstantFunction(
     HCallConstantFunction* instr) {
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallConstantFunction, eax), instr);
+  return MarkAsCall(DefineFixed(new(zone()) LCallConstantFunction, eax), instr);
 }
 
 
@@ -1143,7 +1150,7 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
   argument_count_ -= instr->argument_count();
-  LInvokeFunction* result = new LInvokeFunction(context, function);
+  LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
   return MarkAsCall(DefineFixed(result, eax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
@@ -1155,17 +1162,20 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     ASSERT(instr->value()->representation().IsDouble());
     LOperand* context = UseAny(instr->context());  // Not actually used.
     LOperand* input = UseRegisterAtStart(instr->value());
-    LUnaryMathOperation* result = new LUnaryMathOperation(context, input);
+    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
+                                                                  input);
     return DefineSameAsFirst(result);
   } else if (op == kMathSin || op == kMathCos) {
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
-    LUnaryMathOperation* result = new LUnaryMathOperation(context, input);
+    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
+                                                                  input);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* context = UseAny(instr->context());  // Deferred use by MathAbs.
-    LUnaryMathOperation* result = new LUnaryMathOperation(context, input);
+    LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
+                                                                  input);
     switch (op) {
       case kMathAbs:
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
@@ -1190,7 +1200,7 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* key = UseFixed(instr->key(), ecx);
   argument_count_ -= instr->argument_count();
-  LCallKeyed* result = new LCallKeyed(context, key);
+  LCallKeyed* result = new(zone()) LCallKeyed(context, key);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1198,7 +1208,7 @@ LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
 LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  LCallNamed* result = new LCallNamed(context);
+  LCallNamed* result = new(zone()) LCallNamed(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1206,14 +1216,14 @@ LInstruction* LChunkBuilder::DoCallNamed(HCallNamed* instr) {
 LInstruction* LChunkBuilder::DoCallGlobal(HCallGlobal* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  LCallGlobal* result = new LCallGlobal(context);
+  LCallGlobal* result = new(zone()) LCallGlobal(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoCallKnownGlobal(HCallKnownGlobal* instr) {
   argument_count_ -= instr->argument_count();
-  return MarkAsCall(DefineFixed(new LCallKnownGlobal, eax), instr);
+  return MarkAsCall(DefineFixed(new(zone()) LCallKnownGlobal, eax), instr);
 }
 
 
@@ -1221,7 +1231,7 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* constructor = UseFixed(instr->constructor(), edi);
   argument_count_ -= instr->argument_count();
-  LCallNew* result = new LCallNew(context, constructor);
+  LCallNew* result = new(zone()) LCallNew(context, constructor);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1229,7 +1239,7 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  LCallFunction* result = new LCallFunction(context);
+  LCallFunction* result = new(zone()) LCallFunction(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1237,7 +1247,7 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
 LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
   argument_count_ -= instr->argument_count();
   LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(DefineFixed(new LCallRuntime(context), eax), instr);
+  return MarkAsCall(DefineFixed(new(zone()) LCallRuntime(context), eax), instr);
 }
 
 
@@ -1263,7 +1273,7 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 
     LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
     LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
-    return DefineSameAsFirst(new LBitI(left, right));
+    return DefineSameAsFirst(new(zone()) LBitI(left, right));
   } else {
     ASSERT(instr->representation().IsTagged());
     ASSERT(instr->left()->representation().IsTagged());
@@ -1272,7 +1282,8 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* left = UseFixed(instr->left(), edx);
     LOperand* right = UseFixed(instr->right(), eax);
-    LArithmeticT* result = new LArithmeticT(instr->op(), context, left, right);
+    LArithmeticT* result =
+        new(zone()) LArithmeticT(instr->op(), context, left, right);
     return MarkAsCall(DefineFixed(result, eax), instr);
   }
 }
@@ -1282,7 +1293,7 @@ LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
   LOperand* input = UseRegisterAtStart(instr->value());
-  LBitNotI* result = new LBitNotI(input);
+  LBitNotI* result = new(zone()) LBitNotI(input);
   return DefineSameAsFirst(result);
 }
 
@@ -1296,7 +1307,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     LOperand* temp = FixedTemp(edx);
     LOperand* dividend = UseFixed(instr->left(), eax);
     LOperand* divisor = UseRegister(instr->right());
-    LDivI* result = new LDivI(dividend, divisor, temp);
+    LDivI* result = new(zone()) LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   } else {
     ASSERT(instr->representation().IsTagged());
@@ -1314,7 +1325,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
-      LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
+      LModI* mod =
+          new(zone()) LModI(value, UseOrConstant(instr->right()), NULL);
       result = DefineSameAsFirst(mod);
     } else {
       // The temporary operand is necessary to ensure that right is
@@ -1322,7 +1334,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
       LOperand* temp = FixedTemp(edx);
       LOperand* value = UseFixed(instr->left(), eax);
       LOperand* divisor = UseRegister(instr->right());
-      LModI* mod = new LModI(value, divisor, temp);
+      LModI* mod = new(zone()) LModI(value, divisor, temp);
       result = DefineFixed(mod, edx);
     }
 
@@ -1339,7 +1351,7 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     // TODO(fschneider): Allow any register as input registers.
     LOperand* left = UseFixedDouble(instr->left(), xmm2);
     LOperand* right = UseFixedDouble(instr->right(), xmm1);
-    LArithmeticD* result = new LArithmeticD(Token::MOD, left, right);
+    LArithmeticD* result = new(zone()) LArithmeticD(Token::MOD, left, right);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
   }
 }
@@ -1355,7 +1367,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
       temp = TempRegister();
     }
-    LMulI* mul = new LMulI(left, right, temp);
+    LMulI* mul = new(zone()) LMulI(left, right, temp);
     return AssignEnvironment(DefineSameAsFirst(mul));
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
@@ -1372,7 +1384,7 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
-    LSubI* sub = new LSubI(left, right);
+    LSubI* sub = new(zone()) LSubI(left, right);
     LInstruction* result = DefineSameAsFirst(sub);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
@@ -1393,7 +1405,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
     LOperand* right = UseOrConstantAtStart(instr->MostConstantOperand());
-    LAddI* add = new LAddI(left, right);
+    LAddI* add = new(zone()) LAddI(left, right);
     LInstruction* result = DefineSameAsFirst(add);
     if (instr->CheckFlag(HValue::kCanOverflow)) {
       result = AssignEnvironment(result);
@@ -1418,7 +1430,7 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LOperand* right = exponent_type.IsDouble() ?
       UseFixedDouble(instr->right(), xmm2) :
       UseFixed(instr->right(), eax);
-  LPower* result = new LPower(left, right);
+  LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
                     CAN_DEOPTIMIZE_EAGERLY);
 }
@@ -1430,7 +1442,7 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* left = UseFixed(instr->left(), edx);
   LOperand* right = UseFixed(instr->right(), eax);
-  LCmpT* result = new LCmpT(context, left, right);
+  LCmpT* result = new(zone()) LCmpT(context, left, right);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1443,7 +1455,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
     ASSERT(instr->right()->representation().IsInteger32());
     LOperand* left = UseRegisterOrConstantAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
-    return new LCmpIDAndBranch(left, right);
+    return new(zone()) LCmpIDAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
@@ -1457,7 +1469,7 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
       left = UseRegisterAtStart(instr->left());
       right = UseRegisterAtStart(instr->right());
     }
-    return new LCmpIDAndBranch(left, right);
+    return new(zone()) LCmpIDAndBranch(left, right);
   }
 }
 
@@ -1466,49 +1478,51 @@ LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
     HCompareObjectEqAndBranch* instr) {
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseAtStart(instr->right());
-  return new LCmpObjectEqAndBranch(left, right);
+  return new(zone()) LCmpObjectEqAndBranch(left, right);
 }
 
 
 LInstruction* LChunkBuilder::DoCompareConstantEqAndBranch(
   HCompareConstantEqAndBranch* instr) {
-  return new LCmpConstantEqAndBranch(UseRegisterAtStart(instr->value()));
+  return new(zone()) LCmpConstantEqAndBranch(
+      UseRegisterAtStart(instr->value()));
 }
 
 
 LInstruction* LChunkBuilder::DoIsNilAndBranch(HIsNilAndBranch* instr) {
   // We only need a temp register for non-strict compare.
   LOperand* temp = instr->kind() == kStrictEquality ? NULL : TempRegister();
-  return new LIsNilAndBranch(UseRegisterAtStart(instr->value()), temp);
+  return new(zone()) LIsNilAndBranch(UseRegisterAtStart(instr->value()), temp);
 }
 
 
 LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* temp = TempRegister();
-  return new LIsObjectAndBranch(UseRegister(instr->value()), temp);
+  return new(zone()) LIsObjectAndBranch(UseRegister(instr->value()), temp);
 }
 
 
 LInstruction* LChunkBuilder::DoIsSmiAndBranch(HIsSmiAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  return new LIsSmiAndBranch(Use(instr->value()));
+  return new(zone()) LIsSmiAndBranch(Use(instr->value()));
 }
 
 
 LInstruction* LChunkBuilder::DoIsUndetectableAndBranch(
     HIsUndetectableAndBranch* instr) {
   ASSERT(instr  ->value()->representation().IsTagged());
-  return new LIsUndetectableAndBranch(UseRegisterAtStart(instr->value()),
-                                      TempRegister());
+  return new(zone()) LIsUndetectableAndBranch(
+      UseRegisterAtStart(instr->value()), TempRegister());
 }
 
 
 LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
     HHasInstanceTypeAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  return new LHasInstanceTypeAndBranch(UseRegisterAtStart(instr->value()),
-                                       TempRegister());
+  return new(zone()) LHasInstanceTypeAndBranch(
+      UseRegisterAtStart(instr->value()),
+      TempRegister());
 }
 
 
@@ -1517,14 +1531,14 @@ LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
 
-  return DefineAsRegister(new LGetCachedArrayIndex(value));
+  return DefineAsRegister(new(zone()) LGetCachedArrayIndex(value));
 }
 
 
 LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
     HHasCachedArrayIndexAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  return new LHasCachedArrayIndexAndBranch(
+  return new(zone()) LHasCachedArrayIndexAndBranch(
       UseRegisterAtStart(instr->value()));
 }
 
@@ -1532,7 +1546,7 @@ LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
 LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
     HClassOfTestAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  return new LClassOfTestAndBranch(UseTempRegister(instr->value()),
+  return new(zone()) LClassOfTestAndBranch(UseTempRegister(instr->value()),
                                    TempRegister(),
                                    TempRegister());
 }
@@ -1540,32 +1554,32 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
 
 LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LJSArrayLength(array));
+  return DefineAsRegister(new(zone()) LJSArrayLength(array));
 }
 
 
 LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
     HFixedArrayBaseLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LFixedArrayBaseLength(array));
+  return DefineAsRegister(new(zone()) LFixedArrayBaseLength(array));
 }
 
 
 LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
   LOperand* object = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LElementsKind(object));
+  return DefineAsRegister(new(zone()) LElementsKind(object));
 }
 
 
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
-  LValueOf* result = new LValueOf(object, TempRegister());
+  LValueOf* result = new(zone()) LValueOf(object, TempRegister());
   return AssignEnvironment(DefineSameAsFirst(result));
 }
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  return AssignEnvironment(new LBoundsCheck(
+  return AssignEnvironment(new(zone()) LBoundsCheck(
       UseRegisterOrConstantAtStart(instr->index()),
       UseAtStart(instr->length())));
 }
@@ -1581,7 +1595,7 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* value = UseFixed(instr->value(), eax);
-  return MarkAsCall(new LThrow(context, value), instr);
+  return MarkAsCall(new(zone()) LThrow(context, value), instr);
 }
 
 
@@ -1604,7 +1618,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsTagged()) {
     if (to.IsDouble()) {
       LOperand* value = UseRegister(instr->value());
-      LNumberUntagD* res = new LNumberUntagD(value);
+      LNumberUntagD* res = new(zone()) LNumberUntagD(value);
       return AssignEnvironment(DefineAsRegister(res));
     } else {
       ASSERT(to.IsInteger32());
@@ -1616,10 +1630,10 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
             (truncating && CpuFeatures::IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
-        LTaggedToI* res = new LTaggedToI(value, xmm_temp);
+        LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
         return AssignEnvironment(DefineSameAsFirst(res));
       } else {
-        return DefineSameAsFirst(new LSmiUntag(value, needs_check));
+        return DefineSameAsFirst(new(zone()) LSmiUntag(value, needs_check));
       }
     }
   } else if (from.IsDouble()) {
@@ -1629,7 +1643,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
       // Make sure that temp and result_temp are different registers.
       LUnallocated* result_temp = TempRegister();
-      LNumberTagD* result = new LNumberTagD(value, temp);
+      LNumberTagD* result = new(zone()) LNumberTagD(value, temp);
       return AssignPointerMap(Define(result, result_temp));
     } else {
       ASSERT(to.IsInteger32());
@@ -1638,21 +1652,23 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = needs_temp ?
           UseTempRegister(instr->value()) : UseRegister(instr->value());
       LOperand* temp = needs_temp ? TempRegister() : NULL;
-      return AssignEnvironment(DefineAsRegister(new LDoubleToI(value, temp)));
+      return AssignEnvironment(
+          DefineAsRegister(new(zone()) LDoubleToI(value, temp)));
     }
   } else if (from.IsInteger32()) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
       if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineSameAsFirst(new LSmiTag(value));
+        return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else {
-        LNumberTagI* result = new LNumberTagI(value);
+        LNumberTagI* result = new(zone()) LNumberTagI(value);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       }
     } else {
       ASSERT(to.IsDouble());
-      return DefineAsRegister(new LInteger32ToDouble(Use(instr->value())));
+      return DefineAsRegister(
+          new(zone()) LInteger32ToDouble(Use(instr->value())));
     }
   }
   UNREACHABLE();
@@ -1662,28 +1678,28 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 LInstruction* LChunkBuilder::DoCheckNonSmi(HCheckNonSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(new LCheckNonSmi(value));
+  return AssignEnvironment(new(zone()) LCheckNonSmi(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   LOperand* temp = TempRegister();
-  LCheckInstanceType* result = new LCheckInstanceType(value, temp);
+  LCheckInstanceType* result = new(zone()) LCheckInstanceType(value, temp);
   return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoCheckPrototypeMaps(HCheckPrototypeMaps* instr) {
   LOperand* temp = TempRegister();
-  LCheckPrototypeMaps* result = new LCheckPrototypeMaps(temp);
+  LCheckPrototypeMaps* result = new(zone()) LCheckPrototypeMaps(temp);
   return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
-  return AssignEnvironment(new LCheckSmi(value));
+  return AssignEnvironment(new(zone()) LCheckSmi(value));
 }
 
 
@@ -1695,13 +1711,13 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
   LOperand* value = Isolate::Current()->heap()->InNewSpace(*instr->target())
       ? UseRegisterAtStart(instr->value())
       : UseAtStart(instr->value());
-  return AssignEnvironment(new LCheckFunction(value));
+  return AssignEnvironment(new(zone()) LCheckFunction(value));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LCheckMap* result = new LCheckMap(value);
+  LCheckMap* result = new(zone()) LCheckMap(value);
   return AssignEnvironment(result);
 }
 
@@ -1711,17 +1727,17 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   Representation input_rep = value->representation();
   if (input_rep.IsDouble()) {
     LOperand* reg = UseRegister(value);
-    return DefineAsRegister(new LClampDToUint8(reg));
+    return DefineAsRegister(new(zone()) LClampDToUint8(reg));
   } else if (input_rep.IsInteger32()) {
     LOperand* reg = UseFixed(value, eax);
-    return DefineFixed(new LClampIToUint8(reg), eax);
+    return DefineFixed(new(zone()) LClampIToUint8(reg), eax);
   } else {
     ASSERT(input_rep.IsTagged());
     LOperand* reg = UseFixed(value, eax);
     // Register allocator doesn't (yet) support allocation of double
     // temps. Reserve xmm1 explicitly.
     LOperand* temp = FixedTemp(xmm1);
-    LClampTToUint8* result = new LClampTToUint8(reg, temp);
+    LClampTToUint8* result = new(zone()) LClampTToUint8(reg, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   }
 }
@@ -1736,7 +1752,7 @@ LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
     LOperand* reg = UseRegister(value);
     LOperand* temp_reg =
         CpuFeatures::IsSupported(SSE3) ? NULL : TempRegister();
-    result = DefineAsRegister(new LDoubleToI(reg, temp_reg));
+    result = DefineAsRegister(new(zone()) LDoubleToI(reg, temp_reg));
   } else if (input_rep.IsInteger32()) {
     // Canonicalization should already have removed the hydrogen instruction in
     // this case, since it is a noop.
@@ -1749,29 +1765,29 @@ LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
     // temps. Reserve xmm1 explicitly.
     LOperand* xmm_temp =
         CpuFeatures::IsSupported(SSE3) ? NULL : FixedTemp(xmm1);
-    result = DefineSameAsFirst(new LTaggedToI(reg, xmm_temp));
+    result = DefineSameAsFirst(new(zone()) LTaggedToI(reg, xmm_temp));
   }
   return AssignEnvironment(result);
 }
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  return new LReturn(UseFixed(instr->value(), eax));
+  return new(zone()) LReturn(UseFixed(instr->value(), eax));
 }
 
 
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   Representation r = instr->representation();
   if (r.IsInteger32()) {
-    return DefineAsRegister(new LConstantI);
+    return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
     double value = instr->DoubleValue();
     LOperand* temp = (BitCast<uint64_t, double>(value) != 0)
         ? TempRegister()
         : NULL;
-    return DefineAsRegister(new LConstantD(temp));
+    return DefineAsRegister(new(zone()) LConstantD(temp));
   } else if (r.IsTagged()) {
-    return DefineAsRegister(new LConstantT);
+    return DefineAsRegister(new(zone()) LConstantT);
   } else {
     UNREACHABLE();
     return NULL;
@@ -1780,7 +1796,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
-  LLoadGlobalCell* result = new LLoadGlobalCell;
+  LLoadGlobalCell* result = new(zone()) LLoadGlobalCell;
   return instr->RequiresHoleCheck()
       ? AssignEnvironment(DefineAsRegister(result))
       : DefineAsRegister(result);
@@ -1790,14 +1806,15 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* global_object = UseFixed(instr->global_object(), eax);
-  LLoadGlobalGeneric* result = new LLoadGlobalGeneric(context, global_object);
+  LLoadGlobalGeneric* result =
+      new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
   LStoreGlobalCell* result =
-      new LStoreGlobalCell(UseTempRegister(instr->value()),
+      new(zone()) LStoreGlobalCell(UseTempRegister(instr->value()),
                            TempRegister(),
                            TempRegister());
   return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
@@ -1809,14 +1826,14 @@ LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
   LOperand* global_object = UseFixed(instr->global_object(), edx);
   LOperand* value = UseFixed(instr->value(), eax);
   LStoreGlobalGeneric* result =
-      new LStoreGlobalGeneric(context, global_object, value);
+      new(zone()) LStoreGlobalGeneric(context, global_object, value);
   return MarkAsCall(result, instr);
 }
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadContextSlot(context));
+  return DefineAsRegister(new(zone()) LLoadContextSlot(context));
 }
 
 
@@ -1831,14 +1848,14 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     value = UseRegister(instr->value());
     temp = NULL;
   }
-  return new LStoreContextSlot(context, value, temp);
+  return new(zone()) LStoreContextSlot(context, value, temp);
 }
 
 
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   ASSERT(instr->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
-  return DefineAsRegister(new LLoadNamedField(obj));
+  return DefineAsRegister(new(zone()) LLoadNamedField(obj));
 }
 
 
@@ -1849,12 +1866,12 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
   if (instr->need_generic()) {
     LOperand* obj = UseFixed(instr->object(), eax);
     LLoadNamedFieldPolymorphic* result =
-        new LLoadNamedFieldPolymorphic(context, obj);
+        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
     return MarkAsCall(DefineFixed(result, eax), instr);
   } else {
     LOperand* obj = UseRegisterAtStart(instr->object());
     LLoadNamedFieldPolymorphic* result =
-        new LLoadNamedFieldPolymorphic(context, obj);
+        new(zone()) LLoadNamedFieldPolymorphic(context, obj);
     return AssignEnvironment(DefineAsRegister(result));
   }
 }
@@ -1863,7 +1880,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), eax);
-  LLoadNamedGeneric* result = new LLoadNamedGeneric(context, object);
+  LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(context, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1871,21 +1888,21 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
 LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
     HLoadFunctionPrototype* instr) {
   return AssignEnvironment(DefineAsRegister(
-      new LLoadFunctionPrototype(UseRegister(instr->function()),
-                                 TempRegister())));
+      new(zone()) LLoadFunctionPrototype(UseRegister(instr->function()),
+                                         TempRegister())));
 }
 
 
 LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadElements(input));
+  return DefineAsRegister(new(zone()) LLoadElements(input));
 }
 
 
 LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
     HLoadExternalArrayPointer* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadExternalArrayPointer(input));
+  return DefineAsRegister(new(zone()) LLoadExternalArrayPointer(input));
 }
 
 
@@ -1895,7 +1912,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
-  LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
+  LLoadKeyedFastElement* result = new(zone()) LLoadKeyedFastElement(obj, key);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1907,7 +1924,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
   LOperand* elements = UseRegisterAtStart(instr->elements());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastDoubleElement* result =
-      new LLoadKeyedFastDoubleElement(elements, key);
+      new(zone()) LLoadKeyedFastDoubleElement(elements, key);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
@@ -1927,7 +1944,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
   LLoadKeyedSpecializedArrayElement* result =
-      new LLoadKeyedSpecializedArrayElement(external_pointer,
+      new(zone()) LLoadKeyedSpecializedArrayElement(external_pointer,
                                             key);
   LInstruction* load_instr = DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
@@ -1943,7 +1960,8 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* object = UseFixed(instr->object(), edx);
   LOperand* key = UseFixed(instr->key(), eax);
 
-  LLoadKeyedGeneric* result = new LLoadKeyedGeneric(context, object, key);
+  LLoadKeyedGeneric* result =
+      new(zone()) LLoadKeyedGeneric(context, object, key);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1963,7 +1981,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
       ? UseTempRegister(instr->key())
       : UseRegisterOrConstantAtStart(instr->key());
 
-  return AssignEnvironment(new LStoreKeyedFastElement(obj, key, val));
+  return AssignEnvironment(new(zone()) LStoreKeyedFastElement(obj, key, val));
 }
 
 
@@ -1977,7 +1995,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
   LOperand* val = UseTempRegister(instr->value());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
 
-  return new LStoreKeyedFastDoubleElement(elements, key, val);
+  return new(zone()) LStoreKeyedFastDoubleElement(elements, key, val);
 }
 
 
@@ -2007,9 +2025,9 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     val = UseRegister(instr->value());
   }
 
-  return new LStoreKeyedSpecializedArrayElement(external_pointer,
-                                                key,
-                                                val);
+  return new(zone()) LStoreKeyedSpecializedArrayElement(external_pointer,
+                                                        key,
+                                                        val);
 }
 
 
@@ -2024,7 +2042,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   ASSERT(instr->value()->representation().IsTagged());
 
   LStoreKeyedGeneric* result =
-      new LStoreKeyedGeneric(context, object, key, value);
+      new(zone()) LStoreKeyedGeneric(context, object, key, value);
   return MarkAsCall(result, instr);
 }
 
@@ -2037,14 +2055,16 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
     LOperand* new_map_reg = TempRegister();
     LOperand* temp_reg = TempRegister();
     LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, temp_reg);
+        new(zone()) LTransitionElementsKind(object, new_map_reg, temp_reg);
     return DefineSameAsFirst(result);
   } else {
     LOperand* object = UseFixed(instr->object(), eax);
     LOperand* fixed_object_reg = FixedTemp(edx);
     LOperand* new_map_reg = FixedTemp(ebx);
     LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, fixed_object_reg);
+        new(zone()) LTransitionElementsKind(object,
+                                            new_map_reg,
+                                            fixed_object_reg);
     return MarkAsCall(DefineFixed(result, eax), instr);
   }
 }
@@ -2072,7 +2092,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
       ? TempRegister()
       : NULL;
 
-  return new LStoreNamedField(obj, val, temp);
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 
@@ -2081,7 +2101,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* object = UseFixed(instr->object(), edx);
   LOperand* value = UseFixed(instr->value(), eax);
 
-  LStoreNamedGeneric* result = new LStoreNamedGeneric(context, object, value);
+  LStoreNamedGeneric* result =
+      new(zone()) LStoreNamedGeneric(context, object, value);
   return MarkAsCall(result, instr);
 }
 
@@ -2090,7 +2111,7 @@ LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* left = UseOrConstantAtStart(instr->left());
   LOperand* right = UseOrConstantAtStart(instr->right());
-  LStringAdd* string_add = new LStringAdd(context, left, right);
+  LStringAdd* string_add = new(zone()) LStringAdd(context, left, right);
   return MarkAsCall(DefineFixed(string_add, eax), instr);
 }
 
@@ -2099,7 +2120,8 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
   LOperand* string = UseTempRegister(instr->string());
   LOperand* index = UseTempRegister(instr->index());
   LOperand* context = UseAny(instr->context());
-  LStringCharCodeAt* result = new LStringCharCodeAt(context, string, index);
+  LStringCharCodeAt* result =
+      new(zone()) LStringCharCodeAt(context, string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
 }
 
@@ -2107,38 +2129,43 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
 LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
   LOperand* char_code = UseRegister(instr->value());
   LOperand* context = UseAny(instr->context());
-  LStringCharFromCode* result = new LStringCharFromCode(context, char_code);
+  LStringCharFromCode* result =
+      new(zone()) LStringCharFromCode(context, char_code);
   return AssignPointerMap(DefineAsRegister(result));
 }
 
 
 LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
   LOperand* string = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LStringLength(string));
+  return DefineAsRegister(new(zone()) LStringLength(string));
 }
 
 
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(DefineFixed(new LArrayLiteral(context), eax), instr);
+  return MarkAsCall(
+      DefineFixed(new(zone()) LArrayLiteral(context), eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(DefineFixed(new LObjectLiteral(context), eax), instr);
+  return MarkAsCall(
+      DefineFixed(new(zone()) LObjectLiteral(context), eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(DefineFixed(new LRegExpLiteral(context), eax), instr);
+  return MarkAsCall(
+      DefineFixed(new(zone()) LRegExpLiteral(context), eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(DefineFixed(new LFunctionLiteral(context), eax), instr);
+  return MarkAsCall(
+      DefineFixed(new(zone()) LFunctionLiteral(context), eax), instr);
 }
 
 
@@ -2146,7 +2173,7 @@ LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseAtStart(instr->object());
   LOperand* key = UseOrConstantAtStart(instr->key());
-  LDeleteProperty* result = new LDeleteProperty(context, object, key);
+  LDeleteProperty* result = new(zone()) LDeleteProperty(context, object, key);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2154,13 +2181,13 @@ LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
   allocator_->MarkAsOsrEntry();
   current_block_->last_environment()->set_ast_id(instr->ast_id());
-  return AssignEnvironment(new LOsrEntry);
+  return AssignEnvironment(new(zone()) LOsrEntry);
 }
 
 
 LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
   int spill_index = chunk()->GetParameterStackSlot(instr->index());
-  return DefineAsSpilled(new LParameter, spill_index);
+  return DefineAsSpilled(new(zone()) LParameter, spill_index);
 }
 
 
@@ -2170,14 +2197,14 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
     Abort("Too many spill slots needed for OSR");
     spill_index = 0;
   }
-  return DefineAsSpilled(new LUnknownOSRValue, spill_index);
+  return DefineAsSpilled(new(zone()) LUnknownOSRValue, spill_index);
 }
 
 
 LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   argument_count_ -= instr->argument_count();
-  LCallStub* result = new LCallStub(context);
+  LCallStub* result = new(zone()) LCallStub(context);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2195,14 +2222,15 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   LOperand* arguments = UseRegister(instr->arguments());
   LOperand* length = UseTempRegister(instr->length());
   LOperand* index = Use(instr->index());
-  LAccessArgumentsAt* result = new LAccessArgumentsAt(arguments, length, index);
+  LAccessArgumentsAt* result =
+      new(zone()) LAccessArgumentsAt(arguments, length, index);
   return AssignEnvironment(DefineAsRegister(result));
 }
 
 
 LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
   LOperand* object = UseFixed(instr->value(), eax);
-  LToFastProperties* result = new LToFastProperties(object);
+  LToFastProperties* result = new(zone()) LToFastProperties(object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2210,19 +2238,19 @@ LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* value = UseAtStart(instr->value());
-  LTypeof* result = new LTypeof(context, value);
+  LTypeof* result = new(zone()) LTypeof(context, value);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
-  return new LTypeofIsAndBranch(UseTempRegister(instr->value()));
+  return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
 }
 
 
 LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
     HIsConstructCallAndBranch* instr) {
-  return new LIsConstructCallAndBranch(TempRegister());
+  return new(zone()) LIsConstructCallAndBranch(TempRegister());
 }
 
 
@@ -2246,7 +2274,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   // lazy bailout instruction to capture the environment.
   if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
     ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
-    LLazyBailout* lazy_bailout = new LLazyBailout;
+    LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
     instruction_pending_deoptimization_environment_->
         set_deoptimization_environment(result->environment());
@@ -2261,11 +2289,12 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
   if (instr->is_function_entry()) {
     LOperand* context = UseFixed(instr->context(), esi);
-    return MarkAsCall(new LStackCheck(context), instr);
+    return MarkAsCall(new(zone()) LStackCheck(context), instr);
   } else {
     ASSERT(instr->is_backwards_branch());
     LOperand* context = UseAny(instr->context());
-    return AssignEnvironment(AssignPointerMap(new LStackCheck(context)));
+    return AssignEnvironment(
+        AssignPointerMap(new(zone()) LStackCheck(context)));
   }
 }
 
@@ -2294,7 +2323,7 @@ LInstruction* LChunkBuilder::DoIn(HIn* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* key = UseOrConstantAtStart(instr->key());
   LOperand* object = UseOrConstantAtStart(instr->object());
-  LIn* result = new LIn(context, key, object);
+  LIn* result = new(zone()) LIn(context, key, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
