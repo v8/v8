@@ -72,7 +72,7 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   if (token == i::Token::ILLEGAL && stack_overflow_) {
     return;
   }
-  i::JavaScriptScanner::Location source_location = scanner_->location();
+  i::Scanner::Location source_location = scanner_->location();
 
   // Four of the tokens are treated specially
   switch (token) {
@@ -647,7 +647,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
 
   Expect(i::Token::THROW, CHECK_OK);
   if (scanner_->HasAnyLineTerminatorBeforeNext()) {
-    i::JavaScriptScanner::Location pos = scanner_->location();
+    i::Scanner::Location pos = scanner_->location();
     ReportMessageAt(pos, "newline_after_throw", NULL);
     *ok = false;
     return Statement::Default();

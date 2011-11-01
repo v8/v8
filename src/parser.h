@@ -486,7 +486,7 @@ class Parser {
   void ReportMessage(const char* message, Vector<const char*> args);
 
   bool inside_with() const { return top_scope_->inside_with(); }
-  JavaScriptScanner& scanner()  { return scanner_; }
+  Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
@@ -726,7 +726,7 @@ class Parser {
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
-  JavaScriptScanner scanner_;
+  Scanner scanner_;
 
   Scope* top_scope_;
 

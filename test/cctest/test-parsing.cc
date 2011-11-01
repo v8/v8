@@ -63,7 +63,7 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       i::Utf8ToUC16CharacterStream stream(keyword, length);
-      i::JavaScriptScanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache);
       // The scanner should parse 'let' as Token::LET for this test.
       scanner.SetHarmonyScoping(true);
       scanner.Initialize(&stream);
@@ -73,7 +73,7 @@ TEST(ScanKeywords) {
     // Removing characters will make keyword matching fail.
     {
       i::Utf8ToUC16CharacterStream stream(keyword, length - 1);
-      i::JavaScriptScanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -84,7 +84,7 @@ TEST(ScanKeywords) {
       memmove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       i::Utf8ToUC16CharacterStream stream(buffer, length + 1);
-      i::JavaScriptScanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -94,7 +94,7 @@ TEST(ScanKeywords) {
       memmove(buffer, keyword, length);
       buffer[length - 1] = '_';
       i::Utf8ToUC16CharacterStream stream(buffer, length);
-      i::JavaScriptScanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -257,7 +257,7 @@ TEST(StandAlonePreParser) {
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+    i::Scanner scanner(i::Isolate::Current()->unicode_cache());
     scanner.Initialize(&stream);
 
     int flags = i::kAllowLazy | i::kAllowNativesSyntax;
@@ -293,7 +293,7 @@ TEST(StandAlonePreParserNoNatives) {
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+    i::Scanner scanner(i::Isolate::Current()->unicode_cache());
     scanner.Initialize(&stream);
 
     // Flags don't allow natives syntax.
@@ -394,7 +394,7 @@ TEST(PreParseOverflow) {
       reinterpret_cast<const i::byte*>(*program),
       static_cast<unsigned>(kProgramSize));
   i::CompleteParserRecorder log;
-  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+  i::Scanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(&stream);
 
 
@@ -612,7 +612,7 @@ void TestStreamScanner(i::UC16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+  i::Scanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(stream);
 
   int i = 0;
@@ -693,7 +693,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUC16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
-  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+  i::Scanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(&stream);
 
   i::Token::Value start = scanner.peek();

@@ -5302,7 +5302,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  JavaScriptScanner scanner(isolate->unicode_cache());
+  Scanner scanner(isolate->unicode_cache());
   scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
