@@ -3056,7 +3056,9 @@ class HBitwise: public HBitwiseBinaryOperation {
   DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    return op() == HBitwise::cast(other)->op();
+  }
 
   virtual Range* InferRange();
 
