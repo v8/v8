@@ -2148,47 +2148,35 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
     bool* found,
     StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
-  LookupResult result(heap->isolate());
-  LookupCallbackSetterInPrototypes(name, &result);
-  if (result.IsFound()) {
+  // We could not find a local property so let's check whether there is an
+  // accessor that wants to handle the property.
+  LookupResult accessor_result(heap->isolate());
+  LookupCallbackSetterInPrototypes(name, &accessor_result);
+  if (accessor_result.IsFound()) {
     *found = true;
-    if (result.type() == CALLBACKS) {
-      return SetPropertyWithCallback(result.GetCallbackObject(),
+    if (accessor_result.type() == CALLBACKS) {
+      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
                                      name,
                                      value,
-                                     result.holder(),
+                                     accessor_result.holder(),
                                      strict_mode);
-    } else if (result.type() == HANDLER) {
-      // We could not find a local property so let's check whether there is an
-      // accessor that wants to handle the property.
-      LookupResult accessor_result(heap->isolate());
-      LookupCallbackSetterInPrototypes(name, &accessor_result);
-      if (accessor_result.IsFound()) {
-        if (accessor_result.type() == CALLBACKS) {
-          return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                         name,
-                                         value,
-                                         accessor_result.holder(),
-                                         strict_mode);
-        } else if (accessor_result.type() == HANDLER) {
-          // There is a proxy in the prototype chain. Invoke its
-          // getPropertyDescriptor trap.
-          bool found = false;
-          // SetPropertyWithHandlerIfDefiningSetter can cause GC,
-          // make sure to use the handlified references after calling
-          // the function.
-          Handle<JSObject> self(this);
-          Handle<String> hname(name);
-          Handle<Object> hvalue(value);
-          MaybeObject* result =
-              accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
-                  name, value, attributes, strict_mode, &found);
-          if (found) return result;
-          // The proxy does not define the property as an accessor.
-          // Consequently, it has no effect on setting the receiver.
-          return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
-        }
-      }
+    } else if (accessor_result.type() == HANDLER) {
+      // There is a proxy in the prototype chain. Invoke its
+      // getPropertyDescriptor trap.
+      bool found = false;
+      // SetPropertyWithHandlerIfDefiningSetter can cause GC,
+      // make sure to use the handlified references after calling
+      // the function.
+      Handle<JSObject> self(this);
+      Handle<String> hname(name);
+      Handle<Object> hvalue(value);
+      MaybeObject* result =
+          accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
+              name, value, attributes, strict_mode, &found);
+      if (found) return result;
+      // The proxy does not define the property as an accessor.
+      // Consequently, it has no effect on setting the receiver.
+      return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
     }
   }
   *found = false;
