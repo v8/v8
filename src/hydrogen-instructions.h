@@ -245,7 +245,9 @@ class Range: public ZoneObject {
     return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
   }
   void KeepOrder();
+#ifdef DEBUG
   void Verify() const;
+#endif
 
   void StackUpon(Range* other) {
     Intersect(other);
@@ -405,7 +407,6 @@ class HType {
   static HType TypeFromValue(Handle<Object> value);
 
   const char* ToString();
-  const char* ToShortString();
 
  private:
   enum Type {

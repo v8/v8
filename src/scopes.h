@@ -42,10 +42,6 @@ class VariableMap: public HashMap {
  public:
   VariableMap();
 
-  // Dummy constructor.  This constructor doesn't set up the map
-  // properly so don't use it unless you have a good reason.
-  explicit VariableMap(bool gotta_love_static_overloading);
-
   virtual ~VariableMap();
 
   Variable* Declare(Scope* scope,
@@ -372,8 +368,6 @@ class Scope: public ZoneObject {
   // Implementation.
  protected:
   friend class ParserFactory;
-
-  explicit Scope(ScopeType type);
 
   Isolate* const isolate_;
 

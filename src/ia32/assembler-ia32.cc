@@ -628,26 +628,6 @@ void Assembler::movzx_w(Register dst, const Operand& src) {
 }
 
 
-void Assembler::cmov(Condition cc, Register dst, int32_t imm32) {
-  ASSERT(CpuFeatures::IsEnabled(CMOV));
-  EnsureSpace ensure_space(this);
-  UNIMPLEMENTED();
-  USE(cc);
-  USE(dst);
-  USE(imm32);
-}
-
-
-void Assembler::cmov(Condition cc, Register dst, Handle<Object> handle) {
-  ASSERT(CpuFeatures::IsEnabled(CMOV));
-  EnsureSpace ensure_space(this);
-  UNIMPLEMENTED();
-  USE(cc);
-  USE(dst);
-  USE(handle);
-}
-
-
 void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(CMOV));
   EnsureSpace ensure_space(this);

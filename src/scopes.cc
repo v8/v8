@@ -76,9 +76,6 @@ static bool Match(void* key1, void* key2) {
 }
 
 
-// Dummy constructor
-VariableMap::VariableMap(bool gotta_love_static_overloading) : HashMap() {}
-
 VariableMap::VariableMap() : HashMap(Match, &LocalsMapAllocator, 8) {}
 VariableMap::~VariableMap() {}
 
@@ -111,21 +108,6 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 
 // ----------------------------------------------------------------------------
 // Implementation of Scope
-
-
-// Dummy constructor
-Scope::Scope(ScopeType type)
-    : isolate_(Isolate::Current()),
-      inner_scopes_(0),
-      variables_(false),
-      temps_(0),
-      params_(0),
-      unresolved_(0),
-      decls_(0),
-      already_resolved_(false) {
-  SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
-}
-
 
 Scope::Scope(Scope* outer_scope, ScopeType type)
     : isolate_(Isolate::Current()),

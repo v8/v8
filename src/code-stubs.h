@@ -58,10 +58,8 @@ namespace internal {
   V(FastNewContext)                      \
   V(FastNewBlockContext)                 \
   V(FastCloneShallowArray)               \
-  V(RevertToNumber)                      \
   V(ToBoolean)                           \
   V(ToNumber)                            \
-  V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpConstructResult)               \
   V(NumberToString)                      \

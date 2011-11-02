@@ -126,7 +126,9 @@ void Range::AddConstant(int32_t value) {
   bool may_overflow = false;  // Overflow is ignored here.
   lower_ = AddWithoutOverflow(lower_, value, &may_overflow);
   upper_ = AddWithoutOverflow(upper_, value, &may_overflow);
+#ifdef DEBUG
   Verify();
+#endif
 }
 
 
@@ -173,7 +175,9 @@ bool Range::AddAndCheckOverflow(Range* other) {
   lower_ = AddWithoutOverflow(lower_, other->lower(), &may_overflow);
   upper_ = AddWithoutOverflow(upper_, other->upper(), &may_overflow);
   KeepOrder();
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -183,7 +187,9 @@ bool Range::SubAndCheckOverflow(Range* other) {
   lower_ = SubWithoutOverflow(lower_, other->upper(), &may_overflow);
   upper_ = SubWithoutOverflow(upper_, other->lower(), &may_overflow);
   KeepOrder();
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -197,9 +203,11 @@ void Range::KeepOrder() {
 }
 
 
+#ifdef DEBUG
 void Range::Verify() const {
   ASSERT(lower_ <= upper_);
 }
+#endif
 
 
 bool Range::MulAndCheckOverflow(Range* other) {
@@ -210,7 +218,9 @@ bool Range::MulAndCheckOverflow(Range* other) {
   int v4 = MulWithoutOverflow(upper_, other->upper(), &may_overflow);
   lower_ = Min(Min(v1, v2), Min(v3, v4));
   upper_ = Max(Max(v1, v2), Max(v3, v4));
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -228,25 +238,6 @@ const char* HType::ToString() {
     case kJSArray: return "array";
     case kJSObject: return "object";
     case kUninitialized: return "uninitialized";
-  }
-  UNREACHABLE();
-  return "Unreachable code";
-}
-
-
-const char* HType::ToShortString() {
-  switch (type_) {
-    case kTagged: return "t";
-    case kTaggedPrimitive: return "p";
-    case kTaggedNumber: return "n";
-    case kSmi: return "m";
-    case kHeapNumber: return "h";
-    case kString: return "s";
-    case kBoolean: return "b";
-    case kNonPrimitive: return "r";
-    case kJSArray: return "a";
-    case kJSObject: return "o";
-    case kUninitialized: return "z";
   }
   UNREACHABLE();
   return "Unreachable code";
