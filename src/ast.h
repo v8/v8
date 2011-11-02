@@ -1288,8 +1288,17 @@ class UnaryOperation: public Expression {
                  Token::Value op,
                  Expression* expression,
                  int pos)
-      : Expression(isolate), op_(op), expression_(expression), pos_(pos) {
+      : Expression(isolate),
+        op_(op),
+        expression_(expression),
+        pos_(pos),
+        materialize_true_id_(AstNode::kNoNumber),
+        materialize_false_id_(AstNode::kNoNumber) {
     ASSERT(Token::IsUnaryOp(op));
+    if (op == Token::NOT) {
+      materialize_true_id_ = GetNextId(isolate);
+      materialize_false_id_ = GetNextId(isolate);
+    }
   }
 
   DECLARE_NODE_TYPE(UnaryOperation)
@@ -1302,10 +1311,18 @@ class UnaryOperation: public Expression {
   Expression* expression() const { return expression_; }
   virtual int position() const { return pos_; }
 
+  int MaterializeTrueId() { return materialize_true_id_; }
+  int MaterializeFalseId() { return materialize_false_id_; }
+
  private:
   Token::Value op_;
   Expression* expression_;
   int pos_;
+
+  // For unary not (Token::NOT), the AST ids where true and false will
+  // actually be materialized, respectively.
+  int materialize_true_id_;
+  int materialize_false_id_;
 };
 
 

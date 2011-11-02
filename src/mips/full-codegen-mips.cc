@@ -405,7 +405,7 @@ void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
 void FullCodeGenerator::TestContext::Plug(Variable* var) const {
   // For simplicity we always test the accumulator register.
   codegen()->GetVar(result_register(), var);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -522,7 +522,7 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
   // For simplicity we always test the accumulator register.
   __ Drop(count);
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -2413,7 +2413,7 @@ void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   __ And(t0, v0, Operand(kSmiTagMask));
   Split(eq, t0, Operand(zero_reg), if_true, if_false, fall_through);
 
@@ -2433,7 +2433,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   __ And(at, v0, Operand(kSmiTagMask | 0x80000000));
   Split(eq, at, Operand(zero_reg), if_true, if_false, fall_through);
 
@@ -2463,7 +2463,7 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ Branch(if_false, ne, at, Operand(zero_reg));
   __ lbu(a1, FieldMemOperand(a2, Map::kInstanceTypeOffset));
   __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(le, a1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE),
         if_true, if_false, fall_through);
 
@@ -2485,7 +2485,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
 
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a1);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE),
         if_true, if_false, fall_through);
 
@@ -2509,7 +2509,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(a1, Map::kBitFieldOffset));
   __ And(at, a1, Operand(1 << Map::kIsUndetectable));
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(ne, at, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2594,7 +2594,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ sb(a2, FieldMemOperand(a1, Map::kBitField2Offset));
   __ jmp(if_true);
 
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   context()->Plug(if_true, if_false);
 }
 
@@ -2613,7 +2613,7 @@ void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
 
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a2);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   __ Branch(if_true, eq, a2, Operand(JS_FUNCTION_TYPE));
   __ Branch(if_false);
 
@@ -2635,7 +2635,7 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
 
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a1);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(eq, a1, Operand(JS_ARRAY_TYPE),
         if_true, if_false, fall_through);
 
@@ -2657,7 +2657,7 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
 
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a1);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(eq, a1, Operand(JS_REGEXP_TYPE), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2687,7 +2687,7 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
   __ lw(a1, MemOperand(a2, StandardFrameConstants::kMarkerOffset));
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(eq, a1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)),
         if_true, if_false, fall_through);
 
@@ -2710,7 +2710,7 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
                          &if_true, &if_false, &fall_through);
 
   __ pop(a1);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(eq, v0, Operand(a1), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3396,7 +3396,7 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
   __ lw(a0, FieldMemOperand(v0, String::kHashFieldOffset));
   __ And(a0, a0, Operand(String::kContainsCachedArrayIndexMask));
 
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Split(eq, a0, Operand(zero_reg), if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -4048,7 +4048,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   { AccumulatorValueContext context(this);
     VisitForTypeofValue(expr);
   }
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
 
   if (check->Equals(isolate()->heap()->number_symbol())) {
     __ JumpIfSmi(v0, if_true);
@@ -4134,7 +4134,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     case Token::IN:
       VisitForStackValue(expr->right());
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
-      PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+      PrepareForBailoutBeforeSplit(false, NULL, NULL);
       __ LoadRoot(t0, Heap::kTrueValueRootIndex);
       Split(eq, v0, Operand(t0), if_true, if_false, fall_through);
       break;
@@ -4143,7 +4143,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForStackValue(expr->right());
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
-      PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+      PrepareForBailoutBeforeSplit(true, if_true, if_false);
       // The stub returns 0 for true.
       Split(eq, v0, Operand(zero_reg), if_true, if_false, fall_through);
       break;
@@ -4191,7 +4191,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Handle<Code> ic = CompareIC::GetUninitialized(op);
       __ Call(ic, RelocInfo::CODE_TARGET, expr->id());
       patch_site.EmitPatchInfo();
-      PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+      PrepareForBailoutBeforeSplit(true, if_true, if_false);
       Split(cc, v0, Operand(zero_reg), if_true, if_false, fall_through);
     }
   }
@@ -4213,7 +4213,7 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
                          &if_true, &if_false, &fall_through);
 
   VisitForAccumulatorValue(sub_expr);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  PrepareForBailoutBeforeSplit(true, if_true, if_false);
   Heap::RootListIndex nil_value = nil == kNullValue ?
       Heap::kNullValueRootIndex :
       Heap::kUndefinedValueRootIndex;

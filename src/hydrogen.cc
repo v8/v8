@@ -5379,7 +5379,7 @@ void HGraphBuilder::VisitNot(UnaryOperation* expr) {
                                 materialize_true));
 
   if (materialize_false->HasPredecessor()) {
-    materialize_false->SetJoinId(expr->expression()->id());
+    materialize_false->SetJoinId(expr->MaterializeFalseId());
     set_current_block(materialize_false);
     Push(graph()->GetConstantFalse());
   } else {
@@ -5387,7 +5387,7 @@ void HGraphBuilder::VisitNot(UnaryOperation* expr) {
   }
 
   if (materialize_true->HasPredecessor()) {
-    materialize_true->SetJoinId(expr->expression()->id());
+    materialize_true->SetJoinId(expr->MaterializeTrueId());
     set_current_block(materialize_true);
     Push(graph()->GetConstantTrue());
   } else {

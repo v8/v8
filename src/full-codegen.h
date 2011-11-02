@@ -85,9 +85,7 @@ class FullCodeGenerator: public AstVisitor {
         loop_depth_(0),
         context_(NULL),
         bailout_entries_(0),
-        stack_checks_(2),  // There's always at least one.
-        forward_bailout_stack_(NULL),
-        forward_bailout_pending_(NULL) {
+        stack_checks_(2) {  // There's always at least one.
   }
 
   static bool MakeCode(CompilationInfo* info);
@@ -275,27 +273,8 @@ class FullCodeGenerator: public AstVisitor {
     }
   };
 
-  // The forward bailout stack keeps track of the expressions that can
-  // bail out to just before the control flow is split in a child
-  // node. The stack elements are linked together through the parent
-  // link when visiting expressions in test contexts after requesting
-  // bailout in child forwarding.
-  class ForwardBailoutStack BASE_EMBEDDED {
-   public:
-    ForwardBailoutStack(Expression* expr, ForwardBailoutStack* parent)
-        : expr_(expr), parent_(parent) { }
-
-    Expression* expr() const { return expr_; }
-    ForwardBailoutStack* parent() const { return parent_; }
-
-   private:
-    Expression* const expr_;
-    ForwardBailoutStack* const parent_;
-  };
-
   // Type of a member function that generates inline code for a native function.
-  typedef void (FullCodeGenerator::*InlineFunctionGenerator)
-      (ZoneList<Expression*>*);
+  typedef void (FullCodeGenerator::*InlineFunctionGenerator)(CallRuntime* expr);
 
   static const InlineFunctionGenerator kInlineFunctionGenerators[];
 
@@ -356,23 +335,22 @@ class FullCodeGenerator: public AstVisitor {
   // need the write barrier if location is CONTEXT.
   MemOperand VarOperand(Variable* var, Register scratch);
 
-  // Forward the bailout responsibility for the given expression to
-  // the next child visited (which must be in a test context).
-  void ForwardBailoutToChild(Expression* expr);
-
   void VisitForEffect(Expression* expr) {
     EffectContext context(this);
-    VisitInCurrentContext(expr);
+    Visit(expr);
+    PrepareForBailout(expr, NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     AccumulatorValueContext context(this);
-    VisitInCurrentContext(expr);
+    Visit(expr);
+    PrepareForBailout(expr, TOS_REG);
   }
 
   void VisitForStackValue(Expression* expr) {
     StackValueContext context(this);
-    VisitInCurrentContext(expr);
+    Visit(expr);
+    PrepareForBailout(expr, NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -380,8 +358,13 @@ class FullCodeGenerator: public AstVisitor {
                        Label* if_false,
                        Label* fall_through) {
     TestContext context(this, expr, if_true, if_false, fall_through);
-    VisitInCurrentContext(expr);
+    Visit(expr);
+    // For test contexts, we prepare for bailout before branching, not at
+    // the end of the entire expression.  This happens as part of visiting
+    // the expression.
   }
+
+  void VisitInDuplicateContext(Expression* expr);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
@@ -394,7 +377,9 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for comparing the type of a value with
   // a given literal string.
-  void EmitLiteralCompareTypeof(Expression* expr, Handle<String> check);
+  void EmitLiteralCompareTypeof(Expression* expr,
+                                Expression* sub_expr,
+                                Handle<String> check);
 
   // Platform-specific code for equality comparison with a nil-like value.
   void EmitLiteralCompareNil(CompareOperation* expr,
@@ -414,7 +399,7 @@ class FullCodeGenerator: public AstVisitor {
   // canonical JS true value so we will insert a (dead) test against true at
   // the actual bailout target from the optimized code. If not
   // should_normalize, the true and false labels are ignored.
-  void PrepareForBailoutBeforeSplit(State state,
+  void PrepareForBailoutBeforeSplit(Expression* expr,
                                     bool should_normalize,
                                     Label* if_true,
                                     Label* if_false);
@@ -449,7 +434,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitInlineRuntimeCall(CallRuntime* expr);
 
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
-  void Emit##name(ZoneList<Expression*>* arguments);
+  void Emit##name(CallRuntime* expr);
   INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
   INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
@@ -576,7 +561,6 @@ class FullCodeGenerator: public AstVisitor {
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
-  void VisitInCurrentContext(Expression* expr);
 
   void VisitForTypeofValue(Expression* expr);
 
@@ -771,8 +755,6 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;
-  ForwardBailoutStack* forward_bailout_stack_;
-  ForwardBailoutStack* forward_bailout_pending_;
 
   friend class NestedStatement;
 

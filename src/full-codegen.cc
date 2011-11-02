@@ -416,7 +416,7 @@ void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
 void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -438,7 +438,7 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -652,14 +652,13 @@ FullCodeGenerator::InlineFunctionGenerator
 }
 
 
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
-  ZoneList<Expression*>* args = node->arguments();
-  const Runtime::Function* function = node->function();
+void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
+  const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
   ASSERT(function->intrinsic_type == Runtime::INLINE);
   InlineFunctionGenerator generator =
       FindInlineFunctionGenerator(function->function_id);
-  ((*this).*(generator))(args);
+  ((*this).*(generator))(expr);
 }
 
 
@@ -676,11 +675,25 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitInDuplicateContext(Expression* expr) {
+  if (context()->IsEffect()) {
+    VisitForEffect(expr);
+  } else if (context()->IsAccumulatorValue()) {
+    VisitForAccumulatorValue(expr);
+  } else if (context()->IsStackValue()) {
+    VisitForStackValue(expr);
+  } else if (context()->IsTest()) {
+    const TestContext* test = TestContext::cast(context());
+    VisitForControl(expr, test->true_label(), test->false_label(),
+                    test->fall_through());
+  }
+}
+
+
 void FullCodeGenerator::VisitComma(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ Comma");
   VisitForEffect(expr->left());
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
-  VisitInCurrentContext(expr->right());
+  VisitInDuplicateContext(expr->right());
 }
 
 
@@ -702,7 +715,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     }
     PrepareForBailoutForId(right_id, NO_REGISTERS);
     __ bind(&eval_right);
-    ForwardBailoutToChild(expr);
 
   } else if (context()->IsAccumulatorValue()) {
     VisitForAccumulatorValue(left);
@@ -710,7 +722,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     // case we need it.
     __ push(result_register());
     Label discard, restore;
-    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
       DoTest(left, &discard, &restore, &restore);
     } else {
@@ -729,7 +740,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     // case we need it.
     __ push(result_register());
     Label discard;
-    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
       DoTest(left, &discard, &done, &discard);
     } else {
@@ -751,7 +761,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     __ bind(&eval_right);
   }
 
-  VisitInCurrentContext(right);
+  VisitInDuplicateContext(right);
   __ bind(&done);
 }
 
@@ -774,34 +784,6 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     EmitInlineSmiBinaryOp(expr, op, mode, left, right);
   } else {
     EmitBinaryOp(expr, op, mode);
-  }
-}
-
-
-void FullCodeGenerator::ForwardBailoutToChild(Expression* expr) {
-  if (!info_->HasDeoptimizationSupport()) return;
-  ASSERT(context()->IsTest());
-  ASSERT(expr == forward_bailout_stack_->expr());
-  forward_bailout_pending_ = forward_bailout_stack_;
-}
-
-
-void FullCodeGenerator::VisitInCurrentContext(Expression* expr) {
-  if (context()->IsTest()) {
-    ForwardBailoutStack stack(expr, forward_bailout_pending_);
-    ForwardBailoutStack* saved = forward_bailout_stack_;
-    forward_bailout_pending_ = NULL;
-    forward_bailout_stack_ = &stack;
-    Visit(expr);
-    forward_bailout_stack_ = saved;
-  } else {
-    ASSERT(forward_bailout_pending_ == NULL);
-    Visit(expr);
-    State state = context()->IsAccumulatorValue() ? TOS_REG : NO_REGISTERS;
-    PrepareForBailout(expr, state);
-    // Forwarding bailouts to children is a one shot operation. It should have
-    // been processed at this point.
-    ASSERT(forward_bailout_pending_ == NULL);
   }
 }
 
@@ -1247,16 +1229,15 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                     for_test->false_label(),
                     NULL);
   } else {
-    VisitInCurrentContext(expr->then_expression());
+    VisitInDuplicateContext(expr->then_expression());
     __ jmp(&done);
   }
 
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),
                         expr->else_expression_position());
-  VisitInCurrentContext(expr->else_expression());
+  VisitInDuplicateContext(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {
     __ bind(&done);
@@ -1314,7 +1295,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression *sub_expr;
   Handle<String> check;
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    EmitLiteralCompareTypeof(sub_expr, check);
+    EmitLiteralCompareTypeof(expr, sub_expr, check);
     return true;
   }
 
