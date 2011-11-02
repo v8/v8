@@ -591,7 +591,8 @@
                     ['v8_compress_startup_data=="bz2"', {
                       'libraries': [
                         '-lbz2',
-                    ]}],
+                      ]
+                    }],
                   ],
                 },
                 'sources': [
@@ -601,6 +602,9 @@
               }
             ],
             ['OS=="android"', {
+                'defines': [
+                  'CAN_USE_VFP_INSTRUCTIONS',
+                ],
                 'sources': [
                   '../../src/platform-posix.cc',
                 ],
@@ -772,8 +776,8 @@
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
                 '-lbz2',
-              ]}
-            ],
+              ]
+            }],
           ],
         },
         {
@@ -798,7 +802,8 @@
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
                 '-lbz2',
-              ]}],
+              ]
+            }],
           ],
         },
         {
