@@ -11218,18 +11218,14 @@ class ScopeIterator {
       // Global code
       CompilationInfo info(script);
       info.MarkAsGlobal();
-      bool result = ParserApi::Parse(&info);
-      ASSERT(result);
-      result = Scope::Analyze(&info);
-      ASSERT(result);
+      CHECK(ParserApi::Parse(&info));
+      CHECK(Scope::Analyze(&info));
       scope = info.function()->scope();
     } else {
       // Function code
       CompilationInfo info(shared_info);
-      bool result = ParserApi::Parse(&info);
-      ASSERT(result);
-      result = Scope::Analyze(&info);
-      ASSERT(result);
+      CHECK(ParserApi::Parse(&info));
+      CHECK(Scope::Analyze(&info));
       scope = info.function()->scope();
     }
 

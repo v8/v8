@@ -667,23 +667,23 @@ TEST(JSArray) {
   Handle<JSObject> object = FACTORY->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   // We just initialized the VM, no heap allocation failure yet.
-  Object* ok = array->Initialize(0)->ToObjectChecked();
+  array->Initialize(0)->ToObjectChecked();
 
   // Set array length to 0.
-  ok = array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
+  array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
   CHECK(array->HasFastTypeElements());
 
   // array[length] = name.
-  ok = array->SetElement(0, *name, kNonStrictMode, true)->ToObjectChecked();
+  array->SetElement(0, *name, kNonStrictMode, true)->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(array->GetElement(0), *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
       FACTORY->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  ok = array->SetElementsLength(*length)->ToObjectChecked();
+  array->SetElementsLength(*length)->ToObjectChecked();
 
   uint32_t int_length = 0;
   CHECK(length->ToArrayIndex(&int_length));
@@ -691,8 +691,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  ok = array->SetElement(
-      int_length, *name, kNonStrictMode, true)->ToObjectChecked();
+  array->SetElement(int_length, *name, kNonStrictMode, true)->ToObjectChecked();
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -719,10 +718,8 @@ TEST(JSObjectCopy) {
   obj->SetProperty(
       *second, Smi::FromInt(2), NONE, kNonStrictMode)->ToObjectChecked();
 
-  Object* ok =
-      obj->SetElement(0, *first, kNonStrictMode, true)->ToObjectChecked();
-
-  ok = obj->SetElement(1, *second, kNonStrictMode, true)->ToObjectChecked();
+  obj->SetElement(0, *first, kNonStrictMode, true)->ToObjectChecked();
+  obj->SetElement(1, *second, kNonStrictMode, true)->ToObjectChecked();
 
   // Make the clone.
   Handle<JSObject> clone = Copy(obj);
@@ -740,8 +737,8 @@ TEST(JSObjectCopy) {
   clone->SetProperty(
       *second, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
 
-  ok = clone->SetElement(0, *second, kNonStrictMode, true)->ToObjectChecked();
-  ok = clone->SetElement(1, *first, kNonStrictMode, true)->ToObjectChecked();
+  clone->SetElement(0, *second, kNonStrictMode, true)->ToObjectChecked();
+  clone->SetElement(1, *first, kNonStrictMode, true)->ToObjectChecked();
 
   CHECK_EQ(obj->GetElement(1), clone->GetElement(0));
   CHECK_EQ(obj->GetElement(0), clone->GetElement(1));

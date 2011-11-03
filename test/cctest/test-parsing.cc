@@ -229,7 +229,7 @@ TEST(Preparsing) {
   CHECK_EQ(11, error_location.end_pos);
   // Should not crash.
   const char* message = pre_impl->BuildMessage();
-  i::Vector<const char*> args = pre_impl->BuildArgs();
+  i::Vector<const char*> args(pre_impl->BuildArgs());
   CHECK_GT(strlen(message), 0);
 }
 
@@ -844,12 +844,11 @@ TEST(ScopePositions) {
     int kSuffixLen = i::StrLength(source_data[i].outer_suffix);
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
-    int length;
-    length = i::OS::SNPrintF(program, "%s%s%s",
-                             source_data[i].outer_prefix,
-                             source_data[i].inner_source,
-                             source_data[i].outer_suffix);
-    ASSERT(length == kProgramSize);
+    int length = i::OS::SNPrintF(program, "%s%s%s",
+                                 source_data[i].outer_prefix,
+                                 source_data[i].inner_source,
+                                 source_data[i].outer_suffix);
+    CHECK(length == kProgramSize);
 
     // Parse program source.
     i::Handle<i::String> source(

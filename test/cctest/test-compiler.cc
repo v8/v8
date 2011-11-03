@@ -270,8 +270,8 @@ TEST(UncaughtThrow) {
   CHECK(!fun.is_null());
   bool has_pending_exception;
   Handle<JSObject> global(Isolate::Current()->context()->global());
-  Handle<Object> result =
-      Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+  Handle<Object> result(
+      Execution::Call(fun, global, 0, NULL, &has_pending_exception));
   CHECK(has_pending_exception);
   CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
            ToObjectChecked()->Number());
