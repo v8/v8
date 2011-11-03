@@ -85,4 +85,12 @@ bool Variable::is_global() const {
   return mode_ != TEMPORARY && scope_ != NULL && scope_->is_global_scope();
 }
 
+
+int Variable::CompareIndex(Variable* const* v, Variable* const* w) {
+  int x = (*v)->index();
+  int y = (*w)->index();
+  // Consider sorting them according to type as well?
+  return x - y;
+}
+
 } }  // namespace v8::internal

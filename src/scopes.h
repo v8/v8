@@ -303,8 +303,11 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
-  // Collect all used locals in this scope.
-  void CollectUsedVariables(ZoneList<Variable*>* locals);
+  // Collect stack and context allocated local variables in this scope. Note
+  // that the function variable - if present - is not collected and should be
+  // handled separately.
+  void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
+                                    ZoneList<Variable*>* context_locals);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
@@ -322,6 +325,9 @@ class Scope: public ZoneObject {
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
+
+  int StackLocalCount() const;
+  int ContextLocalCount() const;
 
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }

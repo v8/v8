@@ -38,45 +38,16 @@ namespace v8 {
 namespace internal {
 
 
-static int CompareLocal(Variable* const* v, Variable* const* w) {
-  int x = (*v)->index();
-  int y = (*w)->index();
-  // Consider sorting them according to type as well?
-  return x - y;
-}
-
-
 Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
-  ZoneList<Variable*> variables(32);  // 32 is a wild guess
-  ASSERT(variables.is_empty());
-  scope->CollectUsedVariables(&variables);
-
-  ZoneList<Variable*> stack_locals(scope->num_stack_slots());
-  ZoneList<Variable*> context_locals(scope->num_heap_slots());
-
   // Collect stack and context locals.
-  for (int i = 0; i < variables.length(); i++) {
-    Variable* var = variables[i];
-    ASSERT(var->is_used());
-    switch (var->location()) {
-      case Variable::UNALLOCATED:
-      case Variable::PARAMETER:
-        break;
-
-      case Variable::LOCAL:
-        stack_locals.Add(var);
-        break;
-
-      case Variable::CONTEXT:
-        context_locals.Add(var);
-        break;
-
-      case Variable::LOOKUP:
-        // We don't expect lookup variables in the locals list.
-        UNREACHABLE();
-        break;
-    }
-  }
+  ZoneList<Variable*> stack_locals(scope->StackLocalCount());
+  ZoneList<Variable*> context_locals(scope->ContextLocalCount());
+  scope->CollectStackAndContextLocals(&stack_locals, &context_locals);
+  const int stack_local_count = stack_locals.length();
+  const int context_local_count = context_locals.length();
+  // Make sure we allocate the correct amount.
+  ASSERT(scope->StackLocalCount() == stack_local_count);
+  ASSERT(scope->ContextLocalCount() == context_local_count);
 
   // Determine use and location of the function variable if it is present.
   FunctionVariableInfo function_name_info;
@@ -99,8 +70,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
 
   const bool has_function_name = function_name_info != NONE;
   const int parameter_count = scope->num_parameters();
-  const int stack_local_count = stack_locals.length();
-  const int context_local_count = context_locals.length();
   const int length = kVariablePartIndex
       + parameter_count + stack_local_count + 2 * context_local_count
       + (has_function_name ? 2 : 0);
@@ -140,7 +109,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
   // according to usage, the allocated slot indices may not be in increasing
   // order with the variable list anymore. Thus, we first need to sort them by
   // context slot index before adding them to the ScopeInfo object.
-  context_locals.Sort(&CompareLocal);
+  context_locals.Sort(&Variable::CompareIndex);
 
   // Add context locals' names.
   ASSERT(index == scope_info->ContextLocalNameEntriesIndex());

@@ -159,6 +159,8 @@ class Variable: public ZoneObject {
     index_ = index;
   }
 
+  static int CompareIndex(Variable* const* v, Variable* const* w);
+
  private:
   Scope* scope_;
   Handle<String> name_;

@@ -529,23 +529,31 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
 }
 
 
-void Scope::CollectUsedVariables(ZoneList<Variable*>* locals) {
-  // Collect variables in this scope.
-  // Note that the function_ variable - if present - is not
-  // collected here but handled separately in ScopeInfo
-  // which is the current user of this function).
+void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
+                                         ZoneList<Variable*>* context_locals) {
+  ASSERT(stack_locals != NULL);
+  ASSERT(context_locals != NULL);
+
+  // Collect temporaries which are always allocated on the stack.
   for (int i = 0; i < temps_.length(); i++) {
     Variable* var = temps_[i];
     if (var->is_used()) {
-      locals->Add(var);
+      ASSERT(var->IsStackLocal());
+      stack_locals->Add(var);
     }
   }
+
+  // Collect declared local variables.
   for (VariableMap::Entry* p = variables_.Start();
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var->is_used()) {
-      locals->Add(var);
+      if (var->IsStackLocal()) {
+        stack_locals->Add(var);
+      } else if (var->IsContextSlot()) {
+        context_locals->Add(var);
+      }
     }
   }
 }
@@ -1163,6 +1171,19 @@ void Scope::AllocateVariablesRecursively() {
 
   // Allocation done.
   ASSERT(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
+}
+
+
+int Scope::StackLocalCount() const {
+  return num_stack_slots() -
+      (function_ != NULL && function_->var()->IsStackLocal() ? 1 : 0);
+}
+
+
+int Scope::ContextLocalCount() const {
+  if (num_heap_slots() == 0) return 0;
+  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
+      (function_ != NULL && function_->var()->IsContextSlot() ? 1 : 0);
 }
 
 } }  // namespace v8::internal
