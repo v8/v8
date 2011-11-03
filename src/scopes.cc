@@ -704,9 +704,9 @@ static void PrintVar(int indent, Variable* var) {
     PrintName(var->name());
     PrintF(";  // ");
     PrintLocation(var);
-    if (var->is_accessed_from_inner_scope()) {
+    if (var->has_forced_context_allocation()) {
       if (!var->IsUnallocated()) PrintF(", ");
-      PrintF("inner scope access");
+      PrintF("forced context allocation");
     }
     PrintF("\n");
   }
@@ -852,7 +852,9 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     *binding_kind = BOUND;
   } else if (outer_scope_ != NULL) {
     var = outer_scope_->LookupRecursive(name, context, binding_kind);
-    if (*binding_kind == BOUND) var->MarkAsAccessedFromInnerScope();
+    if (*binding_kind == BOUND && (is_function_scope() || is_with_scope())) {
+      var->ForceContextAllocation();
+    }
   }
 
   if (is_with_scope()) {
@@ -984,7 +986,7 @@ bool Scope::MustAllocate(Variable* var) {
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
-      (var->is_accessed_from_inner_scope() ||
+      (var->has_forced_context_allocation() ||
        scope_calls_eval_ ||
        inner_scope_calls_eval_ ||
        scope_contains_with_ ||
@@ -1007,7 +1009,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // catch-bound variables are always allocated in a context.
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope() || is_block_scope()) return true;
-  return var->is_accessed_from_inner_scope() ||
+  return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
       scope_contains_with_ ||
@@ -1071,9 +1073,8 @@ void Scope::AllocateParameterLocals() {
     Variable* var = params_[i];
     ASSERT(var->scope() == this);
     if (uses_nonstrict_arguments) {
-      // Give the parameter a use from an inner scope, to force allocation
-      // to the context.
-      var->MarkAsAccessedFromInnerScope();
+      // Force context allocation of the parameter.
+      var->ForceContextAllocation();
     }
 
     if (MustAllocate(var)) {

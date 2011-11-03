@@ -69,7 +69,7 @@ Variable::Variable(Scope* scope,
     initializer_position_(RelocInfo::kNoPosition),
     local_if_not_shadowed_(NULL),
     is_valid_LHS_(is_valid_LHS),
-    is_accessed_from_inner_scope_(false),
+    force_context_allocation_(false),
     is_used_(false),
     initialization_flag_(initialization_flag) {
   // Names must be canonicalized for fast equality checks.
