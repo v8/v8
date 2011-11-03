@@ -1108,7 +1108,7 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
     ReplaceCodeObject(shared_info->code(), *code);
     Handle<Object> code_scope_info =  compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
-      shared_info->set_scope_info(SerializedScopeInfo::cast(*code_scope_info));
+      shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
   }
 

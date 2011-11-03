@@ -326,8 +326,7 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
   // the compilation info is set if compilation succeeded.
   bool succeeded = MakeCode(info);
   if (!info->shared_info().is_null()) {
-    Handle<SerializedScopeInfo> scope_info =
-        SerializedScopeInfo::Create(info->scope());
+    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope());
     info->shared_info()->set_scope_info(*scope_info);
   }
   return succeeded;
@@ -395,7 +394,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
           lit->name(),
           lit->materialized_literal_count(),
           info->code(),
-          SerializedScopeInfo::Create(info->scope()));
+          ScopeInfo::Create(info->scope()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -623,7 +622,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
       if (info->IsOptimizing()) {
-        ASSERT(shared->scope_info() != SerializedScopeInfo::Empty());
+        ASSERT(shared->scope_info() != ScopeInfo::Empty());
         function->ReplaceCode(*code);
       } else {
         // Update the shared function info with the compiled code and the
@@ -631,8 +630,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         // info initialization is important since set_scope_info might
         // trigger a GC, causing the ASSERT below to be invalid if the code
         // was flushed. By settting the code object last we avoid this.
-        Handle<SerializedScopeInfo> scope_info =
-            SerializedScopeInfo::Create(info->scope());
+        Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope());
         shared->set_scope_info(*scope_info);
         shared->set_code(*code);
         if (!function.is_null()) {
@@ -695,7 +693,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !LiveEditFunctionTracker::IsActive(info.isolate());
 
-  Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
 
   // Generate code
   if (FLAG_lazy && allow_lazy) {
@@ -704,7 +702,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
              (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
     ASSERT(!info.code().is_null());
-    scope_info = SerializedScopeInfo::Create(info.scope());
+    scope_info = ScopeInfo::Create(info.scope());
   } else {
     return Handle<SharedFunctionInfo>::null();
   }

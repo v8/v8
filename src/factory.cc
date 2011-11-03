@@ -303,7 +303,7 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 Handle<Context> Factory::NewBlockContext(
     Handle<JSFunction> function,
     Handle<Context> previous,
-    Handle<SerializedScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateBlockContext(*function,
@@ -766,11 +766,11 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 }
 
 
-Handle<SerializedScopeInfo> Factory::NewSerializedScopeInfo(int length) {
+Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateSerializedScopeInfo(length),
-      SerializedScopeInfo);
+      isolate()->heap()->AllocateScopeInfo(length),
+      ScopeInfo);
 }
 
 
@@ -985,7 +985,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,
     Handle<Code> code,
-    Handle<SerializedScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
   shared->set_scope_info(*scope_info);

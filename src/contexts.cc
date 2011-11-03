@@ -137,13 +137,13 @@ Handle<Object> Context::Lookup(Handle<String> name,
     if (context->IsFunctionContext() || context->IsBlockContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<SerializedScopeInfo> scope_info;
+      Handle<ScopeInfo> scope_info;
       if (context->IsFunctionContext()) {
-        scope_info = Handle<SerializedScopeInfo>(
+        scope_info = Handle<ScopeInfo>(
             context->closure()->shared()->scope_info(), isolate);
       } else {
-        scope_info = Handle<SerializedScopeInfo>(
-            SerializedScopeInfo::cast(context->extension()), isolate);
+        scope_info = Handle<ScopeInfo>(
+            ScopeInfo::cast(context->extension()), isolate);
       }
       VariableMode mode;
       int slot_index = scope_info->ContextSlotIndex(*name, &mode);
@@ -250,8 +250,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     ASSERT(context->IsFunctionContext());
 
     // Check non-parameter locals.
-    Handle<SerializedScopeInfo> scope_info(
-        context->closure()->shared()->scope_info());
+    Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info());
     VariableMode mode;
     int index = scope_info->ContextSlotIndex(*name, &mode);
     ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
@@ -262,7 +261,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     if (param_index >= 0) return false;
 
     // Check context only holding the function name variable.
-    index = scope_info->FunctionContextSlotIndex(*name, NULL);
+    index = scope_info->FunctionContextSlotIndex(*name, &mode);
     if (index >= 0) return false;
     context = context->previous();
   }
@@ -279,9 +278,7 @@ void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval) {
   Context* context = this;
   while (!context->IsGlobalContext()) {
     if (context->IsFunctionContext()) {
-      Handle<SerializedScopeInfo> scope_info(
-          context->closure()->shared()->scope_info());
-      if (scope_info->CallsEval() && !scope_info->IsStrictMode()) {
+      if (context->closure()->shared()->scope_info()->CallsNonStrictEval()) {
         // No need to go further since the answers will not change from
         // here.
         *outer_scope_calls_non_strict_eval = true;

@@ -798,9 +798,8 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   if (stmt->block_scope() != NULL) {
     { Comment cmnt(masm_, "[ Extend block context");
       scope_ = stmt->block_scope();
-      Handle<SerializedScopeInfo> scope_info = scope_->GetSerializedScopeInfo();
-      int heap_slots =
-          scope_info->NumberOfContextSlots() - Context::MIN_CONTEXT_SLOTS;
+      Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+      int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
       __ Push(scope_info);
       PushFunctionArgumentForContextAllocation();
       if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {

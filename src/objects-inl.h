@@ -563,10 +563,10 @@ bool Object::IsGlobalContext() {
 }
 
 
-bool Object::IsSerializedScopeInfo() {
+bool Object::IsScopeInfo() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->serialized_scope_info_map();
+      HeapObject::cast(this)->GetHeap()->scope_info_map();
 }
 
 
@@ -2015,6 +2015,7 @@ CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
@@ -3545,13 +3546,12 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
 }
 
 
-SerializedScopeInfo* SharedFunctionInfo::scope_info() {
-  return reinterpret_cast<SerializedScopeInfo*>(
-      READ_FIELD(this, kScopeInfoOffset));
+ScopeInfo* SharedFunctionInfo::scope_info() {
+  return reinterpret_cast<ScopeInfo*>(READ_FIELD(this, kScopeInfoOffset));
 }
 
 
-void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
+void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
                                         WriteBarrierMode mode) {
   WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
   CONDITIONAL_WRITE_BARRIER(GetHeap(),

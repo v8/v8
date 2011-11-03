@@ -118,7 +118,7 @@ Scope::Scope(Scope* outer_scope, ScopeType type)
       unresolved_(16),
       decls_(4),
       already_resolved_(false) {
-  SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
+  SetDefaults(type, outer_scope, Handle<ScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
   // In that case, the ASSERT below needs to be adjusted.
@@ -129,7 +129,7 @@ Scope::Scope(Scope* outer_scope, ScopeType type)
 
 Scope::Scope(Scope* inner_scope,
              ScopeType type,
-             Handle<SerializedScopeInfo> scope_info)
+             Handle<ScopeInfo> scope_info)
     : isolate_(Isolate::Current()),
       inner_scopes_(4),
       variables_(),
@@ -139,8 +139,8 @@ Scope::Scope(Scope* inner_scope,
       decls_(4),
       already_resolved_(true) {
   SetDefaults(type, NULL, scope_info);
-  if (!scope_info.is_null() && scope_info->HasHeapAllocatedLocals()) {
-    num_heap_slots_ = scope_info_->NumberOfContextSlots();
+  if (!scope_info.is_null()) {
+    num_heap_slots_ = scope_info_->ContextLength();
   }
   AddInnerScope(inner_scope);
 }
@@ -155,7 +155,7 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
       unresolved_(0),
       decls_(0),
       already_resolved_(true) {
-  SetDefaults(CATCH_SCOPE, NULL, Handle<SerializedScopeInfo>::null());
+  SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
   AddInnerScope(inner_scope);
   ++num_var_or_const_;
   Variable* variable = variables_.Declare(this,
@@ -169,7 +169,7 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
 
 void Scope::SetDefaults(ScopeType type,
                         Scope* outer_scope,
-                        Handle<SerializedScopeInfo> scope_info) {
+                        Handle<ScopeInfo> scope_info) {
   outer_scope_ = outer_scope;
   type_ = type;
   scope_name_ = isolate_->factory()->empty_symbol();
@@ -206,8 +206,9 @@ Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
   bool contains_with = false;
   while (!context->IsGlobalContext()) {
     if (context->IsWithContext()) {
-      Scope* with_scope = new Scope(current_scope, WITH_SCOPE,
-                                    Handle<SerializedScopeInfo>::null());
+      Scope* with_scope = new Scope(current_scope,
+                                    WITH_SCOPE,
+                                    Handle<ScopeInfo>::null());
       current_scope = with_scope;
       // All the inner scopes are inside a with.
       contains_with = true;
@@ -215,15 +216,15 @@ Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
         s->scope_inside_with_ = true;
       }
     } else if (context->IsFunctionContext()) {
-      SerializedScopeInfo* scope_info =
-          context->closure()->shared()->scope_info();
-      current_scope = new Scope(current_scope, FUNCTION_SCOPE,
-                                Handle<SerializedScopeInfo>(scope_info));
+      ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+      current_scope = new Scope(current_scope,
+                                FUNCTION_SCOPE,
+                                Handle<ScopeInfo>(scope_info));
     } else if (context->IsBlockContext()) {
-      SerializedScopeInfo* scope_info =
-          SerializedScopeInfo::cast(context->extension());
-      current_scope = new Scope(current_scope, BLOCK_SCOPE,
-                                Handle<SerializedScopeInfo>(scope_info));
+      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
+      current_scope = new Scope(current_scope,
+                                BLOCK_SCOPE,
+                                Handle<ScopeInfo>(scope_info));
     } else {
       ASSERT(context->IsCatchContext());
       String* name = String::cast(context->extension());
@@ -361,7 +362,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
     index = scope_info_->ParameterIndex(*name);
     if (index < 0) {
       // Check the function name.
-      index = scope_info_->FunctionContextSlotIndex(*name, NULL);
+      index = scope_info_->FunctionContextSlotIndex(*name, &mode);
       if (index < 0) return NULL;
     }
   }
@@ -504,8 +505,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
 }
 
 
-template<class Allocator>
-void Scope::CollectUsedVariables(List<Variable*, Allocator>* locals) {
+void Scope::CollectUsedVariables(ZoneList<Variable*>* locals) {
   // Collect variables in this scope.
   // Note that the function_ variable - if present - is not
   // collected here but handled separately in ScopeInfo
@@ -525,15 +525,6 @@ void Scope::CollectUsedVariables(List<Variable*, Allocator>* locals) {
     }
   }
 }
-
-
-// Make sure the method gets instantiated by the template system.
-template void Scope::CollectUsedVariables(
-    List<Variable*, FreeStoreAllocationPolicy>* locals);
-template void Scope::CollectUsedVariables(
-    List<Variable*, PreallocatedStorage>* locals);
-template void Scope::CollectUsedVariables(
-    List<Variable*, ZoneListAllocationPolicy>* locals);
 
 
 void Scope::AllocateVariables(Handle<Context> context) {
@@ -610,18 +601,18 @@ Scope* Scope::DeclarationScope() {
 }
 
 
-Handle<SerializedScopeInfo> Scope::GetSerializedScopeInfo() {
+Handle<ScopeInfo> Scope::GetScopeInfo() {
   if (scope_info_.is_null()) {
-    scope_info_ = SerializedScopeInfo::Create(this);
+    scope_info_ = ScopeInfo::Create(this);
   }
   return scope_info_;
 }
 
 
 void Scope::GetNestedScopeChain(
-    List<Handle<SerializedScopeInfo> >* chain,
+    List<Handle<ScopeInfo> >* chain,
     int position) {
-  chain->Add(Handle<SerializedScopeInfo>(GetSerializedScopeInfo()));
+  chain->Add(Handle<ScopeInfo>(GetScopeInfo()));
 
   for (int i = 0; i < inner_scopes_.length(); i++) {
     Scope* scope = inner_scopes_[i];
@@ -1126,21 +1117,15 @@ void Scope::AllocateVariablesRecursively() {
   if (is_function_scope()) AllocateParameterLocals();
   AllocateNonParameterLocals();
 
-  // Allocate context if necessary.
-  bool must_have_local_context = false;
-  if (scope_calls_eval_ || scope_contains_with_) {
-    // The context for the eval() call or 'with' statement in this scope.
-    // Unless we are in the global or an eval scope, we need a local
-    // context even if we didn't statically allocate any locals in it,
-    // and the compiler will access the context variable. If we are
-    // not in an inner scope, the scope is provided from the outside.
-    must_have_local_context = is_function_scope();
-  }
+  // Force allocation of a context for this scope if necessary. For a 'with'
+  // scope and for a function scope that makes an 'eval' call we need a context,
+  // even if no local variables were statically allocated in the scope.
+  bool must_have_context = is_with_scope() ||
+      (is_function_scope() && calls_eval());
 
   // If we didn't allocate any locals in the local context, then we only
-  // need the minimal number of slots if we must have a local context.
-  if (num_heap_slots_ == Context::MIN_CONTEXT_SLOTS &&
-      !must_have_local_context) {
+  // need the minimal number of slots if we must have a context.
+  if (num_heap_slots_ == Context::MIN_CONTEXT_SLOTS && !must_have_context) {
     num_heap_slots_ = 0;
   }
 

@@ -35,67 +35,6 @@
 namespace v8 {
 namespace internal {
 
-// ScopeInfo represents information about different scopes of a source
-// program  and the allocation of the scope's variables. Scope information
-// is stored in a compressed form in SerializedScopeInfo objects and is used
-// at runtime (stack dumps, deoptimization, etc.).
-
-// Forward defined as
-// template <class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
-template<class Allocator>
-class ScopeInfo BASE_EMBEDDED {
- public:
-  // Create a ScopeInfo instance from a scope.
-  explicit ScopeInfo(Scope* scope);
-
-  // Create a ScopeInfo instance from SerializedScopeInfo.
-  explicit ScopeInfo(SerializedScopeInfo* data);
-
-  // Creates a SerializedScopeInfo holding the serialized scope info.
-  Handle<SerializedScopeInfo> Serialize();
-
-  // --------------------------------------------------------------------------
-  // Lookup
-
-  Handle<String> function_name() const { return function_name_; }
-
-  Handle<String> parameter_name(int i) const { return parameters_[i]; }
-  int number_of_parameters() const { return parameters_.length(); }
-
-  Handle<String> stack_slot_name(int i) const { return stack_slots_[i]; }
-  int number_of_stack_slots() const { return stack_slots_.length(); }
-
-  Handle<String> context_slot_name(int i) const {
-    return context_slots_[i - Context::MIN_CONTEXT_SLOTS];
-  }
-  int number_of_context_slots() const {
-    int l = context_slots_.length();
-    return l == 0 ? 0 : l + Context::MIN_CONTEXT_SLOTS;
-  }
-
-  Handle<String> LocalName(int i) const;
-  int NumberOfLocals() const;
-
-  ScopeType type() const { return type_; }
-  // --------------------------------------------------------------------------
-  // Debugging support
-
-#ifdef DEBUG
-  void Print();
-#endif
-
- private:
-  Handle<String> function_name_;
-  bool calls_eval_;
-  bool is_strict_mode_;
-  ScopeType type_;
-  List<Handle<String>, Allocator > parameters_;
-  List<Handle<String>, Allocator > stack_slots_;
-  List<Handle<String>, Allocator > context_slots_;
-  List<VariableMode, Allocator > context_modes_;
-};
-
-
 // Cache for mapping (data, property name) into context slot index.
 // The cache contains both positive and negative results.
 // Slot index equals -1 means the property is absent.

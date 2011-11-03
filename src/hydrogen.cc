@@ -4705,11 +4705,11 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
       TraceInline(target, caller, "could not generate deoptimization info");
       return false;
     }
-    if (target_shared->scope_info() == SerializedScopeInfo::Empty()) {
+    if (target_shared->scope_info() == ScopeInfo::Empty()) {
       // The scope info might not have been set if a lazily compiled
       // function is inlined before being called for the first time.
-      Handle<SerializedScopeInfo> target_scope_info =
-          SerializedScopeInfo::Create(target_info.scope());
+      Handle<ScopeInfo> target_scope_info =
+          ScopeInfo::Create(target_info.scope());
       target_shared->set_scope_info(*target_scope_info);
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());

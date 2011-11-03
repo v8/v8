@@ -621,8 +621,9 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
 
       if (!frame->is_optimized()) {
         // If there is an arguments variable in the stack, we return that.
-        Handle<SerializedScopeInfo> info(function->shared()->scope_info());
-        int index = info->StackSlotIndex(isolate->heap()->arguments_symbol());
+        Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+        int index = scope_info->StackSlotIndex(
+            isolate->heap()->arguments_symbol());
         if (index >= 0) {
           Handle<Object> arguments(frame->GetExpression(index), isolate);
           if (!arguments->IsArgumentsMarker()) return *arguments;

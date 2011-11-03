@@ -73,7 +73,7 @@ inline Heap* _inline_get_heap_();
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
-  V(Map, serialized_scope_info_map, SerializedScopeInfoMap)                    \
+  V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
@@ -547,7 +547,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
   // Allocates a serialized scope info.
-  MUST_USE_RESULT MaybeObject* AllocateSerializedScopeInfo(int length);
+  MUST_USE_RESULT MaybeObject* AllocateScopeInfo(int length);
 
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
@@ -737,7 +737,7 @@ class Heap {
   // Allocate a block context.
   MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,
                                                     Context* previous,
-                                                    SerializedScopeInfo* info);
+                                                    ScopeInfo* info);
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);

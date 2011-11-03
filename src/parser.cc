@@ -1522,7 +1522,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(name, literals, code,
-          Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
+          Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

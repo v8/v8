@@ -301,8 +301,7 @@ class Scope: public ZoneObject {
   // Variable allocation.
 
   // Collect all used locals in this scope.
-  template<class Allocator>
-  void CollectUsedVariables(List<Variable*, Allocator>* locals);
+  void CollectUsedVariables(ZoneList<Variable*>* locals);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
@@ -337,13 +336,13 @@ class Scope: public ZoneObject {
   // where var declarations will be hoisted to in the implementation.
   Scope* DeclarationScope();
 
-  Handle<SerializedScopeInfo> GetSerializedScopeInfo();
+  Handle<ScopeInfo> GetScopeInfo();
 
   // Get the chain of nested scopes within this scope for the source statement
   // position. The scopes will be added to the list from the outermost scope to
   // the innermost scope. Only nested block, catch or with scopes are tracked
   // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(List<Handle<SerializedScopeInfo> >* chain,
+  void GetNestedScopeChain(List<Handle<ScopeInfo> >* chain,
                            int statement_position);
 
   // ---------------------------------------------------------------------------
@@ -438,8 +437,8 @@ class Scope: public ZoneObject {
   int num_stack_slots_;
   int num_heap_slots_;
 
-  // Serialized scopes support.
-  Handle<SerializedScopeInfo> scope_info_;
+  // Serialized scope info support.
+  Handle<ScopeInfo> scope_info_;
   bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
@@ -523,9 +522,7 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope,
-        ScopeType type,
-        Handle<SerializedScopeInfo> scope_info);
+  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
@@ -539,7 +536,7 @@ class Scope: public ZoneObject {
 
   void SetDefaults(ScopeType type,
                    Scope* outer_scope,
-                   Handle<SerializedScopeInfo> scope_info);
+                   Handle<ScopeInfo> scope_info);
 };
 
 } }  // namespace v8::internal

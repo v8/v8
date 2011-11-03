@@ -1002,11 +1002,15 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
 
-  Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
+  // Get scope information for nicer output, if possible. If code is NULL, or
+  // doesn't contain scope info, scope_info will return 0 for the number of
+  // parameters, stack local variables, context local variables, stack slots,
+  // or context slots.
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
 
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());
-    scope_info = Handle<SerializedScopeInfo>(shared->scope_info());
+    scope_info = Handle<ScopeInfo>(shared->scope_info());
     Object* script_obj = shared->script();
     if (script_obj->IsScript()) {
       Handle<Script> script(Script::cast(script_obj));
@@ -1031,11 +1035,6 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
   accumulator->Add("(this=%o", receiver);
 
-  // Get scope information for nicer output, if possible. If code is
-  // NULL, or doesn't contain scope info, info will return 0 for the
-  // number of parameters, stack slots, or context slots.
-  ScopeInfo<PreallocatedStorage> info(*scope_info);
-
   // Print the parameters.
   int parameters_count = ComputeParametersCount();
   for (int i = 0; i < parameters_count; i++) {
@@ -1043,8 +1042,8 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     // If we have a name for the parameter we print it. Nameless
     // parameters are either because we have more actual parameters
     // than formal parameters or because we have no scope information.
-    if (i < info.number_of_parameters()) {
-      accumulator->PrintName(*info.parameter_name(i));
+    if (i < scope_info->ParameterCount()) {
+      accumulator->PrintName(scope_info->ParameterName(i));
       accumulator->Add("=");
     }
     accumulator->Add("%o", GetParameter(i));
@@ -1062,8 +1061,8 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   accumulator->Add(" {\n");
 
   // Compute the number of locals and expression stack elements.
-  int stack_locals_count = info.number_of_stack_slots();
-  int heap_locals_count = info.number_of_context_slots();
+  int stack_locals_count = scope_info->StackLocalCount();
+  int heap_locals_count = scope_info->ContextLocalCount();
   int expressions_count = ComputeExpressionsCount();
 
   // Print stack-allocated local variables.
@@ -1072,7 +1071,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
   for (int i = 0; i < stack_locals_count; i++) {
     accumulator->Add("  var ");
-    accumulator->PrintName(*info.stack_slot_name(i));
+    accumulator->PrintName(scope_info->StackLocalName(i));
     accumulator->Add(" = ");
     if (i < expressions_count) {
       accumulator->Add("%o", GetExpression(i));
@@ -1089,16 +1088,16 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
 
   // Print heap-allocated local variables.
-  if (heap_locals_count > Context::MIN_CONTEXT_SLOTS) {
+  if (heap_locals_count > 0) {
     accumulator->Add("  // heap-allocated locals\n");
   }
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < heap_locals_count; i++) {
+  for (int i = 0; i < heap_locals_count; i++) {
     accumulator->Add("  var ");
-    accumulator->PrintName(*info.context_slot_name(i));
+    accumulator->PrintName(scope_info->ContextLocalName(i));
     accumulator->Add(" = ");
     if (context != NULL) {
       if (i < context->length()) {
-        accumulator->Add("%o", context->get(i));
+        accumulator->Add("%o", context->get(Context::MIN_CONTEXT_SLOTS + i));
       } else {
         accumulator->Add(
             "// warning: missing context slot - inconsistent frame?");
