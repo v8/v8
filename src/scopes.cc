@@ -80,16 +80,23 @@ VariableMap::VariableMap() : HashMap(Match, &LocalsMapAllocator, 8) {}
 VariableMap::~VariableMap() {}
 
 
-Variable* VariableMap::Declare(Scope* scope,
-                               Handle<String> name,
-                               VariableMode mode,
-                               bool is_valid_lhs,
-                               Variable::Kind kind) {
+Variable* VariableMap::Declare(
+    Scope* scope,
+    Handle<String> name,
+    VariableMode mode,
+    bool is_valid_lhs,
+    Variable::Kind kind,
+    InitializationFlag initialization_flag) {
   HashMap::Entry* p = HashMap::Lookup(name.location(), name->Hash(), true);
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     ASSERT(p->key == name.location());
-    p->value = new Variable(scope, name, mode, is_valid_lhs, kind);
+    p->value = new Variable(scope,
+                            name,
+                            mode,
+                            is_valid_lhs,
+                            kind,
+                            initialization_flag);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -162,7 +169,8 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
                                           catch_variable_name,
                                           VAR,
                                           true,  // Valid left-hand side.
-                                          Variable::NORMAL);
+                                          Variable::NORMAL,
+                                          kCreatedInitialized);
   AllocateHeapSlot(variable);
 }
 
@@ -290,7 +298,8 @@ void Scope::Initialize() {
                            isolate_->factory()->this_symbol(),
                            VAR,
                            false,
-                           Variable::THIS);
+                           Variable::THIS,
+                           kCreatedInitialized);
     var->AllocateTo(Variable::PARAMETER, -1);
     receiver_ = var;
   } else {
@@ -306,7 +315,8 @@ void Scope::Initialize() {
                        isolate_->factory()->arguments_symbol(),
                        VAR,
                        true,
-                       Variable::ARGUMENTS);
+                       Variable::ARGUMENTS,
+                       kCreatedInitialized);
   }
 }
 
@@ -355,10 +365,12 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
   // Check context slot lookup.
   VariableMode mode;
-  int index = scope_info_->ContextSlotIndex(*name, &mode);
+  InitializationFlag init_flag;
+  int index = scope_info_->ContextSlotIndex(*name, &mode, &init_flag);
   if (index < 0) {
     // Check parameters.
     mode = VAR;
+    init_flag = kCreatedInitialized;
     index = scope_info_->ParameterIndex(*name);
     if (index < 0) {
       // Check the function name.
@@ -368,7 +380,12 @@ Variable* Scope::LocalLookup(Handle<String> name) {
   }
 
   Variable* var =
-      variables_.Declare(this, name, mode, true, Variable::NORMAL);
+      variables_.Declare(this,
+                         name,
+                         mode,
+                         true,
+                         Variable::NORMAL,
+                         init_flag);
   var->AllocateTo(Variable::CONTEXT, index);
   return var;
 }
@@ -387,8 +404,8 @@ Variable* Scope::Lookup(Handle<String> name) {
 
 Variable* Scope::DeclareFunctionVar(Handle<String> name, VariableMode mode) {
   ASSERT(is_function_scope() && function_ == NULL);
-  Variable* function_var =
-      new Variable(this, name, mode, true, Variable::NORMAL);
+  Variable* function_var = new Variable(
+      this, name, mode, true, Variable::NORMAL, kCreatedInitialized);
   function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
   return function_var;
 }
@@ -397,13 +414,15 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name, VariableMode mode) {
 void Scope::DeclareParameter(Handle<String> name, VariableMode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
-  Variable* var =
-      variables_.Declare(this, name, mode, true, Variable::NORMAL);
+  Variable* var = variables_.Declare(
+      this, name, mode, true, Variable::NORMAL, kCreatedInitialized);
   params_.Add(var);
 }
 
 
-Variable* Scope::DeclareLocal(Handle<String> name, VariableMode mode) {
+Variable* Scope::DeclareLocal(Handle<String> name,
+                              VariableMode mode,
+                              InitializationFlag init_flag) {
   ASSERT(!already_resolved());
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
@@ -413,15 +432,19 @@ Variable* Scope::DeclareLocal(Handle<String> name, VariableMode mode) {
          mode == CONST_HARMONY ||
          mode == LET);
   ++num_var_or_const_;
-  return variables_.Declare(this, name, mode, true, Variable::NORMAL);
+  return
+      variables_.Declare(this, name, mode, true, Variable::NORMAL, init_flag);
 }
 
 
 Variable* Scope::DeclareGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
-  return variables_.Declare(this, name, DYNAMIC_GLOBAL,
+  return variables_.Declare(this,
+                            name,
+                            DYNAMIC_GLOBAL,
                             true,
-                            Variable::NORMAL);
+                            Variable::NORMAL,
+                            kCreatedInitialized);
 }
 
 
@@ -455,7 +478,8 @@ Variable* Scope::NewTemporary(Handle<String> name) {
                                name,
                                TEMPORARY,
                                true,
-                               Variable::NORMAL);
+                               Variable::NORMAL,
+                               kCreatedInitialized);
   temps_.Add(var);
   return var;
 }
@@ -784,7 +808,14 @@ Variable* Scope::NonLocal(Handle<String> name, VariableMode mode) {
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.
-    var = map->Declare(NULL, name, mode, true, Variable::NORMAL);
+    InitializationFlag init_flag = (mode == VAR)
+        ? kCreatedInitialized : kNeedsInitialization;
+    var = map->Declare(NULL,
+                       name,
+                       mode,
+                       true,
+                       Variable::NORMAL,
+                       init_flag);
     // Allocate it by giving it a dynamic lookup.
     var->AllocateTo(Variable::LOOKUP, -1);
   }

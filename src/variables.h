@@ -77,7 +77,8 @@ class Variable: public ZoneObject {
            Handle<String> name,
            VariableMode mode,
            bool is_valid_lhs,
-           Kind kind);
+           Kind kind,
+           InitializationFlag initialization_flag);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -123,9 +124,7 @@ class Variable: public ZoneObject {
             mode_ == CONST_HARMONY);
   }
   bool binding_needs_init() const {
-    return (mode_ == LET ||
-            mode_ == CONST ||
-            mode_ == CONST_HARMONY);
+    return initialization_flag_ == kNeedsInitialization;
   }
 
   bool is_global() const;
@@ -148,6 +147,9 @@ class Variable: public ZoneObject {
 
   Location location() const { return location_; }
   int index() const { return index_; }
+  InitializationFlag initialization_flag() const {
+    return initialization_flag_;
+  }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
@@ -174,6 +176,7 @@ class Variable: public ZoneObject {
   // Usage info.
   bool is_accessed_from_inner_scope_;  // set by variable resolver
   bool is_used_;
+  InitializationFlag initialization_flag_;
 };
 
 

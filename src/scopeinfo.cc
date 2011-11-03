@@ -148,10 +148,13 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
     scope_info->set(index++, *context_locals[i]->name());
   }
 
-  // Add context locals' modes.
-  ASSERT(index == scope_info->ContextLocalModeEntriesIndex());
+  // Add context locals' info.
+  ASSERT(index == scope_info->ContextLocalInfoEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
-    scope_info->set(index++, Smi::FromInt(context_locals[i]->mode()));
+    Variable* var = context_locals[i];
+    uint32_t value = ContextLocalMode::encode(var->mode()) |
+        ContextLocalInitFlag::encode(var->initialization_flag());
+    scope_info->set(index++, Smi::FromInt(value));
   }
 
   // If present, add the function variable name and its index.
@@ -294,8 +297,17 @@ String* ScopeInfo::ContextLocalName(int var) {
 
 VariableMode ScopeInfo::ContextLocalMode(int var) {
   ASSERT(0 <= var && var < ContextLocalCount());
-  int info_index = ContextLocalModeEntriesIndex() + var;
-  return static_cast<VariableMode>(Smi::cast(get(info_index))->value());
+  int info_index = ContextLocalInfoEntriesIndex() + var;
+  int value = Smi::cast(get(info_index))->value();
+  return ContextLocalMode::decode(value);
+}
+
+
+InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
+  ASSERT(0 <= var && var < ContextLocalCount());
+  int info_index = ContextLocalInfoEntriesIndex() + var;
+  int value = Smi::cast(get(info_index))->value();
+  return ContextLocalInitFlag::decode(value);
 }
 
 
@@ -314,12 +326,15 @@ int ScopeInfo::StackSlotIndex(String* name) {
 }
 
 
-int ScopeInfo::ContextSlotIndex(String* name, VariableMode* mode) {
+int ScopeInfo::ContextSlotIndex(String* name,
+                                VariableMode* mode,
+                                InitializationFlag* init_flag) {
   ASSERT(name->IsSymbol());
   ASSERT(mode != NULL);
+  ASSERT(init_flag != NULL);
   if (length() > 0) {
     ContextSlotCache* context_slot_cache = GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(this, name, mode);
+    int result = context_slot_cache->Lookup(this, name, mode, init_flag);
     if (result != ContextSlotCache::kNotFound) {
       ASSERT(result < ContextLength());
       return result;
@@ -331,13 +346,14 @@ int ScopeInfo::ContextSlotIndex(String* name, VariableMode* mode) {
       if (name == get(i)) {
         int var = i - start;
         *mode = ContextLocalMode(var);
+        *init_flag = ContextLocalInitFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(this, name, *mode, result);
+        context_slot_cache->Update(this, name, *mode, *init_flag, result);
         ASSERT(result < ContextLength());
         return result;
       }
     }
-    context_slot_cache->Update(this, name, INTERNAL, -1);
+    context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
 }
@@ -393,13 +409,13 @@ int ScopeInfo::ContextLocalNameEntriesIndex() {
 }
 
 
-int ScopeInfo::ContextLocalModeEntriesIndex() {
+int ScopeInfo::ContextLocalInfoEntriesIndex() {
   return ContextLocalNameEntriesIndex() + ContextLocalCount();
 }
 
 
 int ScopeInfo::FunctionNameEntryIndex() {
-  return ContextLocalModeEntriesIndex() + ContextLocalCount();
+  return ContextLocalInfoEntriesIndex() + ContextLocalCount();
 }
 
 
@@ -413,12 +429,14 @@ int ContextSlotCache::Hash(Object* data, String* name) {
 
 int ContextSlotCache::Lookup(Object* data,
                              String* name,
-                             VariableMode* mode) {
+                             VariableMode* mode,
+                             InitializationFlag* init_flag) {
   int index = Hash(data, name);
   Key& key = keys_[index];
   if ((key.data == data) && key.name->Equals(name)) {
     Value result(values_[index]);
     if (mode != NULL) *mode = result.mode();
+    if (init_flag != NULL) *init_flag = result.initialization_flag();
     return result.index() + kNotFound;
   }
   return kNotFound;
@@ -428,6 +446,7 @@ int ContextSlotCache::Lookup(Object* data,
 void ContextSlotCache::Update(Object* data,
                               String* name,
                               VariableMode mode,
+                              InitializationFlag init_flag,
                               int slot_index) {
   String* symbol;
   ASSERT(slot_index > kNotFound);
@@ -437,9 +456,9 @@ void ContextSlotCache::Update(Object* data,
     key.data = data;
     key.name = symbol;
     // Please note value only takes a uint as index.
-    values_[index] = Value(mode, slot_index - kNotFound).raw();
+    values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
-    ValidateEntry(data, name, mode, slot_index);
+    ValidateEntry(data, name, mode, init_flag, slot_index);
 #endif
   }
 }
@@ -455,6 +474,7 @@ void ContextSlotCache::Clear() {
 void ContextSlotCache::ValidateEntry(Object* data,
                                      String* name,
                                      VariableMode mode,
+                                     InitializationFlag init_flag,
                                      int slot_index) {
   String* symbol;
   if (HEAP->LookupSymbolIfExists(name, &symbol)) {
@@ -464,6 +484,7 @@ void ContextSlotCache::ValidateEntry(Object* data,
     ASSERT(key.name->Equals(name));
     Value result(values_[index]);
     ASSERT(result.mode() == mode);
+    ASSERT(result.initialization_flag() == init_flag);
     ASSERT(result.index() + kNotFound == slot_index);
   }
 }

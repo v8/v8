@@ -1385,7 +1385,9 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = declaration_scope->DeclareLocal(name, mode);
+      InitializationFlag init_flag = (fun != NULL || mode == VAR)
+          ? kCreatedInitialized : kNeedsInitialization;
+      var = declaration_scope->DeclareLocal(name, mode, init_flag);
     } else {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
@@ -1452,7 +1454,12 @@ VariableProxy* Parser::Declare(Handle<String> name,
       declaration_scope->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope, name, CONST, true, kind);
+    var = new(zone()) Variable(declaration_scope,
+                               name,
+                               CONST,
+                               true,
+                               kind,
+                               kNeedsInitialization);
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -2283,7 +2290,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
       VariableMode mode = harmony_scoping_ ? LET : VAR;
-      catch_variable = catch_scope->DeclareLocal(name, mode);
+      catch_variable =
+          catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
       SaveScope save_scope(this, catch_scope);
       catch_block = ParseBlock(NULL, CHECK_OK);

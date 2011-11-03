@@ -3169,6 +3169,9 @@ class ScopeInfo : public FixedArray {
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var);
 
+  // Return the initialization flag of the given context local.
+  InitializationFlag ContextLocalInitFlag(int var);
+
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
   // present; otherwise returns a value < 0. The name must be a symbol
@@ -3180,7 +3183,9 @@ class ScopeInfo : public FixedArray {
   // returns a value < 0. The name must be a symbol (canonicalized).
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(String* name, VariableMode* mode);
+  int ContextSlotIndex(String* name,
+                       VariableMode* mode,
+                       InitializationFlag* init_flag);
 
   // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
@@ -3256,10 +3261,11 @@ class ScopeInfo : public FixedArray {
   //    index starting with Context::MIN_CONTEXT_SLOTS. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount() slots
   //    in the array.
-  // 4. ContextLocalModeEntries:
-  //    Contains the variable modes corresponding to the context locals in
-  //    ContextLocalNameEntries. One slot is used per context local, so in total
-  //    this part occupies ContextLocalCount() slots in the array.
+  // 4. ContextLocalInfoEntries:
+  //    Contains the variable modes and initialization flags corresponding to
+  //    the context locals in ContextLocalNameEntries. One slot is used per
+  //    context local, so in total this part occupies ContextLocalCount()
+  //    slots in the array.
   // 5. FunctionNameEntryIndex:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
@@ -3268,7 +3274,7 @@ class ScopeInfo : public FixedArray {
   int ParameterEntriesIndex();
   int StackLocalEntriesIndex();
   int ContextLocalNameEntriesIndex();
-  int ContextLocalModeEntriesIndex();
+  int ContextLocalInfoEntriesIndex();
   int FunctionNameEntryIndex();
 
   // Location of the function variable for named function expressions.
@@ -3285,6 +3291,11 @@ class ScopeInfo : public FixedArray {
   class StrictModeField:       public BitField<bool,                 4, 1> {};
   class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
   class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+
+  // BitFields representing the encoded information for context locals in the
+  // ContextLocalInfoEntries part.
+  class ContextLocalMode:      public BitField<VariableMode,         0, 3> {};
+  class ContextLocalInitFlag:  public BitField<InitializationFlag,   3, 1> {};
 };
 
 

@@ -48,7 +48,8 @@ class VariableMap: public HashMap {
                     Handle<String> name,
                     VariableMode mode,
                     bool is_valid_lhs,
-                    Variable::Kind kind);
+                    Variable::Kind kind,
+                    InitializationFlag initialization_flag);
 
   Variable* Lookup(Handle<String> name);
 };
@@ -127,7 +128,9 @@ class Scope: public ZoneObject {
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(Handle<String> name, VariableMode mode);
+  Variable* DeclareLocal(Handle<String> name,
+                         VariableMode mode,
+                         InitializationFlag init_flag);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner

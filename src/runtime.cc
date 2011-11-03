@@ -10794,9 +10794,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     for (; i < scope_info->LocalCount(); ++i) {
       Handle<String> name(scope_info->LocalName(i));
       VariableMode mode;
+      InitializationFlag init_flag;
       locals->set(i * 2, *name);
-      locals->set(i * 2 + 1,
-                  context->get(scope_info->ContextSlotIndex(*name, &mode)));
+      locals->set(i * 2 + 1, context->get(
+          scope_info->ContextSlotIndex(*name, &mode, &init_flag)));
     }
   }
 
@@ -10970,8 +10971,9 @@ static bool CopyContextLocalsToScopeObject(
   // Fill all context locals to the context extension.
   for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
     VariableMode mode;
+    InitializationFlag init_flag;
     int context_index = scope_info->ContextSlotIndex(
-        scope_info->ContextLocalName(i), &mode);
+        scope_info->ContextLocalName(i), &mode, &init_flag);
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
@@ -11941,8 +11943,9 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
 
   if (scope_info->HasHeapAllocatedLocals()) {
     VariableMode mode;
+    InitializationFlag init_flag;
     index = scope_info->ContextSlotIndex(
-        isolate->heap()->arguments_symbol(), &mode);
+        isolate->heap()->arguments_symbol(), &mode, &init_flag);
     if (index != -1) {
       return Handle<Object>(function_context->get(index), isolate);
     }

@@ -45,12 +45,14 @@ class ContextSlotCache {
   // If absent, kNotFound is returned.
   int Lookup(Object* data,
              String* name,
-             VariableMode* mode);
+             VariableMode* mode,
+             InitializationFlag* init_flag);
 
   // Update an element in the cache.
   void Update(Object* data,
               String* name,
               VariableMode mode,
+              InitializationFlag init_flag,
               int slot_index);
 
   // Clear the cache.
@@ -73,6 +75,7 @@ class ContextSlotCache {
   void ValidateEntry(Object* data,
                      String* name,
                      VariableMode mode,
+                     InitializationFlag init_flag,
                      int slot_index);
 #endif
 
@@ -83,11 +86,17 @@ class ContextSlotCache {
   };
 
   struct Value {
-    Value(VariableMode mode, int index) {
+    Value(VariableMode mode,
+          InitializationFlag init_flag,
+          int index) {
       ASSERT(ModeField::is_valid(mode));
+      ASSERT(InitField::is_valid(init_flag));
       ASSERT(IndexField::is_valid(index));
-      value_ = ModeField::encode(mode) | IndexField::encode(index);
+      value_ = ModeField::encode(mode) |
+          IndexField::encode(index) |
+          InitField::encode(init_flag);
       ASSERT(mode == this->mode());
+      ASSERT(init_flag == this->initialization_flag());
       ASSERT(index == this->index());
     }
 
@@ -97,12 +106,18 @@ class ContextSlotCache {
 
     VariableMode mode() { return ModeField::decode(value_); }
 
+    InitializationFlag initialization_flag() {
+      return InitField::decode(value_);
+    }
+
     int index() { return IndexField::decode(value_); }
 
     // Bit fields in value_ (type, shift, size). Must be public so the
     // constants can be embedded in generated code.
-    class ModeField:  public BitField<VariableMode, 0, 3> {};
-    class IndexField: public BitField<int,          3, 32-3> {};
+    class ModeField:  public BitField<VariableMode,       0, 3> {};
+    class InitField:  public BitField<InitializationFlag, 3, 1> {};
+    class IndexField: public BitField<int,                4, 32-4> {};
+
    private:
     uint32_t value_;
   };

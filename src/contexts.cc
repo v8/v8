@@ -146,7 +146,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
             ScopeInfo::cast(context->extension()), isolate);
       }
       VariableMode mode;
-      int slot_index = scope_info->ContextSlotIndex(*name, &mode);
+      InitializationFlag init_flag;
+      int slot_index = scope_info->ContextSlotIndex(*name, &mode, &init_flag);
       ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
@@ -168,15 +169,19 @@ Handle<Object> Context::Lookup(Handle<String> name,
             break;
           case LET:
             *attributes = NONE;
-            *binding_flags = MUTABLE_CHECK_INITIALIZED;
+            *binding_flags = (init_flag == kNeedsInitialization)
+                ? MUTABLE_CHECK_INITIALIZED : MUTABLE_IS_INITIALIZED;
             break;
           case CONST:
             *attributes = READ_ONLY;
-            *binding_flags = IMMUTABLE_CHECK_INITIALIZED;
+            *binding_flags = (init_flag == kNeedsInitialization)
+                ? IMMUTABLE_CHECK_INITIALIZED : IMMUTABLE_IS_INITIALIZED;
             break;
           case CONST_HARMONY:
             *attributes = READ_ONLY;
-            *binding_flags = IMMUTABLE_CHECK_INITIALIZED_HARMONY;
+            *binding_flags = (init_flag == kNeedsInitialization)
+                ? IMMUTABLE_CHECK_INITIALIZED_HARMONY :
+                IMMUTABLE_IS_INITIALIZED_HARMONY;
             break;
           case DYNAMIC:
           case DYNAMIC_GLOBAL:
@@ -252,7 +257,8 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     // Check non-parameter locals.
     Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info());
     VariableMode mode;
-    int index = scope_info->ContextSlotIndex(*name, &mode);
+    InitializationFlag init_flag;
+    int index = scope_info->ContextSlotIndex(*name, &mode, &init_flag);
     ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
     if (index >= 0) return false;
 
