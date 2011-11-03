@@ -254,6 +254,12 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
            xmm0);
   __ jmp(&entry);
   __ bind(&convert_hole);
+
+  if (FLAG_debug_code) {
+    __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
+    __ Assert(equal, "object found in smi-only array");
+  }
+
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
   __ decq(r9);
