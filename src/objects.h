@@ -2509,7 +2509,7 @@ class DescriptorArray: public FixedArray {
 // encountered and stops when unused elements are encountered.
 //
 // - Elements with key == undefined have not been used yet.
-// - Elements with key == null have been deleted.
+// - Elements with key == the_hole have been deleted.
 //
 // The hash table class is parameterized with a Shape and a Key.
 // Shape must be a class with the following interface:
@@ -2578,10 +2578,10 @@ class HashTable: public FixedArray {
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
 
-  // Tells whether k is a real key.  Null and undefined are not allowed
+  // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
   bool IsKey(Object* k) {
-    return !k->IsNull() && !k->IsUndefined();
+    return !k->IsTheHole() && !k->IsUndefined();
   }
 
   // Garbage collection support.
@@ -3050,8 +3050,7 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
   friend class MarkCompactCollector;
 
   void AddEntry(int entry, Object* key, Object* value);
-  void RemoveEntry(int entry, Heap* heap);
-  inline void RemoveEntry(int entry);
+  void RemoveEntry(int entry);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {
@@ -7213,7 +7212,7 @@ class JSFunctionProxy: public JSProxy {
 };
 
 
-// The JSSet describes EcmaScript Harmony maps
+// The JSSet describes EcmaScript Harmony sets
 class JSSet: public JSObject {
  public:
   // [set]: the backing hash set containing keys.

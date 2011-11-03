@@ -1975,7 +1975,7 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   while (true) {
     Object* element = KeyAt(entry);
     if (element == isolate->heap()->undefined_value()) break;  // Empty entry.
-    if (element != isolate->heap()->null_value() &&
+    if (element != isolate->heap()->the_hole_value() &&
         Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
@@ -4434,7 +4434,6 @@ bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
 
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
-  ASSERT(!key->IsUndefined() && !key->IsNull());
   MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
   return Smi::cast(maybe_hash->ToObjectChecked())->value();
 }
@@ -4443,7 +4442,6 @@ uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
 template <int entrysize>
 uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
                                                         Object* other) {
-  ASSERT(!other->IsUndefined() && !other->IsNull());
   MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
   return Smi::cast(maybe_hash->ToObjectChecked())->value();
 }
@@ -4452,11 +4450,6 @@ uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
 template <int entrysize>
 MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Object* key) {
   return key;
-}
-
-
-void ObjectHashTable::RemoveEntry(int entry) {
-  RemoveEntry(entry, GetHeap());
 }
 
 

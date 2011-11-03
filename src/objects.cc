@@ -5178,8 +5178,8 @@ int CodeCacheHashTable::GetIndex(String* name, Code::Flags flags) {
 void CodeCacheHashTable::RemoveByIndex(int index) {
   ASSERT(index >= 0);
   Heap* heap = GetHeap();
-  set(EntryToIndex(index), heap->null_value());
-  set(EntryToIndex(index) + 1, heap->null_value());
+  set(EntryToIndex(index), heap->the_hole_value());
+  set(EntryToIndex(index) + 1, heap->the_hole_value());
   ElementRemoved();
 }
 
@@ -10897,14 +10897,14 @@ int StringDictionary::FindEntry(String* key) {
     if (element->IsUndefined()) break;  // Empty entry.
     if (key == element) return entry;
     if (!element->IsSymbol() &&
-        !element->IsNull() &&
+        !element->IsTheHole() &&
         String::cast(element)->Equals(key)) {
       // Replace a non-symbol key by the equivalent symbol for faster further
       // lookups.
       set(index, key);
       return entry;
     }
-    ASSERT(element->IsNull() || !String::cast(element)->Equals(key));
+    ASSERT(element->IsTheHole() || !String::cast(element)->Equals(key));
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -11008,7 +11008,7 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {
     Object* element = KeyAt(entry);
-    if (element->IsUndefined() || element->IsNull()) break;
+    if (element->IsUndefined() || element->IsTheHole()) break;
     entry = NextProbe(entry, count++, capacity);
   }
   return entry;
@@ -11807,13 +11807,13 @@ MaybeObject* CompilationCacheTable::PutRegExp(String* src,
 
 
 void CompilationCacheTable::Remove(Object* value) {
-  Object* null_value = GetHeap()->null_value();
+  Object* the_hole_value = GetHeap()->the_hole_value();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
-      NoWriteBarrierSet(this, entry_index, null_value);
-      NoWriteBarrierSet(this, value_index, null_value);
+      NoWriteBarrierSet(this, entry_index, the_hole_value);
+      NoWriteBarrierSet(this, value_index, the_hole_value);
       ElementRemoved();
     }
   }
@@ -11972,14 +11972,14 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 
   Heap* heap = GetHeap();
   int removed_entries = 0;
-  Object* sentinel = heap->null_value();
+  Object* the_hole_value = heap->the_hole_value();
   int capacity = Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* key = KeyAt(i);
     if (key->IsNumber()) {
       uint32_t number = static_cast<uint32_t>(key->Number());
       if (from <= number && number < to) {
-        SetEntry(i, sentinel, sentinel);
+        SetEntry(i, the_hole_value, the_hole_value);
         removed_entries++;
       }
     }
@@ -11999,7 +11999,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
   if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return heap->false_value();
   }
-  SetEntry(entry, heap->null_value(), heap->null_value());
+  SetEntry(entry, heap->the_hole_value(), heap->the_hole_value());
   HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
 }
@@ -12383,6 +12383,8 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 
 
 bool ObjectHashSet::Contains(Object* key) {
+  ASSERT(IsKey(key));
+
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
     if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return false;
@@ -12392,6 +12394,8 @@ bool ObjectHashSet::Contains(Object* key) {
 
 
 MaybeObject* ObjectHashSet::Add(Object* key) {
+  ASSERT(IsKey(key));
+
   // Make sure the key object has an identity hash code.
   int hash;
   { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
@@ -12417,6 +12421,8 @@ MaybeObject* ObjectHashSet::Add(Object* key) {
 
 
 MaybeObject* ObjectHashSet::Remove(Object* key) {
+  ASSERT(IsKey(key));
+
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
     if (maybe_hash->ToObjectUnchecked()->IsUndefined()) return this;
@@ -12427,13 +12433,15 @@ MaybeObject* ObjectHashSet::Remove(Object* key) {
   if (entry == kNotFound) return this;
 
   // Remove entry and try to shrink this hash set.
-  set_null(EntryToIndex(entry));
+  set_the_hole(EntryToIndex(entry));
   ElementRemoved();
   return Shrink(key);
 }
 
 
 Object* ObjectHashTable::Lookup(Object* key) {
+  ASSERT(IsKey(key));
+
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
     if (maybe_hash->ToObjectUnchecked()->IsUndefined()) {
@@ -12447,6 +12455,8 @@ Object* ObjectHashTable::Lookup(Object* key) {
 
 
 MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
+  ASSERT(IsKey(key));
+
   // Make sure the key object has an identity hash code.
   int hash;
   { MaybeObject* maybe_hash = key->GetHash(ALLOW_CREATION);
@@ -12486,9 +12496,9 @@ void ObjectHashTable::AddEntry(int entry, Object* key, Object* value) {
 }
 
 
-void ObjectHashTable::RemoveEntry(int entry, Heap* heap) {
-  set_null(heap, EntryToIndex(entry));
-  set_null(heap, EntryToIndex(entry) + 1);
+void ObjectHashTable::RemoveEntry(int entry) {
+  set_the_hole(EntryToIndex(entry));
+  set_the_hole(EntryToIndex(entry) + 1);
   ElementRemoved();
 }
 

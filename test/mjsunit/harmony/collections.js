@@ -52,6 +52,8 @@ TestValidMapCalls(new WeakMap);
 function TestInvalidCalls(m) {
   assertThrows(function () { m.get(undefined) }, TypeError);
   assertThrows(function () { m.set(undefined, 0) }, TypeError);
+  assertThrows(function () { m.get(null) }, TypeError);
+  assertThrows(function () { m.set(null, 0) }, TypeError);
   assertThrows(function () { m.get(0) }, TypeError);
   assertThrows(function () { m.set(0, 0) }, TypeError);
   assertThrows(function () { m.get('a-key') }, TypeError);
@@ -69,7 +71,7 @@ function TestSet(set, key) {
   assertFalse(set.has(key));
 }
 function TestSetBehavior(set) {
-  for (i = 0; i < 20; i++) {
+  for (var i = 0; i < 20; i++) {
     TestSet(set, new Object);
   }
 }
@@ -99,7 +101,7 @@ function TestMapBehavior2(m) {
     TestMapping(m, i / 10, new Object);
     TestMapping(m, 'key-' + i, new Object);
   }
-  var keys = [ +0, -0, +Infinity, -Infinity, true, false ];
+  var keys = [ +0, -0, +Infinity, -Infinity, true, false, null ];
   for (var i = 0; i < keys.length; i++) {
     TestMapping(m, keys[i], new Object);
   }
@@ -184,7 +186,7 @@ function TestArbitrary(m) {
     map[property] = value;
     assertEquals(value, map[property]);
   }
-  for (i = 0; i < 20; i++) {
+  for (var i = 0; i < 20; i++) {
     TestProperty(m, i, 'val' + i);
     TestProperty(m, 'foo' + i, 'bar' + i);
   }
