@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -73,6 +73,12 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(is_lazy());
     flags_ |= IsInLoop::encode(true);
   }
+  void MarkAsNative() {
+    flags_ |= IsNative::encode(true);
+  }
+  bool is_native() const {
+    return IsNative::decode(flags_);
+  }
   void SetFunction(FunctionLiteral* literal) {
     ASSERT(function_ == NULL);
     function_ = literal;
@@ -145,6 +151,9 @@ class CompilationInfo BASE_EMBEDDED {
 
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+    if (script_->type()->value() == Script::TYPE_NATIVE) {
+      MarkAsNative();
+    }
   }
 
   void SetMode(Mode mode) {
@@ -162,6 +171,8 @@ class CompilationInfo BASE_EMBEDDED {
   class IsGlobal: public BitField<bool, 2, 1> {};
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
+  // Is this a function from our natives.
+  class IsNative: public BitField<bool, 6, 1> {};
 
   unsigned flags_;
 
