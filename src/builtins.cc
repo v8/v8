@@ -772,6 +772,13 @@ BUILTIN(ArraySlice) {
 
   // Set the length.
   result_array->set_length(Smi::FromInt(result_len));
+
+  // Set the ElementsKind.
+  ElementsKind elements_kind = JSObject::cast(receiver)->GetElementsKind();
+  if (result_array->GetElementsKind() != elements_kind) {
+    MaybeObject* maybe = result_array->TransitionElementsKind(elements_kind);
+    if (maybe->IsFailure()) return maybe;
+  }
   return result_array;
 }
 
@@ -865,6 +872,13 @@ BUILTIN(ArraySplice) {
 
     // Set the length.
     result_array->set_length(Smi::FromInt(actual_delete_count));
+
+    // Set the ElementsKind.
+    ElementsKind elements_kind = array->GetElementsKind();
+    if (result_array->GetElementsKind() != elements_kind) {
+      MaybeObject* maybe = result_array->TransitionElementsKind(elements_kind);
+      if (maybe->IsFailure()) return maybe;
+    }
   }
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;

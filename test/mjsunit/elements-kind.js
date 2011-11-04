@@ -326,5 +326,15 @@ if (support_smi_only_arrays) {
   assertEquals([1, 2, 3, 4, 5], a);
 }
 
+// Test that Array.splice() and Array.slice() return correct ElementsKinds.
+if (support_smi_only_arrays) {
+  var a = ["foo", "bar"];
+  assertKind(elements_kind.fast, a);
+  var b = a.splice(0, 1);
+  assertKind(elements_kind.fast, b);
+  var c = a.slice(0, 1);
+  assertKind(elements_kind.fast, c);
+}
+
 // Throw away type information in the ICs for next stress run.
 gc();
