@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -5142,11 +5142,14 @@ bool ParserApi::Parse(CompilationInfo* info) {
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
   if (info->is_lazy()) {
-    Parser parser(script, true, NULL, NULL);
+    bool allow_natives_syntax =
+        FLAG_allow_natives_syntax ||
+        info->is_native();
+    Parser parser(script, allow_natives_syntax, NULL, NULL);
     result = parser.ParseLazy(info);
   } else {
     bool allow_natives_syntax =
-        FLAG_allow_natives_syntax || Bootstrapper::IsActive();
+        info->is_native() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
     Parser parser(script, allow_natives_syntax, info->extension(), pre_data);
     if (pre_data != NULL && pre_data->has_error()) {
