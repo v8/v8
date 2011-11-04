@@ -317,5 +317,14 @@ if (support_smi_only_arrays) {
   assertKind(elements_kind.fast, c);
 }
 
+// Test that Array.push() correctly handles SMI elements.
+if (support_smi_only_arrays) {
+  var a = [1, 2];
+  assertKind(elements_kind.fast_smi_only, a);
+  a.push(3, 4, 5);
+  assertKind(elements_kind.fast_smi_only, a);
+  assertEquals([1, 2, 3, 4, 5], a);
+}
+
 // Throw away type information in the ICs for next stress run.
 gc();

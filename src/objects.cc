@@ -8743,7 +8743,12 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
 MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
                                                 uint32_t first_arg,
                                                 uint32_t arg_count) {
-  return EnsureCanContainElements(args->arguments() - first_arg, arg_count);
+  // Elements in |Arguments| are ordered backwards (because they're on the
+  // stack), but the method that's called here iterates over them in forward
+  // direction.
+  return EnsureCanContainElements(
+      args->arguments() - first_arg - (arg_count - 1),
+      arg_count);
 }
 
 
