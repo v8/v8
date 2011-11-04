@@ -9694,6 +9694,7 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
@@ -9705,6 +9706,10 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dictionary(
           NumberDictionary::cast(array->elements()));
@@ -9717,7 +9722,16 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    default:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       // External arrays are always dense.
       return length;
   }
@@ -9793,6 +9807,11 @@ static void CollectElementIndices(Handle<JSObject> object,
           indices->Add(i);
         }
       }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -9925,6 +9944,11 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dict(receiver->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
@@ -10035,6 +10059,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
       uint32_t element_estimate;
       if (obj->IsJSArray()) {
         Handle<JSArray> array(Handle<JSArray>::cast(obj));
+        // TODO(1810): Find out if it's worthwhile to properly support
+        // arbitrary ElementsKinds. For now, pessimistically transition to
+        // FAST_ELEMENTS.
+        if (array->HasFastDoubleElements()) {
+          array = Handle<JSArray>::cast(
+              TransitionElementsKind(array, FAST_ELEMENTS));
+        }
         length_estimate =
             static_cast<uint32_t>(array->length()->Number());
         element_estimate =

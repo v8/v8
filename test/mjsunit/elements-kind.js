@@ -305,5 +305,17 @@ if (support_smi_only_arrays) {
   assertTrue(%HaveSameMap(e, f));
 }
 
+// Test if Array.concat() works correctly with DOUBLE elements.
+if (support_smi_only_arrays) {
+  var a = [1, 2];
+  assertKind(elements_kind.fast_smi_only, a);
+  var b = [4.5, 5.5];
+  assertKind(elements_kind.fast_double, b);
+  var c = a.concat(b);
+  assertEquals([1, 2, 4.5, 5.5], c);
+  // TODO(1810): Change implementation so that we get DOUBLE elements here?
+  assertKind(elements_kind.fast, c);
+}
+
 // Throw away type information in the ICs for next stress run.
 gc();
