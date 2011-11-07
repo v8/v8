@@ -745,12 +745,8 @@ function DefineOneShotAccessor(obj, name, fun) {
     hasBeenSet = true;
     value = v;
   }
-  var desc = { get: getter,
-               set: setter,
-               enumerable: false,
-               configurable: true };
-  desc = ToPropertyDescriptor(desc);
-  DefineOwnProperty(obj, name, desc, true);
+  %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
+  %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
 }
 
 function CallSite(receiver, fun, pos) {
