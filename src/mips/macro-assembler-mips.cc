@@ -243,8 +243,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   if (smi_check == INLINE_SMI_CHECK) {
     ASSERT_EQ(0, kSmiTag);
-    And(t8, value, Operand(kSmiTagMask));
-    Branch(&done, eq, t8, Operand(zero_reg));
+    JumpIfSmi(value, &done);
   }
 
   CheckPageFlag(value,
@@ -4480,8 +4479,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT_EQ(1, kSmiTagMask);
   or_(at, reg1, reg2);
-  andi(at, at, kSmiTagMask);
-  Branch(on_not_both_smi, ne, at, Operand(zero_reg));
+  JumpIfNotSmi(at, on_not_both_smi);
 }
 
 
@@ -4492,8 +4490,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
   ASSERT_EQ(1, kSmiTagMask);
   // Both Smi tags must be 1 (not Smi).
   and_(at, reg1, reg2);
-  andi(at, at, kSmiTagMask);
-  Branch(on_either_smi, eq, at, Operand(zero_reg));
+  JumpIfSmi(at, on_either_smi);
 }
 
 
@@ -4571,8 +4568,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   And(scratch1, first, Operand(second));
-  And(scratch1, scratch1, Operand(kSmiTagMask));
-  Branch(failure, eq, scratch1, Operand(zero_reg));
+  JumpIfSmi(scratch1, failure);
   JumpIfNonSmisNotBothSequentialAsciiStrings(first,
                                              second,
                                              scratch1,

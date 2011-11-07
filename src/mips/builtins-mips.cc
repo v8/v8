@@ -628,8 +628,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label slow, non_function_call;
   // Check that the function is not a smi.
-  __ And(t0, a1, Operand(kSmiTagMask));
-  __ Branch(&non_function_call, eq, t0, Operand(zero_reg));
+  __ JumpIfSmi(a1, &non_function_call);
   // Check that the function is a JSFunction.
   __ GetObjectType(a1, a2, a2);
   __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
@@ -705,8 +704,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Load the initial map and verify that it is in fact a map.
       // a1: constructor function
       __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-      __ And(t0, a2, Operand(kSmiTagMask));
-      __ Branch(&rt_call, eq, t0, Operand(zero_reg));
+      __ JumpIfSmi(a2, &rt_call);
       __ GetObjectType(a2, a3, t4);
       __ Branch(&rt_call, ne, t4, Operand(MAP_TYPE));
 
@@ -984,8 +982,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[0]: receiver (newly allocated object)
     // sp[1]: constructor function
     // sp[2]: number of arguments (smi-tagged)
-    __ And(t0, v0, Operand(kSmiTagMask));
-    __ Branch(&use_receiver, eq, t0, Operand(zero_reg));
+    __ JumpIfSmi(v0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
@@ -1284,8 +1281,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ sll(at, a0, kPointerSizeLog2);
   __ addu(at, sp, at);
   __ lw(a1, MemOperand(at));
-  __ And(at, a1, Operand(kSmiTagMask));
-  __ Branch(&non_function, eq, at, Operand(zero_reg));
+  __ JumpIfSmi(a1, &non_function);
   __ GetObjectType(a1, a2, a2);
   __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
 
@@ -1524,8 +1520,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Branch(&push_receiver, ne, t3, Operand(zero_reg));
 
     // Compute the receiver in non-strict mode.
-    __ And(t3, a0, Operand(kSmiTagMask));
-    __ Branch(&call_to_object, eq, t3, Operand(zero_reg));
+    __ JumpIfSmi(a0, &call_to_object);
     __ LoadRoot(a1, Heap::kNullValueRootIndex);
     __ Branch(&use_global_receiver, eq, a0, Operand(a1));
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);

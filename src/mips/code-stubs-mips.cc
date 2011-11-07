@@ -1156,8 +1156,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
          (lhs.is(a1) && rhs.is(a0)));
 
   Label lhs_is_smi;
-  __ And(t0, lhs, Operand(kSmiTagMask));
-  __ Branch(&lhs_is_smi, eq, t0, Operand(zero_reg));
+  __ JumpIfSmi(lhs, &lhs_is_smi);
   // Rhs is a Smi.
   // Check whether the non-smi is a heap number.
   __ GetObjectType(lhs, t4, t4);
@@ -4712,8 +4711,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
   __ lw(a0, MemOperand(sp, kPreviousIndexOffset));
-  __ And(at, a0, Operand(kSmiTagMask));
-  __ Branch(&runtime, ne, at, Operand(zero_reg));
+  __ JumpIfNotSmi(a0, &runtime);
   __ Branch(&runtime, ls, a3, Operand(a0));
 
   // a2: Number of capture registers

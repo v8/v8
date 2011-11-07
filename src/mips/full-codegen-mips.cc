@@ -3385,8 +3385,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
   __ Branch(&ok, eq, left, Operand(right));
   // Fail if either is a non-HeapObject.
   __ And(tmp, left, Operand(right));
-  __ And(at, tmp, Operand(kSmiTagMask));
-  __ Branch(&fail, eq, at, Operand(zero_reg));
+  __ JumpIfSmi(tmp, &fail);
   __ lw(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
   __ lbu(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
   __ Branch(&fail, ne, tmp2, Operand(JS_REGEXP_TYPE));
@@ -4271,8 +4270,7 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
     __ Branch(if_true, eq, a0, Operand(a1));
     __ LoadRoot(a1, other_nil_value);
     __ Branch(if_true, eq, a0, Operand(a1));
-    __ And(at, a0, Operand(kSmiTagMask));
-    __ Branch(if_false, eq, at, Operand(zero_reg));
+    __ JumpIfSmi(a0, if_false);
     // It can be an undetectable object.
     __ lw(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
     __ lbu(a1, FieldMemOperand(a1, Map::kBitFieldOffset));

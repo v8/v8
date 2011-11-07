@@ -282,8 +282,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register scratch,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
-  __ And(scratch, receiver, Operand(kSmiTagMask));
-  __ Branch(miss_label, eq, scratch, Operand(zero_reg));
+  __ JumpIfSmi(receiver, miss_label);
 
   // Check that the object is a JS array.
   __ GetObjectType(receiver, scratch, scratch);
@@ -1100,8 +1099,7 @@ void StubCompiler::GenerateLoadField(Handle<JSObject> object,
                                      Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
-  __ And(scratch1, receiver, Operand(kSmiTagMask));
-  __ Branch(miss, eq, scratch1, Operand(zero_reg));
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg = CheckPrototypes(
@@ -2264,8 +2262,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
-    __ And(t1, a1, Operand(kSmiTagMask));
-    __ Branch(&miss, eq, t1, Operand(zero_reg));
+    __ JumpIfSmi(a1, &miss);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
@@ -2310,8 +2307,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       if (function->IsBuiltin() || function->shared()->strict_mode()) {
       Label fast;
         // Check that the object is a smi or a heap number.
-        __ And(t1, a1, Operand(kSmiTagMask));
-        __ Branch(&fast, eq, t1, Operand(zero_reg));
+        __ JumpIfSmi(a1, &fast);
         __ GetObjectType(a1, a0, a0);
         __ Branch(&miss, ne, a0, Operand(HEAP_NUMBER_TYPE));
         __ bind(&fast);
@@ -2775,8 +2771,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (!object.is_identical_to(holder)) {
-    __ And(t0, a0, Operand(kSmiTagMask));
-    __ Branch(&miss, eq, t0, Operand(zero_reg));
+    __ JumpIfSmi(a0, &miss);
   }
 
   // Check that the map of the global has not changed.
@@ -3136,8 +3131,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   // a1: constructor function
   // t7: undefined
   __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-  __ And(t0, a2, Operand(kSmiTagMask));
-  __ Branch(&generic_stub_call, eq, t0, Operand(zero_reg));
+  __ JumpIfSmi(a2, &generic_stub_call);
   __ GetObjectType(a2, a3, t0);
   __ Branch(&generic_stub_call, ne, t0, Operand(MAP_TYPE));
 
