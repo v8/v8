@@ -116,7 +116,7 @@ class PreParser {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  static PreParseResult PreParseProgram(i::JavaScriptScanner* scanner,
+  static PreParseResult PreParseProgram(i::Scanner* scanner,
                                         i::ParserRecorder* log,
                                         int flags,
                                         uintptr_t stack_limit) {
@@ -449,7 +449,7 @@ class PreParser {
   };
 
   // Private constructor only used in PreParseProgram.
-  PreParser(i::JavaScriptScanner* scanner,
+  PreParser(i::Scanner* scanner,
             i::ParserRecorder* log,
             uintptr_t stack_limit,
             bool allow_lazy,
@@ -619,7 +619,7 @@ class PreParser {
                                      Identifier identifier,
                                      bool* ok);
 
-  i::JavaScriptScanner* scanner_;
+  i::Scanner* scanner_;
   i::ParserRecorder* log_;
   Scope* scope_;
   uintptr_t stack_limit_;

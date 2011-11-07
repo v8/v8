@@ -57,6 +57,11 @@ var renderingStartTime = void 0;
 var scene = void 0;
 var pausePlot = void 0;
 var splayTree = void 0;
+var numberOfFrames = 0;
+var sumOfSquaredPauses = 0;
+var benchmarkStartTime = void 0;
+var benchmarkTimeLimit = void 0;
+var pauseDistribution = [];
 
 
 function Point(x, y, z, payload) {
@@ -343,9 +348,43 @@ Scene.prototype.draw = function () {
 };
 
 
+function updateStats(pause) {
+  numberOfFrames++;
+  if (pause > 20) {
+    sumOfSquaredPauses += (pause - 20) * (pause - 20);
+  }
+  pauseDistribution[Math.floor(pause / 10)] |= 0;
+  pauseDistribution[Math.floor(pause / 10)]++;
+}
+
+
+function renderStats() {
+  var msg = document.createElement("p");
+  msg.innerHTML = "Score " +
+    Math.round(numberOfFrames * 1000 / sumOfSquaredPauses);
+  var table = document.createElement("table");
+  table.align = "center";
+  for (var i = 0; i < pauseDistribution.length; i++) {
+    if (pauseDistribution[i] > 0) {
+      var row = document.createElement("tr");
+      var time = document.createElement("td");
+      var count = document.createElement("td");
+      time.innerHTML = i*10 + "-" + (i+1)*10 + "ms";
+      count.innerHTML = " => " + pauseDistribution[i];
+      row.appendChild(time);
+      row.appendChild(count);
+      table.appendChild(row);
+    }
+  }
+  div.appendChild(msg);
+  div.appendChild(table);
+}
+
+
 function render() {
   if (typeof renderingStartTime === 'undefined') {
     renderingStartTime = Date.now();
+    benchmarkStartTime = renderingStartTime;
   }
 
   ModifyPointsSet();
@@ -359,12 +398,36 @@ function render() {
 
   pausePlot.draw();
 
+  updateStats(pause);
+
   div.innerHTML =
       livePoints.count + "/" + dyingPoints.count + " " +
-      pause + "(max = " + pausePlot.maxPause + ") ms" ;
+      pause + "(max = " + pausePlot.maxPause + ") ms " +
+      numberOfFrames + " frames";
 
-  // Schedule next frame.
-  requestAnimationFrame(render);
+  if (renderingEndTime < benchmarkStartTime + benchmarkTimeLimit) {
+    // Schedule next frame.
+    requestAnimationFrame(render);
+  } else {
+    renderStats();
+  }
+}
+
+
+function renderForm() {
+  form = document.createElement("form");
+  form.setAttribute("action", "javascript:start()");
+  var label = document.createTextNode("Time limit in seconds ");
+  var input = document.createElement("input");
+  input.setAttribute("id", "timelimit");
+  input.setAttribute("value", "60");
+  var button = document.createElement("input");
+  button.setAttribute("type", "submit");
+  button.setAttribute("value", "Start");
+  form.appendChild(label);
+  form.appendChild(input);
+  form.appendChild(button);
+  document.body.appendChild(form);
 }
 
 
@@ -382,6 +445,11 @@ function init() {
   pausePlot = new PausePlot(480, 240, 160);
 }
 
+function start() {
+  benchmarkTimeLimit = document.getElementById("timelimit").value * 1000;
+  document.body.removeChild(form);
+  init();
+  render();
+}
 
-init();
-render();
+renderForm();

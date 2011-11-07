@@ -1,3 +1,21 @@
+2011-11-07: Version 3.7.4
+
+        Proper "libv8.so.3.7.4" SONAME for Linux shared library (issue 1786).
+
+        Fix Harmony sets and maps to allow null and undefined as keys
+        (still hidden behind --harmony flag) (issue 1622).
+
+        Implement VirtualMemory on FreeBSD to fix build (issue 1807).
+
+        Enable VFP instructions for Android.
+
+        Fix error handling in Date.prototype.toISOString (issue 1792).
+
+        Bug fixes and performance improvements for all platforms.
+
+        Not officially supported but noteworthy: Crankshaft for MIPS :-)
+
+
 2011-10-28: Version 3.7.3
 
         Slight deoptimization as a workaround for issue with jslint: Issue

@@ -25,39 +25,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ISOLATE_INL_H_
-#define V8_ISOLATE_INL_H_
+// Flags: --allow-natives-syntax --smi-only-arrays
 
-#include "isolate.h"
+function burn() {
+  var a = new Array(3);
+  a[0] = 10;
+  a[1] = 15.5;
+  a[2] = 20;
+  return a;
+}
 
-#include "debug.h"
+function check(a) {
+  assertEquals(10, a[0]);
+  assertEquals(15.5, a[1]);
+  assertEquals(20, a[2]);
+}
 
-namespace v8 {
-namespace internal {
+var b;
+for (var i = 0; i < 3; ++i) {
+  b = burn();
+  check(b);  // all OK
+}
+%OptimizeFunctionOnNextCall(burn);
+b = burn();
+check(b);  // fails
 
 
-SaveContext::SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
-    context_ = Handle<Context>(isolate->context());
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-    dummy_ = Handle<Context>(isolate->context());
-#endif
+function loop_test(x) {
+  for (i=0;i<3;i++) {
+    x[i] = (i+1) * 0.5;
   }
-  isolate->set_save_context(this);
-
-  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
 
-
-bool Isolate::DebuggerHasBreakPoints() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  return debug()->has_break_points();
-#else
-  return false;
-#endif
+function check2(b) {
+  assertEquals(0.5, b[0]);
+  assertEquals(1.0, b[1]);
+  assertEquals(1.5, b[2]);
 }
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_ISOLATE_INL_H_
+for (var i = 0; i < 3; ++i) {
+  b = [0,1,2];
+  loop_test(b);
+  check2(b);
+}
+%OptimizeFunctionOnNextCall(loop_test);
+b = [0,1,2];
+loop_test(b);
+check2(b);

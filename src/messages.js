@@ -198,6 +198,7 @@ function FormatMessage(message) {
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
       "stack_overflow",               ["Maximum call stack size exceeded"],
+      "invalid_time_value",           ["Invalid time value"],
       // SyntaxError
       "unable_to_parse",              ["Parse error"],
       "invalid_regexp_flags",         ["Invalid flags supplied to RegExp constructor '", "%0", "'"],
@@ -744,12 +745,8 @@ function DefineOneShotAccessor(obj, name, fun) {
     hasBeenSet = true;
     value = v;
   }
-  var desc = { get: getter,
-               set: setter,
-               enumerable: false,
-               configurable: true };
-  desc = ToPropertyDescriptor(desc);
-  DefineOwnProperty(obj, name, desc, true);
+  %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
+  %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
 }
 
 function CallSite(receiver, fun, pos) {

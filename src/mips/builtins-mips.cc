@@ -628,8 +628,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label slow, non_function_call;
   // Check that the function is not a smi.
-  __ And(t0, a1, Operand(kSmiTagMask));
-  __ Branch(&non_function_call, eq, t0, Operand(zero_reg));
+  __ JumpIfSmi(a1, &non_function_call);
   // Check that the function is a JSFunction.
   __ GetObjectType(a1, a2, a2);
   __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
@@ -705,8 +704,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Load the initial map and verify that it is in fact a map.
       // a1: constructor function
       __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
-      __ And(t0, a2, Operand(kSmiTagMask));
-      __ Branch(&rt_call, eq, t0, Operand(zero_reg));
+      __ JumpIfSmi(a2, &rt_call);
       __ GetObjectType(a2, a3, t4);
       __ Branch(&rt_call, ne, t4, Operand(MAP_TYPE));
 
@@ -984,8 +982,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[0]: receiver (newly allocated object)
     // sp[1]: constructor function
     // sp[2]: number of arguments (smi-tagged)
-    __ And(t0, v0, Operand(kSmiTagMask));
-    __ Branch(&use_receiver, eq, t0, Operand(zero_reg));
+    __ JumpIfSmi(v0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
@@ -1176,24 +1173,93 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 }
 
 
-// These functions are called from C++ but cannot be used in live code.
+static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
+                                             Deoptimizer::BailoutType type) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // Pass the function and deoptimization type to the runtime system.
+    __ li(a0, Operand(Smi::FromInt(static_cast<int>(type))));
+    __ push(a0);
+    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+  }
+
+  // Get the full codegen state from the stack and untag it -> t2.
+  __ lw(t2, MemOperand(sp, 0 * kPointerSize));
+  __ SmiUntag(t2);
+  // Switch on the state.
+  Label with_tos_register, unknown_state;
+  __ Branch(&with_tos_register,
+            ne, t2, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ Addu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&with_tos_register);
+  __ lw(v0, MemOperand(sp, 1 * kPointerSize));
+  __ Branch(&unknown_state, ne, t2, Operand(FullCodeGenerator::TOS_REG));
+
+  __ Addu(sp, sp, Operand(2 * kPointerSize));  // Remove state.
+  __ Ret();
+
+  __ bind(&unknown_state);
+  __ stop("no cases left");
+}
+
+
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
 }
 
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
 }
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  RegList saved_regs =
+      (kJSCallerSaved | kCalleeSaved | ra.bit() | fp.bit()) & ~sp.bit();
+  __ MultiPush(saved_regs);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kNotifyOSR, 0);
+  }
+  __ MultiPop(saved_regs);
+  __ Ret();
 }
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  __ Abort("Call to unimplemented function in builtins-mips.cc");
+  CpuFeatures::TryForceFeatureScope scope(VFP3);
+  if (!CpuFeatures::IsSupported(FPU)) {
+    __ Abort("Unreachable code: Cannot optimize without FPU support.");
+    return;
+  }
+
+  // Lookup the function in the JavaScript frame and push it as an
+  // argument to the on-stack replacement function.
+  __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(a0);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  }
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  __ Ret(eq, v0, Operand(Smi::FromInt(-1)));
+
+  // Untag the AST id and push it on the stack.
+  __ SmiUntag(v0);
+  __ push(v0);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 
@@ -1215,8 +1281,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ sll(at, a0, kPointerSizeLog2);
   __ addu(at, sp, at);
   __ lw(a1, MemOperand(at));
-  __ And(at, a1, Operand(kSmiTagMask));
-  __ Branch(&non_function, eq, at, Operand(zero_reg));
+  __ JumpIfSmi(a1, &non_function);
   __ GetObjectType(a1, a2, a2);
   __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
 
@@ -1395,8 +1460,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   const int kFunctionOffset =  4 * kPointerSize;
 
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
     __ lw(a0, MemOperand(fp, kFunctionOffset));  // Get the function.
     __ push(a0);
     __ lw(a0, MemOperand(fp, kArgsOffset));  // Get the args array.
@@ -1456,8 +1520,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Branch(&push_receiver, ne, t3, Operand(zero_reg));
 
     // Compute the receiver in non-strict mode.
-    __ And(t3, a0, Operand(kSmiTagMask));
-    __ Branch(&call_to_object, eq, t3, Operand(zero_reg));
+    __ JumpIfSmi(a0, &call_to_object);
     __ LoadRoot(a1, Heap::kNullValueRootIndex);
     __ Branch(&use_global_receiver, eq, a0, Operand(a1));
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
@@ -1530,8 +1593,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ InvokeFunction(a1, actual, CALL_FUNCTION,
                       NullCallWrapper(), CALL_AS_METHOD);
 
-    scope.GenerateLeaveFrame();
-
+    frame_scope.GenerateLeaveFrame();
     __ Ret(USE_DELAY_SLOT);
     __ Addu(sp, sp, Operand(3 * kPointerSize));  // In delay slot.
 

@@ -37,62 +37,42 @@ namespace internal {
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
                                          Object** slot,
                                          Object* value) {
-  if (IsMarking() && value->IsHeapObject()) {
-    MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
-    if (Marking::IsWhite(value_bit)) {
-      MarkBit obj_bit = Marking::MarkBitFrom(obj);
-      if (Marking::IsBlack(obj_bit)) {
-        BlackToGreyAndUnshift(obj, obj_bit);
-        RestartIfNotMarking();
-      }
-
-      // Object is either grey or white it will be scanned if survives.
-      return false;
+  MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
+  if (Marking::IsWhite(value_bit)) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      BlackToGreyAndUnshift(obj, obj_bit);
+      RestartIfNotMarking();
     }
-    return true;
+
+    // Object is either grey or white.  It will be scanned if survives.
+    return false;
   }
-  return false;
+  return true;
 }
 
 
 void IncrementalMarking::RecordWrite(HeapObject* obj,
                                      Object** slot,
                                      Object* value) {
-  if (BaseRecordWrite(obj, slot, value) && is_compacting_ && slot != NULL) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      // Object is not going to be rescanned we need to record the slot.
-      heap_->mark_compact_collector()->RecordSlot(
-          HeapObject::RawField(obj, 0), slot, value);
-    }
+  if (IsMarking() && value->NonFailureIsHeapObject()) {
+    RecordWriteSlow(obj, slot, value);
   }
+}
+
+
+void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host,
+                                                Object** slot,
+                                                Code* value) {
+  if (IsMarking()) RecordWriteOfCodeEntrySlow(host, slot, value);
 }
 
 
 void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj,
                                              RelocInfo* rinfo,
                                              Object* value) {
-  if (IsMarking() && value->IsHeapObject()) {
-    MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
-    if (Marking::IsWhite(value_bit)) {
-      MarkBit obj_bit = Marking::MarkBitFrom(obj);
-      if (Marking::IsBlack(obj_bit)) {
-        BlackToGreyAndUnshift(obj, obj_bit);
-        RestartIfNotMarking();
-      }
-
-      // Object is either grey or white it will be scanned if survives.
-      return;
-    }
-
-    if (is_compacting_) {
-      MarkBit obj_bit = Marking::MarkBitFrom(obj);
-      if (Marking::IsBlack(obj_bit)) {
-        // Object is not going to be rescanned we need to record the slot.
-        heap_->mark_compact_collector()->RecordRelocSlot(rinfo,
-                                                         Code::cast(value));
-      }
-    }
+  if (IsMarking() && value->NonFailureIsHeapObject()) {
+    RecordWriteIntoCodeSlow(obj, rinfo, value);
   }
 }
 

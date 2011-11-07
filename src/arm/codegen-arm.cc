@@ -180,6 +180,10 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
+  if (FLAG_debug_code) {
+    __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
+    __ Assert(eq, "object found in smi-only array");
+  }
   __ Strd(r4, r5, MemOperand(r7, 8, PostIndex));
 
   __ bind(&entry);

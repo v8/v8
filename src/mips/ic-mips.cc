@@ -527,8 +527,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ lw(a2, MemOperand(sp, argc * kPointerSize));
-    __ andi(t0, a2, kSmiTagMask);
-    __ Branch(&invoke, eq, t0, Operand(zero_reg));
+    __ JumpIfSmi(a2, &invoke);
     __ GetObjectType(a2, a3, a3);
     __ Branch(&global, eq, a3, Operand(JS_GLOBAL_OBJECT_TYPE));
     __ Branch(&invoke, ne, a3, Operand(JS_BUILTINS_OBJECT_TYPE));

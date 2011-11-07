@@ -45,6 +45,7 @@ S15.3.3.1_A4: FAIL
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1756
 15.2.3.6-4-116: FAIL
 15.2.3.6-4-117: FAIL
+15.2.3.6-4-125: FAIL
 15.2.3.6-4-126: FAIL
 15.2.3.6-4-127: FAIL
 15.2.3.6-4-128: FAIL
@@ -52,17 +53,31 @@ S15.3.3.1_A4: FAIL
 15.2.3.6-4-130: FAIL
 15.2.3.6-4-131: FAIL
 15.2.3.6-4-132: FAIL
+15.2.3.6-4-133: FAIL
+15.2.3.6-4-134: FAIL
+15.2.3.6-4-135: FAIL
+15.2.3.6-4-136: FAIL
 15.2.3.6-4-137: FAIL
+15.2.3.6-4-138: FAIL
+15.2.3.6-4-139: FAIL
+15.2.3.6-4-140: FAIL
+15.2.3.6-4-141: FAIL
 15.2.3.6-4-142: FAIL
 15.2.3.6-4-143: FAIL
 15.2.3.6-4-144: FAIL
+15.2.3.6-4-145: FAIL
 15.2.3.6-4-146: FAIL
 15.2.3.6-4-147: FAIL
 15.2.3.6-4-148: FAIL
 15.2.3.6-4-149: FAIL
+15.2.3.6-4-150: FAIL
 15.2.3.6-4-151: FAIL
+15.2.3.6-4-152: FAIL
+15.2.3.6-4-153: FAIL
 15.2.3.6-4-154: FAIL
 15.2.3.6-4-155: FAIL
+15.2.3.6-4-156: FAIL
+15.2.3.6-4-157: FAIL
 15.2.3.6-4-159: FAIL
 15.2.3.6-4-161: FAIL
 15.2.3.6-4-165: FAIL
@@ -81,6 +96,37 @@ S15.3.3.1_A4: FAIL
 15.2.3.6-4-178: FAIL
 15.2.3.6-4-179-1: FAIL
 15.2.3.6-4-181: FAIL
+15.2.3.6-4-183: FAIL
+15.2.3.6-4-188: FAIL
+15.2.3.6-4-189: FAIL
+15.2.3.6-4-275: FAIL
+15.2.3.6-4-276: FAIL
+15.2.3.6-4-292-1: FAIL
+15.2.3.6-4-293-2: FAIL
+15.2.3.6-4-293-3: FAIL
+15.2.3.6-4-294-1: FAIL
+15.2.3.6-4-295-1: FAIL
+15.2.3.6-4-296-1: FAIL
+15.2.3.6-4-333-11: FAIL
+15.2.3.6-4-360-1: FAIL
+15.2.3.6-4-360-6: FAIL
+15.2.3.6-4-360-7: FAIL
+15.2.3.6-4-405: FAIL
+15.2.3.6-4-410: FAIL
+15.2.3.6-4-415: FAIL
+15.2.3.6-4-420: FAIL
+15.2.3.6-4-612: FAIL
+15.2.3.6-4-613: FAIL
+15.2.3.6-4-614: FAIL
+15.2.3.6-4-615: FAIL
+15.2.3.6-4-616: FAIL
+15.2.3.6-4-617: FAIL
+15.2.3.6-4-618: FAIL
+15.2.3.6-4-619: FAIL
+15.2.3.6-4-620: FAIL
+15.2.3.6-4-621: FAIL
+15.2.3.6-4-623: FAIL
+15.2.3.6-4-624: FAIL
 15.2.3.7-6-a-112: FAIL
 15.2.3.7-6-a-113: FAIL
 15.2.3.7-6-a-122: FAIL
@@ -120,6 +166,93 @@ S15.3.3.1_A4: FAIL
 15.2.3.7-6-a-175: FAIL
 15.2.3.7-6-a-176: FAIL
 15.2.3.7-6-a-177: FAIL
+15.2.3.7-6-a-121: FAIL
+15.2.3.7-6-a-130: FAIL
+15.2.3.7-6-a-129: FAIL
+15.2.3.7-6-a-131: FAIL
+15.2.3.7-6-a-132: FAIL
+15.2.3.7-6-a-136: FAIL
+15.2.3.7-6-a-135: FAIL
+15.2.3.7-6-a-134: FAIL
+15.2.3.7-6-a-137: FAIL
+15.2.3.7-6-a-141: FAIL
+15.2.3.7-6-a-146: FAIL
+15.2.3.7-6-a-148: FAIL
+15.2.3.7-6-a-149: FAIL
+15.2.3.7-6-a-152: FAIL
+15.2.3.7-6-a-153: FAIL
+15.2.3.7-6-a-179: FAIL
+15.2.3.7-6-a-184: FAIL
+15.2.3.7-6-a-185: FAIL
+15.2.3.7-6-a-264: FAIL
+15.2.3.7-6-a-265: FAIL
+15.4.4.14-9-b-i-11: FAIL
+15.4.4.14-9-b-i-13: FAIL
+15.4.4.14-9-b-i-17: FAIL
+15.4.4.14-9-b-i-19: FAIL
+15.4.4.14-9-b-i-28: FAIL
+15.4.4.14-9-b-i-30: FAIL
+15.4.4.15-8-a-14: FAIL
+15.4.4.15-8-b-i-11: FAIL
+15.4.4.15-8-b-i-13: FAIL
+15.4.4.15-8-b-i-17: FAIL
+15.4.4.15-8-b-i-28: FAIL
+15.4.4.15-8-b-i-30: FAIL
+15.4.4.16-7-c-i-10: FAIL
+15.4.4.16-7-c-i-12: FAIL
+15.4.4.16-7-c-i-14: FAIL
+15.4.4.16-7-c-i-18: FAIL
+15.4.4.16-7-c-i-20: FAIL
+15.4.4.16-7-c-i-28: FAIL
+15.4.4.17-7-c-i-10: FAIL
+15.4.4.17-7-c-i-12: FAIL
+15.4.4.17-7-c-i-14: FAIL
+15.4.4.17-7-c-i-18: FAIL
+15.4.4.17-7-c-i-20: FAIL
+15.4.4.17-7-c-i-28: FAIL
+15.4.4.18-7-c-i-10: FAIL
+15.4.4.18-7-c-i-12: FAIL
+15.4.4.18-7-c-i-14: FAIL
+15.4.4.18-7-c-i-18: FAIL
+15.4.4.18-7-c-i-20: FAIL
+15.4.4.18-7-c-i-28: FAIL
+15.4.4.19-8-c-i-10: FAIL
+15.4.4.19-8-c-i-14: FAIL
+15.4.4.19-8-c-i-12: FAIL
+15.4.4.19-8-c-i-18: FAIL
+15.4.4.19-8-c-i-19: FAIL
+15.4.4.19-8-c-i-28: FAIL
+15.4.4.20-9-c-i-10: FAIL
+15.4.4.20-9-c-i-12: FAIL
+15.4.4.20-9-c-i-14: FAIL
+15.4.4.20-9-c-i-18: FAIL
+15.4.4.20-9-c-i-20: FAIL
+15.4.4.20-9-c-i-28: FAIL
+15.4.4.22-8-b-2: FAIL
+15.4.4.22-8-b-iii-1-12: FAIL
+15.4.4.22-8-b-iii-1-18: FAIL
+15.4.4.22-8-b-iii-1-20: FAIL
+15.4.4.22-8-b-iii-1-33: FAIL
+15.4.4.22-8-b-iii-1-30: FAIL
+15.4.4.22-9-b-13: FAIL
+15.4.4.22-9-b-24: FAIL
+15.4.4.22-9-b-26: FAIL
+15.4.4.22-9-b-9: FAIL
+15.4.4.22-9-c-i-30: FAIL
+
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
+15.2.3.6-4-292-1: FAIL
+15.2.3.6-4-293-2: FAIL
+15.2.3.6-4-293-3: FAIL
+15.2.3.6-4-294-1: FAIL
+15.2.3.6-4-295-1: FAIL
+15.2.3.6-4-296-1: FAIL
+15.2.3.6-4-333-11: FAIL
+15.2.3.7-6-a-281: FAIL
+15.2.3.7-6-a-282: FAIL
+15.2.3.7-6-a-283: FAIL
+15.2.3.7-6-a-284: FAIL
+15.2.3.7-6-a-285: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1790
 15.4.4.22-9-9: FAIL
@@ -130,12 +263,6 @@ S15.3_A3_T1: FAIL
 S15.3_A3_T3: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
-
-# 15.9.5.43-0-9 and 15.9.5.43-0-10. V8 doesn't throw RangeError
-# from Date.prototype.toISOString when string is not a finite number.
-# This is compatible with Firefox and Safari.
-15.9.5.43-0-9: PASS || FAIL
-15.9.5.43-0-10: PASS || FAIL
 
 # We deliberately treat arguments to parseInt() with a leading zero as
 # octal numbers in order to not break the web.
@@ -319,48 +446,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 
 ######################### UNANALYZED FAILURES ##########################
 
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own property of 'O' which is also defined in
-#      [[ParameterMap]] of 'O', and 'desc' is data descriptor, test updating
-#      multiple attribute values of 'name' (10.6 [[DefineOwnProperty]] step 3
-#      and 5.b)
-15.2.3.6-4-292-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own data property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Value]] attribute value of 'name' which is defined as
-#      unwritable and non-configurable (10.6 [[DefineOwnProperty]] step 4 and
-#      step 5b)
-15.2.3.6-4-293-2: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own data property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is not thrown when
-#      updating the [[Value]] attribute value of 'name' which is defined as
-#      non-writable and configurable (10.6 [[DefineOwnProperty]] step 3 and step
-#      5.b)
-15.2.3.6-4-293-3: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own data property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Writable]] attribute value of 'name' which is defined as
-#      non-configurable (10.6 [[DefineOwnProperty]] step 4 and 5b)
-15.2.3.6-4-294-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own data property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Enumerable]] attribute value of 'name' which is defined as
-#      non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5b)
-15.2.3.6-4-295-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own data property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Configurable]] attribute value of 'name' which is defined
-#      as non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5b)
-15.2.3.6-4-296-1: FAIL
-# Bug? ES5 Attributes - indexed property 'P' with attributes [[Writable]]: true,
-#      [[Enumerable]]: true, [[Configurable]]: false is writable using simple
-#      assignment, 'O' is an Arguments object
-15.2.3.6-4-333-11: FAIL
 # Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
 #      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
 #      accessor property, 'A' is an Array object (8.12.9 - step 9.b.i)
@@ -373,9 +458,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
 #      accessor property, 'O' is the global object (8.12.9 - step 9.b.i)
 15.2.3.6-4-360-7: FAIL
-# Bug? ES5 Attributes - [[Value]] attribute of data property is the activex host
-#      object
-15.2.3.6-4-401: FAIL
 # Bug? ES5 Attributes - Failed to add a property to an object when the object's
 #      object has a property with same name and [[Writable]] attribute is set to
 #      false (Number instance)
@@ -417,34 +499,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 15.2.3.6-4-623: FAIL
 # Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
 15.2.3.6-4-624: FAIL
-# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
-#      property of 'O' which is also defined in [[ParameterMap]] of 'O', and
-#      'desc' is data descriptor, test updating multiple attribute values of 'P'
-#      (10.6 [[DefineOwnProperty]] step 3)
-15.2.3.7-6-a-281: FAIL
-# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
-#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
-#      TypeError is thrown when updating the [[Value]] attribute value of 'P'
-#      whose writable and configurable attributes are false (10.6
-#      [[DefineOwnProperty]] step 4)
-15.2.3.7-6-a-282: FAIL
-# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
-#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
-#      TypeError is thrown when updating the [[Writable]] attribute value of 'P'
-#      which is defined as non-configurable (10.6 [[DefineOwnProperty]] step 4)
-15.2.3.7-6-a-283: FAIL
-# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
-#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
-#      TypeError is thrown when updating the [[Enumerable]] attribute value of
-#      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
-#      4)
-15.2.3.7-6-a-284: FAIL
-# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
-#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
-#      TypeError is thrown when updating the [[Configurable]] attribute value of
-#      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
-#      4)
-15.2.3.7-6-a-285: FAIL
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
@@ -478,24 +532,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.reduceRight - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.22-9-b-29: FAIL
-# Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
-#      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
-15.9.5.43-0-8: FAIL
-# Bug? Date.prototype.toISOString - RangeError is not thrown when value of date
-#      is Date(1970, 0, 100000001, 0, 0, 0, -1), the time zone is UTC(0)
-15.9.5.43-0-11: FAIL
-# Bug? Date.prototype.toISOString - RangeError is not thrown when value of date
-#      is Date(1970, 0, 100000001, 0, 0, 0, 0), the time zone is UTC(0)
-15.9.5.43-0-12: FAIL
-# Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
-#      Date(1970, 0, 100000001, 0, 0, 0, 1), the time zone is UTC(0)
-15.9.5.43-0-13: FAIL
-# Bug? Date.prototype.toISOString - when value of year is -Infinity
-#      Date.prototype.toISOString throw the RangeError
-15.9.5.43-0-14: FAIL
-# Bug? Date.prototype.toISOString - value of year is Infinity
-#      Date.prototype.toISOString throw the RangeError
-15.9.5.43-0-15: FAIL
 
 ############################ SKIPPED TESTS #############################
 

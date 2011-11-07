@@ -1594,30 +1594,9 @@ void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
 }
 
 
-MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
-  ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
-  return result;
-}
-
-
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe());
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  jmp(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET);
-  return result;
 }
 
 
@@ -1674,12 +1653,6 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
 }
 
 
-MaybeObject* MacroAssembler::TryCallRuntime(Runtime::FunctionId id,
-                                            int num_arguments) {
-  return TryCallRuntime(Runtime::FunctionForId(id), num_arguments);
-}
-
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
   // If the expected number of arguments of the runtime function is
@@ -1698,26 +1671,6 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   mov(ebx, Immediate(ExternalReference(f, isolate())));
   CEntryStub ces(1);
   CallStub(&ces);
-}
-
-
-MaybeObject* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
-                                            int num_arguments) {
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    IllegalOperation(num_arguments);
-    // Since we did not call the stub, there was no allocation failure.
-    // Return some non-failure object.
-    return isolate()->heap()->undefined_value();
-  }
-
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  Set(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(1);
-  return TryCallStub(&ces);
 }
 
 
@@ -1743,31 +1696,12 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
-MaybeObject* MacroAssembler::TryTailCallExternalReference(
-    const ExternalReference& ext, int num_arguments, int result_size) {
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  Set(eax, Immediate(num_arguments));
-  return TryJumpToExternalReference(ext);
-}
-
-
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
   TailCallExternalReference(ExternalReference(fid, isolate()),
                             num_arguments,
                             result_size);
-}
-
-
-MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
-                                                int num_arguments,
-                                                int result_size) {
-  return TryTailCallExternalReference(
-      ExternalReference(fid, isolate()), num_arguments, result_size);
 }
 
 
@@ -1819,8 +1753,8 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 }
 
 
-MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
-                                                         int stack_space) {
+void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
+                                              int stack_space) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   ExternalReference limit_address =
@@ -1833,8 +1767,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   mov(edi, Operand::StaticVariable(limit_address));
   add(Operand::StaticVariable(level_address), Immediate(1));
 
-  // Call the api function!
-  call(function->address(), RelocInfo::RUNTIME_ENTRY);
+  // Call the api function.
+  call(function_address, RelocInfo::RUNTIME_ENTRY);
 
   if (!kReturnHandlesDirectly) {
     // PrepareCallApiFunction saved pointer to the output slot into
@@ -1872,11 +1806,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
   bind(&promote_scheduled_exception);
-  MaybeObject* result =
-      TryTailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
-  if (result->IsFailure()) {
-    return result;
-  }
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
+
   bind(&empty_handle);
   // It was zero; the result is undefined.
   mov(eax, isolate()->factory()->undefined_value());
@@ -1893,8 +1824,6 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   call(eax);
   mov(eax, edi);
   jmp(&leave_exit_frame);
-
-  return result;
 }
 
 
@@ -1903,15 +1832,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-MaybeObject* MacroAssembler::TryJumpToExternalReference(
-    const ExternalReference& ext) {
-  // Set the entry point and jump to the C entry runtime stub.
-  mov(ebx, Immediate(ext));
-  CEntryStub ces(1);
-  return TryTailCallStub(&ces);
 }
 
 
@@ -2079,7 +1999,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeFunction(JSFunction* function,
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
@@ -2088,7 +2008,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  mov(edi, Immediate(Handle<JSFunction>(function)));
+  mov(edi, Immediate(function));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   ParameterCount expected(function->shared()->formal_parameter_count());

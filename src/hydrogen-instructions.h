@@ -67,10 +67,8 @@ class LChunkBuilder;
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
   V(ArrayLiteral)                              \
-  V(BitAnd)                                    \
+  V(Bitwise)                                   \
   V(BitNot)                                    \
-  V(BitOr)                                     \
-  V(BitXor)                                    \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
   V(Branch)                                    \
@@ -183,6 +181,7 @@ class LChunkBuilder;
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
+  V(ElementsKind)                              \
   V(ArrayElements)                             \
   V(DoubleArrayElements)                       \
   V(SpecializedArrayElements)                  \
@@ -246,7 +245,9 @@ class Range: public ZoneObject {
     return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
   }
   void KeepOrder();
+#ifdef DEBUG
   void Verify() const;
+#endif
 
   void StackUpon(Range* other) {
     Intersect(other);
@@ -406,7 +407,6 @@ class HType {
   static HType TypeFromValue(Handle<Object> value);
 
   const char* ToString();
-  const char* ToShortString();
 
  private:
   enum Type {
@@ -621,8 +621,14 @@ class HValue: public ZoneObject {
   void SetAllSideEffects() { flags_ |= AllSideEffects(); }
   void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
   bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
+  bool HasObservableSideEffects() const {
+    return (flags_ & ObservableSideEffects()) != 0;
+  }
 
   int ChangesFlags() const { return flags_ & ChangesFlagsMask(); }
+  int ObservableChangesFlags() const {
+    return flags_ & ChangesFlagsMask() & ObservableSideEffects();
+  }
 
   Range* range() const { return range_; }
   bool HasRange() const { return range_ != NULL; }
@@ -700,6 +706,12 @@ class HValue: public ZoneObject {
   // A flag mask to mark an instruction as having arbitrary side effects.
   static int AllSideEffects() {
     return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
+  }
+
+  // A flag mask of all side effects that can make observable changes in
+  // an executing program (i.e. are not safe to repeat, move or remove);
+  static int ObservableSideEffects() {
+    return ChangesFlagsMask() & ~(1 << kChangesElementsKind);
   }
 
   // Remove the matching use from the use list if present.  Returns the
@@ -1739,7 +1751,7 @@ class HElementsKind: public HUnaryOperation {
   explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1866,6 +1878,7 @@ class HLoadElements: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
+    SetFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3028,52 +3041,30 @@ class HDiv: public HArithmeticBinaryOperation {
 };
 
 
-class HBitAnd: public HBitwiseBinaryOperation {
+class HBitwise: public HBitwiseBinaryOperation {
  public:
-  HBitAnd(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
+  HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right), op_(op) {
+        ASSERT(op == Token::BIT_AND ||
+               op == Token::BIT_OR ||
+               op == Token::BIT_XOR);
+      }
+
+  Token::Value op() const { return op_; }
 
   virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(BitAnd)
+  DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    return op() == HBitwise::cast(other)->op();
+  }
 
   virtual Range* InferRange();
-};
 
-
-class HBitXor: public HBitwiseBinaryOperation {
- public:
-  HBitXor(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
-
-  virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitXor)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HBitOr: public HBitwiseBinaryOperation {
- public:
-  HBitOr(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
-
-  virtual bool IsCommutative() const { return true; }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(BitOr)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-
-  virtual Range* InferRange();
+ private:
+  Token::Value op_;
 };
 
 
@@ -3083,7 +3074,6 @@ class HShl: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Shl)
 
@@ -3098,7 +3088,6 @@ class HShr: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Shr)
 
@@ -3113,7 +3102,6 @@ class HSar: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
-  virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Sar)
 
@@ -3915,7 +3903,7 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetFlag(kChangesElementsKind);
     set_representation(Representation::Tagged());
   }
 

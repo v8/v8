@@ -378,6 +378,12 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   // Found hole, store hole_nan_as_double instead.
   __ bind(&convert_hole);
+
+  if (FLAG_debug_code) {
+    __ cmp(ebx, masm->isolate()->factory()->the_hole_value());
+    __ Assert(equal, "object found in smi-only array");
+  }
+
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope use_sse2(SSE2);
     __ movdbl(FieldOperand(eax, edi, times_4, FixedDoubleArray::kHeaderSize),

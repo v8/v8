@@ -793,18 +793,15 @@ class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
 
 class LBitI: public LTemplateInstruction<1, 2, 0> {
  public:
-  LBitI(Token::Value op, LOperand* left, LOperand* right)
-      : op_(op) {
+  LBitI(LOperand* left, LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
   }
 
-  Token::Value op() const { return op_; }
+  Token::Value op() const { return hydrogen()->op(); }
 
   DECLARE_CONCRETE_INSTRUCTION(BitI, "bit-i")
-
- private:
-  Token::Value op_;
+  DECLARE_HYDROGEN_ACCESSOR(Bitwise)
 };
 
 
@@ -2181,7 +2178,6 @@ class LChunkBuilder BASE_EMBEDDED {
   void VisitInstruction(HInstruction* current);
 
   void DoBasicBlock(HBasicBlock* block, HBasicBlock* next_block);
-  LInstruction* DoBit(Token::Value op, HBitwiseBinaryOperation* instr);
   LInstruction* DoShift(Token::Value op, HBitwiseBinaryOperation* instr);
   LInstruction* DoArithmeticD(Token::Value op,
                               HArithmeticBinaryOperation* instr);

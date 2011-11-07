@@ -72,11 +72,7 @@
                   },
                 }],
                 ['soname_version!=""', {
-                  # Ideally, we'd like to specify the full filename for the
-                  # library and set it to "libv8.so.<(soname_version)",
-                  # but currently the best we can do is use 'product_name' and
-                  # get "libv8-<(soname_version).so".
-                  'product_name': 'v8-<(soname_version)',
+                  'product_extension': 'so.<(soname_version)',
                 }],
               ],
             },
@@ -591,7 +587,8 @@
                     ['v8_compress_startup_data=="bz2"', {
                       'libraries': [
                         '-lbz2',
-                    ]}],
+                      ]
+                    }],
                   ],
                 },
                 'sources': [
@@ -601,6 +598,9 @@
               }
             ],
             ['OS=="android"', {
+                'defines': [
+                  'CAN_USE_VFP_INSTRUCTIONS',
+                ],
                 'sources': [
                   '../../src/platform-posix.cc',
                 ],
@@ -772,8 +772,8 @@
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
                 '-lbz2',
-              ]}
-            ],
+              ]
+            }],
           ],
         },
         {
@@ -798,7 +798,8 @@
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
                 '-lbz2',
-              ]}],
+              ]
+            }],
           ],
         },
         {

@@ -59,7 +59,7 @@ class IncrementalMarking {
 
   inline bool IsStopped() { return state() == STOPPED; }
 
-  inline bool IsMarking() { return state() >= MARKING; }
+  INLINE(bool IsMarking()) { return state() >= MARKING; }
 
   inline bool IsMarkingIncomplete() { return state() == MARKING; }
 
@@ -120,16 +120,23 @@ class IncrementalMarking {
                                                Object** slot,
                                                Isolate* isolate);
 
-  inline bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value);
-
-
-  inline void RecordWrite(HeapObject* obj, Object** slot, Object* value);
-  inline void RecordWriteIntoCode(HeapObject* obj,
+  INLINE(bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value));
+  INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
+  INLINE(void RecordWriteIntoCode(HeapObject* obj,
                                   RelocInfo* rinfo,
-                                  Object* value);
+                                  Object* value));
+  INLINE(void RecordWriteOfCodeEntry(JSFunction* host,
+                                     Object** slot,
+                                     Code* value));
+
+
+  void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
+  void RecordWriteIntoCodeSlow(HeapObject* obj,
+                               RelocInfo* rinfo,
+                               Object* value);
+  void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
-  void RecordWriteOfCodeEntry(JSFunction* host, Object** slot, Code* value);
 
   inline void RecordWrites(HeapObject* obj);
 

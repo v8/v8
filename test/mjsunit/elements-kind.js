@@ -305,5 +305,36 @@ if (support_smi_only_arrays) {
   assertTrue(%HaveSameMap(e, f));
 }
 
+// Test if Array.concat() works correctly with DOUBLE elements.
+if (support_smi_only_arrays) {
+  var a = [1, 2];
+  assertKind(elements_kind.fast_smi_only, a);
+  var b = [4.5, 5.5];
+  assertKind(elements_kind.fast_double, b);
+  var c = a.concat(b);
+  assertEquals([1, 2, 4.5, 5.5], c);
+  // TODO(1810): Change implementation so that we get DOUBLE elements here?
+  assertKind(elements_kind.fast, c);
+}
+
+// Test that Array.push() correctly handles SMI elements.
+if (support_smi_only_arrays) {
+  var a = [1, 2];
+  assertKind(elements_kind.fast_smi_only, a);
+  a.push(3, 4, 5);
+  assertKind(elements_kind.fast_smi_only, a);
+  assertEquals([1, 2, 3, 4, 5], a);
+}
+
+// Test that Array.splice() and Array.slice() return correct ElementsKinds.
+if (support_smi_only_arrays) {
+  var a = ["foo", "bar"];
+  assertKind(elements_kind.fast, a);
+  var b = a.splice(0, 1);
+  assertKind(elements_kind.fast, b);
+  var c = a.slice(0, 1);
+  assertKind(elements_kind.fast, c);
+}
+
 // Throw away type information in the ICs for next stress run.
 gc();

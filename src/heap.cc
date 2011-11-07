@@ -539,7 +539,7 @@ class SymbolTableVerifier : public ObjectVisitor {
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject()) {
         // Check that the symbol is actually a symbol.
-        ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
+        ASSERT((*p)->IsTheHole() || (*p)->IsUndefined() || (*p)->IsSymbol());
       }
     }
   }
@@ -1871,7 +1871,7 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_serialized_scope_info_map(Map::cast(obj));
+  set_scope_info_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2629,12 +2629,10 @@ MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(foreign_map(), space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  Foreign::cast(result)->set_address(address);
+  Foreign* result;
+  MaybeObject* maybe_result = Allocate(foreign_map(), space);
+  if (!maybe_result->To(&result)) return maybe_result;
+  result->set_foreign_address(address);
   return result;
 }
 
@@ -2648,7 +2646,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
-  share->set_scope_info(SerializedScopeInfo::Empty());
+  share->set_scope_info(ScopeInfo::Empty());
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
@@ -4396,10 +4394,10 @@ MaybeObject* Heap::AllocateWithContext(JSFunction* function,
 
 MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
                                         Context* previous,
-                                        SerializedScopeInfo* scope_info) {
+                                        ScopeInfo* scope_info) {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArrayWithHoles(scope_info->NumberOfContextSlots());
+        AllocateFixedArrayWithHoles(scope_info->ContextLength());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
@@ -4412,14 +4410,11 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
 }
 
 
-MaybeObject* Heap::AllocateSerializedScopeInfo(int length) {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateFixedArray(length, TENURED);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  SerializedScopeInfo* scope_info =
-      reinterpret_cast<SerializedScopeInfo*>(result);
-  scope_info->set_map(serialized_scope_info_map());
+MaybeObject* Heap::AllocateScopeInfo(int length) {
+  FixedArray* scope_info;
+  MaybeObject* maybe_scope_info = AllocateFixedArray(length, TENURED);
+  if (!maybe_scope_info->To(&scope_info)) return maybe_scope_info;
+  scope_info->set_map(scope_info_map());
   return scope_info;
 }
 
@@ -6342,7 +6337,9 @@ void TranscendentalCache::Clear() {
 void ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i] == heap_->raw_unchecked_null_value()) continue;
+    if (new_space_strings_[i] == heap_->raw_unchecked_the_hole_value()) {
+      continue;
+    }
     if (heap_->InNewSpace(new_space_strings_[i])) {
       new_space_strings_[last++] = new_space_strings_[i];
     } else {
@@ -6352,7 +6349,9 @@ void ExternalStringTable::CleanUp() {
   new_space_strings_.Rewind(last);
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i] == heap_->raw_unchecked_null_value()) continue;
+    if (old_space_strings_[i] == heap_->raw_unchecked_the_hole_value()) {
+      continue;
+    }
     ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
     old_space_strings_[last++] = old_space_strings_[i];
   }

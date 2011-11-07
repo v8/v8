@@ -1246,8 +1246,8 @@ class SaveContext BASE_EMBEDDED {
   SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool below(JavaScriptFrame* frame) {
-    return (js_sp_ == 0) || (frame->sp() < js_sp_);
+  bool IsBelowFrame(JavaScriptFrame* frame) {
+    return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
   }
 
  private:
@@ -1256,7 +1256,7 @@ class SaveContext BASE_EMBEDDED {
   Handle<Context> dummy_;
 #endif
   SaveContext* prev_;
-  Address js_sp_;  // The top JS frame's sp when saving context.
+  Address c_entry_fp_;
 };
 
 

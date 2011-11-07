@@ -126,7 +126,9 @@ void Range::AddConstant(int32_t value) {
   bool may_overflow = false;  // Overflow is ignored here.
   lower_ = AddWithoutOverflow(lower_, value, &may_overflow);
   upper_ = AddWithoutOverflow(upper_, value, &may_overflow);
+#ifdef DEBUG
   Verify();
+#endif
 }
 
 
@@ -173,7 +175,9 @@ bool Range::AddAndCheckOverflow(Range* other) {
   lower_ = AddWithoutOverflow(lower_, other->lower(), &may_overflow);
   upper_ = AddWithoutOverflow(upper_, other->upper(), &may_overflow);
   KeepOrder();
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -183,7 +187,9 @@ bool Range::SubAndCheckOverflow(Range* other) {
   lower_ = SubWithoutOverflow(lower_, other->upper(), &may_overflow);
   upper_ = SubWithoutOverflow(upper_, other->lower(), &may_overflow);
   KeepOrder();
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -197,9 +203,11 @@ void Range::KeepOrder() {
 }
 
 
+#ifdef DEBUG
 void Range::Verify() const {
   ASSERT(lower_ <= upper_);
 }
+#endif
 
 
 bool Range::MulAndCheckOverflow(Range* other) {
@@ -210,7 +218,9 @@ bool Range::MulAndCheckOverflow(Range* other) {
   int v4 = MulWithoutOverflow(upper_, other->upper(), &may_overflow);
   lower_ = Min(Min(v1, v2), Min(v3, v4));
   upper_ = Max(Max(v1, v2), Max(v3, v4));
+#ifdef DEBUG
   Verify();
+#endif
   return may_overflow;
 }
 
@@ -228,25 +238,6 @@ const char* HType::ToString() {
     case kJSArray: return "array";
     case kJSObject: return "object";
     case kUninitialized: return "uninitialized";
-  }
-  UNREACHABLE();
-  return "Unreachable code";
-}
-
-
-const char* HType::ToShortString() {
-  switch (type_) {
-    case kTagged: return "t";
-    case kTaggedPrimitive: return "p";
-    case kTaggedNumber: return "n";
-    case kSmi: return "m";
-    case kHeapNumber: return "h";
-    case kString: return "s";
-    case kBoolean: return "b";
-    case kNonPrimitive: return "r";
-    case kJSArray: return "a";
-    case kJSObject: return "o";
-    case kUninitialized: return "z";
   }
   UNREACHABLE();
   return "Unreachable code";
@@ -564,7 +555,7 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   // followed by a simulate instruction, we need to insert after the
   // simulate instruction instead.
   HInstruction* next = previous->next_;
-  if (previous->HasSideEffects() && next != NULL) {
+  if (previous->HasObservableSideEffects() && next != NULL) {
     ASSERT(next->IsSimulate());
     previous = next;
     next = previous->next_;
@@ -604,7 +595,7 @@ void HInstruction::Verify() {
 
   // Verify that instructions that may have side-effects are followed
   // by a simulate instruction.
-  if (HasSideEffects() && !IsOsrEntry()) {
+  if (HasObservableSideEffects() && !IsOsrEntry()) {
     ASSERT(next()->IsSimulate());
   }
 
@@ -1252,28 +1243,17 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-Range* HBitAnd::InferRange() {
+Range* HBitwise::InferRange() {
+  if (op() == Token::BIT_XOR) return HValue::InferRange();
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
       : 0xffffffff;
   int32_t right_mask = (right()->range() != NULL)
       ? right()->range()->Mask()
       : 0xffffffff;
-  int32_t result_mask = left_mask & right_mask;
-  return (result_mask >= 0)
-      ? new Range(0, result_mask)
-      : HValue::InferRange();
-}
-
-
-Range* HBitOr::InferRange() {
-  int32_t left_mask = (left()->range() != NULL)
-      ? left()->range()->Mask()
-      : 0xffffffff;
-  int32_t right_mask = (right()->range() != NULL)
-      ? right()->range()->Mask()
-      : 0xffffffff;
-  int32_t result_mask = left_mask | right_mask;
+  int32_t result_mask = (op() == Token::BIT_AND)
+      ? left_mask & right_mask
+      : left_mask | right_mask;
   return (result_mask >= 0)
       ? new Range(0, result_mask)
       : HValue::InferRange();
@@ -1785,42 +1765,12 @@ HType HAdd::CalculateInferredType() {
 }
 
 
-HType HBitAnd::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HBitXor::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HBitOr::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
 HType HBitNot::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
 HType HUnaryMathOperation::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HShl::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HShr::CalculateInferredType() {
-  return HType::TaggedNumber();
-}
-
-
-HType HSar::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 

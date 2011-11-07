@@ -106,6 +106,16 @@ namespace internal {
   type name = NumberTo##Type(obj);
 
 
+// Assert that the given argument has a valid value for a StrictModeFlag
+// and store it in a StrictModeFlag variable with the given name.
+#define CONVERT_STRICT_MODE_ARG(name, index)                         \
+  ASSERT(args[index]->IsSmi());                                      \
+  ASSERT(args.smi_at(index) == kStrictMode ||                        \
+         args.smi_at(index) == kNonStrictMode);                      \
+  StrictModeFlag name =                                              \
+      static_cast<StrictModeFlag>(args.smi_at(index));
+
+
 MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
                                                    JSObject* boilerplate) {
   StackLimitCheck check(isolate);
@@ -1515,8 +1525,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
-  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(1));
-  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
+  CONVERT_STRICT_MODE_ARG(strict_mode, 1);
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -4171,6 +4180,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetProperty) {
 }
 
 
+MaybeObject* TransitionElements(Handle<Object> object,
+                                ElementsKind to_kind,
+                                Isolate* isolate) {
+  HandleScope scope(isolate);
+  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
+  ElementsKind from_kind =
+      Handle<JSObject>::cast(object)->map()->elements_kind();
+  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
+    Handle<Object> result =
+        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
+    if (result.is_null()) return isolate->ThrowIllegalOperation();
+    return *result;
+  }
+  return isolate->ThrowIllegalOperation();
+}
+
+
 // KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
   NoHandleAllocation ha;
@@ -4187,40 +4213,63 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
   //
   // Additionally, we need to make sure that we do not cache results
   // for objects that require access checks.
-  if (args[0]->IsJSObject() &&
-      !args[0]->IsJSGlobalProxy() &&
-      !args[0]->IsAccessCheckNeeded() &&
-      args[1]->IsString()) {
-    JSObject* receiver = JSObject::cast(args[0]);
-    String* key = String::cast(args[1]);
-    if (receiver->HasFastProperties()) {
-      // Attempt to use lookup cache.
-      Map* receiver_map = receiver->map();
-      KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-      int offset = keyed_lookup_cache->Lookup(receiver_map, key);
-      if (offset != -1) {
-        Object* value = receiver->FastPropertyAt(offset);
-        return value->IsTheHole() ? isolate->heap()->undefined_value() : value;
+  if (args[0]->IsJSObject()) {
+    if (!args[0]->IsJSGlobalProxy() &&
+        !args[0]->IsAccessCheckNeeded() &&
+        args[1]->IsString()) {
+      JSObject* receiver = JSObject::cast(args[0]);
+      String* key = String::cast(args[1]);
+      if (receiver->HasFastProperties()) {
+        // Attempt to use lookup cache.
+        Map* receiver_map = receiver->map();
+        KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
+        int offset = keyed_lookup_cache->Lookup(receiver_map, key);
+        if (offset != -1) {
+          Object* value = receiver->FastPropertyAt(offset);
+          return value->IsTheHole()
+              ? isolate->heap()->undefined_value()
+              : value;
+        }
+        // Lookup cache miss.  Perform lookup and update the cache if
+        // appropriate.
+        LookupResult result(isolate);
+        receiver->LocalLookup(key, &result);
+        if (result.IsProperty() && result.type() == FIELD) {
+          int offset = result.GetFieldIndex();
+          keyed_lookup_cache->Update(receiver_map, key, offset);
+          return receiver->FastPropertyAt(offset);
+        }
+      } else {
+        // Attempt dictionary lookup.
+        StringDictionary* dictionary = receiver->property_dictionary();
+        int entry = dictionary->FindEntry(key);
+        if ((entry != StringDictionary::kNotFound) &&
+            (dictionary->DetailsAt(entry).type() == NORMAL)) {
+          Object* value = dictionary->ValueAt(entry);
+          if (!receiver->IsGlobalObject()) return value;
+          value = JSGlobalPropertyCell::cast(value)->value();
+          if (!value->IsTheHole()) return value;
+          // If value is the hole do the general lookup.
+        }
       }
-      // Lookup cache miss.  Perform lookup and update the cache if appropriate.
-      LookupResult result(isolate);
-      receiver->LocalLookup(key, &result);
-      if (result.IsProperty() && result.type() == FIELD) {
-        int offset = result.GetFieldIndex();
-        keyed_lookup_cache->Update(receiver_map, key, offset);
-        return receiver->FastPropertyAt(offset);
-      }
-    } else {
-      // Attempt dictionary lookup.
-      StringDictionary* dictionary = receiver->property_dictionary();
-      int entry = dictionary->FindEntry(key);
-      if ((entry != StringDictionary::kNotFound) &&
-          (dictionary->DetailsAt(entry).type() == NORMAL)) {
-        Object* value = dictionary->ValueAt(entry);
-        if (!receiver->IsGlobalObject()) return value;
-        value = JSGlobalPropertyCell::cast(value)->value();
-        if (!value->IsTheHole()) return value;
-        // If value is the hole do the general lookup.
+    } else if (FLAG_smi_only_arrays && args.at<Object>(1)->IsSmi()) {
+      // JSObject without a string key. If the key is a Smi, check for a
+      // definite out-of-bounds access to elements, which is a strong indicator
+      // that subsequent accesses will also call the runtime. Proactively
+      // transition elements to FAST_ELEMENTS to avoid excessive boxing of
+      // doubles for those future calls in the case that the elements would
+      // become FAST_DOUBLE_ELEMENTS.
+      Handle<JSObject> js_object(args.at<JSObject>(0));
+      ElementsKind elements_kind = js_object->GetElementsKind();
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+          elements_kind == FAST_DOUBLE_ELEMENTS) {
+        FixedArrayBase* elements = js_object->elements();
+        if (args.at<Smi>(1)->value() >= elements->length()) {
+          MaybeObject* maybe_object = TransitionElements(js_object,
+                                                         FAST_ELEMENTS,
+                                                         isolate);
+          if (maybe_object->IsFailure()) return maybe_object;
+        }
       }
     }
   } else if (args[0]->IsString() && args[1]->IsSmi()) {
@@ -4594,10 +4643,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 
   StrictModeFlag strict_mode = kNonStrictMode;
   if (args.length() == 5) {
-    CONVERT_SMI_ARG_CHECKED(strict_unchecked, 4);
-    RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
-                   strict_unchecked == kNonStrictMode);
-    strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
+    CONVERT_STRICT_MODE_ARG(strict_mode_flag, 4);
+    strict_mode = strict_mode_flag;
   }
 
   return Runtime::SetObjectProperty(isolate,
@@ -4606,23 +4653,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
                                     value,
                                     attributes,
                                     strict_mode);
-}
-
-
-MaybeObject* TransitionElements(Handle<Object> object,
-                                ElementsKind to_kind,
-                                Isolate* isolate) {
-  HandleScope scope(isolate);
-  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
-  ElementsKind from_kind =
-      Handle<JSObject>::cast(object)->map()->elements_kind();
-  if (Map::IsValidElementsTransition(from_kind, to_kind)) {
-    Handle<Object> result =
-        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
-    if (result.is_null()) return isolate->ThrowIllegalOperation();
-    return *result;
-  }
-  return isolate->ThrowIllegalOperation();
 }
 
 
@@ -4656,6 +4686,44 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
     func->shared()->set_native(true);
   }
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
+  RUNTIME_ASSERT(args.length() == 5);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  CONVERT_SMI_ARG_CHECKED(store_index, 1);
+  Handle<Object> value = args.at<Object>(2);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 3);
+  CONVERT_SMI_ARG_CHECKED(literal_index, 4);
+  HandleScope scope;
+
+  Object* raw_boilerplate_object = literals->get(literal_index);
+  Handle<JSArray> boilerplate_object(JSArray::cast(raw_boilerplate_object));
+#if DEBUG
+  ElementsKind elements_kind = object->GetElementsKind();
+#endif
+  ASSERT(elements_kind <= FAST_DOUBLE_ELEMENTS);
+  // Smis should never trigger transitions.
+  ASSERT(!value->IsSmi());
+
+  if (value->IsNumber()) {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+    FixedDoubleArray* double_array =
+        FixedDoubleArray::cast(object->elements());
+    HeapNumber* number = HeapNumber::cast(*value);
+    double_array->set(store_index, number->Number());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+           elements_kind == FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(object, FAST_ELEMENTS);
+    FixedArray* object_array =
+        FixedArray::cast(object->elements());
+    object_array->set(store_index, *value);
+  }
+  return *object;
 }
 
 
@@ -7490,7 +7558,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 }
 
 
-static int MakeDay(int year, int month, int day) {
+static int MakeDay(int year, int month) {
   static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
                                        181, 212, 243, 273, 304, 334};
   static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
@@ -7527,23 +7595,22 @@ static int MakeDay(int year, int month, int day) {
                       year1 / 400 -
                       base_day;
 
-  if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
-    return day_from_year + day_from_month[month] + day - 1;
+  if ((year % 4 != 0) || (year % 100 == 0 && year % 400 != 0)) {
+    return day_from_year + day_from_month[month];
   }
 
-  return day_from_year + day_from_month_leap[month] + day - 1;
+  return day_from_year + day_from_month_leap[month];
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 2);
 
   CONVERT_SMI_ARG_CHECKED(year, 0);
   CONVERT_SMI_ARG_CHECKED(month, 1);
-  CONVERT_SMI_ARG_CHECKED(date, 2);
 
-  return Smi::FromInt(MakeDay(year, month, date));
+  return Smi::FromInt(MakeDay(year, month));
 }
 
 
@@ -7772,7 +7839,7 @@ static inline void DateYMDFromTimeAfter1970(int date,
   month = kMonthInYear[date];
   day = kDayInYear[date];
 
-  ASSERT(MakeDay(year, month, day) == save_date);
+  ASSERT(MakeDay(year, month) + day - 1 == save_date);
 }
 
 
@@ -7786,7 +7853,7 @@ static inline void DateYMDFromTimeSlow(int date,
   year = 400 * (date / kDaysIn400Years) - kYearsOffset;
   date %= kDaysIn400Years;
 
-  ASSERT(MakeDay(year, 0, 1) + date == save_date);
+  ASSERT(MakeDay(year, 0) + date == save_date);
 
   date--;
   int yd1 = date / kDaysIn100Years;
@@ -7809,8 +7876,8 @@ static inline void DateYMDFromTimeSlow(int date,
   ASSERT(is_leap || (date >= 0));
   ASSERT((date < 365) || (is_leap && (date < 366)));
   ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
-  ASSERT(is_leap || ((MakeDay(year, 0, 1) + date) == save_date));
-  ASSERT(!is_leap || ((MakeDay(year, 0, 1) + date + 1) == save_date));
+  ASSERT(is_leap || ((MakeDay(year, 0) + date) == save_date));
+  ASSERT(!is_leap || ((MakeDay(year, 0) + date + 1) == save_date));
 
   if (is_leap) {
     day = kDayInYear[2*365 + 1 + date];
@@ -7820,7 +7887,7 @@ static inline void DateYMDFromTimeSlow(int date,
     month = kMonthInYear[date];
   }
 
-  ASSERT(MakeDay(year, month, day) == save_date);
+  ASSERT(MakeDay(year, month) + day - 1 == save_date);
 }
 
 
@@ -7846,19 +7913,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
 
   FixedArrayBase* elms_base = FixedArrayBase::cast(res_array->elements());
   RUNTIME_ASSERT(elms_base->length() == 3);
-  RUNTIME_ASSERT(res_array->GetElementsKind() <= FAST_DOUBLE_ELEMENTS);
+  RUNTIME_ASSERT(res_array->HasFastTypeElements());
 
-  if (res_array->HasFastDoubleElements()) {
-    FixedDoubleArray* elms = FixedDoubleArray::cast(res_array->elements());
-    elms->set(0, year);
-    elms->set(1, month);
-    elms->set(2, day);
-  } else {
-    FixedArray* elms = FixedArray::cast(res_array->elements());
-    elms->set(0, Smi::FromInt(year));
-    elms->set(1, Smi::FromInt(month));
-    elms->set(2, Smi::FromInt(day));
-  }
+  MaybeObject* maybe = res_array->EnsureWritableFastElements();
+  if (maybe->IsFailure()) return maybe;
+  FixedArray* elms = FixedArray::cast(res_array->elements());
+  elms->set(0, Smi::FromInt(year));
+  elms->set(1, Smi::FromInt(month));
+  elms->set(2, Smi::FromInt(day));
 
   return isolate->heap()->undefined_value();
 }
@@ -7909,14 +7971,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewArgumentsFast) {
         --index;
       }
 
-      ScopeInfo<> scope_info(callee->shared()->scope_info());
+      Handle<ScopeInfo> scope_info(callee->shared()->scope_info());
       while (index >= 0) {
         // Detect duplicate names to the right in the parameter list.
-        Handle<String> name = scope_info.parameter_name(index);
-        int context_slot_count = scope_info.number_of_context_slots();
+        Handle<String> name(scope_info->ParameterName(index));
+        int context_local_count = scope_info->ContextLocalCount();
         bool duplicate = false;
         for (int j = index + 1; j < parameter_count; ++j) {
-          if (scope_info.parameter_name(j).is_identical_to(name)) {
+          if (scope_info->ParameterName(j) == *name) {
             duplicate = true;
             break;
           }
@@ -7931,17 +7993,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewArgumentsFast) {
           // The context index goes in the parameter map with a hole in the
           // arguments array.
           int context_index = -1;
-          for (int j = Context::MIN_CONTEXT_SLOTS;
-               j < context_slot_count;
-               ++j) {
-            if (scope_info.context_slot_name(j).is_identical_to(name)) {
+          for (int j = 0; j < context_local_count; ++j) {
+            if (scope_info->ContextLocalName(j) == *name) {
               context_index = j;
               break;
             }
           }
           ASSERT(context_index >= 0);
           arguments->set_the_hole(index);
-          parameter_map->set(index + 2, Smi::FromInt(context_index));
+          parameter_map->set(index + 2, Smi::FromInt(
+              Context::MIN_CONTEXT_SLOTS + context_index));
         }
 
         --index;
@@ -8185,13 +8246,9 @@ static void TrySettingInlineConstructStub(Isolate* isolate,
     prototype = Handle<Object>(function->instance_prototype(), isolate);
   }
   if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
-    HandleScope scope(isolate);
     ConstructStubCompiler compiler(isolate);
-    MaybeObject* code = compiler.CompileConstructStub(*function);
-    if (!code->IsFailure()) {
-      function->shared()->set_construct_stub(
-          Code::cast(code->ToObjectUnchecked()));
-    }
+    Handle<Code> code = compiler.CompileConstructStub(function);
+    function->shared()->set_construct_stub(*code);
   }
 }
 
@@ -8706,7 +8763,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSFunction, function, args[0]);
-  int length = function->shared()->scope_info()->NumberOfContextSlots();
+  int length = function->shared()->scope_info()->ContextLength();
   Object* result;
   { MaybeObject* maybe_result =
         isolate->heap()->AllocateFunctionContext(length, function);
@@ -8792,7 +8849,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  SerializedScopeInfo* scope_info = SerializedScopeInfo::cast(args[0]);
+  ScopeInfo* scope_info = ScopeInfo::cast(args[0]);
   JSFunction* function;
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
@@ -9012,10 +9069,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   Handle<Object> value(args[0], isolate);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
-  CONVERT_SMI_ARG_CHECKED(strict_unchecked, 3);
-  RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
-                 strict_unchecked == kNonStrictMode);
-  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
+  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
 
   int index;
   PropertyAttributes attributes;
@@ -9430,90 +9484,22 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
 
   HandleScope scope(isolate);
   Handle<Object> callee = args.at<Object>(0);
-  Handle<Object> receiver;  // Will be overwritten.
 
-  // Compute the calling context.
-  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
-#ifdef DEBUG
-  // Make sure Isolate::context() agrees with the old code that traversed
-  // the stack frames to compute the context.
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  ASSERT(Context::cast(frame->context()) == *context);
-#endif
-
-  // Find where the 'eval' symbol is bound. It is unaliased only if
-  // it is bound in the global context.
-  int index = -1;
-  PropertyAttributes attributes = ABSENT;
-  BindingFlags binding_flags;
-  while (true) {
-    // Don't follow context chains in Context::Lookup and implement the loop
-    // up the context chain here, so that we can know the context where eval
-    // was found.
-    receiver = context->Lookup(isolate->factory()->eval_symbol(),
-                               FOLLOW_PROTOTYPE_CHAIN,
-                               &index,
-                               &attributes,
-                               &binding_flags);
-    // Stop search when eval is found or when the global context is
-    // reached.
-    if (attributes != ABSENT || context->IsGlobalContext()) break;
-    context = Handle<Context>(context->previous(), isolate);
-  }
-
-  // If eval could not be resolved, it has been deleted and we need to
-  // throw a reference error.
-  if (attributes == ABSENT) {
-    Handle<Object> name = isolate->factory()->eval_symbol();
-    Handle<Object> reference_error =
-        isolate->factory()->NewReferenceError("not_defined",
-                                              HandleVector(&name, 1));
-    return MakePair(isolate->Throw(*reference_error), NULL);
-  }
-
-  if (!context->IsGlobalContext()) {
-    // 'eval' is not bound in the global context. Just call the function
-    // with the given arguments. This is not necessarily the global eval.
-    if (receiver->IsContext() || receiver->IsJSContextExtensionObject()) {
-      receiver = isolate->factory()->the_hole_value();
-    }
-    return MakePair(*callee, *receiver);
-  }
-
-  // 'eval' is bound in the global context, but it may have been overwritten.
-  // Compare it to the builtin 'GlobalEval' function to make sure.
+  // If "eval" didn't refer to the original GlobalEval, it's not a
+  // direct call to eval.
+  // (And even if it is, but the first argument isn't a string, just let
+  // execution default to an indirect call to eval, which will also return
+  // the first argument without doing anything).
   if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
-  ASSERT(args[3]->IsSmi());
+  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           static_cast<StrictModeFlag>(args.smi_at(3)));
-}
-
-
-RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEvalNoLookup) {
-  ASSERT(args.length() == 4);
-
-  HandleScope scope(isolate);
-  Handle<Object> callee = args.at<Object>(0);
-
-  // 'eval' is bound in the global context, but it may have been overwritten.
-  // Compare it to the builtin 'GlobalEval' function to make sure.
-  if (*callee != isolate->global_context()->global_eval_fun() ||
-      !args[1]->IsString()) {
-    return MakePair(*callee, isolate->heap()->the_hole_value());
-  }
-
-  ASSERT(args[3]->IsSmi());
-  return CompileGlobalEval(isolate,
-                           args.at<String>(1),
-                           args.at<Object>(2),
-                           static_cast<StrictModeFlag>(args.smi_at(3)));
+                           strict_mode);
 }
 
 
@@ -9708,6 +9694,7 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
@@ -9719,6 +9706,10 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dictionary(
           NumberDictionary::cast(array->elements()));
@@ -9731,7 +9722,16 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    default:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       // External arrays are always dense.
       return length;
   }
@@ -9807,6 +9807,11 @@ static void CollectElementIndices(Handle<JSObject> object,
           indices->Add(i);
         }
       }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -9939,6 +9944,11 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      // TODO(1810): Decide if it's worthwhile to implement this.
+      UNREACHABLE();
+      break;
+    }
     case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> dict(receiver->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
@@ -10049,6 +10059,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
       uint32_t element_estimate;
       if (obj->IsJSArray()) {
         Handle<JSArray> array(Handle<JSArray>::cast(obj));
+        // TODO(1810): Find out if it's worthwhile to properly support
+        // arbitrary ElementsKinds. For now, pessimistically transition to
+        // FAST_ELEMENTS.
+        if (array->HasFastDoubleElements()) {
+          array = Handle<JSArray>::cast(
+              TransitionElementsKind(array, FAST_ELEMENTS));
+        }
         length_estimate =
             static_cast<uint32_t>(array->length()->Number());
         element_estimate =
@@ -10699,6 +10716,18 @@ static const int kFrameDetailsAtReturnIndex = 7;
 static const int kFrameDetailsFlagsIndex = 8;
 static const int kFrameDetailsFirstDynamicIndex = 9;
 
+
+static SaveContext* FindSavedContextForFrame(Isolate* isolate,
+                                             JavaScriptFrame* frame) {
+  SaveContext* save = isolate->save_context();
+  while (save != NULL && !save->IsBelowFrame(frame)) {
+    save = save->prev();
+  }
+  ASSERT(save != NULL);
+  return save;
+}
+
+
 // Return an array with frame details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -10754,11 +10783,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->below(it.frame())) {
-    save = save->prev();
-  }
-  ASSERT(save != NULL);
+  SaveContext* save = FindSavedContextForFrame(isolate, it.frame());
 
   // Get the frame id.
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()), isolate);
@@ -10775,9 +10800,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<SerializedScopeInfo> scope_info(shared->scope_info());
-  ASSERT(*scope_info != SerializedScopeInfo::Empty());
-  ScopeInfo<> info(*scope_info);
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+  ASSERT(*scope_info != ScopeInfo::Empty());
 
   // Get the locals names and values into a temporary array.
   //
@@ -10785,24 +10809,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // (e.g. .result)?  For users of the debugger, they will probably be
   // confusing.
   Handle<FixedArray> locals =
-      isolate->factory()->NewFixedArray(info.NumberOfLocals() * 2);
+      isolate->factory()->NewFixedArray(scope_info->LocalCount() * 2);
 
   // Fill in the values of the locals.
   int i = 0;
-  for (; i < info.number_of_stack_slots(); ++i) {
+  for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
-    locals->set(i * 2, *info.LocalName(i));
+    locals->set(i * 2, scope_info->LocalName(i));
     locals->set(i * 2 + 1, frame_inspector.GetExpression(i));
   }
-  if (i < info.NumberOfLocals()) {
+  if (i < scope_info->LocalCount()) {
     // Get the context containing declarations.
     Handle<Context> context(
         Context::cast(it.frame()->context())->declaration_context());
-    for (; i < info.NumberOfLocals(); ++i) {
-      Handle<String> name = info.LocalName(i);
+    for (; i < scope_info->LocalCount(); ++i) {
+      Handle<String> name(scope_info->LocalName(i));
+      VariableMode mode;
+      InitializationFlag init_flag;
       locals->set(i * 2, *name);
-      locals->set(i * 2 + 1,
-                  context->get(scope_info->ContextSlotIndex(*name, NULL)));
+      locals->set(i * 2 + 1, context->get(
+          scope_info->ContextSlotIndex(*name, &mode, &init_flag)));
     }
   }
 
@@ -10856,7 +10882,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
-  int argument_count = info.number_of_parameters();
+  int argument_count = scope_info->ParameterCount();
   if (argument_count < frame_inspector.GetParametersCount()) {
     argument_count = frame_inspector.GetParametersCount();
   }
@@ -10868,7 +10894,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Calculate the size of the result.
   int details_size = kFrameDetailsFirstDynamicIndex +
-                     2 * (argument_count + info.NumberOfLocals()) +
+                     2 * (argument_count + scope_info->LocalCount()) +
                      (at_return ? 1 : 0);
   Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
 
@@ -10883,7 +10909,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Add the locals count
   details->set(kFrameDetailsLocalCountIndex,
-               Smi::FromInt(info.NumberOfLocals()));
+               Smi::FromInt(scope_info->LocalCount()));
 
   // Add the source position.
   if (position != RelocInfo::kNoPosition) {
@@ -10918,8 +10944,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Add arguments name and value.
   for (int i = 0; i < argument_count; i++) {
     // Name of the argument.
-    if (i < info.number_of_parameters()) {
-      details->set(details_index++, *info.parameter_name(i));
+    if (i < scope_info->ParameterCount()) {
+      details->set(details_index++, scope_info->ParameterName(i));
     } else {
       details->set(details_index++, heap->undefined_value());
     }
@@ -10934,7 +10960,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   }
 
   // Add locals name and value from the temporary copy from the function frame.
-  for (int i = 0; i < info.NumberOfLocals() * 2; i++) {
+  for (int i = 0; i < scope_info->LocalCount() * 2; i++) {
     details->set(details_index++, locals->get(i));
   }
 
@@ -10970,21 +10996,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 // Copy all the context locals into an object used to materialize a scope.
 static bool CopyContextLocalsToScopeObject(
     Isolate* isolate,
-    Handle<SerializedScopeInfo> serialized_scope_info,
-    ScopeInfo<>& scope_info,
+    Handle<ScopeInfo> scope_info,
     Handle<Context> context,
     Handle<JSObject> scope_object) {
   // Fill all context locals to the context extension.
-  for (int i = Context::MIN_CONTEXT_SLOTS;
-       i < scope_info.number_of_context_slots();
-       i++) {
-    int context_index = serialized_scope_info->ContextSlotIndex(
-        *scope_info.context_slot_name(i), NULL);
+  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+    VariableMode mode;
+    InitializationFlag init_flag;
+    int context_index = scope_info->ContextSlotIndex(
+        scope_info->ContextLocalName(i), &mode, &init_flag);
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(scope_object,
-                    scope_info.context_slot_name(i),
+                    Handle<String>(scope_info->ContextLocalName(i)),
                     Handle<Object>(context->get(context_index), isolate),
                     NONE,
                     kNonStrictMode),
@@ -11003,8 +11028,7 @@ static Handle<JSObject> MaterializeLocalScope(
     int inlined_frame_index) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<SerializedScopeInfo> serialized_scope_info(shared->scope_info());
-  ScopeInfo<> scope_info(*serialized_scope_info);
+  Handle<ScopeInfo> scope_info(shared->scope_info());
   FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
 
   // Allocate and initialize a JSObject with all the arguments, stack locals
@@ -11013,11 +11037,11 @@ static Handle<JSObject> MaterializeLocalScope(
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // First fill all parameters.
-  for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
+  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(local_scope,
-                    scope_info.parameter_name(i),
+                    Handle<String>(scope_info->ParameterName(i)),
                     Handle<Object>(frame_inspector.GetParameter(i)),
                     NONE,
                     kNonStrictMode),
@@ -11025,24 +11049,23 @@ static Handle<JSObject> MaterializeLocalScope(
   }
 
   // Second fill all stack locals.
-  for (int i = 0; i < scope_info.number_of_stack_slots(); ++i) {
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(local_scope,
-                    scope_info.stack_slot_name(i),
+                    Handle<String>(scope_info->StackLocalName(i)),
                     Handle<Object>(frame_inspector.GetExpression(i)),
                     NONE,
                     kNonStrictMode),
         Handle<JSObject>());
   }
 
-  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
+  if (scope_info->HasContext()) {
     // Third fill all context locals.
     Handle<Context> frame_context(Context::cast(frame->context()));
     Handle<Context> function_context(frame_context->declaration_context());
-    if (!CopyContextLocalsToScopeObject(isolate,
-                                        serialized_scope_info, scope_info,
-                                        function_context, local_scope)) {
+    if (!CopyContextLocalsToScopeObject(
+            isolate, scope_info, function_context, local_scope)) {
       return Handle<JSObject>();
     }
 
@@ -11085,8 +11108,7 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
   ASSERT(context->IsFunctionContext());
 
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  Handle<SerializedScopeInfo> serialized_scope_info(shared->scope_info());
-  ScopeInfo<> scope_info(*serialized_scope_info);
+  Handle<ScopeInfo> scope_info(shared->scope_info());
 
   // Allocate and initialize a JSObject with all the content of theis function
   // closure.
@@ -11094,9 +11116,8 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Fill all context locals to the context extension.
-  if (!CopyContextLocalsToScopeObject(isolate,
-                                      serialized_scope_info, scope_info,
-                                      context, closure_scope)) {
+  if (!CopyContextLocalsToScopeObject(
+          isolate, scope_info, context, closure_scope)) {
     return Handle<JSObject>();
   }
 
@@ -11151,9 +11172,7 @@ static Handle<JSObject> MaterializeBlockScope(
     Isolate* isolate,
     Handle<Context> context) {
   ASSERT(context->IsBlockContext());
-  Handle<SerializedScopeInfo> serialized_scope_info(
-      SerializedScopeInfo::cast(context->extension()));
-  ScopeInfo<> scope_info(*serialized_scope_info);
+  Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
 
   // Allocate and initialize a JSObject with all the arguments, stack locals
   // heap locals and extension properties of the debugged function.
@@ -11161,12 +11180,9 @@ static Handle<JSObject> MaterializeBlockScope(
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Fill all context locals.
-  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
-    if (!CopyContextLocalsToScopeObject(isolate,
-                                        serialized_scope_info, scope_info,
-                                        context, block_scope)) {
-      return Handle<JSObject>();
-    }
+  if (!CopyContextLocalsToScopeObject(
+          isolate, scope_info, context, block_scope)) {
+    return Handle<JSObject>();
   }
 
   return block_scope;
@@ -11223,18 +11239,14 @@ class ScopeIterator {
       // Global code
       CompilationInfo info(script);
       info.MarkAsGlobal();
-      bool result = ParserApi::Parse(&info);
-      ASSERT(result);
-      result = Scope::Analyze(&info);
-      ASSERT(result);
+      CHECK(ParserApi::Parse(&info));
+      CHECK(Scope::Analyze(&info));
       scope = info.function()->scope();
     } else {
       // Function code
       CompilationInfo info(shared_info);
-      bool result = ParserApi::Parse(&info);
-      ASSERT(result);
-      result = Scope::Analyze(&info);
-      ASSERT(result);
+      CHECK(ParserApi::Parse(&info));
+      CHECK(Scope::Analyze(&info));
       scope = info.function()->scope();
     }
 
@@ -11269,7 +11281,7 @@ class ScopeIterator {
   // Return the type of the current scope.
   ScopeType Type() {
     if (!nested_scope_chain_.is_empty()) {
-      Handle<SerializedScopeInfo> scope_info = nested_scope_chain_.last();
+      Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
       switch (scope_info->Type()) {
         case FUNCTION_SCOPE:
           ASSERT(context_->IsFunctionContext() ||
@@ -11333,17 +11345,15 @@ class ScopeIterator {
     return Handle<JSObject>();
   }
 
-  Handle<SerializedScopeInfo> CurrentScopeInfo() {
+  Handle<ScopeInfo> CurrentScopeInfo() {
     if (!nested_scope_chain_.is_empty()) {
       return nested_scope_chain_.last();
     } else if (context_->IsBlockContext()) {
-      return Handle<SerializedScopeInfo>(
-          SerializedScopeInfo::cast(context_->extension()));
+      return Handle<ScopeInfo>(ScopeInfo::cast(context_->extension()));
     } else if (context_->IsFunctionContext()) {
-      return Handle<SerializedScopeInfo>(
-          context_->closure()->shared()->scope_info());
+      return Handle<ScopeInfo>(context_->closure()->shared()->scope_info());
     }
-    return Handle<SerializedScopeInfo>::null();
+    return Handle<ScopeInfo>::null();
   }
 
   // Return the context for this scope. For the local context there might not
@@ -11370,8 +11380,7 @@ class ScopeIterator {
 
       case ScopeIterator::ScopeTypeLocal: {
         PrintF("Local:\n");
-        ScopeInfo<> scope_info(function_->shared()->scope_info());
-        scope_info.Print();
+        function_->shared()->scope_info()->Print();
         if (!CurrentContext().is_null()) {
           CurrentContext()->Print();
           if (CurrentContext()->has_extension()) {
@@ -11419,7 +11428,7 @@ class ScopeIterator {
   int inlined_frame_index_;
   Handle<JSFunction> function_;
   Handle<Context> context_;
-  List<Handle<SerializedScopeInfo> > nested_scope_chain_;
+  List<Handle<ScopeInfo> > nested_scope_chain_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };
@@ -11888,7 +11897,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
                                                    JavaScriptFrame* frame,
                                                    int inlined_frame_index) {
   HandleScope scope(isolate);
-  List<Handle<SerializedScopeInfo> > scope_chain;
+  List<Handle<ScopeInfo> > scope_chain;
   List<Handle<Context> > context_chain;
 
   ScopeIterator it(isolate, frame, inlined_frame_index);
@@ -11904,7 +11913,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
 
   // Iteratively copy and or materialize the nested contexts.
   while (!scope_chain.is_empty()) {
-    Handle<SerializedScopeInfo> scope_info = scope_chain.RemoveLast();
+    Handle<ScopeInfo> scope_info = scope_chain.RemoveLast();
     Handle<Context> current = context_chain.RemoveLast();
     ASSERT(!(scope_info->HasContext() & current.is_null()));
 
@@ -11950,23 +11959,24 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
                                          JavaScriptFrame* frame,
                                          int inlined_frame_index,
                                          Handle<JSFunction> function,
-                                         Handle<SerializedScopeInfo> scope_info,
-                                         const ScopeInfo<>* sinfo,
+                                         Handle<ScopeInfo> scope_info,
                                          Handle<Context> function_context) {
   // Try to find the value of 'arguments' to pass as parameter. If it is not
   // found (that is the debugged function does not reference 'arguments' and
   // does not support eval) then create an 'arguments' object.
   int index;
-  if (sinfo->number_of_stack_slots() > 0) {
+  if (scope_info->StackLocalCount() > 0) {
     index = scope_info->StackSlotIndex(isolate->heap()->arguments_symbol());
     if (index != -1) {
       return Handle<Object>(frame->GetExpression(index), isolate);
     }
   }
 
-  if (sinfo->number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
-    index = scope_info->ContextSlotIndex(isolate->heap()->arguments_symbol(),
-                                         NULL);
+  if (scope_info->HasHeapAllocatedLocals()) {
+    VariableMode mode;
+    InitializationFlag init_flag;
+    index = scope_info->ContextSlotIndex(
+        isolate->heap()->arguments_symbol(), &mode, &init_flag);
     if (index != -1) {
       return Handle<Object>(function_context->get(index), isolate);
     }
@@ -12031,16 +12041,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
-  Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
-  ScopeInfo<> sinfo(*scope_info);
+  Handle<ScopeInfo> scope_info(function->shared()->scope_info());
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->below(frame)) {
-    save = save->prev();
-  }
-  ASSERT(save != NULL);
+  SaveContext* save = FindSavedContextForFrame(isolate, frame);
+
   SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 
@@ -12055,9 +12061,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                                       isolate->factory()->undefined_value());
   go_between->set_context(function->context());
 #ifdef DEBUG
-  ScopeInfo<> go_between_sinfo(go_between->shared()->scope_info());
-  ASSERT(go_between_sinfo.number_of_parameters() == 0);
-  ASSERT(go_between_sinfo.number_of_context_slots() == 0);
+  Handle<ScopeInfo> go_between_scope_info(go_between->shared()->scope_info());
+  ASSERT(go_between_scope_info->ParameterCount() == 0);
+  ASSERT(go_between_scope_info->ContextLocalCount() == 0);
 #endif
 
   // Materialize the content of the local scope into a JSObject.
@@ -12075,7 +12081,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context;
   // Get the function's context if it has one.
-  if (scope_info->HasHeapAllocatedLocals()) {
+  if (scope_info->HasContext()) {
     function_context = Handle<Context>(frame_context->declaration_context());
   }
   context = CopyNestedScopeContextChain(isolate,
@@ -12120,9 +12126,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   if (has_pending_exception) return Failure::Exception();
 
   Handle<Object> arguments = GetArgumentsObject(isolate,
-                                                frame, inlined_frame_index,
-                                                function, scope_info,
-                                                &sinfo, function_context);
+                                                frame,
+                                                inlined_frame_index,
+                                                function,
+                                                scope_info,
+                                                function_context);
 
   // Invoke the evaluation function and return the result.
   Handle<Object> argv[] = { arguments, source };

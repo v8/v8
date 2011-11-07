@@ -126,7 +126,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
       v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
       Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
-          FUNCTION_CAST<v8::MessageCallback>(callback_obj->address());
+          FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
       Handle<Object> callback_data(listener.get(1));
       {
         // Do not allow exceptions to propagate.

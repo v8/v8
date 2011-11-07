@@ -1156,8 +1156,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
          (lhs.is(a1) && rhs.is(a0)));
 
   Label lhs_is_smi;
-  __ And(t0, lhs, Operand(kSmiTagMask));
-  __ Branch(&lhs_is_smi, eq, t0, Operand(zero_reg));
+  __ JumpIfSmi(lhs, &lhs_is_smi);
   // Rhs is a Smi.
   // Check whether the non-smi is a heap number.
   __ GetObjectType(lhs, t4, t4);
@@ -4712,8 +4711,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
   __ lw(a0, MemOperand(sp, kPreviousIndexOffset));
-  __ And(at, a0, Operand(kSmiTagMask));
-  __ Branch(&runtime, ne, at, Operand(zero_reg));
+  __ JumpIfNotSmi(a0, &runtime);
   __ Branch(&runtime, ls, a3, Operand(a0));
 
   // a2: Number of capture registers
@@ -5351,7 +5349,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
   // Index is not a smi.
@@ -5437,7 +5436,8 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharFromCode slow case");
 
   __ bind(&slow_case_);
@@ -5463,7 +5463,8 @@ void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   char_code_at_generator_.GenerateSlow(masm, call_helper);
   char_from_code_generator_.GenerateSlow(masm, call_helper);
 }
@@ -6979,84 +6980,6 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Having undefined at this place means the name is not contained.
     ASSERT_EQ(kSmiTagSize, 1);
     Register tmp = properties;
-    __ sll(tmp, index, 1);
-    __ Addu(tmp, properties, tmp);
-    __ lw(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    ASSERT(!tmp.is(entity_name));
-    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
-    __ Branch(done, eq, entity_name, Operand(tmp));
-
-    if (i != kInlinedProbes - 1) {
-      // Stop if found the property.
-      __ Branch(miss, eq, entity_name, Operand(Handle<String>(name)));
-
-      // Check if the entry name is not a symbol.
-      __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ lbu(entity_name,
-             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(tmp, entity_name, Operand(kIsSymbolMask));
-      __ Branch(miss, eq, tmp, Operand(zero_reg));
-
-      // Restore the properties.
-      __ lw(properties,
-            FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    }
-  }
-
-  const int spill_mask =
-      (ra.bit() | t2.bit() | t1.bit() | t0.bit() | a3.bit() |
-       a2.bit() | a1.bit() | a0.bit() | v0.bit());
-
-  __ MultiPush(spill_mask);
-  __ lw(a0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-  __ li(a1, Operand(Handle<String>(name)));
-  StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
-  __ CallStub(&stub);
-  __ mov(at, v0);
-  __ MultiPop(spill_mask);
-
-  __ Branch(done, eq, at, Operand(zero_reg));
-  __ Branch(miss, ne, at, Operand(zero_reg));
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
-    MacroAssembler* masm,
-    Label* miss,
-    Label* done,
-    Register receiver,
-    Register properties,
-    String* name,
-    Register scratch0) {
-// If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch0;
-    // Capacity is smi 2^n.
-    __ lw(index, FieldMemOperand(properties, kCapacityOffset));
-    __ Subu(index, index, Operand(1));
-    __ And(index, index, Operand(
-         Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    // index *= 3.
-    __ sll(at, index, 1);
-    __ Addu(index, index, at);
-
-    Register entity_name = scratch0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    Register tmp = properties;
-
     __ sll(scratch0, index, 1);
     __ Addu(tmp, properties, scratch0);
     __ lw(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
@@ -7090,14 +7013,12 @@ MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
   __ lw(a0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ li(a1, Operand(Handle<String>(name)));
   StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
-  MaybeObject* result = masm->TryCallStub(&stub);
-  if (result->IsFailure()) return result;
+  __ CallStub(&stub);
   __ mov(at, v0);
   __ MultiPop(spill_mask);
 
   __ Branch(done, eq, at, Operand(zero_reg));
   __ Branch(miss, ne, at, Operand(zero_reg));
-  return result;
 }
 
 
@@ -7112,6 +7033,11 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
                                                         Register name,
                                                         Register scratch1,
                                                         Register scratch2) {
+  ASSERT(!elements.is(scratch1));
+  ASSERT(!elements.is(scratch2));
+  ASSERT(!name.is(scratch1));
+  ASSERT(!name.is(scratch2));
+
   // Assert that name contains a string.
   if (FLAG_debug_code) __ AbortIfNotString(name);
 

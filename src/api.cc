@@ -4299,7 +4299,7 @@ static Local<External> ExternalNewImpl(void* data) {
 }
 
 static void* ExternalValueImpl(i::Handle<i::Object> obj) {
-  return reinterpret_cast<void*>(i::Foreign::cast(*obj)->address());
+  return reinterpret_cast<void*>(i::Foreign::cast(*obj)->foreign_address());
 }
 
 
@@ -4325,7 +4325,7 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
   if (value->IsSmi()) {
     return i::Internals::GetExternalPointerFromSmi(value);
   } else if (value->IsForeign()) {
-    return reinterpret_cast<void*>(i::Foreign::cast(value)->address());
+    return reinterpret_cast<void*>(i::Foreign::cast(value)->foreign_address());
   } else {
     return NULL;
   }
@@ -4878,7 +4878,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
 
     NeanderObject listener(i::JSObject::cast(listeners.get(i)));
     i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
-    if (callback_obj->address() == FUNCTION_ADDR(that)) {
+    if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners.set(i, isolate->heap()->undefined_value());
     }
   }

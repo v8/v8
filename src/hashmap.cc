@@ -39,12 +39,6 @@ namespace internal {
 Allocator HashMap::DefaultAllocator;
 
 
-HashMap::HashMap() {
-  allocator_ = NULL;
-  match_ = NULL;
-}
-
-
 HashMap::HashMap(MatchFun match,
                  Allocator* allocator,
                  uint32_t initial_capacity) {

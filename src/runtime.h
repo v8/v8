@@ -98,6 +98,7 @@ namespace internal {
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
+  F(StoreArrayLiteralElement, 5, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -246,7 +247,7 @@ namespace internal {
   F(DateLocalTimezone, 1, 1) \
   F(DateLocalTimeOffset, 0, 1) \
   F(DateDaylightSavingsOffset, 1, 1) \
-  F(DateMakeDay, 3, 1) \
+  F(DateMakeDay, 2, 1) \
   F(DateYMDFromTime, 2, 1) \
   \
   /* Numbers */ \
@@ -258,7 +259,6 @@ namespace internal {
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
   F(ResolvePossiblyDirectEval, 4, 2) \
-  F(ResolvePossiblyDirectEvalNoLookup, 4, 2) \
   \
   F(SetProperty, -1 /* 4 or 5 */, 1) \
   F(DefineOrRedefineDataProperty, 4, 1) \

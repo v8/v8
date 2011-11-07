@@ -1516,8 +1516,8 @@ class SymbolTableCleaner : public ObjectVisitor {
         if (o->IsExternalString()) {
           heap_->FinalizeExternalString(String::cast(*p));
         }
-        // Set the entry to null_value (as deleted).
-        *p = heap_->null_value();
+        // Set the entry to the_hole_value (as deleted).
+        *p = heap_->the_hole_value();
         pointers_removed_++;
       }
     }
@@ -2124,7 +2124,7 @@ void MarkCompactCollector::ProcessMapCaches() {
              i += MapCache::kEntrySize) {
           Object* raw_key = map_cache->get(i);
           if (raw_key == heap()->undefined_value() ||
-              raw_key == heap()->null_value()) continue;
+              raw_key == heap()->the_hole_value()) continue;
           STATIC_ASSERT(MapCache::kEntrySize == 2);
           Object* raw_map = map_cache->get(i + 1);
           if (raw_map->IsHeapObject() && IsMarked(raw_map)) {
@@ -2132,8 +2132,8 @@ void MarkCompactCollector::ProcessMapCaches() {
           } else {
             // Delete useless entries with unmarked maps.
             ASSERT(raw_map->IsMap());
-            map_cache->set_null_unchecked(heap(), i);
-            map_cache->set_null_unchecked(heap(), i + 1);
+            map_cache->set_the_hole(i);
+            map_cache->set_the_hole(i + 1);
           }
         }
         if (used_elements == 0) {
@@ -2320,7 +2320,7 @@ void MarkCompactCollector::ClearWeakMaps() {
     ObjectHashTable* table = weak_map->unchecked_table();
     for (int i = 0; i < table->Capacity(); i++) {
       if (!MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
-        table->RemoveEntry(i, heap());
+        table->RemoveEntry(i);
       }
     }
     weak_map_obj = weak_map->next();

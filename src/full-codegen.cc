@@ -410,27 +410,24 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
 
 void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
   __ push(reg);
-  codegen()->increment_stack_height();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Register reg) const {
   // For simplicity we always test the accumulator register.
   __ Move(result_register(), reg);
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
 
 void FullCodeGenerator::EffectContext::PlugTOS() const {
   __ Drop(1);
-  codegen()->decrement_stack_height();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::PlugTOS() const {
   __ pop(result_register());
-  codegen()->decrement_stack_height();
 }
 
 
@@ -441,8 +438,7 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
-  codegen()->decrement_stack_height();
-  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
 
@@ -656,14 +652,13 @@ FullCodeGenerator::InlineFunctionGenerator
 }
 
 
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
-  ZoneList<Expression*>* args = node->arguments();
-  const Runtime::Function* function = node->function();
+void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
+  const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
   ASSERT(function->intrinsic_type == Runtime::INLINE);
   InlineFunctionGenerator generator =
       FindInlineFunctionGenerator(function->function_id);
-  ((*this).*(generator))(args);
+  ((*this).*(generator))(expr);
 }
 
 
@@ -680,11 +675,25 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitInDuplicateContext(Expression* expr) {
+  if (context()->IsEffect()) {
+    VisitForEffect(expr);
+  } else if (context()->IsAccumulatorValue()) {
+    VisitForAccumulatorValue(expr);
+  } else if (context()->IsStackValue()) {
+    VisitForStackValue(expr);
+  } else if (context()->IsTest()) {
+    const TestContext* test = TestContext::cast(context());
+    VisitForControl(expr, test->true_label(), test->false_label(),
+                    test->fall_through());
+  }
+}
+
+
 void FullCodeGenerator::VisitComma(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ Comma");
   VisitForEffect(expr->left());
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
-  VisitInCurrentContext(expr->right());
+  VisitInDuplicateContext(expr->right());
 }
 
 
@@ -706,7 +715,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     }
     PrepareForBailoutForId(right_id, NO_REGISTERS);
     __ bind(&eval_right);
-    ForwardBailoutToChild(expr);
 
   } else if (context()->IsAccumulatorValue()) {
     VisitForAccumulatorValue(left);
@@ -714,7 +722,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     // case we need it.
     __ push(result_register());
     Label discard, restore;
-    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
       DoTest(left, &discard, &restore, &restore);
     } else {
@@ -733,7 +740,6 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     // case we need it.
     __ push(result_register());
     Label discard;
-    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
     if (is_logical_and) {
       DoTest(left, &discard, &done, &discard);
     } else {
@@ -755,7 +761,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
     __ bind(&eval_right);
   }
 
-  VisitInCurrentContext(right);
+  VisitInDuplicateContext(right);
   __ bind(&done);
 }
 
@@ -782,34 +788,6 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
 }
 
 
-void FullCodeGenerator::ForwardBailoutToChild(Expression* expr) {
-  if (!info_->HasDeoptimizationSupport()) return;
-  ASSERT(context()->IsTest());
-  ASSERT(expr == forward_bailout_stack_->expr());
-  forward_bailout_pending_ = forward_bailout_stack_;
-}
-
-
-void FullCodeGenerator::VisitInCurrentContext(Expression* expr) {
-  if (context()->IsTest()) {
-    ForwardBailoutStack stack(expr, forward_bailout_pending_);
-    ForwardBailoutStack* saved = forward_bailout_stack_;
-    forward_bailout_pending_ = NULL;
-    forward_bailout_stack_ = &stack;
-    Visit(expr);
-    forward_bailout_stack_ = saved;
-  } else {
-    ASSERT(forward_bailout_pending_ == NULL);
-    Visit(expr);
-    State state = context()->IsAccumulatorValue() ? TOS_REG : NO_REGISTERS;
-    PrepareForBailout(expr, state);
-    // Forwarding bailouts to children is a one shot operation. It should have
-    // been processed at this point.
-    ASSERT(forward_bailout_pending_ == NULL);
-  }
-}
-
-
 void FullCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
   NestedBlock nested_block(this, stmt);
@@ -820,9 +798,8 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   if (stmt->block_scope() != NULL) {
     { Comment cmnt(masm_, "[ Extend block context");
       scope_ = stmt->block_scope();
-      Handle<SerializedScopeInfo> scope_info = scope_->GetSerializedScopeInfo();
-      int heap_slots =
-          scope_info->NumberOfContextSlots() - Context::MIN_CONTEXT_SLOTS;
+      Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+      int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
       __ Push(scope_info);
       PushFunctionArgumentForContextAllocation();
       if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
@@ -979,7 +956,6 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   VisitForStackValue(stmt->expression());
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
-  decrement_stack_height();
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   { WithOrCatch body(this);
@@ -1149,13 +1125,10 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_handler_setup);
   {
-    const int delta = StackHandlerConstants::kSize / kPointerSize;
     TryCatch try_block(this);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
-    increment_stack_height(delta);
     Visit(stmt->try_block());
     __ PopTryHandler();
-    decrement_stack_height(delta);
   }
   __ bind(&done);
 }
@@ -1187,7 +1160,6 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // cooked before GC.
   Label finally_entry;
   Label try_handler_setup;
-  const int original_stack_height = stack_height();
 
   // Setup the try-handler chain. Use a call to
   // Jump to try-handler setup and try-block code. Use call to put try-handler
@@ -1209,7 +1181,6 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // Finally block implementation.
     Finally finally_block(this);
     EnterFinallyBlock();
-    set_stack_height(original_stack_height + Finally::kElementCount);
     Visit(stmt->finally_block());
     ExitFinallyBlock();  // Return to the calling code.
   }
@@ -1217,13 +1188,10 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   __ bind(&try_handler_setup);
   {
     // Setup try handler (stack pointer registers).
-    const int delta = StackHandlerConstants::kSize / kPointerSize;
     TryFinally try_block(this, &finally_entry);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
-    set_stack_height(original_stack_height + delta);
     Visit(stmt->try_block());
     __ PopTryHandler();
-    set_stack_height(original_stack_height);
   }
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the accumulator with one that's safe for GC.  The finally
@@ -1253,7 +1221,6 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
-  int start_stack_height = stack_height();
   if (context()->IsTest()) {
     const TestContext* for_test = TestContext::cast(context());
     VisitForControl(expr->then_expression(),
@@ -1261,17 +1228,15 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                     for_test->false_label(),
                     NULL);
   } else {
-    VisitInCurrentContext(expr->then_expression());
+    VisitInDuplicateContext(expr->then_expression());
     __ jmp(&done);
   }
 
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
-  set_stack_height(start_stack_height);
-  if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),
                         expr->else_expression_position());
-  VisitInCurrentContext(expr->else_expression());
+  VisitInDuplicateContext(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {
     __ bind(&done);
@@ -1308,11 +1273,8 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
 
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
-  // Throw has no effect on the stack height or the current expression context.
-  // Usually the expression context is null, because throw is a statement.
   VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
-  decrement_stack_height();
   // Never returns here.
 }
 
@@ -1332,7 +1294,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression *sub_expr;
   Handle<String> check;
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    EmitLiteralCompareTypeof(sub_expr, check);
+    EmitLiteralCompareTypeof(expr, sub_expr, check);
     return true;
   }
 

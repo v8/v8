@@ -516,8 +516,9 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
-  ASSERT(foreign->address() == reinterpret_cast<Address>(cache.location()));
-  foreign->set_address(0);
+  ASSERT(foreign->foreign_address() ==
+         reinterpret_cast<Address>(cache.location()));
+  foreign->set_foreign_address(0);
   Isolate* isolate = Isolate::Current();
   isolate->global_handles()->Destroy(cache.location());
   isolate->counters()->script_wrappers()->Decrement();
@@ -525,10 +526,10 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
-  if (script->wrapper()->address() != NULL) {
+  if (script->wrapper()->foreign_address() != NULL) {
     // Return the script wrapper directly from the cache.
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->address()));
+        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
   Isolate* isolate = Isolate::Current();
   // Construct a new script wrapper.
@@ -544,7 +545,8 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   isolate->global_handles()->MakeWeak(handle.location(), NULL,
                                       &ClearWrapperCache);
-  script->wrapper()->set_address(reinterpret_cast<Address>(handle.location()));
+  script->wrapper()->set_foreign_address(
+      reinterpret_cast<Address>(handle.location()));
   return result;
 }
 

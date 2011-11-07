@@ -172,7 +172,7 @@ class Factory {
   // Create a 'block' context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
-                                  Handle<SerializedScopeInfo> scope_info);
+                                  Handle<ScopeInfo> scope_info);
 
   // Return the Symbol matching the passed in string.
   Handle<String> SymbolFromString(Handle<String> value);
@@ -291,7 +291,7 @@ class Factory {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<SerializedScopeInfo> NewSerializedScopeInfo(int length);
+  Handle<ScopeInfo> NewScopeInfo(int length);
 
   Handle<Code> NewCode(const CodeDesc& desc,
                        Code::Flags flags,
@@ -409,7 +409,7 @@ class Factory {
       Handle<String> name,
       int number_of_literals,
       Handle<Code> code,
-      Handle<SerializedScopeInfo> scope_info);
+      Handle<ScopeInfo> scope_info);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   Handle<JSMessageObject> NewJSMessageObject(

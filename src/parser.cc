@@ -1385,7 +1385,9 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = declaration_scope->DeclareLocal(name, mode);
+      InitializationFlag init_flag = (fun != NULL || mode == VAR)
+          ? kCreatedInitialized : kNeedsInitialization;
+      var = declaration_scope->DeclareLocal(name, mode, init_flag);
     } else {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
@@ -1452,7 +1454,12 @@ VariableProxy* Parser::Declare(Handle<String> name,
       declaration_scope->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(declaration_scope, name, CONST, true, kind);
+    var = new(zone()) Variable(declaration_scope,
+                               name,
+                               CONST,
+                               true,
+                               kind,
+                               kNeedsInitialization);
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -1522,7 +1529,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(name, literals, code,
-          Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
+          Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.
@@ -1766,7 +1773,7 @@ Block* Parser::ParseVariableDeclarations(
     // For let/const declarations in harmony mode, we can also immediately
     // pre-resolve the proxy because it resides in the same scope as the
     // declaration.
-    Declare(name, mode, NULL, mode != VAR, CHECK_OK);
+    VariableProxy* proxy = Declare(name, mode, NULL, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
@@ -1819,6 +1826,11 @@ Block* Parser::ParseVariableDeclarations(
         fni_->RemoveLastFunction();
       }
       if (decl_props != NULL) *decl_props = kHasInitializers;
+    }
+
+    // Record the end position of the initializer.
+    if (proxy->var() != NULL) {
+      proxy->var()->set_initializer_position(scanner().location().end_pos);
     }
 
     // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
@@ -2283,7 +2295,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
       VariableMode mode = harmony_scoping_ ? LET : VAR;
-      catch_variable = catch_scope->DeclareLocal(name, mode);
+      catch_variable =
+          catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
       SaveScope save_scope(this, catch_scope);
       catch_block = ParseBlock(NULL, CHECK_OK);
@@ -2460,7 +2473,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // implementing stack allocated block scoped variables.
         Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
         VariableProxy* temp_proxy = new(zone()) VariableProxy(isolate(), temp);
-        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
+        VariableProxy* each = top_scope_->NewUnresolved(name);
         ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
         Target target(&this->target_stack_, loop);
 
@@ -2932,23 +2945,14 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // Keep track of eval() calls since they disable all local variable
         // optimizations.
         // The calls that need special treatment are the
-        // direct (i.e. not aliased) eval calls. These calls are all of the
-        // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain.
+        // direct eval calls. These calls are all of the form eval(...), with
+        // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        // TODO(994): In ES5, it doesn't matter if the "eval" var is declared
-        // in the local scope chain. It only matters that it's called "eval",
-        // is called without a receiver and it refers to the original eval
-        // function.
         VariableProxy* callee = result->AsVariableProxy();
         if (callee != NULL &&
             callee->IsVariable(isolate()->factory()->eval_symbol())) {
-          Handle<String> name = callee->name();
-          Variable* var = top_scope_->Lookup(name);
-          if (var == NULL) {
-            top_scope_->DeclarationScope()->RecordEvalCall();
-          }
+          top_scope_->DeclarationScope()->RecordEvalCall();
         }
         result = NewCall(result, args, pos);
         break;
@@ -5311,7 +5315,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  JavaScriptScanner scanner(isolate->unicode_cache());
+  Scanner scanner(isolate->unicode_cache());
   scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();

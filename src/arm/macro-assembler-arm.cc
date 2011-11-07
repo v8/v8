@@ -1094,7 +1094,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeFunction(JSFunction* function,
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     CallKind call_kind) {
@@ -1102,7 +1102,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  mov(r1, Operand(Handle<JSFunction>(function)));
+  mov(r1, Operand(function));
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -2084,31 +2084,9 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 }
 
 
-MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Handle<Code> code(Code::cast(result));
-  Call(code, RelocInfo::CODE_TARGET, kNoASTId, cond);
-  return result;
-}
-
-
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   ASSERT(allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe());
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
-}
-
-
-MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Jump(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond);
-  return result;
 }
 
 
@@ -2117,8 +2095,8 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 }
 
 
-MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
-    ExternalReference function, int stack_space) {
+void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
+                                              int stack_space) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   const int kNextOffset = 0;
@@ -2181,14 +2159,10 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   mov(pc, lr);
 
   bind(&promote_scheduled_exception);
-  MaybeObject* result
-      = TryTailCallExternalReference(
-          ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-          0,
-          1);
-  if (result->IsFailure()) {
-    return result;
-  }
+  TailCallExternalReference(
+      ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+      0,
+      1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -2200,8 +2174,6 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
   mov(r0, r4);
   jmp(&leave_exit_frame);
-
-  return result;
 }
 
 
@@ -2633,17 +2605,6 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
-MaybeObject* MacroAssembler::TryTailCallExternalReference(
-    const ExternalReference& ext, int num_arguments, int result_size) {
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  mov(r0, Operand(num_arguments));
-  return TryJumpToExternalReference(ext);
-}
-
-
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
@@ -2661,18 +2622,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   mov(r1, Operand(builtin));
   CEntryStub stub(1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-MaybeObject* MacroAssembler::TryJumpToExternalReference(
-    const ExternalReference& builtin) {
-#if defined(__thumb__)
-  // Thumb mode builtin.
-  ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
-#endif
-  mov(r1, Operand(builtin));
-  CEntryStub stub(1);
-  return TryTailCallStub(&stub);
 }
 
 

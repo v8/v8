@@ -32,6 +32,11 @@ const $WeakMap = global.WeakMap;
 
 //-------------------------------------------------------------------
 
+// Global sentinel to be used instead of undefined keys, which are not
+// supported internally but required for Harmony sets and maps.
+var undefined_sentinel = {};
+
+
 function SetConstructor() {
   if (%_IsConstructCall()) {
     %SetInitialize(this);
@@ -42,16 +47,25 @@ function SetConstructor() {
 
 
 function SetAdd(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return %SetAdd(this, key);
 }
 
 
 function SetHas(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return %SetHas(this, key);
 }
 
 
 function SetDelete(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return %SetDelete(this, key);
 }
 
@@ -66,21 +80,33 @@ function MapConstructor() {
 
 
 function MapGet(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return %MapGet(this, key);
 }
 
 
 function MapSet(key, value) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return %MapSet(this, key, value);
 }
 
 
 function MapHas(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   return !IS_UNDEFINED(%MapGet(this, key));
 }
 
 
 function MapDelete(key) {
+  if (IS_UNDEFINED(key)) {
+    key = undefined_sentinel;
+  }
   if (!IS_UNDEFINED(%MapGet(this, key))) {
     %MapSet(this, key, void 0);
     return true;

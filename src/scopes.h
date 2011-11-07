@@ -42,17 +42,14 @@ class VariableMap: public HashMap {
  public:
   VariableMap();
 
-  // Dummy constructor.  This constructor doesn't set up the map
-  // properly so don't use it unless you have a good reason.
-  explicit VariableMap(bool gotta_love_static_overloading);
-
   virtual ~VariableMap();
 
   Variable* Declare(Scope* scope,
                     Handle<String> name,
                     VariableMode mode,
                     bool is_valid_lhs,
-                    Variable::Kind kind);
+                    Variable::Kind kind,
+                    InitializationFlag initialization_flag);
 
   Variable* Lookup(Handle<String> name);
 };
@@ -131,7 +128,9 @@ class Scope: public ZoneObject {
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(Handle<String> name, VariableMode mode);
+  Variable* DeclareLocal(Handle<String> name,
+                         VariableMode mode,
+                         InitializationFlag init_flag);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
@@ -304,9 +303,11 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
-  // Collect all used locals in this scope.
-  template<class Allocator>
-  void CollectUsedVariables(List<Variable*, Allocator>* locals);
+  // Collect stack and context allocated local variables in this scope. Note
+  // that the function variable - if present - is not collected and should be
+  // handled separately.
+  void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
+                                    ZoneList<Variable*>* context_locals);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
@@ -325,6 +326,9 @@ class Scope: public ZoneObject {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
+  int StackLocalCount() const;
+  int ContextLocalCount() const;
+
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }
 
@@ -341,13 +345,13 @@ class Scope: public ZoneObject {
   // where var declarations will be hoisted to in the implementation.
   Scope* DeclarationScope();
 
-  Handle<SerializedScopeInfo> GetSerializedScopeInfo();
+  Handle<ScopeInfo> GetScopeInfo();
 
   // Get the chain of nested scopes within this scope for the source statement
   // position. The scopes will be added to the list from the outermost scope to
   // the innermost scope. Only nested block, catch or with scopes are tracked
   // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(List<Handle<SerializedScopeInfo> >* chain,
+  void GetNestedScopeChain(List<Handle<ScopeInfo> >* chain,
                            int statement_position);
 
   // ---------------------------------------------------------------------------
@@ -372,8 +376,6 @@ class Scope: public ZoneObject {
   // Implementation.
  protected:
   friend class ParserFactory;
-
-  explicit Scope(ScopeType type);
 
   Isolate* const isolate_;
 
@@ -444,8 +446,8 @@ class Scope: public ZoneObject {
   int num_stack_slots_;
   int num_heap_slots_;
 
-  // Serialized scopes support.
-  Handle<SerializedScopeInfo> scope_info_;
+  // Serialized scope info support.
+  Handle<ScopeInfo> scope_info_;
   bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
@@ -529,9 +531,7 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope,
-        ScopeType type,
-        Handle<SerializedScopeInfo> scope_info);
+  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
@@ -545,7 +545,7 @@ class Scope: public ZoneObject {
 
   void SetDefaults(ScopeType type,
                    Scope* outer_scope,
-                   Handle<SerializedScopeInfo> scope_info);
+                   Handle<ScopeInfo> scope_info);
 };
 
 } }  // namespace v8::internal

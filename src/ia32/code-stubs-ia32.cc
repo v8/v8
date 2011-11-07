@@ -5189,7 +5189,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
   // Index is not a smi.
@@ -5274,7 +5275,8 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharFromCode slow case");
 
   __ bind(&slow_case_);
@@ -5301,7 +5303,8 @@ void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+    MacroAssembler* masm,
+    const RuntimeCallHelper& call_helper) {
   char_code_at_generator_.GenerateSlow(masm, call_helper);
   char_from_code_generator_.GenerateSlow(masm, call_helper);
 }
@@ -6599,69 +6602,6 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 }
 
 
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
-    MacroAssembler* masm,
-    Label* miss,
-    Label* done,
-    Register properties,
-    String* name,
-    Register r0) {
-  ASSERT(name->IsSymbol());
-
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r0;
-    // Capacity is smi 2^n.
-    __ mov(index, FieldOperand(properties, kCapacityOffset));
-    __ dec(index);
-    __ and_(index,
-            Immediate(Smi::FromInt(name->Hash() +
-                                   StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
-    Register entity_name = r0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
-                                kElementsStartOffset - kHeapObjectTag));
-    __ cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done);
-
-    // Stop if found the property.
-    __ cmp(entity_name, Handle<String>(name));
-    __ j(equal, miss);
-
-    // Check if the entry name is not a symbol.
-    __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-              kIsSymbolMask);
-    __ j(zero, miss);
-  }
-
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
-  __ push(Immediate(Handle<Object>(name)));
-  __ push(Immediate(name->Hash()));
-  MaybeObject* result = masm->TryCallStub(&stub);
-  if (result->IsFailure()) return result;
-  __ test(r0, r0);
-  __ j(not_zero, miss);
-  __ jmp(done);
-  return result;
-}
-
-
 // Probe the string dictionary in the |elements| register. Jump to the
 // |done| label if a property with the given name is found leaving the
 // index into the dictionary in |r0|. Jump to the |miss| label
@@ -6847,6 +6787,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { eax, edx, esi, EMIT_REMEMBERED_SET},
   { edx, eax, edi, EMIT_REMEMBERED_SET},
+  // StoreArrayLiteralElementStub::Generate
+  { ebx, eax, ecx, EMIT_REMEMBERED_SET},
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -7087,6 +7029,93 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
+}
+
+
+void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : element value to store
+  //  -- ebx    : array literal
+  //  -- edi    : map of array literal
+  //  -- ecx    : element index as smi
+  //  -- edx    : array literal index in function
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  Label element_done;
+  Label double_elements;
+  Label smi_element;
+  Label slow_elements;
+  Label slow_elements_from_double;
+  Label fast_elements;
+
+  if (!FLAG_trace_elements_transitions) {
+    __ CheckFastElements(edi, &double_elements);
+
+    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+    __ JumpIfSmi(eax, &smi_element);
+    __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
+
+    // Store into the array literal requires a elements transition. Call into
+    // the runtime.
+  }
+
+  __ bind(&slow_elements);
+  __ pop(edi);  // Pop return address and remember to put back later for tail
+                // call.
+  __ push(ebx);
+  __ push(ecx);
+  __ push(eax);
+  __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
+  __ push(edx);
+  __ push(edi);  // Return return address so that tail call returns to right
+                 // place.
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+
+  if (!FLAG_trace_elements_transitions) {
+    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+    __ bind(&double_elements);
+
+    __ push(edx);
+    __ mov(edx, FieldOperand(ebx, JSObject::kElementsOffset));
+    __ StoreNumberToDoubleElements(eax,
+                                   edx,
+                                   ecx,
+                                   edi,
+                                   xmm0,
+                                   &slow_elements_from_double,
+                                   false);
+    __ pop(edx);
+    __ jmp(&element_done);
+
+    __ bind(&slow_elements_from_double);
+    __ pop(edx);
+    __ jmp(&slow_elements);
+
+    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+    __ bind(&fast_elements);
+    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+    __ lea(ecx, FieldOperand(ebx, ecx, times_half_pointer_size,
+                             FixedArrayBase::kHeaderSize));
+    __ mov(Operand(ecx, 0), eax);
+    // Update the write barrier for the array store.
+    __ RecordWrite(ebx, ecx, eax,
+                   kDontSaveFPRegs,
+                   EMIT_REMEMBERED_SET,
+                   OMIT_SMI_CHECK);
+    __ jmp(&element_done);
+
+    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+    // FAST_ELEMENTS, and value is Smi.
+    __ bind(&smi_element);
+    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+    __ mov(FieldOperand(ebx, ecx, times_half_pointer_size,
+                        FixedArrayBase::kHeaderSize), eax);
+    // Fall through
+    __ bind(&element_done);
+    __ ret(0);
+  }
 }
 
 #undef __

@@ -82,8 +82,6 @@ const kMinYear  = -1000000;
 const kMaxYear  = 1000000;
 const kMinMonth = -10000000;
 const kMaxMonth = 10000000;
-const kMinDate  = -100000000;
-const kMaxDate  = 100000000;
 
 # Native cache ids.
 const STRING_TO_REGEXP_CACHE_ID = 0;

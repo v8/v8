@@ -77,7 +77,8 @@ class Variable: public ZoneObject {
            Handle<String> name,
            VariableMode mode,
            bool is_valid_lhs,
-           Kind kind);
+           Kind kind,
+           InitializationFlag initialization_flag);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -92,15 +93,18 @@ class Variable: public ZoneObject {
 
   Handle<String> name() const { return name_; }
   VariableMode mode() const { return mode_; }
-  bool is_accessed_from_inner_scope() const {
-    return is_accessed_from_inner_scope_;
+  bool has_forced_context_allocation() const {
+    return force_context_allocation_;
   }
-  void MarkAsAccessedFromInnerScope() {
+  void ForceContextAllocation() {
     ASSERT(mode_ != TEMPORARY);
-    is_accessed_from_inner_scope_ = true;
+    force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
   void set_is_used(bool flag) { is_used_ = flag; }
+
+  int initializer_position() { return initializer_position_; }
+  void set_initializer_position(int pos) { initializer_position_ = pos; }
 
   bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
@@ -123,9 +127,7 @@ class Variable: public ZoneObject {
             mode_ == CONST_HARMONY);
   }
   bool binding_needs_init() const {
-    return (mode_ == LET ||
-            mode_ == CONST ||
-            mode_ == CONST_HARMONY);
+    return initialization_flag_ == kNeedsInitialization;
   }
 
   bool is_global() const;
@@ -134,8 +136,7 @@ class Variable: public ZoneObject {
 
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval() const {
-    return IsVariable(FACTORY->eval_symbol()) &&
-        (mode_ == DYNAMIC || mode_ == DYNAMIC_GLOBAL);
+    return IsVariable(FACTORY->eval_symbol());
   }
 
   Variable* local_if_not_shadowed() const {
@@ -149,11 +150,16 @@ class Variable: public ZoneObject {
 
   Location location() const { return location_; }
   int index() const { return index_; }
+  InitializationFlag initialization_flag() const {
+    return initialization_flag_;
+  }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
     index_ = index;
   }
+
+  static int CompareIndex(Variable* const* v, Variable* const* w);
 
  private:
   Scope* scope_;
@@ -162,6 +168,7 @@ class Variable: public ZoneObject {
   Kind kind_;
   Location location_;
   int index_;
+  int initializer_position_;
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
@@ -173,8 +180,9 @@ class Variable: public ZoneObject {
   bool is_valid_LHS_;
 
   // Usage info.
-  bool is_accessed_from_inner_scope_;  // set by variable resolver
+  bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
+  InitializationFlag initialization_flag_;
 };
 
 
