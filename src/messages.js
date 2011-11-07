@@ -247,16 +247,21 @@ function FormatMessage(message) {
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
     ];
     var messages = { __proto__ : null };
-    var desc = new PropertyDescriptor();
-    desc.setConfigurable(false);
-    desc.setEnumerable(false);
-    desc.setWritable(false);
     for (var i = 0; i < messagesDictionary.length; i += 2) {
       var key = messagesDictionary[i];
       var format = messagesDictionary[i + 1];
-      ObjectFreeze(format);
-      desc.setValue(format);
-      DefineOwnProperty(messages, key, desc);
+
+      for (var j = 0; j < format.length; j++) {
+        %IgnoreAttributesAndSetProperty(format, %_NumberToString(j), format[j],
+                                        DONT_DELETE | READ_ONLY | DONT_ENUM);
+      }
+      %IgnoreAttributesAndSetProperty(format, 'length', format.length,
+                                      DONT_DELETE | READ_ONLY | DONT_ENUM);
+      %PreventExtensions(format);
+      %IgnoreAttributesAndSetProperty(messages,
+                                      key,
+                                      format,
+                                      DONT_DELETE | DONT_ENUM | READ_ONLY);
     }
     %PreventExtensions(messages);
     %IgnoreAttributesAndSetProperty(builtins, "kMessages",
