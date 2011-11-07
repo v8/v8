@@ -1234,59 +1234,27 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, var->IsContextSlot()
                               ? "Context variable"
                               : "Stack variable");
-      if (var->binding_needs_init()) {
-        // var->scope() may be NULL when the proxy is located in eval code and
-        // refers to a potential outside binding. Currently those bindings are
-        // always looked up dynamically, i.e. in that case
-        //     var->location() == LOOKUP.
-        // always holds.
-        ASSERT(var->scope() != NULL);
-
-        // Check if the binding really needs an initialization check. The check
-        // can be skipped in the following situation: we have a LET or CONST
-        // binding in harmony mode, both the Variable and the VariableProxy have
-        // the same declaration scope (i.e. they are both in global code, in the
-        // same function or in the same eval code) and the VariableProxy is in
-        // the source physically located after the initializer of the variable.
-        //
-        // We cannot skip any initialization checks for CONST in non-harmony
-        // mode because const variables may be declared but never initialized:
-        //   if (false) { const x; }; var y = x;
-        //
-        // The condition on the declaration scopes is a conservative check for
-        // nested functions that access a binding and are called before the
-        // binding is initialized:
-        //   function() { f(); let x = 1; function f() { x = 2; } }
-        //
-        // Check that we always have valid source position.
-        ASSERT(var->initializer_position() != RelocInfo::kNoPosition);
-        ASSERT(proxy->position() != RelocInfo::kNoPosition);
-        bool skip_init_check =
-            var->mode() != CONST &&
-            var->scope()->DeclarationScope() == scope()->DeclarationScope() &&
-            var->initializer_position() < proxy->position();
-        if (!skip_init_check) {
-          // Let and const need a read barrier.
-          Label done;
-          GetVar(eax, var);
-          __ cmp(eax, isolate()->factory()->the_hole_value());
-          __ j(not_equal, &done, Label::kNear);
-          if (var->mode() == LET || var->mode() == CONST_HARMONY) {
-            // Throw a reference error when using an uninitialized let/const
-            // binding in harmony mode.
-            __ push(Immediate(var->name()));
-            __ CallRuntime(Runtime::kThrowReferenceError, 1);
-          } else {
-            // Uninitalized const bindings outside of harmony mode are unholed.
-            ASSERT(var->mode() == CONST);
-            __ mov(eax, isolate()->factory()->undefined_value());
-          }
-          __ bind(&done);
-          context()->Plug(eax);
-          break;
+      if (!var->binding_needs_init()) {
+        context()->Plug(var);
+      } else {
+        // Let and const need a read barrier.
+        Label done;
+        GetVar(eax, var);
+        __ cmp(eax, isolate()->factory()->the_hole_value());
+        __ j(not_equal, &done, Label::kNear);
+        if (var->mode() == LET || var->mode() == CONST_HARMONY) {
+          // Throw a reference error when using an uninitialized let/const
+          // binding in harmony mode.
+          __ push(Immediate(var->name()));
+          __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        } else {
+          // Uninitalized const bindings outside of harmony mode are unholed.
+          ASSERT(var->mode() == CONST);
+          __ mov(eax, isolate()->factory()->undefined_value());
         }
+        __ bind(&done);
+        context()->Plug(eax);
       }
-      context()->Plug(var);
       break;
     }
 

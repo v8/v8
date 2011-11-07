@@ -103,9 +103,6 @@ class Variable: public ZoneObject {
   bool is_used() { return is_used_; }
   void set_is_used(bool flag) { is_used_ = flag; }
 
-  int initializer_position() { return initializer_position_; }
-  void set_initializer_position(int pos) { initializer_position_ = pos; }
-
   bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
   }
@@ -168,7 +165,6 @@ class Variable: public ZoneObject {
   Kind kind_;
   Location location_;
   int index_;
-  int initializer_position_;
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by

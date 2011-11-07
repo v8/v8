@@ -1773,7 +1773,7 @@ Block* Parser::ParseVariableDeclarations(
     // For let/const declarations in harmony mode, we can also immediately
     // pre-resolve the proxy because it resides in the same scope as the
     // declaration.
-    VariableProxy* proxy = Declare(name, mode, NULL, mode != VAR, CHECK_OK);
+    Declare(name, mode, NULL, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
@@ -1826,11 +1826,6 @@ Block* Parser::ParseVariableDeclarations(
         fni_->RemoveLastFunction();
       }
       if (decl_props != NULL) *decl_props = kHasInitializers;
-    }
-
-    // Record the end position of the initializer.
-    if (proxy->var() != NULL) {
-      proxy->var()->set_initializer_position(scanner().location().end_pos);
     }
 
     // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
