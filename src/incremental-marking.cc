@@ -831,7 +831,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
     speed_up = true;
   }
 
-  if (speed_up && 0) {
+  if (speed_up) {
     allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
     allocation_marking_factor_ =
         static_cast<int>(allocation_marking_factor_ * 1.3);
