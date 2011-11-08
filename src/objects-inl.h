@@ -1865,9 +1865,7 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 
 
 bool DescriptorArray::IsTransition(int descriptor_number) {
-  PropertyType t = GetType(descriptor_number);
-  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-      t == ELEMENTS_TRANSITION;
+  return IsTransitionType(GetType(descriptor_number));
 }
 
 

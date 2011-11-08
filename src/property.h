@@ -292,10 +292,10 @@ class LookupResult BASE_EMBEDDED {
     }
   }
 
+
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION ||
-           type() == ELEMENTS_TRANSITION);
+    ASSERT(IsTransitionType(type()));
     return Map::cast(GetValue());
   }
 

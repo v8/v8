@@ -3023,10 +3023,11 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
     case NULL_DESCRIPTOR:
     case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
-    default:
+    case HANDLER:
       UNREACHABLE();
+      return value;
   }
-  UNREACHABLE();
+  UNREACHABLE();  // keep the compiler happy
   return value;
 }
 
@@ -3111,10 +3112,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     case NULL_DESCRIPTOR:
     case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
-    default:
+    case HANDLER:
       UNREACHABLE();
+      return value;
   }
-  UNREACHABLE();
+  UNREACHABLE();  // keep the compiler happy
   return value;
 }
 
@@ -3400,8 +3402,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       case INTERCEPTOR:
       case ELEMENTS_TRANSITION:
         break;
-      default:
+      case HANDLER:
+      case NORMAL:
         UNREACHABLE();
+        break;
     }
   }
 
@@ -7007,9 +7011,7 @@ void Map::CreateOneBackPointer(Map* target) {
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
-    if (descriptors->GetType(i) == MAP_TRANSITION ||
-        descriptors->GetType(i) == ELEMENTS_TRANSITION ||
-        descriptors->GetType(i) == CONSTANT_TRANSITION) {
+    if (descriptors->IsTransition(i)) {
       Object* object = reinterpret_cast<Object*>(descriptors->GetValue(i));
       if (object->IsMap()) {
         CreateOneBackPointer(reinterpret_cast<Map*>(object));
@@ -7047,9 +7049,7 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
     // map is not reached again by following a back pointer from a
     // non-live object.
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
-    if (details.type() == MAP_TRANSITION ||
-        details.type() == ELEMENTS_TRANSITION ||
-        details.type() == CONSTANT_TRANSITION) {
+    if (IsTransitionType(details.type())) {
       Object* object = reinterpret_cast<Object*>(contents->get(i));
       if (object->IsMap()) {
         Map* target = reinterpret_cast<Map*>(object);
@@ -8034,7 +8034,7 @@ const char* Code::PropertyType2String(PropertyType type) {
     case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
     case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
   }
-  UNREACHABLE();
+  UNREACHABLE();  // keep the compiler happy
   return NULL;
 }
 

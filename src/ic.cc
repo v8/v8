@@ -1330,10 +1330,12 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
-  // Skip JSGlobalProxy.
   ASSERT(!receiver->IsJSGlobalProxy());
-
   ASSERT(StoreICableLookup(lookup));
+  // These are not cacheable, so we never see such LookupResults here.
+  ASSERT(lookup->type() != HANDLER);
+  // We get only called for properties or transitions, see StoreICableLookup.
+  ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
@@ -1354,7 +1356,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() != NONE) return;
-      ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
       code = isolate()->stub_cache()->ComputeStoreField(
@@ -1390,7 +1391,13 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       code = isolate()->stub_cache()->ComputeStoreInterceptor(
           name, receiver, strict_mode);
       break;
-    default:
+    case CONSTANT_FUNCTION:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
+      return;
+    case HANDLER:
+    case NULL_DESCRIPTOR:
+      UNREACHABLE();
       return;
   }
 
@@ -1636,13 +1643,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
       return *value;
     }
 
-    // Lookup the property locally in the receiver.
-    LookupResult lookup(isolate());
-    receiver->LocalLookup(*name, &lookup);
-
     // Update inline cache and stub cache.
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+    if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+      LookupResult lookup(isolate());
+      if (LookupForWrite(receiver, name, &lookup)) {
+        UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      }
     }
 
     // Set the property.
@@ -1698,15 +1704,12 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                                 Handle<JSObject> receiver,
                                 Handle<String> name,
                                 Handle<Object> value) {
-  // Skip JSGlobalProxy.
-  if (receiver->IsJSGlobalProxy()) return;
-
-  // Bail out if we didn't find a result.
-  if (!lookup->IsPropertyOrTransition() || !lookup->IsCacheable()) return;
-
-  // If the property is read-only, we leave the IC in its current
-  // state.
-  if (lookup->IsReadOnly()) return;
+  ASSERT(!receiver->IsJSGlobalProxy());
+  ASSERT(StoreICableLookup(lookup));
+  // These are not cacheable, so we never see such LookupResults here.
+  ASSERT(lookup->type() != HANDLER);
+  // We get only called for properties or transitions, see StoreICableLookup.
+  ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
@@ -1726,7 +1729,6 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
       break;
     case MAP_TRANSITION:
       if (lookup->GetAttributes() == NONE) {
-        ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
         code = isolate()->stub_cache()->ComputeKeyedStoreField(
@@ -1734,13 +1736,22 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       // fall through.
-    default:
+    case NORMAL:
+    case CONSTANT_FUNCTION:
+    case CALLBACKS:
+    case INTERCEPTOR:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
       code = (strict_mode == kStrictMode)
           ? generic_stub_strict()
           : generic_stub();
       break;
+    case HANDLER:
+    case NULL_DESCRIPTOR:
+      UNREACHABLE();
+      return;
   }
 
   ASSERT(!code.is_null());

@@ -207,8 +207,7 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-        t == ELEMENTS_TRANSITION;
+    return IsTransitionType(t);
   }
 
   bool IsProperty() {

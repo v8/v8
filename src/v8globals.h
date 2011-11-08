@@ -29,6 +29,7 @@
 #define V8_V8GLOBALS_H_
 
 #include "globals.h"
+#include "checks.h"
 
 namespace v8 {
 namespace internal {
@@ -346,6 +347,25 @@ enum PropertyType {
   NONEXISTENT = NULL_DESCRIPTOR
 };
 
+
+inline bool IsTransitionType(PropertyType type) {
+  switch (type) {
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
+      return true;
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case CALLBACKS:
+    case HANDLER:
+    case INTERCEPTOR:
+    case NULL_DESCRIPTOR:
+      return false;
+  }
+  UNREACHABLE();  // keep the compiler happy
+  return false;
+}
 
 // Whether to remove map transitions and constant transitions from a
 // DescriptorArray.
