@@ -401,6 +401,7 @@
             '../../src/prettyprinter.h',
             '../../src/property.cc',
             '../../src/property.h',
+            '../../src/property-details.h',
             '../../src/profile-generator-inl.h',
             '../../src/profile-generator.cc',
             '../../src/profile-generator.h',
