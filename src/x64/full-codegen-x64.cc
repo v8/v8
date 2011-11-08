@@ -1493,60 +1493,12 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForAccumulatorValue(subexpr);
 
     // Store the subexpression value in the array's elements.
-    __ movq(r8, Operand(rsp, 0));  // Copy of array literal.
-    __ movq(rdi, FieldOperand(r8, JSObject::kMapOffset));
-    __ movq(rbx, FieldOperand(r8, JSObject::kElementsOffset));
-    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-
-    Label element_done;
-    Label double_elements;
-    Label smi_element;
-    Label slow_elements;
-    Label fast_elements;
-    __ CheckFastElements(rdi, &double_elements);
-
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(result_register(), &smi_element);
-    __ CheckFastSmiOnlyElements(rdi, &fast_elements);
-
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-    __ bind(&slow_elements);
-    __ push(r8);  // Copy of array literal.
-    __ Push(Smi::FromInt(i));
-    __ push(result_register());
-    __ Push(Smi::FromInt(NONE));  // PropertyAttributes
-    __ Push(Smi::FromInt(strict_mode_flag()));  // Strict mode.
-    __ CallRuntime(Runtime::kSetProperty, 5);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
-    __ movq(rcx, Immediate(i));
-    __ StoreNumberToDoubleElements(result_register(),
-                                   rbx,
-                                   rcx,
-                                   xmm0,
-                                   &slow_elements);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
-    __ movq(FieldOperand(rbx, offset), result_register());
-    // Update the write barrier for the array store.
-    __ RecordWriteField(rbx, offset, result_register(), rcx,
-                        kDontSaveFPRegs,
-                        EMIT_REMEMBERED_SET,
-                        OMIT_SMI_CHECK);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ movq(FieldOperand(rbx, offset), result_register());
-    // Fall through
-
-    __ bind(&element_done);
+    __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
+    __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
+    __ Move(rcx, Smi::FromInt(i));
+    __ movq(rdx, Immediate(expr->literal_index()));
+    StoreArrayLiteralElementStub stub;
+    __ CallStub(&stub);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }

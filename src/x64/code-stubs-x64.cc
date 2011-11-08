@@ -5702,6 +5702,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { rdx, r11, r15, EMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { r11, rax, r15, EMIT_REMEMBERED_SET},
+  // StoreArrayLiteralElementStub::Generate
+  { rbx, rax, rcx, EMIT_REMEMBERED_SET},
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -5947,6 +5949,87 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
+}
+
+
+void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : element value to store
+  //  -- rbx    : array literal
+  //  -- rdi    : map of array literal
+  //  -- rcx    : element index as smi
+  //  -- rdx    : array literal index in function
+  //  -- rsp[0] : return address
+  // -----------------------------------
+
+  Label element_done;
+  Label double_elements;
+  Label smi_element;
+  Label slow_elements;
+  Label fast_elements;
+
+  if (!FLAG_trace_elements_transitions) {
+    __ CheckFastElements(rdi, &double_elements);
+
+    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+    __ JumpIfSmi(rax, &smi_element);
+    __ CheckFastSmiOnlyElements(rdi, &fast_elements);
+
+    // Store into the array literal requires a elements transition. Call into
+    // the runtime.
+  }
+
+  __ bind(&slow_elements);
+  __ pop(rdi);  // Pop return address and remember to put back later for tail
+                // call.
+  __ push(rbx);
+  __ push(rcx);
+  __ push(rax);
+  __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
+  __ push(rdx);
+  __ push(rdi);  // Return return address so that tail call returns to right
+                 // place.
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+
+  if (!FLAG_trace_elements_transitions) {
+    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+    __ bind(&double_elements);
+
+    __ movq(r9, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ SmiToInteger32(r10, rcx);
+    __ StoreNumberToDoubleElements(rax,
+                                   r9,
+                                   r10,
+                                   xmm0,
+                                   &slow_elements);
+    __ jmp(&element_done);
+
+    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+    __ bind(&fast_elements);
+    __ SmiToInteger32(r10, rcx);
+    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ lea(rcx, FieldOperand(rbx, r10, times_pointer_size,
+                             FixedArrayBase::kHeaderSize));
+    __ movq(Operand(rcx, 0), rax);
+    // Update the write barrier for the array store.
+    __ RecordWrite(rbx, rcx, rax,
+                   kDontSaveFPRegs,
+                   EMIT_REMEMBERED_SET,
+                   OMIT_SMI_CHECK);
+    __ jmp(&element_done);
+
+    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+    // FAST_ELEMENTS, and value is Smi.
+    __ bind(&smi_element);
+    __ SmiToInteger32(r10, rcx);
+    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ movq(FieldOperand(rbx, r10, times_pointer_size,
+                        FixedArrayBase::kHeaderSize), rax);
+    // Fall through
+    __ bind(&element_done);
+    __ ret(0);
+  }
 }
 
 #undef __
