@@ -213,6 +213,8 @@ class IncrementalMarking {
     no_marking_scope_depth_--;
   }
 
+  void UncommitMarkingDeque();
+
  private:
   void set_should_hurry(bool val) {
     should_hurry_ = val;
@@ -250,6 +252,7 @@ class IncrementalMarking {
   bool is_compacting_;
 
   VirtualMemory* marking_deque_memory_;
+  bool marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
 
   int steps_count_;

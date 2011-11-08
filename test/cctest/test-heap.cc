@@ -1220,6 +1220,19 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
 }
 
 
+static void FillUpNewSpace(NewSpace* new_space) {
+  // Fill up new space to the point that it is completely full. Make sure
+  // that the scavenger does not undo the filling.
+  v8::HandleScope scope;
+  AlwaysAllocateScope always_allocate;
+  intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
+  intptr_t number_of_fillers = (available / FixedArray::SizeFor(1000)) - 10;
+  for (intptr_t i = 0; i < number_of_fillers; i++) {
+    CHECK(HEAP->InNewSpace(*FACTORY->NewFixedArray(1000, NOT_TENURED)));
+  }
+}
+
+
 TEST(GrowAndShrinkNewSpace) {
   InitializeVM();
   NewSpace* new_space = HEAP->new_space();
@@ -1231,18 +1244,8 @@ TEST(GrowAndShrinkNewSpace) {
   new_capacity = new_space->Capacity();
   CHECK(2 * old_capacity == new_capacity);
 
-  // Fill up new space to the point that it is completely full. Make sure
-  // that the scavenger does not undo the filling.
   old_capacity = new_space->Capacity();
-  {
-    v8::HandleScope scope;
-    AlwaysAllocateScope always_allocate;
-    intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
-    intptr_t number_of_fillers = (available / FixedArray::SizeFor(1000)) - 10;
-    for (intptr_t i = 0; i < number_of_fillers; i++) {
-      CHECK(HEAP->InNewSpace(*FACTORY->NewFixedArray(1000, NOT_TENURED)));
-    }
-  }
+  FillUpNewSpace(new_space);
   new_capacity = new_space->Capacity();
   CHECK(old_capacity == new_capacity);
 
@@ -1267,6 +1270,22 @@ TEST(GrowAndShrinkNewSpace) {
   new_space->Shrink();
   new_space->Shrink();
   new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  CHECK(old_capacity == new_capacity);
+}
+
+
+TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
+  InitializeVM();
+  v8::HandleScope scope;
+  NewSpace* new_space = HEAP->new_space();
+  intptr_t old_capacity, new_capacity;
+  old_capacity = new_space->Capacity();
+  new_space->Grow();
+  new_capacity = new_space->Capacity();
+  CHECK(2 * old_capacity == new_capacity);
+  FillUpNewSpace(new_space);
+  HEAP->CollectAllAvailableGarbage();
   new_capacity = new_space->Capacity();
   CHECK(old_capacity == new_capacity);
 }

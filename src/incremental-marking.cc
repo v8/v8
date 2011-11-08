@@ -41,6 +41,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
       state_(STOPPED),
       marking_deque_memory_(NULL),
+      marking_deque_memory_committed_(false),
       steps_count_(0),
       steps_took_(0),
       longest_step_(0.0),
@@ -440,10 +441,25 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
   if (marking_deque_memory_ == NULL) {
     marking_deque_memory_ = new VirtualMemory(4 * MB);
-    marking_deque_memory_->Commit(
+  }
+  if (!marking_deque_memory_committed_) {
+    bool success = marking_deque_memory_->Commit(
         reinterpret_cast<Address>(marking_deque_memory_->address()),
         marking_deque_memory_->size(),
         false);  // Not executable.
+    CHECK(success);
+    marking_deque_memory_committed_ = true;
+  }
+}
+
+void IncrementalMarking::UncommitMarkingDeque() {
+  ASSERT(state_ == STOPPED);
+  if (marking_deque_memory_committed_) {
+    bool success = marking_deque_memory_->Uncommit(
+        reinterpret_cast<Address>(marking_deque_memory_->address()),
+        marking_deque_memory_->size());
+    CHECK(success);
+    marking_deque_memory_committed_ = false;
   }
 }
 

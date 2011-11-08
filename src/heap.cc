@@ -447,6 +447,7 @@ void Heap::CollectAllAvailableGarbage() {
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
   mark_compact_collector()->SetFlags(kMakeHeapIterableMask);
+  isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
@@ -454,6 +455,8 @@ void Heap::CollectAllAvailableGarbage() {
     }
   }
   mark_compact_collector()->SetFlags(kNoGCFlags);
+  new_space_.Shrink();
+  incremental_marking()->UncommitMarkingDeque();
 }
 
 
