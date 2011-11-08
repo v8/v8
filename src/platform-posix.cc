@@ -48,7 +48,7 @@
 
 #if defined(ANDROID)
 #define LOG_TAG "v8"
-#include <utils/Log.h>  // LOG_PRI_VA
+#include <android/log.h>
 #endif
 
 #include "v8.h"
@@ -210,7 +210,7 @@ void OS::Print(const char* format, ...) {
 
 void OS::VPrint(const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
+  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vprintf(format, args);
 #endif
@@ -227,7 +227,7 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
+  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vfprintf(out, format, args);
 #endif
@@ -244,7 +244,7 @@ void OS::PrintError(const char* format, ...) {
 
 void OS::VPrintError(const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  LOG_PRI_VA(ANDROID_LOG_ERROR, LOG_TAG, format, args);
+  __android_log_vprint(ANDROID_LOG_ERROR, LOG_TAG, format, args);
 #else
   vfprintf(stderr, format, args);
 #endif

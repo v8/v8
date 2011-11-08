@@ -27,6 +27,15 @@
 
 {
   'includes': ['../../build/common.gypi'],
+  'target_conditions': [
+    ['OS=="android" and _toolset=="target"', {
+      'link_settings': {
+        'libraries': [
+          '-llog',
+        ],
+      }
+    }],
+  ],
   'conditions': [
     ['use_system_v8==0', {
       'targets': [
@@ -614,13 +623,6 @@
                       '../../src/platform-linux.cc'
                     ]
                   }],
-                  ['_toolset=="target"', {
-                    'link_settings': {
-                      'libraries': [
-                        '-llog',
-                       ],
-                     }
-                  }],
                 ],
               },
             ],
@@ -755,6 +757,7 @@
           'target_name': 'mksnapshot',
           'type': 'executable',
           'dependencies': [
+            'v8_base',
             'v8_nosnapshot',
           ],
           'include_dirs+': [
