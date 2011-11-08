@@ -5990,26 +5990,26 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ push(rdx);
   __ push(rdi);  // Return return address so that tail call returns to right
                  // place.
-  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 0);
 
   if (!FLAG_trace_elements_transitions) {
     // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
     __ bind(&double_elements);
 
     __ movq(r9, FieldOperand(rbx, JSObject::kElementsOffset));
-    __ SmiToInteger32(r10, rcx);
+    __ SmiToInteger32(r11, rcx);
     __ StoreNumberToDoubleElements(rax,
                                    r9,
-                                   r10,
+                                   r11,
                                    xmm0,
                                    &slow_elements);
     __ jmp(&element_done);
 
     // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
     __ bind(&fast_elements);
-    __ SmiToInteger32(r10, rcx);
+    __ SmiToInteger32(kScratchRegister, rcx);
     __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
-    __ lea(rcx, FieldOperand(rbx, r10, times_pointer_size,
+    __ lea(rcx, FieldOperand(rbx, kScratchRegister, times_pointer_size,
                              FixedArrayBase::kHeaderSize));
     __ movq(Operand(rcx, 0), rax);
     // Update the write barrier for the array store.
@@ -6022,9 +6022,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
     // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
     // FAST_ELEMENTS, and value is Smi.
     __ bind(&smi_element);
-    __ SmiToInteger32(r10, rcx);
+    __ SmiToInteger32(kScratchRegister, rcx);
     __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
-    __ movq(FieldOperand(rbx, r10, times_pointer_size,
+    __ movq(FieldOperand(rbx, kScratchRegister, times_pointer_size,
                         FixedArrayBase::kHeaderSize), rax);
     // Fall through
     __ bind(&element_done);

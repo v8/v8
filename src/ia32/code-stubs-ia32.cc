@@ -7071,7 +7071,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ push(edx);
   __ push(edi);  // Return return address so that tail call returns to right
                  // place.
-  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 0);
 
   if (!FLAG_trace_elements_transitions) {
     // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.

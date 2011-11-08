@@ -1496,7 +1496,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
     __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
     __ Move(rcx, Smi::FromInt(i));
-    __ movq(rdx, Immediate(expr->literal_index()));
+    __ Move(rdx, Smi::FromInt(expr->literal_index()));
     StoreArrayLiteralElementStub stub;
     __ CallStub(&stub);
 
