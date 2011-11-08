@@ -695,6 +695,10 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   TypeInfo info = oracle->SwitchType(this);
   if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
+  } else if (info.IsSymbol()) {
+    compare_type_ = SYMBOL_ONLY;
+  } else if (info.IsNonSymbol()) {
+    compare_type_ = STRING_ONLY;
   } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;
   } else {

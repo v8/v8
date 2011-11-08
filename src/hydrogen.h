@@ -657,6 +657,7 @@ class FunctionState {
 class HGraphBuilder: public AstVisitor {
  public:
   enum BreakType { BREAK, CONTINUE };
+  enum SwitchType { UNKNOWN_SWITCH, SMI_SWITCH, STRING_SWITCH };
 
   // A class encapsulating (lazily-allocated) break and continue blocks for
   // a breakable statement.  Separated from BreakAndContinueScope so that it

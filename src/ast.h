@@ -684,6 +684,8 @@ class CaseClause: public ZoneObject {
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
+  bool IsSymbolCompare() { return compare_type_ == SYMBOL_ONLY; }
+  bool IsStringCompare() { return compare_type_ == STRING_ONLY; }
   bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
 
  private:
@@ -691,7 +693,13 @@ class CaseClause: public ZoneObject {
   Label body_target_;
   ZoneList<Statement*>* statements_;
   int position_;
-  enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
+  enum CompareTypeFeedback {
+    NONE,
+    SMI_ONLY,
+    SYMBOL_ONLY,
+    STRING_ONLY,
+    OBJECT_ONLY
+  };
   CompareTypeFeedback compare_type_;
   int compare_id_;
   int entry_id_;
