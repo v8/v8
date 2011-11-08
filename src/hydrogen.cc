@@ -756,7 +756,7 @@ void HGraph::AssignDominators() {
       // All others are back edges, and thus cannot dominate the loop header.
       blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->first());
     } else {
-      for (int j = 0; j < blocks_[i]->predecessors()->length(); ++j) {
+      for (int j = blocks_[i]->predecessors()->length() - 1; j >= 0; --j) {
         blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->at(j));
       }
     }
