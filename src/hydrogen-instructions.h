@@ -118,10 +118,8 @@ class LChunkBuilder;
   V(IsConstructCallAndBranch)                  \
   V(IsNilAndBranch)                            \
   V(IsObjectAndBranch)                         \
-  V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
-  V(StringCompareAndBranch)                   \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -2717,18 +2715,6 @@ class HIsObjectAndBranch: public HUnaryControlInstruction {
   DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
 };
 
-class HIsStringAndBranch: public HUnaryControlInstruction {
- public:
-  explicit HIsStringAndBranch(HValue* value)
-    : HUnaryControlInstruction(value, NULL, NULL) { }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
-};
-
 
 class HIsSmiAndBranch: public HUnaryControlInstruction {
  public:
@@ -2756,42 +2742,6 @@ class HIsUndetectableAndBranch: public HUnaryControlInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch)
-};
-
-
-class HStringCompareAndBranch: public HTemplateControlInstruction<2, 3> {
- public:
-  HStringCompareAndBranch(HValue* context,
-                           HValue* left,
-                           HValue* right,
-                           Token::Value token)
-      : token_(token) {
-    ASSERT(Token::IsCompareOp(token));
-    SetOperandAt(0, context);
-    SetOperandAt(1, left);
-    SetOperandAt(2, right);
-    set_representation(Representation::Tagged());
-  }
-
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  HValue* right() { return OperandAt(2); }
-  Token::Value token() const { return token_; }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  Representation GetInputRepresentation() const {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch)
-
- private:
-  Token::Value token_;
 };
 
 

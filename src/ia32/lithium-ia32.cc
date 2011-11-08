@@ -225,13 +225,6 @@ void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LIsStringAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if is_string(");
-  InputAt(0)->PrintTo(stream);
-  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_smi(");
   InputAt(0)->PrintTo(stream);
@@ -242,14 +235,6 @@ void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
 void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_undetectable(");
   InputAt(0)->PrintTo(stream);
-  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
-void LStringCompareAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if compare_generic(");
-  InputAt(1)->PrintTo(stream);
-  InputAt(2)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
@@ -1513,13 +1498,6 @@ LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoIsStringAndBranch(HIsStringAndBranch* instr) {
-  ASSERT(instr->value()->representation().IsTagged());
-  LOperand* temp = TempRegister();
-  return new LIsStringAndBranch(UseRegister(instr->value()), temp);
-}
-
-
 LInstruction* LChunkBuilder::DoIsSmiAndBranch(HIsSmiAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   return new(zone()) LIsSmiAndBranch(Use(instr->value()));
@@ -1531,21 +1509,6 @@ LInstruction* LChunkBuilder::DoIsUndetectableAndBranch(
   ASSERT(instr  ->value()->representation().IsTagged());
   return new(zone()) LIsUndetectableAndBranch(
       UseRegisterAtStart(instr->value()), TempRegister());
-}
-
-
-LInstruction* LChunkBuilder::DoStringCompareAndBranch(
-    HStringCompareAndBranch* instr) {
-  ASSERT(instr->left()->representation().IsTagged());
-  ASSERT(instr->right()->representation().IsTagged());
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* left = UseFixed(instr->left(), edx);
-  LOperand* right = UseFixed(instr->right(), eax);
-
-  LStringCompareAndBranch* result = new
-      LStringCompareAndBranch(context, left, right);
-
-  return MarkAsCall(result, instr);
 }
 
 

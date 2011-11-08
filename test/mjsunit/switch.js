@@ -126,42 +126,6 @@ assertEquals(3, f4(1), "fallthrough-switch.1");
 assertEquals(3, f4(2), "fallthrough-switch.2");
 assertEquals(5, f4(3), "fallthrough-switch.3");
 
-function f4_string(tag, x) {
-  switch(tag) {
-    case 'zero':
-      x++;
-    case 'two':
-      x++;
-  }
-  return x;
-}
-
-// Symbols
-assertEquals(2, f4_string('zero', 0), "fallthrough-string-switch.0");
-assertEquals(1, f4_string('one', 1), "fallthrough-string-switch.1");
-assertEquals(3, f4_string('two', 2), "fallthrough-string-switch.2");
-
-// Strings
-assertEquals(2, f4_string('_zero'.slice(1), 0), "fallthrough-string-switch.3");
-assertEquals(1, f4_string('_one'.slice(1), 1), "fallthrough-string-switch.4");
-assertEquals(3, f4_string('_two'.slice(1), 2), "fallthrough-string-switch.5");
-
-// Oddball
-assertEquals(3, f4_string(null, 3), "fallthrough-string-switch.6");
-
-// Test for regression
-function regress_string(value) {
-  var json = 1;
-  switch (typeof value) {
-    case 'object':
-      break;
-
-    default:
-
-  }
-  return json;
-};
-assertEquals(1, regress_string('object'), 'regression-string');
 
 function f5(x) {
   switch(x) {

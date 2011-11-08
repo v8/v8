@@ -360,10 +360,6 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
       return unknown;
     case CompareIC::SMIS:
       return TypeInfo::Smi();
-    case CompareIC::STRINGS:
-      return TypeInfo::String();
-    case CompareIC::SYMBOLS:
-      return TypeInfo::Symbol();
     case CompareIC::HEAP_NUMBERS:
       return TypeInfo::Number();
     case CompareIC::OBJECTS:

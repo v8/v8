@@ -303,14 +303,6 @@ class LCodeGen BASE_EMBEDDED {
                          Label* is_not_object,
                          Label* is_object);
 
-  // Emits optimized code for %_IsString(x).  Preserves input register.
-  // Returns the condition on which a final split to
-  // true and false label should be made, to optimize fallthrough.
-  Condition EmitIsString(Register input,
-                         Register temp1,
-                         Label* is_not_object,
-                         Label* is_object);
-
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp1, Register temp2);

@@ -103,10 +103,8 @@ class LCodeGen;
   V(IsConstructCallAndBranch)                   \
   V(IsNilAndBranch)                             \
   V(IsObjectAndBranch)                          \
-  V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(StringCompareAndBranch)                    \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -645,19 +643,6 @@ class LIsObjectAndBranch: public LControlInstruction<1, 1> {
 };
 
 
-class LIsStringAndBranch: public LControlInstruction<1, 1> {
- public:
-  LIsStringAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch, "is-string-and-branch")
-
-  virtual void PrintDataTo(StringStream* stream);
-};
-
-
 class LIsSmiAndBranch: public LControlInstruction<1, 0> {
  public:
   explicit LIsSmiAndBranch(LOperand* value) {
@@ -682,24 +667,6 @@ class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
                                "is-undetectable-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
-};
-
-
-class LStringCompareAndBranch: public LControlInstruction<3, 0> {
- public:
-  LStringCompareAndBranch(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch,
-                               "compare-generic-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(StringCompareAndBranch)
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  Token::Value op() const { return hydrogen()->token(); }
 };
 
 
