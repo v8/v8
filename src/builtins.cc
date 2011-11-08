@@ -1560,8 +1560,8 @@ static void Generate_Return_DebugBreak(MacroAssembler* masm) {
 }
 
 
-static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateStubNoRegistersDebugBreak(masm);
+static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateCallFunctionStubDebugBreak(masm);
 }
 
 

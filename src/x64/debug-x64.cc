@@ -250,12 +250,12 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // Register state for stub CallFunction (from CallFunctionStub in ic-x64.cc).
   // ----------- S t a t e -------------
-  //  No registers used on entry.
+  //  -- rdi : function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, 0, false);
+  Generate_DebugBreakCallHelper(masm, rdi.bit(), 0, false);
 }
 
 

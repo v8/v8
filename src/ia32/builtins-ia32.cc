@@ -719,7 +719,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ test(edx, edx);
     __ j(zero, &function);
     __ Set(ebx, Immediate(0));
-    __ SetCallKind(ecx, CALL_AS_METHOD);
     __ cmp(edx, Immediate(1));
     __ j(not_equal, &non_proxy);
 
@@ -727,11 +726,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(edi);  // re-add proxy object as additional argument
     __ push(edx);
     __ inc(eax);
+    __ SetCallKind(ecx, CALL_AS_FUNCTION);
     __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
 
     __ bind(&non_proxy);
+    __ SetCallKind(ecx, CALL_AS_METHOD);
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);

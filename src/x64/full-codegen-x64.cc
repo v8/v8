@@ -2067,6 +2067,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   CallFunctionStub stub(arg_count, flags);
+  __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2137,6 +2138,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
+    __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3034,12 +3036,24 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
+  // Check for proxy.
+  Label proxy, done;
+  __ CmpObjectType(rax, JS_FUNCTION_PROXY_TYPE, rbx);
+  __ j(equal, &proxy);
+
   // InvokeFunction requires the function in rdi. Move it in there.
   __ movq(rdi, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(rdi, count, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ jmp(&done);
+
+  __ bind(&proxy);
+  __ push(rax);
+  __ CallRuntime(Runtime::kCall, args->length());
+  __ bind(&done);
+
   context()->Plug(rax);
 }
 

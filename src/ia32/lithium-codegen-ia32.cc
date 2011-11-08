@@ -3117,12 +3117,12 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
+  ASSERT(ToRegister(instr->function()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  __ Drop(1);
 }
 
 

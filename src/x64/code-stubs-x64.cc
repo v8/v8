@@ -3365,6 +3365,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // rdi : the function to call
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -3384,10 +3385,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rbx);
     __ bind(&call);
   }
-
-  // Get the function to call from the stack.
-  // +2 ~ receiver, return address
-  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
   __ JumpIfSmi(rdi, &non_function);
@@ -3425,7 +3422,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_FUNCTION);
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =

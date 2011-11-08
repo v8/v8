@@ -402,7 +402,7 @@ class Debug {
   static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateConstructCallDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
+  static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
   static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
 

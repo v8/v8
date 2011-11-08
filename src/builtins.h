@@ -192,27 +192,27 @@ enum BuiltinExtraArguments {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
-#define BUILTIN_LIST_DEBUG_A(V)                                \
-  V(Return_DebugBreak,          BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(ConstructCall_DebugBreak,   BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(StubNoRegisters_DebugBreak, BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(KeyedLoadIC_DebugBreak,     KEYED_LOAD_IC, DEBUG_BREAK,    \
-                                Code::kNoExtraICState)         \
-  V(StoreIC_DebugBreak,         STORE_IC, DEBUG_BREAK,         \
-                                Code::kNoExtraICState)         \
-  V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK,   \
-                                Code::kNoExtraICState)         \
-  V(Slot_DebugBreak,            BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(PlainReturn_LiveEdit,       BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)         \
-  V(FrameDropper_LiveEdit,      BUILTIN, DEBUG_BREAK,          \
-                                Code::kNoExtraICState)
+#define BUILTIN_LIST_DEBUG_A(V)                                 \
+  V(Return_DebugBreak,           BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(ConstructCall_DebugBreak,    BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(CallFunctionStub_DebugBreak, BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(LoadIC_DebugBreak,           LOAD_IC, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(KeyedLoadIC_DebugBreak,      KEYED_LOAD_IC, DEBUG_BREAK,    \
+                                 Code::kNoExtraICState)         \
+  V(StoreIC_DebugBreak,          STORE_IC, DEBUG_BREAK,         \
+                                 Code::kNoExtraICState)         \
+  V(KeyedStoreIC_DebugBreak,     KEYED_STORE_IC, DEBUG_BREAK,   \
+                                 Code::kNoExtraICState)         \
+  V(Slot_DebugBreak,             BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(PlainReturn_LiveEdit,        BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)         \
+  V(FrameDropper_LiveEdit,       BUILTIN, DEBUG_BREAK,          \
+                                 Code::kNoExtraICState)
 #else
 #define BUILTIN_LIST_DEBUG_A(V)
 #endif

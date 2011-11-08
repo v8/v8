@@ -4361,6 +4361,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // edi : the function to call
   Isolate* isolate = masm->isolate();
   Label slow, non_function;
 
@@ -4381,10 +4382,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ebx);
     __ bind(&receiver_ok);
   }
-
-  // Get the function to call from the stack.
-  // +2 ~ receiver, return address
-  __ mov(edi, Operand(esp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
   __ JumpIfSmi(edi, &non_function);

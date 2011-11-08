@@ -137,6 +137,10 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
+    __ mov(ecx, Operand(esp, receiver_offset));
+    __ JumpIfSmi(ecx, &ok);
+    __ CmpObjectType(ecx, JS_GLOBAL_PROXY_TYPE, ecx);
+    __ j(not_equal, &ok, Label::kNear);
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
@@ -2105,6 +2109,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
     flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   }
   CallFunctionStub stub(arg_count, flags);
+  __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub, expr->id());
   if (record_call_target) {
     // There is a one element cache in the instruction stream.
@@ -2189,6 +2194,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
+    __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3101,12 +3107,24 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
+  // Check for proxy.
+  Label proxy, done;
+  __ CmpObjectType(eax, JS_FUNCTION_PROXY_TYPE, ebx);
+  __ j(equal, &proxy);
+
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(edi, count, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ jmp(&done);
+
+  __ bind(&proxy);
+  __ push(eax);
+  __ CallRuntime(Runtime::kCall, args->length());
+  __ bind(&done);
+
   context()->Plug(eax);
 }
 

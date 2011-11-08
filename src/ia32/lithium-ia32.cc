@@ -1233,8 +1233,9 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* function = UseFixed(instr->function(), edi);
   argument_count_ -= instr->argument_count();
-  LCallFunction* result = new(zone()) LCallFunction(context);
+  LCallFunction* result = new(zone()) LCallFunction(context, function);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
