@@ -842,7 +842,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
     }
   }
 
-  intptr_t promoted_during_marking = heap_->PromotedTotalSize()
+  int64_t promoted_during_marking = heap_->PromotedTotalSize()
       - old_generation_space_used_at_start_of_incremental_;
   intptr_t delay = allocation_marking_factor_ * MB;
   intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
