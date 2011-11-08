@@ -1659,7 +1659,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
       int capacity,
       int length);
-  MUST_USE_RESULT MaybeObject* SetSlowElements(Object* length);
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
@@ -2910,9 +2909,6 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   // dictionary.  max_number_key can only be called if
   // requires_slow_elements returns false.
   inline uint32_t max_number_key();
-
-  // Remove all entries were key is a number and (from <= key && key < to).
-  void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Bit masks.
   static const int kRequiresSlowElementsMask = 1;

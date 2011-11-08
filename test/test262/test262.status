@@ -499,39 +499,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 15.2.3.6-4-623: FAIL
 # Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
 15.2.3.6-4-624: FAIL
-# Bug? Array.prototype.indexOf - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.14-9-a-19: FAIL
-# Bug? Array.prototype.lastIndexOf - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.15-8-a-19: FAIL
-# Bug? Array.prototype.every - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.16-7-b-16: FAIL
-# Bug? Array.prototype.some - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.17-7-b-16: FAIL
-# Bug? Array.prototype.forEach - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.18-7-b-16: FAIL
-# Bug? Array.prototype.map - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.19-8-b-16: FAIL
-# Bug? Array.prototype.filter - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.20-9-b-16: FAIL
-# Bug? Array.prototype.reduce - decreasing length of array in step 8 does not
-#      delete non-configurable properties
-15.4.4.21-9-b-16: FAIL
-# Bug? Array.prototype.reduce - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.21-9-b-29: FAIL
-# Bug? Array.prototype.reduceRight - decreasing length of array in step 8 does
-#      not delete non-configurable properties
-15.4.4.22-9-b-16: FAIL
-# Bug? Array.prototype.reduceRight - decreasing length of array does not delete
-#      non-configurable properties
-15.4.4.22-9-b-29: FAIL
 
 ############################ SKIPPED TESTS #############################
 
