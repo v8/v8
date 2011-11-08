@@ -747,6 +747,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   if (state_ == MARKING && no_marking_scope_depth_ > 0) return;
 
   intptr_t bytes_to_process = allocated_ * allocation_marking_factor_;
+  bytes_scanned_ += bytes_to_process;
 
   double start = 0;
 
@@ -757,6 +758,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   if (state_ == SWEEPING) {
     if (heap_->old_pointer_space()->AdvanceSweeper(bytes_to_process) &&
         heap_->old_data_space()->AdvanceSweeper(bytes_to_process)) {
+      bytes_scanned_ = 0;
       StartMarking(PREVENT_COMPACTION);
     }
   } else if (state_ == MARKING) {
@@ -808,35 +810,64 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
 
   bool speed_up = false;
 
-  if (old_generation_space_available_at_start_of_incremental_ < 10 * MB ||
-      SpaceLeftInOldSpace() <
-          old_generation_space_available_at_start_of_incremental_ >> 1) {
-    // Half of the space that was available is gone while we were
-    // incrementally marking.
+  if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
+    if (FLAG_trace_gc) {
+      PrintF("Speed up marking after %d steps\n",
+             static_cast<int>(kAllocationMarkingFactorSpeedupInterval));
+    }
     speed_up = true;
-    old_generation_space_available_at_start_of_incremental_ =
-        SpaceLeftInOldSpace();
   }
 
-  if (heap_->PromotedTotalSize() >
-      old_generation_space_used_at_start_of_incremental_ << 1) {
-    // Size of old space doubled while we were incrementally marking.
+  bool space_left_is_very_small =
+      (old_generation_space_available_at_start_of_incremental_ < 10 * MB);
+
+  bool only_1_nth_of_space_that_was_available_still_left =
+      (SpaceLeftInOldSpace() * (allocation_marking_factor_ + 1) <
+          old_generation_space_available_at_start_of_incremental_);
+
+  if (space_left_is_very_small ||
+      only_1_nth_of_space_that_was_available_still_left) {
+    if (FLAG_trace_gc) PrintF("Speed up marking because of low space left\n");
     speed_up = true;
-    old_generation_space_used_at_start_of_incremental_ =
-        heap_->PromotedTotalSize();
   }
 
-  if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0 &&
-      allocation_marking_factor_ < kMaxAllocationMarkingFactor) {
+  bool size_of_old_space_multiplied_by_n_during_marking =
+      (heap_->PromotedTotalSize() >
+       (allocation_marking_factor_ + 1) *
+           old_generation_space_used_at_start_of_incremental_);
+  if (size_of_old_space_multiplied_by_n_during_marking) {
+    speed_up = true;
+    if (FLAG_trace_gc) {
+      PrintF("Speed up marking because of heap size increase\n");
+    }
+  }
+
+  intptr_t promoted_during_marking = heap_->PromotedTotalSize()
+      - old_generation_space_used_at_start_of_incremental_;
+  intptr_t delay = allocation_marking_factor_ * MB;
+  intptr_t scavenge_slack = heap_->MaxSemiSpaceSize();
+
+  // We try to scan at at least twice the speed that we are allocating.
+  if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
+    if (FLAG_trace_gc) {
+      PrintF("Speed up marking because marker was not keeping up\n");
+    }
     speed_up = true;
   }
 
   if (speed_up) {
-    allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
-    allocation_marking_factor_ =
-        static_cast<int>(allocation_marking_factor_ * 1.3);
-    if (FLAG_trace_gc) {
-      PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
+    if (state_ != MARKING) {
+      if (FLAG_trace_gc) {
+        PrintF("Postponing speeding up marking until marking starts\n");
+      }
+    } else {
+      allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
+      allocation_marking_factor_ =
+          Min(kMaxAllocationMarkingFactor,
+              static_cast<intptr_t>(allocation_marking_factor_ * 1.3));
+      if (FLAG_trace_gc) {
+        PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
+      }
     }
   }
 
@@ -862,6 +893,7 @@ void IncrementalMarking::ResetStepCounters() {
   steps_took_since_last_gc_ = 0;
   bytes_rescanned_ = 0;
   allocation_marking_factor_ = kInitialAllocationMarkingFactor;
+  bytes_scanned_ = 0;
 }
 
 

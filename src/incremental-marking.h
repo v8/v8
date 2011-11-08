@@ -96,7 +96,7 @@ class IncrementalMarking {
   static const intptr_t kAllocationMarkingFactorSpeedupInterval = 1024;
   // This is how much we increase the marking/allocating factor by.
   static const intptr_t kAllocationMarkingFactorSpeedup = 2;
-  static const intptr_t kMaxAllocationMarkingFactor = 1000000000;
+  static const intptr_t kMaxAllocationMarkingFactor = 1000;
 
   void OldSpaceStep(intptr_t allocated) {
     Step(allocated * kFastMarking / kInitialAllocationMarkingFactor);
@@ -262,6 +262,7 @@ class IncrementalMarking {
   int64_t bytes_rescanned_;
   bool should_hurry_;
   int allocation_marking_factor_;
+  intptr_t bytes_scanned_;
   intptr_t allocated_;
 
   int no_marking_scope_depth_;
