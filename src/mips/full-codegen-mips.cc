@@ -1313,13 +1313,17 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         // binding is initialized:
         //   function() { f(); let x = 1; function f() { x = 2; } }
         //
-        // Check that we always have valid source position.
-        ASSERT(var->initializer_position() != RelocInfo::kNoPosition);
-        ASSERT(proxy->position() != RelocInfo::kNoPosition);
-        bool skip_init_check =
-            var->mode() != CONST &&
-            var->scope()->DeclarationScope() == scope()->DeclarationScope() &&
-            var->initializer_position() < proxy->position();
+        bool skip_init_check;
+        if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
+          skip_init_check = false;
+        } else {
+          // Check that we always have valid source position.
+          ASSERT(var->initializer_position() != RelocInfo::kNoPosition);
+          ASSERT(proxy->position() != RelocInfo::kNoPosition);
+          skip_init_check = var->mode() != CONST &&
+              var->initializer_position() < proxy->position();
+        }
+
         if (!skip_init_check) {
           // Let and const need a read barrier.
           GetVar(v0, var);
