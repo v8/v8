@@ -4097,7 +4097,6 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, &call_runtime_);
   // Get the first of the two parts.
-  ASSERT(!kScratchRegister.is(scratch_));
   __ movq(object_, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 

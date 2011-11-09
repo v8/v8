@@ -783,9 +783,6 @@ class StringCharCodeAtGenerator {
         index_not_number_(index_not_number),
         index_out_of_range_(index_out_of_range),
         index_flags_(index_flags) {
-    ASSERT(!scratch_.is(object_));
-    ASSERT(!scratch_.is(index_));
-    ASSERT(!scratch_.is(result_));
     ASSERT(!result_.is(object_));
     ASSERT(!result_.is(index_));
   }
