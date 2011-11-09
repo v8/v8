@@ -245,7 +245,6 @@
             '../../src/assembler.cc',
             '../../src/assembler.h',
             '../../src/ast.cc',
-            '../../src/ast-inl.h',
             '../../src/ast.h',
             '../../src/atomicops_internals_x86_gcc.cc',
             '../../src/bignum.cc',
