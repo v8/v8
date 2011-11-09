@@ -282,7 +282,7 @@ class HeapDebugUtils;
 // by it's size to avoid dereferencing a map pointer for scanning.
 class PromotionQueue {
  public:
-  PromotionQueue(Heap* heap)
+  explicit PromotionQueue(Heap* heap)
       : front_(NULL),
         rear_(NULL),
         limit_(NULL),
