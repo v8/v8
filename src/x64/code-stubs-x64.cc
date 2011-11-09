@@ -4068,13 +4068,10 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
-
-  // Put smi-tagged index into scratch register.
-  __ movq(scratch_, index_);
   __ bind(&got_smi_index_);
 
   // Check for index out of range.
-  __ SmiCompare(scratch_, FieldOperand(object_, String::kLengthOffset));
+  __ SmiCompare(index_, FieldOperand(object_, String::kLengthOffset));
   __ j(above_equal, index_out_of_range_);
 
   // We need special handling for non-flat strings.
@@ -4099,46 +4096,47 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ CompareRoot(FieldOperand(object_, ConsString::kSecondOffset),
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, &call_runtime_);
-  // Get the first of the two strings and load its instance type.
+  // Get the first of the two parts.
   ASSERT(!kScratchRegister.is(scratch_));
-  __ movq(kScratchRegister, FieldOperand(object_, ConsString::kFirstOffset));
+  __ movq(object_, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
-  __ addq(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
-  __ movq(kScratchRegister, FieldOperand(object_, SlicedString::kParentOffset));
+  __ addq(index_, FieldOperand(object_, SlicedString::kOffsetOffset));
+  __ movq(object_, FieldOperand(object_, SlicedString::kParentOffset));
 
+  // Assure that we are dealing with a sequential string. Go to runtime if not.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the updated index to the runtime function.
   __ bind(&assure_seq_string);
-  __ movq(result_, FieldOperand(kScratchRegister, HeapObject::kMapOffset));
+  __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
-  __ movq(object_, kScratchRegister);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+  __ SmiToInteger32(index_, index_);
   __ testb(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register.
-  __ SmiToInteger32(scratch_, scratch_);
   __ movzxwl(result_, FieldOperand(object_,
-                                   scratch_, times_2,
+                                   index_, times_2,
                                    SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  __ SmiToInteger32(scratch_, scratch_);
   __ movzxbl(result_, FieldOperand(object_,
-                                   scratch_, times_1,
+                                   index_, times_1,
                                    SeqAsciiString::kHeaderSize));
   __ bind(&got_char_code);
   __ Integer32ToSmi(result_, result_);
@@ -4161,7 +4159,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
-  __ push(index_);
   __ push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
@@ -4170,19 +4167,18 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // NumberToSmi discards numbers that are not exact integers.
     __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
-  if (!scratch_.is(rax)) {
+  if (!index_.is(rax)) {
     // Save the conversion result before the pop instructions below
     // have a chance to overwrite it.
-    __ movq(scratch_, rax);
+    __ movq(index_, rax);
   }
-  __ pop(index_);
   __ pop(object_);
   // Reload the instance type.
   __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
-  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  __ JumpIfNotSmi(index_, index_out_of_range_);
   // Otherwise, return to the fast path.
   __ jmp(&got_smi_index_);
 

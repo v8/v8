@@ -1727,7 +1727,6 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 
   Register receiver = r1;
   Register index = r4;
-  Register scratch = r3;
   Register result = r0;
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
   if (argc > 0) {
@@ -1738,7 +1737,6 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 
   StringCharCodeAtGenerator generator(receiver,
                                       index,
-                                      scratch,
                                       result,
                                       &miss,  // When not a string.
                                       &miss,  // When not a number.
@@ -1809,8 +1807,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   Register receiver = r0;
   Register index = r4;
-  Register scratch1 = r1;
-  Register scratch2 = r3;
+  Register scratch = r3;
   Register result = r0;
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
   if (argc > 0) {
@@ -1821,8 +1818,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   StringCharAtGenerator generator(receiver,
                                   index,
-                                  scratch1,
-                                  scratch2,
+                                  scratch,
                                   result,
                                   &miss,  // When not a string.
                                   &miss,  // When not a number.

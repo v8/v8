@@ -3380,6 +3380,9 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Check whether the string is sequential. The only non-sequential
   // shapes we support have just been unwrapped above.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the updated index to the runtime function.
   __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result, Immediate(kStringRepresentationMask));

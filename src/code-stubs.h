@@ -771,7 +771,6 @@ class StringCharCodeAtGenerator {
  public:
   StringCharCodeAtGenerator(Register object,
                             Register index,
-                            Register scratch,
                             Register result,
                             Label* receiver_not_string,
                             Label* index_not_number,
@@ -779,7 +778,6 @@ class StringCharCodeAtGenerator {
                             StringIndexFlags index_flags)
       : object_(object),
         index_(index),
-        scratch_(scratch),
         result_(result),
         receiver_not_string_(receiver_not_string),
         index_not_number_(index_not_number),
@@ -805,7 +803,6 @@ class StringCharCodeAtGenerator {
  private:
   Register object_;
   Register index_;
-  Register scratch_;
   Register result_;
 
   Label* receiver_not_string_;
@@ -868,8 +865,7 @@ class StringCharAtGenerator {
  public:
   StringCharAtGenerator(Register object,
                         Register index,
-                        Register scratch1,
-                        Register scratch2,
+                        Register scratch,
                         Register result,
                         Label* receiver_not_string,
                         Label* index_not_number,
@@ -877,13 +873,12 @@ class StringCharAtGenerator {
                         StringIndexFlags index_flags)
       : char_code_at_generator_(object,
                                 index,
-                                scratch1,
-                                scratch2,
+                                scratch,
                                 receiver_not_string,
                                 index_not_number,
                                 index_out_of_range,
                                 index_flags),
-        char_from_code_generator_(scratch2, result) {}
+        char_from_code_generator_(scratch, result) {}
 
   // Generates the fast case code. On the fallthrough path |result|
   // register contains the result.
