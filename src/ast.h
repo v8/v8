@@ -335,7 +335,14 @@ class BreakableStatement: public Statement {
   int ExitId() const { return exit_id_; }
 
  protected:
-  BreakableStatement(Isolate* isolate, ZoneStringList* labels, Type type);
+  BreakableStatement(Isolate* isolate, ZoneStringList* labels, Type type)
+      : labels_(labels),
+        type_(type),
+        entry_id_(GetNextId(isolate)),
+        exit_id_(GetNextId(isolate)) {
+    ASSERT(labels == NULL || labels->length() > 0);
+  }
+
 
  private:
   ZoneStringList* labels_;
@@ -348,10 +355,16 @@ class BreakableStatement: public Statement {
 
 class Block: public BreakableStatement {
  public:
-  inline Block(Isolate* isolate,
-               ZoneStringList* labels,
-               int capacity,
-               bool is_initializer_block);
+  Block(Isolate* isolate,
+        ZoneStringList* labels,
+        int capacity,
+        bool is_initializer_block)
+      : BreakableStatement(isolate, labels, TARGET_FOR_NAMED_ONLY),
+        statements_(capacity),
+        is_initializer_block_(is_initializer_block),
+        block_scope_(NULL) {
+  }
+
 
   DECLARE_NODE_TYPE(Block)
 
@@ -424,7 +437,12 @@ class IterationStatement: public BreakableStatement {
   Label* continue_target()  { return &continue_target_; }
 
  protected:
-  inline IterationStatement(Isolate* isolate, ZoneStringList* labels);
+  IterationStatement(Isolate* isolate, ZoneStringList* labels)
+      : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
+        body_(NULL),
+        continue_target_(),
+        osr_entry_id_(GetNextId(isolate)) {
+  }
 
   void Initialize(Statement* body) {
     body_ = body;
@@ -439,7 +457,13 @@ class IterationStatement: public BreakableStatement {
 
 class DoWhileStatement: public IterationStatement {
  public:
-  inline DoWhileStatement(Isolate* isolate, ZoneStringList* labels);
+  DoWhileStatement(Isolate* isolate, ZoneStringList* labels)
+      : IterationStatement(isolate, labels),
+        cond_(NULL),
+        condition_position_(-1),
+        continue_id_(GetNextId(isolate)),
+        back_edge_id_(GetNextId(isolate)) {
+  }
 
   DECLARE_NODE_TYPE(DoWhileStatement)
 
@@ -472,7 +496,12 @@ class DoWhileStatement: public IterationStatement {
 
 class WhileStatement: public IterationStatement {
  public:
-  inline WhileStatement(Isolate* isolate, ZoneStringList* labels);
+  WhileStatement(Isolate* isolate, ZoneStringList* labels)
+      : IterationStatement(isolate, labels),
+        cond_(NULL),
+        may_have_function_literal_(true),
+        body_id_(GetNextId(isolate)) {
+  }
 
   DECLARE_NODE_TYPE(WhileStatement)
 
@@ -505,7 +534,16 @@ class WhileStatement: public IterationStatement {
 
 class ForStatement: public IterationStatement {
  public:
-  inline ForStatement(Isolate* isolate, ZoneStringList* labels);
+  ForStatement(Isolate* isolate, ZoneStringList* labels)
+      : IterationStatement(isolate, labels),
+        init_(NULL),
+        cond_(NULL),
+        next_(NULL),
+        may_have_function_literal_(true),
+        loop_variable_(NULL),
+        continue_id_(GetNextId(isolate)),
+        body_id_(GetNextId(isolate)) {
+  }
 
   DECLARE_NODE_TYPE(ForStatement)
 
@@ -554,7 +592,12 @@ class ForStatement: public IterationStatement {
 
 class ForInStatement: public IterationStatement {
  public:
-  inline ForInStatement(Isolate* isolate, ZoneStringList* labels);
+  ForInStatement(Isolate* isolate, ZoneStringList* labels)
+      : IterationStatement(isolate, labels),
+        each_(NULL),
+        enumerable_(NULL),
+        assignment_id_(GetNextId(isolate)) {
+  }
 
   DECLARE_NODE_TYPE(ForInStatement)
 
@@ -700,7 +743,12 @@ class CaseClause: public ZoneObject {
 
 class SwitchStatement: public BreakableStatement {
  public:
-  inline SwitchStatement(Isolate* isolate, ZoneStringList* labels);
+  SwitchStatement(Isolate* isolate, ZoneStringList* labels)
+      : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
+        tag_(NULL),
+        cases_(NULL) {
+  }
+
 
   DECLARE_NODE_TYPE(SwitchStatement)
 

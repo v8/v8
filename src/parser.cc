@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
-#include "ast-inl.h"
+#include "ast.h"
 #include "bootstrapper.h"
 #include "char-predicates-inl.h"
 #include "codegen.h"
