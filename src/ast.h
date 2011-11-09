@@ -440,7 +440,6 @@ class IterationStatement: public BreakableStatement {
   IterationStatement(Isolate* isolate, ZoneStringList* labels)
       : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
         body_(NULL),
-        continue_target_(),
         osr_entry_id_(GetNextId(isolate)) {
   }
 
@@ -1647,25 +1646,26 @@ class FunctionLiteral: public Expression {
                   int expected_property_count,
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
-                  int num_parameters,
+                  int parameter_count,
                   Type type,
                   bool has_duplicate_parameters)
       : Expression(isolate),
         name_(name),
         scope_(scope),
         body_(body),
+        this_property_assignments_(this_property_assignments),
+        inferred_name_(isolate->factory()->empty_string()),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
-        has_only_simple_this_property_assignments_(
-            has_only_simple_this_property_assignments),
-        this_property_assignments_(this_property_assignments),
-        num_parameters_(num_parameters),
-        function_token_position_(RelocInfo::kNoPosition),
-        inferred_name_(HEAP->empty_string()),
-        is_expression_(type != DECLARATION),
-        is_anonymous_(type == ANONYMOUS_EXPRESSION),
-        pretenure_(false),
-        has_duplicate_parameters_(has_duplicate_parameters) {
+        parameter_count_(parameter_count),
+        function_token_position_(RelocInfo::kNoPosition) {
+    bitfield_ =
+        HasOnlySimpleThisPropertyAssignments::encode(
+            has_only_simple_this_property_assignments) |
+        IsExpression::encode(type != DECLARATION) |
+        IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
+        Pretenure::encode(false) |
+        HasDuplicateParameters::encode(has_duplicate_parameters);
   }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
@@ -1677,20 +1677,20 @@ class FunctionLiteral: public Expression {
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
   int end_position() const;
-  bool is_expression() const { return is_expression_; }
-  bool is_anonymous() const { return is_anonymous_; }
+  bool is_expression() const { return IsExpression::decode(bitfield_); }
+  bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   bool strict_mode() const { return strict_mode_flag() == kStrictMode; }
   StrictModeFlag strict_mode_flag() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   bool has_only_simple_this_property_assignments() {
-      return has_only_simple_this_property_assignments_;
+    return HasOnlySimpleThisPropertyAssignments::decode(bitfield_);
   }
   Handle<FixedArray> this_property_assignments() {
       return this_property_assignments_;
   }
-  int num_parameters() { return num_parameters_; }
+  int parameter_count() { return parameter_count_; }
 
   bool AllowsLazyCompilation();
 
@@ -1704,29 +1704,32 @@ class FunctionLiteral: public Expression {
     inferred_name_ = inferred_name;
   }
 
-  bool pretenure() { return pretenure_; }
-  void set_pretenure(bool value) { pretenure_ = value; }
+  bool pretenure() { return Pretenure::decode(bitfield_); }
+  void set_pretenure() { bitfield_ |= Pretenure::encode(true); }
   virtual bool IsInlineable() const;
 
-  bool has_duplicate_parameters() { return has_duplicate_parameters_; }
+  bool has_duplicate_parameters() {
+    return HasDuplicateParameters::decode(bitfield_);
+  }
 
  private:
   Handle<String> name_;
   Scope* scope_;
   ZoneList<Statement*>* body_;
+  Handle<FixedArray> this_property_assignments_;
+  Handle<String> inferred_name_;
+
   int materialized_literal_count_;
   int expected_property_count_;
-  bool has_only_simple_this_property_assignments_;
-  Handle<FixedArray> this_property_assignments_;
-  int num_parameters_;
-  int start_position_;
-  int end_position_;
+  int parameter_count_;
   int function_token_position_;
-  Handle<String> inferred_name_;
-  bool is_expression_;
-  bool is_anonymous_;
-  bool pretenure_;
-  bool has_duplicate_parameters_;
+
+  unsigned bitfield_;
+  class HasOnlySimpleThisPropertyAssignments: public BitField<bool, 0, 1> {};
+  class IsExpression: public BitField<bool, 1, 1> {};
+  class IsAnonymous: public BitField<bool, 2, 1> {};
+  class Pretenure: public BitField<bool, 3, 1> {};
+  class HasDuplicateParameters: public BitField<bool, 4, 1> {};
 };
 
 

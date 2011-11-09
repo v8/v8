@@ -43,8 +43,6 @@ class FuncNameInferrer;
 class ParserLog;
 class PositionStack;
 class Target;
-class LexicalScope;
-class SaveScope;
 
 template <typename T> class ZoneListWrapper;
 
@@ -69,30 +67,32 @@ class ParserMessage : public Malloced {
 
 class FunctionEntry BASE_EMBEDDED {
  public:
+  enum {
+    kStartPositionIndex,
+    kEndPositionIndex,
+    kLiteralCountIndex,
+    kPropertyCountIndex,
+    kStrictModeIndex,
+    kSize
+  };
+
   explicit FunctionEntry(Vector<unsigned> backing) : backing_(backing) { }
   FunctionEntry() : backing_(Vector<unsigned>::empty()) { }
 
-  int start_pos() { return backing_[kStartPosOffset]; }
-  int end_pos() { return backing_[kEndPosOffset]; }
-  int literal_count() { return backing_[kLiteralCountOffset]; }
-  int property_count() { return backing_[kPropertyCountOffset]; }
+  int start_pos() { return backing_[kStartPositionIndex]; }
+  int end_pos() { return backing_[kEndPositionIndex]; }
+  int literal_count() { return backing_[kLiteralCountIndex]; }
+  int property_count() { return backing_[kPropertyCountIndex]; }
   StrictModeFlag strict_mode_flag() {
-    ASSERT(backing_[kStrictModeOffset] == kStrictMode ||
-           backing_[kStrictModeOffset] == kNonStrictMode);
-    return static_cast<StrictModeFlag>(backing_[kStrictModeOffset]);
+    ASSERT(backing_[kStrictModeIndex] == kStrictMode ||
+           backing_[kStrictModeIndex] == kNonStrictMode);
+    return static_cast<StrictModeFlag>(backing_[kStrictModeIndex]);
   }
 
-  bool is_valid() { return backing_.length() > 0; }
-
-  static const int kSize = 5;
+  bool is_valid() { return !backing_.is_empty(); }
 
  private:
   Vector<unsigned> backing_;
-  static const int kStartPosOffset = 0;
-  static const int kEndPosOffset = 1;
-  static const int kLiteralCountOffset = 2;
-  static const int kPropertyCountOffset = 3;
-  static const int kStrictModeOffset = 4;
 };
 
 
@@ -451,9 +451,7 @@ class Parser {
   // should be checked.
   static const int kMaxNumFunctionParameters = 32766;
   static const int kMaxNumFunctionLocals = 32767;
-  FunctionLiteral* ParseLazy(CompilationInfo* info,
-                             UC16CharacterStream* source,
-                             ZoneScope* zone_scope);
+
   enum Mode {
     PARSE_LAZILY,
     PARSE_EAGERLY
@@ -470,6 +468,13 @@ class Parser {
     kHasInitializers,
     kHasNoInitializers
   };
+
+  class BlockState;
+  class FunctionState;
+
+  FunctionLiteral* ParseLazy(CompilationInfo* info,
+                             UC16CharacterStream* source,
+                             ZoneScope* zone_scope);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() { return isolate_->zone(); }
@@ -730,7 +735,7 @@ class Parser {
 
   Scope* top_scope_;
 
-  LexicalScope* lexical_scope_;
+  FunctionState* current_function_state_;
   Mode mode_;
 
   Target* target_stack_;  // for break, continue statements
@@ -747,8 +752,8 @@ class Parser {
   bool parenthesized_function_;
   bool harmony_scoping_;
 
-  friend class LexicalScope;
-  friend class SaveScope;
+  friend class BlockState;
+  friend class FunctionState;
 };
 
 
