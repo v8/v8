@@ -118,11 +118,6 @@ class CodeStub BASE_EMBEDDED {
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GetCode();
 
-  // Retrieve the code for the stub if already generated.  Do not
-  // generate the code if not already generated and instead return a
-  // retry after GC Failure object.
-  MUST_USE_RESULT MaybeObject* TryGetCode();
-
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   }
@@ -160,14 +155,14 @@ class CodeStub BASE_EMBEDDED {
   // result in a traversable stack.
   virtual bool SometimesSetsUpAFrame() { return true; }
 
+  // Lookup the code in the (possibly custom) cache.
+  bool FindCodeInCache(Code** code_out);
+
  protected:
   static const int kMajorBits = 6;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
 
  private:
-  // Lookup the code in the (possibly custom) cache.
-  bool FindCodeInCache(Code** code_out);
-
   // Nonvirtual wrapper around the stub-specific Generate function.  Call
   // this function to set up the macro assembler and generate the code.
   void GenerateCode(MacroAssembler* masm);
@@ -181,10 +176,6 @@ class CodeStub BASE_EMBEDDED {
 
   // Finish the code object after it has been generated.
   virtual void FinishCode(Code* code) { }
-
-  // Returns true if TryGetCode should fail if it failed
-  // to register newly generated stub in the stub cache.
-  virtual bool MustBeInStubCache() { return false; }
 
   // Activate newly generated stub. Is called after
   // registering stub in the stub cache.
