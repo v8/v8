@@ -13748,6 +13748,41 @@ THREADED_TEST(ScriptLineNumber) {
 }
 
 
+THREADED_TEST(ScriptColumnNumber) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
+      v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> script = v8::String::New(
+      "function foo() {}\n\n     function bar() {}");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("foo")));
+  v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("bar")));
+  CHECK_EQ(14, foo->GetScriptColumnNumber());
+  CHECK_EQ(17, bar->GetScriptColumnNumber());
+}
+
+
+THREADED_TEST(FunctionGetScriptId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
+      v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> scriptSource = v8::String::New(
+      "function foo() {}\n\n     function bar() {}");
+  v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
+  script->Run();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("foo")));
+  v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("bar")));
+  CHECK_EQ(script->Id(), foo->GetScriptId());
+  CHECK_EQ(script->Id(), bar->GetScriptId());
+}
+
+
 static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
                                               const AccessorInfo& info) {
   return v8_num(42);
