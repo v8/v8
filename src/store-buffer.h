@@ -81,7 +81,7 @@ class StoreBuffer {
   // surviving old-to-new pointers into the store buffer to rebuild it.
   void IteratePointersToNewSpace(ObjectSlotCallback callback);
 
-  static const int kStoreBufferOverflowBit = 1 << 16;
+  static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
   static const int kOldStoreBufferLength = kStoreBufferLength * 16;
