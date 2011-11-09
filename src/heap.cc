@@ -1011,12 +1011,13 @@ void PromotionQueue::RelocateQueueHead() {
   intptr_t* head_end =
       Min(front_, reinterpret_cast<intptr_t*>(p->body_limit()));
 
-  int entries_count = (head_end - head_start) / kEntrySizeInWords;
+  int entries_count =
+      static_cast<int>(head_end - head_start) / kEntrySizeInWords;
 
   emergency_stack_ = new List<Entry>(2 * entries_count);
 
   while (head_start != head_end) {
-    int size = *(head_start++);
+    int size = static_cast<int>(*(head_start++));
     HeapObject* obj = reinterpret_cast<HeapObject*>(*(head_start++));
     emergency_stack_->Add(Entry(obj, size));
   }
