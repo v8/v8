@@ -150,9 +150,11 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
 
 const char* StringsStorage::GetName(String* name) {
   if (name->IsString()) {
-    return AddOrDisposeString(
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL).Detach(),
-        name->Hash());
+    int length = Min(kMaxNameSize, name->length());
+    SmartArrayPointer<char> data =
+        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
+    uint32_t hash = HashSequentialString(*data, length);
+    return AddOrDisposeString(data.Detach(), hash);
   }
   return "";
 }

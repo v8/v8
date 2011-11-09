@@ -5826,12 +5826,9 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   buffer->Reset(offset, this);
   int character_position = offset;
   int utf8_bytes = 0;
-  while (buffer->has_more()) {
+  while (buffer->has_more() && character_position++ < offset + length) {
     uint16_t character = buffer->GetNext();
-    if (character_position < offset + length) {
-      utf8_bytes += unibrow::Utf8::Length(character);
-    }
-    character_position++;
+    utf8_bytes += unibrow::Utf8::Length(character);
   }
 
   if (length_return) {
@@ -5845,16 +5842,13 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   buffer->Seek(offset);
   character_position = offset;
   int utf8_byte_position = 0;
-  while (buffer->has_more()) {
+  while (buffer->has_more() && character_position++ < offset + length) {
     uint16_t character = buffer->GetNext();
-    if (character_position < offset + length) {
-      if (allow_nulls == DISALLOW_NULLS && character == 0) {
-        character = ' ';
-      }
-      utf8_byte_position +=
-          unibrow::Utf8::Encode(result + utf8_byte_position, character);
+    if (allow_nulls == DISALLOW_NULLS && character == 0) {
+      character = ' ';
     }
-    character_position++;
+    utf8_byte_position +=
+        unibrow::Utf8::Encode(result + utf8_byte_position, character);
   }
   result[utf8_byte_position] = 0;
   return SmartArrayPointer<char>(result);
