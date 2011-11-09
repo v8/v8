@@ -50,11 +50,17 @@
     # probing when running on the target.
     'v8_can_use_vfp_instructions%': 'false',
 
+    # Similar to vfp but on MIPS.
+    'v8_can_use_fpu_instructions%': 'true',
+
     # Setting v8_use_arm_eabi_hardfloat to true will turn on V8 support for ARM
     # EABI calling convention where double arguments are passed in VFP
     # registers. Note that the GCC flag '-mfloat-abi=hard' should be used as
     # well when compiling for the ARM target.
     'v8_use_arm_eabi_hardfloat%': 'false',
+
+    # Similar to the ARM hard float ABI but on MIPS.
+    'v8_use_mips_abi_hardfloat%': 'true',
 
     'v8_enable_debugger_support%': 1,
 
@@ -153,6 +159,33 @@
           ['v8_target_arch=="mips"', {
             'defines': [
               'V8_TARGET_ARCH_MIPS',
+            ],
+            'conditions': [
+              [ 'v8_can_use_fpu_instructions=="true"', {
+                'defines': [
+                  'CAN_USE_FPU_INSTRUCTIONS',
+                ],
+              }],
+              [ 'v8_use_mips_abi_hardfloat=="true"', {
+                'defines': [
+                  '__mips_hard_float=1',
+                  'CAN_USE_FPU_INSTRUCTIONS',
+                ],
+              }, {
+                'defines': [
+                  '__mips_soft_float=1'
+                ],
+              }],
+              # The MIPS assembler assumes the host is 32 bits,
+              # so force building 32-bit host tools.
+              ['host_arch=="x64"', {
+                'target_conditions': [
+                  ['_toolset=="host"', {
+                    'cflags': ['-m32'],
+                    'ldflags': ['-m32'],
+                  }],
+                ],
+              }],
             ],
           }],
           ['v8_target_arch=="x64"', {
