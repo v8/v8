@@ -40,12 +40,30 @@ namespace v8 {
 namespace internal {
 
 void PromotionQueue::insert(HeapObject* target, int size) {
+  if (emergency_stack_ != NULL) {
+    emergency_stack_->Add(Entry(target, size));
+    return;
+  }
+
   if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(rear_))) {
     NewSpacePage* rear_page =
         NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
     ASSERT(!rear_page->prev_page()->is_anchor());
     rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->body_limit());
+    ActivateGuardIfOnTheSamePage();
   }
+
+  if (guard_) {
+    ASSERT(GetHeadPage() ==
+           Page::FromAllocationTop(reinterpret_cast<Address>(limit_)));
+
+    if ((rear_ - 2) < limit_) {
+      RelocateQueueHead();
+      emergency_stack_->Add(Entry(target, size));
+      return;
+    }
+  }
+
   *(--rear_) = reinterpret_cast<intptr_t>(target);
   *(--rear_) = size;
   // Assert no overflow into live objects.
@@ -53,6 +71,13 @@ void PromotionQueue::insert(HeapObject* target, int size) {
   SemiSpace::AssertValidRange(HEAP->new_space()->top(),
                               reinterpret_cast<Address>(rear_));
 #endif
+}
+
+
+void PromotionQueue::ActivateGuardIfOnTheSamePage() {
+  guard_ = guard_ ||
+      heap_->new_space()->active_space()->current_page()->address() ==
+      GetHeadPage()->address();
 }
 
 

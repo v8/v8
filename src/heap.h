@@ -282,24 +282,58 @@ class HeapDebugUtils;
 // by it's size to avoid dereferencing a map pointer for scanning.
 class PromotionQueue {
  public:
-  PromotionQueue() : front_(NULL), rear_(NULL) { }
+  PromotionQueue(Heap* heap)
+      : front_(NULL),
+        rear_(NULL),
+        limit_(NULL),
+        emergency_stack_(0),
+        heap_(heap) { }
 
-  void Initialize(Address start_address) {
-    // Assumes that a NewSpacePage exactly fits a number of promotion queue
-    // entries (where each is a pair of intptr_t). This allows us to simplify
-    // the test fpr when to switch pages.
-    ASSERT((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize)
-           == 0);
-    ASSERT(NewSpacePage::IsAtEnd(start_address));
-    front_ = rear_ = reinterpret_cast<intptr_t*>(start_address);
+  void Initialize();
+
+  void Destroy() {
+    ASSERT(is_empty());
+    delete emergency_stack_;
+    emergency_stack_ = NULL;
   }
 
-  bool is_empty() { return front_ == rear_; }
+  inline void ActivateGuardIfOnTheSamePage();
+
+  Page* GetHeadPage() {
+    return Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
+  }
+
+  void SetNewLimit(Address limit) {
+    if (!guard_) {
+      return;
+    }
+
+    ASSERT(GetHeadPage() == Page::FromAllocationTop(limit));
+    limit_ = reinterpret_cast<intptr_t*>(limit);
+
+    if (limit_ <= rear_) {
+      return;
+    }
+
+    RelocateQueueHead();
+  }
+
+  bool is_empty() {
+    return (front_ == rear_) &&
+        (emergency_stack_ == NULL || emergency_stack_->length() == 0);
+  }
 
   inline void insert(HeapObject* target, int size);
 
   void remove(HeapObject** target, int* size) {
     ASSERT(!is_empty());
+    if (front_ == rear_) {
+      Entry e = emergency_stack_->RemoveLast();
+      *target = e.obj_;
+      *size = e.size_;
+      return;
+    }
+
     if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(front_))) {
       NewSpacePage* front_page =
           NewSpacePage::FromAddress(reinterpret_cast<Address>(front_));
@@ -318,6 +352,23 @@ class PromotionQueue {
   // The front of the queue is higher in the memory page chain than the rear.
   intptr_t* front_;
   intptr_t* rear_;
+  intptr_t* limit_;
+
+  bool guard_;
+
+  static const int kEntrySizeInWords = 2;
+
+  struct Entry {
+    Entry(HeapObject* obj, int size) : obj_(obj), size_(size) { }
+
+    HeapObject* obj_;
+    int size_;
+  };
+  List<Entry>* emergency_stack_;
+
+  Heap* heap_;
+
+  void RelocateQueueHead();
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };

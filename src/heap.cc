@@ -143,6 +143,7 @@ Heap::Heap()
       number_idle_notifications_(0),
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
+      promotion_queue_(this),
       configured_(false),
       chunks_queued_for_free_(NULL) {
   // Allow build-time customization of the max semispace size. Building
@@ -988,6 +989,41 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 }
 
 
+void PromotionQueue::Initialize() {
+  // Assumes that a NewSpacePage exactly fits a number of promotion queue
+  // entries (where each is a pair of intptr_t). This allows us to simplify
+  // the test fpr when to switch pages.
+  ASSERT((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize)
+         == 0);
+  limit_ = reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceStart());
+  front_ = rear_ =
+      reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceEnd());
+  emergency_stack_ = NULL;
+  guard_ = false;
+}
+
+
+void PromotionQueue::RelocateQueueHead() {
+  ASSERT(emergency_stack_ == NULL);
+
+  Page* p = Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
+  intptr_t* head_start = rear_;
+  intptr_t* head_end =
+      Min(front_, reinterpret_cast<intptr_t*>(p->body_limit()));
+
+  int entries_count = (head_end - head_start) / kEntrySizeInWords;
+
+  emergency_stack_ = new List<Entry>(2 * entries_count);
+
+  while (head_start != head_end) {
+    int size = *(head_start++);
+    HeapObject* obj = reinterpret_cast<HeapObject*>(*(head_start++));
+    emergency_stack_->Add(Entry(obj, size));
+  }
+  rear_ = head_end;
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
@@ -1036,7 +1072,7 @@ void Heap::Scavenge() {
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
   Address new_space_front = new_space_.ToSpaceStart();
-  promotion_queue_.Initialize(new_space_.ToSpaceEnd());
+  promotion_queue_.Initialize();
 
 #ifdef DEBUG
   store_buffer()->Clean();
@@ -1076,9 +1112,10 @@ void Heap::Scavenge() {
       &scavenge_visitor);
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
-
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
+
+  promotion_queue_.Destroy();
 
   LiveObjectList::UpdateReferencesForScavengeGC();
   isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
@@ -1486,6 +1523,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       }
     }
     MaybeObject* allocation = heap->new_space()->AllocateRaw(object_size);
+    heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
 
     *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);

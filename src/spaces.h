@@ -2140,9 +2140,7 @@ class NewSpace : public Space {
   Address* allocation_top_address() { return &allocation_info_.top; }
   Address* allocation_limit_address() { return &allocation_info_.limit; }
 
-  MUST_USE_RESULT MaybeObject* AllocateRaw(int size_in_bytes) {
-    return AllocateRawInternal(size_in_bytes);
-  }
+  MUST_USE_RESULT INLINE(MaybeObject* AllocateRaw(int size_in_bytes));
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
@@ -2268,8 +2266,7 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  // Implementation of AllocateRaw.
-  MUST_USE_RESULT inline MaybeObject* AllocateRawInternal(int size_in_bytes);
+  MUST_USE_RESULT MaybeObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class SemiSpaceIterator;
 

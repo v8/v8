@@ -1012,13 +1012,46 @@ bool NewSpace::AddFreshPage() {
     // Failed to get a new page in to-space.
     return false;
   }
+
   // Clear remainder of current page.
-  int remaining_in_page =
-    static_cast<int>(NewSpacePage::FromLimit(top)->body_limit() - top);
+  Address limit = NewSpacePage::FromLimit(top)->body_limit();
+  if (heap()->gc_state() == Heap::SCAVENGE) {
+    heap()->promotion_queue()->SetNewLimit(limit);
+    heap()->promotion_queue()->ActivateGuardIfOnTheSamePage();
+  }
+
+  int remaining_in_page = static_cast<int>(limit - top);
   heap()->CreateFillerObjectAt(top, remaining_in_page);
   pages_used_++;
   UpdateAllocationInfo();
+
   return true;
+}
+
+
+MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
+  Address old_top = allocation_info_.top;
+  Address new_top = old_top + size_in_bytes;
+  Address high = to_space_.page_high();
+  if (allocation_info_.limit < high) {
+    // Incremental marking has lowered the limit to get a
+    // chance to do a step.
+    allocation_info_.limit = Min(
+        allocation_info_.limit + inline_allocation_limit_step_,
+        high);
+    int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
+    heap()->incremental_marking()->Step(bytes_allocated);
+    top_on_previous_step_ = new_top;
+    return AllocateRaw(size_in_bytes);
+  } else if (AddFreshPage()) {
+    // Switched to new page. Try allocating again.
+    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
+    heap()->incremental_marking()->Step(bytes_allocated);
+    top_on_previous_step_ = to_space_.page_low();
+    return AllocateRaw(size_in_bytes);
+  } else {
+    return Failure::RetryAfterGC();
+  }
 }
 
 
@@ -1904,7 +1937,7 @@ bool NewSpace::ReserveSpace(int bytes) {
   // marking.  The most reliable way to ensure that there is linear space is
   // to do the allocation, then rewind the limit.
   ASSERT(bytes <= InitialCapacity());
-  MaybeObject* maybe = AllocateRawInternal(bytes);
+  MaybeObject* maybe = AllocateRaw(bytes);
   Object* object = NULL;
   if (!maybe->ToObject(&object)) return false;
   HeapObject* allocation = HeapObject::cast(object);
