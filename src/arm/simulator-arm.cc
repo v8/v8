@@ -53,7 +53,7 @@ namespace internal {
 // code.
 class ArmDebugger {
  public:
-  explicit ArmDebugger(Simulator* sim) : sim_(sim) { };
+  explicit ArmDebugger(Simulator* sim) : sim_(sim) { }
   ~ArmDebugger();
 
   void Stop(Instruction* instr);
