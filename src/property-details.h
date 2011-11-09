@@ -61,12 +61,11 @@ enum PropertyType {
   CALLBACKS                 = 3,
   HANDLER                   = 4,  // only in lookup results, not in descriptors
   INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
+  // All properties before MAP_TRANSITION are real.
   MAP_TRANSITION            = 6,  // only in fast mode
   ELEMENTS_TRANSITION       = 7,
   CONSTANT_TRANSITION       = 8,  // only in fast mode
   NULL_DESCRIPTOR           = 9,  // only in fast mode
-  // All properties before MAP_TRANSITION are real.
-  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
   // NULL_DESCRIPTOR can be used as the type flag for IC stubs for
   // nonexistent properties.
@@ -86,6 +85,26 @@ inline bool IsTransitionType(PropertyType type) {
     case CALLBACKS:
     case HANDLER:
     case INTERCEPTOR:
+    case NULL_DESCRIPTOR:
+      return false;
+  }
+  UNREACHABLE();  // keep the compiler happy
+  return false;
+}
+
+
+inline bool IsRealProperty(PropertyType type) {
+  switch (type) {
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case CALLBACKS:
+    case HANDLER:
+    case INTERCEPTOR:
+      return true;
+    case MAP_TRANSITION:
+    case ELEMENTS_TRANSITION:
+    case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       return false;
   }
@@ -127,7 +146,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   bool IsProperty() {
-    return type() < FIRST_PHANTOM_PROPERTY_TYPE;
+    return IsRealProperty(type());
   }
 
   PropertyAttributes attributes() { return AttributesField::decode(value_); }

@@ -262,7 +262,7 @@ class LookupResult BASE_EMBEDDED {
   // Is the result is a property excluding transitions and the null
   // descriptor?
   bool IsProperty() {
-    return IsFound() && (type() < FIRST_PHANTOM_PROPERTY_TYPE);
+    return IsFound() && GetPropertyDetails().IsProperty();
   }
 
   // Is the result a property or a transition?

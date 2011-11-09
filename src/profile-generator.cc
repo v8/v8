@@ -2114,7 +2114,17 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
               js_obj, entry,
               descs->GetKey(i), descs->GetConstantFunction(i));
           break;
-        default: ;
+        case NORMAL:  // only in slow mode
+        case HANDLER:  // only in lookup results, not in descriptors
+        case INTERCEPTOR:  // only in lookup results, not in descriptors
+        case MAP_TRANSITION:  // we do not care about transitions here...
+        case ELEMENTS_TRANSITION:
+        case CONSTANT_TRANSITION:
+        case NULL_DESCRIPTOR:  // ... and not about "holes"
+          break;
+          // TODO(svenpanne): Should we really ignore accessors here?
+        case CALLBACKS:
+          break;
       }
     }
   } else {

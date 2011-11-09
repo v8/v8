@@ -1635,15 +1635,14 @@ void MarkCompactCollector::MarkDescriptorArray(
 
     RecordSlot(slot, slot, *slot);
 
-    PropertyType type = details.type();
-    if (type < FIRST_PHANTOM_PROPERTY_TYPE) {
+    if (details.IsProperty()) {
       HeapObject* object = HeapObject::cast(value);
       MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
       if (!mark.Get()) {
         SetMark(HeapObject::cast(object), mark);
         marking_deque_.PushBlack(object);
       }
-    } else if (type == ELEMENTS_TRANSITION && value->IsFixedArray()) {
+    } else if (details.type() == ELEMENTS_TRANSITION && value->IsFixedArray()) {
       // For maps with multiple elements transitions, the transition maps are
       // stored in a FixedArray. Keep the fixed array alive but not the maps
       // that it refers to.

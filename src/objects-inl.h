@@ -1860,7 +1860,7 @@ AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
 
 
 bool DescriptorArray::IsProperty(int descriptor_number) {
-  return GetType(descriptor_number) < FIRST_PHANTOM_PROPERTY_TYPE;
+  return IsRealProperty(GetType(descriptor_number));
 }
 
 
