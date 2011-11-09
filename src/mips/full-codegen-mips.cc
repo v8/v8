@@ -2242,6 +2242,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   CallFunctionStub stub(arg_count, flags);
+  __ lw(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2318,6 +2319,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
+    __ lw(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -3230,12 +3232,24 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
+  // Check for proxy.
+  Label proxy, done;
+  __ GetObjectType(v0, a1, a1);
+  __ Branch(&proxy, eq, a1, Operand(JS_FUNCTION_PROXY_TYPE));
+
   // InvokeFunction requires the function in a1. Move it in there.
   __ mov(a1, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(a1, count, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ jmp(&done);
+
+  __ bind(&proxy);
+  __ push(v0);
+  __ CallRuntime(Runtime::kCall, args->length());
+  __ bind(&done);
+
   context()->Plug(v0);
 }
 

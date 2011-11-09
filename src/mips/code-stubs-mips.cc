@@ -5120,6 +5120,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // a1 : the function to call
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -5134,15 +5135,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Branch(&call, ne, t0, Operand(at));
     // Patch the receiver on the stack with the global receiver object.
-    __ lw(a1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ lw(a1, FieldMemOperand(a1, GlobalObject::kGlobalReceiverOffset));
-    __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
+    __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
+    __ sw(a2, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);
   }
-
-  // Get the function to call from the stack.
-  // function, receiver [, arguments]
-  __ lw(a1, MemOperand(sp, (argc_ + 1) * kPointerSize));
 
   // Check that the function is really a JavaScript function.
   // a1: pushed function (to be verified)
@@ -5180,7 +5177,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
   __ li(a2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(t1, CALL_AS_FUNCTION);
+  __ SetCallKind(t1, CALL_AS_METHOD);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();

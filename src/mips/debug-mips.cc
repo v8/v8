@@ -259,11 +259,11 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  No registers used on entry.
+  //  -- a1 : function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, 0);
+  Generate_DebugBreakCallHelper(masm, a1.bit(), 0);
 }
 
 
