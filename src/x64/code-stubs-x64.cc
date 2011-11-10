@@ -4108,7 +4108,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   // Note that if the original string is a cons or slice with an external
   // string as underlying string, we pass that unpacked underlying string with
-  // the updated index to the runtime function.
+  // the adjusted index to the runtime function.
   __ bind(&assure_seq_string);
   __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));

@@ -3058,7 +3058,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
 
   Register object = a1;
   Register index = a0;
-  Register scratch = a2;
   Register result = v0;
 
   __ pop(object);
@@ -3068,7 +3067,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   Label done;
   StringCharCodeAtGenerator generator(object,
                                       index,
-                                      scratch,
                                       result,
                                       &need_conversion,
                                       &need_conversion,
@@ -3107,8 +3105,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 
   Register object = a1;
   Register index = a0;
-  Register scratch1 = a2;
-  Register scratch2 = a3;
+  Register scratch = a3;
   Register result = v0;
 
   __ pop(object);
@@ -3118,8 +3115,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
   Label done;
   StringCharAtGenerator generator(object,
                                   index,
-                                  scratch1,
-                                  scratch2,
+                                  scratch,
                                   result,
                                   &need_conversion,
                                   &need_conversion,

@@ -5103,7 +5103,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // Check that parent is not an external string. Go to runtime otherwise.
   // Note that if the original string is a cons or slice with an external
   // string as underlying string, we pass that unpacked underlying string with
-  // the updated index to the runtime function.
+  // the adjusted index to the runtime function.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Operand(kStringRepresentationMask));
   __ b(ne, &call_runtime_);

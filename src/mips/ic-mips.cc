@@ -1120,14 +1120,12 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 
   Register receiver = a1;
   Register index = a0;
-  Register scratch1 = a2;
-  Register scratch2 = a3;
+  Register scratch = a3;
   Register result = v0;
 
   StringCharAtGenerator char_at_generator(receiver,
                                           index,
-                                          scratch1,
-                                          scratch2,
+                                          scratch,
                                           result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
