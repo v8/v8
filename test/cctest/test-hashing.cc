@@ -51,6 +51,8 @@ static v8::Persistent<v8::Context> env;
 
 void generate(MacroAssembler* assm, i::Vector<const char> string) {
 #ifdef V8_TARGET_ARCH_IA32
+  __ push(ebx);
+  __ push(ecx);
   __ mov(eax, Immediate(0));
   if (string.length() > 0) {
     __ mov(ebx, Immediate(string.at(0)));
@@ -61,8 +63,12 @@ void generate(MacroAssembler* assm, i::Vector<const char> string) {
     StringHelper::GenerateHashAddCharacter(assm, eax, ebx, ecx);
   }
   StringHelper::GenerateHashGetHash(assm, eax, ecx);
+  __ pop(ecx);
+  __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
+  __ push(rbx);
+  __ push(rcx);
   __ movq(rax, Immediate(0));
   if (string.length() > 0) {
     __ movq(rbx, Immediate(string.at(0)));
@@ -73,28 +79,30 @@ void generate(MacroAssembler* assm, i::Vector<const char> string) {
     StringHelper::GenerateHashAddCharacter(assm, rax, rbx, rcx);
   }
   StringHelper::GenerateHashGetHash(assm, rax, rcx);
+  __ pop(rcx);
+  __ pop(rbx);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
   __ mov(r0, Operand(0));
   if (string.length() > 0) {
-    __ mov(r1, Operand(string.at(0)));
-    StringHelper::GenerateHashInit(assm, r0, r1);
+    __ mov(ip, Operand(string.at(0)));
+    StringHelper::GenerateHashInit(assm, r0, ip);
   }
   for (int i = 1; i < string.length(); i++) {
-    __ mov(r1, Operand(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, r0, r1);
+    __ mov(ip, Operand(string.at(i)));
+    StringHelper::GenerateHashAddCharacter(assm, r0, ip);
   }
   StringHelper::GenerateHashGetHash(assm, r0);
   __ mov(pc, Operand(lr));
 #elif V8_TARGET_ARCH_MIPS
   __ li(v0, Operand(0));
   if (string.length() > 0) {
-    __ li(v1, Operand(string.at(0)));
-    StringHelper::GenerateHashInit(assm, v0, v1);
+    __ li(t1, Operand(string.at(0)));
+    StringHelper::GenerateHashInit(assm, v0, t1);
   }
   for (int i = 1; i < string.length(); i++) {
-    __ li(v1, Operand(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, v0, v1);
+    __ li(t1, Operand(string.at(i)));
+    StringHelper::GenerateHashAddCharacter(assm, v0, t1);
   }
   StringHelper::GenerateHashGetHash(assm, v0);
   __ jr(ra);
