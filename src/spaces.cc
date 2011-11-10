@@ -1940,7 +1940,7 @@ intptr_t FreeList::EvictFreeListItems(Page* p) {
         EvictFreeListItemsInList(&large_list_, p);
   }
 
-  available_ -= sum;
+  available_ -= static_cast<int>(sum);
 
   return sum;
 }
