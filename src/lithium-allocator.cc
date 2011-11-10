@@ -152,8 +152,8 @@ bool LiveRange::HasOverlap(UseInterval* target) const {
 LiveRange::LiveRange(int id)
     : id_(id),
       spilled_(false),
+      is_double_(false),
       assigned_register_(kInvalidAssignment),
-      assigned_register_kind_(NONE),
       last_interval_(NULL),
       first_interval_(NULL),
       first_pos_(NULL),
@@ -169,7 +169,7 @@ LiveRange::LiveRange(int id)
 void LiveRange::set_assigned_register(int reg, RegisterKind register_kind) {
   ASSERT(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
-  assigned_register_kind_ = register_kind;
+  is_double_ = (register_kind == DOUBLE_REGISTERS);
   ConvertOperands();
 }
 
@@ -555,7 +555,7 @@ LAllocator::LAllocator(int num_values, HGraph* graph)
       reusable_slots_(8),
       next_virtual_register_(num_values),
       first_artificial_register_(num_values),
-      mode_(NONE),
+      mode_(GENERAL_REGISTERS),
       num_registers_(-1),
       graph_(graph),
       has_osr_entry_(false) {}
@@ -1466,7 +1466,6 @@ void LAllocator::ProcessOsrEntry() {
 void LAllocator::AllocateGeneralRegisters() {
   HPhase phase("Allocate general registers", this);
   num_registers_ = Register::kNumAllocatableRegisters;
-  mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
 
@@ -1480,7 +1479,6 @@ void LAllocator::AllocateDoubleRegisters() {
 
 
 void LAllocator::AllocateRegisters() {
-  ASSERT(mode_ != NONE);
   ASSERT(unhandled_live_ranges_.is_empty());
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
@@ -1585,7 +1583,6 @@ void LAllocator::AllocateRegisters() {
 
 
 const char* LAllocator::RegisterName(int allocation_index) {
-  ASSERT(mode_ != NONE);
   if (mode_ == GENERAL_REGISTERS) {
     return Register::AllocationIndexToString(allocation_index);
   } else {
