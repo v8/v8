@@ -6969,7 +6969,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
 
   // Find total length of join result.
   int string_length = 0;
-  bool is_ascii = true;
+  bool is_ascii = separator->IsAsciiRepresentation();
   int max_string_length = SeqAsciiString::kMaxLength;
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length,
@@ -8699,6 +8699,42 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Call) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() >= 2);
+  CONVERT_CHECKED(JSReceiver, fun, args[args.length() - 1]);
+  Object* receiver = args[0];
+  int argc = args.length() - 2;
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  SmartArrayPointer<Handle<Object> > argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = SmartArrayPointer<Handle<Object> >(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+     MaybeObject* maybe = args[1 + i];
+     Object* object;
+     if (!maybe->To<Object>(&object)) return maybe;
+     argv[i] = Handle<Object>(object);
+  }
+
+  bool threw;
+  Handle<JSReceiver> hfun(fun);
+  Handle<Object> hreceiver(receiver);
+  Handle<Object> result =
+      Execution::Call(hfun, hreceiver, argc, argv, &threw, true);
+
+  if (threw) return Failure::Exception();
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 5);
@@ -10406,10 +10442,11 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       return heap->undefined_value();
-    default:
+    case HANDLER:
       UNREACHABLE();
+      return heap->undefined_value();
   }
-  UNREACHABLE();
+  UNREACHABLE();  // keep the compiler happy
   return heap->undefined_value();
 }
 

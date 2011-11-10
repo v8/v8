@@ -4917,6 +4917,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // r1 : the function to call
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -4931,15 +4932,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
     __ b(ne, &call);
     // Patch the receiver on the stack with the global receiver object.
-    __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
-    __ str(r1, MemOperand(sp, argc_ * kPointerSize));
+    __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    __ str(r2, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);
   }
-
-  // Get the function to call from the stack.
-  // function, receiver [, arguments]
-  __ ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
 
   // Check that the function is really a JavaScript function.
   // r1: pushed function (to be verified)
@@ -4978,7 +4975,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE));
   __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(r5, CALL_AS_FUNCTION);
+  __ SetCallKind(r5, CALL_AS_METHOD);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -5059,14 +5056,11 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
-
-  // Put smi-tagged index into scratch register.
-  __ mov(scratch_, index_);
   __ bind(&got_smi_index_);
 
   // Check for index out of range.
   __ ldr(ip, FieldMemOperand(object_, String::kLengthOffset));
-  __ cmp(ip, Operand(scratch_));
+  __ cmp(ip, Operand(index_));
   __ b(ls, index_out_of_range_);
 
   // We need special handling for non-flat strings.
@@ -5092,27 +5086,27 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
   __ cmp(result_, Operand(ip));
   __ b(ne, &call_runtime_);
-  // Get the first of the two strings and load its instance type.
-  __ ldr(result_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  // Get the first of the two parts.
+  __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ ldr(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
-  __ add(scratch_, scratch_, result_);
-  __ ldr(result_, FieldMemOperand(object_, SlicedString::kParentOffset));
+  __ add(index_, index_, result_);
+  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   __ bind(&assure_seq_string);
-  __ ldr(result_, FieldMemOperand(result_, HeapObject::kMapOffset));
+  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // Check that parent is not an external string. Go to runtime otherwise.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the adjusted index to the runtime function.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Operand(kStringRepresentationMask));
   __ b(ne, &call_runtime_);
-  // Actually fetch the parent string if it is confirmed to be sequential.
-  STATIC_ASSERT(SlicedString::kParentOffset == ConsString::kFirstOffset);
-  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
@@ -5126,15 +5120,15 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // add without shifting since the smi tag size is the log2 of the
   // number of bytes in a two-byte character.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
-  __ add(scratch_, object_, Operand(scratch_));
-  __ ldrh(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));
+  __ add(index_, object_, Operand(index_));
+  __ ldrh(result_, FieldMemOperand(index_, SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  __ add(scratch_, object_, Operand(scratch_, LSR, kSmiTagSize));
-  __ ldrb(result_, FieldMemOperand(scratch_, SeqAsciiString::kHeaderSize));
+  __ add(index_, object_, Operand(index_, LSR, kSmiTagSize));
+  __ ldrb(result_, FieldMemOperand(index_, SeqAsciiString::kHeaderSize));
 
   __ bind(&got_char_code);
   __ mov(result_, Operand(result_, LSL, kSmiTagSize));
@@ -5151,12 +5145,12 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
   __ CheckMap(index_,
-              scratch_,
+              result_,
               Heap::kHeapNumberMapRootIndex,
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
-  __ Push(object_, index_);
+  __ push(object_);
   __ push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
@@ -5167,15 +5161,14 @@ void StringCharCodeAtGenerator::GenerateSlow(
   }
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
-  __ Move(scratch_, r0);
-  __ pop(index_);
+  __ Move(index_, r0);
   __ pop(object_);
   // Reload the instance type.
   __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
-  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  __ JumpIfNotSmi(index_, index_out_of_range_);
   // Otherwise, return to the fast path.
   __ jmp(&got_smi_index_);
 

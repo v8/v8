@@ -1240,27 +1240,63 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
     case Variable::LOCAL:
     case Variable::CONTEXT: {
       Comment cmnt(masm_, var->IsContextSlot() ? "Context slot" : "Stack slot");
-      if (!var->binding_needs_init()) {
-        context()->Plug(var);
-      } else {
-        // Let and const need a read barrier.
-        Label done;
-        GetVar(rax, var);
-        __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-        __ j(not_equal, &done, Label::kNear);
-        if (var->mode() == LET || var->mode() == CONST_HARMONY) {
-          // Throw a reference error when using an uninitialized let/const
-          // binding in harmony mode.
-          __ Push(var->name());
-          __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      if (var->binding_needs_init()) {
+        // var->scope() may be NULL when the proxy is located in eval code and
+        // refers to a potential outside binding. Currently those bindings are
+        // always looked up dynamically, i.e. in that case
+        //     var->location() == LOOKUP.
+        // always holds.
+        ASSERT(var->scope() != NULL);
+
+        // Check if the binding really needs an initialization check. The check
+        // can be skipped in the following situation: we have a LET or CONST
+        // binding in harmony mode, both the Variable and the VariableProxy have
+        // the same declaration scope (i.e. they are both in global code, in the
+        // same function or in the same eval code) and the VariableProxy is in
+        // the source physically located after the initializer of the variable.
+        //
+        // We cannot skip any initialization checks for CONST in non-harmony
+        // mode because const variables may be declared but never initialized:
+        //   if (false) { const x; }; var y = x;
+        //
+        // The condition on the declaration scopes is a conservative check for
+        // nested functions that access a binding and are called before the
+        // binding is initialized:
+        //   function() { f(); let x = 1; function f() { x = 2; } }
+        //
+        bool skip_init_check;
+        if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
+          skip_init_check = false;
         } else {
-          // Uninitalized const bindings outside of harmony mode are unholed.
-          ASSERT(var->mode() == CONST);
-          __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+          // Check that we always have valid source position.
+          ASSERT(var->initializer_position() != RelocInfo::kNoPosition);
+          ASSERT(proxy->position() != RelocInfo::kNoPosition);
+          skip_init_check = var->mode() != CONST &&
+              var->initializer_position() < proxy->position();
         }
-        __ bind(&done);
-        context()->Plug(rax);
+
+        if (!skip_init_check) {
+          // Let and const need a read barrier.
+          Label done;
+          GetVar(rax, var);
+          __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+          __ j(not_equal, &done, Label::kNear);
+          if (var->mode() == LET || var->mode() == CONST_HARMONY) {
+            // Throw a reference error when using an uninitialized let/const
+            // binding in harmony mode.
+            __ Push(var->name());
+            __ CallRuntime(Runtime::kThrowReferenceError, 1);
+          } else {
+            // Uninitalized const bindings outside of harmony mode are unholed.
+            ASSERT(var->mode() == CONST);
+            __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+          }
+          __ bind(&done);
+          context()->Plug(rax);
+          break;
+        }
       }
+      context()->Plug(var);
       break;
     }
 
@@ -1493,60 +1529,12 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForAccumulatorValue(subexpr);
 
     // Store the subexpression value in the array's elements.
-    __ movq(r8, Operand(rsp, 0));  // Copy of array literal.
-    __ movq(rdi, FieldOperand(r8, JSObject::kMapOffset));
-    __ movq(rbx, FieldOperand(r8, JSObject::kElementsOffset));
-    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-
-    Label element_done;
-    Label double_elements;
-    Label smi_element;
-    Label slow_elements;
-    Label fast_elements;
-    __ CheckFastElements(rdi, &double_elements);
-
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(result_register(), &smi_element);
-    __ CheckFastSmiOnlyElements(rdi, &fast_elements);
-
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-    __ bind(&slow_elements);
-    __ push(r8);  // Copy of array literal.
-    __ Push(Smi::FromInt(i));
-    __ push(result_register());
-    __ Push(Smi::FromInt(NONE));  // PropertyAttributes
-    __ Push(Smi::FromInt(strict_mode_flag()));  // Strict mode.
-    __ CallRuntime(Runtime::kSetProperty, 5);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
-    __ movq(rcx, Immediate(i));
-    __ StoreNumberToDoubleElements(result_register(),
-                                   rbx,
-                                   rcx,
-                                   xmm0,
-                                   &slow_elements);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
-    __ movq(FieldOperand(rbx, offset), result_register());
-    // Update the write barrier for the array store.
-    __ RecordWriteField(rbx, offset, result_register(), rcx,
-                        kDontSaveFPRegs,
-                        EMIT_REMEMBERED_SET,
-                        OMIT_SMI_CHECK);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ movq(FieldOperand(rbx, offset), result_register());
-    // Fall through
-
-    __ bind(&element_done);
+    __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
+    __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
+    __ Move(rcx, Smi::FromInt(i));
+    __ Move(rdx, Smi::FromInt(expr->literal_index()));
+    StoreArrayLiteralElementStub stub;
+    __ CallStub(&stub);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -2079,6 +2067,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   CallFunctionStub stub(arg_count, flags);
+  __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2149,6 +2138,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     CallFunctionStub stub(arg_count, RECEIVER_MIGHT_BE_IMPLICIT);
+    __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -2875,7 +2865,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
 
   Register object = rbx;
   Register index = rax;
-  Register scratch = rcx;
   Register result = rdx;
 
   __ pop(object);
@@ -2885,7 +2874,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   Label done;
   StringCharCodeAtGenerator generator(object,
                                       index,
-                                      scratch,
                                       result,
                                       &need_conversion,
                                       &need_conversion,
@@ -2923,8 +2911,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 
   Register object = rbx;
   Register index = rax;
-  Register scratch1 = rcx;
-  Register scratch2 = rdx;
+  Register scratch = rdx;
   Register result = rax;
 
   __ pop(object);
@@ -2934,8 +2921,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
   Label done;
   StringCharAtGenerator generator(object,
                                   index,
-                                  scratch1,
-                                  scratch2,
+                                  scratch,
                                   result,
                                   &need_conversion,
                                   &need_conversion,
@@ -3046,12 +3032,24 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
+  // Check for proxy.
+  Label proxy, done;
+  __ CmpObjectType(rax, JS_FUNCTION_PROXY_TYPE, rbx);
+  __ j(equal, &proxy);
+
   // InvokeFunction requires the function in rdi. Move it in there.
   __ movq(rdi, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(rdi, count, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ jmp(&done);
+
+  __ bind(&proxy);
+  __ push(rax);
+  __ CallRuntime(Runtime::kCall, args->length());
+  __ bind(&done);
+
   context()->Plug(rax);
 }
 

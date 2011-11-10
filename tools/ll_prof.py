@@ -334,6 +334,7 @@ class LogReader(object):
   _ARCH_TO_POINTER_TYPE_MAP = {
     "ia32": ctypes.c_uint32,
     "arm": ctypes.c_uint32,
+    "mips": ctypes.c_uint32,
     "x64": ctypes.c_uint64
   }
 

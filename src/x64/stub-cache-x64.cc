@@ -1600,7 +1600,6 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 
   Register receiver = rbx;
   Register index = rdi;
-  Register scratch = rdx;
   Register result = rax;
   __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
   if (argc > 0) {
@@ -1611,7 +1610,6 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 
   StringCharCodeAtGenerator generator(receiver,
                                       index,
-                                      scratch,
                                       result,
                                       &miss,  // When not a string.
                                       &miss,  // When not a number.
@@ -1680,8 +1678,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   Register receiver = rax;
   Register index = rdi;
-  Register scratch1 = rbx;
-  Register scratch2 = rdx;
+  Register scratch = rdx;
   Register result = rax;
   __ movq(receiver, Operand(rsp, (argc + 1) * kPointerSize));
   if (argc > 0) {
@@ -1692,8 +1689,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   StringCharAtGenerator generator(receiver,
                                   index,
-                                  scratch1,
-                                  scratch2,
+                                  scratch,
                                   result,
                                   &miss,  // When not a string.
                                   &miss,  // When not a number.

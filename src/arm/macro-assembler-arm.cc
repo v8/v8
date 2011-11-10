@@ -1258,37 +1258,12 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
-  // r0 is expected to hold the exception.
-  if (!value.is(r0)) {
-    mov(r0, value);
-  }
 
-  // Drop sp to the top stack handler.
-  mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  ldr(sp, MemOperand(r3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  ldr(r2, MemOperand(sp, kStateOffset));
-  cmp(r2, Operand(StackHandler::ENTRY));
-  b(eq, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  ldr(sp, MemOperand(sp, kNextOffset));
-  jmp(&loop);
-  bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  pop(r2);
-  str(r2, MemOperand(r3));
-
+  // The exception is expected in r0.
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
-    ExternalReference external_caught(
-        Isolate::kExternalCaughtExceptionAddress, isolate());
+    ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                      isolate());
     mov(r0, Operand(false, RelocInfo::NONE));
     mov(r2, Operand(external_caught));
     str(r0, MemOperand(r2));
@@ -1299,21 +1274,33 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate())));
     str(r0, MemOperand(r2));
+  } else if (!value.is(r0)) {
+    mov(r0, value);
   }
 
-  // Stack layout at this point. See also StackHandlerConstants.
-  // sp ->   state (ENTRY)
-  //         cp
-  //         fp
-  //         lr
+  // Drop the stack pointer to the top of the top stack handler.
+  mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  ldr(sp, MemOperand(r3));
 
-  // Restore context and frame pointer, discard state (r2).
+  // Unwind the handlers until the top ENTRY handler is found.
+  Label fetch_next, check_kind;
+  jmp(&check_kind);
+  bind(&fetch_next);
+  ldr(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
+
+  bind(&check_kind);
+  ldr(r2, MemOperand(sp, StackHandlerConstants::kStateOffset));
+  cmp(r2, Operand(StackHandler::ENTRY));
+  b(ne, &fetch_next);
+
+  // Set the top handler address to next handler past the top ENTRY handler.
+  pop(r2);
+  str(r2, MemOperand(r3));
+
+  // Clear the context and frame pointer (0 was saved in the handler), and
+  // discard the state (r2).
   ldm(ia_w, sp, r2.bit() | cp.bit() | fp.bit());
-#ifdef DEBUG
-  if (emit_debug_code()) {
-    mov(lr, Operand(pc));
-  }
-#endif
+
   pop(pc);
 }
 

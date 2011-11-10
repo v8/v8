@@ -797,7 +797,7 @@ class FunctionInfoListener {
     HandleScope scope;
     FunctionInfoWrapper info = FunctionInfoWrapper::Create();
     info.SetInitialProperties(fun->name(), fun->start_position(),
-                              fun->end_position(), fun->num_parameters(),
+                              fun->end_position(), fun->parameter_count(),
                               current_parent_index_);
     current_parent_index_ = len_;
     SetElementNonStrict(result_, len_, info.GetJSArray());

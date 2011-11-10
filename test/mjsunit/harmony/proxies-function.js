@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-proxies
+// Flags: --harmony-proxies --allow-natives-syntax
 
 
 // Helper.
@@ -53,7 +53,7 @@ var receiver
 
 function TestCall(isStrict, callTrap) {
   assertEquals(42, callTrap(5, 37))
-  assertEquals(isStrict ? undefined : global_object, receiver)
+  assertSame(isStrict ? undefined : global_object, receiver)
 
   var handler = {
     get: function(r, k) {
@@ -61,11 +61,12 @@ function TestCall(isStrict, callTrap) {
     }
   }
   var f = Proxy.createFunction(handler, callTrap)
+  var o = {f: f}
+  global_object.f = f
 
   receiver = 333
   assertEquals(42, f(11, 31))
-  assertEquals(isStrict ? undefined : global_object, receiver)
-  var o = {f: f}
+  assertSame(isStrict ? undefined : global_object, receiver)
   receiver = 333
   assertEquals(42, o.f(10, 32))
   assertSame(o, receiver)
@@ -81,6 +82,9 @@ function TestCall(isStrict, callTrap) {
   receiver = 333
   assertEquals(42, f.call(o, 32, 10))
   assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, f.call(undefined, 33, 9))
+  assertSame(isStrict ? undefined : global_object, receiver)
   receiver = 333
   assertEquals(42, f.call(null, 33, 9))
   assertSame(isStrict ? null : global_object, receiver)
@@ -101,6 +105,24 @@ function TestCall(isStrict, callTrap) {
   receiver = 333
   assertEquals(32, Function.prototype.apply.call(f, o, [17, 15]))
   assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Call(o, 11, 31, f))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Call(null, 11, 31, f))
+  assertSame(isStrict ? null : global_object, receiver)
+  receiver = 333
+  assertEquals(42, %Apply(f, o, [11, 31], 0, 2))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Apply(f, null, [11, 31], 0, 2))
+  assertSame(isStrict ? null : global_object, receiver)
+  receiver = 333
+  assertEquals(42, %_CallFunction(o, 11, 31, f))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %_CallFunction(null, 11, 31, f))
+  assertSame(isStrict ? null : global_object, receiver)
 
   var ff = Function.prototype.bind.call(f, o, 12)
   assertTrue(ff.length <= 1)  // TODO(rossberg): Not spec'ed yet, be lax.
@@ -108,7 +130,28 @@ function TestCall(isStrict, callTrap) {
   assertEquals(42, ff(30))
   assertSame(o, receiver)
   receiver = 333
+  assertEquals(33, Function.prototype.call.call(ff, {}, 21))
+  assertSame(o, receiver)
+  receiver = 333
   assertEquals(32, Function.prototype.apply.call(ff, {}, [20]))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(23, %Call({}, 11, ff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(23, %Call({}, 11, 3, ff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(24, %Apply(ff, {}, [12, 13], 0, 1))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(24, %Apply(ff, {}, [12, 13], 0, 2))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(34, %_CallFunction({}, 22, ff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(34, %_CallFunction({}, 22, 3, ff))
   assertSame(o, receiver)
 
   var fff = Function.prototype.bind.call(ff, o, 30)
@@ -118,6 +161,30 @@ function TestCall(isStrict, callTrap) {
   assertSame(o, receiver)
   receiver = 333
   assertEquals(42, Function.prototype.call.call(fff, {}))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, Function.prototype.apply.call(fff, {}))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Call({}, fff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Call({}, 11, 3, fff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Apply(fff, {}, [], 0, 0))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Apply(fff, {}, [12, 13], 0, 0))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %Apply(fff, {}, [12, 13], 0, 2))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %_CallFunction({}, fff))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %_CallFunction({}, 3, 4, 5, fff))
   assertSame(o, receiver)
 
   var f = CreateFrozen({}, callTrap)
@@ -144,10 +211,13 @@ function TestCall(isStrict, callTrap) {
   assertEquals(32, Function.prototype.apply.call(f, o, [17, 15]))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(42, ff(30))
+  assertEquals(23, %Call({}, 11, 12, f))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(32, Function.prototype.apply.call(ff, {}, [20]))
+  assertEquals(27, %Apply(f, {}, [12, 13, 14], 1, 2))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, %_CallFunction(o, 18, 24, f))
   assertSame(o, receiver)
 }
 
@@ -163,7 +233,8 @@ TestCall(true, function(x, y) {
 })
 
 TestCall(false, function() {
-  receiver = this; return arguments[0] + arguments[1]
+  receiver = this
+  return arguments[0] + arguments[1]
 })
 
 TestCall(false, Proxy.createFunction(handler, function(x, y) {
@@ -209,6 +280,12 @@ function TestCallThrow(callTrap) {
   assertThrows(function(){ ({x: f})["x"](11) }, "myexn")
   assertThrows(function(){ Function.prototype.call.call(f, {}, 2) }, "myexn")
   assertThrows(function(){ Function.prototype.apply.call(f, {}, [1]) }, "myexn")
+  assertThrows(function(){ %Call({}, f) }, "myexn")
+  assertThrows(function(){ %Call({}, 1, 2, f) }, "myexn")
+  assertThrows(function(){ %Apply({}, f, [], 3, 0) }, "myexn")
+  assertThrows(function(){ %Apply({}, f, [3, 4], 0, 1) }, "myexn")
+  assertThrows(function(){ %_CallFunction({}, f) }, "myexn")
+  assertThrows(function(){ %_CallFunction({}, 1, 2, f) }, "myexn")
 
   var f = CreateFrozen({}, callTrap)
   assertThrows(function(){ f(11) }, "myexn")
@@ -216,6 +293,12 @@ function TestCallThrow(callTrap) {
   assertThrows(function(){ ({x: f})["x"](11) }, "myexn")
   assertThrows(function(){ Function.prototype.call.call(f, {}, 2) }, "myexn")
   assertThrows(function(){ Function.prototype.apply.call(f, {}, [1]) }, "myexn")
+  assertThrows(function(){ %Call({}, f) }, "myexn")
+  assertThrows(function(){ %Call({}, 1, 2, f) }, "myexn")
+  assertThrows(function(){ %Apply({}, f, [], 3, 0) }, "myexn")
+  assertThrows(function(){ %Apply({}, f, [3, 4], 0, 1) }, "myexn")
+  assertThrows(function(){ %_CallFunction({}, f) }, "myexn")
+  assertThrows(function(){ %_CallFunction({}, 1, 2, f) }, "myexn")
 }
 
 TestCallThrow(function() { throw "myexn" })
@@ -520,3 +603,125 @@ TestAccessorCall(
   CreateFrozen({}, function() { receiver = this; return 42 }),
   CreateFrozen({}, function(x) { receiver = this; value = x })
 )
+
+
+
+// TODO(rossberg): Ultimately, I want to have the following test function
+// run through, but it currently fails on so many cases (some not even
+// involving proxies), that I leave that for later...
+/*
+function TestCalls() {
+  var handler = {
+    get: function(r, k) {
+      return k == "length" ? 2 : Function.prototype[k]
+    }
+  }
+  var bind = Function.prototype.bind
+  var o = {}
+
+  var traps = [
+    function(x, y) {
+      return {receiver: this, result: x + y, strict: false}
+    },
+    function(x, y) { "use strict";
+      return {receiver: this, result: x + y, strict: true}
+    },
+    function() {
+      var x = arguments[0], y = arguments[1]
+      return {receiver: this, result: x + y, strict: false}
+    },
+    Proxy.createFunction(handler, function(x, y) {
+      return {receiver: this, result: x + y, strict: false}
+    }),
+    Proxy.createFunction(handler, function() {
+      var x = arguments[0], y = arguments[1]
+      return {receiver: this, result: x + y, strict: false}
+    }),
+    Proxy.createFunction(handler, function(x, y) { "use strict"
+      return {receiver: this, result: x + y, strict: true}
+    }),
+    CreateFrozen(handler, function(x, y) {
+      return {receiver: this, result: x + y, strict: false}
+    }),
+    CreateFrozen(handler, function(x, y) { "use strict"
+      return {receiver: this, result: x + y, strict: true}
+    }),
+  ]
+  var creates = [
+    function(trap) { return trap },
+    function(trap) { return CreateFrozen({}, callTrap) },
+    function(trap) { return Proxy.createFunction(handler, callTrap) },
+    function(trap) {
+      return Proxy.createFunction(handler, CreateFrozen({}, callTrap))
+    },
+    function(trap) {
+      return Proxy.createFunction(handler, Proxy.createFunction(handler, callTrap))
+    },
+  ]
+  var binds = [
+    function(f, o, x, y) { return f },
+    function(f, o, x, y) { return bind.call(f, o) },
+    function(f, o, x, y) { return bind.call(f, o, x) },
+    function(f, o, x, y) { return bind.call(f, o, x, y) },
+    function(f, o, x, y) { return bind.call(f, o, x, y, 5) },
+    function(f, o, x, y) { return bind.call(bind.call(f, o), {}, x, y) },
+    function(f, o, x, y) { return bind.call(bind.call(f, o, x), {}, y) },
+    function(f, o, x, y) { return bind.call(bind.call(f, o, x, y), {}, 5) },
+  ]
+  var calls = [
+    function(f, x, y) { return f(x, y) },
+    function(f, x, y) { var g = f; return g(x, y) },
+    function(f, x, y) { with ({}) return f(x, y) },
+    function(f, x, y) { var g = f; with ({}) return g(x, y) },
+    function(f, x, y, o) { with (o) return f(x, y) },
+    function(f, x, y, o) { return f.call(o, x, y) },
+    function(f, x, y, o) { return f.apply(o, [x, y]) },
+    function(f, x, y, o) { return Function.prototype.call.call(f, o, x, y) },
+    function(f, x, y, o) { return Function.prototype.apply.call(f, o, [x, y]) },
+    function(f, x, y, o) { return %_CallFunction(o, x, y, f) },
+    function(f, x, y, o) { return %Call(o, x, y, f) },
+    function(f, x, y, o) { return %Apply(f, o, [null, x, y, null], 1, 2) },
+    function(f, x, y, o) { return %Apply(f, o, arguments, 2, 2) },
+    function(f, x, y, o) { if (typeof o == "object") return o.f(x, y) },
+    function(f, x, y, o) { if (typeof o == "object") return o["f"](x, y) },
+    function(f, x, y, o) { if (typeof o == "object") return (1, o).f(x, y) },
+    function(f, x, y, o) { if (typeof o == "object") return (1, o)["f"](x, y) },
+  ]
+  var receivers = [o, global_object, undefined, null, 2, "bla", true]
+  var expectedNonStricts = [o, global_object, global_object, global_object]
+
+  for (var t = 0; t < traps.length; ++t) {
+    for (var i = 0; i < creates.length; ++i) {
+      for (var j = 0; j < binds.length; ++j) {
+        for (var k = 0; k < calls.length; ++k) {
+          for (var m = 0; m < receivers.length; ++m) {
+            for (var n = 0; n < receivers.length; ++n) {
+              var bound = receivers[m]
+              var receiver = receivers[n]
+              var func = binds[j](creates[i](traps[t]), bound, 31, 11)
+              var expected = j > 0 ? bound : receiver
+              var expectedNonStrict = expectedNonStricts[j > 0 ? m : n]
+              o.f = func
+              global_object.f = func
+              var x = calls[k](func, 11, 31, receiver)
+              if (x !== undefined) {
+                assertEquals(42, x.result)
+                if (calls[k].length < 4)
+                  assertSame(x.strict ? undefined : global_object, x.receiver)
+                else if (x.strict)
+                  assertSame(expected, x.receiver)
+                else if (expectedNonStrict === undefined)
+                  assertSame(expected, x.receiver.valueOf())
+                else
+                  assertSame(expectedNonStrict, x.receiver)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TestCalls()
+*/

@@ -293,30 +293,12 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 
 // -----------------------------------------------------------------------------
 // NewSpace
-MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
+
+
+MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top;
   if (allocation_info_.limit - old_top < size_in_bytes) {
-    Address new_top = old_top + size_in_bytes;
-    Address high = to_space_.page_high();
-    if (allocation_info_.limit < high) {
-      // Incremental marking has lowered the limit to get a
-      // chance to do a step.
-      allocation_info_.limit = Min(
-          allocation_info_.limit + inline_allocation_limit_step_,
-          high);
-      int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
-      heap()->incremental_marking()->Step(bytes_allocated);
-      top_on_previous_step_ = new_top;
-      return AllocateRawInternal(size_in_bytes);
-    } else if (AddFreshPage()) {
-      // Switched to new page. Try allocating again.
-      int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-      heap()->incremental_marking()->Step(bytes_allocated);
-      top_on_previous_step_ = to_space_.page_low();
-      return AllocateRawInternal(size_in_bytes);
-    } else {
-      return Failure::RetryAfterGC();
-    }
+    return SlowAllocateRaw(size_in_bytes);
   }
 
   Object* obj = HeapObject::FromAddress(allocation_info_.top);

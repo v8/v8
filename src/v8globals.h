@@ -29,6 +29,7 @@
 #define V8_V8GLOBALS_H_
 
 #include "globals.h"
+#include "checks.h"
 
 namespace v8 {
 namespace internal {
@@ -321,30 +322,6 @@ typedef enum {
 typedef void (*StoreBufferCallback)(Heap* heap,
                                     MemoryChunk* page,
                                     StoreBufferEvent event);
-
-
-// Type of properties.
-// Order of properties is significant.
-// Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in mirror-debugger.js.
-enum PropertyType {
-  NORMAL                    = 0,  // only in slow mode
-  FIELD                     = 1,  // only in fast mode
-  CONSTANT_FUNCTION         = 2,  // only in fast mode
-  CALLBACKS                 = 3,
-  HANDLER                   = 4,  // only in lookup results, not in descriptors
-  INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
-  MAP_TRANSITION            = 6,  // only in fast mode
-  ELEMENTS_TRANSITION       = 7,
-  CONSTANT_TRANSITION       = 8,  // only in fast mode
-  NULL_DESCRIPTOR           = 9,  // only in fast mode
-  // All properties before MAP_TRANSITION are real.
-  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
-  // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
-  // NULL_DESCRIPTOR can be used as the type flag for IC stubs for
-  // nonexistent properties.
-  NONEXISTENT = NULL_DESCRIPTOR
-};
 
 
 // Whether to remove map transitions and constant transitions from a

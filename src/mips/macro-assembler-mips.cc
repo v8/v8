@@ -2695,34 +2695,11 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
-  // v0 is expected to hold the exception.
-  Move(v0, value);
-
-  // Drop sp to the top stack handler.
-  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  lw(sp, MemOperand(a3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  lw(a2, MemOperand(sp, kStateOffset));
-  Branch(&done, eq, a2, Operand(StackHandler::ENTRY));
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  lw(sp, MemOperand(sp, kNextOffset));
-  jmp(&loop);
-  bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  pop(a2);
-  sw(a2, MemOperand(a3));
-
+  // The exception is expected in v0.
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
-    ExternalReference external_caught(
-           Isolate::kExternalCaughtExceptionAddress, isolate());
+    ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                      isolate());
     li(a0, Operand(false, RelocInfo::NONE));
     li(a2, Operand(external_caught));
     sw(a0, MemOperand(a2));
@@ -2731,45 +2708,36 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     Failure* out_of_memory = Failure::OutOfMemoryException();
     li(v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
     li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                        isolate())));
+                                     isolate())));
     sw(v0, MemOperand(a2));
+  } else if (!value.is(v0)) {
+    mov(v0, value);
   }
 
-  // Stack layout at this point. See also StackHandlerConstants.
-  // sp ->   state (ENTRY)
-  //         cp
-  //         fp
-  //         ra
+  // Drop the stack pointer to the top of the top stack handler.
+  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  lw(sp, MemOperand(a3));
 
-  // Restore context and frame pointer, discard state (r2).
+  // Unwind the handlers until the top ENTRY handler is found.
+  Label fetch_next, check_kind;
+  jmp(&check_kind);
+  bind(&fetch_next);
+  lw(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
+
+  bind(&check_kind);
+  lw(a2, MemOperand(sp, StackHandlerConstants::kStateOffset));
+  Branch(&fetch_next, ne, a2, Operand(StackHandler::ENTRY));
+
+  // Set the top handler address to next handler past the top ENTRY handler.
+  pop(a2);
+  sw(a2, MemOperand(a3));
+
+  // Clear the context and frame pointer (0 was saved in the handler), and
+  // discard the state (a2).
   MultiPop(a2.bit() | cp.bit() | fp.bit());
 
-#ifdef DEBUG
-  // When emitting debug_code, set ra as return address for the jump.
-  // 5 instructions: add: 1, pop: 2, jump: 2.
-  const int kOffsetRaInstructions = 5;
-  Label find_ra;
-
-  if (emit_debug_code()) {
-    // Compute ra for the Jump(t9).
-    const int kOffsetRaBytes = kOffsetRaInstructions * Assembler::kInstrSize;
-
-    // This branch-and-link sequence is needed to get the current PC on mips,
-    // saved to the ra register. Then adjusted for instruction count.
-    bal(&find_ra);  // bal exposes branch-delay slot.
-    nop();  // Branch delay slot nop.
-    bind(&find_ra);
-    addiu(ra, ra, kOffsetRaBytes);
-  }
-#endif
   pop(t9);  // 2 instructions: lw, add sp.
   Jump(t9);  // 2 instructions: jr, nop (in delay slot).
-
-  if (emit_debug_code()) {
-    // Make sure that the expected number of instructions were generated.
-    ASSERT_EQ(kOffsetRaInstructions,
-              InstructionsGeneratedSince(&find_ra));
-  }
 }
 
 

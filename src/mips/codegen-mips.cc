@@ -186,6 +186,10 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
+  if (FLAG_debug_code) {
+    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+    __ Assert(eq, "object found in smi-only array", at, Operand(t5));
+  }
   __ sw(t0, MemOperand(t3));  // mantissa
   __ sw(t1, MemOperand(t3, kIntSize));  // exponent
   __ Addu(t3, t3, kDoubleSize);

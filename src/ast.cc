@@ -157,6 +157,21 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 
+int FunctionLiteral::start_position() const {
+  return scope()->start_position();
+}
+
+
+int FunctionLiteral::end_position() const {
+  return scope()->end_position();
+}
+
+
+StrictModeFlag FunctionLiteral::strict_mode_flag() const {
+  return scope()->strict_mode_flag();
+}
+
+
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;

@@ -27,8 +27,8 @@
 
 
 # Variable default definitions. Override them by exporting them in your shell.
-CXX ?= "g++"  # For distcc: export CXX="distcc g++"
-LINK ?= "g++"
+CXX ?= g++
+LINK ?= g++
 OUTDIR ?= out
 TESTJOBS ?= -j16
 GYPFLAGS ?=
@@ -93,7 +93,7 @@ endif
 # - every combination <arch>.<mode>, e.g. "ia32.release"
 # - "native": current host's architecture, release mode
 # - any of the above with .check appended, e.g. "ia32.release.check"
-# - default (no target specified): build all ARCHES and MODES
+# - default (no target specified): build all DEFAULT_ARCHES and MODES
 # - "check": build all targets and run all tests
 # - "<arch>.clean" for any <arch> in ARCHES
 # - "clean": clean all ARCHES
@@ -102,7 +102,8 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm
+ARCHES = ia32 x64 arm mips
+DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
 
 # List of files that trigger Makefile regeneration:
@@ -126,7 +127,7 @@ all: $(MODES)
 
 # Compile targets. MODES and ARCHES are convenience targets.
 .SECONDEXPANSION:
-$(MODES): $(addsuffix .$$@,$(ARCHES))
+$(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 
 $(ARCHES): $(addprefix $$@.,$(MODES))
 
@@ -146,6 +147,7 @@ native: $(OUTDIR)/Makefile-native
 # Test targets.
 check: all
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch=$(shell echo $(DEFAULT_ARCHES) | sed -e 's/ /,/g') \
 	    $(TESTFLAGS)
 
 $(addsuffix .check,$(MODES)): $$(basename $$@)
@@ -189,10 +191,15 @@ $(OUTDIR)/Makefile-x64: $(GYPFILES) $(ENVFILE)
 	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
 	              -S-x64 $(GYPFLAGS)
 
-$(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE)
+$(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE) build/armu.gypi
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
 	              -S-arm $(GYPFLAGS)
+
+$(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
+	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
+	              -Ibuild/standalone.gypi --depth=. -Ibuild/mipsu.gypi \
+	              -S-mips $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \

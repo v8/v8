@@ -13564,7 +13564,13 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_number);
       // Check if quiet nan (bits 51..62 all set).
+#if defined(V8_TARGET_ARCH_MIPS) && !defined(USE_SIMULATOR)
+      // Most significant fraction bit for quiet nan is set to 0
+      // on MIPS architecture. Allowed by IEEE-754.
+      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+#else
       CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+#endif
     }
 
     // Check that Date::New preserves non-NaNs in the date range and
@@ -13577,7 +13583,13 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_date);
       // Check if quiet nan (bits 51..62 all set).
+#if defined(V8_TARGET_ARCH_MIPS) && !defined(USE_SIMULATOR)
+      // Most significant fraction bit for quiet nan is set to 0
+      // on MIPS architecture. Allowed by IEEE-754.
+      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+#else
       CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+#endif
     }
   }
 }
@@ -13745,6 +13757,41 @@ THREADED_TEST(ScriptLineNumber) {
       env->Global()->Get(v8::String::New("g")));
   CHECK_EQ(0, f->GetScriptLineNumber());
   CHECK_EQ(2, g->GetScriptLineNumber());
+}
+
+
+THREADED_TEST(ScriptColumnNumber) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
+      v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> script = v8::String::New(
+      "function foo() {}\n\n     function bar() {}");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("foo")));
+  v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("bar")));
+  CHECK_EQ(14, foo->GetScriptColumnNumber());
+  CHECK_EQ(17, bar->GetScriptColumnNumber());
+}
+
+
+THREADED_TEST(FunctionGetScriptId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"),
+      v8::Integer::New(3), v8::Integer::New(2));
+  v8::Handle<v8::String> scriptSource = v8::String::New(
+      "function foo() {}\n\n     function bar() {}");
+  v8::Local<v8::Script> script(v8::Script::Compile(scriptSource, &origin));
+  script->Run();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("foo")));
+  v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("bar")));
+  CHECK_EQ(script->Id(), foo->GetScriptId());
+  CHECK_EQ(script->Id(), bar->GetScriptId());
 }
 
 

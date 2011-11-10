@@ -139,47 +139,6 @@ Handle<Code> CodeStub::GetCode() {
 }
 
 
-MaybeObject* CodeStub::TryGetCode() {
-  Code* code;
-  if (!FindCodeInCache(&code)) {
-    // Generate the new code.
-    MacroAssembler masm(Isolate::Current(), NULL, 256);
-    GenerateCode(&masm);
-    Heap* heap = masm.isolate()->heap();
-
-    // Create the code object.
-    CodeDesc desc;
-    masm.GetCode(&desc);
-
-    // Try to copy the generated code into a heap object.
-    Code::Flags flags = Code::ComputeFlags(
-        static_cast<Code::Kind>(GetCodeKind()),
-        GetICState());
-    Object* new_object;
-    { MaybeObject* maybe_new_object =
-          heap->CreateCode(desc, flags, masm.CodeObject());
-      if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
-    }
-    code = Code::cast(new_object);
-    RecordCodeGeneration(code, &masm);
-    FinishCode(code);
-
-    // Try to update the code cache but do not fail if unable.
-    MaybeObject* maybe_new_object =
-        heap->code_stubs()->AtNumberPut(GetKey(), code);
-    if (maybe_new_object->ToObject(&new_object)) {
-      heap->public_set_code_stubs(NumberDictionary::cast(new_object));
-    } else if (MustBeInStubCache()) {
-      return maybe_new_object;
-    }
-
-    Activate(code);
-  }
-
-  return code;
-}
-
-
 const char* CodeStub::MajorName(CodeStub::Major major_key,
                                 bool allow_unknown_keys) {
   switch (major_key) {

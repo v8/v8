@@ -1570,7 +1570,7 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction);
     Handle<Code> result =
-        Isolate::Current()->builtins()->StubNoRegisters_DebugBreak();
+        Isolate::Current()->builtins()->CallFunctionStub_DebugBreak();
     return result;
   }
 

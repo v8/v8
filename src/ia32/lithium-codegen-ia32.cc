@@ -3117,12 +3117,12 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
+  ASSERT(ToRegister(instr->function()).is(edi));
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  __ Drop(1);
 }
 
 
@@ -3451,6 +3451,9 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Check whether the string is sequential. The only non-sequential
   // shapes we support have just been unwrapped above.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the adjusted index to the runtime function.
   __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result, Immediate(kStringRepresentationMask));

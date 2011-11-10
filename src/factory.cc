@@ -844,7 +844,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
 
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
-    if (array->GetType(i) != NULL_DESCRIPTOR) {
+    if (!array->IsNullDescriptor(i)) {
       result->CopyFrom(descriptor_count++, *array, i, witness);
     }
   }

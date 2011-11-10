@@ -5120,6 +5120,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // a1 : the function to call
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -5134,15 +5135,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Branch(&call, ne, t0, Operand(at));
     // Patch the receiver on the stack with the global receiver object.
-    __ lw(a1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ lw(a1, FieldMemOperand(a1, GlobalObject::kGlobalReceiverOffset));
-    __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
+    __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
+    __ sw(a2, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);
   }
-
-  // Get the function to call from the stack.
-  // function, receiver [, arguments]
-  __ lw(a1, MemOperand(sp, (argc_ + 1) * kPointerSize));
 
   // Check that the function is really a JavaScript function.
   // a1: pushed function (to be verified)
@@ -5180,7 +5177,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
   __ li(a2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
-  __ SetCallKind(t1, CALL_AS_FUNCTION);
+  __ SetCallKind(t1, CALL_AS_METHOD);
   {
     Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -5246,7 +5243,6 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label got_char_code;
   Label sliced_string;
 
-  ASSERT(!t0.is(scratch_));
   ASSERT(!t0.is(index_));
   ASSERT(!t0.is(result_));
   ASSERT(!t0.is(object_));
@@ -5264,13 +5260,11 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
 
-  // Put smi-tagged index into scratch register.
-  __ mov(scratch_, index_);
   __ bind(&got_smi_index_);
 
   // Check for index out of range.
   __ lw(t0, FieldMemOperand(object_, String::kLengthOffset));
-  __ Branch(index_out_of_range_, ls, t0, Operand(scratch_));
+  __ Branch(index_out_of_range_, ls, t0, Operand(index_));
 
   // We need special handling for non-flat strings.
   STATIC_ASSERT(kSeqStringTag == 0);
@@ -5294,28 +5288,28 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ LoadRoot(t0, Heap::kEmptyStringRootIndex);
   __ Branch(&call_runtime_, ne, result_, Operand(t0));
 
-  // Get the first of the two strings and load its instance type.
-  __ lw(result_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  // Get the first of the two parts.
+  __ lw(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
   __ lw(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
-  __ addu(scratch_, scratch_, result_);
-  __ lw(result_, FieldMemOperand(object_, SlicedString::kParentOffset));
+  __ Addu(index_, index_, result_);
+  __ lw(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Assure that we are dealing with a sequential string. Go to runtime if not.
   __ bind(&assure_seq_string);
-  __ lw(result_, FieldMemOperand(result_, HeapObject::kMapOffset));
+  __ lw(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // Check that parent is not an external string. Go to runtime otherwise.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the adjusted index to the runtime function.
   STATIC_ASSERT(kSeqStringTag == 0);
 
   __ And(t0, result_, Operand(kStringRepresentationMask));
   __ Branch(&call_runtime_, ne, t0, Operand(zero_reg));
-  // Actually fetch the parent string if it is confirmed to be sequential.
-  STATIC_ASSERT(SlicedString::kParentOffset == ConsString::kFirstOffset);
-  __ lw(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
@@ -5329,18 +5323,18 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // add without shifting since the smi tag size is the log2 of the
   // number of bytes in a two-byte character.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
-  __ Addu(scratch_, object_, Operand(scratch_));
-  __ lhu(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));
+  __ Addu(index_, object_, Operand(index_));
+  __ lhu(result_, FieldMemOperand(index_, SeqTwoByteString::kHeaderSize));
   __ Branch(&got_char_code);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
 
-  __ srl(t0, scratch_, kSmiTagSize);
-  __ Addu(scratch_, object_, t0);
+  __ srl(t0, index_, kSmiTagSize);
+  __ Addu(index_, object_, t0);
 
-  __ lbu(result_, FieldMemOperand(scratch_, SeqAsciiString::kHeaderSize));
+  __ lbu(result_, FieldMemOperand(index_, SeqAsciiString::kHeaderSize));
 
   __ bind(&got_char_code);
   __ sll(result_, result_, kSmiTagSize);
@@ -5357,13 +5351,13 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
   __ CheckMap(index_,
-              scratch_,
+              result_,
               Heap::kHeapNumberMapRootIndex,
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   // Consumed by runtime conversion function:
-  __ Push(object_, index_, index_);
+  __ Push(object_, index_);
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
   } else {
@@ -5375,16 +5369,14 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
 
-  __ Move(scratch_, v0);
-
-  __ pop(index_);
+  __ Move(index_, v0);
   __ pop(object_);
   // Reload the instance type.
   __ lw(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
-  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  __ JumpIfNotSmi(index_, index_out_of_range_);
   // Otherwise, return to the fast path.
   __ Branch(&got_smi_index_);
 

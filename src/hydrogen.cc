@@ -756,7 +756,7 @@ void HGraph::AssignDominators() {
       // All others are back edges, and thus cannot dominate the loop header.
       blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->first());
     } else {
-      for (int j = 0; j < blocks_[i]->predecessors()->length(); ++j) {
+      for (int j = blocks_[i]->predecessors()->length() - 1; j >= 0; --j) {
         blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->at(j));
       }
     }
@@ -5152,7 +5152,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else {
-      CHECK_ALIVE(VisitArgument(expr->expression()));
+      CHECK_ALIVE(VisitForValue(expr->expression()));
+      HValue* function = Top();
       HValue* context = environment()->LookupContext();
       HGlobalObject* global_object = new(zone()) HGlobalObject(context);
       HGlobalReceiver* receiver = new(zone()) HGlobalReceiver(global_object);
@@ -5161,9 +5162,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       PushAndAdd(new(zone()) HPushArgument(receiver));
       CHECK_ALIVE(VisitArgumentList(expr->arguments()));
 
-      // The function to call is treated as an argument to the call function
-      // stub.
-      call = new(zone()) HCallFunction(context, argument_count + 1);
+      call = new(zone()) HCallFunction(context, function, argument_count);
       Drop(argument_count + 1);
     }
   }
@@ -6425,12 +6424,37 @@ void HGraphBuilder::GenerateCallFunction(CallRuntime* call) {
     CHECK_ALIVE(VisitArgument(call->arguments()->at(i)));
   }
   CHECK_ALIVE(VisitForValue(call->arguments()->last()));
+
   HValue* function = Pop();
   HValue* context = environment()->LookupContext();
-  HInvokeFunction* result =
-      new(zone()) HInvokeFunction(context, function, arg_count);
+
+  // Branch for function proxies, or other non-functions.
+  HHasInstanceTypeAndBranch* typecheck =
+      new(zone()) HHasInstanceTypeAndBranch(function, JS_FUNCTION_TYPE);
+  HBasicBlock* if_jsfunction = graph()->CreateBasicBlock();
+  HBasicBlock* if_nonfunction = graph()->CreateBasicBlock();
+  HBasicBlock* join = graph()->CreateBasicBlock();
+  typecheck->SetSuccessorAt(0, if_jsfunction);
+  typecheck->SetSuccessorAt(1, if_nonfunction);
+  current_block()->Finish(typecheck);
+
+  set_current_block(if_jsfunction);
+  HInstruction* invoke_result = AddInstruction(
+      new(zone()) HInvokeFunction(context, function, arg_count));
   Drop(arg_count);
-  return ast_context()->ReturnInstruction(result, call->id());
+  Push(invoke_result);
+  if_jsfunction->Goto(join);
+
+  set_current_block(if_nonfunction);
+  HInstruction* call_result = AddInstruction(
+      new(zone()) HCallFunction(context, function, arg_count));
+  Drop(arg_count);
+  Push(call_result);
+  if_nonfunction->Goto(join);
+
+  set_current_block(join);
+  join->SetJoinId(call->id());
+  return ast_context()->ReturnValue(Pop());
 }
 
 

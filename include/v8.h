@@ -1736,9 +1736,16 @@ class Function : public Object {
    * kLineOffsetNotFound if no information available.
    */
   V8EXPORT int GetScriptLineNumber() const;
+  /**
+   * Returns zero based column number of function body and
+   * kLineOffsetNotFound if no information available.
+   */
+  V8EXPORT int GetScriptColumnNumber() const;
+  V8EXPORT Handle<Value> GetScriptId() const;
   V8EXPORT ScriptOrigin GetScriptOrigin() const;
   static inline Function* Cast(Value* obj);
   V8EXPORT static const int kLineOffsetNotFound;
+
  private:
   V8EXPORT Function();
   V8EXPORT static void CheckCast(Value* obj);

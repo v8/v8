@@ -3365,6 +3365,7 @@ Object* CallFunctionStub::GetCachedValue(Address address) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // rdi : the function to call
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -3384,10 +3385,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rbx);
     __ bind(&call);
   }
-
-  // Get the function to call from the stack.
-  // +2 ~ receiver, return address
-  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
   __ JumpIfSmi(rdi, &non_function);
@@ -3425,7 +3422,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ push(rcx);
   __ Set(rax, argc_ + 1);
   __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_FUNCTION);
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
   {
     Handle<Code> adaptor =
@@ -4071,13 +4068,10 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
-
-  // Put smi-tagged index into scratch register.
-  __ movq(scratch_, index_);
   __ bind(&got_smi_index_);
 
   // Check for index out of range.
-  __ SmiCompare(scratch_, FieldOperand(object_, String::kLengthOffset));
+  __ SmiCompare(index_, FieldOperand(object_, String::kLengthOffset));
   __ j(above_equal, index_out_of_range_);
 
   // We need special handling for non-flat strings.
@@ -4102,46 +4096,46 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ CompareRoot(FieldOperand(object_, ConsString::kSecondOffset),
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, &call_runtime_);
-  // Get the first of the two strings and load its instance type.
-  ASSERT(!kScratchRegister.is(scratch_));
-  __ movq(kScratchRegister, FieldOperand(object_, ConsString::kFirstOffset));
+  // Get the first of the two parts.
+  __ movq(object_, FieldOperand(object_, ConsString::kFirstOffset));
   __ jmp(&assure_seq_string, Label::kNear);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
-  __ addq(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
-  __ movq(kScratchRegister, FieldOperand(object_, SlicedString::kParentOffset));
+  __ addq(index_, FieldOperand(object_, SlicedString::kOffsetOffset));
+  __ movq(object_, FieldOperand(object_, SlicedString::kParentOffset));
 
+  // Assure that we are dealing with a sequential string. Go to runtime if not.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the adjusted index to the runtime function.
   __ bind(&assure_seq_string);
-  __ movq(result_, FieldOperand(kScratchRegister, HeapObject::kMapOffset));
+  __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
-  __ movq(object_, kScratchRegister);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+  __ SmiToInteger32(index_, index_);
   __ testb(result_, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register.
-  __ SmiToInteger32(scratch_, scratch_);
   __ movzxwl(result_, FieldOperand(object_,
-                                   scratch_, times_2,
+                                   index_, times_2,
                                    SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  __ SmiToInteger32(scratch_, scratch_);
   __ movzxbl(result_, FieldOperand(object_,
-                                   scratch_, times_1,
+                                   index_, times_1,
                                    SeqAsciiString::kHeaderSize));
   __ bind(&got_char_code);
   __ Integer32ToSmi(result_, result_);
@@ -4164,7 +4158,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
-  __ push(index_);
   __ push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
@@ -4173,19 +4166,18 @@ void StringCharCodeAtGenerator::GenerateSlow(
     // NumberToSmi discards numbers that are not exact integers.
     __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
-  if (!scratch_.is(rax)) {
+  if (!index_.is(rax)) {
     // Save the conversion result before the pop instructions below
     // have a chance to overwrite it.
-    __ movq(scratch_, rax);
+    __ movq(index_, rax);
   }
-  __ pop(index_);
   __ pop(object_);
   // Reload the instance type.
   __ movq(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
-  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  __ JumpIfNotSmi(index_, index_out_of_range_);
   // Otherwise, return to the fast path.
   __ jmp(&got_smi_index_);
 
@@ -5702,6 +5694,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { rdx, r11, r15, EMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { r11, rax, r15, EMIT_REMEMBERED_SET},
+  // StoreArrayLiteralElementStub::Generate
+  { rbx, rax, rcx, EMIT_REMEMBERED_SET},
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -5947,6 +5941,87 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
+}
+
+
+void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : element value to store
+  //  -- rbx    : array literal
+  //  -- rdi    : map of array literal
+  //  -- rcx    : element index as smi
+  //  -- rdx    : array literal index in function
+  //  -- rsp[0] : return address
+  // -----------------------------------
+
+  Label element_done;
+  Label double_elements;
+  Label smi_element;
+  Label slow_elements;
+  Label fast_elements;
+
+  if (!FLAG_trace_elements_transitions) {
+    __ CheckFastElements(rdi, &double_elements);
+
+    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+    __ JumpIfSmi(rax, &smi_element);
+    __ CheckFastSmiOnlyElements(rdi, &fast_elements);
+
+    // Store into the array literal requires a elements transition. Call into
+    // the runtime.
+  }
+
+  __ bind(&slow_elements);
+  __ pop(rdi);  // Pop return address and remember to put back later for tail
+                // call.
+  __ push(rbx);
+  __ push(rcx);
+  __ push(rax);
+  __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
+  __ push(rdx);
+  __ push(rdi);  // Return return address so that tail call returns to right
+                 // place.
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+
+  if (!FLAG_trace_elements_transitions) {
+    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+    __ bind(&double_elements);
+
+    __ movq(r9, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ SmiToInteger32(r11, rcx);
+    __ StoreNumberToDoubleElements(rax,
+                                   r9,
+                                   r11,
+                                   xmm0,
+                                   &slow_elements);
+    __ jmp(&element_done);
+
+    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+    __ bind(&fast_elements);
+    __ SmiToInteger32(kScratchRegister, rcx);
+    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ lea(rcx, FieldOperand(rbx, kScratchRegister, times_pointer_size,
+                             FixedArrayBase::kHeaderSize));
+    __ movq(Operand(rcx, 0), rax);
+    // Update the write barrier for the array store.
+    __ RecordWrite(rbx, rcx, rax,
+                   kDontSaveFPRegs,
+                   EMIT_REMEMBERED_SET,
+                   OMIT_SMI_CHECK);
+    __ jmp(&element_done);
+
+    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+    // FAST_ELEMENTS, and value is Smi.
+    __ bind(&smi_element);
+    __ SmiToInteger32(kScratchRegister, rcx);
+    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ movq(FieldOperand(rbx, kScratchRegister, times_pointer_size,
+                        FixedArrayBase::kHeaderSize), rax);
+    // Fall through
+    __ bind(&element_done);
+    __ ret(0);
+  }
 }
 
 #undef __

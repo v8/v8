@@ -734,8 +734,8 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
                                FunctionLiteral* lit,
                                bool is_toplevel,
                                Handle<Script> script) {
-  function_info->set_length(lit->num_parameters());
-  function_info->set_formal_parameter_count(lit->num_parameters());
+  function_info->set_length(lit->parameter_count());
+  function_info->set_formal_parameter_count(lit->parameter_count());
   function_info->set_script(*script);
   function_info->set_function_token_position(lit->function_token_position());
   function_info->set_start_position(lit->start_position());

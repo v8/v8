@@ -295,7 +295,9 @@ void JSObject::PrintProperties(FILE* out) {
         case NULL_DESCRIPTOR:
           PrintF(out, "(null descriptor)\n");
           break;
-        default:
+        case NORMAL:  // only in slow mode
+        case HANDLER:  // only in lookup results, not in descriptors
+        case INTERCEPTOR:  // only in lookup results, not in descriptors
           UNREACHABLE();
           break;
       }

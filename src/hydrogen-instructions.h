@@ -1594,13 +1594,14 @@ class HCallNamed: public HUnaryCall {
 };
 
 
-class HCallFunction: public HUnaryCall {
+class HCallFunction: public HBinaryCall {
  public:
-  HCallFunction(HValue* context, int argument_count)
-      : HUnaryCall(context, argument_count) {
+  HCallFunction(HValue* context, HValue* function, int argument_count)
+      : HBinaryCall(context, function, argument_count) {
   }
 
-  HValue* context() { return value(); }
+  HValue* context() { return first(); }
+  HValue* function() { return second(); }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
