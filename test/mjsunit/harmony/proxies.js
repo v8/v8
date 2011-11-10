@@ -1437,7 +1437,7 @@ TestHasOwnThrow(Proxy.create({
 
 // Instanceof (instanceof)
 
-function TestInstanceof() {
+function TestProxyInstanceof() {
   var o1 = {}
   var p1 = Proxy.create({})
   var p2 = Proxy.create({}, o1)
@@ -1483,7 +1483,70 @@ function TestInstanceof() {
   assertTrue(f instanceof Function)
 }
 
-TestInstanceof()
+TestProxyInstanceof()
+
+
+function TestInstanceofProxy() {
+  var o0 = Object.create(null)
+  var o1 = {}
+  var o2 = Object.create(o0)
+  var o3 = Object.create(o1)
+  var o4 = Object.create(o2)
+  var o5 = Object.create(o3)
+
+  function handler(o) { return {get: function() { return o } } }
+  var f0 = Proxy.createFunction(handler(o0), function() {})
+  var f1 = Proxy.createFunction(handler(o1), function() {})
+  var f2 = Proxy.createFunction(handler(o2), function() {})
+  var f3 = Proxy.createFunction(handler(o3), function() {})
+  var f4 = Proxy.createFunction(handler(o4), function() {})
+  var f5 = Proxy.createFunction(handler(o4), function() {})
+
+  assertFalse(null instanceof f0)
+  assertFalse(o0 instanceof f0)
+  assertFalse(o0 instanceof f1)
+  assertFalse(o0 instanceof f2)
+  assertFalse(o0 instanceof f3)
+  assertFalse(o0 instanceof f4)
+  assertFalse(o0 instanceof f5)
+  assertFalse(o1 instanceof f0)
+  assertFalse(o1 instanceof f1)
+  assertFalse(o1 instanceof f2)
+  assertFalse(o1 instanceof f3)
+  assertFalse(o1 instanceof f4)
+  assertFalse(o1 instanceof f5)
+  assertTrue(o2 instanceof f0)
+  assertFalse(o2 instanceof f1)
+  assertFalse(o2 instanceof f2)
+  assertFalse(o2 instanceof f3)
+  assertFalse(o2 instanceof f4)
+  assertFalse(o2 instanceof f5)
+  assertFalse(o3 instanceof f0)
+  assertTrue(o3 instanceof f1)
+  assertFalse(o3 instanceof f2)
+  assertFalse(o3 instanceof f3)
+  assertFalse(o3 instanceof f4)
+  assertFalse(o3 instanceof f5)
+  assertTrue(o4 instanceof f0)
+  assertFalse(o4 instanceof f1)
+  assertTrue(o4 instanceof f2)
+  assertFalse(o4 instanceof f3)
+  assertFalse(o4 instanceof f4)
+  assertFalse(o4 instanceof f5)
+  assertFalse(o5 instanceof f0)
+  assertTrue(o5 instanceof f1)
+  assertFalse(o5 instanceof f2)
+  assertTrue(o5 instanceof f3)
+  assertFalse(o5 instanceof f4)
+  assertFalse(o5 instanceof f5)
+
+  var f = Proxy.createFunction({}, function() {})
+  var ff = Proxy.createFunction(handler(Function), function() {})
+  assertTrue(f instanceof Function)
+  assertFalse(f instanceof ff)
+}
+
+TestInstanceofProxy()
 
 
 
