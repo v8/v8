@@ -5772,6 +5772,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   static const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes], next_probe_pop_mask[kProbes];
+  Register candidate = scratch;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
     // Calculate entry in symbol table.
     __ mov(scratch, hash);
@@ -5781,7 +5782,6 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ and_(scratch, mask);
 
     // Load the entry from the symbol table.
-    Register candidate = scratch;  // Scratch register contains candidate.
     STATIC_ASSERT(SymbolTable::kEntrySize == 1);
     __ mov(candidate,
            FieldOperand(symbol_table,
@@ -5793,7 +5793,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     Factory* factory = masm->isolate()->factory();
     __ cmp(candidate, factory->undefined_value());
     __ j(equal, not_found);
-    __ cmp(candidate, factory->null_value());
+    __ cmp(candidate, factory->the_hole_value());
     __ j(equal, &next_probe[i]);
 
     // If length is not 2 the string is not a candidate.
@@ -5826,7 +5826,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ jmp(not_found);
 
   // Scratch register contains result when we fall through to here.
-  Register result = scratch;
+  Register result = candidate;
   __ bind(&found_in_symbol_table);
   __ pop(mask);  // Pop saved mask from the stack.
   if (!result.is(eax)) {
@@ -5845,7 +5845,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
   __ add(hash, character);
   // hash ^= hash >> 6;
   __ mov(scratch, hash);
-  __ sar(scratch, 6);
+  __ shr(scratch, 6);
   __ xor_(hash, scratch);
 }
 
@@ -5862,7 +5862,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
   __ add(hash, scratch);
   // hash ^= hash >> 6;
   __ mov(scratch, hash);
-  __ sar(scratch, 6);
+  __ shr(scratch, 6);
   __ xor_(hash, scratch);
 }
 
@@ -5876,12 +5876,15 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ add(hash, scratch);
   // hash ^= hash >> 11;
   __ mov(scratch, hash);
-  __ sar(scratch, 11);
+  __ shr(scratch, 11);
   __ xor_(hash, scratch);
   // hash += hash << 15;
   __ mov(scratch, hash);
   __ shl(scratch, 15);
   __ add(hash, scratch);
+
+  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
+  __ and_(hash, kHashShiftCutOffMask);
 
   // if (hash == 0) hash = 27;
   Label hash_not_zero;
