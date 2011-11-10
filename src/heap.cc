@@ -5609,8 +5609,11 @@ void Heap::TearDown() {
 void Heap::Shrink() {
   // Try to shrink all paged spaces.
   PagedSpaces spaces;
-  for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
     space->ReleaseAllUnusedPages();
+  }
 }
 
 
