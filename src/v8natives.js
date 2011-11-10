@@ -1051,11 +1051,10 @@ function ProxyFix(obj) {
     // We just put in some half-reasonable defaults for now.
     var prototype = new $Object();
     $Object.defineProperty(prototype, "constructor",
-      {value: obj, writable: true, enumerable: false, configrable: true});
-    $Object.defineProperty(obj, "prototype",
-      {value: prototype, writable: true, enumerable: false, configrable: false})
-    $Object.defineProperty(obj, "length",
-      {value: 0, writable: true, enumerable: false, configrable: false});
+      {value: obj, writable: true, enumerable: false, configurable: true});
+    // TODO(v8:1530): defineProperty does not handle prototype and length.
+    %FunctionSetPrototype(obj, prototype);
+    obj.length = 0;
   } else {
     %Fix(obj);
   }
