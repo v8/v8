@@ -175,7 +175,7 @@ class CodeStub BASE_EMBEDDED {
   void RecordCodeGeneration(Code* code, MacroAssembler* masm);
 
   // Finish the code object after it has been generated.
-  virtual void FinishCode(Code* code) { }
+  virtual void FinishCode(Handle<Code> code) { }
 
   // Activate newly generated stub. Is called after
   // registering stub in the stub cache.
@@ -441,7 +441,9 @@ class ICCompareStub: public CodeStub {
   class OpField: public BitField<int, 0, 3> { };
   class StateField: public BitField<int, 3, 5> { };
 
-  virtual void FinishCode(Code* code) { code->set_compare_state(state_); }
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_compare_state(state_);
+  }
 
   virtual CodeStub::Major MajorKey() { return CompareIC; }
   virtual int MinorKey();
@@ -544,7 +546,7 @@ class CompareStub: public CodeStub {
   int MinorKey();
 
   virtual int GetCodeKind() { return Code::COMPARE_IC; }
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_compare_state(CompareIC::GENERIC);
   }
 
@@ -609,6 +611,10 @@ class JSEntryStub : public CodeStub {
  private:
   Major MajorKey() { return JSEntry; }
   int MinorKey() { return 0; }
+
+  virtual void FinishCode(Handle<Code> code);
+
+  int handler_offset_;
 };
 
 
@@ -685,7 +691,7 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual void FinishCode(Code* code);
+  virtual void FinishCode(Handle<Code> code);
 
   static void Clear(Heap* heap, Address address);
 
@@ -996,7 +1002,7 @@ class ToBooleanStub: public CodeStub {
   Major MajorKey() { return ToBoolean; }
   int MinorKey() { return (tos_.code() << NUMBER_OF_TYPES) | types_.ToByte(); }
 
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_to_boolean_state(types_.ToByte());
   }
 

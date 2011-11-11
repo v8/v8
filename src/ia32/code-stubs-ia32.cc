@@ -4337,7 +4337,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::FinishCode(Code* code) {
+void CallFunctionStub::FinishCode(Handle<Code> code) {
   code->set_has_function_cache(RecordCallTarget());
 }
 
@@ -4715,7 +4715,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  Label invoke, exit;
+  Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
   // Setup frame.
@@ -4748,20 +4748,23 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
   __ bind(&cont);
 
-  // Call a faked try-block that does the invoke.
-  __ call(&invoke);
-
-  // Caught exception: Store result (exception) in the pending
-  // exception field in the JSEnv and return a failure sentinel.
+  // Jump to a faked try block that does the invoke, with a faked catch
+  // block that sets the pending exception.
+  __ jmp(&invoke);
+  __ bind(&handler_entry);
+  handler_offset_ = handler_entry.pos();
+  // Caught exception: Store result (exception) in the pending exception
+  // field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
   __ mov(Operand::StaticVariable(pending_exception), eax);
   __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.
+  // Invoke: Link this frame into the handler chain.  There's only one
+  // handler block in this code object, so its index is 0.
   __ bind(&invoke);
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER, 0);
 
   // Clear any pending exceptions.
   __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
@@ -4770,14 +4773,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver
 
-  // Invoke the function by calling through JS entry trampoline
-  // builtin and pop the faked function when we return. Notice that we
-  // cannot store a reference to the trampoline code directly in this
-  // stub, because the builtin stubs may not have been generated yet.
+  // Invoke the function by calling through JS entry trampoline builtin and
+  // pop the faked function when we return. Notice that we cannot store a
+  // reference to the trampoline code directly in this stub, because the
+  // builtin stubs may not have been generated yet.
   if (is_construct) {
-    ExternalReference construct_entry(
-        Builtins::kJSConstructEntryTrampoline,
-        masm->isolate());
+    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
+                                      masm->isolate());
     __ mov(edx, Immediate(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline,

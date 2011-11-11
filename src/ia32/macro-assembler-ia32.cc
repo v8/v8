@@ -725,47 +725,65 @@ void MacroAssembler::LeaveApiExitFrame() {
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type) {
+                                    HandlerType type,
+                                    int handler_index) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
-  // The pc (return address) is already on TOS.
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+
+  // We will build up the handler from the bottom by pushing on the stack.
+  // First compute the state and push the frame pointer and context.
+  unsigned state = StackHandler::OffsetField::encode(handler_index);
   if (try_location == IN_JAVASCRIPT) {
-    if (type == TRY_CATCH_HANDLER) {
-      push(Immediate(StackHandler::TRY_CATCH));
-    } else {
-      push(Immediate(StackHandler::TRY_FINALLY));
-    }
     push(ebp);
     push(esi);
+    state |= (type == TRY_CATCH_HANDLER)
+        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
+        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
-    // The frame pointer does not point to a JS frame so we save NULL
-    // for ebp. We expect the code throwing an exception to check ebp
-    // before dereferencing it to restore the context.
-    push(Immediate(StackHandler::ENTRY));
+    // The frame pointer does not point to a JS frame so we save NULL for
+    // ebp. We expect the code throwing an exception to check ebp before
+    // dereferencing it to restore the context.
     push(Immediate(0));  // NULL frame pointer.
     push(Immediate(Smi::FromInt(0)));  // No context.
+    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
   }
-  // Save the current handler as the next handler.
-  push(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
-                                                 isolate())));
-  // Link this handler as the new current one.
-  mov(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
-                                                isolate())),
-      esp);
+
+  // Push the state and the code object.
+  push(Immediate(state));
+  push(CodeObject());
+
+  // Link the current handler as the next handler.
+  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  push(Operand::StaticVariable(handler_address));
+  // Set this new handler as the current one.
+  mov(Operand::StaticVariable(handler_address), esp);
 }
 
 
 void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  pop(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
-                                                isolate())));
+  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  pop(Operand::StaticVariable(handler_address));
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
+void MacroAssembler::JumpToHandlerEntry() {
+  // Compute the handler entry address and jump to it.  The handler table is
+  // a fixed array of (smi-tagged) code offsets.
+  // eax = exception, edi = code object, edx = state.
+  mov(ebx, FieldOperand(edi, Code::kHandlerTableOffset));
+  shr(edx, StackHandler::kKindWidth);
+  mov(edx, FieldOperand(ebx, edx, times_4, FixedArray::kHeaderSize));
+  SmiUntag(edx);
+  lea(edi, FieldOperand(edi, edx, times_1, Code::kHeaderSize));
+  jmp(edi);
 }
 
 
@@ -773,36 +791,39 @@ void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
-  // eax must hold the exception.
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+
+  // The exception is expected in eax.
   if (!value.is(eax)) {
     mov(eax, value);
   }
-
-  // Drop the sp to the top of the handler.
-  ExternalReference handler_address(Isolate::kHandlerAddress,
-                                    isolate());
+  // Drop the stack pointer to the top of the top handler.
+  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
   mov(esp, Operand::StaticVariable(handler_address));
-
-  // Restore next handler, context, and frame pointer; discard handler state.
+  // Restore the next handler.
   pop(Operand::StaticVariable(handler_address));
+
+  // Remove the code object and state, compute the handler address in edi.
+  pop(edi);  // Code object.
+  pop(edx);  // Index and state.
+
+  // Restore the context and frame pointer.
   pop(esi);  // Context.
   pop(ebp);  // Frame pointer.
-  pop(edx);  // State.
 
   // If the handler is a JS frame, restore the context to the frame.
-  // (edx == ENTRY) == (ebp == 0) == (esi == 0), so we could test any
-  // of them.
+  // (kind == ENTRY) == (ebp == 0) == (esi == 0), so we could test either
+  // ebp or esi.
   Label skip;
-  cmp(edx, Immediate(StackHandler::ENTRY));
-  j(equal, &skip, Label::kNear);
+  test(esi, esi);
+  j(zero, &skip, Label::kNear);
   mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
   bind(&skip);
 
-  ret(0);
+  JumpToHandlerEntry();
 }
 
 
@@ -811,10 +832,10 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // The exception is expected in eax.
   if (type == OUT_OF_MEMORY) {
@@ -843,20 +864,23 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   mov(esp, Operand(esp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
-  cmp(Operand(esp, StackHandlerConstants::kStateOffset),
-      Immediate(StackHandler::ENTRY));
-  j(not_equal, &fetch_next);
+  STATIC_ASSERT(StackHandler::ENTRY == 0);
+  test(Operand(esp, StackHandlerConstants::kStateOffset),
+       Immediate(StackHandler::KindField::kMask));
+  j(not_zero, &fetch_next);
 
   // Set the top handler address to next handler past the top ENTRY handler.
   pop(Operand::StaticVariable(handler_address));
 
-  // Clear the context and frame pointer (0 was saved in the handler), and
-  // discard the state.
+  // Remove the code object and state, compute the handler address in edi.
+  pop(edi);  // Code object.
+  pop(edx);  // Index and state.
+
+  // Clear the context pointer and frame pointer (0 was saved in the handler).
   pop(esi);
   pop(ebp);
-  pop(edx);  // State.
 
-  ret(0);
+  JumpToHandlerEntry();
 }
 
 

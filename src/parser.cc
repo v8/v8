@@ -493,6 +493,9 @@ class Parser::FunctionState BASE_EMBEDDED {
     return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
   }
 
+  int NextHandlerIndex() { return next_handler_index_++; }
+  int handler_count() { return next_handler_index_; }
+
   void SetThisPropertyAssignmentInfo(
       bool only_simple_this_property_assignments,
       Handle<FixedArray> this_property_assignments) {
@@ -516,6 +519,9 @@ class Parser::FunctionState BASE_EMBEDDED {
   // array literals.
   int next_materialized_literal_index_;
 
+  // Used to assign a per-function index to try and catch handlers.
+  int next_handler_index_;
+
   // Properties count estimation.
   int expected_property_count_;
 
@@ -535,6 +541,7 @@ Parser::FunctionState::FunctionState(Parser* parser,
                                      Scope* scope,
                                      Isolate* isolate)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
+      next_handler_index_(0),
       expected_property_count_(0),
       only_simple_this_property_assignments_(false),
       this_property_assignments_(isolate->factory()->empty_fixed_array()),
@@ -589,10 +596,10 @@ Parser::Parser(Handle<Script> script,
       top_scope_(NULL),
       current_function_state_(NULL),
       target_stack_(NULL),
-      allow_natives_syntax_(allow_natives_syntax),
       extension_(extension),
       pre_data_(pre_data),
       fni_(NULL),
+      allow_natives_syntax_(allow_natives_syntax),
       stack_overflow_(false),
       parenthesized_function_(false),
       harmony_scoping_(false) {
@@ -669,6 +676,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           body,
           function_state.materialized_literal_count(),
           function_state.expected_property_count(),
+          function_state.handler_count(),
           function_state.only_simple_this_property_assignments(),
           function_state.this_property_assignments(),
           0,
@@ -2316,11 +2324,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL && finally_block != NULL) {
     // If we have both, create an inner try/catch.
     ASSERT(catch_scope != NULL && catch_variable != NULL);
-    TryCatchStatement* statement =
-        new(zone()) TryCatchStatement(try_block,
-                                      catch_scope,
-                                      catch_variable,
-                                      catch_block);
+    int index = current_function_state_->NextHandlerIndex();
+    TryCatchStatement* statement = new(zone()) TryCatchStatement(index,
+                                                                 try_block,
+                                                                 catch_scope,
+                                                                 catch_variable,
+                                                                 catch_block);
     statement->set_escaping_targets(try_collector.targets());
     try_block = new(zone()) Block(isolate(), NULL, 1, false);
     try_block->AddStatement(statement);
@@ -2331,14 +2340,18 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL) {
     ASSERT(finally_block == NULL);
     ASSERT(catch_scope != NULL && catch_variable != NULL);
-    result =
-        new(zone()) TryCatchStatement(try_block,
-                                      catch_scope,
-                                      catch_variable,
-                                      catch_block);
+    int index = current_function_state_->NextHandlerIndex();
+    result = new(zone()) TryCatchStatement(index,
+                                           try_block,
+                                           catch_scope,
+                                           catch_variable,
+                                           catch_block);
   } else {
     ASSERT(finally_block != NULL);
-    result = new(zone()) TryFinallyStatement(try_block, finally_block);
+    int index = current_function_state_->NextHandlerIndex();
+    result = new(zone()) TryFinallyStatement(index,
+                                             try_block,
+                                             finally_block);
     // Combine the jump targets of the try block and the possible catch block.
     try_collector.targets()->AddAll(*catch_collector.targets());
   }
@@ -3897,9 +3910,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
       ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
       : NewScope(top_scope_, FUNCTION_SCOPE);
-  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
+  ZoneList<Statement*>* body = NULL;
   int materialized_literal_count;
   int expected_property_count;
+  int handler_count = 0;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
   bool has_duplicate_parameters = false;
@@ -3955,25 +3969,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
+    Variable* fvar = NULL;
+    Token::Value fvar_init_op = Token::INIT_CONST;
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
       VariableMode fvar_mode;
-      Token::Value fvar_init_op;
       if (harmony_scoping_) {
         fvar_mode = CONST_HARMONY;
         fvar_init_op = Token::INIT_CONST_HARMONY;
       } else {
         fvar_mode = CONST;
-        fvar_init_op = Token::INIT_CONST;
       }
-      Variable* fvar = top_scope_->DeclareFunctionVar(function_name, fvar_mode);
-      VariableProxy* fproxy = top_scope_->NewUnresolved(function_name);
-      fproxy->BindTo(fvar);
-      body->Add(new(zone()) ExpressionStatement(
-          new(zone()) Assignment(isolate(),
-                                 fvar_init_op,
-                                 fproxy,
-                                 new(zone()) ThisFunction(isolate()),
-                                 RelocInfo::kNoPosition)));
+      fvar = top_scope_->DeclareFunctionVar(function_name, fvar_mode);
     }
 
     // Determine if the function will be lazily compiled. The mode can only
@@ -4013,10 +4019,22 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
 
     if (!is_lazily_compiled) {
+      body = new(zone()) ZoneList<Statement*>(8);
+      if (fvar != NULL) {
+        VariableProxy* fproxy = top_scope_->NewUnresolved(function_name);
+        fproxy->BindTo(fvar);
+        body->Add(new(zone()) ExpressionStatement(
+            new(zone()) Assignment(isolate(),
+                                   fvar_init_op,
+                                   fproxy,
+                                   new(zone()) ThisFunction(isolate()),
+                                   RelocInfo::kNoPosition)));
+      }
       ParseSourceElements(body, Token::RBRACE, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
+      handler_count = function_state.handler_count();
       only_simple_this_property_assignments =
           function_state.only_simple_this_property_assignments();
       this_property_assignments = function_state.this_property_assignments();
@@ -4084,6 +4102,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                   body,
                                   materialized_literal_count,
                                   expected_property_count,
+                                  handler_count,
                                   only_simple_this_property_assignments,
                                   this_property_assignments,
                                   num_parameters,
