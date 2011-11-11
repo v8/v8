@@ -5609,8 +5609,11 @@ void Heap::TearDown() {
 void Heap::Shrink() {
   // Try to shrink all paged spaces.
   PagedSpaces spaces;
-  for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
     space->ReleaseAllUnusedPages();
+  }
 }
 
 
@@ -6431,8 +6434,8 @@ void Heap::FreeQueuedChunks() {
       // it try to perform a search in the list of pages owned by of the large
       // object space and queued chunks were detached from that list.
       // To work around this we split large chunk into normal kPageSize aligned
-      // pieces and initialize owner field and flags of every piece.
-      // If FromAnyPointerAddress encounteres a slot that belongs to one of
+      // pieces and initialize size, owner and flags field of every piece.
+      // If FromAnyPointerAddress encounters a slot that belongs to one of
       // these smaller pieces it will treat it as a slot on a normal Page.
       MemoryChunk* inner = MemoryChunk::FromAddress(
           chunk->address() + Page::kPageSize);
@@ -6440,8 +6443,9 @@ void Heap::FreeQueuedChunks() {
           chunk->address() + chunk->size() - 1);
       while (inner <= inner_last) {
         // Size of a large chunk is always a multiple of
-        // OS::AllocationAlignment() so there is always
+        // MemoryChunk::kAlignment so there is always
         // enough space for a fake MemoryChunk header.
+        inner->set_size(Page::kPageSize);
         inner->set_owner(lo_space());
         inner->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
         inner = MemoryChunk::FromAddress(

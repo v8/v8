@@ -1,3 +1,18 @@
+2011-11-11: Version 3.7.6
+
+        Fixed filtering of store buffer for large object pages.
+        (issue 1817)
+
+        Fixed generated hash function on all platforms.
+        (issue 1808)
+
+        Fixed Heap::Shrink to ensure that it does not free pages that are
+        still in use.
+        (Chromium issue 100414)
+
+	Stability and performance improvements on all platforms.
+
+
 2011-11-10: Version 3.7.5
 
         Added initial gyp infrastructure for MIPS.

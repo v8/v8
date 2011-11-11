@@ -6261,7 +6261,44 @@ void HGraphBuilder::GenerateValueOf(CallRuntime* call) {
 
 
 void HGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
-  return Bailout("inlined runtime function: SetValueOf");
+  ASSERT(call->arguments()->length() == 2);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  HValue* value = Pop();
+  HValue* object = Pop();
+  // Check if object is a not a smi.
+  HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(object);
+  HBasicBlock* if_smi = graph()->CreateBasicBlock();
+  HBasicBlock* if_heap_object = graph()->CreateBasicBlock();
+  HBasicBlock* join = graph()->CreateBasicBlock();
+  smicheck->SetSuccessorAt(0, if_smi);
+  smicheck->SetSuccessorAt(1, if_heap_object);
+  current_block()->Finish(smicheck);
+  if_smi->Goto(join);
+
+  // Check if object is a JSValue.
+  set_current_block(if_heap_object);
+  HHasInstanceTypeAndBranch* typecheck =
+      new(zone()) HHasInstanceTypeAndBranch(object, JS_VALUE_TYPE);
+  HBasicBlock* if_js_value = graph()->CreateBasicBlock();
+  HBasicBlock* not_js_value = graph()->CreateBasicBlock();
+  typecheck->SetSuccessorAt(0, if_js_value);
+  typecheck->SetSuccessorAt(1, not_js_value);
+  current_block()->Finish(typecheck);
+  not_js_value->Goto(join);
+
+  // Create in-object property store to kValueOffset.
+  set_current_block(if_js_value);
+  Handle<String> name = isolate()->factory()->undefined_symbol();
+  AddInstruction(new HStoreNamedField(object,
+                                      name,
+                                      value,
+                                      true,  // in-object store.
+                                      JSValue::kValueOffset));
+  if_js_value->Goto(join);
+  join->SetJoinId(call->id());
+  set_current_block(join);
+  return ast_context()->ReturnValue(value);
 }
 
 

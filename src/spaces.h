@@ -504,6 +504,10 @@ class MemoryChunk {
 
   size_t size() const { return size_; }
 
+  void set_size(size_t size) {
+    size_ = size;
+  }
+
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
@@ -1347,8 +1351,6 @@ class FreeList BASE_EMBEDDED {
   // 'wasted_bytes'.  The size should be a non-zero multiple of the word size.
   MUST_USE_RESULT HeapObject* Allocate(int size_in_bytes);
 
-  void MarkNodes();
-
 #ifdef DEBUG
   void Zap();
   static intptr_t SumFreeList(FreeListNode* node);
@@ -1357,7 +1359,20 @@ class FreeList BASE_EMBEDDED {
   bool IsVeryLong();
 #endif
 
-  void CountFreeListItems(Page* p, intptr_t* sizes);
+  struct SizeStats {
+    intptr_t Total() {
+      return small_size_ + medium_size_ + large_size_ + huge_size_;
+    }
+
+    intptr_t small_size_;
+    intptr_t medium_size_;
+    intptr_t large_size_;
+    intptr_t huge_size_;
+  };
+
+  void CountFreeListItems(Page* p, SizeStats* sizes);
+
+  intptr_t EvictFreeListItems(Page* p);
 
  private:
   // The size range of blocks, in bytes.
@@ -1541,9 +1556,8 @@ class PagedSpace : public Space {
            !p->WasSweptPrecisely();
   }
 
-  void SetPagesToSweep(Page* first, Page* last) {
+  void SetPagesToSweep(Page* first) {
     first_unswept_page_ = first;
-    last_unswept_page_ = last;
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
@@ -1556,16 +1570,18 @@ class PagedSpace : public Space {
   Page* LastPage() { return anchor_.prev_page(); }
 
   bool IsFragmented(Page* p) {
-    intptr_t sizes[4];
-    free_list_.CountFreeListItems(p, sizes);
+    FreeList::SizeStats sizes;
+    free_list_.CountFreeListItems(p, &sizes);
 
     intptr_t ratio;
     intptr_t ratio_threshold;
     if (identity() == CODE_SPACE) {
-      ratio = (sizes[1] * 10 + sizes[2] * 2) * 100 / Page::kObjectAreaSize;
+      ratio = (sizes.medium_size_ * 10 + sizes.large_size_ * 2) * 100 /
+          Page::kObjectAreaSize;
       ratio_threshold = 10;
     } else {
-      ratio = (sizes[0] * 5 + sizes[1]) * 100 / Page::kObjectAreaSize;
+      ratio = (sizes.small_size_ * 5 + sizes.medium_size_) * 100 /
+          Page::kObjectAreaSize;
       ratio_threshold = 15;
     }
 
@@ -1573,19 +1589,23 @@ class PagedSpace : public Space {
       PrintF("%p [%d]: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
              reinterpret_cast<void*>(p),
              identity(),
-             static_cast<int>(sizes[0]),
-             static_cast<double>(sizes[0] * 100) / Page::kObjectAreaSize,
-             static_cast<int>(sizes[1]),
-             static_cast<double>(sizes[1] * 100) / Page::kObjectAreaSize,
-             static_cast<int>(sizes[2]),
-             static_cast<double>(sizes[2] * 100) / Page::kObjectAreaSize,
-             static_cast<int>(sizes[3]),
-             static_cast<double>(sizes[3] * 100) / Page::kObjectAreaSize,
+             static_cast<int>(sizes.small_size_),
+             static_cast<double>(sizes.small_size_ * 100) /
+                 Page::kObjectAreaSize,
+             static_cast<int>(sizes.medium_size_),
+             static_cast<double>(sizes.medium_size_ * 100) /
+                 Page::kObjectAreaSize,
+             static_cast<int>(sizes.large_size_),
+             static_cast<double>(sizes.large_size_ * 100) /
+                 Page::kObjectAreaSize,
+             static_cast<int>(sizes.huge_size_),
+             static_cast<double>(sizes.huge_size_ * 100) /
+                 Page::kObjectAreaSize,
              (ratio > ratio_threshold) ? "[fragmented]" : "");
     }
 
     return (ratio > ratio_threshold) ||
-        (FLAG_always_compact && sizes[3] != Page::kObjectAreaSize);
+        (FLAG_always_compact && sizes.Total() != Page::kObjectAreaSize);
   }
 
   void EvictEvacuationCandidatesFromFreeLists();
@@ -1617,7 +1637,6 @@ class PagedSpace : public Space {
   bool was_swept_conservatively_;
 
   Page* first_unswept_page_;
-  Page* last_unswept_page_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS.
@@ -2333,8 +2352,6 @@ class FixedSpace : public PagedSpace {
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact();
-
-  void MarkFreeListNodes() { free_list_.MarkNodes(); }
 
  protected:
   void ResetFreeList() {

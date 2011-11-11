@@ -658,8 +658,7 @@ PagedSpace::PagedSpace(Heap* heap,
     : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
-      first_unswept_page_(Page::FromAddress(NULL)),
-      last_unswept_page_(Page::FromAddress(NULL)) {
+      first_unswept_page_(Page::FromAddress(NULL)) {
   max_capacity_ = (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize)
                   * Page::kObjectAreaSize;
   accounting_stats_.Clear();
@@ -754,6 +753,21 @@ int PagedSpace::CountTotalPages() {
 
 void PagedSpace::ReleasePage(Page* page) {
   ASSERT(page->LiveBytes() == 0);
+
+  // Adjust list of unswept pages if the page is it's head or tail.
+  if (first_unswept_page_ == page) {
+    first_unswept_page_ = page->next_page();
+    if (first_unswept_page_ == anchor()) {
+      first_unswept_page_ = Page::FromAddress(NULL);
+    }
+  }
+
+  if (page->WasSwept()) {
+    intptr_t size = free_list_.EvictFreeListItems(page);
+    accounting_stats_.AllocateBytes(size);
+    ASSERT_EQ(Page::kObjectAreaSize, static_cast<int>(size));
+  }
+
   page->Unlink();
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
@@ -771,8 +785,26 @@ void PagedSpace::ReleaseAllUnusedPages() {
   PageIterator it(this);
   while (it.has_next()) {
     Page* page = it.next();
-    if (page->LiveBytes() == 0) {
-      ReleasePage(page);
+    if (!page->WasSwept()) {
+      if (page->LiveBytes() == 0) ReleasePage(page);
+    } else {
+      HeapObject* obj = HeapObject::FromAddress(page->body());
+      if (obj->IsFreeSpace() &&
+          FreeSpace::cast(obj)->size() == Page::kObjectAreaSize) {
+        // Sometimes we allocate memory from free list but don't
+        // immediately initialize it (e.g. see PagedSpace::ReserveSpace
+        // called from Heap::ReserveSpace that can cause GC before
+        // reserved space is actually initialized).
+        // Thus we can't simply assume that obj represents a valid
+        // node still owned by a free list
+        // Instead we should verify that the page is fully covered
+        // by free list items.
+        FreeList::SizeStats sizes;
+        free_list_.CountFreeListItems(page, &sizes);
+        if (sizes.Total() == Page::kObjectAreaSize) {
+          ReleasePage(page);
+        }
+      }
     }
   }
   heap()->FreeQueuedChunks();
@@ -1870,12 +1902,49 @@ static intptr_t CountFreeListItemsInList(FreeListNode* n, Page* p) {
 }
 
 
-void FreeList::CountFreeListItems(Page* p, intptr_t* sizes) {
-  sizes[0] = CountFreeListItemsInList(small_list_, p);
-  sizes[1] = CountFreeListItemsInList(medium_list_, p);
-  sizes[2] = CountFreeListItemsInList(large_list_, p);
-  sizes[3] = CountFreeListItemsInList(huge_list_, p);
+void FreeList::CountFreeListItems(Page* p, SizeStats* sizes) {
+  sizes->huge_size_ = CountFreeListItemsInList(huge_list_, p);
+  if (sizes->huge_size_ < Page::kObjectAreaSize) {
+    sizes->small_size_ = CountFreeListItemsInList(small_list_, p);
+    sizes->medium_size_ = CountFreeListItemsInList(medium_list_, p);
+    sizes->large_size_ = CountFreeListItemsInList(large_list_, p);
+  } else {
+    sizes->small_size_ = 0;
+    sizes->medium_size_ = 0;
+    sizes->large_size_ = 0;
+  }
 }
+
+
+static intptr_t EvictFreeListItemsInList(FreeListNode** n, Page* p) {
+  intptr_t sum = 0;
+  while (*n != NULL) {
+    if (Page::FromAddress((*n)->address()) == p) {
+      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
+      sum += free_space->Size();
+      *n = (*n)->next();
+    } else {
+      n = (*n)->next_address();
+    }
+  }
+  return sum;
+}
+
+
+intptr_t FreeList::EvictFreeListItems(Page* p) {
+  intptr_t sum = EvictFreeListItemsInList(&huge_list_, p);
+
+  if (sum < Page::kObjectAreaSize) {
+    sum += EvictFreeListItemsInList(&small_list_, p) +
+        EvictFreeListItemsInList(&medium_list_, p) +
+        EvictFreeListItemsInList(&large_list_, p);
+  }
+
+  available_ -= static_cast<int>(sum);
+
+  return sum;
+}
+
 
 #ifdef DEBUG
 intptr_t FreeList::SumFreeList(FreeListNode* cur) {
@@ -1963,7 +2032,6 @@ void PagedSpace::PrepareForMarkCompact() {
 
   // Stop lazy sweeping and clear marking bits for unswept pages.
   if (first_unswept_page_ != NULL) {
-    Page* last = last_unswept_page_;
     Page* p = first_unswept_page_;
     do {
       // Do not use ShouldBeSweptLazily predicate here.
@@ -1977,9 +2045,9 @@ void PagedSpace::PrepareForMarkCompact() {
         }
       }
       p = p->next_page();
-    } while (p != last);
+    } while (p != anchor());
   }
-  first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
+  first_unswept_page_ = Page::FromAddress(NULL);
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
@@ -2020,7 +2088,6 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
   if (IsSweepingComplete()) return true;
 
   intptr_t freed_bytes = 0;
-  Page* last = last_unswept_page_;
   Page* p = first_unswept_page_;
   do {
     Page* next_page = p->next_page();
@@ -2032,10 +2099,10 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;
-  } while (p != last && freed_bytes < bytes_to_sweep);
+  } while (p != anchor() && freed_bytes < bytes_to_sweep);
 
-  if (p == last) {
-    last_unswept_page_ = first_unswept_page_ = Page::FromAddress(NULL);
+  if (p == anchor()) {
+    first_unswept_page_ = Page::FromAddress(NULL);
   } else {
     first_unswept_page_ = p;
   }

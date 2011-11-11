@@ -8181,7 +8181,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionBindArguments) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_BoundFunctionGetBindings) {
   HandleScope handles(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, callable, 0);
+  CONVERT_ARG_CHECKED(JSReceiver, callable, 0);
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     if (function->shared()->bound()) {

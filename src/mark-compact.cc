@@ -3547,7 +3547,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       case LAZY_CONSERVATIVE: {
         freed_bytes += SweepConservatively(space, p);
         if (freed_bytes >= newspace_size && p != space->LastPage()) {
-          space->SetPagesToSweep(p->next_page(), space->anchor());
+          space->SetPagesToSweep(p->next_page());
           lazy_sweeping_active = true;
         }
         break;
