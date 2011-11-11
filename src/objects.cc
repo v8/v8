@@ -7718,6 +7718,10 @@ void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   VisitPointer(rinfo->target_object_address());
 }
 
+void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
+  Address* p = rinfo->target_reference_address();
+  VisitExternalReferences(p, p + 1);
+}
 
 void Code::InvalidateRelocation() {
   set_relocation_info(GetHeap()->empty_byte_array());

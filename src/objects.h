@@ -7810,6 +7810,8 @@ class ObjectVisitor BASE_EMBEDDED {
   // may be modified on return.
   virtual void VisitExternalReferences(Address* start, Address* end) {}
 
+  virtual void VisitExternalReference(RelocInfo* rinfo);
+
   inline void VisitExternalReference(Address* p) {
     VisitExternalReferences(p, p + 1);
   }
