@@ -504,6 +504,10 @@ class MemoryChunk {
 
   size_t size() const { return size_; }
 
+  void set_size(size_t size) {
+    size_ = size;
+  }
+
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }

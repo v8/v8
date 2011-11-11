@@ -48,10 +48,6 @@ def FAIL_OK = FAIL, OKAY
 
 ##################### SKIPPED TESTS #####################
 
-# Skip one test until we figure out what is causing the regression.
-# http://code.google.com/p/v8/issues/detail?id=1817
-js1_5/Regress/regress-360969-05: SKIP
-
 # This test checks that we behave properly in an out-of-memory
 # situation.  The test fails in V8 with an exception and takes a long
 # time to do so.
