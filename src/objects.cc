@@ -9501,6 +9501,9 @@ MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
       MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
       Map* new_map;
       if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+      if (FLAG_trace_elements_transitions) {
+        PrintElementsTransition(stdout, from_kind, elms, FAST_ELEMENTS, elms);
+      }
       set_map(new_map);
       return this;
     }

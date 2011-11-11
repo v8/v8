@@ -7046,16 +7046,14 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label slow_elements_from_double;
   Label fast_elements;
 
-  if (!FLAG_trace_elements_transitions) {
-    __ CheckFastElements(edi, &double_elements);
+  __ CheckFastElements(edi, &double_elements);
 
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(eax, &smi_element);
-    __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
+  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  __ JumpIfSmi(eax, &smi_element);
+  __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
 
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-  }
+  // Store into the array literal requires a elements transition. Call into
+  // the runtime.
 
   __ bind(&slow_elements);
   __ pop(edi);  // Pop return address and remember to put back later for tail
@@ -7070,49 +7068,45 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  // place.
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  if (!FLAG_trace_elements_transitions) {
-    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
+  __ bind(&slow_elements_from_double);
+  __ pop(edx);
+  __ jmp(&slow_elements);
 
-    __ push(edx);
-    __ mov(edx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ StoreNumberToDoubleElements(eax,
-                                   edx,
-                                   ecx,
-                                   edi,
-                                   xmm0,
-                                   &slow_elements_from_double,
-                                   false);
-    __ pop(edx);
-    __ jmp(&element_done);
+  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  __ bind(&fast_elements);
+  __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ lea(ecx, FieldOperand(ebx, ecx, times_half_pointer_size,
+                           FixedArrayBase::kHeaderSize));
+  __ mov(Operand(ecx, 0), eax);
+  // Update the write barrier for the array store.
+  __ RecordWrite(ebx, ecx, eax,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+  __ ret(0);
 
-    __ bind(&slow_elements_from_double);
-    __ pop(edx);
-    __ jmp(&slow_elements);
+  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+  // FAST_ELEMENTS, and value is Smi.
+  __ bind(&smi_element);
+  __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ mov(FieldOperand(ebx, ecx, times_half_pointer_size,
+                      FixedArrayBase::kHeaderSize), eax);
+  __ ret(0);
 
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
-    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ lea(ecx, FieldOperand(ebx, ecx, times_half_pointer_size,
-                             FixedArrayBase::kHeaderSize));
-    __ mov(Operand(ecx, 0), eax);
-    // Update the write barrier for the array store.
-    __ RecordWrite(ebx, ecx, eax,
-                   kDontSaveFPRegs,
-                   EMIT_REMEMBERED_SET,
-                   OMIT_SMI_CHECK);
-    __ jmp(&element_done);
+  // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+  __ bind(&double_elements);
 
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ mov(FieldOperand(ebx, ecx, times_half_pointer_size,
-                        FixedArrayBase::kHeaderSize), eax);
-    // Fall through
-    __ bind(&element_done);
-    __ ret(0);
-  }
+  __ push(edx);
+  __ mov(edx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ StoreNumberToDoubleElements(eax,
+                                 edx,
+                                 ecx,
+                                 edi,
+                                 xmm0,
+                                 &slow_elements_from_double,
+                                 false);
+  __ pop(edx);
+  __ ret(0);
 }
 
 #undef __

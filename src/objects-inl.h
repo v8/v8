@@ -119,6 +119,18 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
+bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
+                                         ElementsKind to_kind) {
+  if (to_kind == FAST_ELEMENTS) {
+    return from_kind == FAST_SMI_ONLY_ELEMENTS ||
+        from_kind == FAST_DOUBLE_ELEMENTS;
+  } else {
+    return to_kind == FAST_DOUBLE_ELEMENTS &&
+        from_kind == FAST_SMI_ONLY_ELEMENTS;
+  }
+}
+
+
 bool Object::IsFixedArrayBase() {
   return IsFixedArray() || IsFixedDoubleArray();
 }

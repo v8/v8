@@ -167,6 +167,8 @@ static const int kElementsKindCount =
 
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
+inline bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
+                                                ElementsKind to_kind);
 
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };

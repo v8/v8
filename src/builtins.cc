@@ -775,7 +775,8 @@ BUILTIN(ArraySlice) {
 
   // Set the ElementsKind.
   ElementsKind elements_kind = JSObject::cast(receiver)->GetElementsKind();
-  if (result_array->GetElementsKind() != elements_kind) {
+  if (IsMoreGeneralElementsKindTransition(result_array->GetElementsKind(),
+                                          elements_kind)) {
     MaybeObject* maybe = result_array->TransitionElementsKind(elements_kind);
     if (maybe->IsFailure()) return maybe;
   }
@@ -875,7 +876,8 @@ BUILTIN(ArraySplice) {
 
     // Set the ElementsKind.
     ElementsKind elements_kind = array->GetElementsKind();
-    if (result_array->GetElementsKind() != elements_kind) {
+    if (IsMoreGeneralElementsKindTransition(result_array->GetElementsKind(),
+                                            elements_kind)) {
       MaybeObject* maybe = result_array->TransitionElementsKind(elements_kind);
       if (maybe->IsFailure()) return maybe;
     }
