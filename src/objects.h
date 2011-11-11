@@ -3829,6 +3829,9 @@ class Code: public HeapObject {
   DECL_ACCESSORS(relocation_info, ByteArray)
   void InvalidateRelocation();
 
+  // [handler_table]: Fixed array containing offsets of exception handlers.
+  DECL_ACCESSORS(handler_table, FixedArray)
+
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
@@ -4057,8 +4060,9 @@ class Code: public HeapObject {
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kHandlerTableOffset = kRelocationInfoOffset + kPointerSize;
   static const int kDeoptimizationDataOffset =
-      kRelocationInfoOffset + kPointerSize;
+      kHandlerTableOffset + kPointerSize;
   static const int kNextCodeFlushingCandidateOffset =
       kDeoptimizationDataOffset + kPointerSize;
   static const int kFlagsOffset =

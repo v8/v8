@@ -3157,10 +3157,9 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               bool immovable) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
-  Object* reloc_info;
-  { MaybeObject* maybe_reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
-    if (!maybe_reloc_info->ToObject(&reloc_info)) return maybe_reloc_info;
-  }
+  ByteArray* reloc_info;
+  MaybeObject* maybe_reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
+  if (!maybe_reloc_info->To(&reloc_info)) return maybe_reloc_info;
 
   // Compute size.
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
@@ -3184,12 +3183,13 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
   code->set_instruction_size(desc.instr_size);
-  code->set_relocation_info(ByteArray::cast(reloc_info));
+  code->set_relocation_info(reloc_info);
   code->set_flags(flags);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array());
+  code->set_handler_table(empty_fixed_array());
   code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.

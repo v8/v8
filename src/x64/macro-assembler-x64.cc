@@ -2417,86 +2417,105 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type) {
+                                    HandlerType type,
+                                    int handler_index) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
-  // The pc (return address) is already on TOS.  This code pushes state,
-  // frame pointer, context, and current handler.
+  // We will build up the handler from the bottom by pushing on the stack.
+  // First compute the state and push the frame pointer and context.
+  unsigned state = StackHandler::OffsetField::encode(handler_index);
   if (try_location == IN_JAVASCRIPT) {
-    if (type == TRY_CATCH_HANDLER) {
-      push(Immediate(StackHandler::TRY_CATCH));
-    } else {
-      push(Immediate(StackHandler::TRY_FINALLY));
-    }
     push(rbp);
     push(rsi);
+    state |= (type == TRY_CATCH_HANDLER)
+        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
+        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
-    // The frame pointer does not point to a JS frame so we save NULL
-    // for rbp. We expect the code throwing an exception to check rbp
-    // before dereferencing it to restore the context.
-    push(Immediate(StackHandler::ENTRY));
+    // The frame pointer does not point to a JS frame so we save NULL for
+    // rbp. We expect the code throwing an exception to check rbp before
+    // dereferencing it to restore the context.
     push(Immediate(0));  // NULL frame pointer.
     Push(Smi::FromInt(0));  // No context.
+    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
   }
-  // Save the current handler.
-  Operand handler_operand =
-      ExternalOperand(ExternalReference(Isolate::kHandlerAddress, isolate()));
-  push(handler_operand);
-  // Link this handler.
-  movq(handler_operand, rsp);
+
+  // Push the state and the code object.
+  push(Immediate(state));
+  Push(CodeObject());
+
+  // Link the current handler as the next handler.
+  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  push(ExternalOperand(handler_address));
+  // Set this new handler as the current one.
+  movq(ExternalOperand(handler_address), rsp);
 }
 
 
 void MacroAssembler::PopTryHandler() {
-  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
-  // Unlink this handler.
-  Operand handler_operand =
-      ExternalOperand(ExternalReference(Isolate::kHandlerAddress, isolate()));
-  pop(handler_operand);
-  // Remove the remaining fields.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
+  pop(ExternalOperand(handler_address));
   addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
+void MacroAssembler::JumpToHandlerEntry() {
+  // Compute the handler entry address and jump to it.  The handler table is
+  // a fixed array of (smi-tagged) code offsets.
+  // rax = exception, rdi = code object, rdx = state.
+  movq(rbx, FieldOperand(rdi, Code::kHandlerTableOffset));
+  shr(rdx, Immediate(StackHandler::kKindWidth));
+  movq(rdx, FieldOperand(rbx, rdx, times_8, FixedArray::kHeaderSize));
+  SmiToInteger64(rdx, rdx);
+  lea(rdi, FieldOperand(rdi, rdx, times_1, Code::kHeaderSize));
+  jmp(rdi);
 }
 
 
 void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
-  // Keep thrown value in rax.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+
+  // The exception is expected in rax.
   if (!value.is(rax)) {
     movq(rax, value);
   }
-
+  // Drop the stack pointer to the top of the top handler.
   ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
-  Operand handler_operand = ExternalOperand(handler_address);
-  movq(rsp, handler_operand);
-  // get next in chain
-  pop(handler_operand);
+  movq(rsp, ExternalOperand(handler_address));
+  // Restore the next handler.
+  pop(ExternalOperand(handler_address));
+
+  // Remove the code object and state, compute the handler address in rdi.
+  pop(rdi);  // Code object.
+  pop(rdx);  // Offset and state.
+
+  // Restore the context and frame pointer.
   pop(rsi);  // Context.
   pop(rbp);  // Frame pointer.
-  pop(rdx);  // State.
 
   // If the handler is a JS frame, restore the context to the frame.
-  // (rdx == ENTRY) == (rbp == 0) == (rsi == 0), so we could test any
-  // of them.
+  // (kind == ENTRY) == (rbp == 0) == (rsi == 0), so we could test either
+  // rbp or rsi.
   Label skip;
-  cmpq(rdx, Immediate(StackHandler::ENTRY));
-  j(equal, &skip, Label::kNear);
+  testq(rsi, rsi);
+  j(zero, &skip, Label::kNear);
   movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
   bind(&skip);
 
-  ret(0);
+  JumpToHandlerEntry();
 }
 
 
@@ -2504,11 +2523,11 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // The exception is expected in rax.
   if (type == OUT_OF_MEMORY) {
@@ -2538,20 +2557,23 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   movq(rsp, Operand(rsp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
-  cmpq(Operand(rsp, StackHandlerConstants::kStateOffset),
-       Immediate(StackHandler::ENTRY));
-  j(not_equal, &fetch_next);
+  STATIC_ASSERT(StackHandler::ENTRY == 0);
+  testl(Operand(rsp, StackHandlerConstants::kStateOffset),
+        Immediate(StackHandler::KindField::kMask));
+  j(not_zero, &fetch_next);
 
   // Set the top handler address to next handler past the top ENTRY handler.
   pop(ExternalOperand(handler_address));
 
-  // Clear the context and frame pointer (0 was saved in the handler), and
-  // discard the state.
+  // Remove the code object and state, compute the handler address in rdi.
+  pop(rdi);  // Code object.
+  pop(rdx);  // Offset and state.
+
+  // Clear the context pointer and frame pointer (0 was saved in the handler).
   pop(rsi);
   pop(rbp);
-  pop(rdx);  // State.
 
-  ret(0);
+  JumpToHandlerEntry();
 }
 
 
