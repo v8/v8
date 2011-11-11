@@ -6443,7 +6443,7 @@ void Heap::FreeQueuedChunks() {
           chunk->address() + chunk->size() - 1);
       while (inner <= inner_last) {
         // Size of a large chunk is always a multiple of
-        // MemoryChunk::kAlignment so there is always
+        // OS::AllocateAlignment() so there is always
         // enough space for a fake MemoryChunk header.
         inner->set_size(Page::kPageSize);
         inner->set_owner(lo_space());
