@@ -129,9 +129,6 @@ void Code::CodeIterateBody(Heap* heap) {
       reinterpret_cast<Object**>(this->address() + kRelocationInfoOffset));
   StaticVisitor::VisitPointer(
       heap,
-      reinterpret_cast<Object**>(this->address() + kHandlerTableOffset));
-  StaticVisitor::VisitPointer(
-      heap,
       reinterpret_cast<Object**>(this->address() + kDeoptimizationDataOffset));
 
   RelocIterator it(this, mode_mask);

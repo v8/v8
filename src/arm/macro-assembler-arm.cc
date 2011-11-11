@@ -1167,48 +1167,46 @@ void MacroAssembler::DebugBreak() {
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type,
-                                    int handler_index) {
+                                    HandlerType type) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
-  // For the JSEntry handler, we must preserve r0-r4, r5-r7 are available.
-  // We will build up the handler from the bottom by pushing on the stack.
-  // First compute the state.
-  unsigned state = StackHandler::OffsetField::encode(handler_index);
+  // The pc (return address) is passed in register lr.
   if (try_location == IN_JAVASCRIPT) {
-    state |= (type == TRY_CATCH_HANDLER)
-        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
-        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
+    if (type == TRY_CATCH_HANDLER) {
+      mov(r3, Operand(StackHandler::TRY_CATCH));
+    } else {
+      mov(r3, Operand(StackHandler::TRY_FINALLY));
+    }
+    stm(db_w, sp, r3.bit() | cp.bit() | fp.bit() | lr.bit());
+    // Save the current handler as the next handler.
+    mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+    ldr(r1, MemOperand(r3));
+    push(r1);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r3));
   } else {
+    // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
-    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for fp. We expect the code throwing an exception to check fp
+    // before dereferencing it to restore the context.
+    mov(r5, Operand(StackHandler::ENTRY));  // State.
+    mov(r6, Operand(Smi::FromInt(0)));  // Indicates no context.
+    mov(r7, Operand(0, RelocInfo::NONE));  // NULL frame pointer.
+    stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | lr.bit());
+    // Save the current handler as the next handler.
+    mov(r7, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+    ldr(r6, MemOperand(r7));
+    push(r6);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r7));
   }
-
-  // Set up the code object (r5) and the state (r6) for pushing.
-  mov(r5, Operand(CodeObject()));
-  mov(r6, Operand(state));
-
-  // Push the frame pointer, context, state, and code object.
-  if (try_location == IN_JAVASCRIPT) {
-    stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | fp.bit());
-  } else {
-    mov(r7, Operand(Smi::FromInt(0)));  // Indicates no context.
-    mov(ip, Operand(0, RelocInfo::NONE));  // NULL frame pointer.
-    stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | ip.bit());
-  }
-
-  // Link the current handler as the next handler.
-  mov(r6, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  ldr(r5, MemOperand(r6));
-  push(r5);
-  // Set this new handler as the current one.
-  str(sp, MemOperand(r6));
 }
 
 
@@ -1221,50 +1219,42 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
-void MacroAssembler::JumpToHandlerEntry() {
-  // Compute the handler entry address and jump to it.  The handler table is
-  // a fixed array of (smi-tagged) code offsets.
-  // r0 = exception, r1 = code object, r2 = state.
-  ldr(r3, FieldMemOperand(r1, Code::kHandlerTableOffset));  // Handler table.
-  add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  mov(r2, Operand(r2, LSR, StackHandler::kKindWidth));  // Handler index.
-  ldr(r2, MemOperand(r3, r2, LSL, kPointerSizeLog2));  // Smi-tagged offset.
-  add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
-  add(pc, r1, Operand(r2, ASR, kSmiTagSize));  // Jump.
-}
-
-
 void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // The exception is expected in r0.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     mov(r0, value);
   }
-  // Drop the stack pointer to the top of the top handler.
+
+  // Drop the sp to the top of the handler.
   mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));
+
   // Restore the next handler.
   pop(r2);
   str(r2, MemOperand(r3));
 
-  // Get the code object (r1) and state (r2).  Restore the context and frame
-  // pointer.
-  ldm(ia_w, sp, r1.bit() | r2.bit() | cp.bit() | fp.bit());
+  // Restore context and frame pointer, discard state (r3).
+  ldm(ia_w, sp, r3.bit() | cp.bit() | fp.bit());
 
   // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
-  // or cp.
-  tst(cp, cp);
+  // (r3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
+  // of them.
+  cmp(r3, Operand(StackHandler::ENTRY));
   str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 
-  JumpToHandlerEntry();
+#ifdef DEBUG
+  if (emit_debug_code()) {
+    mov(lr, Operand(pc));
+  }
+#endif
+  pop(pc);
 }
 
 
@@ -1273,10 +1263,10 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
   // The exception is expected in r0.
   if (type == OUT_OF_MEMORY) {
@@ -1301,26 +1291,26 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));
 
-  // Unwind the handlers until the ENTRY handler is found.
+  // Unwind the handlers until the top ENTRY handler is found.
   Label fetch_next, check_kind;
   jmp(&check_kind);
   bind(&fetch_next);
   ldr(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
-  STATIC_ASSERT(StackHandler::ENTRY == 0);
   ldr(r2, MemOperand(sp, StackHandlerConstants::kStateOffset));
-  tst(r2, Operand(StackHandler::KindField::kMask));
+  cmp(r2, Operand(StackHandler::ENTRY));
   b(ne, &fetch_next);
 
   // Set the top handler address to next handler past the top ENTRY handler.
   pop(r2);
   str(r2, MemOperand(r3));
-  // Get the code object (r1) and state (r2).  Clear the context and frame
-  // pointer (0 was saved in the handler).
-  ldm(ia_w, sp, r1.bit() | r2.bit() | cp.bit() | fp.bit());
 
-  JumpToHandlerEntry();
+  // Clear the context and frame pointer (0 was saved in the handler), and
+  // discard the state (r2).
+  ldm(ia_w, sp, r2.bit() | cp.bit() | fp.bit());
+
+  pop(pc);
 }
 
 

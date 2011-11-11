@@ -835,25 +835,18 @@ class TargetCollector: public AstNode {
 
 class TryStatement: public Statement {
  public:
-  explicit TryStatement(int index, Block* try_block)
-      : index_(index),
-        try_block_(try_block),
-        escaping_targets_(NULL) {
-  }
+  explicit TryStatement(Block* try_block)
+      : try_block_(try_block), escaping_targets_(NULL) { }
 
   void set_escaping_targets(ZoneList<Label*>* targets) {
     escaping_targets_ = targets;
   }
 
-  int index() const { return index_; }
   Block* try_block() const { return try_block_; }
   ZoneList<Label*>* escaping_targets() const { return escaping_targets_; }
   virtual bool IsInlineable() const;
 
  private:
-  // Unique (per-function) index of this handler.  This is not an AST ID.
-  int index_;
-
   Block* try_block_;
   ZoneList<Label*>* escaping_targets_;
 };
@@ -861,12 +854,11 @@ class TryStatement: public Statement {
 
 class TryCatchStatement: public TryStatement {
  public:
-  TryCatchStatement(int index,
-                    Block* try_block,
+  TryCatchStatement(Block* try_block,
                     Scope* scope,
                     Variable* variable,
                     Block* catch_block)
-      : TryStatement(index, try_block),
+      : TryStatement(try_block),
         scope_(scope),
         variable_(variable),
         catch_block_(catch_block) {
@@ -888,8 +880,8 @@ class TryCatchStatement: public TryStatement {
 
 class TryFinallyStatement: public TryStatement {
  public:
-  TryFinallyStatement(int index, Block* try_block, Block* finally_block)
-      : TryStatement(index, try_block),
+  TryFinallyStatement(Block* try_block, Block* finally_block)
+      : TryStatement(try_block),
         finally_block_(finally_block) { }
 
   DECLARE_NODE_TYPE(TryFinallyStatement)
@@ -1652,7 +1644,6 @@ class FunctionLiteral: public Expression {
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
                   int expected_property_count,
-                  int handler_count,
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
                   int parameter_count,
@@ -1666,7 +1657,6 @@ class FunctionLiteral: public Expression {
         inferred_name_(isolate->factory()->empty_string()),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
-        handler_count_(handler_count),
         parameter_count_(parameter_count),
         function_token_position_(RelocInfo::kNoPosition) {
     bitfield_ =
@@ -1694,7 +1684,6 @@ class FunctionLiteral: public Expression {
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
-  int handler_count() { return handler_count_; }
   bool has_only_simple_this_property_assignments() {
     return HasOnlySimpleThisPropertyAssignments::decode(bitfield_);
   }
@@ -1732,7 +1721,6 @@ class FunctionLiteral: public Expression {
 
   int materialized_literal_count_;
   int expected_property_count_;
-  int handler_count_;
   int parameter_count_;
   int function_token_position_;
 

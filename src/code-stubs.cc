@@ -119,7 +119,7 @@ Handle<Code> CodeStub::GetCode() {
     Handle<Code> new_object = factory->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
     RecordCodeGeneration(*new_object, &masm);
-    FinishCode(new_object);
+    FinishCode(*new_object);
 
     // Update the dictionary and the root in Heap.
     Handle<NumberDictionary> dict =
@@ -210,14 +210,6 @@ void InstanceofStub::PrintName(StringStream* stream) {
               args,
               inline_check,
               return_true_false_object);
-}
-
-
-void JSEntryStub::FinishCode(Handle<Code> code) {
-  Handle<FixedArray> handler_table =
-      code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
-  handler_table->set(0, Smi::FromInt(handler_offset_));
-  code->set_handler_table(*handler_table);
 }
 
 

@@ -3348,7 +3348,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::FinishCode(Handle<Code> code) {
+void CallFunctionStub::FinishCode(Code* code) {
   code->set_has_function_cache(false);
 }
 
@@ -3704,7 +3704,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  Label invoke, handler_entry, exit;
+  Label invoke, exit;
   Label not_outermost_js, not_outermost_js_2;
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
@@ -3764,23 +3764,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
 
-  // Jump to a faked try block that does the invoke, with a faked catch
-  // block that sets the pending exception.
-  __ jmp(&invoke);
-  __ bind(&handler_entry);
-  handler_offset_ = handler_entry.pos();
-  // Caught exception: Store result (exception) in the pending exception
-  // field in the JSEnv and return a failure sentinel.
+  // Call a faked try-block that does the invoke.
+  __ call(&invoke);
+
+  // Caught exception: Store result (exception) in the pending
+  // exception field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.  There's only one
-  // handler block in this code object, so its index is 0.
+  // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER, 0);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
 
   // Clear any pending exceptions.
   __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
@@ -3789,11 +3786,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver
 
-  // Invoke the function by calling through JS entry trampoline builtin and
-  // pop the faked function when we return. We load the address from an
-  // external reference instead of inlining the call target address directly
-  // in the code, because the builtin stubs may not have been generated yet
-  // at the time this code is generated.
+  // Invoke the function by calling through JS entry trampoline
+  // builtin and pop the faked function when we return. We load the address
+  // from an external reference instead of inlining the call target address
+  // directly in the code, because the builtin stubs may not have been
+  // generated yet at the time this code is generated.
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);

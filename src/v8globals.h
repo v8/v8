@@ -127,6 +127,7 @@ class DescriptorArray;
 class Expression;
 class ExternalReference;
 class FixedArray;
+class FunctionEntry;
 class FunctionLiteral;
 class FunctionTemplateInfo;
 class MemoryChunk;

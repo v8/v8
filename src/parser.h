@@ -77,7 +77,7 @@ class FunctionEntry BASE_EMBEDDED {
   };
 
   explicit FunctionEntry(Vector<unsigned> backing) : backing_(backing) { }
-  FunctionEntry() { }
+  FunctionEntry() : backing_(Vector<unsigned>::empty()) { }
 
   int start_pos() { return backing_[kStartPositionIndex]; }
   int end_pos() { return backing_[kEndPositionIndex]; }
@@ -104,7 +104,7 @@ class ScriptDataImpl : public ScriptData {
 
   // Create an empty ScriptDataImpl that is guaranteed to not satisfy
   // a SanityCheck.
-  ScriptDataImpl() : owns_store_(false) { }
+  ScriptDataImpl() : store_(Vector<unsigned>()), owns_store_(false) { }
 
   virtual ~ScriptDataImpl();
   virtual int Length();
@@ -734,14 +734,16 @@ class Parser {
   Scanner scanner_;
 
   Scope* top_scope_;
+
   FunctionState* current_function_state_;
+  Mode mode_;
+
   Target* target_stack_;  // for break, continue statements
+  bool allow_natives_syntax_;
   v8::Extension* extension_;
+  bool is_pre_parsing_;
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
-
-  Mode mode_;
-  bool allow_natives_syntax_;
   bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
