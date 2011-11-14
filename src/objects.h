@@ -1886,6 +1886,11 @@ class JSObject: public JSReceiver {
 #endif
   Object* SlowReverseLookup(Object* value);
 
+  // Getters and setters are stored in a fixed array property.
+  // These are constants for their indices.
+  static const int kGetterIndex = 0;
+  static const int kSetterIndex = 1;
+
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
   // the number of maps for objects used as dictionaries.

@@ -103,11 +103,6 @@ void PrintElementsKind(FILE* out, ElementsKind kind) {
 }
 
 
-// Getters and setters are stored in a fixed array property.  These are
-// constants for their indices.
-const int kGetterIndex = 0;
-const int kSetterIndex = 1;
-
 MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
                                                   Object* value) {
   Object* result;
@@ -208,6 +203,13 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
   ASSERT(*attributes <= ABSENT);
   return value;
 }
+
+
+// This may seem strange but the standard requires inline static const
+// definition, and w/o these the code doesn't link when being built in debug
+// mode using gcc.
+const int JSObject::kGetterIndex;
+const int JSObject::kSetterIndex;
 
 
 MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,

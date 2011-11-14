@@ -973,6 +973,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             HeapEntry* parent,
                             String* reference_name,
                             Object* child,
+                            const char* name_format_string = NULL,
                             int field_offset = -1);
   void SetPropertyShortcutReference(HeapObject* parent_obj,
                                     HeapEntry* parent,

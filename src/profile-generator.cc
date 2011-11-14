@@ -1918,6 +1918,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
           SetPropertyReference(
               obj, entry,
               heap_->prototype_symbol(), proto_or_map,
+              NULL,
               JSFunction::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(
@@ -2101,6 +2102,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
             SetPropertyReference(
                 js_obj, entry,
                 descs->GetKey(i), js_obj->InObjectPropertyAt(index),
+                NULL,
                 js_obj->GetInObjectPropertyOffset(index));
           } else {
             SetPropertyReference(
@@ -2114,6 +2116,21 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
               js_obj, entry,
               descs->GetKey(i), descs->GetConstantFunction(i));
           break;
+        case CALLBACKS: {
+          Object* callback_obj = descs->GetValue(i);
+          if (callback_obj->IsFixedArray()) {
+            FixedArray* accessors = FixedArray::cast(callback_obj);
+            if (Object* getter = accessors->get(JSObject::kGetterIndex)) {
+              SetPropertyReference(js_obj, entry, descs->GetKey(i),
+                                   getter, "get-%s");
+            }
+            if (Object* setter = accessors->get(JSObject::kSetterIndex)) {
+              SetPropertyReference(js_obj, entry, descs->GetKey(i),
+                                   setter, "set-%s");
+            }
+          }
+          break;
+        }
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
@@ -2121,9 +2138,6 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
         case ELEMENTS_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:  // ... and not about "holes"
-          break;
-          // TODO(svenpanne): Should we really ignore accessors here?
-        case CALLBACKS:
           break;
       }
     }
@@ -2349,15 +2363,23 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                           HeapEntry* parent_entry,
                                           String* reference_name,
                                           Object* child_obj,
+                                          const char* name_format_string,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     HeapGraphEdge::Type type = reference_name->length() > 0 ?
         HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
+    const char* name = name_format_string  != NULL ?
+        collection_->names()->GetFormatted(
+            name_format_string,
+            *reference_name->ToCString(DISALLOW_NULLS,
+                                       ROBUST_STRING_TRAVERSAL)) :
+        collection_->names()->GetName(reference_name);
+
     filler_->SetNamedReference(type,
                                parent_obj,
                                parent_entry,
-                               collection_->names()->GetName(reference_name),
+                               name,
                                child_obj,
                                child_entry);
     IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
