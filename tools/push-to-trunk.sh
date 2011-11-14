@@ -270,7 +270,7 @@ if [ $STEP -le 7 ] ; then
   PREPARE_COMMIT_MSG="Prepare push to trunk.  \
 Now working on version $NEWMAJOR.$NEWMINOR.$NEWBUILD."
   persist "PREPARE_COMMIT_MSG"
-  git commit -a -m $PREPARE_COMMIT_MSG \
+  git commit -a -m "$PREPARE_COMMIT_MSG" \
     || die "'git commit -a' failed."
 fi
 
