@@ -205,13 +205,6 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
 }
 
 
-// This may seem strange but the standard requires inline static const
-// definition, and w/o these the code doesn't link when being built in debug
-// mode using gcc.
-const int JSObject::kGetterIndex;
-const int JSObject::kSetterIndex;
-
-
 MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
                                                Object* structure,
                                                String* name) {
@@ -4638,7 +4631,11 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
   }
 
   // Make the lookup and include prototypes.
-  int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
+  // Introducing constants below makes static constants usage purely static
+  // and avoids linker errors in debug build using gcc.
+  const int getter_index = kGetterIndex;
+  const int setter_index = kSetterIndex;
+  int accessor_index = is_getter ? getter_index : setter_index;
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
