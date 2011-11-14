@@ -533,7 +533,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
 Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
-                                                 StrictModeFlag strict_mode) {
+                                                 StrictModeFlag strict_mode,
+                                                 int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -549,7 +550,8 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   result = compilation_cache->LookupEval(source,
                                          context,
                                          is_global,
-                                         strict_mode);
+                                         strict_mode,
+                                         scope_position);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
@@ -561,13 +563,13 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
-      CompilationCache* compilation_cache = isolate->compilation_cache();
       // If caller is strict mode, the result must be strict as well,
       // but not the other way around. Consider:
       // eval("'use strict'; ...");
       // TODO(keuchel): adapt this for extended mode.
       ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
-      compilation_cache->PutEval(source, context, is_global, result);
+      compilation_cache->PutEval(
+          source, context, is_global, result, scope_position);
     }
   }
 

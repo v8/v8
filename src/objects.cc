@@ -10298,74 +10298,83 @@ class StringSharedKey : public HashTableKey {
  public:
   StringSharedKey(String* source,
                   SharedFunctionInfo* shared,
-                  StrictModeFlag strict_mode)
+                  StrictModeFlag strict_mode,
+                  int scope_position)
       : source_(source),
         shared_(shared),
-        strict_mode_(strict_mode) { }
+        strict_mode_(strict_mode),
+        scope_position_(scope_position) { }
 
   bool IsMatch(Object* other) {
     if (!other->IsFixedArray()) return false;
-    FixedArray* pair = FixedArray::cast(other);
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
+    FixedArray* other_array = FixedArray::cast(other);
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != shared_) return false;
-    int strict_unchecked = Smi::cast(pair->get(2))->value();
+    int strict_unchecked = Smi::cast(other_array->get(2))->value();
     ASSERT(strict_unchecked == kStrictMode ||
            strict_unchecked == kNonStrictMode);
     StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
     if (strict_mode != strict_mode_) return false;
-    String* source = String::cast(pair->get(1));
+    int scope_position = Smi::cast(other_array->get(3))->value();
+    if (scope_position != scope_position_) return false;
+    String* source = String::cast(other_array->get(1));
     return source->Equals(source_);
   }
 
   static uint32_t StringSharedHashHelper(String* source,
                                          SharedFunctionInfo* shared,
-                                         StrictModeFlag strict_mode) {
+                                         StrictModeFlag strict_mode,
+                                         int scope_position) {
     uint32_t hash = source->Hash();
     if (shared->HasSourceCode()) {
       // Instead of using the SharedFunctionInfo pointer in the hash
       // code computation, we use a combination of the hash of the
-      // script source code and the start and end positions.  We do
-      // this to ensure that the cache entries can survive garbage
+      // script source code and the start position of the calling scope.
+      // We do this to ensure that the cache entries can survive garbage
       // collection.
       Script* script = Script::cast(shared->script());
       hash ^= String::cast(script->source())->Hash();
       if (strict_mode == kStrictMode) hash ^= 0x8000;
-      hash += shared->start_position();
+      hash += scope_position;
     }
     return hash;
   }
 
   uint32_t Hash() {
-    return StringSharedHashHelper(source_, shared_, strict_mode_);
+    return StringSharedHashHelper(
+        source_, shared_, strict_mode_, scope_position_);
   }
 
   uint32_t HashForObject(Object* obj) {
-    FixedArray* pair = FixedArray::cast(obj);
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
-    String* source = String::cast(pair->get(1));
-    int strict_unchecked = Smi::cast(pair->get(2))->value();
+    FixedArray* other_array = FixedArray::cast(obj);
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
+    String* source = String::cast(other_array->get(1));
+    int strict_unchecked = Smi::cast(other_array->get(2))->value();
     ASSERT(strict_unchecked == kStrictMode ||
            strict_unchecked == kNonStrictMode);
     StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
-    return StringSharedHashHelper(source, shared, strict_mode);
+    int scope_position = Smi::cast(other_array->get(3))->value();
+    return StringSharedHashHelper(source, shared, strict_mode, scope_position);
   }
 
   MUST_USE_RESULT MaybeObject* AsObject() {
     Object* obj;
-    { MaybeObject* maybe_obj = source_->GetHeap()->AllocateFixedArray(3);
+    { MaybeObject* maybe_obj = source_->GetHeap()->AllocateFixedArray(4);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
-    FixedArray* pair = FixedArray::cast(obj);
-    pair->set(0, shared_);
-    pair->set(1, source_);
-    pair->set(2, Smi::FromInt(strict_mode_));
-    return pair;
+    FixedArray* other_array = FixedArray::cast(obj);
+    other_array->set(0, shared_);
+    other_array->set(1, source_);
+    other_array->set(2, Smi::FromInt(strict_mode_));
+    other_array->set(3, Smi::FromInt(scope_position_));
+    return other_array;
   }
 
  private:
   String* source_;
   SharedFunctionInfo* shared_;
   StrictModeFlag strict_mode_;
+  int scope_position_;
 };
 
 
@@ -11520,8 +11529,12 @@ Object* CompilationCacheTable::Lookup(String* src) {
 
 Object* CompilationCacheTable::LookupEval(String* src,
                                           Context* context,
-                                          StrictModeFlag strict_mode) {
-  StringSharedKey key(src, context->closure()->shared(), strict_mode);
+                                          StrictModeFlag strict_mode,
+                                          int scope_position) {
+  StringSharedKey key(src,
+                      context->closure()->shared(),
+                      strict_mode,
+                      scope_position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
@@ -11556,10 +11569,12 @@ MaybeObject* CompilationCacheTable::Put(String* src, Object* value) {
 
 MaybeObject* CompilationCacheTable::PutEval(String* src,
                                             Context* context,
-                                            SharedFunctionInfo* value) {
+                                            SharedFunctionInfo* value,
+                                            int scope_position) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      value->strict_mode_flag());
+                      value->strict_mode_flag(),
+                      scope_position);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;

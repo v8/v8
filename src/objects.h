@@ -5849,12 +5849,16 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
-  Object* LookupEval(String* src, Context* context, StrictModeFlag strict_mode);
+  Object* LookupEval(String* src,
+                     Context* context,
+                     StrictModeFlag strict_mode,
+                     int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MaybeObject* Put(String* src, Object* value);
   MaybeObject* PutEval(String* src,
                        Context* context,
-                       SharedFunctionInfo* value);
+                       SharedFunctionInfo* value,
+                       int scope_position);
   MaybeObject* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   // Remove given value from cache.

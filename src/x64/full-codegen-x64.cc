@@ -2096,7 +2096,10 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
       FLAG_harmony_scoping ? kStrictMode : strict_mode_flag();
   __ Push(Smi::FromInt(strict_mode));
 
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
+  // Push the start position of the scope the calls resides in.
+  __ Push(Smi::FromInt(scope()->start_position()));
+
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
 

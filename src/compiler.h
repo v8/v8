@@ -289,7 +289,8 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
                                                 bool is_global,
-                                                StrictModeFlag strict_mode);
+                                                StrictModeFlag strict_mode,
+                                                int scope_position);
 
   // Compile from function info (used for lazy compilation). Returns true on
   // success and false if the compilation resulted in a stack overflow.
