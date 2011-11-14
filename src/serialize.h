@@ -514,7 +514,9 @@ class Serializer : public SerializerDeserializer {
         bytes_processed_so_far_(0) { }
     void Serialize();
     void VisitPointers(Object** start, Object** end);
+    void VisitEmbeddedPointer(RelocInfo* target);
     void VisitExternalReferences(Address* start, Address* end);
+    void VisitExternalReference(RelocInfo* rinfo);
     void VisitCodeTarget(RelocInfo* target);
     void VisitCodeEntry(Address entry_address);
     void VisitGlobalPropertyCell(RelocInfo* rinfo);

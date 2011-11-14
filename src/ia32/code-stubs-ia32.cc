@@ -4337,7 +4337,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::FinishCode(Code* code) {
+void CallFunctionStub::FinishCode(Handle<Code> code) {
   code->set_has_function_cache(RecordCallTarget());
 }
 
@@ -4715,7 +4715,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  Label invoke, exit;
+  Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
   // Setup frame.
@@ -4748,20 +4748,23 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
   __ bind(&cont);
 
-  // Call a faked try-block that does the invoke.
-  __ call(&invoke);
-
-  // Caught exception: Store result (exception) in the pending
-  // exception field in the JSEnv and return a failure sentinel.
+  // Jump to a faked try block that does the invoke, with a faked catch
+  // block that sets the pending exception.
+  __ jmp(&invoke);
+  __ bind(&handler_entry);
+  handler_offset_ = handler_entry.pos();
+  // Caught exception: Store result (exception) in the pending exception
+  // field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
   __ mov(Operand::StaticVariable(pending_exception), eax);
   __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.
+  // Invoke: Link this frame into the handler chain.  There's only one
+  // handler block in this code object, so its index is 0.
   __ bind(&invoke);
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER, 0);
 
   // Clear any pending exceptions.
   __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
@@ -4770,14 +4773,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver
 
-  // Invoke the function by calling through JS entry trampoline
-  // builtin and pop the faked function when we return. Notice that we
-  // cannot store a reference to the trampoline code directly in this
-  // stub, because the builtin stubs may not have been generated yet.
+  // Invoke the function by calling through JS entry trampoline builtin and
+  // pop the faked function when we return. Notice that we cannot store a
+  // reference to the trampoline code directly in this stub, because the
+  // builtin stubs may not have been generated yet.
   if (is_construct) {
-    ExternalReference construct_entry(
-        Builtins::kJSConstructEntryTrampoline,
-        masm->isolate());
+    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
+                                      masm->isolate());
     __ mov(edx, Immediate(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline,
@@ -7044,16 +7046,14 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label slow_elements_from_double;
   Label fast_elements;
 
-  if (!FLAG_trace_elements_transitions) {
-    __ CheckFastElements(edi, &double_elements);
+  __ CheckFastElements(edi, &double_elements);
 
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(eax, &smi_element);
-    __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
+  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  __ JumpIfSmi(eax, &smi_element);
+  __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
 
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-  }
+  // Store into the array literal requires a elements transition. Call into
+  // the runtime.
 
   __ bind(&slow_elements);
   __ pop(edi);  // Pop return address and remember to put back later for tail
@@ -7068,49 +7068,45 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  // place.
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  if (!FLAG_trace_elements_transitions) {
-    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
+  __ bind(&slow_elements_from_double);
+  __ pop(edx);
+  __ jmp(&slow_elements);
 
-    __ push(edx);
-    __ mov(edx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ StoreNumberToDoubleElements(eax,
-                                   edx,
-                                   ecx,
-                                   edi,
-                                   xmm0,
-                                   &slow_elements_from_double,
-                                   false);
-    __ pop(edx);
-    __ jmp(&element_done);
+  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  __ bind(&fast_elements);
+  __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ lea(ecx, FieldOperand(ebx, ecx, times_half_pointer_size,
+                           FixedArrayBase::kHeaderSize));
+  __ mov(Operand(ecx, 0), eax);
+  // Update the write barrier for the array store.
+  __ RecordWrite(ebx, ecx, eax,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+  __ ret(0);
 
-    __ bind(&slow_elements_from_double);
-    __ pop(edx);
-    __ jmp(&slow_elements);
+  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+  // FAST_ELEMENTS, and value is Smi.
+  __ bind(&smi_element);
+  __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ mov(FieldOperand(ebx, ecx, times_half_pointer_size,
+                      FixedArrayBase::kHeaderSize), eax);
+  __ ret(0);
 
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
-    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ lea(ecx, FieldOperand(ebx, ecx, times_half_pointer_size,
-                             FixedArrayBase::kHeaderSize));
-    __ mov(Operand(ecx, 0), eax);
-    // Update the write barrier for the array store.
-    __ RecordWrite(ebx, ecx, eax,
-                   kDontSaveFPRegs,
-                   EMIT_REMEMBERED_SET,
-                   OMIT_SMI_CHECK);
-    __ jmp(&element_done);
+  // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+  __ bind(&double_elements);
 
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
-    __ mov(FieldOperand(ebx, ecx, times_half_pointer_size,
-                        FixedArrayBase::kHeaderSize), eax);
-    // Fall through
-    __ bind(&element_done);
-    __ ret(0);
-  }
+  __ push(edx);
+  __ mov(edx, FieldOperand(ebx, JSObject::kElementsOffset));
+  __ StoreNumberToDoubleElements(eax,
+                                 edx,
+                                 ecx,
+                                 edi,
+                                 xmm0,
+                                 &slow_elements_from_double,
+                                 false);
+  __ pop(edx);
+  __ ret(0);
 }
 
 #undef __

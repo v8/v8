@@ -32,7 +32,7 @@ function bar(a, b) {try { return a; } finally { } }
 function test_context() {
   function foo(x) { return 42; }
   var s, t;
-  for (var i = 0x7ff00000; i < 0x80000000; i++) {
+  for (var i = 0x7fff0000; i < 0x80000000; i++) {
     bar(t = foo(i) ? bar(42 + i - i) : bar(0), s = i + t);
   }
   return s;
@@ -43,7 +43,7 @@ assertEquals(0x7fffffff + 42, test_context());
 function value_context() {
   function foo(x) { return 42; }
   var s, t;
-  for (var i = 0x7ff00000; i < 0x80000000; i++) {
+  for (var i = 0x7fff0000; i < 0x80000000; i++) {
     bar(t = foo(i), s = i + t);
   }
   return s;
@@ -54,7 +54,7 @@ assertEquals(0x7fffffff + 42, value_context());
 function effect_context() {
   function foo(x) { return 42; }
   var s, t;
-  for (var i = 0x7ff00000; i < 0x80000000; i++) {
+  for (var i = 0x7fff0000; i < 0x80000000; i++) {
     bar(foo(i), s = i + 42);
   }
   return s;

@@ -38,6 +38,7 @@ CHANGELOG_ENTRY_FILE="$PERSISTFILE_BASENAME-changelog-entry"
 PATCH_FILE="$PERSISTFILE_BASENAME-patch"
 COMMITMSG_FILE="$PERSISTFILE_BASENAME-commitmsg"
 TOUCHED_FILES_FILE="$PERSISTFILE_BASENAME-touched-files"
+TRUNK_REVISION_FILE="$PERSISTFILE_BASENAME-trunkrevision"
 STEP=0
 
 
@@ -225,7 +226,13 @@ exit your EDITOR. "
   $EDITOR "$CHANGELOG_ENTRY_FILE"
   NEWCHANGELOG=$(mktemp)
   # Eliminate any trailing newlines by going through a shell variable.
-  CHANGELOGENTRY=$(cat "$CHANGELOG_ENTRY_FILE")
+  # Also (1) eliminate tabs, (2) fix too little and (3) too much indentation,
+  # and (4) eliminate trailing whitespace.
+  CHANGELOGENTRY=$(cat "$CHANGELOG_ENTRY_FILE" \
+                   | sed -e 's/\t/        /g' \
+                   | sed -e 's/^ \{1,7\}\([^ ]\)/        \1/g' \
+                   | sed -e 's/^ \{9,80\}\([^ ]\)/        \1/g' \
+                   | sed -e 's/ \+$//')
   [[ -n "$CHANGELOGENTRY" ]] || die "Empty ChangeLog entry."
   echo "$CHANGELOGENTRY" > "$NEWCHANGELOG"
   echo "" >> "$NEWCHANGELOG" # Explicitly insert two empty lines.
@@ -260,8 +267,10 @@ if [ $STEP -le 7 ] ; then
   restore_if_unset "NEWMAJOR"
   restore_if_unset "NEWMINOR"
   restore_if_unset "NEWBUILD"
-  git commit -a -m "Prepare push to trunk.  \
-Now working on version $NEWMAJOR.$NEWMINOR.$NEWBUILD." \
+  PREPARE_COMMIT_MSG="Prepare push to trunk.  \
+Now working on version $NEWMAJOR.$NEWMINOR.$NEWBUILD."
+  persist "PREPARE_COMMIT_MSG"
+  git commit -a -m "$PREPARE_COMMIT_MSG" \
     || die "'git commit -a' failed."
 fi
 
@@ -276,7 +285,8 @@ fi
 if [ $STEP -le 9 ] ; then
   echo ">>> Step 9: Commit to the repository."
   echo "Please wait for an LGTM, then type \"LGTM<Return>\" to commit your \
-change. (If you need to iterate on the patch, do so in another shell.)"
+change. (If you need to iterate on the patch, do so in another shell. Do not \
+modify the existing local commit's commit message.)"
   unset ANSWER
   while [ "$ANSWER" != "LGTM" ] ; do
     [[ -n "$ANSWER" ]] && echo "That was not 'LGTM'."
@@ -298,15 +308,21 @@ change. (If you need to iterate on the patch, do so in another shell.)"
 fi
 
 if [ $STEP -le 10 ] ; then
-  echo ">>> Step 10: NOP"
-  # Present in the manual guide, not necessary (even harmful!) for this script.
+  echo ">>> Step 10: Fetch straggler commits that sneaked in between \
+steps 1 and 9."
+  git svn fetch || die "'git svn fetch' failed."
+  git checkout svn/bleeding_edge
+  restore_if_unset "PREPARE_COMMIT_MSG"
+  PREPARE_COMMIT_HASH=$(git log -1 --format=%H --grep="$PREPARE_COMMIT_MSG")
+  persist "PREPARE_COMMIT_HASH"
 fi
 
 if [ $STEP -le 11 ] ; then
   echo ">>> Step 11: Squash commits into one."
   # Instead of relying on "git rebase -i", we'll just create a diff, because
   # that's easier to automate.
-  git diff svn/trunk > "$PATCH_FILE"
+  restore_if_unset "PREPARE_COMMIT_HASH"
+  git diff svn/trunk $PREPARE_COMMIT_HASH > "$PATCH_FILE"
   # Convert the ChangeLog entry to commit message format:
   # - remove date
   # - remove indentation
@@ -401,7 +417,10 @@ fi
 
 if [ $STEP -le 17 ] ; then
   echo ">>> Step 17. Commit to SVN."
-  git svn dcommit || die "'git svn dcommit' failed."
+  git svn dcommit | tee >(grep -E "^Committed r[0-9]+" \
+                          | sed -e 's/^Committed r\([0-9]\+\)/\1/' \
+                          > "$TRUNK_REVISION_FILE") \
+    || die "'git svn dcommit' failed."
 fi
 
 if [ $STEP -le 18 ] ; then
@@ -428,8 +447,10 @@ if [ $STEP -le 20 ] ; then
   restore_if_unset "MINOR"
   restore_if_unset "BUILD"
   echo "Congratulations, you have successfully created the trunk revision \
-$MAJOR.$MINOR.$BUILD. Please don't forget to update the v8rel spreadsheet, \
-and to roll this new version into Chromium."
+$MAJOR.$MINOR.$BUILD. Please don't forget to roll this new version into \
+Chromium, and to update the v8rel spreadsheet:"
+  TRUNK_REVISION=$(cat "$TRUNK_REVISION_FILE")
+  echo "$MAJOR.$MINOR.$BUILD\ttrunk\t$TRUNK_REVISION"
   # Clean up all temporary files.
   rm -f "$PERSISTFILE_BASENAME"*
 fi

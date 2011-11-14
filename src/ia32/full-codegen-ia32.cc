@@ -117,6 +117,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
   scope_ = info->scope();
+  handler_table_ =
+      isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -2150,7 +2152,10 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
       FLAG_harmony_scoping ? kStrictMode : strict_mode_flag();
   __ push(Immediate(Smi::FromInt(strict_mode)));
 
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
+  // Push the start position of the scope the calls resides in.
+  __ push(Immediate(Smi::FromInt(scope()->start_position())));
+
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
 

@@ -921,6 +921,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   static inline void VisitExternalReference(Address* p) { }
+  static inline void VisitExternalReference(RelocInfo* rinfo) { }
   static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
 
  private:

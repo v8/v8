@@ -84,11 +84,16 @@ class InnerPointerToCodeCache {
 
 class StackHandler BASE_EMBEDDED {
  public:
-  enum State {
+  enum Kind {
     ENTRY,
     TRY_CATCH,
     TRY_FINALLY
   };
+
+  static const int kKindWidth = 2;
+  static const int kOffsetWidth = 32 - kKindWidth;
+  class KindField: public BitField<StackHandler::Kind, 0, kKindWidth> {};
+  class OffsetField: public BitField<unsigned, kKindWidth, kOffsetWidth> {};
 
   // Get the address of this stack handler.
   inline Address address() const;
@@ -112,10 +117,10 @@ class StackHandler BASE_EMBEDDED {
 
  private:
   // Accessors.
-  inline State state() const;
+  inline Kind kind() const;
 
   inline Object** context_address() const;
-  inline Address* pc_address() const;
+  inline Object** code_address() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };

@@ -119,6 +119,18 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
+bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
+                                         ElementsKind to_kind) {
+  if (to_kind == FAST_ELEMENTS) {
+    return from_kind == FAST_SMI_ONLY_ELEMENTS ||
+        from_kind == FAST_DOUBLE_ELEMENTS;
+  } else {
+    return to_kind == FAST_DOUBLE_ELEMENTS &&
+        from_kind == FAST_SMI_ONLY_ELEMENTS;
+  }
+}
+
+
 bool Object::IsFixedArrayBase() {
   return IsFixedArray() || IsFixedDoubleArray();
 }
@@ -3883,6 +3895,7 @@ JSMessageObject* JSMessageObject::cast(Object* obj) {
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
+ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, next_code_flushing_candidate,
           Object, kNextCodeFlushingCandidateOffset)

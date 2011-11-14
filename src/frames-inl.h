@@ -68,7 +68,7 @@ inline bool StackHandler::includes(Address address) const {
 
 inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
   v->VisitPointer(context_address());
-  StackFrame::IteratePc(v, pc_address(), holder);
+  v->VisitPointer(code_address());
 }
 
 
@@ -78,23 +78,23 @@ inline StackHandler* StackHandler::FromAddress(Address address) {
 
 
 inline bool StackHandler::is_entry() const {
-  return state() == ENTRY;
+  return kind() == ENTRY;
 }
 
 
 inline bool StackHandler::is_try_catch() const {
-  return state() == TRY_CATCH;
+  return kind() == TRY_CATCH;
 }
 
 
 inline bool StackHandler::is_try_finally() const {
-  return state() == TRY_FINALLY;
+  return kind() == TRY_FINALLY;
 }
 
 
-inline StackHandler::State StackHandler::state() const {
+inline StackHandler::Kind StackHandler::kind() const {
   const int offset = StackHandlerConstants::kStateOffset;
-  return static_cast<State>(Memory::int_at(address() + offset));
+  return KindField::decode(Memory::unsigned_at(address() + offset));
 }
 
 
@@ -104,9 +104,9 @@ inline Object** StackHandler::context_address() const {
 }
 
 
-inline Address* StackHandler::pc_address() const {
-  const int offset = StackHandlerConstants::kPCOffset;
-  return reinterpret_cast<Address*>(address() + offset);
+inline Object** StackHandler::code_address() const {
+  const int offset = StackHandlerConstants::kCodeOffset;
+  return reinterpret_cast<Object**>(address() + offset);
 }
 
 

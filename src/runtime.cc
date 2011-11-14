@@ -6970,7 +6970,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   // Find total length of join result.
   int string_length = 0;
   bool is_ascii = separator->IsAsciiRepresentation();
-  int max_string_length = SeqAsciiString::kMaxLength;
+  int max_string_length;
+  if (is_ascii) {
+    max_string_length = SeqAsciiString::kMaxLength;
+  } else {
+    max_string_length = SeqTwoByteString::kMaxLength;
+  }
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length,
                          Int32, elements_array->length());
@@ -9472,10 +9477,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   }
 
   // Compile source string in the global context.
-  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
-                                                            context,
-                                                            true,
-                                                            kNonStrictMode);
+  Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
+      source, context, true, kNonStrictMode, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
@@ -9488,7 +9491,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
                                     Handle<Object> receiver,
-                                    StrictModeFlag strict_mode) {
+                                    StrictModeFlag strict_mode,
+                                    int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> global_context = Handle<Context>(context->global_context());
 
@@ -9506,7 +9510,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       source,
       Handle<Context>(isolate->context()),
       context->IsGlobalContext(),
-      strict_mode);
+      strict_mode,
+      scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -9516,7 +9521,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
 
 
 RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
   Handle<Object> callee = args.at<Object>(0);
@@ -9532,10 +9537,12 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   }
 
   CONVERT_STRICT_MODE_ARG(strict_mode, 3);
+  ASSERT(args[4]->IsSmi());
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           strict_mode);
+                           strict_mode,
+                           args.smi_at(4));
 }
 
 
@@ -12149,7 +12156,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
       Compiler::CompileEval(function_source,
                             context,
                             context->IsGlobalContext(),
-                            kNonStrictMode);
+                            kNonStrictMode,
+                            RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context);
@@ -12242,7 +12250,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   // Currently, the eval code will be executed in non-strict mode,
   // even in the strict code context.
   Handle<SharedFunctionInfo> shared =
-      Compiler::CompileEval(source, context, is_global, kNonStrictMode);
+      Compiler::CompileEval(source,
+                            context,
+                            is_global,
+                            kNonStrictMode,
+                            RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(

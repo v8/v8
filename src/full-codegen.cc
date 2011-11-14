@@ -286,6 +286,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
+  code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_has_debug_break_slots(
       info->isolate()->debugger()->IsDebuggerActive());
@@ -1086,20 +1087,17 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Comment cmnt(masm_, "[ TryCatchStatement");
   SetStatementPosition(stmt);
-  // The try block adds a handler to the exception handler chain
-  // before entering, and removes it again when exiting normally.
-  // If an exception is thrown during execution of the try block,
-  // control is passed to the handler, which also consumes the handler.
-  // At this point, the exception is in a register, and store it in
-  // the temporary local variable (prints as ".catch-var") before
-  // executing the catch block. The catch block has been rewritten
-  // to introduce a new scope to bind the catch variable and to remove
-  // that scope again afterwards.
+  // The try block adds a handler to the exception handler chain before
+  // entering, and removes it again when exiting normally.  If an exception
+  // is thrown during execution of the try block, the handler is consumed
+  // and control is passed to the catch block with the exception in the
+  // result register.
 
-  Label try_handler_setup, done;
-  __ Call(&try_handler_setup);
-  // Try handler code, exception in result register.
-
+  Label try_entry, handler_entry, exit;
+  __ jmp(&try_entry);
+  __ bind(&handler_entry);
+  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
+  // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
     __ Push(stmt->variable()->name());
@@ -1113,24 +1111,23 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Scope* saved_scope = scope();
   scope_ = stmt->scope();
   ASSERT(scope_->declarations()->is_empty());
-  { WithOrCatch body(this);
+  { WithOrCatch catch_body(this);
     Visit(stmt->catch_block());
   }
   // Restore the context.
   LoadContextField(context_register(), Context::PREVIOUS_INDEX);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
   scope_ = saved_scope;
-  __ jmp(&done);
+  __ jmp(&exit);
 
   // Try block code. Sets up the exception handler chain.
-  __ bind(&try_handler_setup);
-  {
-    TryCatch try_block(this);
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
+  __ bind(&try_entry);
+  __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER, stmt->index());
+  { TryCatch try_body(this);
     Visit(stmt->try_block());
-    __ PopTryHandler();
   }
-  __ bind(&done);
+  __ PopTryHandler();
+  __ bind(&exit);
 }
 
 
@@ -1142,12 +1139,12 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   //
   // The try-finally construct can enter the finally block in three ways:
   // 1. By exiting the try-block normally. This removes the try-handler and
-  //      calls the finally block code before continuing.
+  //    calls the finally block code before continuing.
   // 2. By exiting the try-block with a function-local control flow transfer
   //    (break/continue/return). The site of the, e.g., break removes the
   //    try handler and calls the finally block code before continuing
   //    its outward control transfer.
-  // 3. by exiting the try-block with a thrown exception.
+  // 3. By exiting the try-block with a thrown exception.
   //    This can happen in nested function calls. It traverses the try-handler
   //    chain and consumes the try-handler entry before jumping to the
   //    handler code. The handler code then calls the finally-block before
@@ -1158,44 +1155,39 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // exception) in the result register (rax/eax/r0), both of which must
   // be preserved. The return address isn't GC-safe, so it should be
   // cooked before GC.
-  Label finally_entry;
-  Label try_handler_setup;
+  Label try_entry, handler_entry, finally_entry;
 
-  // Setup the try-handler chain. Use a call to
-  // Jump to try-handler setup and try-block code. Use call to put try-handler
-  // address on stack.
-  __ Call(&try_handler_setup);
-  // Try handler code. Return address of call is pushed on handler stack.
-  {
-    // This code is only executed during stack-handler traversal when an
-    // exception is thrown. The exception is in the result register, which
-    // is retained by the finally block.
-    // Call the finally block and then rethrow the exception if it returns.
-    __ Call(&finally_entry);
-    __ push(result_register());
-    __ CallRuntime(Runtime::kReThrow, 1);
-  }
+  // Jump to try-handler setup and try-block code.
+  __ jmp(&try_entry);
+  __ bind(&handler_entry);
+  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
+  // Exception handler code.  This code is only executed when an exception
+  // is thrown.  The exception is in the result register, and must be
+  // preserved by the finally block.  Call the finally block and then
+  // rethrow the exception if it returns.
+  __ Call(&finally_entry);
+  __ push(result_register());
+  __ CallRuntime(Runtime::kReThrow, 1);
 
+  // Finally block implementation.
   __ bind(&finally_entry);
-  {
-    // Finally block implementation.
-    Finally finally_block(this);
-    EnterFinallyBlock();
+  EnterFinallyBlock();
+  { Finally finally_body(this);
     Visit(stmt->finally_block());
-    ExitFinallyBlock();  // Return to the calling code.
   }
+  ExitFinallyBlock();  // Return to the calling code.
 
-  __ bind(&try_handler_setup);
-  {
-    // Setup try handler (stack pointer registers).
-    TryFinally try_block(this, &finally_entry);
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+  // Setup try handler.
+  __ bind(&try_entry);
+  __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER, stmt->index());
+  { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
-    __ PopTryHandler();
   }
+  __ PopTryHandler();
   // Execute the finally block on the way out.  Clobber the unpredictable
-  // value in the accumulator with one that's safe for GC.  The finally
-  // block will unconditionally preserve the accumulator on the stack.
+  // value in the result register with one that's safe for GC because the
+  // finally block will unconditionally preserve the result register on the
+  // stack.
   ClearAccumulator();
   __ Call(&finally_entry);
 }

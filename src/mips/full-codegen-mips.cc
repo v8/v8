@@ -2271,7 +2271,11 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ li(a1, Operand(Smi::FromInt(strict_mode)));
   __ push(a1);
 
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
+  // Push the start position of the scope the calls resides in.
+  __ li(a1, Operand(Smi::FromInt(scope()->start_position())));
+  __ push(a1);
+
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
 

@@ -1471,6 +1471,16 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
 }
 
 
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(RelocInfo* rinfo) {
+  Object** current = rinfo->target_object_address();
+
+  OutputRawData(rinfo->target_address_address());
+  HowToCode representation = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
+  serializer_->SerializeObject(*current, representation, kStartOfObject);
+  bytes_processed_so_far_ += rinfo->target_address_size();
+}
+
+
 void Serializer::ObjectSerializer::VisitExternalReferences(Address* start,
                                                            Address* end) {
   Address references_start = reinterpret_cast<Address>(start);
@@ -1482,6 +1492,20 @@ void Serializer::ObjectSerializer::VisitExternalReferences(Address* start,
     sink_->PutInt(reference_id, "reference id");
   }
   bytes_processed_so_far_ += static_cast<int>((end - start) * kPointerSize);
+}
+
+
+void Serializer::ObjectSerializer::VisitExternalReference(RelocInfo* rinfo) {
+  Address references_start = rinfo->target_address_address();
+  OutputRawData(references_start);
+
+  Address* current = rinfo->target_reference_address();
+  int representation = rinfo->IsCodedSpecially() ?
+                       kFromCode + kStartOfObject : kPlain + kStartOfObject;
+  sink_->Put(kExternalReference + representation, "ExternalRef");
+  int reference_id = serializer_->EncodeExternalReference(*current);
+  sink_->PutInt(reference_id, "reference id");
+  bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 

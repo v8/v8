@@ -3712,7 +3712,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r3: argc
   // [sp+0]: argv
 
-  Label invoke, exit;
+  Label invoke, handler_entry, exit;
 
   // Called from C, so do not pop argc and args on exit (preserve sp)
   // No need to save register-passed args
@@ -3775,23 +3775,26 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&cont);
   __ push(ip);
 
-  // Call a faked try-block that does the invoke.
-  __ bl(&invoke);
-
-  // Caught exception: Store result (exception) in the pending
-  // exception field in the JSEnv and return a failure sentinel.
-  // Coming in here the fp will be invalid because the PushTryHandler below
-  // sets it to 0 to signal the existence of the JSEntry frame.
+  // Jump to a faked try block that does the invoke, with a faked catch
+  // block that sets the pending exception.
+  __ jmp(&invoke);
+  __ bind(&handler_entry);
+  handler_offset_ = handler_entry.pos();
+  // Caught exception: Store result (exception) in the pending exception
+  // field in the JSEnv and return a failure sentinel.  Coming in here the
+  // fp will be invalid because the PushTryHandler below sets it to 0 to
+  // signal the existence of the JSEntry frame.
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
 
-  // Invoke: Link this frame into the handler chain.
+  // Invoke: Link this frame into the handler chain.  There's only one
+  // handler block in this code object, so its index is 0.
   __ bind(&invoke);
   // Must preserve r0-r4, r5-r7 are available.
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER, 0);
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the bl(&invoke) above, which
   // restores all kCalleeSaved registers (including cp and fp) to their
@@ -4900,7 +4903,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::FinishCode(Code* code) {
+void CallFunctionStub::FinishCode(Handle<Code> code) {
   code->set_has_function_cache(false);
 }
 
@@ -6885,6 +6888,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { r6, r2, r0, EMIT_REMEMBERED_SET },
   { r2, r6, r9, EMIT_REMEMBERED_SET },
+  // StoreArrayLiteralElementStub::Generate
+  { r5, r0, r6, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -7119,6 +7124,64 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
+}
+
+
+void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : element value to store
+  //  -- r1    : array literal
+  //  -- r2    : map of array literal
+  //  -- r3    : element index as smi
+  //  -- r4    : array literal index in function as smi
+  // -----------------------------------
+
+  Label element_done;
+  Label double_elements;
+  Label smi_element;
+  Label slow_elements;
+  Label fast_elements;
+
+  __ CheckFastElements(r2, r5, &double_elements);
+  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  __ JumpIfSmi(r0, &smi_element);
+  __ CheckFastSmiOnlyElements(r2, r5, &fast_elements);
+
+  // Store into the array literal requires a elements transition. Call into
+  // the runtime.
+  __ bind(&slow_elements);
+  // call.
+  __ Push(r1, r3, r0);
+  __ ldr(r5, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r5, FieldMemOperand(r5, JSFunction::kLiteralsOffset));
+  __ Push(r5, r4);
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+
+  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  __ bind(&fast_elements);
+  __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r6, r6, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ str(r0, MemOperand(r6, 0));
+  // Update the write barrier for the array store.
+  __ RecordWrite(r5, r6, r0, kLRHasNotBeenSaved, kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Ret();
+
+  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+  // FAST_ELEMENTS, and value is Smi.
+  __ bind(&smi_element);
+  __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(r0, FieldMemOperand(r6, FixedArray::kHeaderSize));
+  __ Ret();
+
+  // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+  __ bind(&double_elements);
+  __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r10,
+                                 &slow_elements);
+  __ Ret();
 }
 
 #undef __

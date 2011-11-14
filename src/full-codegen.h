@@ -93,6 +93,8 @@ class FullCodeGenerator: public AstVisitor {
   void Generate(CompilationInfo* info);
   void PopulateDeoptimizationData(Handle<Code> code);
 
+  Handle<FixedArray> handler_table() { return handler_table_; }
+
   class StateField : public BitField<State, 0, 8> { };
   class PcField    : public BitField<unsigned, 8, 32-8> { };
 
@@ -755,6 +757,7 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;
+  Handle<FixedArray> handler_table_;
 
   friend class NestedStatement;
 

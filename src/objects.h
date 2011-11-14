@@ -167,6 +167,8 @@ static const int kElementsKindCount =
 
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
+inline bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
+                                                ElementsKind to_kind);
 
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
@@ -1883,6 +1885,11 @@ class JSObject: public JSReceiver {
   void IncrementSpillStatistics(SpillInformation* info);
 #endif
   Object* SlowReverseLookup(Object* value);
+
+  // Getters and setters are stored in a fixed array property.
+  // These are constants for their indices.
+  static const int kGetterIndex = 0;
+  static const int kSetterIndex = 1;
 
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
@@ -3829,6 +3836,9 @@ class Code: public HeapObject {
   DECL_ACCESSORS(relocation_info, ByteArray)
   void InvalidateRelocation();
 
+  // [handler_table]: Fixed array containing offsets of exception handlers.
+  DECL_ACCESSORS(handler_table, FixedArray)
+
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
@@ -4057,8 +4067,9 @@ class Code: public HeapObject {
   // Layout description.
   static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
+  static const int kHandlerTableOffset = kRelocationInfoOffset + kPointerSize;
   static const int kDeoptimizationDataOffset =
-      kRelocationInfoOffset + kPointerSize;
+      kHandlerTableOffset + kPointerSize;
   static const int kNextCodeFlushingCandidateOffset =
       kDeoptimizationDataOffset + kPointerSize;
   static const int kFlagsOffset =
@@ -5843,12 +5854,16 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
-  Object* LookupEval(String* src, Context* context, StrictModeFlag strict_mode);
+  Object* LookupEval(String* src,
+                     Context* context,
+                     StrictModeFlag strict_mode,
+                     int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MaybeObject* Put(String* src, Object* value);
   MaybeObject* PutEval(String* src,
                        Context* context,
-                       SharedFunctionInfo* value);
+                       SharedFunctionInfo* value,
+                       int scope_position);
   MaybeObject* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   // Remove given value from cache.
@@ -7809,6 +7824,8 @@ class ObjectVisitor BASE_EMBEDDED {
   // heap) in the half-open range [start, end). Any or all of the values
   // may be modified on return.
   virtual void VisitExternalReferences(Address* start, Address* end) {}
+
+  virtual void VisitExternalReference(RelocInfo* rinfo);
 
   inline void VisitExternalReference(Address* p) {
     VisitExternalReferences(p, p + 1);
