@@ -385,9 +385,6 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
   // This method depends on non writability of Object and Array prototype
   // fields.
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
-  // Hidden prototype
-  array_proto = JSObject::cast(array_proto->GetPrototype());
-  ASSERT(array_proto->elements() == heap->empty_fixed_array());
   // Object.prototype
   Object* proto = array_proto->GetPrototype();
   if (proto == heap->null_value()) return false;
