@@ -60,18 +60,6 @@ function InstallFunctions(object, attributes, functions) {
   %ToFastProperties(object);
 }
 
-// Emulates JSC by installing functions on a hidden prototype that
-// lies above the current object/prototype.  This lets you override
-// functions on String.prototype etc. and then restore the old function
-// with delete.  See http://code.google.com/p/chromium/issues/detail?id=1717
-function InstallFunctionsOnHiddenPrototype(object, attributes, functions) {
-  %CheckIsBootstrapping();
-  var hidden_prototype = new $Object();
-  %SetHiddenPrototype(object, hidden_prototype);
-  InstallFunctions(hidden_prototype, attributes, functions);
-}
-
-
 // Prevents changes to the prototype of a built-infunction.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents

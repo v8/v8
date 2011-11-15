@@ -115,18 +115,6 @@ S15.3.3.1_A4: FAIL
 15.2.3.6-4-410: FAIL
 15.2.3.6-4-415: FAIL
 15.2.3.6-4-420: FAIL
-15.2.3.6-4-612: FAIL
-15.2.3.6-4-613: FAIL
-15.2.3.6-4-614: FAIL
-15.2.3.6-4-615: FAIL
-15.2.3.6-4-616: FAIL
-15.2.3.6-4-617: FAIL
-15.2.3.6-4-618: FAIL
-15.2.3.6-4-619: FAIL
-15.2.3.6-4-620: FAIL
-15.2.3.6-4-621: FAIL
-15.2.3.6-4-623: FAIL
-15.2.3.6-4-624: FAIL
 15.2.3.7-6-a-112: FAIL
 15.2.3.7-6-a-113: FAIL
 15.2.3.7-6-a-122: FAIL
@@ -359,53 +347,6 @@ S15.3.4.2_A1_T1: FAIL_OK
 S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
 S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
 
-# These tests fail because we had to add bugs to be compatible with JSC.  See
-# http://code.google.com/p/chromium/issues/detail?id=1717
-S15.5.4.1_A1_T2: FAIL_OK
-S15.5.4_A1: FAIL_OK
-S15.5.4_A3: FAIL_OK
-S15.9.5.10_A1_T2: FAIL_OK
-S15.9.5.11_A1_T2: FAIL_OK
-S15.9.5.12_A1_T2: FAIL_OK
-S15.9.5.13_A1_T2: FAIL_OK
-S15.9.5.14_A1_T2: FAIL_OK
-S15.9.5.15_A1_T2: FAIL_OK
-S15.9.5.16_A1_T2: FAIL_OK
-S15.9.5.17_A1_T2: FAIL_OK
-S15.9.5.18_A1_T2: FAIL_OK
-S15.9.5.19_A1_T2: FAIL_OK
-S15.9.5.20_A1_T2: FAIL_OK
-S15.9.5.21_A1_T2: FAIL_OK
-S15.9.5.22_A1_T2: FAIL_OK
-S15.9.5.23_A1_T2: FAIL_OK
-S15.9.5.24_A1_T2: FAIL_OK
-S15.9.5.25_A1_T2: FAIL_OK
-S15.9.5.26_A1_T2: FAIL_OK
-S15.9.5.27_A1_T2: FAIL_OK
-S15.9.5.28_A1_T2: FAIL_OK
-S15.9.5.29_A1_T2: FAIL_OK
-S15.9.5.2_A1_T2: FAIL_OK
-S15.9.5.30_A1_T2: FAIL_OK
-S15.9.5.31_A1_T2: FAIL_OK
-S15.9.5.32_A1_T2: FAIL_OK
-S15.9.5.33_A1_T2: FAIL_OK
-S15.9.5.34_A1_T2: FAIL_OK
-S15.9.5.35_A1_T2: FAIL_OK
-S15.9.5.36_A1_T2: FAIL_OK
-S15.9.5.37_A1_T2: FAIL_OK
-S15.9.5.38_A1_T2: FAIL_OK
-S15.9.5.39_A1_T2: FAIL_OK
-S15.9.5.3_A1_T2: FAIL_OK
-S15.9.5.40_A1_T2: FAIL_OK
-S15.9.5.41_A1_T2: FAIL_OK
-S15.9.5.42_A1_T2: FAIL_OK
-S15.9.5.4_A1_T2: FAIL_OK
-S15.9.5.5_A1_T2: FAIL_OK
-S15.9.5.6_A1_T2: FAIL_OK
-S15.9.5.7_A1_T2: FAIL_OK
-S15.9.5.8_A1_T2: FAIL_OK
-S15.9.5.9_A1_T2: FAIL_OK
-
 ############################# ES3 TESTS ################################
 # These tests check for ES3 semantics, and differ from ES5.
 # When we follow ES5 semantics, it's ok to fail the test.
@@ -474,31 +415,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      prototype has a property with the same name and [[Writable]] set to
 #      false(Function.prototype.bind)
 15.2.3.6-4-420: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.indexOf are correct
-15.2.3.6-4-612: FAIL
-# Bug? ES5 Attributes - all attributes in Object.lastIndexOf are correct
-15.2.3.6-4-613: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.every are correct
-15.2.3.6-4-614: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.some are correct
-15.2.3.6-4-615: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.forEach are correct
-15.2.3.6-4-616: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.map are correct
-15.2.3.6-4-617: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.filter are correct
-15.2.3.6-4-618: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.reduce are correct
-15.2.3.6-4-619: FAIL
-# Bug? ES5 Attributes - all attributes in Array.prototype.reduceRight are
-#      correct
-15.2.3.6-4-620: FAIL
-# Bug? ES5 Attributes - all attributes in String.prototype.trim are correct
-15.2.3.6-4-621: FAIL
-# Bug? ES5 Attributes - all attributes in Date.prototype.toISOString are correct
-15.2.3.6-4-623: FAIL
-# Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
-15.2.3.6-4-624: FAIL
 
 ############################ SKIPPED TESTS #############################
 
