@@ -2473,6 +2473,7 @@ void V8HeapExplorer::TagGlobalObjects() {
   Isolate* isolate = Isolate::Current();
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
+  HandleScope scope;
   Handle<String> document_string =
       isolate->factory()->NewStringFromAscii(CStrVector("document"));
   Handle<String> url_string =
@@ -2480,6 +2481,7 @@ void V8HeapExplorer::TagGlobalObjects() {
   const char** urls = NewArray<const char*>(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     urls[i] = NULL;
+    HandleScope scope;
     Handle<JSGlobalObject> global_obj = enumerator.at(i);
     Object* obj_document;
     if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
