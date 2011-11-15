@@ -1765,18 +1765,18 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   }
 
   Map* map = reinterpret_cast<Map*>(result);
-  map->set_map(meta_map());
+  map->set_map_unsafe(meta_map());
   map->set_instance_type(instance_type);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
-  map->set_prototype(null_value());
-  map->set_constructor(null_value());
+  map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
+  map->set_constructor(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
   map->init_instance_descriptors();
-  map->set_code_cache(empty_fixed_array());
-  map->set_prototype_transitions(empty_fixed_array());
+  map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  map->set_prototype_transitions(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
@@ -1798,8 +1798,8 @@ MaybeObject* Heap::AllocateCodeCache() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   CodeCache* code_cache = CodeCache::cast(result);
-  code_cache->set_default_cache(empty_fixed_array());
-  code_cache->set_normal_type_cache(undefined_value());
+  code_cache->set_default_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code_cache->set_normal_type_cache(undefined_value(), SKIP_WRITE_BARRIER);
   return code_cache;
 }
 
@@ -2125,7 +2125,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  HeapObject::cast(result)->set_map(heap_number_map());
+  HeapObject::cast(result)->set_map_unsafe(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -2143,7 +2143,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value) {
   { MaybeObject* maybe_result = new_space_.AllocateRaw(HeapNumber::kSize);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  HeapObject::cast(result)->set_map(heap_number_map());
+  HeapObject::cast(result)->set_map_unsafe(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -2154,7 +2154,7 @@ MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
   { MaybeObject* maybe_result = AllocateRawCell();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  HeapObject::cast(result)->set_map(global_property_cell_map());
+  HeapObject::cast(result)->set_map_unsafe(global_property_cell_map());
   JSGlobalPropertyCell::cast(result)->set_value(value);
   return result;
 }
@@ -2693,12 +2693,12 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_instance_class_name(Object_symbol());
-  share->set_function_data(undefined_value());
-  share->set_script(undefined_value());
-  share->set_debug_info(undefined_value());
-  share->set_inferred_name(empty_string());
-  share->set_initial_map(undefined_value());
-  share->set_this_property_assignments(undefined_value());
+  share->set_function_data(undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_script(undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
+  share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_deopt_counter(Smi::FromInt(FLAG_deopt_every_n_times));
 
   // Set integer fields (smi or int, depending on the architecture).
@@ -2730,8 +2730,8 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   JSMessageObject* message = JSMessageObject::cast(result);
-  message->set_properties(Heap::empty_fixed_array());
-  message->set_elements(Heap::empty_fixed_array());
+  message->set_properties(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
+  message->set_elements(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
   message->set_type(type);
   message->set_arguments(arguments);
   message->set_start_position(start_position);
@@ -3091,7 +3091,7 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ByteArray*>(result)->set_map(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map_unsafe(byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -3109,7 +3109,7 @@ MaybeObject* Heap::AllocateByteArray(int length) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ByteArray*>(result)->set_map(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map_unsafe(byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -3119,11 +3119,11 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map(one_pointer_filler_map());
+    filler->set_map_unsafe(one_pointer_filler_map());
   } else if (size == 2 * kPointerSize) {
-    filler->set_map(two_pointer_filler_map());
+    filler->set_map_unsafe(two_pointer_filler_map());
   } else {
-    filler->set_map(free_space_map());
+    filler->set_map_unsafe(free_space_map());
     FreeSpace::cast(filler)->set_size(size);
   }
 }
@@ -3141,7 +3141,7 @@ MaybeObject* Heap::AllocateExternalArray(int length,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ExternalArray*>(result)->set_map(
+  reinterpret_cast<ExternalArray*>(result)->set_map_unsafe(
       MapForExternalArrayType(array_type));
   reinterpret_cast<ExternalArray*>(result)->set_length(length);
   reinterpret_cast<ExternalArray*>(result)->set_external_pointer(
@@ -3178,7 +3178,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Initialize the object
-  HeapObject::cast(result)->set_map(code_map());
+  HeapObject::cast(result)->set_map_unsafe(code_map());
   Code* code = Code::cast(result);
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
@@ -3188,8 +3188,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
-  code->set_deoptimization_data(empty_fixed_array());
-  code->set_handler_table(empty_fixed_array());
+  code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
@@ -3306,7 +3306,8 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
         AllocateRaw(map->instance_size(), space, retry_space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  HeapObject::cast(result)->set_map(map);
+  // No need for write barrier since object is white and map is in old space.
+  HeapObject::cast(result)->set_map_unsafe(map);
   return result;
 }
 
@@ -3633,7 +3634,7 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   if (!maybe_result->To<JSProxy>(&result)) return maybe_result;
   result->InitializeBody(map->instance_size(), Smi::FromInt(0));
   result->set_handler(handler);
-  result->set_hash(undefined_value());
+  result->set_hash(undefined_value(), SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -3657,7 +3658,7 @@ MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
   if (!maybe_result->To<JSFunctionProxy>(&result)) return maybe_result;
   result->InitializeBody(map->instance_size(), Smi::FromInt(0));
   result->set_handler(handler);
-  result->set_hash(undefined_value());
+  result->set_hash(undefined_value(), SKIP_WRITE_BARRIER);
   result->set_call_trap(call_trap);
   result->set_construct_trap(construct_trap);
   return result;
@@ -3845,7 +3846,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   // we must NOT fail after this point, where we have changed the type!
 
   // Reset the map for the object.
-  object->set_map(map);
+  object->set_map_unsafe(map);
   JSObject* jsobj = JSObject::cast(object);
 
   // Reinitialize the object from the constructor map.
@@ -4044,7 +4045,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<HeapObject*>(result)->set_map(map);
+  reinterpret_cast<HeapObject*>(result)->set_map_unsafe(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(chars);
@@ -4088,7 +4089,7 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(ascii_string_map());
+  HeapObject::cast(result)->set_map_unsafe(ascii_string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -4123,7 +4124,7 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(string_map());
+  HeapObject::cast(result)->set_map_unsafe(string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -4139,7 +4140,7 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   // Initialize the object.
-  reinterpret_cast<FixedArray*>(result)->set_map(fixed_array_map());
+  reinterpret_cast<FixedArray*>(result)->set_map_unsafe(fixed_array_map());
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
 }
@@ -4168,13 +4169,13 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   }
   if (InNewSpace(obj)) {
     HeapObject* dst = HeapObject::cast(obj);
-    dst->set_map(map);
+    dst->set_map_unsafe(map);
     CopyBlock(dst->address() + kPointerSize,
               src->address() + kPointerSize,
               FixedArray::SizeFor(len) - kPointerSize);
     return obj;
   }
-  HeapObject::cast(obj)->set_map(map);
+  HeapObject::cast(obj)->set_map_unsafe(map);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -4194,7 +4195,7 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   HeapObject* dst = HeapObject::cast(obj);
-  dst->set_map(map);
+  dst->set_map_unsafe(map);
   CopyBlock(
       dst->address() + FixedDoubleArray::kLengthOffset,
       src->address() + FixedDoubleArray::kLengthOffset,
@@ -4212,7 +4213,7 @@ MaybeObject* Heap::AllocateFixedArray(int length) {
   }
   // Initialize header.
   FixedArray* array = reinterpret_cast<FixedArray*>(result);
-  array->set_map(fixed_array_map());
+  array->set_map_unsafe(fixed_array_map());
   array->set_length(length);
   // Initialize body.
   ASSERT(!InNewSpace(undefined_value()));
@@ -4260,7 +4261,7 @@ MUST_USE_RESULT static MaybeObject* AllocateFixedArrayWithFiller(
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  HeapObject::cast(result)->set_map(heap->fixed_array_map());
+  HeapObject::cast(result)->set_map_unsafe(heap->fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -4293,7 +4294,7 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  reinterpret_cast<FixedArray*>(obj)->set_map(fixed_array_map());
+  reinterpret_cast<FixedArray*>(obj)->set_map_unsafe(fixed_array_map());
   FixedArray::cast(obj)->set_length(length);
   return obj;
 }
@@ -4307,7 +4308,7 @@ MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   // Initialize the object.
-  reinterpret_cast<FixedDoubleArray*>(result)->set_map(
+  reinterpret_cast<FixedDoubleArray*>(result)->set_map_unsafe(
       fixed_double_array_map());
   reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
   return result;
@@ -4324,7 +4325,8 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  reinterpret_cast<FixedDoubleArray*>(obj)->set_map(fixed_double_array_map());
+  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_unsafe(
+      fixed_double_array_map());
   FixedDoubleArray::cast(obj)->set_length(length);
   return obj;
 }
@@ -4360,7 +4362,7 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  reinterpret_cast<HeapObject*>(result)->set_map(hash_table_map());
+  reinterpret_cast<HeapObject*>(result)->set_map_unsafe(hash_table_map());
   ASSERT(result->IsHashTable());
   return result;
 }
@@ -4373,7 +4375,7 @@ MaybeObject* Heap::AllocateGlobalContext() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(global_context_map());
+  context->set_map_unsafe(global_context_map());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
@@ -4387,7 +4389,7 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(function_context_map());
+  context->set_map_unsafe(function_context_map());
   context->set_closure(function);
   context->set_previous(function->context());
   context->set_extension(NULL);
@@ -4407,7 +4409,7 @@ MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(catch_context_map());
+  context->set_map_unsafe(catch_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(name);
@@ -4425,7 +4427,7 @@ MaybeObject* Heap::AllocateWithContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(with_context_map());
+  context->set_map_unsafe(with_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(extension);
@@ -4443,7 +4445,7 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(block_context_map());
+  context->set_map_unsafe(block_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(scope_info);
@@ -4456,7 +4458,7 @@ MaybeObject* Heap::AllocateScopeInfo(int length) {
   FixedArray* scope_info;
   MaybeObject* maybe_scope_info = AllocateFixedArray(length, TENURED);
   if (!maybe_scope_info->To(&scope_info)) return maybe_scope_info;
-  scope_info->set_map(scope_info_map());
+  scope_info->set_map_unsafe(scope_info_map());
   return scope_info;
 }
 
