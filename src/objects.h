@@ -1683,6 +1683,7 @@ class JSObject: public JSReceiver {
   inline int GetInternalFieldOffset(int index);
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
+  inline void SetInternalField(int index, Smi* value);
 
   // The following lookup functions skip interceptors.
   void LocalLookupRealNamedProperty(String* name, LookupResult* result);

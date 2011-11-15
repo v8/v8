@@ -1385,6 +1385,16 @@ void JSObject::SetInternalField(int index, Object* value) {
 }
 
 
+void JSObject::SetInternalField(int index, Smi* value) {
+  ASSERT(index < GetInternalFieldCount() && index >= 0);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
+  int offset = GetHeaderSize() + (kPointerSize * index);
+  WRITE_FIELD(this, offset, value);
+}
+
+
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
