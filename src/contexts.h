@@ -398,19 +398,6 @@ class Context: public FixedArray {
                         PropertyAttributes* attributes,
                         BindingFlags* binding_flags);
 
-  // Determine if a local variable with the given name exists in a
-  // context.  Do not consider context extension objects.  This is
-  // used for compiling code using eval.  If the context surrounding
-  // the eval call does not have a local variable with this name and
-  // does not contain a with statement the property is global unless
-  // it is shadowed by a property in an extension object introduced by
-  // eval.
-  bool GlobalIfNotShadowedByEval(Handle<String> name);
-
-  // Determine if any function scope in the context call eval and if
-  // any of those calls are in non-strict mode.
-  void ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval);
-
   // Code generation support.
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;

@@ -59,6 +59,7 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
+  Scope* global_scope() const { return global_scope_; }
   Handle<Code> code() const { return code_; }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -98,6 +99,10 @@ class CompilationInfo BASE_EMBEDDED {
   void SetScope(Scope* scope) {
     ASSERT(scope_ == NULL);
     scope_ = scope;
+  }
+  void SetGlobalScope(Scope* global_scope) {
+    ASSERT(global_scope_ == NULL);
+    global_scope_ = global_scope;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
@@ -228,6 +233,8 @@ class CompilationInfo BASE_EMBEDDED {
   // The scope of the function literal as a convenience.  Set to indicate
   // that scopes have been analyzed.
   Scope* scope_;
+  // The global scope provided as a convenience.
+  Scope* global_scope_;
   // The compiled code.
   Handle<Code> code_;
 

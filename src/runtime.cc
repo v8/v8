@@ -12191,15 +12191,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   bool is_global = true;
 
   if (additional_context->IsJSObject()) {
-    // Create a function context first, than put 'with' context on top of it.
-    Handle<JSFunction> go_between = isolate->factory()->NewFunction(
-        isolate->factory()->empty_string(),
-        isolate->factory()->undefined_value());
-    go_between->set_context(*context);
-    context =
-        isolate->factory()->NewFunctionContext(
-            Context::MIN_CONTEXT_SLOTS, go_between);
-    context->set_extension(JSObject::cast(*additional_context));
+    // Create a new with context with the additional context information between
+    // the context of the debugged function and the eval code to be executed.
+    context = isolate->factory()->NewWithContext(
+        Handle<JSFunction>(context->closure()),
+        context,
+        Handle<JSObject>::cast(additional_context));
     is_global = false;
   }
 

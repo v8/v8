@@ -607,12 +607,11 @@ Parser::Parser(Handle<Script> script,
 }
 
 
-FunctionLiteral* Parser::ParseProgram(Handle<String> source,
-                                      bool in_global_context,
-                                      StrictModeFlag strict_mode) {
+FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
   ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
+  Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
   fni_ = new(zone()) FuncNameInferrer(isolate());
 
@@ -625,18 +624,17 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     ExternalTwoByteStringUC16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
+    return DoParseProgram(info, source, &zone_scope);
   } else {
     GenericStringUC16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
+    return DoParseProgram(info, source, &zone_scope);
   }
 }
 
 
-FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
-                                        bool in_global_context,
-                                        StrictModeFlag strict_mode,
+FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
+                                        Handle<String> source,
                                         ZoneScope* zone_scope) {
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
@@ -646,16 +644,19 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
   mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
   if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
 
-  ScopeType type = in_global_context ? GLOBAL_SCOPE : EVAL_SCOPE;
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
-  { Scope* scope = NewScope(top_scope_, type);
+  { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
+    info->SetGlobalScope(scope);
+    if (!info->is_global()) {
+      scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
+      scope = NewScope(scope, EVAL_SCOPE);
+    }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
     FunctionState function_state(this, scope, isolate());
-    ASSERT(top_scope_->strict_mode_flag() == kNonStrictMode);
-    top_scope_->SetStrictModeFlag(strict_mode);
+    top_scope_->SetStrictModeFlag(info->strict_mode_flag());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
@@ -742,8 +743,9 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
   {
     // Parse the function literal.
     Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
+    info->SetGlobalScope(scope);
     if (!info->closure().is_null()) {
-      scope = Scope::DeserializeScopeChain(info, scope);
+      scope = Scope::DeserializeScopeChain(info->closure()->context(), scope);
     }
     FunctionState function_state(this, scope, isolate());
     ASSERT(scope->strict_mode_flag() == kNonStrictMode ||
@@ -1370,6 +1372,8 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // enclosing scope.
   Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
       ? top_scope_ : top_scope_->DeclarationScope();
+  InitializationFlag init_flag = (fun != NULL || mode == VAR)
+      ? kCreatedInitialized : kNeedsInitialization;
 
   // If a function scope exists, then we can statically declare this
   // variable and also set its mode. In any case, a Declaration node
@@ -1388,8 +1392,6 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      InitializationFlag init_flag = (fun != NULL || mode == VAR)
-          ? kCreatedInitialized : kNeedsInitialization;
       var = declaration_scope->DeclareLocal(name, mode, init_flag);
     } else {
       // The name was declared in this scope before; check for conflicting
@@ -1452,17 +1454,31 @@ VariableProxy* Parser::Declare(Handle<String> name,
   declaration_scope->AddDeclaration(
       new(zone()) Declaration(proxy, mode, fun, top_scope_));
 
-  // For global const variables we bind the proxy to a variable.
   if ((mode == CONST || mode == CONST_HARMONY) &&
       declaration_scope->is_global_scope()) {
+    // For global const variables we bind the proxy to a variable.
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
     var = new(zone()) Variable(declaration_scope,
                                name,
-                               CONST,
+                               mode,
                                true,
                                kind,
                                kNeedsInitialization);
+  } else if (declaration_scope->is_eval_scope() &&
+             !declaration_scope->is_strict_mode()) {
+    // For variable declarations in a non-strict eval scope the proxy is bound
+    // to a lookup variable to force a dynamic declaration using the
+    // DeclareContextSlot runtime function.
+    Variable::Kind kind = Variable::NORMAL;
+    var = new(zone()) Variable(declaration_scope,
+                               name,
+                               mode,
+                               true,
+                               kind,
+                               init_flag);
+    var->AllocateTo(Variable::LOOKUP, -1);
+    resolve = true;
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -1909,22 +1925,30 @@ Block* Parser::ParseVariableDeclarations(
       }
 
       block->AddStatement(new(zone()) ExpressionStatement(initialize));
+    } else if (needs_init) {
+      // Constant initializations always assign to the declared constant which
+      // is always at the function scope level. This is only relevant for
+      // dynamically looked-up variables and constants (the start context for
+      // constant lookups is always the function context, while it is the top
+      // context for var declared variables). Sigh...
+      // For 'let' and 'const' declared variables in harmony mode the
+      // initialization also always assigns to the declared variable.
+      ASSERT(proxy != NULL);
+      ASSERT(proxy->var() != NULL);
+      ASSERT(value != NULL);
+      Assignment* assignment =
+          new(zone()) Assignment(isolate(), init_op, proxy, value, position);
+      block->AddStatement(new(zone()) ExpressionStatement(assignment));
+      value = NULL;
     }
 
     // Add an assignment node to the initialization statement block if we still
-    // have a pending initialization value. We must distinguish between
-    // different kinds of declarations: 'var' initializations are simply
-    // assignments (with all the consequences if they are inside a 'with'
-    // statement - they may change a 'with' object property). Constant
-    // initializations always assign to the declared constant which is
-    // always at the function scope level. This is only relevant for
-    // dynamically looked-up variables and constants (the start context
-    // for constant lookups is always the function context, while it is
-    // the top context for var declared variables). Sigh...
-    // For 'let' and 'const' declared variables in harmony mode the
-    // initialization is in the same scope as the declaration. Thus dynamic
-    // lookups are unnecessary even if the block scope is inside a with.
+    // have a pending initialization value.
     if (value != NULL) {
+      ASSERT(mode == VAR);
+      // 'var' initializations are simply assignments (with all the consequences
+      // if they are inside a 'with' statement - they may change a 'with' object
+      // property).
       VariableProxy* proxy = initialization_scope->NewUnresolved(name);
       Assignment* assignment =
           new(zone()) Assignment(isolate(), init_op, proxy, value, position);
@@ -5405,6 +5429,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
   Handle<Script> script = info->script();
   bool harmony_scoping = !info->is_native() && FLAG_harmony_scoping;
   if (info->is_lazy()) {
+    ASSERT(!info->is_eval());
     bool allow_natives_syntax =
         FLAG_allow_natives_syntax ||
         info->is_native();
@@ -5433,10 +5458,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
       DeleteArray(args.start());
       ASSERT(info->isolate()->has_pending_exception());
     } else {
-      Handle<String> source = Handle<String>(String::cast(script->source()));
-      result = parser.ParseProgram(source,
-                                   info->is_global(),
-                                   info->strict_mode_flag());
+      result = parser.ParseProgram(info);
     }
   }
   info->SetFunction(result);
