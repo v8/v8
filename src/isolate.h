@@ -895,6 +895,12 @@ class Isolate {
 
   Builtins* builtins() { return &builtins_; }
 
+  void NotifyExtensionInstalled() {
+    has_installed_extensions_ = true;
+  }
+
+  bool has_installed_extensions() { return has_installed_extensions_; }
+
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       regexp_macro_assembler_canonicalize() {
     return &regexp_macro_assembler_canonicalize_;
@@ -1156,6 +1162,7 @@ class Isolate {
   bool fp_stubs_generated_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
+  bool has_installed_extensions_;
   StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;

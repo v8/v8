@@ -639,3 +639,64 @@ TEST(Regress1433) {
     isolate->Dispose();
   }
 }
+
+
+static const char* kSimpleExtensionSource =
+  "(function Foo() {"
+  "  return 4;"
+  "})() ";
+
+class IsolateGenesisThread : public JoinableThread {
+ public:
+  IsolateGenesisThread(int count, const char* extension_names[])
+    : JoinableThread("IsolateGenesisThread"),
+      count_(count),
+      extension_names_(extension_names)
+  {}
+
+  virtual void Run() {
+    v8::Isolate* isolate = v8::Isolate::New();
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      CHECK(!i::Isolate::Current()->has_installed_extensions());
+      v8::ExtensionConfiguration extensions(count_, extension_names_);
+      v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
+      CHECK(i::Isolate::Current()->has_installed_extensions());
+      context.Dispose();
+    }
+    isolate->Dispose();
+  }
+ private:
+  int count_;
+  const char** extension_names_;
+};
+
+// Test installing extensions in separate isolates concurrently.
+// http://code.google.com/p/v8/issues/detail?id=1821
+TEST(ExtensionsRegistration) {
+  const int kNThreads = 40;
+  v8::RegisterExtension(new v8::Extension("test0",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test1",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test2",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test3",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test4",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test5",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test6",
+                                          kSimpleExtensionSource));
+  v8::RegisterExtension(new v8::Extension("test7",
+                                          kSimpleExtensionSource));
+  const char* extension_names[] = { "test0", "test1",
+                                    "test2", "test3", "test4",
+                                    "test5", "test6", "test7" };
+  i::List<JoinableThread*> threads(kNThreads);
+  for (int i = 0; i < kNThreads; i++) {
+    threads.Add(new IsolateGenesisThread(8, extension_names));
+  }
+  StartJoinAndDeleteThreads(threads);
+}

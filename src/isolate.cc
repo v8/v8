@@ -1434,6 +1434,7 @@ Isolate::Isolate()
       context_switcher_(NULL),
       thread_manager_(NULL),
       fp_stubs_generated_(false),
+      has_installed_extensions_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       embedder_data_(NULL) {
