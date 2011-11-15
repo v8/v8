@@ -211,13 +211,12 @@ class Genesis BASE_EMBEDDED {
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
-  
+
   enum ExtensionTraversalState {
     UNVISITED, VISITED, INSTALLED
   };
 
   class ExtensionStates {
-    DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
   public:
     ExtensionStates();
     ExtensionTraversalState get_state(RegisteredExtension* extension);
@@ -226,6 +225,7 @@ class Genesis BASE_EMBEDDED {
   private:
     Allocator allocator_;
     HashMap map_;
+    DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
   };
 
   // Used both for deserialized and from-scratch contexts to add the extensions
@@ -1989,7 +1989,8 @@ bool Genesis::InstallExtensions(Handle<Context> global_context,
   //                 effort. (The external API reads 'ignore'-- does that mean
   //                 we can break the interface?)
 
-  ExtensionStates extension_states; // All extensions have state UNVISITED.
+
+  ExtensionStates extension_states;  // All extensions have state UNVISITED.
   // Install auto extensions.
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
@@ -2036,7 +2037,7 @@ bool Genesis::InstallExtension(const char* name,
 }
 
 
-bool Genesis::InstallExtension(v8::RegisteredExtension* current, 
+bool Genesis::InstallExtension(v8::RegisteredExtension* current,
                                ExtensionStates* extension_states) {
   HandleScope scope;
 
