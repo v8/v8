@@ -3675,7 +3675,8 @@ class DeoptimizationInputData: public FixedArray {
   static const int kAstIdOffset = 0;
   static const int kTranslationIndexOffset = 1;
   static const int kArgumentsStackHeightOffset = 2;
-  static const int kDeoptEntrySize = 3;
+  static const int kPcOffset = 3;
+  static const int kDeoptEntrySize = 4;
 
   // Simple element accessors.
 #define DEFINE_ELEMENT_ACCESSORS(name, type)      \
@@ -3711,6 +3712,7 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ENTRY_ACCESSORS(AstId, Smi)
   DEFINE_ENTRY_ACCESSORS(TranslationIndex, Smi)
   DEFINE_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+  DEFINE_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DEFINE_ENTRY_ACCESSORS
 
