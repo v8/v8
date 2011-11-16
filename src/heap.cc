@@ -3846,7 +3846,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   // we must NOT fail after this point, where we have changed the type!
 
   // Reset the map for the object.
-  object->set_map_unsafe(map);
+  object->set_map(map);
   JSObject* jsobj = JSObject::cast(object);
 
   // Reinitialize the object from the constructor map.
