@@ -428,7 +428,7 @@ function render() {
 function Form() {
   function create(tag) { return document.createElement(tag); }
   function text(value) { return document.createTextNode(value); }
-  
+
   this.form = create("form");
   this.form.setAttribute("action", "javascript:start()");
 
@@ -445,7 +445,7 @@ function Form() {
     var tr = create("tr");
     tr.appendChild(col(a));
     tr.appendChild(col(b));
-    return tr; 
+    return tr;
   }
 
   this.timelimit = create("input");
