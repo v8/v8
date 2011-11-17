@@ -874,52 +874,47 @@ void LCodeGen::DoModI(LModI* instr) {
   const Register left = ToRegister(instr->InputAt(0));
   const Register result = ToRegister(instr->result());
 
-  // p2constant holds the right side value if it's a power of 2 constant.
-  // In other cases it is 0.
-  int32_t p2constant = 0;
+  Label done;
 
-  if (instr->InputAt(1)->IsConstantOperand()) {
-      p2constant = ToInteger32(LConstantOperand::cast(instr->InputAt(1)));
-      if (p2constant % 2 != 0) {
-        p2constant = 0;
-      }
-      // Result always takes the sign of the dividend (left).
-      p2constant = abs(p2constant);
-  }
-
-  // div runs in the background while we check for special cases.
-  Register right = EmitLoadRegister(instr->InputAt(1), scratch);
-  __ div(left, right);
-
-  // Check for x % 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
-  }
-
-  Label skip_div, do_div;
-  if (p2constant != 0) {
-    // Fall back to the result of the div instruction if we could have sign
-    // problems.
-    __ Branch(&do_div, lt, left, Operand(zero_reg));
-    // Modulo by masking.
-    __ And(scratch, left, p2constant - 1);
-    __ Branch(&skip_div);
-  }
-
-  __ bind(&do_div);
-  __ mfhi(scratch);
-  __ bind(&skip_div);
-
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register scratch = scratch0();
+    ASSERT(!left.is(scratch));
+    __ mov(scratch, left);
+    int32_t p2constant = HConstant::cast(
+        instr->hydrogen()->right())->Integer32Value();
+    ASSERT(p2constant != 0);
     // Result always takes the sign of the dividend (left).
-    Label done;
-    __ Branch(USE_DELAY_SLOT, &done, ge, left, Operand(zero_reg));
-    __ mov(result, scratch);
-    DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
-    __ bind(&done);
+    p2constant = abs(p2constant);
+
+    Label positive_dividend;
+    __ Branch(USE_DELAY_SLOT, &positive_dividend, ge, left, Operand(zero_reg));
+    __ subu(result, zero_reg, left);
+    __ And(result, result, p2constant - 1);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
+    }
+    __ Branch(USE_DELAY_SLOT, &done);
+    __ subu(result, zero_reg, result);
+    __ bind(&positive_dividend);
+    __ And(result, scratch, p2constant - 1);
   } else {
-    __ Move(result, scratch);
+    // div runs in the background while we check for special cases.
+    Register right = EmitLoadRegister(instr->InputAt(1), scratch);
+    __ div(left, right);
+
+    // Check for x % 0.
+    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+      DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
+    }
+
+    __ Branch(USE_DELAY_SLOT, &done, ge, left, Operand(zero_reg));
+    __ mfhi(result);
+
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
+    }
   }
+  __ bind(&done);
 }
 
 
