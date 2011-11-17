@@ -4912,18 +4912,15 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // rbx: instance type
     // rcx: sub string length
     // rdx: from index (smi)
-    Label allocate_slice, sliced_string, seq_string;
+    Label allocate_slice, sliced_string, seq_or_external_string;
     __ cmpq(rcx, Immediate(SlicedString::kMinLength));
     // Short slice.  Copy instead of slicing.
     __ j(less, &copy_routine);
-    STATIC_ASSERT(kSeqStringTag == 0);
-    __ testb(rbx, Immediate(kStringRepresentationMask));
-    __ j(zero, &seq_string, Label::kNear);
+    // If the string is not indirect, it can only be sequential or external.
     STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
     STATIC_ASSERT(kIsIndirectStringMask != 0);
     __ testb(rbx, Immediate(kIsIndirectStringMask));
-    // External string.  Jump to runtime.
-    __ j(zero, &runtime);
+    __ j(zero, &seq_or_external_string, Label::kNear);
 
     __ testb(rbx, Immediate(kSlicedNotConsMask));
     __ j(not_zero, &sliced_string, Label::kNear);
@@ -4940,8 +4937,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ movq(rdi, FieldOperand(rax, SlicedString::kParentOffset));
     __ jmp(&allocate_slice, Label::kNear);
 
-    __ bind(&seq_string);
-    // Sequential string.  Just move string to the right register.
+    __ bind(&seq_or_external_string);
+    // Sequential or external string.  Just move string to the correct register.
     __ movq(rdi, rax);
 
     __ bind(&allocate_slice);

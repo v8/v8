@@ -5973,18 +5973,15 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // ebx: instance type
     // ecx: sub string length
     // edx: from index (smi)
-    Label allocate_slice, sliced_string, seq_string;
+    Label allocate_slice, sliced_string, seq_or_external_string;
     __ cmp(ecx, SlicedString::kMinLength);
     // Short slice.  Copy instead of slicing.
     __ j(less, &copy_routine);
-    STATIC_ASSERT(kSeqStringTag == 0);
-    __ test(ebx, Immediate(kStringRepresentationMask));
-    __ j(zero, &seq_string, Label::kNear);
+    // If the string is not indirect, it can only be sequential or external.
     STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
     STATIC_ASSERT(kIsIndirectStringMask != 0);
     __ test(ebx, Immediate(kIsIndirectStringMask));
-    // External string.  Jump to runtime.
-    __ j(zero, &runtime);
+    __ j(zero, &seq_or_external_string, Label::kNear);
 
     Factory* factory = masm->isolate()->factory();
     __ test(ebx, Immediate(kSlicedNotConsMask));
@@ -6002,8 +5999,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ mov(edi, FieldOperand(eax, SlicedString::kParentOffset));
     __ jmp(&allocate_slice, Label::kNear);
 
-    __ bind(&seq_string);
-    // Sequential string.  Just move string to the right register.
+    __ bind(&seq_or_external_string);
+    // Sequential or external string.  Just move string to the correct register.
     __ mov(edi, eax);
 
     __ bind(&allocate_slice);
