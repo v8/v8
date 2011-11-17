@@ -1325,6 +1325,13 @@ void HCompareGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add(Token::Name(token()));
+  stream->Add(" ");
+  HControlInstruction::PrintDataTo(stream);
+}
+
+
 void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
