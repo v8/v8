@@ -300,6 +300,7 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
                          Register temp1,
+                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 
