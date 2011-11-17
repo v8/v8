@@ -35,6 +35,7 @@
 #include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 #include "stub-cache.h"
+#include "codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -5125,11 +5126,6 @@ void CompareStub::PrintName(StringStream* stream) {
 // StringCharCodeAtGenerator
 
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
-  Label flat_string;
-  Label ascii_string;
-  Label got_char_code;
-  Label sliced_string;
-
   // If the receiver is a smi trigger the non-string case.
   STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfSmi(object_, receiver_not_string_);
@@ -5150,71 +5146,12 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ cmp(index_, FieldOperand(object_, String::kLengthOffset));
   __ j(above_equal, index_out_of_range_);
 
-  // We need special handling for non-flat strings.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ test(result_, Immediate(kStringRepresentationMask));
-  __ j(zero, &flat_string);
-
-  // Handle non-flat strings.
-  __ and_(result_, kStringRepresentationMask);
-  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
-  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
-  __ cmp(result_, kExternalStringTag);
-  __ j(greater, &sliced_string, Label::kNear);
-  __ j(equal, &call_runtime_);
-
-  // ConsString.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  Label assure_seq_string;
-  __ cmp(FieldOperand(object_, ConsString::kSecondOffset),
-         Immediate(masm->isolate()->factory()->empty_string()));
-  __ j(not_equal, &call_runtime_);
-  // Get the first of the two parts.
-  __ mov(object_, FieldOperand(object_, ConsString::kFirstOffset));
-  __ jmp(&assure_seq_string, Label::kNear);
-
-  // SlicedString, unpack and add offset.
-  __ bind(&sliced_string);
-  __ add(index_, FieldOperand(object_, SlicedString::kOffsetOffset));
-  __ mov(object_, FieldOperand(object_, SlicedString::kParentOffset));
-
-  // Assure that we are dealing with a sequential string. Go to runtime if not.
-  // Note that if the original string is a cons or slice with an external
-  // string as underlying string, we pass that unpacked underlying string with
-  // the adjusted index to the runtime function.
-  __ bind(&assure_seq_string);
-  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
-  __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ test(result_, Immediate(kStringRepresentationMask));
-  __ j(not_zero, &call_runtime_);
-
-  // Check for 1-byte or 2-byte string.
-  __ bind(&flat_string);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ test(result_, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string, Label::kNear);
-
-  // 2-byte string.
-  // Load the 2-byte character code into the result register.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ movzx_w(result_, FieldOperand(object_,
-                                   index_, times_1,  // Scratch is smi-tagged.
-                                   SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code, Label::kNear);
-
-  // ASCII string.
-  // Load the byte into the result register.
-  __ bind(&ascii_string);
   __ SmiUntag(index_);
-  __ movzx_b(result_, FieldOperand(object_,
-                                   index_, times_1,
-                                   SeqAsciiString::kHeaderSize));
-  __ bind(&got_char_code);
+
+  Factory* factory = masm->isolate()->factory();
+  StringCharLoadGenerator::Generate(
+      masm, factory, object_, index_, result_, &call_runtime_);
+
   __ SmiTag(result_);
   __ bind(&exit_);
 }
@@ -5264,6 +5201,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ bind(&call_runtime_);
   call_helper.BeforeCall(masm);
   __ push(object_);
+  __ SmiTag(index_);
   __ push(index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
   if (!result_.is(eax)) {

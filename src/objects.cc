@@ -953,8 +953,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
   if (size < ExternalString::kSize) {
-    // The string is too small to fit an external String in its place. This can
-    // only happen for zero length strings.
     return false;
   }
   ASSERT(size >= ExternalString::kSize);
@@ -1007,8 +1005,6 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
   if (size < ExternalString::kSize) {
-    // The string is too small to fit an external String in its place. This can
-    // only happen for zero length strings.
     return false;
   }
   ASSERT(size >= ExternalString::kSize);
@@ -5790,7 +5786,7 @@ String::FlatContent String::GetFlatContent() {
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqAsciiString::cast(string)->GetChars();
     } else {
-      start = ExternalAsciiString::cast(string)->resource()->data();
+      start = ExternalAsciiString::cast(string)->GetChars();
     }
     return FlatContent(Vector<const char>(start + offset, length));
   } else {
@@ -5799,7 +5795,7 @@ String::FlatContent String::GetFlatContent() {
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqTwoByteString::cast(string)->GetChars();
     } else {
-      start = ExternalTwoByteString::cast(string)->resource()->data();
+      start = ExternalTwoByteString::cast(string)->GetChars();
     }
     return FlatContent(Vector<const uc16>(start + offset, length));
   }
@@ -6032,34 +6028,16 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
 }
 
 
-uint16_t ExternalAsciiString::ExternalAsciiStringGet(int index) {
-  ASSERT(index >= 0 && index < length());
-  return resource()->data()[index];
-}
-
-
 const unibrow::byte* ExternalAsciiString::ExternalAsciiStringReadBlock(
       unsigned* remaining,
       unsigned* offset_ptr,
       unsigned max_chars) {
   // Cast const char* to unibrow::byte* (signedness difference).
   const unibrow::byte* b =
-      reinterpret_cast<const unibrow::byte*>(resource()->data()) + *offset_ptr;
+      reinterpret_cast<const unibrow::byte*>(GetChars()) + *offset_ptr;
   *remaining = max_chars;
   *offset_ptr += max_chars;
   return b;
-}
-
-
-const uc16* ExternalTwoByteString::ExternalTwoByteStringGetData(
-      unsigned start) {
-  return resource()->data() + start;
-}
-
-
-uint16_t ExternalTwoByteString::ExternalTwoByteStringGet(int index) {
-  ASSERT(index >= 0 && index < length());
-  return resource()->data()[index];
 }
 
 
@@ -6069,7 +6047,7 @@ void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
       unsigned max_chars) {
   unsigned chars_read = 0;
   unsigned offset = *offset_ptr;
-  const uint16_t* data = resource()->data();
+  const uint16_t* data = GetChars();
   while (chars_read < max_chars) {
     uint16_t c = data[offset];
     if (c <= kMaxAsciiCharCode) {
@@ -6115,9 +6093,7 @@ void ExternalAsciiString::ExternalAsciiStringReadBlockIntoBuffer(
       unsigned max_chars) {
   unsigned capacity = rbb->capacity - rbb->cursor;
   if (max_chars > capacity) max_chars = capacity;
-  memcpy(rbb->util_buffer + rbb->cursor,
-         resource()->data() + *offset_ptr,
-         max_chars);
+  memcpy(rbb->util_buffer + rbb->cursor, GetChars() + *offset_ptr, max_chars);
   rbb->remaining += max_chars;
   *offset_ptr += max_chars;
   rbb->cursor += max_chars;
@@ -6559,13 +6535,13 @@ void String::WriteToFlat(String* src,
     switch (StringShape(source).full_representation_tag()) {
       case kAsciiStringTag | kExternalStringTag: {
         CopyChars(sink,
-                  ExternalAsciiString::cast(source)->resource()->data() + from,
+                  ExternalAsciiString::cast(source)->GetChars() + from,
                   to - from);
         return;
       }
       case kTwoByteStringTag | kExternalStringTag: {
         const uc16* data =
-            ExternalTwoByteString::cast(source)->resource()->data();
+            ExternalTwoByteString::cast(source)->GetChars();
         CopyChars(sink,
                   data + from,
                   to - from);

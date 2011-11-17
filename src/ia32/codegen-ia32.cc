@@ -524,6 +524,113 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 }
 
+
+void StringCharLoadGenerator::Generate(MacroAssembler* masm,
+                                       Factory* factory,
+                                       Register string,
+                                       Register index,
+                                       Register result,
+                                       Label* call_runtime) {
+  // Fetch the instance type of the receiver into result register.
+  __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
+
+  // We need special handling for indirect strings.
+  Label check_sequential;
+  __ test(result, Immediate(kIsIndirectStringMask));
+  __ j(zero, &check_sequential);
+
+  // Dispatch on the indirect string shape: slice or cons.
+  Label cons_string;
+  __ test(result, Immediate(kSlicedNotConsMask));
+  __ j(zero, &cons_string);
+
+  // Handle slices.
+  Label indirect_string_loaded;
+  __ mov(result, FieldOperand(string, SlicedString::kOffsetOffset));
+  __ SmiUntag(result);
+  __ add(index, result);
+  __ mov(string, FieldOperand(string, SlicedString::kParentOffset));
+  __ jmp(&indirect_string_loaded);
+
+  // Handle external strings.
+  Label external_string, ascii_external, done;
+  __ bind(&external_string);
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ test(result, Immediate(kIsIndirectStringMask));
+    __ Assert(zero, "external string expected, but not found");
+  }
+  __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
+  // Assert that the external string has not been finalized yet.
+  __ test(result, result);
+  __ j(zero, call_runtime);
+  Register scratch = string;
+  __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
+  __ cmp(scratch, Immediate(factory->external_ascii_string_map()));
+  __ j(equal, &ascii_external, Label::kNear);
+  __ cmp(scratch, Immediate(factory->external_ascii_symbol_map()));
+  __ j(equal, &ascii_external, Label::kNear);
+  // Two-byte string.
+  __ movzx_w(result, Operand(result, index, times_2, 0));
+  __ jmp(&done);
+  __ bind(&ascii_external);
+  // Ascii string.
+  __ movzx_b(result, Operand(result, index, times_1, 0));
+  __ jmp(&done);
+
+  // Handle conses.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ bind(&cons_string);
+  __ cmp(FieldOperand(string, ConsString::kSecondOffset),
+         Immediate(factory->empty_string()));
+  __ j(not_equal, call_runtime);
+  __ mov(string, FieldOperand(string, ConsString::kFirstOffset));
+
+  __ bind(&indirect_string_loaded);
+  __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
+
+  // Check whether the string is sequential. The only non-sequential
+  // shapes we support have just been unwrapped above.
+  // Note that if the original string is a cons or slice with an external
+  // string as underlying string, we pass that unpacked underlying string with
+  // the adjusted index to the runtime function.
+  __ bind(&check_sequential);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ test(result, Immediate(kStringRepresentationMask));
+  __ j(not_zero, &external_string);
+
+  // Dispatch on the encoding: ASCII or two-byte.
+  Label ascii_string;
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+  __ test(result, Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii_string, Label::kNear);
+
+  // Two-byte string.
+  // Load the two-byte character code into the result register.
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ movzx_w(result, FieldOperand(string,
+                                  index,
+                                  times_2,
+                                  SeqTwoByteString::kHeaderSize));
+  __ jmp(&done, Label::kNear);
+
+  // Ascii string.
+  // Load the byte into the result register.
+  __ bind(&ascii_string);
+  __ movzx_b(result, FieldOperand(string,
+                                  index,
+                                  times_1,
+                                  SeqAsciiString::kHeaderSize));
+  __ bind(&done);
+}
+
 #undef __
 
 } }  // namespace v8::internal

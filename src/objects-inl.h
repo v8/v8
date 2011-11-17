@@ -2297,6 +2297,11 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 }
 
 
+void ExternalString::clear_data_cache() {
+  WRITE_INTPTR_FIELD(this, kResourceDataOffset, NULL);
+}
+
+
 const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
@@ -2306,6 +2311,21 @@ void ExternalAsciiString::set_resource(
     const ExternalAsciiString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
+  clear_data_cache();
+}
+
+
+const char* ExternalAsciiString::GetChars() {
+  const char** data_field =
+      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
+  if (*data_field == NULL) *data_field = resource()->data();
+  return *data_field;
+}
+
+
+uint16_t ExternalAsciiString::ExternalAsciiStringGet(int index) {
+  ASSERT(index >= 0 && index < length());
+  return GetChars()[index];
 }
 
 
@@ -2318,6 +2338,27 @@ void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
+  clear_data_cache();
+}
+
+
+const uint16_t* ExternalTwoByteString::GetChars() {
+  const uint16_t** data_field =
+      reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
+  if (*data_field == NULL) *data_field = resource()->data();
+  return *data_field;
+}
+
+
+uint16_t ExternalTwoByteString::ExternalTwoByteStringGet(int index) {
+  ASSERT(index >= 0 && index < length());
+  return GetChars()[index];
+}
+
+
+const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
+      unsigned start) {
+  return GetChars() + start;
 }
 
 
