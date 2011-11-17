@@ -240,62 +240,6 @@ Handle<Object> Context::Lookup(Handle<String> name,
 }
 
 
-bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
-  Context* context = this;
-
-  // Check that there is no local with the given name in contexts
-  // before the global context and check that there are no context
-  // extension objects (conservative check for with statements).
-  while (!context->IsGlobalContext()) {
-    // Check if the context is a catch or with context, or has introduced
-    // bindings by calling non-strict eval.
-    if (context->has_extension()) return false;
-
-    // Not a with context so it must be a function context.
-    ASSERT(context->IsFunctionContext());
-
-    // Check non-parameter locals.
-    Handle<ScopeInfo> scope_info(context->closure()->shared()->scope_info());
-    VariableMode mode;
-    InitializationFlag init_flag;
-    int index = scope_info->ContextSlotIndex(*name, &mode, &init_flag);
-    ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
-    if (index >= 0) return false;
-
-    // Check parameter locals.
-    int param_index = scope_info->ParameterIndex(*name);
-    if (param_index >= 0) return false;
-
-    // Check context only holding the function name variable.
-    index = scope_info->FunctionContextSlotIndex(*name, &mode);
-    if (index >= 0) return false;
-    context = context->previous();
-  }
-
-  // No local or potential with statement found so the variable is
-  // global unless it is shadowed by an eval-introduced variable.
-  return true;
-}
-
-
-void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval) {
-  // Skip up the context chain checking all the function contexts to see
-  // whether they call eval.
-  Context* context = this;
-  while (!context->IsGlobalContext()) {
-    if (context->IsFunctionContext()) {
-      if (context->closure()->shared()->scope_info()->CallsNonStrictEval()) {
-        // No need to go further since the answers will not change from
-        // here.
-        *outer_scope_calls_non_strict_eval = true;
-        return;
-      }
-    }
-    context = context->previous();
-  }
-}
-
-
 void Context::AddOptimizedFunction(JSFunction* function) {
   ASSERT(IsGlobalContext());
 #ifdef DEBUG

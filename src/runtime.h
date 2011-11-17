@@ -69,7 +69,6 @@ namespace internal {
   \
   F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
-  F(SetHiddenPrototype, 2, 1) \
   \
   F(IsConstructCall, 0, 1) \
   \
@@ -144,7 +143,7 @@ namespace internal {
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
-  F(SparseJoinWithSeparator, 3, 1)            \
+  F(SparseJoinWithSeparator, 3, 1) \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \

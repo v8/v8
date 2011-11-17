@@ -883,49 +883,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
 }
 
 
-// Inserts an object as the hidden prototype of another object.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHiddenPrototype) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(JSObject, jsobject, args[0]);
-  CONVERT_CHECKED(JSObject, proto, args[1]);
-
-  // Sanity checks.  The old prototype (that we are replacing) could
-  // theoretically be null, but if it is not null then check that we
-  // didn't already install a hidden prototype here.
-  RUNTIME_ASSERT(!jsobject->GetPrototype()->IsHeapObject() ||
-    !HeapObject::cast(jsobject->GetPrototype())->map()->is_hidden_prototype());
-  RUNTIME_ASSERT(!proto->map()->is_hidden_prototype());
-
-  // Allocate up front before we start altering state in case we get a GC.
-  Object* map_or_failure;
-  { MaybeObject* maybe_map_or_failure = proto->map()->CopyDropTransitions();
-    if (!maybe_map_or_failure->ToObject(&map_or_failure)) {
-      return maybe_map_or_failure;
-    }
-  }
-  Map* new_proto_map = Map::cast(map_or_failure);
-
-  { MaybeObject* maybe_map_or_failure = jsobject->map()->CopyDropTransitions();
-    if (!maybe_map_or_failure->ToObject(&map_or_failure)) {
-      return maybe_map_or_failure;
-    }
-  }
-  Map* new_map = Map::cast(map_or_failure);
-
-  // Set proto's prototype to be the old prototype of the object.
-  new_proto_map->set_prototype(jsobject->GetPrototype());
-  proto->set_map(new_proto_map);
-  new_proto_map->set_is_hidden_prototype();
-
-  // Set the object's prototype to proto.
-  new_map->set_prototype(proto);
-  jsobject->set_map(new_map);
-
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
@@ -12234,15 +12191,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   bool is_global = true;
 
   if (additional_context->IsJSObject()) {
-    // Create a function context first, than put 'with' context on top of it.
-    Handle<JSFunction> go_between = isolate->factory()->NewFunction(
-        isolate->factory()->empty_string(),
-        isolate->factory()->undefined_value());
-    go_between->set_context(*context);
-    context =
-        isolate->factory()->NewFunctionContext(
-            Context::MIN_CONTEXT_SLOTS, go_between);
-    context->set_extension(JSObject::cast(*additional_context));
+    // Create a new with context with the additional context information between
+    // the context of the debugged function and the eval code to be executed.
+    context = isolate->factory()->NewWithContext(
+        Handle<JSFunction>(context->closure()),
+        context,
+        Handle<JSObject>::cast(additional_context));
     is_global = false;
   }
 

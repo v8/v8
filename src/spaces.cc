@@ -768,6 +768,10 @@ void PagedSpace::ReleasePage(Page* page) {
     ASSERT_EQ(Page::kObjectAreaSize, static_cast<int>(size));
   }
 
+  if (Page::FromAllocationTop(allocation_info_.top) == page) {
+    allocation_info_.top = allocation_info_.limit = NULL;
+  }
+
   page->Unlink();
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
@@ -2118,7 +2122,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
 void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
   if (allocation_info_.top >= allocation_info_.limit) return;
 
-  if (Page::FromAddress(allocation_info_.top)->IsEvacuationCandidate()) {
+  if (Page::FromAllocationTop(allocation_info_.top)->IsEvacuationCandidate()) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit - allocation_info_.top);

@@ -453,8 +453,7 @@ void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
 }
 
 void IncrementalMarking::UncommitMarkingDeque() {
-  ASSERT(state_ == STOPPED);
-  if (marking_deque_memory_committed_) {
+  if (state_ == STOPPED && marking_deque_memory_committed_) {
     bool success = marking_deque_memory_->Uncommit(
         reinterpret_cast<Address>(marking_deque_memory_->address()),
         marking_deque_memory_->size());

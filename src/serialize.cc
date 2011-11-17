@@ -1132,11 +1132,8 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
   CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
   // We don't support serializing installed extensions.
-  for (RegisteredExtension* ext = v8::RegisteredExtension::first_extension();
-       ext != NULL;
-       ext = ext->next()) {
-    CHECK_NE(v8::INSTALLED, ext->state());
-  }
+  CHECK(!isolate->has_installed_extensions());
+
   HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
 }
 

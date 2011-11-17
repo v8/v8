@@ -450,7 +450,7 @@ if [ $STEP -le 20 ] ; then
 $MAJOR.$MINOR.$BUILD. Please don't forget to roll this new version into \
 Chromium, and to update the v8rel spreadsheet:"
   TRUNK_REVISION=$(cat "$TRUNK_REVISION_FILE")
-  echo "$MAJOR.$MINOR.$BUILD\ttrunk\t$TRUNK_REVISION"
+  echo -e "$MAJOR.$MINOR.$BUILD\ttrunk\t$TRUNK_REVISION"
   # Clean up all temporary files.
   rm -f "$PERSISTFILE_BASENAME"*
 fi

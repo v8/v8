@@ -211,12 +211,31 @@ class Genesis BASE_EMBEDDED {
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
+
+  enum ExtensionTraversalState {
+    UNVISITED, VISITED, INSTALLED
+  };
+
+  class ExtensionStates {
+  public:
+    ExtensionStates();
+    ExtensionTraversalState get_state(RegisteredExtension* extension);
+    void set_state(RegisteredExtension* extension,
+                   ExtensionTraversalState state);
+  private:
+    Allocator allocator_;
+    HashMap map_;
+    DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
+  };
+
   // Used both for deserialized and from-scratch contexts to add the extensions
   // provided.
   static bool InstallExtensions(Handle<Context> global_context,
                                 v8::ExtensionConfiguration* extensions);
-  static bool InstallExtension(const char* name);
-  static bool InstallExtension(v8::RegisteredExtension* current);
+  static bool InstallExtension(const char* name,
+                               ExtensionStates* extension_states);
+  static bool InstallExtension(v8::RegisteredExtension* current,
+                               ExtensionStates* extension_states);
   static void InstallSpecialObjects(Handle<Context> global_context);
   bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
@@ -1935,6 +1954,34 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
 #endif
 }
 
+static uint32_t Hash(RegisteredExtension* extension) {
+  return v8::internal::ComputePointerHash(extension);
+}
+
+static bool MatchRegisteredExtensions(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+Genesis::ExtensionStates::ExtensionStates()
+  : allocator_(),
+    map_(MatchRegisteredExtensions, &allocator_, 8)
+  {}
+
+Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
+    RegisteredExtension* extension) {
+  i::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension), false);
+  if (entry == NULL) {
+    return UNVISITED;
+  }
+  return static_cast<ExtensionTraversalState>(
+      reinterpret_cast<intptr_t>(entry->value));
+}
+
+void Genesis::ExtensionStates::set_state(RegisteredExtension* extension,
+                                         ExtensionTraversalState state) {
+  map_.Lookup(extension, Hash(extension), true)->value =
+      reinterpret_cast<void*>(static_cast<intptr_t>(state));
+}
 
 bool Genesis::InstallExtensions(Handle<Context> global_context,
                                 v8::ExtensionConfiguration* extensions) {
@@ -1942,29 +1989,27 @@ bool Genesis::InstallExtensions(Handle<Context> global_context,
   //                 effort. (The external API reads 'ignore'-- does that mean
   //                 we can break the interface?)
 
-  // Clear coloring of extension list
+
+  ExtensionStates extension_states;  // All extensions have state UNVISITED.
+  // Install auto extensions.
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
-    current->set_state(v8::UNVISITED);
-    current = current->next();
-  }
-  // Install auto extensions.
-  current = v8::RegisteredExtension::first_extension();
-  while (current != NULL) {
     if (current->extension()->auto_enable())
-      InstallExtension(current);
+      InstallExtension(current, &extension_states);
     current = current->next();
   }
 
-  if (FLAG_expose_gc) InstallExtension("v8/gc");
-  if (FLAG_expose_externalize_string) InstallExtension("v8/externalize");
+  if (FLAG_expose_gc) InstallExtension("v8/gc", &extension_states);
+  if (FLAG_expose_externalize_string) {
+    InstallExtension("v8/externalize", &extension_states);
+  }
 
   if (extensions == NULL) return true;
   // Install required extensions
   int count = v8::ImplementationUtilities::GetNameCount(extensions);
   const char** names = v8::ImplementationUtilities::GetNames(extensions);
   for (int i = 0; i < count; i++) {
-    if (!InstallExtension(names[i]))
+    if (!InstallExtension(names[i], &extension_states))
       return false;
   }
 
@@ -1974,7 +2019,8 @@ bool Genesis::InstallExtensions(Handle<Context> global_context,
 
 // Installs a named extension.  This methods is unoptimized and does
 // not scale well if we want to support a large number of extensions.
-bool Genesis::InstallExtension(const char* name) {
+bool Genesis::InstallExtension(const char* name,
+                               ExtensionStates* extension_states) {
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   // Loop until we find the relevant extension
   while (current != NULL) {
@@ -1987,27 +2033,29 @@ bool Genesis::InstallExtension(const char* name) {
         "v8::Context::New()", "Cannot find required extension");
     return false;
   }
-  return InstallExtension(current);
+  return InstallExtension(current, extension_states);
 }
 
 
-bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
+bool Genesis::InstallExtension(v8::RegisteredExtension* current,
+                               ExtensionStates* extension_states) {
   HandleScope scope;
 
-  if (current->state() == v8::INSTALLED) return true;
+  if (extension_states->get_state(current) == INSTALLED) return true;
   // The current node has already been visited so there must be a
   // cycle in the dependency graph; fail.
-  if (current->state() == v8::VISITED) {
+  if (extension_states->get_state(current) == VISITED) {
     v8::Utils::ReportApiFailure(
         "v8::Context::New()", "Circular extension dependency");
     return false;
   }
-  ASSERT(current->state() == v8::UNVISITED);
-  current->set_state(v8::VISITED);
+  ASSERT(extension_states->get_state(current) == UNVISITED);
+  extension_states->set_state(current, VISITED);
   v8::Extension* extension = current->extension();
   // Install the extension's dependencies
   for (int i = 0; i < extension->dependency_count(); i++) {
-    if (!InstallExtension(extension->dependencies()[i])) return false;
+    if (!InstallExtension(extension->dependencies()[i], extension_states))
+      return false;
   }
   Isolate* isolate = Isolate::Current();
   Handle<String> source_code =
@@ -2029,7 +2077,8 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
                    current->extension()->name());
     isolate->clear_pending_exception();
   }
-  current->set_state(v8::INSTALLED);
+  extension_states->set_state(current, INSTALLED);
+  isolate->NotifyExtensionInstalled();
   return result;
 }
 

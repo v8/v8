@@ -2104,9 +2104,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   SetSourcePosition(expr->position());
 
   // Record call targets in unoptimized code, but not in the snapshot.
-  // TODO(1789): Reenable temporarily disabled recording CallFunctionStub
-  // when the issue is fixed.
-  bool record_call_target = false && !Serializer::enabled();
+  bool record_call_target = !Serializer::enabled();
   if (record_call_target) {
     flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   }

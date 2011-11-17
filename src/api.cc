@@ -486,7 +486,7 @@ RegisteredExtension* RegisteredExtension::first_extension_ = NULL;
 
 
 RegisteredExtension::RegisteredExtension(Extension* extension)
-    : extension_(extension), state_(UNVISITED) { }
+    : extension_(extension) { }
 
 
 void RegisteredExtension::Register(RegisteredExtension* that) {

@@ -93,8 +93,7 @@ class Scope: public ZoneObject {
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
-  static Scope* DeserializeScopeChain(CompilationInfo* info,
-                                      Scope* innermost_scope);
+  static Scope* DeserializeScopeChain(Context* context, Scope* global_scope);
 
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
@@ -111,6 +110,12 @@ class Scope: public ZoneObject {
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
   Variable* LocalLookup(Handle<String> name);
+
+  // This lookup corresponds to a lookup in the "intermediate" scope sitting
+  // between this scope and the outer scope. (ECMA-262, 3rd., requires that
+  // the name of named function literal is kept in an intermediate scope
+  // in between this scope and the next outer scope.)
+  Variable* LookupFunctionVar(Handle<String> name);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
@@ -317,7 +322,7 @@ class Scope: public ZoneObject {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(Handle<Context> context);
+  void AllocateVariables(Scope* global_scope);
 
   // Current number of var or const locals.
   int num_var_or_const() { return num_var_or_const_; }
@@ -504,13 +509,10 @@ class Scope: public ZoneObject {
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
   Variable* LookupRecursive(Handle<String> name,
-                            Handle<Context> context,
                             BindingKind* binding_kind);
   void ResolveVariable(Scope* global_scope,
-                       Handle<Context> context,
                        VariableProxy* proxy);
-  void ResolveVariablesRecursively(Scope* global_scope,
-                                   Handle<Context> context);
+  void ResolveVariablesRecursively(Scope* global_scope);
 
   // Scope analysis.
   bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);

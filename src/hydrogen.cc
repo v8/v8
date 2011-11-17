@@ -1678,7 +1678,7 @@ Representation HInferRepresentation::TryChange(HValue* value) {
   }
 
   // Prefer unboxing over boxing, the latter is more expensive.
-  if (tagged_count > non_tagged_count) Representation::None();
+  if (tagged_count > non_tagged_count) return Representation::None();
 
   // Prefer Integer32 over Double, if possible.
   if (int32_count > 0 && value->IsConvertibleToInteger()) {

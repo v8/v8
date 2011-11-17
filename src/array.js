@@ -1385,7 +1385,7 @@ function SetUpArray() {
   // set their names.
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
-  InstallFunctionsOnHiddenPrototype($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
     "toString", getFunction("toString", ArrayToString),
     "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
     "join", getFunction("join", ArrayJoin),

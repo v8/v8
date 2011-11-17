@@ -137,10 +137,6 @@ class ApiFunction {
 };
 
 
-enum ExtensionTraversalState {
-  UNVISITED, VISITED, INSTALLED
-};
-
 
 class RegisteredExtension {
  public:
@@ -149,14 +145,11 @@ class RegisteredExtension {
   Extension* extension() { return extension_; }
   RegisteredExtension* next() { return next_; }
   RegisteredExtension* next_auto() { return next_auto_; }
-  ExtensionTraversalState state() { return state_; }
-  void set_state(ExtensionTraversalState value) { state_ = value; }
   static RegisteredExtension* first_extension() { return first_extension_; }
  private:
   Extension* extension_;
   RegisteredExtension* next_;
   RegisteredExtension* next_auto_;
-  ExtensionTraversalState state_;
   static RegisteredExtension* first_extension_;
 };
 

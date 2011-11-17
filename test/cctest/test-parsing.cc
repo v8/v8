@@ -32,6 +32,7 @@
 #include "v8.h"
 
 #include "cctest.h"
+#include "compiler.h"
 #include "execution.h"
 #include "isolate.h"
 #include "parser.h"
@@ -856,9 +857,10 @@ TEST(ScopePositions) {
     i::Handle<i::Script> script = FACTORY->NewScript(source);
     i::Parser parser(script, false, NULL, NULL);
     parser.SetHarmonyScoping(true);
-    i::FunctionLiteral* function =
-        parser.ParseProgram(source, true, i::kNonStrictMode);
-    ASSERT(function != NULL);
+    i::CompilationInfo info(script);
+    info.MarkAsGlobal();
+    i::FunctionLiteral* function = parser.ParseProgram(&info);
+    CHECK(function != NULL);
 
     // Check scope types and positions.
     i::Scope* scope = function->scope();

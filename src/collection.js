@@ -175,14 +175,14 @@ function WeakMapDelete(key) {
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
   // Set up the non-enumerable functions on the Set prototype object.
-  InstallFunctionsOnHiddenPrototype($Set.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     "add", SetAdd,
     "has", SetHas,
     "delete", SetDelete
   ));
 
   // Set up the non-enumerable functions on the Map prototype object.
-  InstallFunctionsOnHiddenPrototype($Map.prototype, DONT_ENUM, $Array(
+  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
     "get", MapGet,
     "set", MapSet,
     "has", MapHas,
@@ -196,7 +196,7 @@ function WeakMapDelete(key) {
   %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
-  InstallFunctionsOnHiddenPrototype($WeakMap.prototype, DONT_ENUM, $Array(
+  InstallFunctions($WeakMap.prototype, DONT_ENUM, $Array(
     "get", WeakMapGet,
     "set", WeakMapSet,
     "has", WeakMapHas,

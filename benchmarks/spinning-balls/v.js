@@ -61,6 +61,7 @@ var numberOfFrames = 0;
 var sumOfSquaredPauses = 0;
 var benchmarkStartTime = void 0;
 var benchmarkTimeLimit = void 0;
+var autoScale = void 0;
 var pauseDistribution = [];
 
 
@@ -193,7 +194,7 @@ function ModifyPointsSet() {
 }
 
 
-function PausePlot(width, height, size) {
+function PausePlot(width, height, size, scale) {
   var canvas = document.createElement("canvas");
   canvas.width = this.width = width;
   canvas.height = this.height = height;
@@ -201,7 +202,14 @@ function PausePlot(width, height, size) {
 
   this.ctx = canvas.getContext('2d');
 
-  this.maxPause = 0;
+  if (typeof scale !== "number") {
+    this.autoScale = true;
+    this.maxPause = 0;
+  } else {
+    this.autoScale = false;
+    this.maxPause = scale;
+  }
+
   this.size = size;
 
   // Initialize cyclic buffer for pauses.
@@ -248,18 +256,21 @@ PausePlot.prototype.iteratePauses = function (f) {
 
 PausePlot.prototype.draw = function () {
   var first = null;
-  this.iteratePauses(function (i, v) {
-    if (first === null) {
-      first = v;
-    }
-    this.maxPause = Math.max(v, this.maxPause);
-  });
+
+  if (this.autoScale) {
+    this.iteratePauses(function (i, v) {
+      if (first === null) {
+        first = v;
+      }
+      this.maxPause = Math.max(v, this.maxPause);
+    });
+  }
 
   var dx = this.width / this.size;
   var dy = this.height / this.maxPause;
 
   this.ctx.save();
-  this.ctx.clearRect(0, 0, 480, 240);
+  this.ctx.clearRect(0, 0, this.width, this.height);
   this.ctx.beginPath();
   this.ctx.moveTo(1, dy * this.pauses[this.start]);
   var p = first;
@@ -414,21 +425,52 @@ function render() {
 }
 
 
-function renderForm() {
-  form = document.createElement("form");
-  form.setAttribute("action", "javascript:start()");
-  var label = document.createTextNode("Time limit in seconds ");
-  var input = document.createElement("input");
-  input.setAttribute("id", "timelimit");
-  input.setAttribute("value", "60");
-  var button = document.createElement("input");
+function Form() {
+  function create(tag) { return document.createElement(tag); }
+  function text(value) { return document.createTextNode(value); }
+
+  this.form = create("form");
+  this.form.setAttribute("action", "javascript:start()");
+
+  var table = create("table");
+  table.setAttribute("style", "margin-left: auto; margin-right: auto;");
+
+  function col(a) {
+    var td = create("td");
+    td.appendChild(a);
+    return td;
+  }
+
+  function row(a, b) {
+    var tr = create("tr");
+    tr.appendChild(col(a));
+    tr.appendChild(col(b));
+    return tr;
+  }
+
+  this.timelimit = create("input");
+  this.timelimit.setAttribute("value", "60");
+
+  table.appendChild(row(text("Time limit in seconds"), this.timelimit));
+
+  this.autoscale = create("input");
+  this.autoscale.setAttribute("type", "checkbox");
+  this.autoscale.setAttribute("checked", "true");
+  table.appendChild(row(text("Autoscale pauses plot"), this.autoscale));
+
+  var button = create("input");
   button.setAttribute("type", "submit");
   button.setAttribute("value", "Start");
-  form.appendChild(label);
-  form.appendChild(input);
-  form.appendChild(button);
-  document.body.appendChild(form);
+  this.form.appendChild(table);
+  this.form.appendChild(button);
+
+  document.body.appendChild(this.form);
 }
+
+
+Form.prototype.remove = function () {
+  document.body.removeChild(this.form);
+};
 
 
 function init() {
@@ -442,14 +484,15 @@ function init() {
   div = document.createElement("div");
   document.body.appendChild(div);
 
-  pausePlot = new PausePlot(480, 240, 160);
+  pausePlot = new PausePlot(480, autoScale ? 240 : 500, 160, autoScale ? void 0 : 500);
 }
 
 function start() {
-  benchmarkTimeLimit = document.getElementById("timelimit").value * 1000;
-  document.body.removeChild(form);
+  benchmarkTimeLimit = form.timelimit.value * 1000;
+  autoScale = form.autoscale.checked;
+  form.remove();
   init();
   render();
 }
 
-renderForm();
+var form = new Form();
