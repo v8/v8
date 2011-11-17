@@ -1480,8 +1480,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
   ASSERT_EQ(2, constant_elements->length());
+#if DEBUG
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+#endif
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
@@ -1489,13 +1491,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
   __ Push(Smi::FromInt(expr->literal_index()));
   __ Push(constant_elements);
-  if (constant_elements_values->map() ==
-      isolate()->heap()->fixed_cow_array_map()) {
-    FastCloneShallowArrayStub stub(
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
-    __ CallStub(&stub);
-    __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(), 1);
-  } else if (expr->depth() > 1) {
+  if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
@@ -1503,11 +1499,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     ASSERT(constant_elements_kind == FAST_ELEMENTS ||
            constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, length);
+    if (constant_elements_values->map() ==
+        isolate()->heap()->fixed_cow_array_map()) {
+      __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
+                          1);
+    }
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS, length);
     __ CallStub(&stub);
   }
 

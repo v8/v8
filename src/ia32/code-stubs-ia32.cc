@@ -236,13 +236,9 @@ static void GenerateFastCloneShallowArrayCommon(
     int length,
     FastCloneShallowArrayStub::Mode mode,
     Label* fail) {
-  // Stack and register layout on entry:
+  // Registers on entry:
   //
-  // [esp + kPointerSize]: constant elements.
-  // [esp + (2 * kPointerSize)]: literal index.
-  // [esp + (3 * kPointerSize)]: literals array.
-  // eax: literal index.
-  // ecx: literals array.
+  // ecx: boilerplate literal array.
   ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
 
   // All sizes here are multiples of kPointerSize.

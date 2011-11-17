@@ -1477,6 +1477,10 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
   ASSERT_EQ(2, constant_elements->length());
+#if DEBUG
+  ElementsKind constant_elements_kind =
+      static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+#endif
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
