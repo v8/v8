@@ -226,7 +226,7 @@ static void GenerateFastCloneShallowArrayCommon(
     Label* fail) {
   // Registers on entry:
   //
-  // rcx: boilerplate array.
+  // rcx: boilerplate literal array.
   ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
 
   // All sizes here are multiples of kPointerSize.
@@ -315,7 +315,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
            factory->fixed_array_map());
     __ j(not_equal, &double_elements);
-    GenerateFastCloneShallowArrayCommon(masm, 0,
+    GenerateFastCloneShallowArrayCommon(masm, length_,
                                         CLONE_ELEMENTS, &slow_case);
     __ ret(3 * kPointerSize);
 
@@ -346,8 +346,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(rcx);
   }
 
-  GenerateFastCloneShallowArrayCommon(masm, 0,
-                                      CLONE_DOUBLE_ELEMENTS, &slow_case);
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
   __ ret(3 * kPointerSize);
 
   __ bind(&slow_case);
