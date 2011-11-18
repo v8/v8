@@ -1794,11 +1794,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, source);
-    // TODO(lrn): Consider skipping write barrier on booleans as well.
-    // Both true and false should be in oldspace at all times.
-    regexp->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex, global);
-    regexp->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex, ignoreCase);
-    regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, multiline);
+    // Both true and false are immovable immortal objects so no need for write
+    // barrier.
+    regexp->InObjectPropertyAtPut(
+        JSRegExp::kGlobalFieldIndex, global, SKIP_WRITE_BARRIER);
+    regexp->InObjectPropertyAtPut(
+        JSRegExp::kIgnoreCaseFieldIndex, ignoreCase, SKIP_WRITE_BARRIER);
+    regexp->InObjectPropertyAtPut(
+        JSRegExp::kMultilineFieldIndex, multiline, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0),
                                   SKIP_WRITE_BARRIER);  // It's a Smi.

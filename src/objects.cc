@@ -9962,8 +9962,8 @@ void FixedArray::SwapPairs(FixedArray* numbers, int i, int j) {
   set(j, temp);
   if (this != numbers) {
     temp = numbers->get(i);
-    numbers->set(i, numbers->get(j));
-    numbers->set(j, temp);
+    numbers->set(i, Smi::cast(numbers->get(j)));
+    numbers->set(j, Smi::cast(temp));
   }
 }
 
