@@ -55,7 +55,7 @@ class ZoneAllocator: public Allocator {
 };
 
 
-static ZoneAllocator* LocalsMapAllocator = new ZoneAllocator();
+static ZoneAllocator* LocalsMapAllocator = ::new ZoneAllocator();
 
 
 // ----------------------------------------------------------------------------
