@@ -2298,7 +2298,7 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 
 void ExternalString::clear_data_cache() {
-  WRITE_INTPTR_FIELD(this, kResourceDataOffset, NULL);
+  WRITE_INTPTR_FIELD(this, kResourceDataOffset, 0);
 }
 
 
