@@ -2470,10 +2470,10 @@ class GlobalObjectsEnumerator : public ObjectVisitor {
 
 // Modifies heap. Must not be run during heap traversal.
 void V8HeapExplorer::TagGlobalObjects() {
+  HandleScope scope;
   Isolate* isolate = Isolate::Current();
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
-  HandleScope scope;
   Handle<String> document_string =
       isolate->factory()->NewStringFromAscii(CStrVector("document"));
   Handle<String> url_string =

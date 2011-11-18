@@ -895,6 +895,20 @@ TEST(DocumentURLWithException) {
 }
 
 
+TEST(NoHandleLeaks) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  v8::Handle<v8::String> name(v8_str("leakz"));
+  int count_before = i::HandleScope::NumberOfHandles();
+  v8::HeapProfiler::TakeSnapshot(name);
+  int count_after = i::HandleScope::NumberOfHandles();
+  CHECK_EQ(count_before, count_after);
+}
+
+
 TEST(NodesIteration) {
   v8::HandleScope scope;
   LocalContext env;
@@ -1023,6 +1037,7 @@ TEST(GetConstructorName) {
   CHECK_EQ(0, StringCmp(
       "Object", i::V8HeapExplorer::GetConstructorName(*js_obj6)));
 }
+
 
 TEST(FastCaseGetter) {
   v8::HandleScope scope;
