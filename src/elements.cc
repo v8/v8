@@ -827,7 +827,7 @@ void ElementsAccessor::InitializeOncePerProcess() {
     ELEMENTS_LIST(ACCESSOR_STRUCT)
 #undef ACCESSOR_STRUCT
   } element_accessors = {
-#define ACCESSOR_INIT(Class, Name) ::new Class(),
+#define ACCESSOR_INIT(Class, Name) new Class(),
     ELEMENTS_LIST(ACCESSOR_INIT)
 #undef ACCESSOR_INIT
   };
