@@ -128,6 +128,9 @@ DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
 DEFINE_bool(eliminate_empty_blocks, true, "eliminate empty blocks")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
+DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
+            true,
+            "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_bool(trace_inlining, false, "trace inlining decisions")
