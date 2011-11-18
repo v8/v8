@@ -6026,15 +6026,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // a3: from index (untagged smi)
     // t2 (a.k.a. to): to (smi)
     // t3 (a.k.a. from): from offset (smi)
-    Label allocate_slice, sliced_string, seq_string;
-    STATIC_ASSERT(kSeqStringTag == 0);
-    __ And(t4, a1, Operand(kStringRepresentationMask));
-    __ Branch(&seq_string, eq, t4, Operand(zero_reg));
+    Label allocate_slice, sliced_string, seq_or_external_string;
+    // If the string is not indirect, it can only be sequential or external.
     STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
     STATIC_ASSERT(kIsIndirectStringMask != 0);
     __ And(t4, a1, Operand(kIsIndirectStringMask));
     // External string.  Jump to runtime.
-    __ Branch(&sub_string_runtime, eq, t4, Operand(zero_reg));
+    __ Branch(&seq_or_external_string, eq, t4, Operand(zero_reg));
 
     __ And(t4, a1, Operand(kSlicedNotConsMask));
     __ Branch(&sliced_string, ne, t4, Operand(zero_reg));
@@ -6052,8 +6050,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ lw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
     __ jmp(&allocate_slice);
 
-    __ bind(&seq_string);
-    // Sequential string.  Just move string to the right register.
+    __ bind(&seq_or_external_string);
+    // Sequential or external string.  Just move string to the correct register.
     __ mov(t1, v0);
 
     __ bind(&allocate_slice);
