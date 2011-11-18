@@ -2131,9 +2131,10 @@ class RegExpEmpty: public RegExpTree {
   virtual bool IsEmpty();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
-  static RegExpEmpty* GetInstance() { return &kInstance; }
- private:
-  static RegExpEmpty kInstance;
+  static RegExpEmpty* GetInstance() {
+    static RegExpEmpty* instance = ::new RegExpEmpty();
+    return instance;
+  }
 };
 
 

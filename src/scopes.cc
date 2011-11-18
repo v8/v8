@@ -55,7 +55,7 @@ class ZoneAllocator: public Allocator {
 };
 
 
-static ZoneAllocator LocalsMapAllocator;
+static ZoneAllocator* LocalsMapAllocator = ::new ZoneAllocator();
 
 
 // ----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ static bool Match(void* key1, void* key2) {
 }
 
 
-VariableMap::VariableMap() : HashMap(Match, &LocalsMapAllocator, 8) {}
+VariableMap::VariableMap() : HashMap(Match, LocalsMapAllocator, 8) {}
 VariableMap::~VariableMap() {}
 
 

@@ -897,8 +897,6 @@ FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 #undef MAKE_TYPE_CASE
 
-RegExpEmpty RegExpEmpty::kInstance;
-
 
 static Interval ListCaptureRegisters(ZoneList<RegExpTree*>* children) {
   Interval result = Interval::Empty();
