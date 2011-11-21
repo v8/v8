@@ -46,7 +46,7 @@
 
 #undef MAP_TYPE
 
-#if defined(ANDROID)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 #define LOG_TAG "v8"
 #include <android/log.h>
 #endif
