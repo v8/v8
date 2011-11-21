@@ -386,7 +386,7 @@ class FastCloneShallowObjectStub : public CodeStub {
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
 
-  FastCloneShallowObjectStub(int length) : length_(length) {
+  explicit FastCloneShallowObjectStub(int length) : length_(length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
