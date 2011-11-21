@@ -168,7 +168,11 @@ static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
 static bool MakeCrankshaftCode(CompilationInfo* info) {
   // Test if we can optimize this function when asked to. We can only
   // do this after the scopes are computed.
-  if (!info->AllowOptimize()) info->DisableOptimization();
+  if (!info->AllowOptimize()) {
+    info->DisableOptimization();
+  } else if (info->IsOptimizable()) {
+    info->EnableDeoptimizationSupport();
+  }
 
   // In case we are not optimizing simply return the code from
   // the full code generator.
