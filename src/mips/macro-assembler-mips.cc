@@ -2544,60 +2544,50 @@ void MacroAssembler::DebugBreak() {
 // Exception handling.
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type) {
+                                    HandlerType type,
+                                    int handler_index) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
-  // The return address is passed in register ra.
+  // For the JSEntry handler, we must preserve a0-a3 and s0.
+  // t1-t3 are available. We will build up the handler from the bottom by
+  // pushing on the stack. First compute the state.
+  unsigned state = StackHandler::OffsetField::encode(handler_index);
   if (try_location == IN_JAVASCRIPT) {
-    if (type == TRY_CATCH_HANDLER) {
-      li(t0, Operand(StackHandler::TRY_CATCH));
-    } else {
-      li(t0, Operand(StackHandler::TRY_FINALLY));
-    }
-    // Save the current handler as the next handler.
-    li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-    lw(t1, MemOperand(t2));
-
-    addiu(sp, sp, -StackHandlerConstants::kSize);
-    sw(ra, MemOperand(sp, StackHandlerConstants::kPCOffset));
-    sw(fp, MemOperand(sp, StackHandlerConstants::kFPOffset));
-    sw(cp, MemOperand(sp, StackHandlerConstants::kContextOffset));
-    sw(t0, MemOperand(sp, StackHandlerConstants::kStateOffset));
-    sw(t1, MemOperand(sp, StackHandlerConstants::kNextOffset));
-
-    // Link this handler as the new current one.
-    sw(sp, MemOperand(t2));
-
+    state |= (type == TRY_CATCH_HANDLER)
+        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
+        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
   } else {
-    // Must preserve a0-a3, and s0 (argv).
     ASSERT(try_location == IN_JS_ENTRY);
-    // The frame pointer does not point to a JS frame so we save NULL
-    // for fp. We expect the code throwing an exception to check fp
-    // before dereferencing it to restore the context.
-    li(t0, Operand(StackHandler::ENTRY));
-
-    // Save the current handler as the next handler.
-    li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-    lw(t1, MemOperand(t2));
-
-    ASSERT(Smi::FromInt(0) == 0);  // Used for no context.
-
-    addiu(sp, sp, -StackHandlerConstants::kSize);
-    sw(ra, MemOperand(sp, StackHandlerConstants::kPCOffset));
-    sw(zero_reg, MemOperand(sp, StackHandlerConstants::kFPOffset));
-    sw(zero_reg, MemOperand(sp, StackHandlerConstants::kContextOffset));
-    sw(t0, MemOperand(sp, StackHandlerConstants::kStateOffset));
-    sw(t1, MemOperand(sp, StackHandlerConstants::kNextOffset));
-
-    // Link this handler as the new current one.
-    sw(sp, MemOperand(t2));
+    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
   }
+
+  // Set up the code object (t1) and the state (t2) for pushing.
+  li(t1, Operand(CodeObject()));
+  li(t2, Operand(state));
+
+  // Push the frame pointer, context, state, and code object.
+  if (try_location == IN_JAVASCRIPT) {
+    MultiPush(t1.bit() | t2.bit() | cp.bit() | fp.bit());
+  } else {
+    ASSERT_EQ(Smi::FromInt(0), 0);
+    // The second zero_reg indicates no context.
+    // The first zero_reg is the NULL frame pointer.
+    // The operands are reversed to match the order of MultiPush/Pop.
+    Push(zero_reg, zero_reg, t2, t1);
+  }
+
+  // Link the current handler as the next handler.
+  li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  lw(t1, MemOperand(t2));
+  push(t1);
+  // Set this new handler as the current one.
+  sw(sp, MemOperand(t2));
 }
 
 
@@ -2610,19 +2600,36 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
-void MacroAssembler::Throw(Register value) {
-  // v0 is expected to hold the exception.
-  Move(v0, value);
+void MacroAssembler::JumpToHandlerEntry() {
+  // Compute the handler entry address and jump to it.  The handler table is
+  // a fixed array of (smi-tagged) code offsets.
+  // v0 = exception, a1 = code object, a2 = state.
+  lw(a3, FieldMemOperand(a1, Code::kHandlerTableOffset));  // Handler table.
+  Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  srl(a2, a2, StackHandler::kKindWidth);  // Handler index.
+  sll(a2, a2, kPointerSizeLog2);
+  Addu(a2, a3, a2);
+  lw(a2, MemOperand(a2));  // Smi-tagged offset.
+  Addu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
+  sra(t9, a2, kSmiTagSize);
+  Addu(t9, t9, a1);
+  Jump(t9);  // Jump.
+}
 
+
+void MacroAssembler::Throw(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
-  // Drop the sp to the top of the handler.
+  // The exception is expected in v0.
+  Move(v0, value);
+
+  // Drop the stack pointer to the top of the top handler.
   li(a3, Operand(ExternalReference(Isolate::kHandlerAddress,
                                    isolate())));
   lw(sp, MemOperand(a3));
@@ -2631,44 +2638,19 @@ void MacroAssembler::Throw(Register value) {
   pop(a2);
   sw(a2, MemOperand(a3));
 
-  // Restore context and frame pointer, discard state (a3).
-  MultiPop(a3.bit() | cp.bit() | fp.bit());
+  // Get the code object (a1) and state (a2).  Restore the context and frame
+  // pointer.
+  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
 
   // If the handler is a JS frame, restore the context to the frame.
-  // (a3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
-  // of them.
+  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
+  // or cp.
   Label done;
-  Branch(&done, eq, fp, Operand(zero_reg));
+  Branch(&done, eq, cp, Operand(zero_reg));
   sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   bind(&done);
 
-#ifdef DEBUG
-  // When emitting debug_code, set ra as return address for the jump.
-  // 5 instructions: add: 1, pop: 2, jump: 2.
-  const int kOffsetRaInstructions = 5;
-  Label find_ra;
-
-  if (emit_debug_code()) {
-    // Compute ra for the Jump(t9).
-    const int kOffsetRaBytes = kOffsetRaInstructions * Assembler::kInstrSize;
-
-    // This branch-and-link sequence is needed to get the current PC on mips,
-    // saved to the ra register. Then adjusted for instruction count.
-    bal(&find_ra);  // bal exposes branch-delay.
-    nop();  // Branch delay slot nop.
-    bind(&find_ra);
-    addiu(ra, ra, kOffsetRaBytes);
-  }
-#endif
-
-  pop(t9);  // 2 instructions: lw, add sp.
-  Jump(t9);  // 2 instructions: jr, nop (in delay slot).
-
-  if (emit_debug_code()) {
-    // Make sure that the expected number of instructions were generated.
-    ASSERT_EQ(kOffsetRaInstructions,
-              InstructionsGeneratedSince(&find_ra));
-  }
+  JumpToHandlerEntry();
 }
 
 
@@ -2677,10 +2659,10 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // The exception is expected in v0.
   if (type == OUT_OF_MEMORY) {
@@ -2705,26 +2687,27 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   lw(sp, MemOperand(a3));
 
-  // Unwind the handlers until the top ENTRY handler is found.
+  // Unwind the handlers until the ENTRY handler is found.
   Label fetch_next, check_kind;
   jmp(&check_kind);
   bind(&fetch_next);
   lw(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
+  STATIC_ASSERT(StackHandler::ENTRY == 0);
   lw(a2, MemOperand(sp, StackHandlerConstants::kStateOffset));
-  Branch(&fetch_next, ne, a2, Operand(StackHandler::ENTRY));
+  And(a2, a2, Operand(StackHandler::KindField::kMask));
+  Branch(&fetch_next, ne, a2, Operand(zero_reg));
 
   // Set the top handler address to next handler past the top ENTRY handler.
   pop(a2);
   sw(a2, MemOperand(a3));
 
-  // Clear the context and frame pointer (0 was saved in the handler), and
-  // discard the state (a2).
-  MultiPop(a2.bit() | cp.bit() | fp.bit());
+  // Get the code object (a1) and state (a2).  Clear the context and frame
+  // pointer (0 was saved in the handler).
+  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
 
-  pop(t9);  // 2 instructions: lw, add sp.
-  Jump(t9);  // 2 instructions: jr, nop (in delay slot).
+  JumpToHandlerEntry();
 }
 
 
