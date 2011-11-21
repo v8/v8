@@ -4163,11 +4163,14 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
 void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
+  Handle<FixedArray> constant_properties =
+      instr->hydrogen()->constant_properties();
+
   // Setup the parameters to the stub/runtime call.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ push(Immediate(instr->hydrogen()->constant_properties()));
+  __ push(Immediate(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
       ? ObjectLiteral::kFastElements
       : ObjectLiteral::kNoFlags;
@@ -4176,11 +4179,16 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
       : ObjectLiteral::kNoFlags;
   __ push(Immediate(Smi::FromInt(flags)));
 
-  // Pick the right runtime function to call.
+  // Pick the right runtime function or stub to call.
+  int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
-  } else {
+  } else if (flags != ObjectLiteral::kFastElements ||
+      properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
+  } else {
+    FastCloneShallowObjectStub stub(properties_count);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
 }
 

@@ -58,6 +58,7 @@ namespace internal {
   V(FastNewContext)                      \
   V(FastNewBlockContext)                 \
   V(FastCloneShallowArray)               \
+  V(FastCloneShallowObject)              \
   V(ToBoolean)                           \
   V(ToNumber)                            \
   V(ArgumentsAccess)                     \
@@ -362,8 +363,8 @@ class FastCloneShallowArrayStub : public CodeStub {
   FastCloneShallowArrayStub(Mode mode, int length)
       : mode_(mode),
         length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
-    ASSERT(length_ >= 0);
-    ASSERT(length_ <= kMaximumClonedLength);
+    ASSERT_GE(length_, 0);
+    ASSERT_LE(length_, kMaximumClonedLength);
   }
 
   void Generate(MacroAssembler* masm);
@@ -377,6 +378,26 @@ class FastCloneShallowArrayStub : public CodeStub {
     ASSERT(mode_ == 0 || mode_ == 1 || mode_ == 2 || mode_ == 3);
     return length_ * 4 +  mode_;
   }
+};
+
+
+class FastCloneShallowObjectStub : public CodeStub {
+ public:
+  // Maximum number of properties in copied object.
+  static const int kMaximumClonedProperties = 6;
+
+  FastCloneShallowObjectStub(int length) : length_(length) {
+    ASSERT_GE(length_, 0);
+    ASSERT_LE(length_, kMaximumClonedProperties);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int length_;
+
+  Major MajorKey() { return FastCloneShallowObject; }
+  int MinorKey() { return length_; }
 };
 
 
