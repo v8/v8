@@ -5678,34 +5678,34 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
         AddInstruction(HCheckInstanceType::NewIsString(right));
         instr = new(zone()) HStringAdd(context, left, right);
       } else {
-        instr = new(zone()) HAdd(context, left, right);
+        instr = HAdd::NewHAdd(zone(), context, left, right);
       }
       break;
     case Token::SUB:
-      instr = new(zone()) HSub(context, left, right);
+      instr = HSub::NewHSub(zone(), context, left, right);
       break;
     case Token::MUL:
-      instr = new(zone()) HMul(context, left, right);
+      instr = HMul::NewHMul(zone(), context, left, right);
       break;
     case Token::MOD:
-      instr = new(zone()) HMod(context, left, right);
+      instr = HMod::NewHMod(zone(), context, left, right);
       break;
     case Token::DIV:
-      instr = new(zone()) HDiv(context, left, right);
+      instr = HDiv::NewHDiv(zone(), context, left, right);
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
     case Token::BIT_OR:
-      instr = new(zone()) HBitwise(expr->op(), context, left, right);
+      instr = HBitwise::NewHBitwise(zone(), expr->op(), context, left, right);
       break;
     case Token::SAR:
-      instr = new(zone()) HSar(context, left, right);
+      instr = HSar::NewHSar(zone(), context, left, right);
       break;
     case Token::SHR:
-      instr = new(zone()) HShr(context, left, right);
+      instr = HShr::NewHShr(zone(), context, left, right);
       break;
     case Token::SHL:
-      instr = new(zone()) HShl(context, left, right);
+      instr = HShl::NewHShl(zone(), context, left, right);
       break;
     default:
       UNREACHABLE();

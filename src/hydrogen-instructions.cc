@@ -1894,6 +1894,167 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+#define H_CONSTANT_INT32(val)                                                  \
+new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
+                    Representation::Integer32())
+#define H_CONSTANT_DOUBLE(val)                                                 \
+new(zone) HConstant(FACTORY->NewNumber(val, TENURED),                          \
+                    Representation::Double())
+
+#define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
+HInstruction* HInstr::New##HInstr(Zone* zone,                                  \
+                                  HValue* context,                             \
+                                  HValue* left,                                \
+                                  HValue* right) {                             \
+  if (left->IsConstant() && right->IsConstant()) {                             \
+    HConstant* c_left = HConstant::cast(left);                                 \
+    HConstant* c_right = HConstant::cast(right);                               \
+    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
+      double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
+      if (TypeInfo::IsInt32Double(double_res)) {                               \
+        return H_CONSTANT_INT32(static_cast<int32_t>(double_res));             \
+      }                                                                        \
+      return H_CONSTANT_DOUBLE(double_res);                                    \
+    }                                                                          \
+  }                                                                            \
+  return new(zone) HInstr(context, left, right);                               \
+}
+
+
+DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HAdd, +)
+DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HMul, *)
+DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
+
+#undef DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR
+
+
+HInstruction* HMod::NewHMod(Zone* zone,
+                            HValue* context,
+                            HValue* left,
+                            HValue* right) {
+  if (left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if (c_left->HasInteger32Value() && c_right->HasInteger32Value()) {
+      int32_t dividend = c_left->Integer32Value();
+      int32_t divisor = c_right->Integer32Value();
+      if (divisor != 0) {
+        int32_t res = dividend % divisor;
+        if ((res == 0) && (dividend < 0)) {
+          return H_CONSTANT_DOUBLE(-0.0);
+        }
+        return H_CONSTANT_INT32(res);
+      }
+    }
+  }
+  return new(zone) HMod(context, left, right);
+}
+
+
+HInstruction* HDiv::NewHDiv(Zone* zone,
+                            HValue* context,
+                            HValue* left,
+                            HValue* right) {
+  // If left and right are constant values, try to return a constant value.
+  if (left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
+      if (c_right->DoubleValue() != 0) {
+        double double_res = c_left->DoubleValue() / c_right->DoubleValue();
+        if (TypeInfo::IsInt32Double(double_res)) {
+          return H_CONSTANT_INT32(static_cast<int32_t>(double_res));
+        }
+        return H_CONSTANT_DOUBLE(double_res);
+      }
+    }
+  }
+  return new(zone) HDiv(context, left, right);
+}
+
+
+HInstruction* HBitwise::NewHBitwise(Zone* zone,
+                                    Token::Value op,
+                                    HValue* context,
+                                    HValue* left,
+                                    HValue* right) {
+  if (left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
+      int32_t result;
+      int32_t v_left = c_left->NumberValueAsInteger32();
+      int32_t v_right = c_right->NumberValueAsInteger32();
+      switch (op) {
+        case Token::BIT_XOR:
+          result = v_left ^ v_right;
+          break;
+        case Token::BIT_AND:
+          result = v_left & v_right;
+          break;
+        case Token::BIT_OR:
+          result = v_left | v_right;
+          break;
+        default:
+          result = 0;  // Please the compiler.
+          UNREACHABLE();
+      }
+      return H_CONSTANT_INT32(result);
+    }
+  }
+  return new(zone) HBitwise(op, context, left, right);
+}
+
+
+#define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                             \
+HInstruction* HInstr::New##HInstr(Zone* zone,                                  \
+                                  HValue* context,                             \
+                                  HValue* left,                                \
+                                  HValue* right) {                             \
+  if (left->IsConstant() && right->IsConstant()) {                             \
+    HConstant* c_left = HConstant::cast(left);                                 \
+    HConstant* c_right = HConstant::cast(right);                               \
+    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
+      return H_CONSTANT_INT32(result);                                         \
+    }                                                                          \
+  }                                                                            \
+  return new(zone) HInstr(context, left, right);                               \
+}
+
+
+DEFINE_NEW_H_BITWISE_INSTR(HSar,
+c_left->NumberValueAsInteger32() >> (c_right->NumberValueAsInteger32() & 0x1f))
+DEFINE_NEW_H_BITWISE_INSTR(HShl,
+c_left->NumberValueAsInteger32() << (c_right->NumberValueAsInteger32() & 0x1f))
+
+#undef DEFINE_NEW_H_BITWISE_INSTR
+
+
+HInstruction* HShr::NewHShr(Zone* zone,
+                            HValue* context,
+                            HValue* left,
+                            HValue* right) {
+  if (left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
+      int32_t left_val = c_left->NumberValueAsInteger32();
+      int32_t right_val = c_right->NumberValueAsInteger32() & 0x1f;
+      if ((right_val == 0) && (left_val < 0)) {
+        return H_CONSTANT_DOUBLE(
+            static_cast<double>(static_cast<uint32_t>(left_val)));
+      }
+      return H_CONSTANT_INT32(static_cast<uint32_t>(left_val) >> right_val);
+    }
+  }
+  return new(zone) HShr(context, left, right);
+}
+
+
+#undef H_CONSTANT_INT32
+#undef H_CONSTANT_DOUBLE
+
+
 void HIn::PrintDataTo(StringStream* stream) {
   key()->PrintNameTo(stream);
   stream->Add(" ");

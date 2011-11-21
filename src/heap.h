@@ -837,13 +837,15 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* NumberFromInt32(int32_t value);
+  MUST_USE_RESULT inline MaybeObject* NumberFromInt32(
+      int32_t value, PretenureFlag pretenure = NOT_TENURED);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* NumberFromUint32(uint32_t value);
+  MUST_USE_RESULT inline MaybeObject* NumberFromUint32(
+      uint32_t value, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new foreign object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

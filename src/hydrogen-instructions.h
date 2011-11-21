@@ -2328,6 +2328,12 @@ class HConstant: public HTemplateInstruction<0> {
     ASSERT(HasDoubleValue());
     return double_value_;
   }
+  bool HasNumberValue() const { return has_int32_value_ || has_double_value_; }
+  int32_t NumberValueAsInteger32() const {
+    ASSERT(HasNumberValue());
+    if (has_int32_value_) return int32_value_;
+    return DoubleToInt32(double_value_);
+  }
   bool HasStringValue() const { return handle_->IsString(); }
 
   bool ToBoolean() const;
@@ -2993,6 +2999,11 @@ class HAdd: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  static HInstruction* NewHAdd(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
+
   virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(Add)
@@ -3012,6 +3023,11 @@ class HSub: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  static HInstruction* NewHSub(Zone* zone,
+                              HValue* context,
+                              HValue* left,
+                              HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Sub)
 
@@ -3035,6 +3051,11 @@ class HMul: public HArithmeticBinaryOperation {
   virtual bool IsCommutative() const {
     return !representation().IsTagged();
   }
+
+  static HInstruction* NewHMul(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Mul)
 
@@ -3064,6 +3085,11 @@ class HMod: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
+  static HInstruction* NewHMod(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
+
   DECLARE_CONCRETE_INSTRUCTION(Mod)
 
  protected:
@@ -3082,6 +3108,12 @@ class HDiv: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+
+  static HInstruction* NewHDiv(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Div)
 
@@ -3105,6 +3137,12 @@ class HBitwise: public HBitwiseBinaryOperation {
 
   virtual bool IsCommutative() const { return true; }
 
+  static HInstruction* NewHBitwise(Zone* zone,
+                                   Token::Value op,
+                                   HValue* context,
+                                   HValue* left,
+                                   HValue* right);
+
   DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
  protected:
@@ -3126,6 +3164,11 @@ class HShl: public HBitwiseBinaryOperation {
 
   virtual Range* InferRange();
 
+  static HInstruction* NewHShl(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
+
   DECLARE_CONCRETE_INSTRUCTION(Shl)
 
  protected:
@@ -3140,6 +3183,11 @@ class HShr: public HBitwiseBinaryOperation {
 
   virtual Range* InferRange();
 
+  static HInstruction* NewHShr(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
+
   DECLARE_CONCRETE_INSTRUCTION(Shr)
 
  protected:
@@ -3153,6 +3201,11 @@ class HSar: public HBitwiseBinaryOperation {
       : HBitwiseBinaryOperation(context, left, right) { }
 
   virtual Range* InferRange();
+
+  static HInstruction* NewHSar(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Sar)
 
