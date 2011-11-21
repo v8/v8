@@ -1,6 +1,13 @@
+2011-11-21: Version 3.7.9
+
+        Removed exit-time destructors.
+
+        Stability and performance improvements on all platforms.
+
+
 2011-11-17: Version 3.7.8
 
-        Removed hidden prototype from builtins, i.e., deleting an overridden 
+        Removed hidden prototype from builtins, i.e., deleting an overridden
         function on builtins will not make the original function reappear.
 
         Added NetBSD support for scons build.
