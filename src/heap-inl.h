@@ -229,19 +229,21 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
 }
 
 
-MaybeObject* Heap::NumberFromInt32(int32_t value) {
+MaybeObject* Heap::NumberFromInt32(
+    int32_t value, PretenureFlag pretenure) {
   if (Smi::IsValid(value)) return Smi::FromInt(value);
   // Bypass NumberFromDouble to avoid various redundant checks.
-  return AllocateHeapNumber(FastI2D(value));
+  return AllocateHeapNumber(FastI2D(value), pretenure);
 }
 
 
-MaybeObject* Heap::NumberFromUint32(uint32_t value) {
+MaybeObject* Heap::NumberFromUint32(
+    uint32_t value, PretenureFlag pretenure) {
   if ((int32_t)value >= 0 && Smi::IsValid((int32_t)value)) {
     return Smi::FromInt((int32_t)value);
   }
   // Bypass NumberFromDouble to avoid various redundant checks.
-  return AllocateHeapNumber(FastUI2D(value));
+  return AllocateHeapNumber(FastUI2D(value), pretenure);
 }
 
 
@@ -252,6 +254,9 @@ void Heap::FinalizeExternalString(String* string) {
           reinterpret_cast<byte*>(string) +
           ExternalString::kResourceOffset -
           kHeapObjectTag);
+
+  // Clear pointer cache.
+  ExternalString::cast(string)->clear_data_cache();
 
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != NULL) {

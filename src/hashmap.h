@@ -46,14 +46,14 @@ class Allocator BASE_EMBEDDED {
 
 class HashMap {
  public:
-  static Allocator DefaultAllocator;
+  static Allocator* DefaultAllocator;
 
   typedef bool (*MatchFun) (void* key1, void* key2);
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
   explicit HashMap(MatchFun match,
-                   Allocator* allocator = &DefaultAllocator,
+                   Allocator* allocator = DefaultAllocator,
                    uint32_t initial_capacity = 8);
 
   ~HashMap();

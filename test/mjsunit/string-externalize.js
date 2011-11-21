@@ -39,12 +39,12 @@ function test() {
   assertTrue(isAsciiString(str));
 
   var twoByteExternalWithAsciiData =
-      "AA" + (function() { return "A"; })();
+      "AAAAAAAA" + (function() { return "A"; })();
   externalizeString(twoByteExternalWithAsciiData, true /* force two-byte */);
   assertFalse(isAsciiString(twoByteExternalWithAsciiData));
 
   var realTwoByteExternalString =
-      "\u1234\u1234" + (function() { return "\u1234"; })();
+      "\u1234\u1234\u1234\u1234" + (function() { return "\u1234"; })();
   externalizeString(realTwoByteExternalString);
   assertFalse(isAsciiString(realTwoByteExternalString));
 
@@ -87,6 +87,30 @@ function test() {
 
   // Flattened string should still be two-byte.
   assertFalse(isAsciiString(str2));
+
+  // Test buffered external strings.
+  var charat_str = new Array(5);
+  charat_str[0] = "0123456789ABCDEF0123456789ABCDEF\
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+  charat_str[1] = "0123456789ABCDEF";
+  for (var i = 0; i < 6; i++) charat_str[1] += charat_str[1];
+  try {  // String can only be externalized once
+    externalizeString(charat_str[0], false);
+    externalizeString(charat_str[1], true);
+  } catch (ex) { }
+  charat_str[2] = charat_str[0].slice(0, -1);
+  charat_str[3] = charat_str[1].slice(0, -1);
+  charat_str[4] = charat_str[0] + charat_str[0];
+
+  for (var i = 0; i < 5; i++) {
+    assertEquals('B', charat_str[i].charAt(6*16 + 11));
+    assertEquals('C', charat_str[i].charAt(6*16 + 12));
+    assertEquals('A', charat_str[i].charAt(3*16 + 10));
+    assertEquals('B', charat_str[i].charAt(3*16 + 11));
+  }
 }
 
 // Run the test many times to ensure IC-s don't break things.

@@ -2847,14 +2847,14 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
       // Copy first part.
       const char* src;
       if (first->IsExternalString()) {
-        src = ExternalAsciiString::cast(first)->resource()->data();
+        src = ExternalAsciiString::cast(first)->GetChars();
       } else {
         src = SeqAsciiString::cast(first)->GetChars();
       }
       for (int i = 0; i < first_length; i++) *dest++ = src[i];
       // Copy second part.
       if (second->IsExternalString()) {
-        src = ExternalAsciiString::cast(second)->resource()->data();
+        src = ExternalAsciiString::cast(second)->GetChars();
       } else {
         src = SeqAsciiString::cast(second)->GetChars();
       }

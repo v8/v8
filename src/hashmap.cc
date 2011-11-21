@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-Allocator HashMap::DefaultAllocator;
+Allocator* HashMap::DefaultAllocator = ::new Allocator();
 
 
 HashMap::HashMap(MatchFun match,

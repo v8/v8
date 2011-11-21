@@ -6026,15 +6026,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // a3: from index (untagged smi)
     // t2 (a.k.a. to): to (smi)
     // t3 (a.k.a. from): from offset (smi)
-    Label allocate_slice, sliced_string, seq_string;
-    STATIC_ASSERT(kSeqStringTag == 0);
-    __ And(t4, a1, Operand(kStringRepresentationMask));
-    __ Branch(&seq_string, eq, t4, Operand(zero_reg));
+    Label allocate_slice, sliced_string, seq_or_external_string;
+    // If the string is not indirect, it can only be sequential or external.
     STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
     STATIC_ASSERT(kIsIndirectStringMask != 0);
     __ And(t4, a1, Operand(kIsIndirectStringMask));
     // External string.  Jump to runtime.
-    __ Branch(&sub_string_runtime, eq, t4, Operand(zero_reg));
+    __ Branch(&seq_or_external_string, eq, t4, Operand(zero_reg));
 
     __ And(t4, a1, Operand(kSlicedNotConsMask));
     __ Branch(&sliced_string, ne, t4, Operand(zero_reg));
@@ -6052,8 +6050,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ lw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
     __ jmp(&allocate_slice);
 
-    __ bind(&seq_string);
-    // Sequential string.  Just move string to the right register.
+    __ bind(&seq_or_external_string);
+    // Sequential or external string.  Just move string to the correct register.
     __ mov(t1, v0);
 
     __ bind(&allocate_slice);
@@ -7162,6 +7160,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { t2, a2, a0, EMIT_REMEMBERED_SET },
   { a2, t2, t5, EMIT_REMEMBERED_SET },
+  // StoreArrayLiteralElementStub::Generate
+  { t1, a0, t2, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -7398,6 +7398,66 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   __ bind(&need_incremental);
 
   // Fall through when we need to inform the incremental marker.
+}
+
+
+void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0    : element value to store
+  //  -- a1    : array literal
+  //  -- a2    : map of array literal
+  //  -- a3    : element index as smi
+  //  -- t0    : array literal index in function as smi
+  // -----------------------------------
+
+  Label element_done;
+  Label double_elements;
+  Label smi_element;
+  Label slow_elements;
+  Label fast_elements;
+
+  __ CheckFastElements(a2, t1, &double_elements);
+  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  __ JumpIfSmi(a0, &smi_element);
+  __ CheckFastSmiOnlyElements(a2, t1, &fast_elements);
+
+  // Store into the array literal requires a elements transition. Call into
+  // the runtime.
+  __ bind(&slow_elements);
+  // call.
+  __ Push(a1, a3, a0);
+  __ lw(t1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ lw(t1, FieldMemOperand(t1, JSFunction::kLiteralsOffset));
+  __ Push(t1, t0);
+  __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
+
+  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  __ bind(&fast_elements);
+  __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
+  __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(t2, t1, t2);
+  __ Addu(t2, t2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sw(a0, MemOperand(t2, 0));
+  // Update the write barrier for the array store.
+  __ RecordWrite(t1, t2, a0, kRAHasNotBeenSaved, kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Ret();
+
+  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
+  // FAST_ELEMENTS, and value is Smi.
+  __ bind(&smi_element);
+  __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
+  __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(t2, t1, t2);
+  __ sw(a0, FieldMemOperand(t2, FixedArray::kHeaderSize));
+  __ Ret();
+
+  // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+  __ bind(&double_elements);
+  __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
+  __ StoreNumberToDoubleElements(a0, a3, a1, t1, t2, t3, t5, t6,
+                                 &slow_elements);
+  __ Ret();
 }
 
 

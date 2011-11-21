@@ -58,6 +58,7 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
+        last_lazy_deopt_pc_(0),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
@@ -101,10 +102,6 @@ class LCodeGen BASE_EMBEDDED {
   // information on it.
   void FinishCode(Handle<Code> code);
 
-  // Deferred code support.
-  template<int T>
-  void DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
-                              Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
@@ -112,8 +109,8 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStackCheck(LStackCheck* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
-  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                        Label* map_check);
+  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                       Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -216,10 +213,11 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr,
-                                  SafepointMode safepoint_mode);
+  void RecordSafepointWithLazyDeopt(LInstruction* instr,
+                                    SafepointMode safepoint_mode);
 
-  void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
+  void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
+                                            Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition cc,
                     LEnvironment* environment,
                     Register src1,
@@ -251,19 +249,16 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
-                       int deoptimization_index);
-  void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
-  void RecordSafepoint(int deoptimization_index);
+                       Safepoint::DeoptMode mode);
+  void RecordSafepoint(LPointerMap* pointers, Safepoint::DeoptMode mode);
+  void RecordSafepoint(Safepoint::DeoptMode mode);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
-                                    int deoptimization_index);
+                                    Safepoint::DeoptMode mode);
   void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
                                               int arguments,
-                                              int deoptimization_index);
+                                              Safepoint::DeoptMode mode);
   void RecordPosition(int position);
-  int LastSafepointEnd() {
-    return static_cast<int>(safepoints_.GetPcAfterGap());
-  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -300,6 +295,7 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
                          Register temp1,
+                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 
@@ -320,6 +316,8 @@ class LCodeGen BASE_EMBEDDED {
     Address address;
   };
 
+  void EnsureSpaceForLazyDeopt();
+
   LChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
@@ -336,6 +334,7 @@ class LCodeGen BASE_EMBEDDED {
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;
+  int last_lazy_deopt_pc_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.

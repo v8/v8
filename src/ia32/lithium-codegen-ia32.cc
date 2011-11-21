@@ -33,6 +33,7 @@
 #include "code-stubs.h"
 #include "deoptimizer.h"
 #include "stub-cache.h"
+#include "codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -1683,6 +1684,31 @@ void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
 }
 
 
+Condition LCodeGen::EmitIsString(Register input,
+                                 Register temp1,
+                                 Label* is_not_string) {
+  __ JumpIfSmi(input, is_not_string);
+
+  Condition cond = masm_->IsObjectStringType(input, temp1, temp1);
+
+  return cond;
+}
+
+
+void LCodeGen::DoIsStringAndBranch(LIsStringAndBranch* instr) {
+  Register reg = ToRegister(instr->InputAt(0));
+  Register temp = ToRegister(instr->TempAt(0));
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  Label* false_label = chunk_->GetAssemblyLabel(false_block);
+
+  Condition true_cond = EmitIsString(reg, temp, false_label);
+
+  EmitBranch(true_block, false_block, true_cond);
+}
+
+
 void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Operand input = ToOperand(instr->InputAt(0));
 
@@ -1707,6 +1733,41 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
   __ test_b(FieldOperand(temp, Map::kBitFieldOffset),
             1 << Map::kIsUndetectable);
   EmitBranch(true_block, false_block, not_zero);
+}
+
+
+static Condition ComputeCompareCondition(Token::Value op) {
+  switch (op) {
+    case Token::EQ_STRICT:
+    case Token::EQ:
+      return equal;
+    case Token::LT:
+      return less;
+    case Token::GT:
+      return greater;
+    case Token::LTE:
+      return less_equal;
+    case Token::GTE:
+      return greater_equal;
+    default:
+      UNREACHABLE();
+      return no_condition;
+  }
+}
+
+
+void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
+  Token::Value op = instr->op();
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  Handle<Code> ic = CompareIC::GetUninitialized(op);
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+
+  Condition condition = ComputeCompareCondition(op);
+  __ test(eax, Operand(eax));
+
+  EmitBranch(true_block, false_block, condition);
 }
 
 
@@ -1984,26 +2045,6 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 
   // Put the result value into the eax slot and restore all registers.
   __ StoreToSafepointRegisterSlot(eax, eax);
-}
-
-
-static Condition ComputeCompareCondition(Token::Value op) {
-  switch (op) {
-    case Token::EQ_STRICT:
-    case Token::EQ:
-      return equal;
-    case Token::LT:
-      return less;
-    case Token::GT:
-      return greater;
-    case Token::LTE:
-      return less_equal;
-    case Token::GTE:
-      return greater_equal;
-    default:
-      UNREACHABLE();
-      return no_condition;
-  }
 }
 
 
@@ -3371,85 +3412,15 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     LStringCharCodeAt* instr_;
   };
 
-  Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register result = ToRegister(instr->result());
-
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(this, instr);
 
-  // Fetch the instance type of the receiver into result register.
-  __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
-
-  // We need special handling for indirect strings.
-  Label check_sequential;
-  __ test(result, Immediate(kIsIndirectStringMask));
-  __ j(zero, &check_sequential, Label::kNear);
-
-  // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ test(result, Immediate(kSlicedNotConsMask));
-  __ j(zero, &cons_string, Label::kNear);
-
-  // Handle slices.
-  Label indirect_string_loaded;
-  __ mov(result, FieldOperand(string, SlicedString::kOffsetOffset));
-  __ SmiUntag(result);
-  __ add(index, Operand(result));
-  __ mov(string, FieldOperand(string, SlicedString::kParentOffset));
-  __ jmp(&indirect_string_loaded, Label::kNear);
-
-  // Handle conses.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  __ bind(&cons_string);
-  __ cmp(FieldOperand(string, ConsString::kSecondOffset),
-         Immediate(factory()->empty_string()));
-  __ j(not_equal, deferred->entry());
-  __ mov(string, FieldOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
-
-  // Check whether the string is sequential. The only non-sequential
-  // shapes we support have just been unwrapped above.
-  // Note that if the original string is a cons or slice with an external
-  // string as underlying string, we pass that unpacked underlying string with
-  // the adjusted index to the runtime function.
-  __ bind(&check_sequential);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ test(result, Immediate(kStringRepresentationMask));
-  __ j(not_zero, deferred->entry());
-
-  // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii_string;
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ test(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string, Label::kNear);
-
-  // Two-byte string.
-  // Load the two-byte character code into the result register.
-  Label done;
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  __ movzx_w(result, FieldOperand(string,
-                                  index,
-                                  times_2,
-                                  SeqTwoByteString::kHeaderSize));
-  __ jmp(&done, Label::kNear);
-
-  // ASCII string.
-  // Load the byte into the result register.
-  __ bind(&ascii_string);
-  __ movzx_b(result, FieldOperand(string,
-                                  index,
-                                  times_1,
-                                  SeqAsciiString::kHeaderSize));
-  __ bind(&done);
+  StringCharLoadGenerator::Generate(masm(),
+                                    factory(),
+                                    ToRegister(instr->string()),
+                                    ToRegister(instr->index()),
+                                    ToRegister(instr->result()),
+                                    deferred->entry());
   __ bind(deferred->exit());
 }
 

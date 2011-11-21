@@ -6758,7 +6758,12 @@ class ExternalString: public String {
 
   // Layout description.
   static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
-  static const int kSize = kResourceOffset + kPointerSize;
+  static const int kResourceDataOffset = kResourceOffset + kPointerSize;
+  static const int kSize = kResourceDataOffset + kPointerSize;
+
+  // Clear the cached pointer to the character array provided by the resource.
+  // This cache is updated the first time the character array is accessed.
+  inline void clear_data_cache();
 
   STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
 
@@ -6779,8 +6784,10 @@ class ExternalAsciiString: public ExternalString {
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
 
+  inline const char* GetChars();
+
   // Dispatched behavior.
-  uint16_t ExternalAsciiStringGet(int index);
+  inline uint16_t ExternalAsciiStringGet(int index);
 
   // Casting.
   static inline ExternalAsciiString* cast(Object* obj);
@@ -6816,11 +6823,13 @@ class ExternalTwoByteString: public ExternalString {
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
 
+  inline const uint16_t* GetChars();
+
   // Dispatched behavior.
-  uint16_t ExternalTwoByteStringGet(int index);
+  inline uint16_t ExternalTwoByteStringGet(int index);
 
   // For regexp code.
-  const uint16_t* ExternalTwoByteStringGetData(unsigned start);
+  inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
 
   // Casting.
   static inline ExternalTwoByteString* cast(Object* obj);

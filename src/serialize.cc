@@ -1564,6 +1564,7 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
         sink_->Put(kNativesStringResource, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");
         bytes_processed_so_far_ += sizeof(resource);
+        string->clear_data_cache();
         return;
       }
     }

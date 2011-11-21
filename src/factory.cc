@@ -546,17 +546,19 @@ Handle<Object> Factory::NewNumber(double value,
 }
 
 
-Handle<Object> Factory::NewNumberFromInt(int value) {
+Handle<Object> Factory::NewNumberFromInt(int32_t value,
+                                         PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->NumberFromInt32(value), Object);
+      isolate()->heap()->NumberFromInt32(value, pretenure), Object);
 }
 
 
-Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
+Handle<Object> Factory::NewNumberFromUint(uint32_t value,
+                                         PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->NumberFromUint32(value), Object);
+      isolate()->heap()->NumberFromUint32(value, pretenure), Object);
 }
 
 

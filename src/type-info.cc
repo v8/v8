@@ -360,6 +360,10 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
       return unknown;
     case CompareIC::SMIS:
       return TypeInfo::Smi();
+    case CompareIC::STRINGS:
+      return TypeInfo::String();
+    case CompareIC::SYMBOLS:
+      return TypeInfo::Symbol();
     case CompareIC::HEAP_NUMBERS:
       return TypeInfo::Number();
     case CompareIC::OBJECTS:
@@ -415,7 +419,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
   } else if (object->IsMap()) {
     types->Add(Handle<Map>::cast(object));
-  } else if (Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
+  } else if (FLAG_collect_megamorphic_maps_from_stub_cache &&
+      Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     types->Reserve(4);
     ASSERT(object->IsCode());
     isolate_->stub_cache()->CollectMatchingMaps(types, *name, flags);

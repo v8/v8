@@ -801,41 +801,44 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
 
 
 void ElementsAccessor::InitializeOncePerProcess() {
+  // First argument in list is the accessor class, the second argument is can
+  // be any arbitrary unique identifier, in this case chosen to be the
+  // corresponding enum.  Use the fast element handler for smi-only arrays.
+  // The implementation is currently identical.  Note that the order must match
+  // that of the ElementsKind enum for the |accessor_array[]| below to work.
+#define ELEMENTS_LIST(V)                                                       \
+  V(FastObjectElementsAccessor, FAST_SMI_ONLY_ELEMENTS)                        \
+  V(FastObjectElementsAccessor, FAST_ELEMENTS)                                 \
+  V(FastDoubleElementsAccessor, FAST_DOUBLE_ELEMENTS)                          \
+  V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS)                           \
+  V(NonStrictArgumentsElementsAccessor, NON_STRICT_ARGUMENTS_ELEMENTS)         \
+  V(ExternalByteElementsAccessor, EXTERNAL_BYTE_ELEMENTS)                      \
+  V(ExternalUnsignedByteElementsAccessor, EXTERNAL_UNSIGNED_BYTE_ELEMENTS)     \
+  V(ExternalShortElementsAccessor, EXTERNAL_SHORT_ELEMENTS)                    \
+  V(ExternalUnsignedShortElementsAccessor, EXTERNAL_UNSIGNED_SHORT_ELEMENTS)   \
+  V(ExternalIntElementsAccessor, EXTERNAL_INT_ELEMENTS)                        \
+  V(ExternalUnsignedIntElementsAccessor, EXTERNAL_UNSIGNED_INT_ELEMENTS)       \
+  V(ExternalFloatElementsAccessor, EXTERNAL_FLOAT_ELEMENTS)                    \
+  V(ExternalDoubleElementsAccessor, EXTERNAL_DOUBLE_ELEMENTS)                  \
+  V(PixelElementsAccessor, EXTERNAL_PIXEL_ELEMENTS)
+
   static struct ConcreteElementsAccessors {
-    // Use the fast element handler for smi-only arrays. The implementation is
-    // currently identical.
-    FastObjectElementsAccessor fast_smi_elements_handler;
-    FastObjectElementsAccessor fast_elements_handler;
-    FastDoubleElementsAccessor fast_double_elements_handler;
-    DictionaryElementsAccessor dictionary_elements_handler;
-    NonStrictArgumentsElementsAccessor non_strict_arguments_elements_handler;
-    ExternalByteElementsAccessor byte_elements_handler;
-    ExternalUnsignedByteElementsAccessor unsigned_byte_elements_handler;
-    ExternalShortElementsAccessor short_elements_handler;
-    ExternalUnsignedShortElementsAccessor unsigned_short_elements_handler;
-    ExternalIntElementsAccessor int_elements_handler;
-    ExternalUnsignedIntElementsAccessor unsigned_int_elements_handler;
-    ExternalFloatElementsAccessor float_elements_handler;
-    ExternalDoubleElementsAccessor double_elements_handler;
-    PixelElementsAccessor pixel_elements_handler;
-  } element_accessors;
+#define ACCESSOR_STRUCT(Class, Name) Class* Name##_handler;
+    ELEMENTS_LIST(ACCESSOR_STRUCT)
+#undef ACCESSOR_STRUCT
+  } element_accessors = {
+#define ACCESSOR_INIT(Class, Name) new Class(),
+    ELEMENTS_LIST(ACCESSOR_INIT)
+#undef ACCESSOR_INIT
+  };
 
   static ElementsAccessor* accessor_array[] = {
-    &element_accessors.fast_smi_elements_handler,
-    &element_accessors.fast_elements_handler,
-    &element_accessors.fast_double_elements_handler,
-    &element_accessors.dictionary_elements_handler,
-    &element_accessors.non_strict_arguments_elements_handler,
-    &element_accessors.byte_elements_handler,
-    &element_accessors.unsigned_byte_elements_handler,
-    &element_accessors.short_elements_handler,
-    &element_accessors.unsigned_short_elements_handler,
-    &element_accessors.int_elements_handler,
-    &element_accessors.unsigned_int_elements_handler,
-    &element_accessors.float_elements_handler,
-    &element_accessors.double_elements_handler,
-    &element_accessors.pixel_elements_handler
+#define ACCESSOR_ARRAY(Class, Name) element_accessors.Name##_handler,
+    ELEMENTS_LIST(ACCESSOR_ARRAY)
+#undef ACCESSOR_ARRAY
   };
+
+#undef ELEMENTS_LIST
 
   STATIC_ASSERT((sizeof(accessor_array) / sizeof(*accessor_array)) ==
                 kElementsKindCount);

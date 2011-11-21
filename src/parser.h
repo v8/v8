@@ -681,8 +681,9 @@ class Parser {
   // Factory methods.
 
   Statement* EmptyStatement() {
-    static v8::internal::EmptyStatement empty;
-    return &empty;
+    static v8::internal::EmptyStatement* empty =
+        ::new v8::internal::EmptyStatement();
+    return empty;
   }
 
   Scope* NewScope(Scope* parent, ScopeType type);

@@ -1482,6 +1482,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT_EQ(2, constant_elements->length());
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+  bool has_constant_fast_elements = constant_elements_kind == FAST_ELEMENTS;
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
@@ -1489,12 +1490,16 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
   __ Push(Smi::FromInt(expr->literal_index()));
   __ Push(constant_elements);
-  if (constant_elements_values->map() ==
-      isolate()->heap()->fixed_cow_array_map()) {
-    FastCloneShallowArrayStub stub(
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
-    __ CallStub(&stub);
+  Heap* heap = isolate()->heap();
+  if (has_constant_fast_elements &&
+      constant_elements_values->map() == heap->fixed_cow_array_map()) {
+    // If the elements are already FAST_ELEMENTS, the boilerplate cannot
+    // change, so it's possible to specialize the stub in advance.
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(), 1);
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS,
+        length);
+    __ CallStub(&stub);
   } else if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -1503,10 +1508,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     ASSERT(constant_elements_kind == FAST_ELEMENTS ||
            constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    // If the elements are already FAST_ELEMENTS, the boilerplate cannot
+    // change, so it's possible to specialize the stub in advance.
+    FastCloneShallowArrayStub::Mode mode = has_constant_fast_elements
+        ? FastCloneShallowArrayStub::CLONE_ELEMENTS
+        : FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, length);
     __ CallStub(&stub);
   }

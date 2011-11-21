@@ -231,8 +231,10 @@ class Factory {
   Handle<Object> NewNumber(double value,
                            PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<Object> NewNumberFromInt(int value);
-  Handle<Object> NewNumberFromUint(uint32_t value);
+  Handle<Object> NewNumberFromInt(int32_t value,
+                                  PretenureFlag pretenure = NOT_TENURED);
+  Handle<Object> NewNumberFromUint(uint32_t value,
+                                  PretenureFlag pretenure = NOT_TENURED);
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
