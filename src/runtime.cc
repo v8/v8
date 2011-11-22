@@ -255,18 +255,6 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CloneLiteralBoilerplate) {
-  CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-  return DeepCopyBoilerplate(isolate, boilerplate);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CloneShallowLiteralBoilerplate) {
-  CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-  return isolate->heap()->CopyJSObject(boilerplate);
-}
-
-
 static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
@@ -542,28 +530,6 @@ static Handle<Object> CreateLiteralBoilerplate(
       UNREACHABLE();
       return Handle<Object>::null();
   }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralBoilerplate) {
-  // Takes a FixedArray of elements containing the literal elements of
-  // the array literal and produces JSArray with those elements.
-  // Additionally takes the literals array of the surrounding function
-  // which contains the context from which to get the Array function
-  // to use for creating the array literal.
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
-
-  Handle<Object> object =
-      CreateArrayLiteralBoilerplate(isolate, literals, elements);
-  if (object.is_null()) return Failure::Exception();
-
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *object);
-  return *object;
 }
 
 
