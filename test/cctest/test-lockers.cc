@@ -674,7 +674,11 @@ class IsolateGenesisThread : public JoinableThread {
 // Test installing extensions in separate isolates concurrently.
 // http://code.google.com/p/v8/issues/detail?id=1821
 TEST(ExtensionsRegistration) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 10;
+#else
   const int kNThreads = 40;
+#endif
   v8::RegisterExtension(new v8::Extension("test0",
                                           kSimpleExtensionSource));
   v8::RegisterExtension(new v8::Extension("test1",
