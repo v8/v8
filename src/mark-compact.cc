@@ -1012,7 +1012,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     MarkBit code_mark =
         Marking::MarkBitFrom(function->unchecked_code());
     if (code_mark.Get()) {
-      shared_info->set_code_age(0);
+      if (!Marking::MarkBitFrom(shared_info).Get()) {
+        shared_info->set_code_age(0);
+      }
       return false;
     }
 
@@ -1030,7 +1032,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     MarkBit code_mark =
         Marking::MarkBitFrom(shared_info->unchecked_code());
     if (code_mark.Get()) {
-      shared_info->set_code_age(0);
       return false;
     }
 

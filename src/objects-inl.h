@@ -3667,8 +3667,8 @@ int SharedFunctionInfo::code_age() {
 
 
 void SharedFunctionInfo::set_code_age(int code_age) {
-  set_compiler_hints(compiler_hints() |
-                     ((code_age & kCodeAgeMask) << kCodeAgeShift));
+  int hints = compiler_hints() & ~(kCodeAgeMask << kCodeAgeShift);
+  set_compiler_hints(hints | ((code_age & kCodeAgeMask) << kCodeAgeShift));
 }
 
 
