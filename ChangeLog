@@ -1,3 +1,12 @@
+2011-11-23: Version 3.7.10
+
+        Set maximum length of FixedArray in terms of elements instead an
+        absolute number of bytes.
+        (Chromium issue 103103)
+
+        Stability and performance improvements on all platforms.
+
+
 2011-11-21: Version 3.7.9
 
         Removed exit-time destructors.
