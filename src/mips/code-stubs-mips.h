@@ -137,7 +137,7 @@ class UnaryOpStub: public CodeStub {
     return UnaryOpIC::ToState(operand_type_);
   }
 
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_unary_op_type(operand_type_);
   }
 };
@@ -236,7 +236,7 @@ class BinaryOpStub: public CodeStub {
     return BinaryOpIC::ToState(operands_type_);
   }
 
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_binary_op_type(operands_type_);
     code->set_binary_op_result_type(result_type_);
   }
