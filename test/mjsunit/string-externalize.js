@@ -39,7 +39,7 @@ function test() {
   assertTrue(isAsciiString(str));
 
   var twoByteExternalWithAsciiData =
-      "AA" + (function() { return "A"; })();
+      "AAAAAAAA" + (function() { return "A"; })();
   externalizeString(twoByteExternalWithAsciiData, true /* force two-byte */);
   assertFalse(isAsciiString(twoByteExternalWithAsciiData));
 

@@ -4556,9 +4556,12 @@ bool v8::String::CanMakeExternal() {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::CanMakeExternal()")) return false;
-  if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
   int size = obj->Size();  // Byte size of the original string.
-  if (size < i::ExternalString::kShortSize) return false;
+  if (size < i::ExternalString::kSize)
+    return false;
   i::StringShape shape(*obj);
   return !shape.IsExternal();
 }

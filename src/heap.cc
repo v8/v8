@@ -3997,15 +3997,6 @@ Map* Heap::SymbolMapForString(String* string) {
   if (map == external_string_with_ascii_data_map()) {
     return external_symbol_with_ascii_data_map();
   }
-  if (map == short_external_string_map()) {
-    return short_external_symbol_map();
-  }
-  if (map == short_external_ascii_string_map()) {
-    return short_external_ascii_symbol_map();
-  }
-  if (map == short_external_string_with_ascii_data_map()) {
-    return short_external_symbol_with_ascii_data_map();
-  }
 
   // No match found.
   return NULL;

@@ -952,32 +952,33 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #endif  // DEBUG
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
+  if (size < ExternalString::kSize) {
     return false;
   }
+  ASSERT(size >= ExternalString::kSize);
   bool is_ascii = this->IsAsciiRepresentation();
   bool is_symbol = this->IsSymbol();
+  int length = this->length();
+  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
-  if (size >= ExternalString::kSize) {
-    this->set_map(
-        is_symbol
-            ? (is_ascii ?  heap->external_symbol_with_ascii_data_map()
-                        :  heap->external_symbol_map())
-            : (is_ascii ?  heap->external_string_with_ascii_data_map()
-                        :  heap->external_string_map()));
-  } else {
-    this->set_map(
-        is_symbol
-            ? (is_ascii ?  heap->short_external_symbol_with_ascii_data_map()
-                        :  heap->short_external_symbol_map())
-            : (is_ascii ?  heap->short_external_string_with_ascii_data_map()
-                        :  heap->short_external_string_map()));
-  }
+  this->set_map(is_ascii ?
+                heap->external_string_with_ascii_data_map() :
+                heap->external_string_map());
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
+  self->set_length(length);
+  self->set_hash_field(hash_field);
   self->set_resource(resource);
-  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
+  // Additionally make the object into an external symbol if the original string
+  // was a symbol to start with.
+  if (is_symbol) {
+    self->Hash();  // Force regeneration of the hash value.
+    // Now morph this external string into a external symbol.
+    this->set_map(is_ascii ?
+                  heap->external_symbol_with_ascii_data_map() :
+                  heap->external_symbol_map());
+  }
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1003,23 +1004,28 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 #endif  // DEBUG
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
+  if (size < ExternalString::kSize) {
     return false;
   }
+  ASSERT(size >= ExternalString::kSize);
   bool is_symbol = this->IsSymbol();
+  int length = this->length();
+  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
-  // reinitializing the fields.  Use short version if space is limited.
-  if (size >= ExternalString::kSize) {
-    this->set_map(is_symbol ? heap->external_ascii_symbol_map()
-                            : heap->external_ascii_string_map());
-  } else {
-    this->set_map(is_symbol ? heap->short_external_ascii_symbol_map()
-                            : heap->short_external_ascii_string_map());
-  }
+  // reinitializing the fields.
+  this->set_map(heap->external_ascii_string_map());
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
+  self->set_length(length);
+  self->set_hash_field(hash_field);
   self->set_resource(resource);
-  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
+  // Additionally make the object into an external symbol if the original string
+  // was a symbol to start with.
+  if (is_symbol) {
+    self->Hash();  // Force regeneration of the hash value.
+    // Now morph this external string into a external symbol.
+    this->set_map(heap->external_ascii_symbol_map());
+  }
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1027,6 +1033,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
     MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
   }
+
   return true;
 }
 

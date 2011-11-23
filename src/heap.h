@@ -110,16 +110,6 @@ inline Heap* _inline_get_heap_();
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
-  V(Map, short_external_symbol_map, ShortExternalSymbolMap)                    \
-  V(Map,                                                                       \
-    short_external_symbol_with_ascii_data_map,                                 \
-    ShortExternalSymbolWithAsciiDataMap)                                       \
-  V(Map, short_external_ascii_symbol_map, ShortExternalAsciiSymbolMap)         \
-  V(Map, short_external_string_map, ShortExternalStringMap)                    \
-  V(Map,                                                                       \
-    short_external_string_with_ascii_data_map,                                 \
-    ShortExternalStringWithAsciiDataMap)                                       \
-  V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
   V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \

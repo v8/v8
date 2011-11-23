@@ -2297,9 +2297,8 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 }
 
 
-bool ExternalString::is_short() {
-  InstanceType type = map()->instance_type();
-  return (type & kShortExternalStringMask) == kShortExternalStringTag;
+void ExternalString::clear_data_cache() {
+  WRITE_INTPTR_FIELD(this, kResourceDataOffset, 0);
 }
 
 
@@ -2308,24 +2307,19 @@ const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
 }
 
 
-void ExternalAsciiString::update_data_cache() {
-  if (is_short()) return;
-  const char** data_field =
-      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
-  *data_field = resource()->data();
-}
-
-
 void ExternalAsciiString::set_resource(
     const ExternalAsciiString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
-  if (resource != NULL) update_data_cache();
+  clear_data_cache();
 }
 
 
 const char* ExternalAsciiString::GetChars() {
-  return resource()->data();
+  const char** data_field =
+      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
+  if (*data_field == NULL) *data_field = resource()->data();
+  return *data_field;
 }
 
 
@@ -2340,24 +2334,19 @@ const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 }
 
 
-void ExternalTwoByteString::update_data_cache() {
-  if (is_short()) return;
-  const uint16_t** data_field =
-      reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
-  *data_field = resource()->data();
-}
-
-
 void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
-  if (resource != NULL) update_data_cache();
+  clear_data_cache();
 }
 
 
 const uint16_t* ExternalTwoByteString::GetChars() {
-  return resource()->data();
+  const uint16_t** data_field =
+      reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
+  if (*data_field == NULL) *data_field = resource()->data();
+  return *data_field;
 }
 
 
