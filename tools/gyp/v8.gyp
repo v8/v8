@@ -27,15 +27,6 @@
 
 {
   'includes': ['../../build/common.gypi'],
-  'target_conditions': [
-    ['OS=="android" and _toolset=="target"', {
-      'link_settings': {
-        'libraries': [
-          '-llog',
-        ],
-      }
-    }],
-  ],
   'conditions': [
     ['use_system_v8==0', {
       'targets': [
@@ -648,10 +639,18 @@
                   '../../src/platform-posix.cc',
                 ],
                 'conditions': [
-                  ['host_os=="mac" and _toolset!="target"', {
-                    'sources': [
-                      '../../src/platform-macos.cc'
-                    ]
+                  ['host_os=="mac"', {
+                    'target_conditions': [
+                      ['_toolset=="host"', {
+                        'sources': [
+                          '../../src/platform-macos.cc'
+                        ]
+                      }, {
+                        'sources': [
+                          '../../src/platform-linux.cc'
+                        ]
+                      }],
+                    ],
                   }, {
                     'sources': [
                       '../../src/platform-linux.cc'
