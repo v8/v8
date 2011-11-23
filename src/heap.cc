@@ -3975,40 +3975,22 @@ Map* Heap::SymbolMapForString(String* string) {
   if (InNewSpace(string)) return NULL;
 
   // Find the corresponding symbol map for strings.
-  Map* map = string->map();
-  if (map == ascii_string_map()) {
-    return ascii_symbol_map();
+  switch (string->map()->instance_type()) {
+    case STRING_TYPE: return symbol_map();
+    case ASCII_STRING_TYPE: return ascii_symbol_map();
+    case CONS_STRING_TYPE: return cons_symbol_map();
+    case CONS_ASCII_STRING_TYPE: return cons_ascii_symbol_map();
+    case EXTERNAL_STRING_TYPE: return external_symbol_map();
+    case EXTERNAL_ASCII_STRING_TYPE: return external_ascii_symbol_map();
+    case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
+      return external_symbol_with_ascii_data_map();
+    case SHORT_EXTERNAL_STRING_TYPE: return short_external_symbol_map();
+    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
+      return short_external_ascii_symbol_map();
+    case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
+      return short_external_symbol_with_ascii_data_map();
+    default: return NULL;  // No match found.
   }
-  if (map == string_map()) {
-    return symbol_map();
-  }
-  if (map == cons_string_map()) {
-    return cons_symbol_map();
-  }
-  if (map == cons_ascii_string_map()) {
-    return cons_ascii_symbol_map();
-  }
-  if (map == external_string_map()) {
-    return external_symbol_map();
-  }
-  if (map == external_ascii_string_map()) {
-    return external_ascii_symbol_map();
-  }
-  if (map == external_string_with_ascii_data_map()) {
-    return external_symbol_with_ascii_data_map();
-  }
-  if (map == short_external_string_map()) {
-    return short_external_symbol_map();
-  }
-  if (map == short_external_ascii_string_map()) {
-    return short_external_ascii_symbol_map();
-  }
-  if (map == short_external_string_with_ascii_data_map()) {
-    return short_external_symbol_with_ascii_data_map();
-  }
-
-  // No match found.
-  return NULL;
 }
 
 
