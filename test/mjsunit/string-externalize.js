@@ -39,7 +39,7 @@ function test() {
   assertTrue(isAsciiString(str));
 
   var twoByteExternalWithAsciiData =
-      "AAAAAAAA" + (function() { return "A"; })();
+      "AA" + (function() { return "A"; })();
   externalizeString(twoByteExternalWithAsciiData, true /* force two-byte */);
   assertFalse(isAsciiString(twoByteExternalWithAsciiData));
 
@@ -111,6 +111,12 @@ function test() {
     assertEquals('A', charat_str[i].charAt(3*16 + 10));
     assertEquals('B', charat_str[i].charAt(3*16 + 11));
   }
+
+  charat_short = "012";
+  try {  // String can only be externalized once
+    externalizeString(charat_short, true);
+  } catch (ex) { }
+  assertEquals("1", charat_short.charAt(1));
 }
 
 // Run the test many times to ensure IC-s don't break things.

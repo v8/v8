@@ -669,6 +669,14 @@ void Deserializer::Deserialize() {
 
   isolate_->heap()->set_global_contexts_list(
       isolate_->heap()->undefined_value());
+
+  // Update data pointers to the external strings containing natives sources.
+  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+    Object* source = isolate_->heap()->natives_source_cache()->get(i);
+    if (!source->IsUndefined()) {
+      ExternalAsciiString::cast(source)->update_data_cache();
+    }
+  }
 }
 
 
@@ -1564,7 +1572,6 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
         sink_->Put(kNativesStringResource, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");
         bytes_processed_so_far_ += sizeof(resource);
-        string->clear_data_cache();
         return;
       }
     }

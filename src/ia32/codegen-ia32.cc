@@ -562,16 +562,15 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     __ test(result, Immediate(kIsIndirectStringMask));
     __ Assert(zero, "external string expected, but not found");
   }
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ test_b(result, kShortExternalStringMask);
+  __ j(not_zero, call_runtime);
+  // Check encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ test_b(result, kStringEncodingMask);
   __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
-  // Assert that the external string has not been finalized yet.
-  __ test(result, result);
-  __ j(zero, call_runtime);
-  Register scratch = string;
-  __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
-  __ cmp(scratch, Immediate(factory->external_ascii_string_map()));
-  __ j(equal, &ascii_external, Label::kNear);
-  __ cmp(scratch, Immediate(factory->external_ascii_symbol_map()));
-  __ j(equal, &ascii_external, Label::kNear);
+  __ j(not_equal, &ascii_external, Label::kNear);
   // Two-byte string.
   __ movzx_w(result, Operand(result, index, times_2, 0));
   __ jmp(&done);
