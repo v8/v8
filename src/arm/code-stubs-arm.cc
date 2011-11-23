@@ -278,8 +278,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
   __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r3, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r3, ip);
+  __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
   __ b(eq, &slow_case);
 
   if (FLAG_debug_code) {
@@ -299,8 +298,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ push(r3);
     __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
     __ ldr(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
-    __ LoadRoot(ip, expected_map_index);
-    __ cmp(r3, ip);
+    __ CompareRoot(r3, expected_map_index);
     __ Assert(eq, message);
     __ pop(r3);
   }
@@ -340,6 +338,49 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow_case);
   __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
+}
+
+
+void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [sp]: object literal flags.
+  // [sp + kPointerSize]: constant properties.
+  // [sp + (2 * kPointerSize)]: literal index.
+  // [sp + (3 * kPointerSize)]: literals array.
+
+  // Load boilerplate object into r3 and check if we need to create a
+  // boilerplate.
+  Label slow_case;
+  __ ldr(r3, MemOperand(sp, 3 * kPointerSize));
+  __ ldr(r0, MemOperand(sp, 2 * kPointerSize));
+  __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ ldr(r3, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
+  __ b(eq, &slow_case);
+
+  // Check that the boilerplate contains only fast properties and we can
+  // statically determine the instance size.
+  int size = JSObject::kHeaderSize + length_ * kPointerSize;
+  __ ldr(r0, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceSizeOffset));
+  __ cmp(r0, Operand(size >> kPointerSizeLog2));
+  __ b(ne, &slow_case);
+
+  // Allocate the JS object and copy header together with all in-object
+  // properties from the boilerplate.
+  __ AllocateInNewSpace(size, r0, r1, r2, &slow_case, TAG_OBJECT);
+  for (int i = 0; i < size; i += kPointerSize) {
+    __ ldr(r1, FieldMemOperand(r3, i));
+    __ str(r1, FieldMemOperand(r0, i));
+  }
+
+  // Return and remove the on-stack parameters.
+  __ add(sp, sp, Operand(4 * kPointerSize));
+  __ Ret();
+
+  __ bind(&slow_case);
+  __ TailCallRuntime(Runtime::kCreateObjectLiteralShallow, 4, 1);
 }
 
 
