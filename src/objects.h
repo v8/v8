@@ -232,6 +232,9 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_SYMBOL_TYPE)                                                      \
   V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
+  V(SHORT_EXTERNAL_SYMBOL_TYPE)                                                \
+  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                \
+  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE)                                          \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
@@ -240,6 +243,9 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
+  V(SHORT_EXTERNAL_STRING_TYPE)                                                \
+  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                \
+  V(SHORT_EXTERNAL_ASCII_STRING_TYPE)                                          \
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
@@ -340,6 +346,18 @@ static const int kVariableSizeSentinel = 0;
     ExternalAsciiString::kSize,                                                \
     external_ascii_symbol,                                                     \
     ExternalAsciiSymbol)                                                       \
+  V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_symbol,                                                     \
+    ShortExternalSymbol)                                                       \
+  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE,                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_symbol_with_ascii_data,                                     \
+    ShortExternalSymbolWithAsciiData)                                          \
+  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE,                                          \
+    ExternalAsciiString::kShortSize,                                           \
+    short_external_ascii_symbol,                                               \
+    ShortExternalAsciiSymbol)                                                  \
   V(STRING_TYPE,                                                               \
     kVariableSizeSentinel,                                                     \
     string,                                                                    \
@@ -375,7 +393,19 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
-    ExternalAsciiString)
+    ExternalAsciiString)                                                       \
+  V(SHORT_EXTERNAL_STRING_TYPE,                                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_string,                                                     \
+    ShortExternalString)                                                       \
+  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_string_with_ascii_data,                                     \
+    ShortExternalStringWithAsciiData)                                          \
+  V(SHORT_EXTERNAL_ASCII_STRING_TYPE,                                          \
+    ExternalAsciiString::kShortSize,                                           \
+    short_external_ascii_string,                                               \
+    ShortExternalAsciiString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -459,6 +489,11 @@ STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
 const uint32_t kAsciiDataHintMask = 0x08;
 const uint32_t kAsciiDataHintTag = 0x08;
 
+// If bit 7 is clear and string representation indicates an external string,
+// then bit 4 indicates whether the data pointer is cached.
+const uint32_t kShortExternalStringMask = 0x10;
+const uint32_t kShortExternalStringTag = 0x10;
+
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector unless it is a
@@ -478,6 +513,13 @@ enum InstanceType {
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
   CONS_ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kConsStringTag,
+  SHORT_EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag |
+                               kExternalStringTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
+      kTwoByteStringTag | kSymbolTag | kExternalStringTag |
+      kAsciiDataHintTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kAsciiStringTag | kExternalStringTag |
+                                     kSymbolTag | kShortExternalStringTag,
   EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kExternalStringTag,
   EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag | kAsciiDataHintTag,
@@ -489,6 +531,13 @@ enum InstanceType {
   CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
   SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
   SLICED_ASCII_STRING_TYPE = kAsciiStringTag | kSlicedStringTag,
+  SHORT_EXTERNAL_STRING_TYPE =
+      kTwoByteStringTag | kExternalStringTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
+      kTwoByteStringTag | kExternalStringTag |
+      kAsciiDataHintTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_ASCII_STRING_TYPE =
+      kAsciiStringTag | kExternalStringTag | kShortExternalStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
@@ -6755,12 +6804,12 @@ class ExternalString: public String {
 
   // Layout description.
   static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kShortSize = kResourceOffset + kPointerSize;
   static const int kResourceDataOffset = kResourceOffset + kPointerSize;
   static const int kSize = kResourceDataOffset + kPointerSize;
 
-  // Clear the cached pointer to the character array provided by the resource.
-  // This cache is updated the first time the character array is accessed.
-  inline void clear_data_cache();
+  // Return whether external string is short (data pointer is not cached).
+  inline bool is_short();
 
   STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
 
@@ -6780,6 +6829,12 @@ class ExternalAsciiString: public ExternalString {
   // The underlying resource.
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
+
+  // Update the pointer cache to the external character array.
+  // The cached pointer is always valid, as the external character array does =
+  // not move during lifetime.  Deserialization is the only exception, after
+  // which the pointer cache has to be refreshed.
+  inline void update_data_cache();
 
   inline const char* GetChars();
 
@@ -6819,6 +6874,12 @@ class ExternalTwoByteString: public ExternalString {
   // The underlying string resource.
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
+
+  // Update the pointer cache to the external character array.
+  // The cached pointer is always valid, as the external character array does =
+  // not move during lifetime.  Deserialization is the only exception, after
+  // which the pointer cache has to be refreshed.
+  inline void update_data_cache();
 
   inline const uint16_t* GetChars();
 
