@@ -5353,6 +5353,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
+  HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
   scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
   scanner.Initialize(source);
