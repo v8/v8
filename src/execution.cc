@@ -157,7 +157,7 @@ Handle<Object> Execution::Call(Handle<Object> callable,
 
   // In non-strict mode, convert receiver.
   if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() && !func->shared()->strict_mode()) {
+      !func->shared()->native() && func->shared()->is_classic_mode()) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       Object* global = func->context()->global()->global_receiver();
       // Under some circumstances, 'global' can be the JSBuiltinsObject

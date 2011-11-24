@@ -3415,9 +3415,9 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
                       HValue* global_object,
                       Handle<Object> name,
                       HValue* value,
-                      bool strict_mode)
+                      StrictModeFlag strict_mode_flag)
       : name_(name),
-        strict_mode_(strict_mode) {
+        strict_mode_flag_(strict_mode_flag) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     SetOperandAt(2, value);
@@ -3429,7 +3429,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
   HValue* global_object() { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
   HValue* value() { return OperandAt(2); }
-  bool strict_mode() { return strict_mode_; }
+  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -3441,7 +3441,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
 
  private:
   Handle<Object> name_;
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
 };
 
 
@@ -3971,8 +3971,8 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
                      HValue* object,
                      HValue* key,
                      HValue* value,
-                     bool strict_mode)
-      : strict_mode_(strict_mode) {
+                     StrictModeFlag strict_mode_flag)
+      : strict_mode_flag_(strict_mode_flag) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
     SetOperandAt(2, value);
@@ -3984,7 +3984,7 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   HValue* context() { return OperandAt(3); }
-  bool strict_mode() { return strict_mode_; }
+  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -3995,7 +3995,7 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
 
  private:
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
 };
 
 

@@ -2169,7 +2169,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         // Check that the object is a string or a symbol.
         __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
         __ j(above_equal, &miss);
@@ -2187,7 +2187,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case NUMBER_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         Label fast;
         // Check that the object is a smi or a heap number.
         __ JumpIfSmi(edx, &fast);
@@ -2208,7 +2208,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case BOOLEAN_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         Label fast;
         // Check that the object is a boolean.
         __ cmp(edx, factory()->true_value());

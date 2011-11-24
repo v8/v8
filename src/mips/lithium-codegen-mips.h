@@ -138,7 +138,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   StrictModeFlag strict_mode_flag() const {
-    return info()->strict_mode_flag();
+    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }

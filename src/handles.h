@@ -224,12 +224,6 @@ void SetLocalPropertyNoThrow(Handle<JSObject> object,
                              Handle<Object> value,
                              PropertyAttributes attributes = NONE);
 
-Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<String> key,
-                                          Handle<Object> value,
-                                          PropertyAttributes attributes,
-                                          StrictModeFlag strict_mode);
-
 MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
                                           uint32_t index,
                                           Handle<Object> value,

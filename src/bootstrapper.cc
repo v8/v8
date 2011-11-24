@@ -502,7 +502,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // 262 15.3.4.
   Handle<String> symbol = factory->LookupAsciiSymbol("Empty");
   Handle<JSFunction> empty_function =
-      factory->NewFunctionWithoutPrototype(symbol, kNonStrictMode);
+      factory->NewFunctionWithoutPrototype(symbol, CLASSIC_MODE);
 
   // --- E m p t y ---
   Handle<Code> code =
@@ -591,7 +591,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
   if (throw_type_error_function.is_null()) {
     Handle<String> name = factory()->LookupAsciiSymbol("ThrowTypeError");
     throw_type_error_function =
-      factory()->NewFunctionWithoutPrototype(name, kNonStrictMode);
+      factory()->NewFunctionWithoutPrototype(name, CLASSIC_MODE);
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
     throw_type_error_function->set_map(

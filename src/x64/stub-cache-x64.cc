@@ -2015,7 +2015,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         // Check that the object is a two-byte string or a symbol.
         __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rax);
         __ j(above_equal, &miss);
@@ -2033,7 +2033,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case NUMBER_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         Label fast;
         // Check that the object is a smi or a heap number.
         __ JumpIfSmi(rdx, &fast);
@@ -2054,7 +2054,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case BOOLEAN_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         Label fast;
         // Check that the object is a boolean.
         __ CompareRoot(rdx, Heap::kTrueValueRootIndex);

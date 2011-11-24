@@ -143,7 +143,7 @@ class CompilationCacheEval: public CompilationSubCache {
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
                                     Handle<Context> context,
-                                    StrictModeFlag strict_mode,
+                                    LanguageMode language_mode,
                                     int scope_position);
 
   void Put(Handle<String> source,
@@ -214,7 +214,7 @@ class CompilationCache {
   Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
                                         Handle<Context> context,
                                         bool is_global,
-                                        StrictModeFlag strict_mode,
+                                        LanguageMode language_mode,
                                         int scope_position);
 
   // Returns the regexp data associated with the given regexp if it

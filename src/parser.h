@@ -72,7 +72,7 @@ class FunctionEntry BASE_EMBEDDED {
     kEndPositionIndex,
     kLiteralCountIndex,
     kPropertyCountIndex,
-    kStrictModeIndex,
+    kLanguageModeIndex,
     kSize
   };
 
@@ -83,10 +83,11 @@ class FunctionEntry BASE_EMBEDDED {
   int end_pos() { return backing_[kEndPositionIndex]; }
   int literal_count() { return backing_[kLiteralCountIndex]; }
   int property_count() { return backing_[kPropertyCountIndex]; }
-  StrictModeFlag strict_mode_flag() {
-    ASSERT(backing_[kStrictModeIndex] == kStrictMode ||
-           backing_[kStrictModeIndex] == kNonStrictMode);
-    return static_cast<StrictModeFlag>(backing_[kStrictModeIndex]);
+  LanguageMode language_mode() {
+    ASSERT(backing_[kLanguageModeIndex] == CLASSIC_MODE ||
+           backing_[kLanguageModeIndex] == STRICT_MODE ||
+           backing_[kLanguageModeIndex] == EXTENDED_MODE);
+    return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
   }
 
   bool is_valid() { return !backing_.is_empty(); }

@@ -145,7 +145,7 @@ bool LCodeGen::GeneratePrologue() {
   // with undefined when called as functions (without an explicit
   // receiver object). ecx is zero for method calls and non-zero for
   // function calls.
-  if (info_->is_strict_mode() || info_->is_native()) {
+  if (!info_->is_classic_mode() || info_->is_native()) {
     Label ok;
     __ test(ecx, Operand(ecx));
     __ j(zero, &ok, Label::kNear);
@@ -2160,7 +2160,7 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(eax));
 
   __ mov(ecx, instr->name());
-  Handle<Code> ic = instr->strict_mode()
+  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
       ? isolate()->builtins()->StoreIC_Initialize_Strict()
       : isolate()->builtins()->StoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
@@ -3220,7 +3220,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(eax));
 
   __ mov(ecx, instr->name());
-  Handle<Code> ic = instr->strict_mode()
+  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
       ? isolate()->builtins()->StoreIC_Initialize_Strict()
       : isolate()->builtins()->StoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3352,7 +3352,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(ecx));
   ASSERT(ToRegister(instr->value()).is(eax));
 
-  Handle<Code> ic = instr->strict_mode()
+  Handle<Code> ic = (instr->strict_mode_flag() == kStrictMode)
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
       : isolate()->builtins()->KeyedStoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -4333,7 +4333,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
   if (!pretenure && shared_info->num_literals() == 0) {
-    FastNewClosureStub stub(shared_info->strict_mode_flag());
+    FastNewClosureStub stub(shared_info->language_mode());
     __ push(Immediate(shared_info));
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else {

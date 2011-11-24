@@ -79,7 +79,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
   // Encode the flags.
   int flags = TypeField::encode(scope->type()) |
       CallsEvalField::encode(scope->calls_eval()) |
-      StrictModeField::encode(scope->is_strict_mode()) |
+      LanguageModeField::encode(scope->language_mode()) |
       FunctionVariableField::encode(function_name_info) |
       FunctionVariableMode::encode(function_variable_mode);
   scope_info->SetFlags(flags);
@@ -163,8 +163,8 @@ bool ScopeInfo::CallsEval() {
 }
 
 
-bool ScopeInfo::IsStrictMode() {
-  return length() > 0 && StrictModeField::decode(Flags());
+LanguageMode ScopeInfo::language_mode() {
+  return length() > 0 ? LanguageModeField::decode(Flags()) : CLASSIC_MODE;
 }
 
 

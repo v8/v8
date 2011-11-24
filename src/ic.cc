@@ -435,7 +435,7 @@ void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
 
   if (callee->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callee);
-    if (function->shared()->strict_mode() || function->IsBuiltin()) {
+    if (!function->shared()->is_classic_mode() || function->IsBuiltin()) {
       // Do not wrap receiver for strict mode functions or for builtins.
       return;
     }

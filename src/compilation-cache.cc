@@ -251,7 +251,7 @@ void CompilationCacheScript::Put(Handle<String> source,
 Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     Handle<String> source,
     Handle<Context> context,
-    StrictModeFlag strict_mode,
+    LanguageMode language_mode,
     int scope_position) {
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -262,7 +262,7 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       result = table->LookupEval(
-          *source, *context, strict_mode, scope_position);
+          *source, *context, language_mode, scope_position);
       if (result->IsSharedFunctionInfo()) {
         break;
       }
@@ -396,7 +396,7 @@ Handle<SharedFunctionInfo> CompilationCache::LookupEval(
     Handle<String> source,
     Handle<Context> context,
     bool is_global,
-    StrictModeFlag strict_mode,
+    LanguageMode language_mode,
     int scope_position) {
   if (!IsEnabled()) {
     return Handle<SharedFunctionInfo>::null();
@@ -404,11 +404,12 @@ Handle<SharedFunctionInfo> CompilationCache::LookupEval(
 
   Handle<SharedFunctionInfo> result;
   if (is_global) {
-    result = eval_global_.Lookup(source, context, strict_mode, scope_position);
+    result = eval_global_.Lookup(
+        source, context, language_mode, scope_position);
   } else {
     ASSERT(scope_position != RelocInfo::kNoPosition);
     result = eval_contextual_.Lookup(
-        source, context, strict_mode, scope_position);
+        source, context, language_mode, scope_position);
   }
   return result;
 }

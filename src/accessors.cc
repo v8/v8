@@ -675,7 +675,7 @@ static MaybeObject* CheckNonStrictCallerOrThrow(
     Isolate* isolate,
     JSFunction* caller) {
   DisableAssertNoAllocation enable_allocation;
-  if (caller->shared()->strict_mode()) {
+  if (!caller->shared()->is_classic_mode()) {
     return isolate->Throw(
         *isolate->factory()->NewTypeError("strict_caller",
                                           HandleVector<Object>(NULL, 0)));

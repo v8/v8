@@ -29,9 +29,8 @@
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
-
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug;
+var Debug = debug.Debug;
 
 var test_name;
 var listener_delegate;

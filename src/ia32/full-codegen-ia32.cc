@@ -133,7 +133,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   // with undefined when called as functions (without an explicit
   // receiver object). ecx is zero for method calls and non-zero for
   // function calls.
-  if (info->is_strict_mode() || info->is_native()) {
+  if (!info->is_classic_mode() || info->is_native()) {
     Label ok;
     __ test(ecx, ecx);
     __ j(zero, &ok, Label::kNear);
@@ -232,7 +232,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub::Type type;
-    if (is_strict_mode()) {
+    if (!is_classic_mode()) {
       type = ArgumentsAccessStub::NEW_STRICT;
     } else if (function()->has_duplicate_parameters()) {
       type = ArgumentsAccessStub::NEW_NON_STRICT_SLOW;
@@ -1071,7 +1071,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(info->strict_mode_flag());
+    FastNewClosureStub stub(info->language_mode());
     __ push(Immediate(info));
     __ CallStub(&stub);
   } else {
@@ -1426,9 +1426,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             __ mov(ecx, Immediate(key->handle()));
             __ mov(edx, Operand(esp, 0));
-            Handle<Code> ic = is_strict_mode()
-                ? isolate()->builtins()->StoreIC_Initialize_Strict()
-                : isolate()->builtins()->StoreIC_Initialize();
+            Handle<Code> ic = is_classic_mode()
+                ? isolate()->builtins()->StoreIC_Initialize()
+                : isolate()->builtins()->StoreIC_Initialize_Strict();
             __ call(ic, RelocInfo::CODE_TARGET, key->id());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -1829,9 +1829,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ mov(edx, eax);
       __ pop(eax);  // Restore value.
       __ mov(ecx, prop->key()->AsLiteral()->handle());
-      Handle<Code> ic = is_strict_mode()
-          ? isolate()->builtins()->StoreIC_Initialize_Strict()
-          : isolate()->builtins()->StoreIC_Initialize();
+      Handle<Code> ic = is_classic_mode()
+          ? isolate()->builtins()->StoreIC_Initialize()
+          : isolate()->builtins()->StoreIC_Initialize_Strict();
       __ call(ic);
       break;
     }
@@ -1842,9 +1842,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ mov(ecx, eax);
       __ pop(edx);
       __ pop(eax);  // Restore value.
-      Handle<Code> ic = is_strict_mode()
-          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
-          : isolate()->builtins()->KeyedStoreIC_Initialize();
+      Handle<Code> ic = is_classic_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize()
+          : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
       __ call(ic);
       break;
     }
@@ -1860,9 +1860,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // Global var, const, or let.
     __ mov(ecx, var->name());
     __ mov(edx, GlobalObjectOperand());
-    Handle<Code> ic = is_strict_mode()
-        ? isolate()->builtins()->StoreIC_Initialize_Strict()
-        : isolate()->builtins()->StoreIC_Initialize();
+    Handle<Code> ic = is_classic_mode()
+        ? isolate()->builtins()->StoreIC_Initialize()
+        : isolate()->builtins()->StoreIC_Initialize_Strict();
     __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (op == Token::INIT_CONST) {
@@ -1894,7 +1894,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ push(eax);  // Value.
       __ push(esi);  // Context.
       __ push(Immediate(var->name()));
-      __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+      __ push(Immediate(Smi::FromInt(language_mode())));
       __ CallRuntime(Runtime::kStoreContextSlot, 4);
     } else {
       ASSERT(var->IsStackAllocated() || var->IsContextSlot());
@@ -1937,7 +1937,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ push(eax);  // Value.
       __ push(esi);  // Context.
       __ push(Immediate(var->name()));
-      __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+      __ push(Immediate(Smi::FromInt(language_mode())));
       __ CallRuntime(Runtime::kStoreContextSlot, 4);
     }
   }
@@ -1969,9 +1969,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   } else {
     __ pop(edx);
   }
-  Handle<Code> ic = is_strict_mode()
-      ? isolate()->builtins()->StoreIC_Initialize_Strict()
-      : isolate()->builtins()->StoreIC_Initialize();
+  Handle<Code> ic = is_classic_mode()
+      ? isolate()->builtins()->StoreIC_Initialize()
+      : isolate()->builtins()->StoreIC_Initialize_Strict();
   __ call(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2009,9 +2009,9 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  Handle<Code> ic = is_strict_mode()
-      ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
-      : isolate()->builtins()->KeyedStoreIC_Initialize();
+  Handle<Code> ic = is_classic_mode()
+      ? isolate()->builtins()->KeyedStoreIC_Initialize()
+      : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
   __ call(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2154,16 +2154,13 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
 
   // Push the receiver of the enclosing function.
   __ push(Operand(ebp, (2 + info_->scope()->num_parameters()) * kPointerSize));
-
-  // Push the strict mode flag. In harmony mode every eval call
-  // is a strict mode eval call.
-  StrictModeFlag strict_mode =
-      FLAG_harmony_scoping ? kStrictMode : strict_mode_flag();
-  __ push(Immediate(Smi::FromInt(strict_mode)));
+  // Push the language mode.
+  __ push(Immediate(Smi::FromInt(language_mode())));
 
   // Push the start position of the scope the calls resides in.
   __ push(Immediate(Smi::FromInt(scope()->start_position())));
 
+  // Do the runtime call.
   __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
 }
 
@@ -3688,14 +3685,16 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+        StrictModeFlag strict_mode_flag = (language_mode() == CLASSIC_MODE)
+            ? kNonStrictMode : kStrictMode;
+        __ push(Immediate(Smi::FromInt(strict_mode_flag)));
         __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         context()->Plug(eax);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
         // Delete of an unqualified identifier is disallowed in strict mode
         // but "delete this" is allowed.
-        ASSERT(strict_mode_flag() == kNonStrictMode || var->is_this());
+        ASSERT(language_mode() == CLASSIC_MODE || var->is_this());
         if (var->IsUnallocated()) {
           __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
@@ -3974,9 +3973,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       __ pop(edx);
-      Handle<Code> ic = is_strict_mode()
-          ? isolate()->builtins()->StoreIC_Initialize_Strict()
-          : isolate()->builtins()->StoreIC_Initialize();
+      Handle<Code> ic = is_classic_mode()
+          ? isolate()->builtins()->StoreIC_Initialize()
+          : isolate()->builtins()->StoreIC_Initialize_Strict();
       __ call(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -3991,9 +3990,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(ecx);
       __ pop(edx);
-      Handle<Code> ic = is_strict_mode()
-          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
-          : isolate()->builtins()->KeyedStoreIC_Initialize();
+      Handle<Code> ic = is_classic_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize()
+          : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
       __ call(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {

@@ -3542,23 +3542,39 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-StrictModeFlag SharedFunctionInfo::strict_mode_flag() {
-  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
-      ? kStrictMode : kNonStrictMode;
+LanguageMode SharedFunctionInfo::language_mode() {
+  int hints = compiler_hints();
+  if (BooleanBit::get(hints, kExtendedModeFunction)) {
+    ASSERT(BooleanBit::get(hints, kStrictModeFunction));
+    return EXTENDED_MODE;
+  }
+  return BooleanBit::get(hints, kStrictModeFunction)
+      ? STRICT_MODE : CLASSIC_MODE;
 }
 
 
-void SharedFunctionInfo::set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
-  ASSERT(strict_mode_flag == kStrictMode ||
-         strict_mode_flag == kNonStrictMode);
-  bool value = strict_mode_flag == kStrictMode;
-  set_compiler_hints(
-      BooleanBit::set(compiler_hints(), kStrictModeFunction, value));
+void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
+  // We only allow language mode transitions that go set the same language mode
+  // again or go up in the chain:
+  //   CLASSIC_MODE -> STRICT_MODE -> EXTENDED_MODE.
+  ASSERT(this->language_mode() == CLASSIC_MODE ||
+         this->language_mode() == language_mode ||
+         language_mode == EXTENDED_MODE);
+  int hints = compiler_hints();
+  hints = BooleanBit::set(
+      hints, kStrictModeFunction, language_mode != CLASSIC_MODE);
+  hints = BooleanBit::set(
+      hints, kExtendedModeFunction, language_mode == EXTENDED_MODE);
+  set_compiler_hints(hints);
 }
 
 
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, strict_mode,
-            kStrictModeFunction)
+bool SharedFunctionInfo::is_classic_mode() {
+  return !BooleanBit::get(compiler_hints(), kStrictModeFunction);
+}
+
+BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
+            kExtendedModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,

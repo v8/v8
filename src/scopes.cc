@@ -148,6 +148,9 @@ Scope::Scope(Scope* inner_scope,
   SetDefaults(type, NULL, scope_info);
   if (!scope_info.is_null()) {
     num_heap_slots_ = scope_info_->ContextLength();
+    if (*scope_info != ScopeInfo::Empty()) {
+      language_mode_ = scope_info->language_mode();
+    }
   } else if (is_with_scope()) {
     num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   }
@@ -193,8 +196,8 @@ void Scope::SetDefaults(ScopeType type,
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
   // Inherit the strict mode from the parent scope.
-  strict_mode_flag_ = (outer_scope != NULL)
-      ? outer_scope->strict_mode_flag_ : kNonStrictMode;
+  language_mode_ = (outer_scope != NULL)
+      ? outer_scope->language_mode_ : CLASSIC_MODE;
   outer_scope_calls_non_strict_eval_ = false;
   inner_scope_calls_eval_ = false;
   force_eager_compilation_ = false;
@@ -206,8 +209,7 @@ void Scope::SetDefaults(ScopeType type,
   end_position_ = RelocInfo::kNoPosition;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
-    strict_mode_flag_ =
-        scope_info->IsStrictMode() ? kStrictMode : kNonStrictMode;
+    language_mode_ = scope_info->language_mode();
   }
 }
 
@@ -778,7 +780,16 @@ void Scope::Print(int n) {
   if (HasTrivialOuterContext()) {
     Indent(n1, "// scope has trivial outer context\n");
   }
-  if (is_strict_mode()) Indent(n1, "// strict mode scope\n");
+  switch (language_mode()) {
+    case CLASSIC_MODE:
+      break;
+    case STRICT_MODE:
+      Indent(n1, "// strict mode scope\n");
+      break;
+    case EXTENDED_MODE:
+      Indent(n1, "// extended mode scope\n");
+      break;
+  }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
@@ -1068,7 +1079,7 @@ void Scope::AllocateParameterLocals() {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    uses_nonstrict_arguments = !is_strict_mode();
+    uses_nonstrict_arguments = is_classic_mode();
   }
 
   // The same parameter may occur multiple times in the parameters_ list.

@@ -132,7 +132,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   StrictModeFlag strict_mode_flag() const {
-    return info()->strict_mode_flag();
+    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
   }
   bool dynamic_frame_alignment() const { return dynamic_frame_alignment_; }
   void set_dynamic_frame_alignment(bool value) {

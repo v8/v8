@@ -3381,7 +3381,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-                            JSFunction::cast(callee)->shared()->strict_mode();
+      !JSFunction::cast(callee)->shared()->is_classic_mode();
   if (strict_mode_callee) {
     boilerplate =
         isolate()->context()->global_context()->

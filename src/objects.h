@@ -3091,12 +3091,12 @@ class ScopeInfo : public FixedArray {
   // Does this scope call eval?
   bool CallsEval();
 
-  // Is this scope a strict mode scope?
-  bool IsStrictMode();
+  // Return the language mode of this scope.
+  LanguageMode language_mode();
 
   // Does this scope make a non-strict eval call?
   bool CallsNonStrictEval() {
-    return CallsEval() && !IsStrictMode();
+    return CallsEval() && (language_mode() == CLASSIC_MODE);
   }
 
   // Return the total number of locals allocated on the stack and in the
@@ -3264,9 +3264,9 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class TypeField:             public BitField<ScopeType,            0, 3> {};
   class CallsEvalField:        public BitField<bool,                 3, 1> {};
-  class StrictModeField:       public BitField<bool,                 4, 1> {};
-  class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
-  class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+  class LanguageModeField:     public BitField<LanguageMode,         4, 2> {};
+  class FunctionVariableField: public BitField<FunctionVariableInfo, 6, 2> {};
+  class FunctionVariableMode:  public BitField<VariableMode,         8, 3> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -5019,12 +5019,20 @@ class SharedFunctionInfo: public HeapObject {
   // spending time attempting to optimize it again.
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
-  // Indicates whether the function is a strict mode function.
-  inline bool strict_mode();
+  // Indicates the language mode of the function's code as defined by the
+  // current harmony drafts for the next ES language standard. Possible
+  // values are:
+  // 1. CLASSIC_MODE - Unrestricted syntax and semantics, same as in ES5.
+  // 2. STRICT_MODE - Restricted syntax and semantics, same as in ES5.
+  // 3. EXTENDED_MODE - Only available under the harmony flag, not part of ES5.
+  inline LanguageMode language_mode();
+  inline void set_language_mode(LanguageMode language_mode);
 
-  // Indicates the mode of the function.
-  inline StrictModeFlag strict_mode_flag();
-  inline void set_strict_mode_flag(StrictModeFlag strict_mode_flag);
+  // Indicates whether the language mode of this function is CLASSIC_MODE.
+  inline bool is_classic_mode();
+
+  // Indicates whether the language mode of this function is EXTENDED_MODE.
+  inline bool is_extended_mode();
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
@@ -5247,6 +5255,7 @@ class SharedFunctionInfo: public HeapObject {
     kCodeAgeShift,
     kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
     kStrictModeFunction,
+    kExtendedModeFunction,
     kUsesArguments,
     kHasDuplicateParameters,
     kNative,
@@ -5277,18 +5286,26 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
+  static const int kExtendedModeBitWithinByte =
+      (kExtendedModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
+      (kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
@@ -5905,7 +5922,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
   Object* Lookup(String* src);
   Object* LookupEval(String* src,
                      Context* context,
-                     StrictModeFlag strict_mode,
+                     LanguageMode language_mode,
                      int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MaybeObject* Put(String* src, Object* value);

@@ -116,6 +116,17 @@ namespace internal {
       static_cast<StrictModeFlag>(args.smi_at(index));
 
 
+// Assert that the given argument has a valid value for a LanguageMode
+// and store it in a LanguageMode variable with the given name.
+#define CONVERT_LANGUAGE_MODE_ARG(name, index)                       \
+  ASSERT(args[index]->IsSmi());                                      \
+  ASSERT(args.smi_at(index) == CLASSIC_MODE ||                       \
+         args.smi_at(index) == STRICT_MODE ||                        \
+         args.smi_at(index) == EXTENDED_MODE);                       \
+  LanguageMode name =                                                \
+      static_cast<LanguageMode>(args.smi_at(index));
+
+
 MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
                                                    JSObject* boilerplate) {
   StackLimitCheck check(isolate);
@@ -1325,13 +1336,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
                                                               value,
                                                               attributes));
     } else {
-      StrictModeFlag strict_mode = DeclareGlobalsStrictModeFlag::decode(flags);
+      LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
+      StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
+          ? kNonStrictMode : kStrictMode;
       RETURN_IF_EMPTY_HANDLE(isolate,
                              SetProperty(global,
                                          name,
                                          value,
                                          static_cast<PropertyAttributes>(attr),
-                                         strict_mode));
+                                         strict_mode_flag));
     }
   }
 
@@ -1437,7 +1450,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   NoHandleAllocation nha;
   // args[0] == name
-  // args[1] == strict_mode
+  // args[1] == language_mode
   // args[2] == value (optional)
 
   // Determine if we need to assign to the variable if it already
@@ -1448,7 +1461,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
-  CONVERT_STRICT_MODE_ARG(strict_mode, 1);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 1);
+  StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
+      ? kNonStrictMode : kStrictMode;
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -1477,7 +1492,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
         // Found an interceptor that's not read only.
         if (assign) {
           return raw_holder->SetProperty(
-              &lookup, *name, args[2], attributes, strict_mode);
+              &lookup, *name, args[2], attributes, strict_mode_flag);
         } else {
           return isolate->heap()->undefined_value();
         }
@@ -1489,7 +1504,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // Reload global in case the loop above performed a GC.
   global = isolate->context()->global();
   if (assign) {
-    return global->SetProperty(*name, args[2], attributes, strict_mode);
+    return global->SetProperty(*name, args[2], attributes, strict_mode_flag);
   }
   return isolate->heap()->undefined_value();
 }
@@ -1859,7 +1874,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSFunction, function, args[0]);
   SharedFunctionInfo* shared = function->shared();
-  if (shared->native() || shared->strict_mode()) {
+  if (shared->native() || !shared->is_classic_mode()) {
     return isolate->heap()->undefined_value();
   }
   // Returns undefined for strict or native functions, or
@@ -4682,8 +4697,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 
   CONVERT_CHECKED(JSReceiver, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  CONVERT_SMI_ARG_CHECKED(strict, 2);
-  return object->DeleteProperty(key, (strict == kStrictMode)
+  CONVERT_STRICT_MODE_ARG(strict_mode, 2);
+  return object->DeleteProperty(key, (strict_mode == kStrictMode)
                                       ? JSReceiver::STRICT_DELETION
                                       : JSReceiver::NORMAL_DELETION);
 }
@@ -5109,7 +5124,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   if (key->Equals(isolate->heap()->callee_symbol())) {
     Object* function = frame->function();
     if (function->IsJSFunction() &&
-        JSFunction::cast(function)->shared()->strict_mode()) {
+        !JSFunction::cast(function)->shared()->is_classic_mode()) {
       return isolate->Throw(*isolate->factory()->NewTypeError(
           "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
     }
@@ -9036,7 +9051,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   Handle<Object> value(args[0], isolate);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
-  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
+  StrictModeFlag strict_mode = (language_mode == CLASSIC_MODE)
+      ? kNonStrictMode : kStrictMode;
 
   int index;
   PropertyAttributes attributes;
@@ -9404,7 +9421,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 
   // Compile source string in the global context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source, context, true, kNonStrictMode, RelocInfo::kNoPosition);
+      source, context, true, CLASSIC_MODE, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
@@ -9417,7 +9434,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
                                     Handle<Object> receiver,
-                                    StrictModeFlag strict_mode,
+                                    LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> global_context = Handle<Context>(context->global_context());
@@ -9436,7 +9453,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       source,
       Handle<Context>(isolate->context()),
       context->IsGlobalContext(),
-      strict_mode,
+      language_mode,
       scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
@@ -9462,12 +9479,12 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
-  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
   ASSERT(args[4]->IsSmi());
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           strict_mode,
+                           language_mode,
                            args.smi_at(4));
 }
 
@@ -9481,9 +9498,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNewFunctionAttributes) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
 
-  Handle<Map> map = func->shared()->strict_mode()
-                        ? isolate->strict_mode_function_instance_map()
-                        : isolate->function_instance_map();
+  Handle<Map> map = func->shared()->is_classic_mode()
+      ? isolate->function_instance_map()
+      : isolate->strict_mode_function_instance_map();
 
   ASSERT(func->map()->instance_type() == map->instance_type());
   ASSERT(func->map()->instance_size() == map->instance_size());
@@ -10943,7 +10960,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject() && !shared->strict_mode() && !shared->native()) {
+  if (!receiver->IsJSObject() &&
+      shared->is_classic_mode() &&
+      !shared->native()) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a
     // value object is not converted into a wrapped JS objects. To
@@ -12015,7 +12034,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
       Compiler::CompileEval(function_source,
                             context,
                             context->IsGlobalContext(),
-                            kNonStrictMode,
+                            CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
@@ -12109,7 +12128,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
       Compiler::CompileEval(source,
                             context,
                             is_global,
-                            kNonStrictMode,
+                            CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =

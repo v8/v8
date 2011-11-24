@@ -321,7 +321,6 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
-DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")

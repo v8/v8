@@ -1280,7 +1280,7 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* global_object() { return InputAt(1); }
   Handle<Object> name() const { return hydrogen()->name(); }
   LOperand* value() { return InputAt(2); }
-  bool strict_mode() { return hydrogen()->strict_mode(); }
+  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 
@@ -1661,7 +1661,6 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* value() { return inputs_[2]; }
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
-  bool strict_mode() { return strict_mode_flag() == kStrictMode; }
 };
 
 
@@ -1751,7 +1750,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
-  bool strict_mode() { return hydrogen()->strict_mode(); }
+  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 
