@@ -5107,74 +5107,14 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ cmp(ip, Operand(index_));
   __ b(ls, index_out_of_range_);
 
-  // We need special handling for non-flat strings.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ tst(result_, Operand(kStringRepresentationMask));
-  __ b(eq, &flat_string);
+  __ mov(index_, Operand(index_, ASR, kSmiTagSize));
 
-  // Handle non-flat strings.
-  __ and_(result_, result_, Operand(kStringRepresentationMask));
-  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
-  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
-  __ cmp(result_, Operand(kExternalStringTag));
-  __ b(gt, &sliced_string);
-  __ b(eq, &call_runtime_);
+  StringCharLoadGenerator::Generate(masm,
+                                    object_,
+                                    index_,
+                                    result_,
+                                    &call_runtime_);
 
-  // ConsString.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  Label assure_seq_string;
-  __ ldr(result_, FieldMemOperand(object_, ConsString::kSecondOffset));
-  __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
-  __ cmp(result_, Operand(ip));
-  __ b(ne, &call_runtime_);
-  // Get the first of the two parts.
-  __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
-  __ jmp(&assure_seq_string);
-
-  // SlicedString, unpack and add offset.
-  __ bind(&sliced_string);
-  __ ldr(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
-  __ add(index_, index_, result_);
-  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
-
-  // Assure that we are dealing with a sequential string. Go to runtime if not.
-  __ bind(&assure_seq_string);
-  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // Check that parent is not an external string. Go to runtime otherwise.
-  // Note that if the original string is a cons or slice with an external
-  // string as underlying string, we pass that unpacked underlying string with
-  // the adjusted index to the runtime function.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ tst(result_, Operand(kStringRepresentationMask));
-  __ b(ne, &call_runtime_);
-
-  // Check for 1-byte or 2-byte string.
-  __ bind(&flat_string);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ tst(result_, Operand(kStringEncodingMask));
-  __ b(ne, &ascii_string);
-
-  // 2-byte string.
-  // Load the 2-byte character code into the result register. We can
-  // add without shifting since the smi tag size is the log2 of the
-  // number of bytes in a two-byte character.
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
-  __ add(index_, object_, Operand(index_));
-  __ ldrh(result_, FieldMemOperand(index_, SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code);
-
-  // ASCII string.
-  // Load the byte into the result register.
-  __ bind(&ascii_string);
-  __ add(index_, object_, Operand(index_, LSR, kSmiTagSize));
-  __ ldrb(result_, FieldMemOperand(index_, SeqAsciiString::kHeaderSize));
-
-  __ bind(&got_char_code);
   __ mov(result_, Operand(result_, LSL, kSmiTagSize));
   __ bind(&exit_);
 }
@@ -5221,6 +5161,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // is too complex (e.g., when the string needs to be flattened).
   __ bind(&call_runtime_);
   call_helper.BeforeCall(masm);
+  __ mov(index_, Operand(index_, LSL, kSmiTagSize));
   __ Push(object_, index_);
   __ CallRuntime(Runtime::kStringCharCodeAt, 2);
   __ Move(result_, r0);

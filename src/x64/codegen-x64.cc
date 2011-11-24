@@ -380,7 +380,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // We need special handling for indirect strings.
   Label check_sequential;
   __ testb(result, Immediate(kIsIndirectStringMask));
-  __ j(zero, &check_sequential);
+  __ j(zero, &check_sequential, Label::kNear);
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
@@ -393,32 +393,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ addq(index, result);
   __ movq(string, FieldOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded, Label::kNear);
-
-  // Handle external strings.
-  Label external_string, ascii_external, done;
-  __ bind(&external_string);
-  if (FLAG_debug_code) {
-    // Assert that we do not have a cons or slice (indirect strings) here.
-    // Sequential strings have already been ruled out.
-    __ testb(result, Immediate(kIsIndirectStringMask));
-    __ Assert(zero, "external string expected, but not found");
-  }
-  // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
-  __ testb(result, Immediate(kShortExternalStringTag));
-  __ j(not_zero, call_runtime);
-  // Check encoding.
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ testb(result, Immediate(kStringEncodingMask));
-  __ movq(result, FieldOperand(string, ExternalString::kResourceDataOffset));
-  __ j(not_equal, &ascii_external, Label::kNear);
-  // Two-byte string.
-  __ movzxwl(result, Operand(result, index, times_2, 0));
-  __ jmp(&done);
-  __ bind(&ascii_external);
-  // Ascii string.
-  __ movzxbl(result, Operand(result, index, times_1, 0));
-  __ jmp(&done);
 
   // Handle cons strings.
   // Check whether the right hand side is the empty string (i.e. if
@@ -438,17 +412,44 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been
   // reduced to the underlying sequential or external string).
+  Label seq_string;
   __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result, Immediate(kStringRepresentationMask));
-  __ j(not_zero, &external_string);
+  __ j(zero, &seq_string, Label::kNear);
+
+  // Handle external strings.
+  Label ascii_external, done;
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ testb(result, Immediate(kIsIndirectStringMask));
+    __ Assert(zero, "external string expected, but not found");
+  }
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ testb(result, Immediate(kShortExternalStringTag));
+  __ j(not_zero, call_runtime);
+  // Check encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ testb(result, Immediate(kStringEncodingMask));
+  __ movq(result, FieldOperand(string, ExternalString::kResourceDataOffset));
+  __ j(not_equal, &ascii_external, Label::kNear);
+  // Two-byte string.
+  __ movzxwl(result, Operand(result, index, times_2, 0));
+  __ jmp(&done, Label::kNear);
+  __ bind(&ascii_external);
+  // Ascii string.
+  __ movzxbl(result, Operand(result, index, times_1, 0));
+  __ jmp(&done, Label::kNear);
 
   // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii_string;
+  Label ascii;
+  __ bind(&seq_string);
   STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string, Label::kNear);
+  __ j(not_zero, &ascii, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
@@ -461,7 +462,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 
   // ASCII string.
   // Load the byte into the result register.
-  __ bind(&ascii_string);
+  __ bind(&ascii);
   __ movzxbl(result, FieldOperand(string,
                                   index,
                                   times_1,
