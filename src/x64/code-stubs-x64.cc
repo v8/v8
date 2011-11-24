@@ -2650,10 +2650,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string, Label::kNear);
-  // Any other flat string must be a flat ascii string.
+  // Any other flat string must be a flat ascii string.  None of the following
+  // string type tests will succeed if kIsNotStringTag is set.
   __ andb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
   __ j(zero, &seq_ascii_string, Label::kNear);
 
+  // rbx: whether subject is a string and if yes, its string representation
   // Check for flat cons string or sliced string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
@@ -2663,9 +2665,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label cons_string, check_encoding;
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   __ cmpq(rbx, Immediate(kExternalStringTag));
   __ j(less, &cons_string, Label::kNear);
   __ j(equal, &runtime);
+
+  // Catch non-string subject (should already have been guarded against).
+  STATIC_ASSERT(kNotStringTag != 0);
+  __ testb(rbx, Immediate(kIsNotStringMask));
+  __ j(not_zero, &runtime);
 
   // String is sliced.
   __ SmiToInteger32(r14, FieldOperand(rdi, SlicedString::kOffsetOffset));
