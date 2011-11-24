@@ -289,6 +289,13 @@ class LCodeGen BASE_EMBEDDED {
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);
 
+  // Emits optimized code to deep-copy the contents of statically known
+  // object graphs (e.g. object literal boilerplate).
+  void EmitDeepCopy(Handle<JSObject> object,
+                    Register result,
+                    Register source,
+                    int* offset);
+
   struct JumpTableEntry {
     explicit inline JumpTableEntry(Address entry)
         : label(),

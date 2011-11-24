@@ -1792,7 +1792,12 @@ HType HArrayLiteral::CalculateInferredType() {
 }
 
 
-HType HObjectLiteral::CalculateInferredType() {
+HType HObjectLiteralFast::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
+HType HObjectLiteralGeneric::CalculateInferredType() {
   return HType::JSObject();
 }
 

@@ -2070,8 +2070,14 @@ LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteral, r0), instr);
+LInstruction* LChunkBuilder::DoObjectLiteralFast(HObjectLiteralFast* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteralFast, r0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoObjectLiteralGeneric(
+    HObjectLiteralGeneric* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteralGeneric, r0), instr);
 }
 
 

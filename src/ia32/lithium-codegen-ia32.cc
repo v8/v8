@@ -4161,7 +4161,79 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 }
 
 
-void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
+void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
+                            Register result,
+                            Register source,
+                            int* offset) {
+  ASSERT(!source.is(ecx));
+  ASSERT(!result.is(ecx));
+
+  if (FLAG_debug_code) {
+    LoadHeapObject(ecx, object);
+    __ cmp(source, ecx);
+    __ Assert(equal, "Unexpected object literal boilerplate");
+  }
+
+  // Increase the offset so that subsequent objects end up right after
+  // this one.
+  int current_offset = *offset;
+  int size = object->map()->instance_size();
+  *offset += size;
+
+  // Copy object header.
+  ASSERT(object->properties()->length() == 0);
+  ASSERT(object->elements()->length() == 0 ||
+         object->elements()->map() == isolate()->heap()->fixed_cow_array_map());
+  int inobject_properties = object->map()->inobject_properties();
+  int header_size = size - inobject_properties * kPointerSize;
+  for (int i = 0; i < header_size; i += kPointerSize) {
+    __ mov(ecx, FieldOperand(source, i));
+    __ mov(FieldOperand(result, current_offset + i), ecx);
+  }
+
+  // Copy in-object properties.
+  for (int i = 0; i < inobject_properties; i++) {
+    int total_offset = current_offset + object->GetInObjectPropertyOffset(i);
+    Handle<Object> value = Handle<Object>(object->InObjectPropertyAt(i));
+    if (value->IsJSObject()) {
+      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+      __ lea(ecx, Operand(result, *offset));
+      __ mov(FieldOperand(result, total_offset), ecx);
+      LoadHeapObject(source, value_object);
+      EmitDeepCopy(value_object, result, source, offset);
+    } else if (value->IsHeapObject()) {
+      LoadHeapObject(ecx, Handle<HeapObject>::cast(value));
+      __ mov(FieldOperand(result, total_offset), ecx);
+    } else {
+      __ mov(FieldOperand(result, total_offset), Immediate(value));
+    }
+  }
+}
+
+
+void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
+  int size = instr->hydrogen()->total_size();
+
+  // Allocate all objects that are part of the literal in one big
+  // allocation. This avoids multiple limit checks.
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, eax, ecx, edx, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ push(Immediate(Smi::FromInt(size)));
+  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+
+  __ bind(&allocated);
+  int offset = 0;
+  LoadHeapObject(ebx, instr->hydrogen()->boilerplate());
+  EmitDeepCopy(instr->hydrogen()->boilerplate(), eax, ebx, &offset);
+  ASSERT_EQ(size, offset);
+}
+
+
+void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();

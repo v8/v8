@@ -3316,18 +3316,78 @@ void HGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+// Determines whether the given object literal boilerplate satisfies all
+// limits to be considered for fast deep-copying and computes the total
+// size of all objects that are part of the graph.
+static bool IsFastObjectLiteral(Handle<JSObject> boilerplate,
+                                int max_depth,
+                                int* max_properties,
+                                int* total_size) {
+  if (max_depth <= 0) return false;
+
+  FixedArrayBase* elements = boilerplate->elements();
+  if (elements->length() > 0 &&
+      elements->map() != HEAP->fixed_cow_array_map()) {
+    return false;
+  }
+
+  FixedArray* properties = boilerplate->properties();
+  if (properties->length() > 0) {
+    return false;
+  } else {
+    int nof = boilerplate->map()->inobject_properties();
+    for (int i = 0; i < nof; i++) {
+      if ((*max_properties)-- <= 0) return false;
+      Handle<Object> value(boilerplate->InObjectPropertyAt(i));
+      if (value->IsJSObject()) {
+        Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+        if (!IsFastObjectLiteral(value_object,
+                                 max_depth - 1,
+                                 max_properties,
+                                 total_size)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  *total_size += boilerplate->map()->instance_size();
+  return true;
+}
+
+
 void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  Handle<JSFunction> closure = function_state()->compilation_info()->closure();
   HValue* context = environment()->LookupContext();
-  HObjectLiteral* literal =
-      new(zone()) HObjectLiteral(context,
-                                 expr->constant_properties(),
-                                 expr->fast_elements(),
-                                 expr->literal_index(),
-                                 expr->depth(),
-                                 expr->has_function());
+  HInstruction* literal;
+
+  // Check whether to use fast or slow deep-copying for boilerplate.
+  int total_size = 0;
+  int max_properties = HObjectLiteralFast::kMaxObjectLiteralProperties;
+  Handle<Object> boilerplate(closure->literals()->get(expr->literal_index()));
+  if (boilerplate->IsJSObject() &&
+      IsFastObjectLiteral(Handle<JSObject>::cast(boilerplate),
+                          HObjectLiteralFast::kMaxObjectLiteralDepth,
+                          &max_properties,
+                          &total_size)) {
+    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
+    literal = new(zone()) HObjectLiteralFast(context,
+                                             boilerplate_object,
+                                             total_size,
+                                             expr->literal_index(),
+                                             expr->depth());
+  } else {
+    literal = new(zone()) HObjectLiteralGeneric(context,
+                                                expr->constant_properties(),
+                                                expr->fast_elements(),
+                                                expr->literal_index(),
+                                                expr->depth(),
+                                                expr->has_function());
+  }
+
   // The object is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);

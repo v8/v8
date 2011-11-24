@@ -295,6 +295,14 @@ class LCodeGen BASE_EMBEDDED {
                                        Register object,
                                        Handle<Map> type,
                                        Handle<String> name);
+
+  // Emits optimized code to deep-copy the contents of statically known
+  // object graphs (e.g. object literal boilerplate).
+  void EmitDeepCopy(Handle<JSObject> object,
+                    Register result,
+                    Register source,
+                    int* offset);
+
   void EnsureSpaceForLazyDeopt();
 
   LChunk* const chunk_;
