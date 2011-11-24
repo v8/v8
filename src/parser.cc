@@ -601,8 +601,8 @@ Parser::Parser(Handle<Script> script,
       fni_(NULL),
       allow_natives_syntax_(allow_natives_syntax),
       stack_overflow_(false),
-      parenthesized_function_(false),
-      harmony_scoping_(false) {
+      parenthesized_function_(false) {
+  scanner().SetHarmonyScoping(FLAG_harmony_scoping);
   AstNode::ResetIds();
 }
 
@@ -665,7 +665,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
-    if (ok && harmony_scoping_) {
+    if (ok && is_extended_mode()) {
       CheckConflictingVarDeclarations(scope, &ok);
     }
 
@@ -833,10 +833,6 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   isolate()->Throw(*result, &location);
 }
 
-void Parser::SetHarmonyScoping(bool block_scoping) {
-  scanner().SetHarmonyScoping(block_scoping);
-  harmony_scoping_ = block_scoping;
-}
 
 // Base class containing common code for the different finder classes used by
 // the parser.
@@ -1199,7 +1195,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
-          top_scope_->SetLanguageMode(harmony_scoping_
+          // TODO(ES6): Fix entering extended mode, once it is specified.
+          top_scope_->SetLanguageMode(FLAG_harmony_scoping
                                       ? EXTENDED_MODE : STRICT_MODE);
           // "use strict" is the only directive for now.
           directive_prologue = false;
@@ -1413,7 +1410,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
                var->mode() == CONST ||
                var->mode() == CONST_HARMONY ||
                var->mode() == LET);
-        if (harmony_scoping_) {
+        if (is_extended_mode()) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
           SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
@@ -1585,7 +1582,7 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   // Even if we're not at the top-level of the global or a function
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
-  VariableMode mode = harmony_scoping_ ? LET : VAR;
+  VariableMode mode = is_extended_mode() ? LET : VAR;
   Declare(name, mode, fun, true, CHECK_OK);
   return EmptyStatement();
 }
@@ -2326,7 +2323,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
-      VariableMode mode = harmony_scoping_ ? LET : VAR;
+      VariableMode mode = is_extended_mode() ? LET : VAR;
       catch_variable =
           catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
@@ -3936,7 +3933,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
+  Scope* scope = (type == FunctionLiteral::DECLARATION && !is_extended_mode())
       ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
       : NewScope(top_scope_, FUNCTION_SCOPE);
   ZoneList<Statement*>* body = NULL;
@@ -3977,7 +3974,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         reserved_loc = scanner().location();
       }
 
-      top_scope_->DeclareParameter(param_name, harmony_scoping_ ? LET : VAR);
+      top_scope_->DeclareParameter(param_name, is_extended_mode() ? LET : VAR);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
@@ -4002,7 +3999,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     Token::Value fvar_init_op = Token::INIT_CONST;
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
       VariableMode fvar_mode;
-      if (harmony_scoping_) {
+      if (is_extended_mode()) {
         fvar_mode = CONST_HARMONY;
         fvar_init_op = Token::INIT_CONST_HARMONY;
       } else {
@@ -4120,7 +4117,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
   }
 
-  if (harmony_scoping_) {
+  if (is_extended_mode()) {
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
@@ -5360,7 +5357,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
   Isolate* isolate = Isolate::Current();
   HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
+  scanner.SetHarmonyScoping(FLAG_harmony_scoping);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,
@@ -5433,14 +5430,12 @@ bool ParserApi::Parse(CompilationInfo* info) {
   ASSERT(info->function() == NULL);
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
-  bool harmony_scoping = !info->is_native() && FLAG_harmony_scoping;
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
     bool allow_natives_syntax =
         FLAG_allow_natives_syntax ||
         info->is_native();
     Parser parser(script, allow_natives_syntax, NULL, NULL);
-    parser.SetHarmonyScoping(harmony_scoping);
     result = parser.ParseLazy(info);
   } else {
     // Whether we allow %identifier(..) syntax.
@@ -5451,7 +5446,6 @@ bool ParserApi::Parse(CompilationInfo* info) {
                   allow_natives_syntax,
                   info->extension(),
                   pre_data);
-    parser.SetHarmonyScoping(harmony_scoping);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();

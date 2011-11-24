@@ -440,7 +440,6 @@ class Parser {
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<Handle<String> > args);
-  void SetHarmonyScoping(bool block_scoping);
 
  private:
   // Limit on number of function parameters is chosen arbitrarily.
@@ -491,6 +490,10 @@ class Parser {
   Scanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
+  bool is_extended_mode() {
+    ASSERT(top_scope_ != NULL);
+    return top_scope_->is_extended_mode();
+  }
 
   // Check if the given string is 'eval' or 'arguments'.
   bool IsEvalOrArguments(Handle<String> string);
@@ -746,7 +749,6 @@ class Parser {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
-  bool harmony_scoping_;
 
   friend class BlockState;
   friend class FunctionState;

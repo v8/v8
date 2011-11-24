@@ -844,6 +844,7 @@ TEST(ScopePositions) {
   int marker;
   i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+  i::FLAG_harmony_scoping = true;
 
   for (int i = 0; source_data[i].outer_prefix; i++) {
     int kPrefixLen = i::StrLength(source_data[i].outer_prefix);
@@ -862,7 +863,6 @@ TEST(ScopePositions) {
         FACTORY->NewStringFromAscii(i::CStrVector(program.start())));
     i::Handle<i::Script> script = FACTORY->NewScript(source);
     i::Parser parser(script, false, NULL, NULL);
-    parser.SetHarmonyScoping(true);
     i::CompilationInfo info(script);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
