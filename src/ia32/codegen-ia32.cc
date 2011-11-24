@@ -579,7 +579,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ movzx_b(result, Operand(result, index, times_1, 0));
   __ jmp(&done);
 
-  // Handle conses.
+  // Handle cons strings.
   // Check whether the right hand side is the empty string (i.e. if
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
@@ -594,11 +594,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
-  // Check whether the string is sequential. The only non-sequential
-  // shapes we support have just been unwrapped above.
-  // Note that if the original string is a cons or slice with an external
-  // string as underlying string, we pass that unpacked underlying string with
-  // the adjusted index to the runtime function.
+  // Distinguish sequential and external strings. Only these two string
+  // representations can reach here (slices and flat cons strings have been
+  // reduced to the underlying sequential or external string).
   __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result, Immediate(kStringRepresentationMask));
