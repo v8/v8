@@ -231,6 +231,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathSqrt(LUnaryMathOperation* instr);
   void DoMathPowHalf(LUnaryMathOperation* instr);
   void DoMathLog(LUnaryMathOperation* instr);
+  void DoMathTan(LUnaryMathOperation* instr);
   void DoMathCos(LUnaryMathOperation* instr);
   void DoMathSin(LUnaryMathOperation* instr);
 

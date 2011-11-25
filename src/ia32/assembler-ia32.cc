@@ -1626,6 +1626,13 @@ void Assembler::fsin() {
 }
 
 
+void Assembler::fptan() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xF2);
+}
+
+
 void Assembler::fyl2x() {
   EnsureSpace ensure_space(this);
   EMIT(0xD9);

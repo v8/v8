@@ -924,6 +924,7 @@ class Assembler : public AssemblerBase {
   void fchs();
   void fcos();
   void fsin();
+  void fptan();
   void fyl2x();
 
   void fadd(int i);

@@ -189,7 +189,7 @@ function MathSqrt(x) {
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_tan(x);
+  return %_MathTan(x);
 }
 
 

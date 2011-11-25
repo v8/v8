@@ -3272,6 +3272,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ cmp(r3, r5);
     __ b(ne, &calculate);
     // Cache hit. Load result, cleanup and return.
+    Counters* counters = masm->isolate()->counters();
+    __ IncrementCounter(counters->transcendental_cache_hit(), 1);
     if (tagged) {
       // Pop input value from stack and load result into r0.
       __ pop();
@@ -3284,6 +3286,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   }  // if (CpuFeatures::IsSupported(VFP3))
 
   __ bind(&calculate);
+  __ IncrementCounter(counters->transcendental_cache_miss(), 1);
   if (tagged) {
     __ bind(&invalid_cache);
     ExternalReference runtime_function =
@@ -3371,6 +3374,10 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
       __ CallCFunction(ExternalReference::math_cos_double_function(isolate),
           0, 1);
       break;
+    case TranscendentalCache::TAN:
+      __ CallCFunction(ExternalReference::math_tan_double_function(isolate),
+          0, 1);
+      break;
     case TranscendentalCache::LOG:
       __ CallCFunction(ExternalReference::math_log_double_function(isolate),
           0, 1);
@@ -3388,6 +3395,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();

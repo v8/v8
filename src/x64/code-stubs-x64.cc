@@ -1607,6 +1607,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ cmpq(rbx, Operand(rcx, 0));
   __ j(not_equal, &cache_miss, Label::kNear);
   // Cache hit!
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->transcendental_cache_hit(), 1);
   __ movq(rax, Operand(rcx, 2 * kIntSize));
   if (tagged) {
     __ fstp(0);  // Clear FPU stack.
@@ -1617,6 +1619,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&cache_miss);
+  __ IncrementCounter(counters->transcendental_cache_miss(), 1);
   // Update cache with new value.
   if (tagged) {
   __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
@@ -1683,6 +1686,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
@@ -1698,7 +1702,9 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
   Label done;
-  if (type_ == TranscendentalCache::SIN || type_ == TranscendentalCache::COS) {
+  if (type_ == TranscendentalCache::SIN ||
+      type_ == TranscendentalCache::COS ||
+      type_ == TranscendentalCache::TAN) {
     // Both fsin and fcos require arguments in the range +/-2^63 and
     // return NaN for infinities and NaN. They can share all code except
     // the actual fsin/fcos operation.
@@ -1767,6 +1773,12 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
         break;
       case TranscendentalCache::COS:
         __ fcos();
+        break;
+      case TranscendentalCache::TAN:
+        // FPTAN calculates tangent onto st(0) and pushes 1.0 onto the
+        // FP register stack.
+        __ fptan();
+        __ fstp(0);  // Pop FP register stack.
         break;
       default:
         UNREACHABLE();

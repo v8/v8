@@ -652,6 +652,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference math_sin_double_function(Isolate* isolate);
   static ExternalReference math_cos_double_function(Isolate* isolate);
+  static ExternalReference math_tan_double_function(Isolate* isolate);
   static ExternalReference math_log_double_function(Isolate* isolate);
 
   Address address() const {return reinterpret_cast<Address>(address_);}

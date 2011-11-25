@@ -505,6 +505,7 @@ namespace internal {
   F(MathPow, 2, 1)                                                           \
   F(MathSin, 1, 1)                                                           \
   F(MathCos, 1, 1)                                                           \
+  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
   F(IsRegExpEquivalent, 2, 1)                                                \
