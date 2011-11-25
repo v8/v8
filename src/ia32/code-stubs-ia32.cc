@@ -3611,13 +3611,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   // First check for flat two byte string.
-  __ and_(ebx,
-          kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
+  __ and_(ebx, kIsNotStringMask |
+               kStringRepresentationMask |
+               kStringEncodingMask |
+               kShortExternalStringMask);
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be a flat ascii string.  None of the following
-  // string type tests will succeed if kIsNotStringTag is set.
-  __ and_(ebx, Immediate(kIsNotStringMask | kStringRepresentationMask));
+  // string type tests will succeed if subject is not a string or a short
+  // external string.
+  __ and_(ebx, Immediate(kIsNotStringMask |
+                         kStringRepresentationMask |
+                         kShortExternalStringMask));
   __ j(zero, &seq_ascii_string, Label::kNear);
 
   // ebx: whether subject is a string and if yes, its string representation
@@ -3627,17 +3632,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
   // In the case of a sliced string its offset has to be taken into account.
-  Label cons_string, check_encoding;
+  Label cons_string, external_string, check_encoding;
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
+  STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ cmp(ebx, Immediate(kExternalStringTag));
   __ j(less, &cons_string);
-  __ j(equal, &runtime);
+  __ j(equal, &external_string);
 
-  // Catch non-string subject (should already have been guarded against).
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ test(ebx, Immediate(kIsNotStringMask));
+  // Catch non-string subject or short external string.
+  STATIC_ASSERT(kNotStringTag != 0 && kShortExternalStringTag !=0);
+  __ test(ebx, Immediate(kIsNotStringMask | kShortExternalStringTag));
   __ j(not_zero, &runtime);
 
   // String is sliced.
@@ -3660,10 +3666,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
             kStringRepresentationMask | kStringEncodingMask);
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string, Label::kNear);
-  // Any other flat string must be ascii.
+  // Any other flat string must be sequential ascii or external.
   __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
             kStringRepresentationMask);
-  __ j(not_zero, &runtime);
+  __ j(not_zero, &external_string);
 
   __ bind(&seq_ascii_string);
   // eax: subject string (flat ascii)
@@ -3883,6 +3889,27 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Return last match info.
   __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ ret(4 * kPointerSize);
+
+  // External string.  Short external strings have already been ruled out.
+  // eax: subject string (expected to be external)
+  // ebx: scratch
+  __ bind(&external_string);
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ test_b(ebx, kIsIndirectStringMask);
+    __ Assert(zero, "external string expected, but not found");
+  }
+  __ mov(eax, FieldOperand(eax, ExternalString::kResourceDataOffset));
+  // Move the pointer so that offset-wise, it looks like a sequential string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  __ sub(eax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ test_b(ebx, kStringEncodingMask);
+  __ j(not_zero, &seq_ascii_string);
+  __ jmp(&seq_two_byte_string);
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
