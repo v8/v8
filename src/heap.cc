@@ -112,6 +112,7 @@ Heap::Heap()
       disallow_allocation_failure_(false),
       debug_utils_(NULL),
 #endif  // DEBUG
+      new_space_high_promotion_mode_active_(false),
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
       old_gen_limit_factor_(1),
@@ -735,6 +736,32 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
+    if (!new_space_high_promotion_mode_active_ &&
+        new_space_.Capacity() == new_space_.MaximumCapacity() &&
+        IsStableOrIncreasingSurvivalTrend() &&
+        IsHighSurvivalRate()) {
+      // Stable high survival rates even though young generation is at
+      // maximum capacity indicates that most objects will be promoted.
+      // To decrease scavenger pauses and final mark-sweep pauses, we
+      // have to limit maximal capacity of the young generation.
+      new_space_high_promotion_mode_active_ = true;
+      if (FLAG_trace_gc) {
+        PrintF("Limited new space size due to high promotion rate: %d MB\n",
+               new_space_.InitialCapacity() / MB);
+      }
+    } else if (new_space_high_promotion_mode_active_ &&
+        IsDecreasingSurvivalTrend() &&
+        !IsHighSurvivalRate()) {
+      // Decreasing low survival rates might indicate that the above high
+      // promotion mode is over and we should allow the young generation
+      // to grow again.
+      new_space_high_promotion_mode_active_ = false;
+      if (FLAG_trace_gc) {
+        PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
+               new_space_.MaximumCapacity() / MB);
+      }
+    }
+
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSize();
 
     if (high_survival_rate_during_scavenges &&
@@ -762,6 +789,11 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     tracer_ = NULL;
 
     UpdateSurvivalRateTrend(start_new_space_size);
+  }
+
+  if (new_space_high_promotion_mode_active_ &&
+      new_space_.Capacity() > new_space_.InitialCapacity()) {
+    new_space_.Shrink();
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
@@ -916,9 +948,11 @@ static void VerifyNonPointerSpacePointers() {
 
 void Heap::CheckNewSpaceExpansionCriteria() {
   if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Grow the size of new space if there is room to grow and enough
-    // data has survived scavenge since the last expansion.
+      survived_since_last_expansion_ > new_space_.Capacity() &&
+      !new_space_high_promotion_mode_active_) {
+    // Grow the size of new space if there is room to grow, enough data
+    // has survived scavenge since the last expansion and we are not in
+    // high promotion mode.
     new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }

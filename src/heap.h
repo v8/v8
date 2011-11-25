@@ -1569,6 +1569,10 @@ class Heap {
   HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
+  // Indicates that the new space should be kept small due to high promotion
+  // rates caused by the mutator allocating a lot of long-lived objects.
+  bool new_space_high_promotion_mode_active_;
+
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke.
@@ -1807,6 +1811,10 @@ class Heap {
 
   bool IsIncreasingSurvivalTrend() {
     return survival_rate_trend() == INCREASING;
+  }
+
+  bool IsDecreasingSurvivalTrend() {
+    return survival_rate_trend() == DECREASING;
   }
 
   bool IsHighSurvivalRate() {
