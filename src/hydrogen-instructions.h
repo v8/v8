@@ -4353,7 +4353,7 @@ class HToFastProperties: public HUnaryOperation {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
     // object literals.
-    ASSERT(value->IsObjectLiteralGeneric());
+    ASSERT(value->IsObjectLiteralGeneric() || value->IsObjectLiteralFast());
     set_representation(Representation::Tagged());
   }
 
