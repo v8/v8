@@ -3392,8 +3392,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // If we fail allocation of the HeapNumber, we still have a value on
   // top of the FPU stack. Remove it.
   __ bind(&failed_allocation);
-  __ ffree();
-  __ fincstp();
+  __ fstp(0);
   // Fall through to slow case.
 
   // Slow case: Jump to runtime.
@@ -3710,8 +3709,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // A value was pushed on the floating point stack before the allocation, if
   // the allocation fails it needs to be removed.
   if (!CpuFeatures::IsSupported(SSE2)) {
-    __ ffree();
-    __ fincstp();
+    __ fstp(0);
   }
   Handle<Code> slow_ic =
       masm->isolate()->builtins()->KeyedLoadIC_Slow();

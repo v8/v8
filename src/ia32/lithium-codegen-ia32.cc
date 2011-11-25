@@ -3756,8 +3756,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ cmp(Operand(input_reg), Immediate(kTooBigExponent));
       __ j(less, &convert, Label::kNear);
       // Pop FPU stack before deoptimizing.
-      __ ffree(0);
-      __ fincstp();
+      __ fstp(0);
       DeoptimizeIf(no_condition, instr->environment());
 
       // Reserve space for 64 bit answer.
