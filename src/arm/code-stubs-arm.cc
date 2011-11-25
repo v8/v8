@@ -3273,7 +3273,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ b(ne, &calculate);
     // Cache hit. Load result, cleanup and return.
     Counters* counters = masm->isolate()->counters();
-    __ IncrementCounter(counters->transcendental_cache_hit(), 1);
+    __ IncrementCounter(
+        counters->transcendental_cache_hit(), 1, scratch0, scratch1);
     if (tagged) {
       // Pop input value from stack and load result into r0.
       __ pop();
@@ -3286,7 +3287,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   }  // if (CpuFeatures::IsSupported(VFP3))
 
   __ bind(&calculate);
-  __ IncrementCounter(counters->transcendental_cache_miss(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(
+      counters->transcendental_cache_miss(), 1, scratch0, scratch1);
   if (tagged) {
     __ bind(&invalid_cache);
     ExternalReference runtime_function =
