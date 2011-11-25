@@ -4763,7 +4763,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 
   // Parse and allocate variables.
   CompilationInfo target_info(target);
-  if (!ParserApi::Parse(&target_info) ||
+  if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.

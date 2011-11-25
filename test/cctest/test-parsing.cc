@@ -862,7 +862,7 @@ TEST(ScopePositions) {
     i::Handle<i::String> source(
         FACTORY->NewStringFromAscii(i::CStrVector(program.start())));
     i::Handle<i::Script> script = FACTORY->NewScript(source);
-    i::Parser parser(script, false, NULL, NULL);
+    i::Parser parser(script, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL);
     i::CompilationInfo info(script);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);

@@ -377,8 +377,14 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
-
-  if (!ParserApi::Parse(info)) return Handle<SharedFunctionInfo>::null();
+  ParsingFlags flags = kNoParsingFlags;
+  if (info->pre_parse_data() != NULL ||
+      String::cast(script->source())->length() > FLAG_min_preparse_length) {
+    flags = kAllowLazy;
+  }
+  if (!ParserApi::Parse(info, flags)) {
+    return Handle<SharedFunctionInfo>::null();
+  }
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -453,7 +459,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              int line_offset,
                                              int column_offset,
                                              v8::Extension* extension,
-                                             ScriptDataImpl* input_pre_data,
+                                             ScriptDataImpl* pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
@@ -484,24 +490,12 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // for small sources, odds are that there aren't many functions
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
-    ScriptDataImpl* pre_data = input_pre_data;
     int flags = kNoParsingFlags;
     if ((natives == NATIVES_CODE) || FLAG_allow_natives_syntax) {
       flags |= kAllowNativesSyntax;
     }
     if (natives != NATIVES_CODE && FLAG_harmony_scoping) {
-      flags |= kHarmonyScoping;
-    }
-    if (pre_data == NULL
-        && source_length >= FLAG_min_preparse_length) {
-      if (source->IsExternalTwoByteString()) {
-        ExternalTwoByteStringUC16CharacterStream stream(
-            Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
-      } else {
-        GenericStringUC16CharacterStream stream(source, 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
-      }
+      flags |= EXTENDED_MODE;
     }
 
     // Create a script object describing the script to be compiled.
@@ -526,11 +520,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
-    }
-
-    // Get rid of the pre-parsing data (if necessary).
-    if (input_pre_data == NULL && pre_data != NULL) {
-      delete pre_data;
     }
   }
 
@@ -604,7 +593,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   isolate->counters()->total_compile_size()->Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
-  if (ParserApi::Parse(info)) {
+  if (ParserApi::Parse(info, kNoParsingFlags)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.

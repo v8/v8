@@ -110,6 +110,24 @@ class PreParser {
     kPreParseSuccess
   };
 
+
+  PreParser(i::Scanner* scanner,
+            i::ParserRecorder* log,
+            uintptr_t stack_limit,
+            bool allow_lazy,
+            bool allow_natives_syntax)
+      : scanner_(scanner),
+        log_(log),
+        scope_(NULL),
+        stack_limit_(stack_limit),
+        strict_mode_violation_location_(i::Scanner::Location::invalid()),
+        strict_mode_violation_type_(NULL),
+        stack_overflow_(false),
+        allow_lazy_(allow_lazy),
+        allow_natives_syntax_(allow_natives_syntax),
+        parenthesized_function_(false),
+        harmony_scoping_(scanner->HarmonyScoping()) { }
+
   ~PreParser() {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -125,6 +143,17 @@ class PreParser {
     return PreParser(scanner, log, stack_limit,
                      allow_lazy, allow_natives_syntax).PreParse();
   }
+
+  // Parses a single function literal, from the opening parentheses before
+  // parameters to the closing brace after the body.
+  // Returns a FunctionEntry describing the body of the funciton in enough
+  // detail that it can be lazily compiled.
+  // The scanner is expected to have matched the "function" keyword and
+  // parameters, and have consumed the initial '{'.
+  // At return, unless an error occured, the scanner is positioned before the
+  // the final '}'.
+  PreParseResult PreParseLazyFunction(i::LanguageMode mode,
+                                      i::ParserRecorder* log);
 
  private:
   // Used to detect duplicates in object literals. Each of the values
@@ -450,24 +479,6 @@ class PreParser {
     i::LanguageMode language_mode_;
   };
 
-  // Private constructor only used in PreParseProgram.
-  PreParser(i::Scanner* scanner,
-            i::ParserRecorder* log,
-            uintptr_t stack_limit,
-            bool allow_lazy,
-            bool allow_natives_syntax)
-      : scanner_(scanner),
-        log_(log),
-        scope_(NULL),
-        stack_limit_(stack_limit),
-        strict_mode_violation_location_(i::Scanner::Location::invalid()),
-        strict_mode_violation_type_(NULL),
-        stack_overflow_(false),
-        allow_lazy_(allow_lazy),
-        allow_natives_syntax_(allow_natives_syntax),
-        parenthesized_function_(false),
-        harmony_scoping_(scanner->HarmonyScoping()) { }
-
   // Preparse the program. Only called in PreParseProgram after creating
   // the instance.
   PreParseResult PreParse() {
@@ -547,6 +558,7 @@ class PreParser {
 
   Arguments ParseArguments(bool* ok);
   Expression ParseFunctionLiteral(bool* ok);
+  void ParseLazyFunctionLiteralBody(bool* ok);
 
   Identifier ParseIdentifier(bool* ok);
   Identifier ParseIdentifierName(bool* ok);

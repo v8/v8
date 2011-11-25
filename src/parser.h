@@ -76,8 +76,10 @@ class FunctionEntry BASE_EMBEDDED {
     kSize
   };
 
-  explicit FunctionEntry(Vector<unsigned> backing) : backing_(backing) { }
-  FunctionEntry() { }
+  explicit FunctionEntry(Vector<unsigned> backing)
+    : backing_(backing) { }
+
+  FunctionEntry() : backing_() { }
 
   int start_pos() { return backing_[kStartPositionIndex]; }
   int end_pos() { return backing_[kEndPositionIndex]; }
@@ -94,6 +96,7 @@ class FunctionEntry BASE_EMBEDDED {
 
  private:
   Vector<unsigned> backing_;
+  bool owns_data_;
 };
 
 
@@ -166,7 +169,7 @@ class ParserApi {
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
-  static bool Parse(CompilationInfo* info);
+  static bool Parse(CompilationInfo* info, int flags);
 
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(UC16CharacterStream* source,
@@ -422,13 +425,20 @@ class RegExpParser {
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
 
+// Forward declaration.
+class SingletonLogger;
+
 class Parser {
  public:
   Parser(Handle<Script> script,
-         bool allow_natives_syntax,
+         int parsing_flags,  // Combination of ParsingFlags
          v8::Extension* extension,
          ScriptDataImpl* pre_data);
-  virtual ~Parser() { }
+  virtual ~Parser() {
+    if (reusable_preparser_ != NULL) {
+      delete reusable_preparser_;
+    }
+  }
 
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(CompilationInfo* info);
@@ -728,12 +738,15 @@ class Parser {
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
 
+  preparser::PreParser::PreParseResult LazyParseFunctionLiteral(
+       SingletonLogger* logger);
+
   Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
   Scanner scanner_;
-
+  preparser::PreParser* reusable_preparser_;
   Scope* top_scope_;
   FunctionState* current_function_state_;
   Target* target_stack_;  // for break, continue statements
@@ -743,6 +756,7 @@ class Parser {
 
   Mode mode_;
   bool allow_natives_syntax_;
+  bool allow_lazy_;
   bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.

@@ -52,6 +52,34 @@ int isfinite(double value);
 
 namespace preparser {
 
+PreParser::PreParseResult PreParser::PreParseLazyFunction(
+    i::LanguageMode mode, i::ParserRecorder* log) {
+  log_ = log;
+  // Lazy functions always have trivial outer scopes (no with/catch scopes).
+  Scope top_scope(&scope_, kTopLevelScope);
+  set_language_mode(mode);
+  Scope function_scope(&scope_, kFunctionScope);
+  ASSERT_EQ(i::Token::LBRACE, scanner_->current_token());
+  bool ok = true;
+  int start_position = scanner_->peek_location().beg_pos;
+  ParseLazyFunctionLiteralBody(&ok);
+  if (stack_overflow_) return kPreParseStackOverflow;
+  if (!ok) {
+    ReportUnexpectedToken(scanner_->current_token());
+  } else {
+    ASSERT_EQ(i::Token::RBRACE, scanner_->peek());
+    if (!is_classic_mode()) {
+      int end_pos = scanner_->location().end_pos;
+      CheckOctalLiteral(start_position, end_pos, &ok);
+      if (ok) {
+        CheckDelayedStrictModeViolation(start_position, end_pos, &ok);
+      }
+    }
+  }
+  return kPreParseSuccess;
+}
+
+
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
 // See preparser-data.h for the data.
@@ -1350,9 +1378,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   }
   Expect(i::Token::RPAREN, CHECK_OK);
 
-  Expect(i::Token::LBRACE, CHECK_OK);
-  int function_block_pos = scanner_->location().beg_pos;
-
   // Determine if the function will be lazily compiled.
   // Currently only happens to top-level functions.
   // Optimistically assume that all top-level functions are lazily compiled.
@@ -1361,24 +1386,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
                              !parenthesized_function_);
   parenthesized_function_ = false;
 
+  Expect(i::Token::LBRACE, CHECK_OK);
   if (is_lazily_compiled) {
-    log_->PauseRecording();
-    ParseSourceElements(i::Token::RBRACE, ok);
-    log_->ResumeRecording();
-    if (!*ok) Expression::Default();
-
-    Expect(i::Token::RBRACE, CHECK_OK);
-
-    // Position right after terminal '}'.
-    int end_pos = scanner_->location().end_pos;
-    log_->LogFunction(function_block_pos, end_pos,
-                      function_scope.materialized_literal_count(),
-                      function_scope.expected_properties(),
-                      language_mode());
+    ParseLazyFunctionLiteralBody(CHECK_OK);
   } else {
-    ParseSourceElements(i::Token::RBRACE, CHECK_OK);
-    Expect(i::Token::RBRACE, CHECK_OK);
+    ParseSourceElements(i::Token::RBRACE, ok);
   }
+  Expect(i::Token::RBRACE, CHECK_OK);
 
   if (!is_classic_mode()) {
     int end_position = scanner_->location().end_pos;
@@ -1388,6 +1402,23 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   }
 
   return Expression::Default();
+}
+
+
+void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
+  int body_start = scanner_->location().beg_pos;
+  log_->PauseRecording();
+  ParseSourceElements(i::Token::RBRACE, ok);
+  log_->ResumeRecording();
+  if (!*ok) return;
+
+  // Position right after terminal '}'.
+  ASSERT_EQ(i::Token::RBRACE, scanner_->peek());
+  int body_end = scanner_->peek_location().end_pos;
+  log_->LogFunction(body_start, body_end,
+                    scope_->materialized_literal_count(),
+                    scope_->expected_properties(),
+                    language_mode());
 }
 
 
