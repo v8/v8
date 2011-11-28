@@ -178,7 +178,7 @@ class ParserApi {
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
-  static ScriptDataImpl* PartialPreParse(Handle<String> source,
+  static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
                                          v8::Extension* extension,
                                          int flags);
 };
