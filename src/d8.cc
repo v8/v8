@@ -794,22 +794,47 @@ void Shell::Exit(int exit_code) {
 
 
 #ifndef V8_SHARED
+struct CounterAndKey {
+  Counter* counter;
+  const char* key;
+};
+
+
+int CompareKeys(const void* a, const void* b) {
+  return strcmp(static_cast<const CounterAndKey*>(a)->key,
+                static_cast<const CounterAndKey*>(b)->key);
+}
+
+
 void Shell::OnExit() {
   if (console != NULL) console->Close();
   if (i::FLAG_dump_counters) {
-    printf("+----------------------------------------+-------------+\n");
-    printf("| Name                                   | Value       |\n");
-    printf("+----------------------------------------+-------------+\n");
+    int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
-      Counter* counter = i.CurrentValue();
+      number_of_counters++;
+    }
+    CounterAndKey* counters = new CounterAndKey[number_of_counters];
+    int j = 0;
+    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next(), j++) {
+      counters[j].counter = i.CurrentValue();
+      counters[j].key = i.CurrentKey();
+    }
+    qsort(counters, number_of_counters, sizeof(counters[0]), CompareKeys);
+    printf("+--------------------------------------------+-------------+\n");
+    printf("| Name                                       | Value       |\n");
+    printf("+--------------------------------------------+-------------+\n");
+    for (j = 0; j < number_of_counters; j++) {
+      Counter* counter = counters[j].counter;
+      const char* key = counters[j].key;
       if (counter->is_histogram()) {
-        printf("| c:%-36s | %11i |\n", i.CurrentKey(), counter->count());
-        printf("| t:%-36s | %11i |\n", i.CurrentKey(), counter->sample_total());
+        printf("| c:%-40s | %11i |\n", key, counter->count());
+        printf("| t:%-40s | %11i |\n", key, counter->sample_total());
       } else {
-        printf("| %-38s | %11i |\n", i.CurrentKey(), counter->count());
+        printf("| %-42s | %11i |\n", key, counter->count());
       }
     }
-    printf("+----------------------------------------+-------------+\n");
+    printf("+--------------------------------------------+-------------+\n");
+    delete [] counters;
   }
   if (counters_file_ != NULL)
     delete counters_file_;
