@@ -1176,6 +1176,7 @@ class VariableProxy: public Expression {
                 bool is_this,
                 int position = RelocInfo::kNoPosition);
 
+  friend class Rewriter;
   friend class Scope;
 };
 

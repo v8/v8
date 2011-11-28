@@ -661,14 +661,14 @@ Handle<ScopeInfo> Scope::GetScopeInfo() {
 void Scope::GetNestedScopeChain(
     List<Handle<ScopeInfo> >* chain,
     int position) {
-  chain->Add(Handle<ScopeInfo>(GetScopeInfo()));
+  if (!is_eval_scope()) chain->Add(Handle<ScopeInfo>(GetScopeInfo()));
 
   for (int i = 0; i < inner_scopes_.length(); i++) {
     Scope* scope = inner_scopes_[i];
     int beg_pos = scope->start_position();
     int end_pos = scope->end_position();
     ASSERT(beg_pos >= 0 && end_pos >= 0);
-    if (beg_pos <= position && position <= end_pos) {
+    if (beg_pos <= position && position < end_pos) {
       scope->GetNestedScopeChain(chain, position);
       return;
     }

@@ -349,10 +349,10 @@ TEST(Regress928) {
       "try { } catch (e) { var foo = function () { /* first */ } }"
       "var bar = function () { /* second */ }";
 
-  i::Utf8ToUC16CharacterStream stream(reinterpret_cast<const i::byte*>(program),
-                                      static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data =
-      i::ParserApi::PartialPreParse(&stream, NULL, false);
+  v8::HandleScope handles;
+  i::Handle<i::String> source(
+      FACTORY->NewStringFromAscii(i::CStrVector(program)));
+  i::ScriptDataImpl* data = i::ParserApi::PartialPreParse(source, NULL, false);
   CHECK(!data->HasError());
 
   data->Initialize();
