@@ -304,7 +304,7 @@ function YearFromTime(t) {
     }
 
     %DateYMDFromTime(t, ymd_from_time_cache);
-    ymd_from_time_cached_time = t
+    ymd_from_time_cached_time = t;
   }
 
   return ymd_from_time_cache[0];
@@ -316,7 +316,7 @@ function MonthFromTime(t) {
       return $NaN;
     }
     %DateYMDFromTime(t, ymd_from_time_cache);
-    ymd_from_time_cached_time = t
+    ymd_from_time_cached_time = t;
   }
 
   return ymd_from_time_cache[1];
@@ -329,7 +329,7 @@ function DateFromTime(t) {
     }
 
     %DateYMDFromTime(t, ymd_from_time_cache);
-    ymd_from_time_cached_time = t
+    ymd_from_time_cached_time = t;
   }
 
   return ymd_from_time_cache[2];
@@ -445,8 +445,9 @@ var Date_cache = {
     minutes = argc > 4 ? ToNumber(minutes) : 0;
     seconds = argc > 5 ? ToNumber(seconds) : 0;
     ms = argc > 6 ? ToNumber(ms) : 0;
-    year = (!NUMBER_IS_NAN(year) && 0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
-        ? 1900 + TO_INTEGER(year) : year;
+    year = (!NUMBER_IS_NAN(year) &&
+            0 <= TO_INTEGER(year) &&
+            TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
     var day = MakeDay(year, month, date);
     var time = MakeTime(hours, minutes, seconds, ms);
     value = TimeClip(UTC(MakeDate(day, time)));
@@ -459,7 +460,8 @@ var Date_cache = {
 
 
 var WeekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-var Months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var Months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 
 function TwoDigitString(value) {
@@ -475,8 +477,10 @@ function DateString(time) {
 }
 
 
-var LongWeekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-var LongMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+var LongWeekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday',
+    'Thursday', 'Friday', 'Saturday'];
+var LongMonths = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
 
 
 function LongDateString(time) {
@@ -556,8 +560,9 @@ function DateUTC(year, month, date, hours, minutes, seconds, ms) {
   minutes = argc > 4 ? ToNumber(minutes) : 0;
   seconds = argc > 5 ? ToNumber(seconds) : 0;
   ms = argc > 6 ? ToNumber(ms) : 0;
-  year = (!NUMBER_IS_NAN(year) && 0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
-      ? 1900 + TO_INTEGER(year) : year;
+  year = (!NUMBER_IS_NAN(year) &&
+          0 <= TO_INTEGER(year) &&
+          TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
   var day = MakeDay(year, month, date);
   var time = MakeTime(hours, minutes, seconds, ms);
   return %_SetValueOf(this, TimeClip(MakeDate(day, time)));
@@ -777,7 +782,10 @@ function DateSetTime(ms) {
 function DateSetMilliseconds(ms) {
   var t = LocalTime(DATE_VALUE(this));
   ms = ToNumber(ms);
-  var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), SEC_FROM_TIME(t), ms);
+  var time = MakeTime(HOUR_FROM_TIME(t),
+                      MIN_FROM_TIME(t),
+                      SEC_FROM_TIME(t),
+                      ms);
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
 
@@ -786,7 +794,10 @@ function DateSetMilliseconds(ms) {
 function DateSetUTCMilliseconds(ms) {
   var t = DATE_VALUE(this);
   ms = ToNumber(ms);
-  var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), SEC_FROM_TIME(t), ms);
+  var time = MakeTime(HOUR_FROM_TIME(t),
+                      MIN_FROM_TIME(t),
+                      SEC_FROM_TIME(t),
+                      ms);
   return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
 }
 
