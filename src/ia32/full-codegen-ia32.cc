@@ -1539,13 +1539,28 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
     VisitForAccumulatorValue(subexpr);
 
-    // Store the subexpression value in the array's elements.
-    __ mov(ebx, Operand(esp, 0));  // Copy of array literal.
-    __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
-    __ mov(ecx, Immediate(Smi::FromInt(i)));
-    __ mov(edx, Immediate(Smi::FromInt(expr->literal_index())));
-    StoreArrayLiteralElementStub stub;
-    __ CallStub(&stub);
+    if (constant_elements_kind == FAST_ELEMENTS) {
+      // Fast-case array literal with ElementsKind of FAST_ELEMENTS, they cannot
+      // transition and don't need to call the runtime stub.
+      int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+      __ mov(ebx, Operand(esp, 0));  // Copy of array literal.
+      __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+      // Store the subexpression value in the array's elements.
+      __ mov(FieldOperand(ebx, offset), result_register());
+      // Update the write barrier for the array store.
+      __ RecordWriteField(ebx, offset, result_register(), ecx,
+                          kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET,
+                          INLINE_SMI_CHECK);
+    } else {
+      // Store the subexpression value in the array's elements.
+      __ mov(ebx, Operand(esp, 0));  // Copy of array literal.
+      __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
+      __ mov(ecx, Immediate(Smi::FromInt(i)));
+      __ mov(edx, Immediate(Smi::FromInt(expr->literal_index())));
+      StoreArrayLiteralElementStub stub;
+      __ CallStub(&stub);
+    }
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
