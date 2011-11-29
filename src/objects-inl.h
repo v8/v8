@@ -3930,11 +3930,6 @@ ACCESSORS(JSWeakMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, next, Object, kNextOffset)
 
 
-ObjectHashTable* JSWeakMap::unchecked_table() {
-  return reinterpret_cast<ObjectHashTable*>(READ_FIELD(this, kTableOffset));
-}
-
-
 Address Foreign::foreign_address() {
   return AddressFrom<Address>(READ_INTPTR_FIELD(this, kForeignAddressOffset));
 }

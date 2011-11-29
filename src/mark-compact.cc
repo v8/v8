@@ -966,12 +966,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
         object_size);
 
     // Mark the backing hash table without pushing it on the marking stack.
-    ASSERT(!MarkCompactCollector::IsMarked(weak_map->unchecked_table()));
-    ASSERT(MarkCompactCollector::IsMarked(weak_map->unchecked_table()->map()));
-
-    HeapObject* unchecked_table = weak_map->unchecked_table();
-    MarkBit mark_bit = Marking::MarkBitFrom(unchecked_table);
-    collector->SetMark(unchecked_table, mark_bit);
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+    ASSERT(!MarkCompactCollector::IsMarked(table));
+    collector->SetMark(table, Marking::MarkBitFrom(table));
+    collector->MarkObject(table->map(), Marking::MarkBitFrom(table->map()));
+    ASSERT(MarkCompactCollector::IsMarked(table->map()));
   }
 
   static void VisitCode(Map* map, HeapObject* object) {
@@ -2297,7 +2296,7 @@ void MarkCompactCollector::ProcessWeakMaps() {
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = weak_map->unchecked_table();
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         Object* value = table->get(table->EntryToValueIndex(i));
@@ -2318,7 +2317,7 @@ void MarkCompactCollector::ClearWeakMaps() {
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = weak_map->unchecked_table();
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
     for (int i = 0; i < table->Capacity(); i++) {
       if (!MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         table->RemoveEntry(i);

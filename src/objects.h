@@ -7297,9 +7297,6 @@ class JSWeakMap: public JSObject {
   // [next]: linked list of encountered weak maps during GC.
   DECL_ACCESSORS(next, Object)
 
-  // Unchecked accessors to be used during GC.
-  inline ObjectHashTable* unchecked_table();
-
   // Casting.
   static inline JSWeakMap* cast(Object* obj);
 
