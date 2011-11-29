@@ -1267,6 +1267,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return ParseBlock(labels, ok);
 
     case Token::CONST:  // fall through
+    case Token::LET:
     case Token::VAR:
       stmt = ParseVariableStatement(kStatement, ok);
       break;
@@ -1708,6 +1709,16 @@ Block* Parser::ParseVariableDeclarations(
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
+    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
+    //
+    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    //
+    // However disallowing const in classic mode will break compatibility with
+    // existing pages. Therefore we keep allowing const with the old
+    // non-harmony semantics in classic mode.
     Consume(Token::CONST);
     switch (top_scope_->language_mode()) {
       case CLASSIC_MODE:
@@ -1733,7 +1744,17 @@ Block* Parser::ParseVariableDeclarations(
     is_const = true;
     needs_init = true;
   } else if (peek() == Token::LET) {
-    ASSERT(top_scope_->is_extended_mode());
+    // ES6 Draft Rev4 section 12.2.1:
+    //
+    // LetDeclaration : let LetBindingList ;
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    if (!is_extended_mode()) {
+      ReportMessage("illegal_let", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     Consume(Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {

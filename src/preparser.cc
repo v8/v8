@@ -227,6 +227,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       return ParseBlock(ok);
 
     case i::Token::CONST:
+    case i::Token::LET:
     case i::Token::VAR:
       return ParseVariableStatement(kStatement, ok);
 
@@ -377,6 +378,17 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   if (peek() == i::Token::VAR) {
     Consume(i::Token::VAR);
   } else if (peek() == i::Token::CONST) {
+    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
+    //
+    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    //
+    // However disallowing const in classic mode will break compatibility with
+    // existing pages. Therefore we keep allowing const with the old
+    // non-harmony semantics in classic mode.
+    Consume(i::Token::CONST);
     switch (language_mode()) {
       case i::CLASSIC_MODE:
         break;
@@ -398,9 +410,21 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
         require_initializer = true;
         break;
     }
-    Consume(i::Token::CONST);
   } else if (peek() == i::Token::LET) {
-    ASSERT(is_extended_mode());
+    // ES6 Draft Rev4 section 12.2.1:
+    //
+    // LetDeclaration : let LetBindingList ;
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    if (!is_extended_mode()) {
+      i::Scanner::Location location = scanner_->peek_location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "illegal_let", NULL);
+      *ok = false;
+      return Statement::Default();
+    }
+    Consume(i::Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
       i::Scanner::Location location = scanner_->peek_location();
@@ -409,7 +433,6 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       *ok = false;
       return Statement::Default();
     }
-    Consume(i::Token::LET);
   } else {
     *ok = false;
     return Statement::Default();
