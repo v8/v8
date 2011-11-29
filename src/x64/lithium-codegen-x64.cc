@@ -4189,7 +4189,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
       padding_size -= nop_size;
     }
   }
-  last_lazy_deopt_pc_ = current_pc;
+  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 

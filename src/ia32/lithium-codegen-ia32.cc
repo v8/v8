@@ -4491,7 +4491,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
       __ nop();
     }
   }
-  last_lazy_deopt_pc_ = current_pc;
+  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
