@@ -5562,7 +5562,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
-ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            v8::Extension* extension,
                                            int flags) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
@@ -5573,7 +5573,15 @@ ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
   }
   flags |= kAllowLazy;
   PartialParserRecorder recorder;
-  return DoPreParse(source, flags, &recorder);
+  int source_length = source->length();
+  if (source->IsExternalTwoByteString()) {
+    ExternalTwoByteStringUC16CharacterStream stream(
+        Handle<ExternalTwoByteString>::cast(source), 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  } else {
+    GenericStringUC16CharacterStream stream(source, 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  }
 }
 
 

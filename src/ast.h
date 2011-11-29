@@ -1140,6 +1140,11 @@ class VariableProxy: public Expression {
  public:
   VariableProxy(Isolate* isolate, Variable* var);
 
+  VariableProxy(Isolate* isolate,
+                Handle<String> name,
+                bool is_this,
+                int position = RelocInfo::kNoPosition);
+
   DECLARE_NODE_TYPE(VariableProxy)
 
   virtual bool IsValidLeftHandSide() {
@@ -1170,13 +1175,6 @@ class VariableProxy: public Expression {
   bool is_this_;
   bool is_trivial_;
   int position_;
-
-  VariableProxy(Isolate* isolate,
-                Handle<String> name,
-                bool is_this,
-                int position = RelocInfo::kNoPosition);
-
-  friend class Scope;
 };
 
 
