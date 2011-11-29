@@ -424,7 +424,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   const int kMaxMaxEvacuationCandidates = 1000;
   int max_evacuation_candidates = Min(
     kMaxMaxEvacuationCandidates,
-    static_cast<int>(sqrt(number_of_pages / 2) + 1));
+    static_cast<int>(sqrt(static_cast<double>(number_of_pages / 2)) + 1));
 
   if (FLAG_stress_compaction || FLAG_always_compact) {
     max_evacuation_candidates = kMaxMaxEvacuationCandidates;
