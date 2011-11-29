@@ -162,8 +162,7 @@ enum ElementsKind {
   LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
 };
 
-static const int kElementsKindCount =
-    LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
+const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
@@ -198,7 +197,7 @@ enum CreationFlag {
 
 
 // Instance size sentinel for objects of variable size.
-static const int kVariableSizeSentinel = 0;
+const int kVariableSizeSentinel = 0;
 
 
 // All Maps have a field instance_type containing a InstanceType.
@@ -232,6 +231,9 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_SYMBOL_TYPE)                                                      \
   V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
+  V(SHORT_EXTERNAL_SYMBOL_TYPE)                                                \
+  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                \
+  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE)                                          \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
@@ -240,6 +242,9 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
+  V(SHORT_EXTERNAL_STRING_TYPE)                                                \
+  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                \
+  V(SHORT_EXTERNAL_ASCII_STRING_TYPE)                                          \
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
@@ -340,6 +345,18 @@ static const int kVariableSizeSentinel = 0;
     ExternalAsciiString::kSize,                                                \
     external_ascii_symbol,                                                     \
     ExternalAsciiSymbol)                                                       \
+  V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_symbol,                                                     \
+    ShortExternalSymbol)                                                       \
+  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE,                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_symbol_with_ascii_data,                                     \
+    ShortExternalSymbolWithAsciiData)                                          \
+  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE,                                          \
+    ExternalAsciiString::kShortSize,                                           \
+    short_external_ascii_symbol,                                               \
+    ShortExternalAsciiSymbol)                                                  \
   V(STRING_TYPE,                                                               \
     kVariableSizeSentinel,                                                     \
     string,                                                                    \
@@ -375,7 +392,19 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
-    ExternalAsciiString)
+    ExternalAsciiString)                                                       \
+  V(SHORT_EXTERNAL_STRING_TYPE,                                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_string,                                                     \
+    ShortExternalString)                                                       \
+  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_string_with_ascii_data,                                     \
+    ShortExternalStringWithAsciiData)                                          \
+  V(SHORT_EXTERNAL_ASCII_STRING_TYPE,                                          \
+    ExternalAsciiString::kShortSize,                                           \
+    short_external_ascii_string,                                               \
+    ShortExternalAsciiString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -459,6 +488,11 @@ STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
 const uint32_t kAsciiDataHintMask = 0x08;
 const uint32_t kAsciiDataHintTag = 0x08;
 
+// If bit 7 is clear and string representation indicates an external string,
+// then bit 4 indicates whether the data pointer is cached.
+const uint32_t kShortExternalStringMask = 0x10;
+const uint32_t kShortExternalStringTag = 0x10;
+
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector unless it is a
@@ -478,6 +512,13 @@ enum InstanceType {
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
   CONS_ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kConsStringTag,
+  SHORT_EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag |
+                               kExternalStringTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
+      kTwoByteStringTag | kSymbolTag | kExternalStringTag |
+      kAsciiDataHintTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kAsciiStringTag | kExternalStringTag |
+                                     kSymbolTag | kShortExternalStringTag,
   EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kExternalStringTag,
   EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag | kAsciiDataHintTag,
@@ -489,6 +530,13 @@ enum InstanceType {
   CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
   SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
   SLICED_ASCII_STRING_TYPE = kAsciiStringTag | kSlicedStringTag,
+  SHORT_EXTERNAL_STRING_TYPE =
+      kTwoByteStringTag | kExternalStringTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
+      kTwoByteStringTag | kExternalStringTag |
+      kAsciiDataHintTag | kShortExternalStringTag,
+  SHORT_EXTERNAL_ASCII_STRING_TYPE =
+      kAsciiStringTag | kExternalStringTag | kShortExternalStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
@@ -601,8 +649,8 @@ enum InstanceType {
   NUM_OF_CALLABLE_SPEC_OBJECT_TYPES = 2
 };
 
-static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
-    FIRST_EXTERNAL_ARRAY_TYPE + 1;
+const int kExternalArrayTypeCount =
+    LAST_EXTERNAL_ARRAY_TYPE - FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
@@ -3042,12 +3090,12 @@ class ScopeInfo : public FixedArray {
   // Does this scope call eval?
   bool CallsEval();
 
-  // Is this scope a strict mode scope?
-  bool IsStrictMode();
+  // Return the language mode of this scope.
+  LanguageMode language_mode();
 
   // Does this scope make a non-strict eval call?
   bool CallsNonStrictEval() {
-    return CallsEval() && !IsStrictMode();
+    return CallsEval() && (language_mode() == CLASSIC_MODE);
   }
 
   // Return the total number of locals allocated on the stack and in the
@@ -3215,9 +3263,9 @@ class ScopeInfo : public FixedArray {
   // Properties of scopes.
   class TypeField:             public BitField<ScopeType,            0, 3> {};
   class CallsEvalField:        public BitField<bool,                 3, 1> {};
-  class StrictModeField:       public BitField<bool,                 4, 1> {};
-  class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
-  class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+  class LanguageModeField:     public BitField<LanguageMode,         4, 2> {};
+  class FunctionVariableField: public BitField<FunctionVariableInfo, 6, 2> {};
+  class FunctionVariableMode:  public BitField<VariableMode,         8, 3> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -4970,12 +5018,20 @@ class SharedFunctionInfo: public HeapObject {
   // spending time attempting to optimize it again.
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
-  // Indicates whether the function is a strict mode function.
-  inline bool strict_mode();
+  // Indicates the language mode of the function's code as defined by the
+  // current harmony drafts for the next ES language standard. Possible
+  // values are:
+  // 1. CLASSIC_MODE - Unrestricted syntax and semantics, same as in ES5.
+  // 2. STRICT_MODE - Restricted syntax and semantics, same as in ES5.
+  // 3. EXTENDED_MODE - Only available under the harmony flag, not part of ES5.
+  inline LanguageMode language_mode();
+  inline void set_language_mode(LanguageMode language_mode);
 
-  // Indicates the mode of the function.
-  inline StrictModeFlag strict_mode_flag();
-  inline void set_strict_mode_flag(StrictModeFlag strict_mode_flag);
+  // Indicates whether the language mode of this function is CLASSIC_MODE.
+  inline bool is_classic_mode();
+
+  // Indicates whether the language mode of this function is EXTENDED_MODE.
+  inline bool is_extended_mode();
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
@@ -5198,6 +5254,7 @@ class SharedFunctionInfo: public HeapObject {
     kCodeAgeShift,
     kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
     kStrictModeFunction,
+    kExtendedModeFunction,
     kUsesArguments,
     kHasDuplicateParameters,
     kNative,
@@ -5228,18 +5285,26 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
+  static const int kExtendedModeBitWithinByte =
+      (kExtendedModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
+      (kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kExtendedModeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kExtendedModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
@@ -5856,7 +5921,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
   Object* Lookup(String* src);
   Object* LookupEval(String* src,
                      Context* context,
-                     StrictModeFlag strict_mode,
+                     LanguageMode language_mode,
                      int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   MaybeObject* Put(String* src, Object* value);
@@ -6755,12 +6820,12 @@ class ExternalString: public String {
 
   // Layout description.
   static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kShortSize = kResourceOffset + kPointerSize;
   static const int kResourceDataOffset = kResourceOffset + kPointerSize;
   static const int kSize = kResourceDataOffset + kPointerSize;
 
-  // Clear the cached pointer to the character array provided by the resource.
-  // This cache is updated the first time the character array is accessed.
-  inline void clear_data_cache();
+  // Return whether external string is short (data pointer is not cached).
+  inline bool is_short();
 
   STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
 
@@ -6780,6 +6845,12 @@ class ExternalAsciiString: public ExternalString {
   // The underlying resource.
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
+
+  // Update the pointer cache to the external character array.
+  // The cached pointer is always valid, as the external character array does =
+  // not move during lifetime.  Deserialization is the only exception, after
+  // which the pointer cache has to be refreshed.
+  inline void update_data_cache();
 
   inline const char* GetChars();
 
@@ -6819,6 +6890,12 @@ class ExternalTwoByteString: public ExternalString {
   // The underlying string resource.
   inline const Resource* resource();
   inline void set_resource(const Resource* buffer);
+
+  // Update the pointer cache to the external character array.
+  // The cached pointer is always valid, as the external character array does =
+  // not move during lifetime.  Deserialization is the only exception, after
+  // which the pointer cache has to be refreshed.
+  inline void update_data_cache();
 
   inline const uint16_t* GetChars();
 
@@ -7218,9 +7295,6 @@ class JSWeakMap: public JSObject {
 
   // [next]: linked list of encountered weak maps during GC.
   DECL_ACCESSORS(next, Object)
-
-  // Unchecked accessors to be used during GC.
-  inline ObjectHashTable* unchecked_table();
 
   // Casting.
   static inline JSWeakMap* cast(Object* obj);

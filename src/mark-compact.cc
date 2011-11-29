@@ -418,25 +418,68 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
          space->identity() == OLD_DATA_SPACE ||
          space->identity() == CODE_SPACE);
 
+  int number_of_pages = space->CountTotalPages();
+
   PageIterator it(space);
+  const int kMaxMaxEvacuationCandidates = 1000;
+  int max_evacuation_candidates = Min(
+    kMaxMaxEvacuationCandidates,
+    static_cast<int>(sqrt(static_cast<double>(number_of_pages / 2)) + 1));
+
+  if (FLAG_stress_compaction || FLAG_always_compact) {
+    max_evacuation_candidates = kMaxMaxEvacuationCandidates;
+  }
+
+  class Candidate {
+   public:
+    Candidate() : fragmentation_(0), page_(NULL) { }
+    Candidate(int f, Page* p) : fragmentation_(f), page_(p) { }
+
+    int fragmentation() { return fragmentation_; }
+    Page* page() { return page_; }
+
+   private:
+    int fragmentation_;
+    Page* page_;
+  };
+
+  Candidate candidates[kMaxMaxEvacuationCandidates];
+
   int count = 0;
   if (it.has_next()) it.next();  // Never compact the first page.
+  int fragmentation = 0;
+  Candidate* least = NULL;
   while (it.has_next()) {
     Page* p = it.next();
-    bool evacuate = false;
+    p->ClearEvacuationCandidate();
     if (FLAG_stress_compaction) {
       int counter = space->heap()->ms_count();
       uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
-      if ((counter & 1) == (page_number & 1)) evacuate = true;
+      if ((counter & 1) == (page_number & 1)) fragmentation = 1;
     } else {
-      if (space->IsFragmented(p)) evacuate = true;
+      fragmentation = space->Fragmentation(p);
     }
-    if (evacuate) {
-      AddEvacuationCandidate(p);
-      count++;
-    } else {
-      p->ClearEvacuationCandidate();
+    if (fragmentation != 0) {
+      if (count < max_evacuation_candidates) {
+        candidates[count++] = Candidate(fragmentation, p);
+      } else {
+        if (least == NULL) {
+          for (int i = 0; i < max_evacuation_candidates; i++) {
+            if (least == NULL ||
+                candidates[i].fragmentation() < least->fragmentation()) {
+              least = candidates + i;
+            }
+          }
+        }
+        if (least->fragmentation() < fragmentation) {
+          *least = Candidate(fragmentation, p);
+          least = NULL;
+        }
+      }
     }
+  }
+  for (int i = 0; i < count; i++) {
+    AddEvacuationCandidate(candidates[i].page());
   }
 
   if (count > 0 && FLAG_trace_fragmentation) {
@@ -966,12 +1009,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
         object_size);
 
     // Mark the backing hash table without pushing it on the marking stack.
-    ASSERT(!MarkCompactCollector::IsMarked(weak_map->unchecked_table()));
-    ASSERT(MarkCompactCollector::IsMarked(weak_map->unchecked_table()->map()));
-
-    HeapObject* unchecked_table = weak_map->unchecked_table();
-    MarkBit mark_bit = Marking::MarkBitFrom(unchecked_table);
-    collector->SetMark(unchecked_table, mark_bit);
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+    ASSERT(!MarkCompactCollector::IsMarked(table));
+    collector->SetMark(table, Marking::MarkBitFrom(table));
+    collector->MarkObject(table->map(), Marking::MarkBitFrom(table->map()));
+    ASSERT(MarkCompactCollector::IsMarked(table->map()));
   }
 
   static void VisitCode(Map* map, HeapObject* object) {
@@ -2297,7 +2339,7 @@ void MarkCompactCollector::ProcessWeakMaps() {
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = weak_map->unchecked_table();
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         Object* value = table->get(table->EntryToValueIndex(i));
@@ -2318,7 +2360,7 @@ void MarkCompactCollector::ClearWeakMaps() {
   while (weak_map_obj != Smi::FromInt(0)) {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
-    ObjectHashTable* table = weak_map->unchecked_table();
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
     for (int i = 0; i < table->Capacity(); i++) {
       if (!MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
         table->RemoveEntry(i);
@@ -2954,108 +2996,130 @@ void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
-  bool code_slots_filtering_required = MarkInvalidatedCode();
+  bool code_slots_filtering_required;
+  { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
+    code_slots_filtering_required = MarkInvalidatedCode();
 
-  EvacuateNewSpace();
-  EvacuatePages();
+    EvacuateNewSpace();
+  }
+
+
+  { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_EVACUATE_PAGES);
+    EvacuatePages();
+  }
 
   // Second pass: find pointers to new space and update them.
   PointersUpdatingVisitor updating_visitor(heap());
 
-  // Update pointers in to space.
-  SemiSpaceIterator to_it(heap()->new_space()->bottom(),
-                          heap()->new_space()->top());
-  for (HeapObject* object = to_it.Next();
-       object != NULL;
-       object = to_it.Next()) {
-    Map* map = object->map();
-    object->IterateBody(map->instance_type(),
-                        object->SizeFromMap(map),
-                        &updating_visitor);
+  { GCTracer::Scope gc_scope(tracer_,
+                             GCTracer::Scope::MC_UPDATE_NEW_TO_NEW_POINTERS);
+    // Update pointers in to space.
+    SemiSpaceIterator to_it(heap()->new_space()->bottom(),
+                            heap()->new_space()->top());
+    for (HeapObject* object = to_it.Next();
+         object != NULL;
+         object = to_it.Next()) {
+      Map* map = object->map();
+      object->IterateBody(map->instance_type(),
+                          object->SizeFromMap(map),
+                          &updating_visitor);
+    }
   }
 
-  // Update roots.
-  heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-  LiveObjectList::IterateElements(&updating_visitor);
+  { GCTracer::Scope gc_scope(tracer_,
+                             GCTracer::Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS);
+    // Update roots.
+    heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
+    LiveObjectList::IterateElements(&updating_visitor);
+  }
 
-  {
+  { GCTracer::Scope gc_scope(tracer_,
+                             GCTracer::Scope::MC_UPDATE_OLD_TO_NEW_POINTERS);
     StoreBufferRebuildScope scope(heap_,
                                   heap_->store_buffer(),
                                   &Heap::ScavengeStoreBufferCallback);
     heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
 
-  SlotsBuffer::UpdateSlotsRecordedIn(heap_,
-                                     migration_slots_buffer_,
-                                     code_slots_filtering_required);
-  if (FLAG_trace_fragmentation) {
-    PrintF("  migration slots buffer: %d\n",
-           SlotsBuffer::SizeOfChain(migration_slots_buffer_));
-  }
+  { GCTracer::Scope gc_scope(tracer_,
+                             GCTracer::Scope::MC_UPDATE_POINTERS_TO_EVACUATED);
+    SlotsBuffer::UpdateSlotsRecordedIn(heap_,
+                                       migration_slots_buffer_,
+                                       code_slots_filtering_required);
+    if (FLAG_trace_fragmentation) {
+      PrintF("  migration slots buffer: %d\n",
+             SlotsBuffer::SizeOfChain(migration_slots_buffer_));
+    }
 
-  if (compacting_ && was_marked_incrementally_) {
-    // It's difficult to filter out slots recorded for large objects.
-    LargeObjectIterator it(heap_->lo_space());
-    for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-      // LargeObjectSpace is not swept yet thus we have to skip
-      // dead objects explicitly.
-      if (!IsMarked(obj)) continue;
+    if (compacting_ && was_marked_incrementally_) {
+      // It's difficult to filter out slots recorded for large objects.
+      LargeObjectIterator it(heap_->lo_space());
+      for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+        // LargeObjectSpace is not swept yet thus we have to skip
+        // dead objects explicitly.
+        if (!IsMarked(obj)) continue;
 
-      Page* p = Page::FromAddress(obj->address());
-      if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-        obj->Iterate(&updating_visitor);
-        p->ClearFlag(Page::RESCAN_ON_EVACUATION);
+        Page* p = Page::FromAddress(obj->address());
+        if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+          obj->Iterate(&updating_visitor);
+          p->ClearFlag(Page::RESCAN_ON_EVACUATION);
+        }
       }
     }
   }
 
   int npages = evacuation_candidates_.length();
-  for (int i = 0; i < npages; i++) {
-    Page* p = evacuation_candidates_[i];
-    ASSERT(p->IsEvacuationCandidate() ||
-           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+  { GCTracer::Scope gc_scope(
+      tracer_, GCTracer::Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED);
+    for (int i = 0; i < npages; i++) {
+      Page* p = evacuation_candidates_[i];
+      ASSERT(p->IsEvacuationCandidate() ||
+             p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
 
-    if (p->IsEvacuationCandidate()) {
-      SlotsBuffer::UpdateSlotsRecordedIn(heap_,
-                                         p->slots_buffer(),
-                                         code_slots_filtering_required);
-      if (FLAG_trace_fragmentation) {
-        PrintF("  page %p slots buffer: %d\n",
-               reinterpret_cast<void*>(p),
-               SlotsBuffer::SizeOfChain(p->slots_buffer()));
-      }
+      if (p->IsEvacuationCandidate()) {
+        SlotsBuffer::UpdateSlotsRecordedIn(heap_,
+                                           p->slots_buffer(),
+                                           code_slots_filtering_required);
+        if (FLAG_trace_fragmentation) {
+          PrintF("  page %p slots buffer: %d\n",
+                 reinterpret_cast<void*>(p),
+                 SlotsBuffer::SizeOfChain(p->slots_buffer()));
+        }
 
-      // Important: skip list should be cleared only after roots were updated
-      // because root iteration traverses the stack and might have to find code
-      // objects from non-updated pc pointing into evacuation candidate.
-      SkipList* list = p->skip_list();
-      if (list != NULL) list->Clear();
-    } else {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-      p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+        // Important: skip list should be cleared only after roots were updated
+        // because root iteration traverses the stack and might have to find
+        // code objects from non-updated pc pointing into evacuation candidate.
+        SkipList* list = p->skip_list();
+        if (list != NULL) list->Clear();
+      } else {
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
+        PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+        p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
 
-      switch (space->identity()) {
-        case OLD_DATA_SPACE:
-          SweepConservatively(space, p);
-          break;
-        case OLD_POINTER_SPACE:
-          SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, IGNORE_SKIP_LIST>(
-              space, p, &updating_visitor);
-          break;
-        case CODE_SPACE:
-          SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, REBUILD_SKIP_LIST>(
-              space, p, &updating_visitor);
-          break;
-        default:
-          UNREACHABLE();
-          break;
+        switch (space->identity()) {
+          case OLD_DATA_SPACE:
+            SweepConservatively(space, p);
+            break;
+          case OLD_POINTER_SPACE:
+            SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, IGNORE_SKIP_LIST>(
+                space, p, &updating_visitor);
+            break;
+          case CODE_SPACE:
+            SweepPrecisely<SWEEP_AND_VISIT_LIVE_OBJECTS, REBUILD_SKIP_LIST>(
+                space, p, &updating_visitor);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
       }
     }
   }
+
+  GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_UPDATE_MISC_POINTERS);
 
   // Update pointers from cells.
   HeapObjectIterator cell_iterator(heap_->cell_space());
@@ -3483,8 +3547,7 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
 }
 
 
-void MarkCompactCollector::SweepSpace(PagedSpace* space,
-                                      SweeperType sweeper) {
+void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
                                       sweeper == LAZY_CONSERVATIVE);
 
@@ -3493,9 +3556,15 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
   PageIterator it(space);
 
   intptr_t freed_bytes = 0;
+  int pages_swept = 0;
   intptr_t newspace_size = space->heap()->new_space()->Size();
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
+
+  intptr_t old_space_size = heap()->PromotedSpaceSize();
+  intptr_t space_left =
+      Min(heap()->OldGenPromotionLimit(old_space_size),
+          heap()->OldGenAllocationLimit(old_space_size)) - old_space_size;
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -3535,37 +3604,57 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
       unused_page_present = true;
     }
 
-    if (FLAG_gc_verbose) {
-      PrintF("Sweeping 0x%" V8PRIxPTR " with sweeper %d.\n",
-             reinterpret_cast<intptr_t>(p),
-             sweeper);
-    }
-
     switch (sweeper) {
       case CONSERVATIVE: {
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
         SweepConservatively(space, p);
+        pages_swept++;
         break;
       }
       case LAZY_CONSERVATIVE: {
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively as needed.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
         freed_bytes += SweepConservatively(space, p);
-        if (freed_bytes >= newspace_size && p != space->LastPage()) {
+        pages_swept++;
+        if (space_left + freed_bytes > newspace_size) {
           space->SetPagesToSweep(p->next_page());
           lazy_sweeping_active = true;
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Only %" V8PRIdPTR " bytes freed.  Still sweeping.\n",
+                   freed_bytes);
+          }
         }
         break;
       }
       case PRECISE: {
+        if (FLAG_gc_verbose) {
+          PrintF("Sweeping 0x%" V8PRIxPTR " precisely.\n",
+                 reinterpret_cast<intptr_t>(p));
+        }
         if (space->identity() == CODE_SPACE) {
           SweepPrecisely<SWEEP_ONLY, REBUILD_SKIP_LIST>(space, p, NULL);
         } else {
           SweepPrecisely<SWEEP_ONLY, IGNORE_SKIP_LIST>(space, p, NULL);
         }
+        pages_swept++;
         break;
       }
       default: {
         UNREACHABLE();
       }
     }
+  }
+
+  if (FLAG_gc_verbose) {
+    PrintF("SweepSpace: %s (%d pages swept)\n",
+           AllocationSpaceName(space->identity()),
+           pages_swept);
   }
 
   // Give pages that are queued to be freed back to the OS.
@@ -3594,9 +3683,7 @@ void MarkCompactCollector::SweepSpaces() {
 
   SweepSpace(heap()->cell_space(), PRECISE);
 
-  { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
-    EvacuateNewSpaceAndCandidates();
-  }
+  EvacuateNewSpaceAndCandidates();
 
   // ClearNonLiveTransitions depends on precise sweeping of map space to
   // detect whether unmarked map became dead in this collection or in one

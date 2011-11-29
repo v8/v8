@@ -219,7 +219,7 @@ function Decode(uri, reserved) {
       var cc = URIHexCharsToCharCode(uri.charCodeAt(++k), uri.charCodeAt(++k));
       if (cc >> 7) {
         var n = 0;
-        while (((cc << ++n) & 0x80) != 0) ;
+        while (((cc << ++n) & 0x80) != 0) { }
         if (n == 1 || n > 4) throw new $URIError("URI malformed");
         var octets = new $Array(n);
         octets[0] = cc;
@@ -267,7 +267,7 @@ function URIDecode(uri) {
     if (63 <= cc && cc <= 64) return true;
 
     return false;
-  };
+  }
   var string = ToString(uri);
   return Decode(string, reservedPredicate);
 }
@@ -275,7 +275,7 @@ function URIDecode(uri) {
 
 // ECMA-262 - 15.1.3.2.
 function URIDecodeComponent(component) {
-  function reservedPredicate(cc) { return false; };
+  function reservedPredicate(cc) { return false; }
   var string = ToString(component);
   return Decode(string, reservedPredicate);
 }
@@ -316,7 +316,7 @@ function URIEncode(uri) {
     if (cc == 126) return true;
 
     return false;
-  };
+  }
 
   var string = ToString(uri);
   return Encode(string, unescapePredicate);
@@ -339,7 +339,7 @@ function URIEncodeComponent(component) {
     if (cc == 126) return true;
 
     return false;
-  };
+  }
 
   var string = ToString(component);
   return Encode(string, unescapePredicate);

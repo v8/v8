@@ -206,6 +206,7 @@ function FormatMessage(message) {
       "illegal_break",                ["Illegal break statement"],
       "illegal_continue",             ["Illegal continue statement"],
       "illegal_return",               ["Illegal return statement"],
+      "illegal_let",                  ["Illegal let declaration outside extended mode"],
       "error_loading_debugger",       ["Error loading debugger"],
       "no_input_to_regexp",           ["No input to ", "%0"],
       "invalid_json",                 ["String '", "%0", "' is not valid JSON"],
@@ -394,7 +395,7 @@ function ScriptLocationFromPosition(position,
   }
 
   return new SourceLocation(this, position, line, column, start, end);
-};
+}
 
 
 /**
@@ -424,7 +425,7 @@ function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
   // resource.
   var column = opt_column || 0;
   if (line == 0) {
-    column -= this.column_offset
+    column -= this.column_offset;
   }
 
   var offset_position = opt_offset_position || 0;
@@ -439,7 +440,8 @@ function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
       return null;
     }
 
-    return this.locationFromPosition(this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
+    return this.locationFromPosition(
+        this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
   }
 }
 
@@ -455,8 +457,10 @@ function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
  *     invalid
  */
 function ScriptSourceSlice(opt_from_line, opt_to_line) {
-  var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset : opt_from_line;
-  var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount() : opt_to_line
+  var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset
+                                              : opt_from_line;
+  var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount()
+                                          : opt_to_line;
 
   // Adjust according to the offset within the resource.
   from_line -= this.line_offset;
@@ -476,8 +480,10 @@ function ScriptSourceSlice(opt_from_line, opt_to_line) {
   var to_position = to_line == 0 ? 0 : line_ends[to_line - 1] + 1;
 
   // Return a source slice with line numbers re-adjusted to the resource.
-  return new SourceSlice(this, from_line + this.line_offset, to_line + this.line_offset,
-                         from_position, to_position);
+  return new SourceSlice(this,
+                         from_line + this.line_offset,
+                         to_line + this.line_offset,
+                          from_position, to_position);
 }
 
 
@@ -510,7 +516,7 @@ function ScriptSourceLine(opt_line) {
 function ScriptLineCount() {
   // Return number of source lines.
   return this.line_ends.length;
-};
+}
 
 
 /**
@@ -575,10 +581,10 @@ SetUpLockedPrototype(Script,
  *   position : position within the source
  *   start    : position of start of source context (inclusive)
  *   end      : position of end of source context (not inclusive)
- * Source text for the source context is the character interval [start, end[. In
- * most cases end will point to a newline character. It might point just past
- * the final position of the source if the last source line does not end with a
- * newline character.
+ * Source text for the source context is the character interval
+ * [start, end[. In most cases end will point to a newline character.
+ * It might point just past the final position of the source if the last
+ * source line does not end with a newline character.
  * @param {Script} script The Script object for which this is a location
  * @param {number} position Source position for the location
  * @param {number} line The line number for the location
@@ -645,7 +651,7 @@ function SourceLocationRestrict(opt_limit, opt_before) {
       this.end = this.start + limit;
     }
   }
-};
+}
 
 
 /**
@@ -654,8 +660,11 @@ function SourceLocationRestrict(opt_limit, opt_before) {
  *     Source text for this location.
  */
 function SourceLocationSourceText() {
-  return %_CallFunction(this.script.source, this.start, this.end, StringSubstring);
-};
+  return %_CallFunction(this.script.source,
+                        this.start,
+                        this.end,
+                        StringSubstring);
+}
 
 
 SetUpLockedPrototype(SourceLocation,
@@ -663,7 +672,7 @@ SetUpLockedPrototype(SourceLocation,
   $Array(
     "restrict", SourceLocationRestrict,
     "sourceText", SourceLocationSourceText
-  )
+ )
 );
 
 
@@ -703,7 +712,7 @@ function SourceSliceSourceText() {
                         this.from_position,
                         this.to_position,
                         StringSubstring);
-};
+}
 
 SetUpLockedPrototype(SourceSlice,
   $Array("script", "from_line", "to_line", "from_position", "to_position"),
@@ -762,7 +771,7 @@ function CallSite(receiver, fun, pos) {
 
 function CallSiteGetThis() {
   return this.receiver;
-};
+}
 
 function CallSiteGetTypeName() {
   var constructor = this.receiver.constructor;
@@ -774,33 +783,33 @@ function CallSiteGetTypeName() {
     return %_CallFunction(this.receiver, ObjectToString);
   }
   return constructorName;
-};
+}
 
 function CallSiteIsToplevel() {
   if (this.receiver == null) {
     return true;
   }
   return IS_GLOBAL(this.receiver);
-};
+}
 
 function CallSiteIsEval() {
   var script = %FunctionGetScript(this.fun);
   return script && script.compilation_type == COMPILATION_TYPE_EVAL;
-};
+}
 
 function CallSiteGetEvalOrigin() {
   var script = %FunctionGetScript(this.fun);
   return FormatEvalOrigin(script);
-};
+}
 
 function CallSiteGetScriptNameOrSourceURL() {
   var script = %FunctionGetScript(this.fun);
   return script ? script.nameOrSourceURL() : null;
-};
+}
 
 function CallSiteGetFunction() {
   return this.fun;
-};
+}
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
@@ -816,15 +825,19 @@ function CallSiteGetFunctionName() {
     return "eval";
   }
   return null;
-};
+}
 
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
   var ownName = this.fun.name;
   if (ownName && this.receiver &&
-      (%_CallFunction(this.receiver, ownName, ObjectLookupGetter) === this.fun ||
-       %_CallFunction(this.receiver, ownName, ObjectLookupSetter) === this.fun ||
+      (%_CallFunction(this.receiver,
+                      ownName,
+                      ObjectLookupGetter) === this.fun ||
+       %_CallFunction(this.receiver,
+                      ownName,
+                      ObjectLookupSetter) === this.fun ||
        this.receiver[ownName] === this.fun)) {
     // To handle DontEnum properties we guess that the method has
     // the same name as the function.
@@ -834,7 +847,8 @@ function CallSiteGetMethodName() {
   for (var prop in this.receiver) {
     if (this.receiver.__lookupGetter__(prop) === this.fun ||
         this.receiver.__lookupSetter__(prop) === this.fun ||
-        (!this.receiver.__lookupGetter__(prop) && this.receiver[prop] === this.fun)) {
+        (!this.receiver.__lookupGetter__(prop) &&
+         this.receiver[prop] === this.fun)) {
       // If we find more than one match bail out to avoid confusion.
       if (name) {
         return null;
@@ -846,12 +860,12 @@ function CallSiteGetMethodName() {
     return name;
   }
   return null;
-};
+}
 
 function CallSiteGetFileName() {
   var script = %FunctionGetScript(this.fun);
   return script ? script.name : null;
-};
+}
 
 function CallSiteGetLineNumber() {
   if (this.pos == -1) {
@@ -863,7 +877,7 @@ function CallSiteGetLineNumber() {
     location = script.locationFromPosition(this.pos, true);
   }
   return location ? location.line + 1 : null;
-};
+}
 
 function CallSiteGetColumnNumber() {
   if (this.pos == -1) {
@@ -875,16 +889,16 @@ function CallSiteGetColumnNumber() {
     location = script.locationFromPosition(this.pos, true);
   }
   return location ? location.column + 1: null;
-};
+}
 
 function CallSiteIsNative() {
   var script = %FunctionGetScript(this.fun);
   return script ? (script.type == TYPE_NATIVE) : false;
-};
+}
 
 function CallSiteGetPosition() {
   return this.pos;
-};
+}
 
 function CallSiteIsConstructor() {
   var constructor = this.receiver ? this.receiver.constructor : null;
@@ -892,7 +906,7 @@ function CallSiteIsConstructor() {
     return false;
   }
   return this.fun === constructor;
-};
+}
 
 SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
   "getThis", CallSiteGetThis,
@@ -935,12 +949,13 @@ function FormatEvalOrigin(script) {
       // eval script originated from "real" source.
       if (eval_from_script.name) {
         eval_origin += " (" + eval_from_script.name;
-        var location = eval_from_script.locationFromPosition(script.eval_from_script_position, true);
+        var location = eval_from_script.locationFromPosition(
+            script.eval_from_script_position, true);
         if (location) {
           eval_origin += ":" + (location.line + 1);
           eval_origin += ":" + (location.column + 1);
         }
-        eval_origin += ")"
+        eval_origin += ")";
       } else {
         eval_origin += " (unknown source)";
       }
@@ -948,7 +963,7 @@ function FormatEvalOrigin(script) {
   }
 
   return eval_origin;
-};
+}
 
 function FormatSourcePosition(frame) {
   var fileName;
@@ -957,8 +972,9 @@ function FormatSourcePosition(frame) {
     fileLocation = "native";
   } else if (frame.isEval()) {
     fileName = frame.getScriptNameOrSourceURL();
-    if (!fileName)
+    if (!fileName) {
       fileLocation = frame.getEvalOrigin();
+    }
   } else {
     fileName = frame.getFileName();
   }
@@ -1067,7 +1083,7 @@ function captureStackTrace(obj, cons_opt) {
   DefineOneShotAccessor(obj, 'stack', function (obj) {
     return FormatRawStackTrace(obj, raw_stack);
   });
-};
+}
 
 
 function SetUpError() {
@@ -1157,7 +1173,7 @@ function ErrorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
   try {
     var type = error.type;
-    var name = error.name
+    var name = error.name;
     name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
     var message = error.message;
     var hasMessage = %_CallFunction(error, "message", ObjectHasOwnProperty);

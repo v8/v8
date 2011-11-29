@@ -505,9 +505,9 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     PretenureFlag pretenure) {
   Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
       function_info,
-      function_info->strict_mode()
-          ? isolate()->strict_mode_function_map()
-          : isolate()->function_map(),
+      function_info->is_classic_mode()
+          ? isolate()->function_map()
+          : isolate()->strict_mode_function_map(),
       pretenure);
 
   result->set_context(*context);
@@ -759,7 +759,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionWithoutPrototype(name,
-                                                            kNonStrictMode);
+                                                            CLASSIC_MODE);
   function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
@@ -1073,11 +1073,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
     Handle<String> name,
-    StrictModeFlag strict_mode) {
+    LanguageMode language_mode) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = strict_mode == kStrictMode
-      ? isolate()->strict_mode_function_without_prototype_map()
-      : isolate()->function_without_prototype_map();
+  Handle<Map> map = (language_mode == CLASSIC_MODE)
+      ? isolate()->function_without_prototype_map()
+      : isolate()->strict_mode_function_without_prototype_map();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFunction(
                          *map,
@@ -1089,8 +1089,9 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     Handle<String> name,
-    StrictModeFlag strict_mode) {
-  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name, strict_mode);
+    LanguageMode language_mode) {
+  Handle<JSFunction> fun =
+      NewFunctionWithoutPrototypeHelper(name, language_mode);
   fun->set_context(isolate()->context()->global_context());
   return fun;
 }

@@ -36,6 +36,9 @@ regress/regress-1119: FAIL
 
 ##############################################################################
 
+# Issue 1845: http://code.google.com/p/v8/issues/detail?id=1845
+harmony/proxies-example-membrane: SKIP
+
 # NewGC: BUG(1719) slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 

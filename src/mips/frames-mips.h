@@ -36,9 +36,9 @@ namespace internal {
 // Register lists.
 // Note that the bit values must match those used in actual instruction
 // encoding.
-static const int kNumRegs = 32;
+const int kNumRegs = 32;
 
-static const RegList kJSCallerSaved =
+const RegList kJSCallerSaved =
   1 << 2  |  // v0
   1 << 3  |  // v1
   1 << 4  |  // a0
@@ -54,7 +54,7 @@ static const RegList kJSCallerSaved =
   1 << 14 |  // t6
   1 << 15;   // t7
 
-static const int kNumJSCallerSaved = 14;
+const int kNumJSCallerSaved = 14;
 
 
 // Return the code of the n-th caller-saved register available to JavaScript
@@ -63,7 +63,7 @@ int JSCallerSavedCode(int n);
 
 
 // Callee-saved registers preserved when switching from C to JavaScript.
-static const RegList kCalleeSaved =
+const RegList kCalleeSaved =
   1 << 16 |  // s0
   1 << 17 |  // s1
   1 << 18 |  // s2
@@ -74,9 +74,9 @@ static const RegList kCalleeSaved =
   1 << 23 |  // s7 (cp in Javascript code)
   1 << 30;   // fp/s8
 
-static const int kNumCalleeSaved = 9;
+const int kNumCalleeSaved = 9;
 
-static const RegList kCalleeSavedFPU =
+const RegList kCalleeSavedFPU =
   1 << 20 |  // f20
   1 << 22 |  // f22
   1 << 24 |  // f24
@@ -84,9 +84,9 @@ static const RegList kCalleeSavedFPU =
   1 << 28 |  // f28
   1 << 30;   // f30
 
-static const int kNumCalleeSavedFPU = 6;
+const int kNumCalleeSavedFPU = 6;
 
-static const RegList kCallerSavedFPU =
+const RegList kCallerSavedFPU =
   1 << 0  |  // f0
   1 << 2  |  // f2
   1 << 4  |  // f4
@@ -101,20 +101,20 @@ static const RegList kCallerSavedFPU =
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
-static const int kNumSafepointRegisters = 24;
+const int kNumSafepointRegisters = 24;
 
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-static const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-static const int kNumSafepointSavedRegisters =
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters =
     kNumJSCallerSaved + kNumCalleeSaved;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
-static const int kUndefIndex = -1;
+const int kUndefIndex = -1;
 // Map with indexes on stack that corresponds to codes of saved registers.
-static const int kSafepointRegisterStackIndexMap[kNumRegs] = {
+const int kSafepointRegisterStackIndexMap[kNumRegs] = {
   kUndefIndex,  // zero_reg
   kUndefIndex,  // at
   0,   // v0

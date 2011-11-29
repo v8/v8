@@ -27,6 +27,9 @@
 
 // Flags: --harmony-scoping --allow-natives-syntax
 
+// TODO(ES6): properly activate extended mode
+"use strict";
+
 // Test that temporal dead zone semantics for function and block scoped
 // ket bindings are handled by the optimizing compiler.
 

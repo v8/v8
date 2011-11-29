@@ -112,6 +112,7 @@ Heap::Heap()
       disallow_allocation_failure_(false),
       debug_utils_(NULL),
 #endif  // DEBUG
+      new_space_high_promotion_mode_active_(false),
       old_gen_promotion_limit_(kMinimumPromotionLimit),
       old_gen_allocation_limit_(kMinimumAllocationLimit),
       old_gen_limit_factor_(1),
@@ -735,6 +736,32 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
+    if (!new_space_high_promotion_mode_active_ &&
+        new_space_.Capacity() == new_space_.MaximumCapacity() &&
+        IsStableOrIncreasingSurvivalTrend() &&
+        IsHighSurvivalRate()) {
+      // Stable high survival rates even though young generation is at
+      // maximum capacity indicates that most objects will be promoted.
+      // To decrease scavenger pauses and final mark-sweep pauses, we
+      // have to limit maximal capacity of the young generation.
+      new_space_high_promotion_mode_active_ = true;
+      if (FLAG_trace_gc) {
+        PrintF("Limited new space size due to high promotion rate: %d MB\n",
+               new_space_.InitialCapacity() / MB);
+      }
+    } else if (new_space_high_promotion_mode_active_ &&
+        IsDecreasingSurvivalTrend() &&
+        !IsHighSurvivalRate()) {
+      // Decreasing low survival rates might indicate that the above high
+      // promotion mode is over and we should allow the young generation
+      // to grow again.
+      new_space_high_promotion_mode_active_ = false;
+      if (FLAG_trace_gc) {
+        PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
+               new_space_.MaximumCapacity() / MB);
+      }
+    }
+
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSize();
 
     if (high_survival_rate_during_scavenges &&
@@ -762,6 +789,11 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     tracer_ = NULL;
 
     UpdateSurvivalRateTrend(start_new_space_size);
+  }
+
+  if (new_space_high_promotion_mode_active_ &&
+      new_space_.Capacity() > new_space_.InitialCapacity()) {
+    new_space_.Shrink();
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
@@ -916,9 +948,11 @@ static void VerifyNonPointerSpacePointers() {
 
 void Heap::CheckNewSpaceExpansionCriteria() {
   if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Grow the size of new space if there is room to grow and enough
-    // data has survived scavenge since the last expansion.
+      survived_since_last_expansion_ > new_space_.Capacity() &&
+      !new_space_high_promotion_mode_active_) {
+    // Grow the size of new space if there is room to grow, enough data
+    // has survived scavenge since the last expansion and we are not in
+    // high promotion mode.
     new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }
@@ -1452,10 +1486,10 @@ class ScavengingVisitor : public StaticVisitorBase {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  INLINE(static HeapObject* MigrateObject(Heap* heap,
-                                          HeapObject* source,
-                                          HeapObject* target,
-                                          int size)) {
+  INLINE(static void MigrateObject(Heap* heap,
+                                   HeapObject* source,
+                                   HeapObject* target,
+                                   int size)) {
     // Copy the content of source to target.
     heap->CopyBlock(target->address(), source->address(), size);
 
@@ -1481,8 +1515,6 @@ class ScavengingVisitor : public StaticVisitorBase {
         MemoryChunk::IncrementLiveBytes(target->address(), size);
       }
     }
-
-    return target;
   }
 
   template<ObjectContents object_contents, SizeRestriction size_restriction>
@@ -1513,7 +1545,12 @@ class ScavengingVisitor : public StaticVisitorBase {
       Object* result = NULL;  // Initialization to please compiler.
       if (maybe_result->ToObject(&result)) {
         HeapObject* target = HeapObject::cast(result);
-        *slot = MigrateObject(heap, object , target, object_size);
+
+        // Order is important: slot might be inside of the target if target
+        // was allocated over a dead object and slot comes from the store
+        // buffer.
+        *slot = target;
+        MigrateObject(heap, object, target, object_size);
 
         if (object_contents == POINTER_OBJECT) {
           heap->promotion_queue()->insert(target, object_size);
@@ -1526,8 +1563,13 @@ class ScavengingVisitor : public StaticVisitorBase {
     MaybeObject* allocation = heap->new_space()->AllocateRaw(object_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
+    HeapObject* target = HeapObject::cast(result);
 
-    *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
+    // Order is important: slot might be inside of the target if target
+    // was allocated over a dead object and slot comes from the store
+    // buffer.
+    *slot = target;
+    MigrateObject(heap, object, target, object_size);
     return;
   }
 
@@ -3381,7 +3423,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate;
   int arguments_object_size;
   bool strict_mode_callee = callee->IsJSFunction() &&
-                            JSFunction::cast(callee)->shared()->strict_mode();
+      !JSFunction::cast(callee)->shared()->is_classic_mode();
   if (strict_mode_callee) {
     boilerplate =
         isolate()->context()->global_context()->
@@ -3975,31 +4017,22 @@ Map* Heap::SymbolMapForString(String* string) {
   if (InNewSpace(string)) return NULL;
 
   // Find the corresponding symbol map for strings.
-  Map* map = string->map();
-  if (map == ascii_string_map()) {
-    return ascii_symbol_map();
+  switch (string->map()->instance_type()) {
+    case STRING_TYPE: return symbol_map();
+    case ASCII_STRING_TYPE: return ascii_symbol_map();
+    case CONS_STRING_TYPE: return cons_symbol_map();
+    case CONS_ASCII_STRING_TYPE: return cons_ascii_symbol_map();
+    case EXTERNAL_STRING_TYPE: return external_symbol_map();
+    case EXTERNAL_ASCII_STRING_TYPE: return external_ascii_symbol_map();
+    case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
+      return external_symbol_with_ascii_data_map();
+    case SHORT_EXTERNAL_STRING_TYPE: return short_external_symbol_map();
+    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
+      return short_external_ascii_symbol_map();
+    case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
+      return short_external_symbol_with_ascii_data_map();
+    default: return NULL;  // No match found.
   }
-  if (map == string_map()) {
-    return symbol_map();
-  }
-  if (map == cons_string_map()) {
-    return cons_symbol_map();
-  }
-  if (map == cons_ascii_string_map()) {
-    return cons_ascii_symbol_map();
-  }
-  if (map == external_string_map()) {
-    return external_symbol_map();
-  }
-  if (map == external_ascii_string_map()) {
-    return external_ascii_symbol_map();
-  }
-  if (map == external_string_with_ascii_data_map()) {
-    return external_symbol_with_ascii_data_map();
-  }
-
-  // No match found.
-  return NULL;
 }
 
 
@@ -6271,7 +6304,19 @@ GCTracer::~GCTracer() {
     PrintF("mark=%d ", static_cast<int>(scopes_[Scope::MC_MARK]));
     PrintF("sweep=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP]));
     PrintF("sweepns=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP_NEWSPACE]));
-    PrintF("compact=%d ", static_cast<int>(scopes_[Scope::MC_COMPACT]));
+    PrintF("evacuate=%d ", static_cast<int>(scopes_[Scope::MC_EVACUATE_PAGES]));
+    PrintF("new_new=%d ",
+           static_cast<int>(scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]));
+    PrintF("root_new=%d ",
+           static_cast<int>(scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]));
+    PrintF("old_new=%d ",
+           static_cast<int>(scopes_[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]));
+    PrintF("compaction_ptrs=%d ",
+           static_cast<int>(scopes_[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]));
+    PrintF("intracompaction_ptrs=%d ", static_cast<int>(scopes_[
+        Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]));
+    PrintF("misc_compaction=%d ",
+           static_cast<int>(scopes_[Scope::MC_UPDATE_MISC_POINTERS]));
 
     PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());

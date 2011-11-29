@@ -45,22 +45,22 @@ namespace internal {
 // Utility functions
 
 // Test whether a 64-bit value is in a specific range.
-static inline bool is_uint32(int64_t x) {
+inline bool is_uint32(int64_t x) {
   static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
   return static_cast<uint64_t>(x) <= kMaxUInt32;
 }
 
-static inline bool is_int32(int64_t x) {
+inline bool is_int32(int64_t x) {
   static const int64_t kMinInt32 = -V8_INT64_C(0x80000000);
   return is_uint32(x - kMinInt32);
 }
 
-static inline bool uint_is_int32(uint64_t x) {
+inline bool uint_is_int32(uint64_t x) {
   static const uint64_t kMaxInt32 = V8_UINT64_C(0x7fffffff);
   return x <= kMaxInt32;
 }
 
-static inline bool is_uint32(uint64_t x) {
+inline bool is_uint32(uint64_t x) {
   static const uint64_t kMaxUInt32 = V8_UINT64_C(0xffffffff);
   return x <= kMaxUInt32;
 }
@@ -1275,6 +1275,7 @@ class Assembler : public AssemblerBase {
 
   void fsin();
   void fcos();
+  void fptan();
   void fyl2x();
 
   void frndint();

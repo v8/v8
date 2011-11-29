@@ -1140,6 +1140,11 @@ class VariableProxy: public Expression {
  public:
   VariableProxy(Isolate* isolate, Variable* var);
 
+  VariableProxy(Isolate* isolate,
+                Handle<String> name,
+                bool is_this,
+                int position = RelocInfo::kNoPosition);
+
   DECLARE_NODE_TYPE(VariableProxy)
 
   virtual bool IsValidLeftHandSide() {
@@ -1170,13 +1175,6 @@ class VariableProxy: public Expression {
   bool is_this_;
   bool is_trivial_;
   int position_;
-
-  VariableProxy(Isolate* isolate,
-                Handle<String> name,
-                bool is_this,
-                int position = RelocInfo::kNoPosition);
-
-  friend class Scope;
 };
 
 
@@ -1697,8 +1695,8 @@ class FunctionLiteral: public Expression {
   int end_position() const;
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
-  bool strict_mode() const { return strict_mode_flag() == kStrictMode; }
-  StrictModeFlag strict_mode_flag() const;
+  bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
+  LanguageMode language_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

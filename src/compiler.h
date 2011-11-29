@@ -52,9 +52,10 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_strict_mode() const { return strict_mode_flag() == kStrictMode; }
-  StrictModeFlag strict_mode_flag() const {
-    return StrictModeFlagField::decode(flags_);
+  bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
+  bool is_extended_mode() const { return language_mode() == EXTENDED_MODE; }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(flags_);
   }
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
@@ -77,10 +78,11 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
-  void SetStrictModeFlag(StrictModeFlag strict_mode_flag) {
-    ASSERT(StrictModeFlagField::decode(flags_) == kNonStrictMode ||
-           StrictModeFlagField::decode(flags_) == strict_mode_flag);
-    flags_ = StrictModeFlagField::update(flags_, strict_mode_flag);
+  void SetLanguageMode(LanguageMode language_mode) {
+    ASSERT(this->language_mode() == CLASSIC_MODE ||
+           this->language_mode() == language_mode ||
+           language_mode == EXTENDED_MODE);
+    flags_ = LanguageModeField::update(flags_, language_mode);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -194,8 +196,8 @@ class CompilationInfo BASE_EMBEDDED {
       MarkAsNative();
     }
     if (!shared_info_.is_null()) {
-      ASSERT(strict_mode_flag() == kNonStrictMode);
-      SetStrictModeFlag(shared_info_->strict_mode_flag());
+      ASSERT(language_mode() == CLASSIC_MODE);
+      SetLanguageMode(shared_info_->language_mode());
     }
   }
 
@@ -215,7 +217,7 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class StrictModeFlagField: public BitField<StrictModeFlag, 4, 1> {};
+  class LanguageModeField: public BitField<LanguageMode, 4, 2> {};
   // Is this a function from our natives.
   class IsNative: public BitField<bool, 6, 1> {};
   // Is this code being compiled with support for deoptimization..
@@ -296,7 +298,7 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
                                                 bool is_global,
-                                                StrictModeFlag strict_mode,
+                                                LanguageMode language_mode,
                                                 int scope_position);
 
   // Compile from function info (used for lazy compilation). Returns true on

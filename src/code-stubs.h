@@ -299,16 +299,17 @@ class ToNumberStub: public CodeStub {
 
 class FastNewClosureStub : public CodeStub {
  public:
-  explicit FastNewClosureStub(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
+  explicit FastNewClosureStub(LanguageMode language_mode)
+    : language_mode_(language_mode) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
   Major MajorKey() { return FastNewClosure; }
-  int MinorKey() { return strict_mode_; }
+  int MinorKey() { return language_mode_ == CLASSIC_MODE
+        ? kNonStrictMode : kStrictMode; }
 
-  StrictModeFlag strict_mode_;
+  LanguageMode language_mode_;
 };
 
 

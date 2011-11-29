@@ -780,7 +780,8 @@ class HGraphBuilder: public AstVisitor {
     function_state()->ClearInlinedTestContext();
   }
   StrictModeFlag function_strict_mode_flag() {
-    return function_state()->compilation_info()->strict_mode_flag();
+    return function_state()->compilation_info()->is_classic_mode()
+        ? kNonStrictMode : kStrictMode;
   }
 
   // Generators for inline runtime functions.

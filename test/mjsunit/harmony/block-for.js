@@ -27,6 +27,9 @@
 
 // Flags: --harmony-scoping
 
+// TODO(ES6): properly activate extended mode
+"use strict";
+
 function props(x) {
   var array = [];
   for (let p in x) array.push(p);
@@ -90,12 +93,13 @@ assertEquals('ab', result);
 
 // Check that there is exactly one variable without initializer
 // in a for-in statement with let variables.
-assertThrows("function foo() { for (let in {}) { } }", SyntaxError);
-assertThrows("function foo() { for (let x = 3 in {}) { } }", SyntaxError);
-assertThrows("function foo() { for (let x, y in {}) { } }", SyntaxError);
-assertThrows("function foo() { for (let x = 3, y in {}) { } }", SyntaxError);
-assertThrows("function foo() { for (let x, y = 4 in {}) { } }", SyntaxError);
-assertThrows("function foo() { for (let x = 3, y = 4 in {}) { } }", SyntaxError);
+// TODO(ES6): properly activate extended mode
+assertThrows("function foo() { 'use strict'; for (let in {}) { } }", SyntaxError);
+assertThrows("function foo() { 'use strict'; for (let x = 3 in {}) { } }", SyntaxError);
+assertThrows("function foo() { 'use strict'; for (let x, y in {}) { } }", SyntaxError);
+assertThrows("function foo() { 'use strict'; for (let x = 3, y in {}) { } }", SyntaxError);
+assertThrows("function foo() { 'use strict'; for (let x, y = 4 in {}) { } }", SyntaxError);
+assertThrows("function foo() { 'use strict'; for (let x = 3, y = 4 in {}) { } }", SyntaxError);
 
 
 // In a normal for statement the iteration variable is not

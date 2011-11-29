@@ -29,9 +29,11 @@
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
+// TODO(ES6): properly activate extended mode
+"use strict";
 
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug;
+var Debug = debug.Debug;
 
 var test_name;
 var listener_delegate;
@@ -76,6 +78,7 @@ function EndTest() {
   end_test_count++;
 }
 
+var global_object = this;
 
 // Check that the scope chain contains the expected types of scopes.
 function CheckScopeChain(scopes, exec_state) {
@@ -89,7 +92,7 @@ function CheckScopeChain(scopes, exec_state) {
     if (scopes[i] == debug.ScopeType.Global) {
       // Objects don't have same class (one is "global", other is "Object",
       // so just check the properties directly.
-      assertPropertiesEqual(this, scope.scopeObject().value());
+      assertPropertiesEqual(global_object, scope.scopeObject().value());
     }
   }
 
@@ -326,114 +329,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({a:1}, 1, exec_state);
 };
 local_7(1);
-EndTest();
-
-
-// Single empty with block.
-BeginTest("With block 1");
-
-function with_block_1() {
-  with({}) {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
-};
-with_block_1();
-EndTest();
-
-
-// Nested empty with blocks.
-BeginTest("With block 2");
-
-function with_block_2() {
-  with({}) {
-    with({}) {
-      debugger;
-    }
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
-};
-with_block_2();
-EndTest();
-
-
-// With block using an in-place object literal.
-BeginTest("With block 3");
-
-function with_block_3() {
-  with({a:1,b:2}) {
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:1,b:2}, 0, exec_state);
-};
-with_block_3();
-EndTest();
-
-
-// Nested with blocks using in-place object literals.
-BeginTest("With block 4");
-
-function with_block_4() {
-  with({a:1,b:2}) {
-    with({a:2,b:1}) {
-      debugger;
-    }
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.With,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:2,b:1}, 0, exec_state);
-  CheckScopeContent({a:1,b:2}, 1, exec_state);
-};
-with_block_4();
-EndTest();
-
-
-// With block and a block local variable.
-BeginTest("With block 5");
-
-function with_block_5() {
-  with({a:1}) {
-    let a = 2;
-    debugger;
-  }
-}
-
-listener_delegate = function(exec_state) {
-  CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.With,
-                   debug.ScopeType.Local,
-                   debug.ScopeType.Global], exec_state);
-  CheckScopeContent({a:2}, 0, exec_state);
-  CheckScopeContent({a:1}, 1, exec_state);
-};
-with_block_5();
 EndTest();
 
 

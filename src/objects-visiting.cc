@@ -64,7 +64,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       case kExternalStringTag:
         return GetVisitorIdForSize(kVisitDataObject,
                                    kVisitDataObjectGeneric,
-                                   ExternalString::kSize);
+                                   instance_size);
     }
     UNREACHABLE();
   }

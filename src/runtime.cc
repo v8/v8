@@ -116,6 +116,17 @@ namespace internal {
       static_cast<StrictModeFlag>(args.smi_at(index));
 
 
+// Assert that the given argument has a valid value for a LanguageMode
+// and store it in a LanguageMode variable with the given name.
+#define CONVERT_LANGUAGE_MODE_ARG(name, index)                       \
+  ASSERT(args[index]->IsSmi());                                      \
+  ASSERT(args.smi_at(index) == CLASSIC_MODE ||                       \
+         args.smi_at(index) == STRICT_MODE ||                        \
+         args.smi_at(index) == EXTENDED_MODE);                       \
+  LanguageMode name =                                                \
+      static_cast<LanguageMode>(args.smi_at(index));
+
+
 MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
                                                    JSObject* boilerplate) {
   StackLimitCheck check(isolate);
@@ -1325,13 +1336,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
                                                               value,
                                                               attributes));
     } else {
-      StrictModeFlag strict_mode = DeclareGlobalsStrictModeFlag::decode(flags);
+      LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
+      StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
+          ? kNonStrictMode : kStrictMode;
       RETURN_IF_EMPTY_HANDLE(isolate,
                              SetProperty(global,
                                          name,
                                          value,
                                          static_cast<PropertyAttributes>(attr),
-                                         strict_mode));
+                                         strict_mode_flag));
     }
   }
 
@@ -1437,7 +1450,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   NoHandleAllocation nha;
   // args[0] == name
-  // args[1] == strict_mode
+  // args[1] == language_mode
   // args[2] == value (optional)
 
   // Determine if we need to assign to the variable if it already
@@ -1448,7 +1461,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
-  CONVERT_STRICT_MODE_ARG(strict_mode, 1);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 1);
+  StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
+      ? kNonStrictMode : kStrictMode;
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -1477,7 +1492,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
         // Found an interceptor that's not read only.
         if (assign) {
           return raw_holder->SetProperty(
-              &lookup, *name, args[2], attributes, strict_mode);
+              &lookup, *name, args[2], attributes, strict_mode_flag);
         } else {
           return isolate->heap()->undefined_value();
         }
@@ -1489,7 +1504,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // Reload global in case the loop above performed a GC.
   global = isolate->context()->global();
   if (assign) {
-    return global->SetProperty(*name, args[2], attributes, strict_mode);
+    return global->SetProperty(*name, args[2], attributes, strict_mode_flag);
   }
   return isolate->heap()->undefined_value();
 }
@@ -1859,7 +1874,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSFunction, function, args[0]);
   SharedFunctionInfo* shared = function->shared();
-  if (shared->native() || shared->strict_mode()) {
+  if (shared->native() || !shared->is_classic_mode()) {
     return isolate->heap()->undefined_value();
   }
   // Returns undefined for strict or native functions, or
@@ -4682,8 +4697,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
 
   CONVERT_CHECKED(JSReceiver, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  CONVERT_SMI_ARG_CHECKED(strict, 2);
-  return object->DeleteProperty(key, (strict == kStrictMode)
+  CONVERT_STRICT_MODE_ARG(strict_mode, 2);
+  return object->DeleteProperty(key, (strict_mode == kStrictMode)
                                       ? JSReceiver::STRICT_DELETION
                                       : JSReceiver::NORMAL_DELETION);
 }
@@ -5109,7 +5124,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   if (key->Equals(isolate->heap()->callee_symbol())) {
     Object* function = frame->function();
     if (function->IsJSFunction() &&
-        JSFunction::cast(function)->shared()->strict_mode()) {
+        !JSFunction::cast(function)->shared()->is_classic_mode()) {
       return isolate->Throw(*isolate->factory()->NewTypeError(
           "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
     }
@@ -9036,7 +9051,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
   Handle<Object> value(args[0], isolate);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
-  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
+  StrictModeFlag strict_mode = (language_mode == CLASSIC_MODE)
+      ? kNonStrictMode : kStrictMode;
 
   int index;
   PropertyAttributes attributes;
@@ -9404,7 +9421,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 
   // Compile source string in the global context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source, context, true, kNonStrictMode, RelocInfo::kNoPosition);
+      source, context, true, CLASSIC_MODE, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
@@ -9417,7 +9434,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
                                     Handle<Object> receiver,
-                                    StrictModeFlag strict_mode,
+                                    LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> global_context = Handle<Context>(context->global_context());
@@ -9436,7 +9453,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       source,
       Handle<Context>(isolate->context()),
       context->IsGlobalContext(),
-      strict_mode,
+      language_mode,
       scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
@@ -9462,12 +9479,12 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
-  CONVERT_STRICT_MODE_ARG(strict_mode, 3);
+  CONVERT_LANGUAGE_MODE_ARG(language_mode, 3);
   ASSERT(args[4]->IsSmi());
   return CompileGlobalEval(isolate,
                            args.at<String>(1),
                            args.at<Object>(2),
-                           strict_mode,
+                           language_mode,
                            args.smi_at(4));
 }
 
@@ -9481,9 +9498,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNewFunctionAttributes) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
 
-  Handle<Map> map = func->shared()->strict_mode()
-                        ? isolate->strict_mode_function_instance_map()
-                        : isolate->function_instance_map();
+  Handle<Map> map = func->shared()->is_classic_mode()
+      ? isolate->function_instance_map()
+      : isolate->strict_mode_function_instance_map();
 
   ASSERT(func->map()->instance_type() == map->instance_type());
   ASSERT(func->map()->instance_size() == map->instance_size());
@@ -10943,7 +10960,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject() && !shared->strict_mode() && !shared->native()) {
+  if (!receiver->IsJSObject() &&
+      shared->is_classic_mode() &&
+      !shared->native()) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a
     // value object is not converted into a wrapped JS objects. To
@@ -11182,27 +11201,83 @@ class ScopeIterator {
       inlined_frame_index_(inlined_frame_index),
       function_(JSFunction::cast(frame->function())),
       context_(Context::cast(frame->context())),
-      local_done_(false),
-      at_local_(false) {
+      nested_scope_chain_(4) {
 
-    // Check whether the first scope is actually a local scope.
-    // If there is a stack slot for .result then this local scope has been
-    // created for evaluating top level code and it is not a real local scope.
-    // Checking for the existence of .result seems fragile, but the scope info
-    // saved with the code object does not otherwise have that information.
-    int index = function_->shared()->scope_info()->
-        StackSlotIndex(isolate_->heap()->result_symbol());
-    if (index >= 0) {
-      local_done_ = true;
-    } else if (context_->IsGlobalContext() ||
-               context_->IsFunctionContext()) {
-      at_local_ = true;
-    } else if (context_->closure() != *function_) {
-      // The context_ is a block or with or catch block from the outer function.
-      ASSERT(context_->IsWithContext() ||
-             context_->IsCatchContext() ||
-             context_->IsBlockContext());
-      at_local_ = true;
+    // Catch the case when the debugger stops in an internal function.
+    Handle<SharedFunctionInfo> shared_info(function_->shared());
+    Handle<ScopeInfo> scope_info(shared_info->scope_info());
+    if (shared_info->script() == isolate->heap()->undefined_value()) {
+      while (context_->closure() == *function_) {
+        context_ = Handle<Context>(context_->previous(), isolate_);
+      }
+      return;
+    }
+
+    // Get the debug info (create it if it does not exist).
+    if (!isolate->debug()->EnsureDebugInfo(shared_info)) {
+      // Return if ensuring debug info failed.
+      return;
+    }
+    Handle<DebugInfo> debug_info = Debug::GetDebugInfo(shared_info);
+
+    // Find the break point where execution has stopped.
+    BreakLocationIterator break_location_iterator(debug_info,
+                                                  ALL_BREAK_LOCATIONS);
+    break_location_iterator.FindBreakLocationFromAddress(frame->pc());
+    if (break_location_iterator.IsExit()) {
+      // We are within the return sequence. At the momemt it is not possible to
+      // get a source position which is consistent with the current scope chain.
+      // Thus all nested with, catch and block contexts are skipped and we only
+      // provide the function scope.
+      if (scope_info->HasContext()) {
+        context_ = Handle<Context>(context_->declaration_context(), isolate_);
+      } else {
+        while (context_->closure() == *function_) {
+          context_ = Handle<Context>(context_->previous(), isolate_);
+        }
+      }
+      if (scope_info->Type() != EVAL_SCOPE) nested_scope_chain_.Add(scope_info);
+    } else {
+      // Reparse the code and analyze the scopes.
+      ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+      Handle<Script> script(Script::cast(shared_info->script()));
+      Scope* scope = NULL;
+
+      // Check whether we are in global, eval or function code.
+      Handle<ScopeInfo> scope_info(shared_info->scope_info());
+      if (scope_info->Type() != FUNCTION_SCOPE) {
+        // Global or eval code.
+        CompilationInfo info(script);
+        if (scope_info->Type() == GLOBAL_SCOPE) {
+          info.MarkAsGlobal();
+        } else {
+          ASSERT(scope_info->Type() == EVAL_SCOPE);
+          info.MarkAsEval();
+          info.SetCallingContext(Handle<Context>(function_->context()));
+        }
+        if (ParserApi::Parse(&info, kNoParsingFlags) && Scope::Analyze(&info)) {
+          scope = info.function()->scope();
+        }
+      } else {
+        // Function code
+        CompilationInfo info(shared_info);
+        if (ParserApi::Parse(&info, kNoParsingFlags) && Scope::Analyze(&info)) {
+          scope = info.function()->scope();
+        }
+      }
+
+      // Retrieve the scope chain for the current position.
+      if (scope != NULL) {
+        int source_position = shared_info->code()->SourcePosition(frame_->pc());
+        scope->GetNestedScopeChain(&nested_scope_chain_, source_position);
+      } else {
+        // A failed reparse indicates that the preparser has diverged from the
+        // parser or that the preparse data given to the initial parse has been
+        // faulty. We fail in debug mode but in release mode we only provide the
+        // information we get from the context chain but nothing about
+        // completely stack allocated scopes or stack allocated locals.
+        UNREACHABLE();
+      }
     }
   }
 
@@ -11211,40 +11286,49 @@ class ScopeIterator {
 
   // Move to the next scope.
   void Next() {
-    // If at a local scope mark the local scope as passed.
-    if (at_local_) {
-      at_local_ = false;
-      local_done_ = true;
-
-      // If the current context is not associated with the local scope the
-      // current context is the next real scope, so don't move to the next
-      // context in this case.
-      if (context_->closure() != *function_) {
-        return;
-      }
-    }
-
-    // The global scope is always the last in the chain.
-    if (context_->IsGlobalContext()) {
+    ScopeType scope_type = Type();
+    if (scope_type == ScopeTypeGlobal) {
+      // The global scope is always the last in the chain.
+      ASSERT(context_->IsGlobalContext());
       context_ = Handle<Context>();
       return;
     }
-
-    // Move to the next context.
-    context_ = Handle<Context>(context_->previous(), isolate_);
-
-    // If passing the local scope indicate that the current scope is now the
-    // local scope.
-    if (!local_done_ &&
-        (context_->IsGlobalContext() || context_->IsFunctionContext())) {
-      at_local_ = true;
+    if (nested_scope_chain_.is_empty()) {
+      context_ = Handle<Context>(context_->previous(), isolate_);
+    } else {
+      if (nested_scope_chain_.last()->HasContext()) {
+        ASSERT(context_->previous() != NULL);
+        context_ = Handle<Context>(context_->previous(), isolate_);
+      }
+      nested_scope_chain_.RemoveLast();
     }
   }
 
   // Return the type of the current scope.
   ScopeType Type() {
-    if (at_local_) {
-      return ScopeTypeLocal;
+    if (!nested_scope_chain_.is_empty()) {
+      Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
+      switch (scope_info->Type()) {
+        case FUNCTION_SCOPE:
+          ASSERT(context_->IsFunctionContext() ||
+                 !scope_info->HasContext());
+          return ScopeTypeLocal;
+        case GLOBAL_SCOPE:
+          ASSERT(context_->IsGlobalContext());
+          return ScopeTypeGlobal;
+        case WITH_SCOPE:
+          ASSERT(context_->IsWithContext());
+          return ScopeTypeWith;
+        case CATCH_SCOPE:
+          ASSERT(context_->IsCatchContext());
+          return ScopeTypeCatch;
+        case BLOCK_SCOPE:
+          ASSERT(!scope_info->HasContext() ||
+                 context_->IsBlockContext());
+          return ScopeTypeBlock;
+        case EVAL_SCOPE:
+          UNREACHABLE();
+      }
     }
     if (context_->IsGlobalContext()) {
       ASSERT(context_->global()->IsGlobalObject());
@@ -11270,6 +11354,7 @@ class ScopeIterator {
         return Handle<JSObject>(CurrentContext()->global());
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
+        ASSERT(nested_scope_chain_.length() == 1);
         return MaterializeLocalScope(isolate_, frame_, inlined_frame_index_);
       case ScopeIterator::ScopeTypeWith:
         // Return the with object.
@@ -11286,13 +11371,28 @@ class ScopeIterator {
     return Handle<JSObject>();
   }
 
+  Handle<ScopeInfo> CurrentScopeInfo() {
+    if (!nested_scope_chain_.is_empty()) {
+      return nested_scope_chain_.last();
+    } else if (context_->IsBlockContext()) {
+      return Handle<ScopeInfo>(ScopeInfo::cast(context_->extension()));
+    } else if (context_->IsFunctionContext()) {
+      return Handle<ScopeInfo>(context_->closure()->shared()->scope_info());
+    }
+    return Handle<ScopeInfo>::null();
+  }
+
   // Return the context for this scope. For the local context there might not
   // be an actual context.
   Handle<Context> CurrentContext() {
-    if (at_local_ && context_->closure() != *function_) {
+    if (Type() == ScopeTypeGlobal ||
+        nested_scope_chain_.is_empty()) {
+      return context_;
+    } else if (nested_scope_chain_.last()->HasContext()) {
+      return context_;
+    } else {
       return Handle<Context>();
     }
-    return context_;
   }
 
 #ifdef DEBUG
@@ -11354,8 +11454,7 @@ class ScopeIterator {
   int inlined_frame_index_;
   Handle<JSFunction> function_;
   Handle<Context> context_;
-  bool local_done_;
-  bool at_local_;
+  List<Handle<ScopeInfo> > nested_scope_chain_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };
@@ -11818,45 +11917,65 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 
 // Creates a copy of the with context chain. The copy of the context chain is
 // is linked to the function context supplied.
-static Handle<Context> CopyWithContextChain(Isolate* isolate,
-                                            Handle<JSFunction> function,
-                                            Handle<Context> current,
-                                            Handle<Context> base) {
-  // At the end of the chain. Return the base context to link to.
-  if (current->IsFunctionContext() || current->IsGlobalContext()) {
-    return base;
+static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
+                                                   Handle<JSFunction> function,
+                                                   Handle<Context> base,
+                                                   JavaScriptFrame* frame,
+                                                   int inlined_frame_index) {
+  HandleScope scope(isolate);
+  List<Handle<ScopeInfo> > scope_chain;
+  List<Handle<Context> > context_chain;
+
+  ScopeIterator it(isolate, frame, inlined_frame_index);
+  for (; it.Type() != ScopeIterator::ScopeTypeGlobal &&
+         it.Type() != ScopeIterator::ScopeTypeLocal ; it.Next()) {
+    ASSERT(!it.Done());
+    scope_chain.Add(it.CurrentScopeInfo());
+    context_chain.Add(it.CurrentContext());
   }
 
-  // Recursively copy the with and catch contexts.
-  HandleScope scope(isolate);
-  Handle<Context> previous(current->previous());
-  Handle<Context> new_previous =
-      CopyWithContextChain(isolate, function, previous, base);
-  Handle<Context> new_current;
-  if (current->IsCatchContext()) {
-    Handle<String> name(String::cast(current->extension()));
-    Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX));
-    new_current =
-        isolate->factory()->NewCatchContext(function,
-                                            new_previous,
-                                            name,
-                                            thrown_object);
-  } else if (current->IsBlockContext()) {
-    Handle<ScopeInfo> scope_info(ScopeInfo::cast(current->extension()));
-    new_current =
-        isolate->factory()->NewBlockContext(function, new_previous, scope_info);
-    // Copy context slots.
-    int num_context_slots = scope_info->ContextLength();
-    for (int i = Context::MIN_CONTEXT_SLOTS; i < num_context_slots; ++i) {
-      new_current->set(i, current->get(i));
+  // At the end of the chain. Return the base context to link to.
+  Handle<Context> context = base;
+
+  // Iteratively copy and or materialize the nested contexts.
+  while (!scope_chain.is_empty()) {
+    Handle<ScopeInfo> scope_info = scope_chain.RemoveLast();
+    Handle<Context> current = context_chain.RemoveLast();
+    ASSERT(!(scope_info->HasContext() & current.is_null()));
+
+    if (scope_info->Type() == CATCH_SCOPE) {
+      Handle<String> name(String::cast(current->extension()));
+      Handle<Object> thrown_object(current->get(Context::THROWN_OBJECT_INDEX));
+      context =
+          isolate->factory()->NewCatchContext(function,
+                                              context,
+                                              name,
+                                              thrown_object);
+    } else if (scope_info->Type() == BLOCK_SCOPE) {
+      // Materialize the contents of the block scope into a JSObject.
+      Handle<JSObject> block_scope_object =
+          MaterializeBlockScope(isolate, current);
+      if (block_scope_object.is_null()) {
+        return Handle<Context>::null();
+      }
+      // Allocate a new function context for the debug evaluation and set the
+      // extension object.
+      Handle<Context> new_context =
+          isolate->factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS,
+                                                 function);
+      new_context->set_extension(*block_scope_object);
+      new_context->set_previous(*context);
+      context = new_context;
+    } else {
+      ASSERT(scope_info->Type() == WITH_SCOPE);
+      ASSERT(current->IsWithContext());
+      Handle<JSObject> extension(JSObject::cast(current->extension()));
+      context =
+          isolate->factory()->NewWithContext(function, context, extension);
     }
-  } else {
-    ASSERT(current->IsWithContext());
-    Handle<JSObject> extension(JSObject::cast(current->extension()));
-    new_current =
-        isolate->factory()->NewWithContext(function, new_previous, extension);
   }
-  return scope.CloseAndEscape(new_current);
+
+  return scope.CloseAndEscape(context);
 }
 
 
@@ -11991,7 +12110,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   if (scope_info->HasContext()) {
     function_context = Handle<Context>(frame_context->declaration_context());
   }
-  context = CopyWithContextChain(isolate, go_between, frame_context, context);
+  context = CopyNestedScopeContextChain(isolate,
+                                        go_between,
+                                        context,
+                                        frame,
+                                        inlined_frame_index);
 
   if (additional_context->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
@@ -12015,7 +12138,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
       Compiler::CompileEval(function_source,
                             context,
                             context->IsGlobalContext(),
-                            kNonStrictMode,
+                            CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
@@ -12109,7 +12232,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
       Compiler::CompileEval(source,
                             context,
                             is_global,
-                            kNonStrictMode,
+                            CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =

@@ -28,6 +28,8 @@
 // Flags: --harmony-scoping
 
 // Test let declarations in various settings.
+// TODO(ES6): properly activate extended mode
+"use strict";
 
 // Global
 let x;
@@ -54,11 +56,11 @@ if (true) {
 // an exception in eval code during parsing, before even compiling or executing
 // the code. Thus the generated function is not called here.
 function TestLocalThrows(str, expect) {
-  assertThrows("(function(){" + str + "})", expect);
+  assertThrows("(function(){ 'use strict'; " + str + "})", expect);
 }
 
 function TestLocalDoesNotThrow(str) {
-  assertDoesNotThrow("(function(){" + str + "})()");
+  assertDoesNotThrow("(function(){ 'use strict'; " + str + "})()");
 }
 
 // Test let declarations in statement positions.

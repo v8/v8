@@ -491,7 +491,7 @@ TEST(MakingExternalStringConditions) {
   HEAP->CollectGarbage(i::NEW_SPACE);
   HEAP->CollectGarbage(i::NEW_SPACE);
 
-  uint16_t* two_byte_string = AsciiToTwoByteString("abcdefghi");
+  uint16_t* two_byte_string = AsciiToTwoByteString("s1");
   Local<String> small_string = String::New(two_byte_string);
   i::DeleteArray(two_byte_string);
 
@@ -503,7 +503,7 @@ TEST(MakingExternalStringConditions) {
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
-  two_byte_string = AsciiToTwoByteString("abcdefghi");
+  two_byte_string = AsciiToTwoByteString("small string 2");
   small_string = String::New(two_byte_string);
   i::DeleteArray(two_byte_string);
 
@@ -537,7 +537,7 @@ TEST(MakingExternalAsciiStringConditions) {
   HEAP->CollectGarbage(i::NEW_SPACE);
   HEAP->CollectGarbage(i::NEW_SPACE);
 
-  Local<String> small_string = String::New("abcdefghi");
+  Local<String> small_string = String::New("s1");
   // We should refuse to externalize newly created small string.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
@@ -546,7 +546,7 @@ TEST(MakingExternalAsciiStringConditions) {
   // Old space strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
-  small_string = String::New("abcdefghi");
+  small_string = String::New("small string 2");
   // We should refuse externalizing newly created small string.
   CHECK(!small_string->CanMakeExternal());
   for (int i = 0; i < 100; i++) {

@@ -602,7 +602,8 @@ static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   // Build AST.
   CompilationInfo info(script);
   info.MarkAsGlobal();
-  if (ParserApi::Parse(&info)) {
+  // Parse and don't allow skipping lazy functions.
+  if (ParserApi::Parse(&info, kNoParsingFlags)) {
     // Compile the code.
     LiveEditFunctionTracker tracker(info.isolate(), info.function());
     if (Compiler::MakeCodeForLiveEdit(&info)) {

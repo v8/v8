@@ -42,14 +42,22 @@ namespace v8 {
 namespace internal {
 
 
-// General collection of bit-flags that can be passed to scanners and
+// General collection of (multi-)bit-flags that can be passed to scanners and
 // parsers to signify their (initial) mode of operation.
 enum ParsingFlags {
   kNoParsingFlags = 0,
-  kAllowLazy = 1,
-  kAllowNativesSyntax = 2,
-  kHarmonyScoping = 4
+  // Embed LanguageMode values in parsing flags, i.e., equivalent to:
+  // CLASSIC_MODE = 0,
+  // STRICT_MODE,
+  // EXTENDED_MODE,
+  kLanguageModeMask = 0x03,
+  kAllowLazy = 4,
+  kAllowNativesSyntax = 8
 };
+
+STATIC_ASSERT((kLanguageModeMask & CLASSIC_MODE) == CLASSIC_MODE);
+STATIC_ASSERT((kLanguageModeMask & STRICT_MODE) == STRICT_MODE);
+STATIC_ASSERT((kLanguageModeMask & EXTENDED_MODE) == EXTENDED_MODE);
 
 
 // Returns the value (0 .. 15) of a hexadecimal character c.

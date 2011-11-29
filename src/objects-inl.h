@@ -2297,8 +2297,9 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 }
 
 
-void ExternalString::clear_data_cache() {
-  WRITE_INTPTR_FIELD(this, kResourceDataOffset, 0);
+bool ExternalString::is_short() {
+  InstanceType type = map()->instance_type();
+  return (type & kShortExternalStringMask) == kShortExternalStringTag;
 }
 
 
@@ -2307,19 +2308,24 @@ const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
 }
 
 
+void ExternalAsciiString::update_data_cache() {
+  if (is_short()) return;
+  const char** data_field =
+      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
+  *data_field = resource()->data();
+}
+
+
 void ExternalAsciiString::set_resource(
     const ExternalAsciiString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
-  clear_data_cache();
+  if (resource != NULL) update_data_cache();
 }
 
 
 const char* ExternalAsciiString::GetChars() {
-  const char** data_field =
-      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
-  if (*data_field == NULL) *data_field = resource()->data();
-  return *data_field;
+  return resource()->data();
 }
 
 
@@ -2334,19 +2340,24 @@ const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 }
 
 
+void ExternalTwoByteString::update_data_cache() {
+  if (is_short()) return;
+  const uint16_t** data_field =
+      reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
+  *data_field = resource()->data();
+}
+
+
 void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
-  clear_data_cache();
+  if (resource != NULL) update_data_cache();
 }
 
 
 const uint16_t* ExternalTwoByteString::GetChars() {
-  const uint16_t** data_field =
-      reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
-  if (*data_field == NULL) *data_field = resource()->data();
-  return *data_field;
+  return resource()->data();
 }
 
 
@@ -3531,23 +3542,39 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-StrictModeFlag SharedFunctionInfo::strict_mode_flag() {
-  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
-      ? kStrictMode : kNonStrictMode;
+LanguageMode SharedFunctionInfo::language_mode() {
+  int hints = compiler_hints();
+  if (BooleanBit::get(hints, kExtendedModeFunction)) {
+    ASSERT(BooleanBit::get(hints, kStrictModeFunction));
+    return EXTENDED_MODE;
+  }
+  return BooleanBit::get(hints, kStrictModeFunction)
+      ? STRICT_MODE : CLASSIC_MODE;
 }
 
 
-void SharedFunctionInfo::set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
-  ASSERT(strict_mode_flag == kStrictMode ||
-         strict_mode_flag == kNonStrictMode);
-  bool value = strict_mode_flag == kStrictMode;
-  set_compiler_hints(
-      BooleanBit::set(compiler_hints(), kStrictModeFunction, value));
+void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
+  // We only allow language mode transitions that go set the same language mode
+  // again or go up in the chain:
+  //   CLASSIC_MODE -> STRICT_MODE -> EXTENDED_MODE.
+  ASSERT(this->language_mode() == CLASSIC_MODE ||
+         this->language_mode() == language_mode ||
+         language_mode == EXTENDED_MODE);
+  int hints = compiler_hints();
+  hints = BooleanBit::set(
+      hints, kStrictModeFunction, language_mode != CLASSIC_MODE);
+  hints = BooleanBit::set(
+      hints, kExtendedModeFunction, language_mode == EXTENDED_MODE);
+  set_compiler_hints(hints);
 }
 
 
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, strict_mode,
-            kStrictModeFunction)
+bool SharedFunctionInfo::is_classic_mode() {
+  return !BooleanBit::get(compiler_hints(), kStrictModeFunction);
+}
+
+BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
+            kExtendedModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
@@ -3901,11 +3928,6 @@ ACCESSORS(JSSet, table, Object, kTableOffset)
 ACCESSORS(JSMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, next, Object, kNextOffset)
-
-
-ObjectHashTable* JSWeakMap::unchecked_table() {
-  return reinterpret_cast<ObjectHashTable*>(READ_FIELD(this, kTableOffset));
-}
 
 
 Address Foreign::foreign_address() {

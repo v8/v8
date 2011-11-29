@@ -484,9 +484,9 @@ enum ScopeType {
 };
 
 
-static const uint32_t kHoleNanUpper32 = 0x7FFFFFFF;
-static const uint32_t kHoleNanLower32 = 0xFFFFFFFF;
-static const uint32_t kNaNOrInfinityLowerBoundUpper32 = 0x7FF00000;
+const uint32_t kHoleNanUpper32 = 0x7FFFFFFF;
+const uint32_t kHoleNanLower32 = 0xFFFFFFFF;
+const uint32_t kNaNOrInfinityLowerBoundUpper32 = 0x7FF00000;
 
 const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;

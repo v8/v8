@@ -505,6 +505,7 @@ namespace internal {
   F(MathPow, 2, 1)                                                           \
   F(MathSin, 1, 1)                                                           \
   F(MathCos, 1, 1)                                                           \
+  F(MathTan, 1, 1)                                                           \
   F(MathSqrt, 1, 1)                                                          \
   F(MathLog, 1, 1)                                                           \
   F(IsRegExpEquivalent, 2, 1)                                                \
@@ -684,9 +685,9 @@ class Runtime : public AllStatic {
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-class DeclareGlobalsEvalFlag:       public BitField<bool,           0, 1> {};
-class DeclareGlobalsStrictModeFlag: public BitField<StrictModeFlag, 1, 1> {};
-class DeclareGlobalsNativeFlag:     public BitField<bool,           2, 1> {};
+class DeclareGlobalsEvalFlag:     public BitField<bool,         0, 1> {};
+class DeclareGlobalsNativeFlag:   public BitField<bool,         1, 1> {};
+class DeclareGlobalsLanguageMode: public BitField<LanguageMode, 2, 2> {};
 
 } }  // namespace v8::internal
 

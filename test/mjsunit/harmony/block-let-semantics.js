@@ -27,6 +27,9 @@
 
 // Flags: --harmony-scoping
 
+// TODO(ES6): properly activate extended mode
+"use strict";
+
 // Test temporal dead zone semantics of let bound variables in
 // function and block scopes.
 
@@ -127,7 +130,7 @@ TestAll('{ function k() { return 0; } }; k(); ');
 
 // Test that a function declaration sees the scope it resides in.
 function f2() {
-  let m, n;
+  let m, n, o, p;
   {
     m = g;
     function g() {

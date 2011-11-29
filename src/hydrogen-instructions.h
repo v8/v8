@@ -121,7 +121,7 @@ class LChunkBuilder;
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
-  V(StringCompareAndBranch)                   \
+  V(StringCompareAndBranch)                    \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -139,7 +139,8 @@ class LChunkBuilder;
   V(LoadNamedGeneric)                          \
   V(Mod)                                       \
   V(Mul)                                       \
-  V(ObjectLiteral)                             \
+  V(ObjectLiteralFast)                         \
+  V(ObjectLiteralGeneric)                      \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
@@ -3369,7 +3370,7 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
-static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
       && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
@@ -3414,9 +3415,9 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
                       HValue* global_object,
                       Handle<Object> name,
                       HValue* value,
-                      bool strict_mode)
+                      StrictModeFlag strict_mode_flag)
       : name_(name),
-        strict_mode_(strict_mode) {
+        strict_mode_flag_(strict_mode_flag) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     SetOperandAt(2, value);
@@ -3428,7 +3429,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
   HValue* global_object() { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
   HValue* value() { return OperandAt(2); }
-  bool strict_mode() { return strict_mode_; }
+  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -3440,7 +3441,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
 
  private:
   Handle<Object> name_;
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
 };
 
 
@@ -3970,8 +3971,8 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
                      HValue* object,
                      HValue* key,
                      HValue* value,
-                     bool strict_mode)
-      : strict_mode_(strict_mode) {
+                     StrictModeFlag strict_mode_flag)
+      : strict_mode_flag_(strict_mode_flag) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
     SetOperandAt(2, value);
@@ -3983,7 +3984,7 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   HValue* context() { return OperandAt(3); }
-  bool strict_mode() { return strict_mode_; }
+  StrictModeFlag strict_mode_flag() { return strict_mode_flag_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -3994,7 +3995,7 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric)
 
  private:
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
 };
 
 
@@ -4195,14 +4196,49 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
 };
 
 
-class HObjectLiteral: public HMaterializedLiteral<1> {
+class HObjectLiteralFast: public HMaterializedLiteral<1> {
  public:
-  HObjectLiteral(HValue* context,
-                 Handle<FixedArray> constant_properties,
-                 bool fast_elements,
-                 int literal_index,
-                 int depth,
-                 bool has_function)
+  HObjectLiteralFast(HValue* context,
+                     Handle<JSObject> boilerplate,
+                     int total_size,
+                     int literal_index,
+                     int depth)
+      : HMaterializedLiteral<1>(literal_index, depth),
+        boilerplate_(boilerplate),
+        total_size_(total_size) {
+    SetOperandAt(0, context);
+  }
+
+  // Maximum depth and total number of properties for object literal
+  // graphs to be considered for fast deep-copying.
+  static const int kMaxObjectLiteralDepth = 3;
+  static const int kMaxObjectLiteralProperties = 8;
+
+  HValue* context() { return OperandAt(0); }
+  Handle<JSObject> boilerplate() const { return boilerplate_; }
+  int total_size() const { return total_size_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual HType CalculateInferredType();
+
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast)
+
+ private:
+  Handle<JSObject> boilerplate_;
+  int total_size_;
+};
+
+
+class HObjectLiteralGeneric: public HMaterializedLiteral<1> {
+ public:
+  HObjectLiteralGeneric(HValue* context,
+                        Handle<FixedArray> constant_properties,
+                        bool fast_elements,
+                        int literal_index,
+                        int depth,
+                        bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
         fast_elements_(fast_elements),
@@ -4222,7 +4258,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
   }
   virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric)
 
  private:
   Handle<FixedArray> constant_properties_;
@@ -4317,7 +4353,7 @@ class HToFastProperties: public HUnaryOperation {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
     // object literals.
-    ASSERT(value->IsObjectLiteral());
+    ASSERT(value->IsObjectLiteralGeneric() || value->IsObjectLiteralFast());
     set_representation(Representation::Tagged());
   }
 

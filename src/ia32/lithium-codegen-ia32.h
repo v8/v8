@@ -132,7 +132,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   StrictModeFlag strict_mode_flag() const {
-    return info()->strict_mode_flag();
+    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
   }
   bool dynamic_frame_alignment() const { return dynamic_frame_alignment_; }
   void set_dynamic_frame_alignment(bool value) {
@@ -241,6 +241,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathSqrt(LUnaryMathOperation* instr);
   void DoMathPowHalf(LUnaryMathOperation* instr);
   void DoMathLog(LUnaryMathOperation* instr);
+  void DoMathTan(LUnaryMathOperation* instr);
   void DoMathCos(LUnaryMathOperation* instr);
   void DoMathSin(LUnaryMathOperation* instr);
 
@@ -295,6 +296,14 @@ class LCodeGen BASE_EMBEDDED {
                                        Register object,
                                        Handle<Map> type,
                                        Handle<String> name);
+
+  // Emits optimized code to deep-copy the contents of statically known
+  // object graphs (e.g. object literal boilerplate).
+  void EmitDeepCopy(Handle<JSObject> object,
+                    Register result,
+                    Register source,
+                    int* offset);
+
   void EnsureSpaceForLazyDeopt();
 
   LChunk* const chunk_;

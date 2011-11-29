@@ -586,24 +586,28 @@ Parser::FunctionState::~FunctionState() {
 // Implementation of Parser
 
 Parser::Parser(Handle<Script> script,
-               bool allow_natives_syntax,
+               int parser_flags,
                v8::Extension* extension,
                ScriptDataImpl* pre_data)
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
       scanner_(isolate_->unicode_cache()),
+      reusable_preparser_(NULL),
       top_scope_(NULL),
       current_function_state_(NULL),
       target_stack_(NULL),
       extension_(extension),
       pre_data_(pre_data),
       fni_(NULL),
-      allow_natives_syntax_(allow_natives_syntax),
+      allow_natives_syntax_((parser_flags & kAllowNativesSyntax) != 0),
+      allow_lazy_((parser_flags & kAllowLazy) != 0),
       stack_overflow_(false),
-      parenthesized_function_(false),
-      harmony_scoping_(false) {
+      parenthesized_function_(false) {
   AstNode::ResetIds();
+  if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
+    scanner().SetHarmonyScoping(true);
+  }
 }
 
 
@@ -641,7 +645,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   if (pre_data_ != NULL) pre_data_->Initialize();
 
   // Compute the parsing mode.
-  mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
+  mode_ = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
   if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
 
   Handle<String> no_name = isolate()->factory()->empty_symbol();
@@ -656,16 +660,16 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     scope->set_start_position(0);
     scope->set_end_position(source->length());
     FunctionState function_state(this, scope, isolate());
-    top_scope_->SetStrictModeFlag(info->strict_mode_flag());
+    top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
-    if (ok && top_scope_->is_strict_mode()) {
+    if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
-    if (ok && harmony_scoping_) {
+    if (ok && is_extended_mode()) {
       CheckConflictingVarDeclarations(scope, &ok);
     }
 
@@ -748,10 +752,11 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
       scope = Scope::DeserializeScopeChain(info->closure()->context(), scope);
     }
     FunctionState function_state(this, scope, isolate());
-    ASSERT(scope->strict_mode_flag() == kNonStrictMode ||
-           scope->strict_mode_flag() == info->strict_mode_flag());
-    ASSERT(info->strict_mode_flag() == shared_info->strict_mode_flag());
-    scope->SetStrictModeFlag(shared_info->strict_mode_flag());
+    ASSERT(scope->language_mode() != STRICT_MODE || !info->is_classic_mode());
+    ASSERT(scope->language_mode() != EXTENDED_MODE ||
+           info->is_extended_mode());
+    ASSERT(info->language_mode() == shared_info->language_mode());
+    scope->SetLanguageMode(shared_info->language_mode());
     FunctionLiteral::Type type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
@@ -832,10 +837,6 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   isolate()->Throw(*result, &location);
 }
 
-void Parser::SetHarmonyScoping(bool block_scoping) {
-  scanner().SetHarmonyScoping(block_scoping);
-  harmony_scoping_ = block_scoping;
-}
 
 // Base class containing common code for the different finder classes used by
 // the parser.
@@ -1194,11 +1195,13 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         Handle<String> directive = Handle<String>::cast(literal->handle());
 
         // Check "use strict" directive (ES5 14.1).
-        if (!top_scope_->is_strict_mode() &&
+        if (top_scope_->is_classic_mode() &&
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
-          top_scope_->SetStrictModeFlag(kStrictMode);
+          // TODO(ES6): Fix entering extended mode, once it is specified.
+          top_scope_->SetLanguageMode(FLAG_harmony_scoping
+                                      ? EXTENDED_MODE : STRICT_MODE);
           // "use strict" is the only directive for now.
           directive_prologue = false;
         }
@@ -1264,6 +1267,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return ParseBlock(labels, ok);
 
     case Token::CONST:  // fall through
+    case Token::LET:
     case Token::VAR:
       stmt = ParseVariableStatement(kStatement, ok);
       break;
@@ -1336,7 +1340,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       //    FunctionDeclaration
       // Common language extension is to allow function declaration in place
       // of any statement. This language extension is disabled in strict mode.
-      if (top_scope_->is_strict_mode() || harmony_scoping_) {
+      if (!top_scope_->is_classic_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
         *ok = false;
@@ -1386,7 +1390,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // Also for block scoped let/const bindings the variable can be
   // statically declared.
   if (declaration_scope->is_function_scope() ||
-      declaration_scope->is_strict_mode_eval_scope() ||
+      declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope()) {
     // Declare the variable in the function scope.
     var = declaration_scope->LocalLookup(name);
@@ -1411,7 +1415,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
                var->mode() == CONST ||
                var->mode() == CONST_HARMONY ||
                var->mode() == LET);
-        if (harmony_scoping_) {
+        if (is_extended_mode()) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
           SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
@@ -1466,7 +1470,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
                                kind,
                                kNeedsInitialization);
   } else if (declaration_scope->is_eval_scope() &&
-             !declaration_scope->is_strict_mode()) {
+             declaration_scope->is_classic_mode()) {
     // For variable declarations in a non-strict eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
     // DeclareContextSlot runtime function.
@@ -1583,14 +1587,14 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   // Even if we're not at the top-level of the global or a function
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
-  VariableMode mode = harmony_scoping_ ? LET : VAR;
+  VariableMode mode = is_extended_mode() ? LET : VAR;
   Declare(name, mode, fun, true, CHECK_OK);
   return EmptyStatement();
 }
 
 
 Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
-  if (harmony_scoping_) return ParseScopedBlock(labels, ok);
+  if (top_scope_->is_extended_mode()) return ParseScopedBlock(labels, ok);
 
   // Block ::
   //   '{' Statement* '}'
@@ -1705,29 +1709,52 @@ Block* Parser::ParseVariableDeclarations(
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
+    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
+    //
+    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    //
+    // However disallowing const in classic mode will break compatibility with
+    // existing pages. Therefore we keep allowing const with the old
+    // non-harmony semantics in classic mode.
     Consume(Token::CONST);
-    if (harmony_scoping_) {
-      if (var_context != kSourceElement &&
-          var_context != kForStatement) {
-        // In harmony mode 'const' declarations are only allowed in source
-        // element positions.
-        ReportMessage("unprotected_const", Vector<const char*>::empty());
+    switch (top_scope_->language_mode()) {
+      case CLASSIC_MODE:
+        mode = CONST;
+        init_op = Token::INIT_CONST;
+        break;
+      case STRICT_MODE:
+        ReportMessage("strict_const", Vector<const char*>::empty());
         *ok = false;
         return NULL;
-      }
-      mode = CONST_HARMONY;
-      init_op = Token::INIT_CONST_HARMONY;
-    } else if (top_scope_->is_strict_mode()) {
-      ReportMessage("strict_const", Vector<const char*>::empty());
-      *ok = false;
-      return NULL;
-    } else {
-      mode = CONST;
-      init_op = Token::INIT_CONST;
+      case EXTENDED_MODE:
+        if (var_context != kSourceElement &&
+            var_context != kForStatement) {
+          // In extended mode 'const' declarations are only allowed in source
+          // element positions.
+          ReportMessage("unprotected_const", Vector<const char*>::empty());
+          *ok = false;
+          return NULL;
+        }
+        mode = CONST_HARMONY;
+        init_op = Token::INIT_CONST_HARMONY;
     }
     is_const = true;
     needs_init = true;
   } else if (peek() == Token::LET) {
+    // ES6 Draft Rev4 section 12.2.1:
+    //
+    // LetDeclaration : let LetBindingList ;
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    if (!is_extended_mode()) {
+      ReportMessage("illegal_let", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     Consume(Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
@@ -1771,7 +1798,7 @@ Block* Parser::ParseVariableDeclarations(
     if (fni_ != NULL) fni_->PushVariableName(name);
 
     // Strict mode variables may not be named eval or arguments
-    if (declaration_scope->is_strict_mode() && IsEvalOrArguments(name)) {
+    if (!declaration_scope->is_classic_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_var_name", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1900,8 +1927,8 @@ Block* Parser::ParseVariableDeclarations(
       } else {
         // Add strict mode.
         // We may want to pass singleton to avoid Literal allocations.
-        StrictModeFlag flag = initialization_scope->strict_mode_flag();
-        arguments->Add(NewNumberLiteral(flag));
+        LanguageMode language_mode = initialization_scope->language_mode();
+        arguments->Add(NewNumberLiteral(language_mode));
 
         // Be careful not to assign a value to the global variable if
         // we're in a with. The initialization value should not
@@ -2165,7 +2192,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
 
   Expect(Token::WITH, CHECK_OK);
 
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     ReportMessage("strict_mode_with", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2311,7 +2338,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     catch_scope->set_start_position(scanner().location().beg_pos);
     name = ParseIdentifier(CHECK_OK);
 
-    if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
+    if (!top_scope_->is_classic_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_catch_variable", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -2321,7 +2348,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
-      VariableMode mode = harmony_scoping_ ? LET : VAR;
+      VariableMode mode = is_extended_mode() ? LET : VAR;
       catch_variable =
           catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
@@ -2662,7 +2689,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     expression = NewThrowReferenceError(type);
   }
 
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
   }
@@ -2871,7 +2898,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && top_scope_->is_strict_mode()) {
+    if (op == Token::DELETE && !top_scope_->is_classic_mode()) {
       VariableProxy* operand = expression->AsVariableProxy();
       if (operand != NULL && !operand->is_this()) {
         ReportMessage("strict_delete", Vector<const char*>::empty());
@@ -2895,7 +2922,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -2930,7 +2957,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -3161,9 +3188,9 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
       return ReportMessage("unexpected_reserved",
                            Vector<const char*>::empty());
     case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessage(top_scope_->is_strict_mode() ?
-                               "unexpected_strict_reserved" :
-                               "unexpected_token_identifier",
+      return ReportMessage(top_scope_->is_classic_mode() ?
+                               "unexpected_token_identifier" :
+                               "unexpected_strict_reserved",
                            Vector<const char*>::empty());
     default:
       const char* name = Token::String(token);
@@ -3509,11 +3536,11 @@ bool IsEqualNumber(void* first, void* second);
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
  public:
-  ObjectLiteralPropertyChecker(Parser* parser, bool strict) :
+  ObjectLiteralPropertyChecker(Parser* parser, LanguageMode language_mode) :
     props(&IsEqualString),
     elems(&IsEqualNumber),
     parser_(parser),
-    strict_(strict) {
+    language_mode_(language_mode) {
   }
 
   void CheckProperty(
@@ -3543,7 +3570,7 @@ class ObjectLiteralPropertyChecker {
   HashMap props;
   HashMap elems;
   Parser* parser_;
-  bool strict_;
+  LanguageMode language_mode_;
 };
 
 
@@ -3592,8 +3619,8 @@ void ObjectLiteralPropertyChecker::CheckProperty(
   intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
   intptr_t curr = GetPropertyKind(property);
 
-  // Duplicate data properties are illegal in strict mode.
-  if (strict_ && (curr & prev & kData) != 0) {
+  // Duplicate data properties are illegal in strict or extended mode.
+  if (language_mode_ != CLASSIC_MODE && (curr & prev & kData) != 0) {
     parser_->ReportMessageAt(loc, "strict_duplicate_property",
                              Vector<const char*>::empty());
     *ok = false;
@@ -3729,7 +3756,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
-  ObjectLiteralPropertyChecker checker(this, top_scope_->is_strict_mode());
+  ObjectLiteralPropertyChecker checker(this, top_scope_->language_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
 
@@ -3909,6 +3936,98 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
 }
 
 
+class SingletonLogger : public ParserRecorder {
+ public:
+  SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }
+  ~SingletonLogger() { }
+
+  void Reset() { has_error_ = false; }
+
+  virtual void LogFunction(int start,
+                           int end,
+                           int literals,
+                           int properties,
+                           LanguageMode mode) {
+    ASSERT(!has_error_);
+    start_ = start;
+    end_ = end;
+    literals_ = literals;
+    properties_ = properties;
+    mode_ = mode;
+  };
+
+  // Logs a symbol creation of a literal or identifier.
+  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
+  virtual void LogUC16Symbol(int start, Vector<const uc16> literal) { }
+
+  // Logs an error message and marks the log as containing an error.
+  // Further logging will be ignored, and ExtractData will return a vector
+  // representing the error only.
+  virtual void LogMessage(int start,
+                          int end,
+                          const char* message,
+                          const char* argument_opt) {
+    has_error_ = true;
+    start_ = start;
+    end_ = end;
+    message_ = message;
+    argument_opt_ = argument_opt;
+  }
+
+  virtual int function_position() { return 0; }
+
+  virtual int symbol_position() { return 0; }
+
+  virtual int symbol_ids() { return -1; }
+
+  virtual Vector<unsigned> ExtractData() {
+    UNREACHABLE();
+    return Vector<unsigned>();
+  }
+
+  virtual void PauseRecording() { }
+
+  virtual void ResumeRecording() { }
+
+  bool has_error() { return has_error_; }
+
+  int start() { return start_; }
+  int end() { return end_; }
+  int literals() {
+    ASSERT(!has_error_);
+    return literals_;
+  }
+  int properties() {
+    ASSERT(!has_error_);
+    return properties_;
+  }
+  LanguageMode language_mode() {
+    ASSERT(!has_error_);
+    return mode_;
+  }
+  const char* message() {
+    ASSERT(has_error_);
+    return message_;
+  }
+  const char* argument_opt() {
+    ASSERT(has_error_);
+    return argument_opt_;
+  }
+
+ private:
+  bool has_error_;
+  int start_;
+  int end_;
+  // For function entries.
+  int literals_;
+  int properties_;
+  LanguageMode mode_;
+  // For error messages.
+  const char* message_;
+  const char* argument_opt_;
+};
+
+
 FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                               bool name_is_strict_reserved,
                                               int function_token_position,
@@ -3931,12 +4050,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION && !harmony_scoping_)
+  Scope* scope = (type == FunctionLiteral::DECLARATION && !is_extended_mode())
       ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
       : NewScope(top_scope_, FUNCTION_SCOPE);
   ZoneList<Statement*>* body = NULL;
-  int materialized_literal_count;
-  int expected_property_count;
+  int materialized_literal_count = -1;
+  int expected_property_count = -1;
   int handler_count = 0;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
@@ -3972,7 +4091,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         reserved_loc = scanner().location();
       }
 
-      top_scope_->DeclareParameter(param_name, harmony_scoping_ ? LET : VAR);
+      top_scope_->DeclareParameter(param_name, is_extended_mode() ? LET : VAR);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
@@ -3997,7 +4116,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     Token::Value fvar_init_op = Token::INIT_CONST;
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
       VariableMode fvar_mode;
-      if (harmony_scoping_) {
+      if (is_extended_mode()) {
         fvar_mode = CONST_HARMONY;
         fvar_init_op = Token::INIT_CONST_HARMONY;
       } else {
@@ -4006,39 +4125,84 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       fvar = top_scope_->DeclareFunctionVar(function_name, fvar_mode);
     }
 
-    // Determine if the function will be lazily compiled. The mode can only
-    // be PARSE_LAZILY if the --lazy flag is true.  We will not lazily
-    // compile if we do not have preparser data for the function.
+    // Determine whether the function will be lazily compiled.
+    // The heuristics are:
+    // - It must not have been prohibited by the caller to Parse (some callers
+    //   need a full AST).
+    // - The outer scope must be trivial (only global variables in scope).
+    // - The function mustn't be a function expression with an open parenthesis
+    //   before; we consider that a hint that the function will be called
+    //   immediately, and it would be a waste of time to make it lazily
+    //   compiled.
+    // These are all things we can know at this point, without looking at the
+    // function itself.
     bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
                                top_scope_->outer_scope()->is_global_scope() &&
                                top_scope_->HasTrivialOuterContext() &&
-                               !parenthesized_function_ &&
-                               pre_data() != NULL);
+                               !parenthesized_function_);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_compiled) {
       int function_block_pos = scanner().location().beg_pos;
-      FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
-      if (!entry.is_valid()) {
-        // There is no preparser data for the function, we will not lazily
-        // compile after all.
-        is_lazily_compiled = false;
-      } else {
-        scope->set_end_position(entry.end_pos());
-        if (scope->end_position() <= function_block_pos) {
-          // End position greater than end of stream is safe, and hard to check.
-          ReportInvalidPreparseData(function_name, CHECK_OK);
+      FunctionEntry entry;
+      if (pre_data_ != NULL) {
+        // If we have pre_data_, we use it to skip parsing the function body.
+        // the preparser data contains the information we need to construct the
+        // lazy function.
+        entry = pre_data()->GetFunctionEntry(function_block_pos);
+        if (entry.is_valid()) {
+          if (entry.end_pos() <= function_block_pos) {
+            // End position greater than end of stream is safe, and hard
+            // to check.
+            ReportInvalidPreparseData(function_name, CHECK_OK);
+          }
+          scanner().SeekForward(entry.end_pos() - 1);
+
+          scope->set_end_position(entry.end_pos());
+          Expect(Token::RBRACE, CHECK_OK);
+          isolate()->counters()->total_preparse_skipped()->Increment(
+              scope->end_position() - function_block_pos);
+          materialized_literal_count = entry.literal_count();
+          expected_property_count = entry.property_count();
+          top_scope_->SetLanguageMode(entry.language_mode());
+          only_simple_this_property_assignments = false;
+          this_property_assignments = isolate()->factory()->empty_fixed_array();
+        } else {
+          is_lazily_compiled = false;
         }
+      } else {
+        // With no preparser data, we partially parse the function, without
+        // building an AST. This gathers the data needed to build a lazy
+        // function.
+        SingletonLogger logger;
+        preparser::PreParser::PreParseResult result =
+            LazyParseFunctionLiteral(&logger);
+        if (result == preparser::PreParser::kPreParseStackOverflow) {
+          // Propagate stack overflow.
+          stack_overflow_ = true;
+          *ok = false;
+          return NULL;
+        }
+        if (logger.has_error()) {
+          const char* arg = logger.argument_opt();
+          Vector<const char*> args;
+          if (arg != NULL) {
+            args = Vector<const char*>(&arg, 1);
+          }
+          ReportMessageAt(Scanner::Location(logger.start(), logger.end()),
+                          logger.message(), args);
+          *ok = false;
+          return NULL;
+        }
+        scope->set_end_position(logger.end());
+        Expect(Token::RBRACE, CHECK_OK);
         isolate()->counters()->total_preparse_skipped()->Increment(
             scope->end_position() - function_block_pos);
-        // Seek to position just before terminal '}'.
-        scanner().SeekForward(scope->end_position() - 1);
-        materialized_literal_count = entry.literal_count();
-        expected_property_count = entry.property_count();
-        top_scope_->SetStrictModeFlag(entry.strict_mode_flag());
+        materialized_literal_count = logger.literals();
+        expected_property_count = logger.properties();
+        top_scope_->SetLanguageMode(logger.language_mode());
         only_simple_this_property_assignments = false;
         this_property_assignments = isolate()->factory()->empty_fixed_array();
-        Expect(Token::RBRACE, CHECK_OK);
       }
     }
 
@@ -4068,7 +4232,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
 
     // Validate strict mode.
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
         int start_pos = scope->start_position();
         int position = function_token_position != RelocInfo::kNoPosition
@@ -4115,7 +4279,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
   }
 
-  if (harmony_scoping_) {
+  if (is_extended_mode()) {
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
@@ -4136,6 +4300,27 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
+}
+
+
+preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
+    SingletonLogger* logger) {
+  HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
+  ASSERT_EQ(Token::LBRACE, scanner().current_token());
+
+  if (reusable_preparser_ == NULL) {
+    intptr_t stack_limit = isolate()->stack_guard()->real_climit();
+    bool do_allow_lazy = true;
+    reusable_preparser_ = new preparser::PreParser(&scanner_,
+                                                   NULL,
+                                                   stack_limit,
+                                                   do_allow_lazy,
+                                                   allow_natives_syntax_);
+  }
+  preparser::PreParser::PreParseResult result =
+      reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
+                                                logger);
+  return result;
 }
 
 
@@ -4254,7 +4439,7 @@ Literal* Parser::GetLiteralNumber(double value) {
 // Parses an identifier that is valid for the current scope, in particular it
 // fails on strict mode future reserved keywords in a strict scope.
 Handle<String> Parser::ParseIdentifier(bool* ok) {
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     Expect(Token::IDENTIFIER, ok);
   } else if (!Check(Token::IDENTIFIER)) {
     Expect(Token::FUTURE_STRICT_RESERVED_WORD, ok);
@@ -4297,7 +4482,7 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
 void Parser::CheckStrictModeLValue(Expression* expression,
                                    const char* error,
                                    bool* ok) {
-  ASSERT(top_scope_->is_strict_mode());
+  ASSERT(!top_scope_->is_classic_mode());
   VariableProxy* lhs = expression != NULL
       ? expression->AsVariableProxy()
       : NULL;
@@ -5353,14 +5538,17 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
+  HistogramTimerScope timer(isolate->counters()->pre_parse());
   Scanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyScoping((flags & kHarmonyScoping) != 0);
+  scanner.SetHarmonyScoping(FLAG_harmony_scoping);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  if (!preparser::PreParser::PreParseProgram(&scanner,
-                                             recorder,
-                                             flags,
-                                             stack_limit)) {
+  preparser::PreParser::PreParseResult result =
+      preparser::PreParser::PreParseProgram(&scanner,
+                                            recorder,
+                                            flags,
+                                            stack_limit);
+  if (result == preparser::PreParser::kPreParseStackOverflow) {
     isolate->StackOverflow();
     return NULL;
   }
@@ -5374,7 +5562,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
-ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            v8::Extension* extension,
                                            int flags) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
@@ -5385,7 +5573,15 @@ ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
   }
   flags |= kAllowLazy;
   PartialParserRecorder recorder;
-  return DoPreParse(source, flags, &recorder);
+  int source_length = source->length();
+  if (source->IsExternalTwoByteString()) {
+    ExternalTwoByteStringUC16CharacterStream stream(
+        Handle<ExternalTwoByteString>::cast(source), 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  } else {
+    GenericStringUC16CharacterStream stream(source, 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  }
 }
 
 
@@ -5423,29 +5619,26 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 }
 
 
-bool ParserApi::Parse(CompilationInfo* info) {
+bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   ASSERT(info->function() == NULL);
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
-  bool harmony_scoping = !info->is_native() && FLAG_harmony_scoping;
+  ASSERT((parsing_flags & kLanguageModeMask) == CLASSIC_MODE);
+  if (!info->is_native() && FLAG_harmony_scoping) {
+    // Harmony scoping is requested.
+    parsing_flags |= EXTENDED_MODE;
+  }
+  if (FLAG_allow_natives_syntax || info->is_native()) {
+    // We requre %identifier(..) syntax.
+    parsing_flags |= kAllowNativesSyntax;
+  }
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
-    bool allow_natives_syntax =
-        FLAG_allow_natives_syntax ||
-        info->is_native();
-    Parser parser(script, allow_natives_syntax, NULL, NULL);
-    parser.SetHarmonyScoping(harmony_scoping);
+    Parser parser(script, parsing_flags, NULL, NULL);
     result = parser.ParseLazy(info);
   } else {
-    // Whether we allow %identifier(..) syntax.
-    bool allow_natives_syntax =
-        info->is_native() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
-    Parser parser(script,
-                  allow_natives_syntax,
-                  info->extension(),
-                  pre_data);
-    parser.SetHarmonyScoping(harmony_scoping);
+    Parser parser(script, parsing_flags, info->extension(), pre_data);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();

@@ -28,6 +28,9 @@
 // Flags: --allow-natives-syntax --harmony-scoping
 // Test functionality of block scopes.
 
+// TODO(ES6): properly activate extended mode
+"use strict";
+
 // Hoisting of var declarations.
 function f1() {
   {

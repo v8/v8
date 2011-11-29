@@ -255,16 +255,11 @@ void Heap::FinalizeExternalString(String* string) {
           ExternalString::kResourceOffset -
           kHeapObjectTag);
 
-  // Clear pointer cache.
-  ExternalString::cast(string)->clear_data_cache();
-
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != NULL) {
     (*resource_addr)->Dispose();
+    *resource_addr = NULL;
   }
-
-  // Clear the resource pointer in the string.
-  *resource_addr = NULL;
 }
 
 

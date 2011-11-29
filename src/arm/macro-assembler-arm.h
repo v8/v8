@@ -39,12 +39,12 @@ namespace internal {
 // Static helper functions
 
 // Generate a MemOperand for loading a field from an object.
-static inline MemOperand FieldMemOperand(Register object, int offset) {
+inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
 
-static inline Operand SmiUntagOperand(Register object) {
+inline Operand SmiUntagOperand(Register object) {
   return Operand(object, ASR, kSmiTagSize);
 }
 
@@ -1300,12 +1300,12 @@ class CodePatcher {
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
-static MemOperand ContextOperand(Register context, int index) {
+inline MemOperand ContextOperand(Register context, int index) {
   return MemOperand(context, Context::SlotOffset(index));
 }
 
 
-static inline MemOperand GlobalObjectOperand()  {
+inline MemOperand GlobalObjectOperand()  {
   return ContextOperand(cp, Context::GLOBAL_INDEX);
 }
 

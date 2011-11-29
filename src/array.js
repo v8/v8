@@ -328,8 +328,9 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
     // would be the appropriate test.  We follow KJS in consulting the
     // prototype.
     var current = array[index];
-    if (!IS_UNDEFINED(current) || index in array)
+    if (!IS_UNDEFINED(current) || index in array) {
       deleted_elements[i] = current;
+    }
   }
 }
 
@@ -495,12 +496,12 @@ function SparseReverse(array, len) {
 
     if (j_complement <= i) {
       high = j;
-      while (keys[--high_counter] == j);
+      while (keys[--high_counter] == j) { }
       low = j_complement;
     }
     if (j_complement >= i) {
       low = i;
-      while (keys[++low_counter] == i);
+      while (keys[++low_counter] == i) { }
       high = len - i - 1;
     }
 
@@ -576,10 +577,11 @@ function ArrayShift() {
 
   var first = this[0];
 
-  if (IS_ARRAY(this))
+  if (IS_ARRAY(this)) {
     SmartMove(this, 0, 1, len, 0);
-  else
+  } else {
     SimpleMove(this, 0, 1, len, 0);
+  }
 
   this.length = len - 1;
 
@@ -596,10 +598,11 @@ function ArrayUnshift(arg1) {  // length == 1
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
-  if (IS_ARRAY(this))
+  if (IS_ARRAY(this)) {
     SmartMove(this, 0, 0, len, num_arguments);
-  else
+  } else {
     SimpleMove(this, 0, 0, len, num_arguments);
+  }
 
   for (var i = 0; i < num_arguments; i++) {
     this[i] = %_Arguments(i);

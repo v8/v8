@@ -458,7 +458,8 @@ function APPLY_PREPARE(args) {
   }
 
   if (!IS_SPEC_FUNCTION(this)) {
-    throw %MakeTypeError('apply_non_function', [ %ToString(this), typeof this ]);
+    throw %MakeTypeError('apply_non_function',
+                         [ %ToString(this), typeof this ]);
   }
 
   // Make sure the arguments list has the right type.

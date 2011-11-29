@@ -952,33 +952,32 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #endif  // DEBUG
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kSize) {
+  if (size < ExternalString::kShortSize) {
     return false;
   }
-  ASSERT(size >= ExternalString::kSize);
   bool is_ascii = this->IsAsciiRepresentation();
   bool is_symbol = this->IsSymbol();
-  int length = this->length();
-  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
-  this->set_map(is_ascii ?
-                heap->external_string_with_ascii_data_map() :
-                heap->external_string_map());
-  ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
-  self->set_length(length);
-  self->set_hash_field(hash_field);
-  self->set_resource(resource);
-  // Additionally make the object into an external symbol if the original string
-  // was a symbol to start with.
-  if (is_symbol) {
-    self->Hash();  // Force regeneration of the hash value.
-    // Now morph this external string into a external symbol.
-    this->set_map(is_ascii ?
-                  heap->external_symbol_with_ascii_data_map() :
-                  heap->external_symbol_map());
+  if (size >= ExternalString::kSize) {
+    this->set_map(
+        is_symbol
+            ? (is_ascii ?  heap->external_symbol_with_ascii_data_map()
+                        :  heap->external_symbol_map())
+            : (is_ascii ?  heap->external_string_with_ascii_data_map()
+                        :  heap->external_string_map()));
+  } else {
+    this->set_map(
+        is_symbol
+            ? (is_ascii ?  heap->short_external_symbol_with_ascii_data_map()
+                        :  heap->short_external_symbol_map())
+            : (is_ascii ?  heap->short_external_string_with_ascii_data_map()
+                        :  heap->short_external_string_map()));
   }
+  ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
+  self->set_resource(resource);
+  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1004,28 +1003,23 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 #endif  // DEBUG
   Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kSize) {
+  if (size < ExternalString::kShortSize) {
     return false;
   }
-  ASSERT(size >= ExternalString::kSize);
   bool is_symbol = this->IsSymbol();
-  int length = this->length();
-  int hash_field = this->hash_field();
 
   // Morph the object to an external string by adjusting the map and
-  // reinitializing the fields.
-  this->set_map(heap->external_ascii_string_map());
-  ExternalAsciiString* self = ExternalAsciiString::cast(this);
-  self->set_length(length);
-  self->set_hash_field(hash_field);
-  self->set_resource(resource);
-  // Additionally make the object into an external symbol if the original string
-  // was a symbol to start with.
-  if (is_symbol) {
-    self->Hash();  // Force regeneration of the hash value.
-    // Now morph this external string into a external symbol.
-    this->set_map(heap->external_ascii_symbol_map());
+  // reinitializing the fields.  Use short version if space is limited.
+  if (size >= ExternalString::kSize) {
+    this->set_map(is_symbol ? heap->external_ascii_symbol_map()
+                            : heap->external_ascii_string_map());
+  } else {
+    this->set_map(is_symbol ? heap->short_external_ascii_symbol_map()
+                            : heap->short_external_ascii_string_map());
   }
+  ExternalAsciiString* self = ExternalAsciiString::cast(this);
+  self->set_resource(resource);
+  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1033,7 +1027,6 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
     MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
   }
-
   return true;
 }
 
@@ -7232,18 +7225,18 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 Object* JSFunction::RemovePrototype() {
   Context* global_context = context()->global_context();
-  Map* no_prototype_map = shared()->strict_mode()
-      ? global_context->strict_mode_function_without_prototype_map()
-      : global_context->function_without_prototype_map();
+  Map* no_prototype_map = shared()->is_classic_mode()
+      ? global_context->function_without_prototype_map()
+      : global_context->strict_mode_function_without_prototype_map();
 
   if (map() == no_prototype_map) {
     // Be idempotent.
     return this;
   }
 
-  ASSERT(!shared()->strict_mode() ||
-         map() == global_context->strict_mode_function_map());
-  ASSERT(shared()->strict_mode() || map() == global_context->function_map());
+  ASSERT(map() == (shared()->is_classic_mode()
+                   ? global_context->function_map()
+                   : global_context->strict_mode_function_map()));
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
@@ -10276,11 +10269,11 @@ class StringSharedKey : public HashTableKey {
  public:
   StringSharedKey(String* source,
                   SharedFunctionInfo* shared,
-                  StrictModeFlag strict_mode,
+                  LanguageMode language_mode,
                   int scope_position)
       : source_(source),
         shared_(shared),
-        strict_mode_(strict_mode),
+        language_mode_(language_mode),
         scope_position_(scope_position) { }
 
   bool IsMatch(Object* other) {
@@ -10288,11 +10281,12 @@ class StringSharedKey : public HashTableKey {
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     if (shared != shared_) return false;
-    int strict_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(strict_unchecked == kStrictMode ||
-           strict_unchecked == kNonStrictMode);
-    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
-    if (strict_mode != strict_mode_) return false;
+    int language_unchecked = Smi::cast(other_array->get(2))->value();
+    ASSERT(language_unchecked == CLASSIC_MODE ||
+           language_unchecked == STRICT_MODE ||
+           language_unchecked == EXTENDED_MODE);
+    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
+    if (language_mode != language_mode_) return false;
     int scope_position = Smi::cast(other_array->get(3))->value();
     if (scope_position != scope_position_) return false;
     String* source = String::cast(other_array->get(1));
@@ -10301,7 +10295,7 @@ class StringSharedKey : public HashTableKey {
 
   static uint32_t StringSharedHashHelper(String* source,
                                          SharedFunctionInfo* shared,
-                                         StrictModeFlag strict_mode,
+                                         LanguageMode language_mode,
                                          int scope_position) {
     uint32_t hash = source->Hash();
     if (shared->HasSourceCode()) {
@@ -10312,7 +10306,8 @@ class StringSharedKey : public HashTableKey {
       // collection.
       Script* script = Script::cast(shared->script());
       hash ^= String::cast(script->source())->Hash();
-      if (strict_mode == kStrictMode) hash ^= 0x8000;
+      if (language_mode == STRICT_MODE) hash ^= 0x8000;
+      if (language_mode == EXTENDED_MODE) hash ^= 0x0080;
       hash += scope_position;
     }
     return hash;
@@ -10320,19 +10315,21 @@ class StringSharedKey : public HashTableKey {
 
   uint32_t Hash() {
     return StringSharedHashHelper(
-        source_, shared_, strict_mode_, scope_position_);
+        source_, shared_, language_mode_, scope_position_);
   }
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
-    int strict_unchecked = Smi::cast(other_array->get(2))->value();
-    ASSERT(strict_unchecked == kStrictMode ||
-           strict_unchecked == kNonStrictMode);
-    StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
+    int language_unchecked = Smi::cast(other_array->get(2))->value();
+    ASSERT(language_unchecked == CLASSIC_MODE ||
+           language_unchecked == STRICT_MODE ||
+           language_unchecked == EXTENDED_MODE);
+    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
     int scope_position = Smi::cast(other_array->get(3))->value();
-    return StringSharedHashHelper(source, shared, strict_mode, scope_position);
+    return StringSharedHashHelper(
+        source, shared, language_mode, scope_position);
   }
 
   MUST_USE_RESULT MaybeObject* AsObject() {
@@ -10343,7 +10340,7 @@ class StringSharedKey : public HashTableKey {
     FixedArray* other_array = FixedArray::cast(obj);
     other_array->set(0, shared_);
     other_array->set(1, source_);
-    other_array->set(2, Smi::FromInt(strict_mode_));
+    other_array->set(2, Smi::FromInt(language_mode_));
     other_array->set(3, Smi::FromInt(scope_position_));
     return other_array;
   }
@@ -10351,7 +10348,7 @@ class StringSharedKey : public HashTableKey {
  private:
   String* source_;
   SharedFunctionInfo* shared_;
-  StrictModeFlag strict_mode_;
+  LanguageMode language_mode_;
   int scope_position_;
 };
 
@@ -11507,11 +11504,11 @@ Object* CompilationCacheTable::Lookup(String* src) {
 
 Object* CompilationCacheTable::LookupEval(String* src,
                                           Context* context,
-                                          StrictModeFlag strict_mode,
+                                          LanguageMode language_mode,
                                           int scope_position) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      strict_mode,
+                      language_mode,
                       scope_position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
@@ -11551,7 +11548,7 @@ MaybeObject* CompilationCacheTable::PutEval(String* src,
                                             int scope_position) {
   StringSharedKey key(src,
                       context->closure()->shared(),
-                      value->strict_mode_flag(),
+                      value->language_mode(),
                       scope_position);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);

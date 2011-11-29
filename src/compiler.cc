@@ -53,7 +53,7 @@ namespace internal {
 
 CompilationInfo::CompilationInfo(Handle<Script> script)
     : isolate_(script->GetIsolate()),
-      flags_(0),
+      flags_(LanguageModeField::encode(CLASSIC_MODE)),
       function_(NULL),
       scope_(NULL),
       global_scope_(NULL),
@@ -67,7 +67,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
     : isolate_(shared_info->GetIsolate()),
-      flags_(IsLazy::encode(true)),
+      flags_(LanguageModeField::encode(CLASSIC_MODE) |
+             IsLazy::encode(true)),
       function_(NULL),
       scope_(NULL),
       global_scope_(NULL),
@@ -82,7 +83,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
     : isolate_(closure->GetIsolate()),
-      flags_(IsLazy::encode(true)),
+      flags_(LanguageModeField::encode(CLASSIC_MODE) |
+             IsLazy::encode(true)),
       function_(NULL),
       scope_(NULL),
       global_scope_(NULL),
@@ -375,8 +377,14 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
-
-  if (!ParserApi::Parse(info)) return Handle<SharedFunctionInfo>::null();
+  ParsingFlags flags = kNoParsingFlags;
+  if (info->pre_parse_data() != NULL ||
+      String::cast(script->source())->length() > FLAG_min_preparse_length) {
+    flags = kAllowLazy;
+  }
+  if (!ParserApi::Parse(info, flags)) {
+    return Handle<SharedFunctionInfo>::null();
+  }
 
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
@@ -451,7 +459,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              int line_offset,
                                              int column_offset,
                                              v8::Extension* extension,
-                                             ScriptDataImpl* input_pre_data,
+                                             ScriptDataImpl* pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
@@ -482,24 +490,12 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // for small sources, odds are that there aren't many functions
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
-    ScriptDataImpl* pre_data = input_pre_data;
     int flags = kNoParsingFlags;
     if ((natives == NATIVES_CODE) || FLAG_allow_natives_syntax) {
       flags |= kAllowNativesSyntax;
     }
     if (natives != NATIVES_CODE && FLAG_harmony_scoping) {
-      flags |= kHarmonyScoping;
-    }
-    if (pre_data == NULL
-        && source_length >= FLAG_min_preparse_length) {
-      if (source->IsExternalTwoByteString()) {
-        ExternalTwoByteStringUC16CharacterStream stream(
-            Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
-      } else {
-        GenericStringUC16CharacterStream stream(source, 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
-      }
+      flags |= EXTENDED_MODE;
     }
 
     // Create a script object describing the script to be compiled.
@@ -525,11 +521,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
     }
-
-    // Get rid of the pre-parsing data (if necessary).
-    if (input_pre_data == NULL && pre_data != NULL) {
-      delete pre_data;
-    }
   }
 
   if (result.is_null()) isolate->ReportPendingMessages();
@@ -540,7 +531,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
 Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
-                                                 StrictModeFlag strict_mode,
+                                                 LanguageMode language_mode,
                                                  int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
@@ -557,7 +548,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   result = compilation_cache->LookupEval(source,
                                          context,
                                          is_global,
-                                         strict_mode,
+                                         language_mode,
                                          scope_position);
 
   if (result.is_null()) {
@@ -566,15 +557,18 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    info.SetStrictModeFlag(strict_mode);
+    info.SetLanguageMode(language_mode);
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
-      // If caller is strict mode, the result must be strict as well,
-      // but not the other way around. Consider:
+      // If caller is strict mode, the result must be in strict mode or
+      // extended mode as well, but not the other way around. Consider:
       // eval("'use strict'; ...");
-      // TODO(keuchel): adapt this for extended mode.
-      ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
+      ASSERT(language_mode != STRICT_MODE || !result->is_classic_mode());
+      // If caller is in extended mode, the result must also be in
+      // extended mode.
+      ASSERT(language_mode != EXTENDED_MODE ||
+             result->is_extended_mode());
       compilation_cache->PutEval(
           source, context, is_global, result, scope_position);
     }
@@ -599,20 +593,16 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   isolate->counters()->total_compile_size()->Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
-  if (ParserApi::Parse(info)) {
+  if (ParserApi::Parse(info, kNoParsingFlags)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
-    // After parsing we know function's strict mode. Remember it.
-    StrictModeFlag strict_mode = info->function()->strict_mode_flag();
-    ASSERT(info->strict_mode_flag() == kNonStrictMode ||
-           info->strict_mode_flag() == strict_mode);
-    ASSERT(shared->strict_mode_flag() == kNonStrictMode ||
-           shared->strict_mode_flag() == strict_mode);
-    info->SetStrictModeFlag(strict_mode);
-    shared->set_strict_mode_flag(strict_mode);
+    // After parsing we know the function's language mode. Remember it.
+    LanguageMode language_mode = info->function()->language_mode();
+    info->SetLanguageMode(language_mode);
+    shared->set_language_mode(language_mode);
 
     // Compile the code.
     if (!MakeCode(info)) {
@@ -691,7 +681,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfo info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
-  info.SetStrictModeFlag(literal->scope()->strict_mode_flag());
+  info.SetLanguageMode(literal->scope()->language_mode());
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to
@@ -757,7 +747,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-  function_info->set_strict_mode_flag(lit->strict_mode_flag());
+  function_info->set_language_mode(lit->language_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
 }

@@ -2282,7 +2282,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         // Check that the object is a two-byte string or a symbol.
         __ GetObjectType(a1, a3, a3);
         __ Branch(&miss, Ugreater_equal, a3, Operand(FIRST_NONSTRING_TYPE));
@@ -2300,7 +2300,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case NUMBER_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
       Label fast;
         // Check that the object is a smi or a heap number.
         __ JumpIfSmi(a1, &fast);
@@ -2321,7 +2321,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(Handle<Object> object,
       break;
 
     case BOOLEAN_CHECK:
-      if (function->IsBuiltin() || function->shared()->strict_mode()) {
+      if (function->IsBuiltin() || !function->shared()->is_classic_mode()) {
         Label fast;
         // Check that the object is a boolean.
         __ LoadRoot(t0, Heap::kTrueValueRootIndex);

@@ -128,7 +128,8 @@ class LCodeGen;
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
-  V(ObjectLiteral)                              \
+  V(ObjectLiteralFast)                          \
+  V(ObjectLiteralGeneric)                       \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
@@ -1279,7 +1280,7 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* global_object() { return InputAt(1); }
   Handle<Object> name() const { return hydrogen()->name(); }
   LOperand* value() { return InputAt(2); }
-  bool strict_mode() { return hydrogen()->strict_mode(); }
+  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 
@@ -1660,7 +1661,6 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* value() { return inputs_[2]; }
   Handle<Object> name() const { return hydrogen()->name(); }
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
-  bool strict_mode() { return strict_mode_flag() == kStrictMode; }
 };
 
 
@@ -1750,7 +1750,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
-  bool strict_mode() { return hydrogen()->strict_mode(); }
+  StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
 
@@ -1960,16 +1960,29 @@ class LArrayLiteral: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LObjectLiteral: public LTemplateInstruction<1, 1, 0> {
+class LObjectLiteralFast: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LObjectLiteral(LOperand* context) {
+  explicit LObjectLiteralFast(LOperand* context) {
     inputs_[0] = context;
   }
 
   LOperand* context() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast, "object-literal-fast")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralFast)
+};
+
+
+class LObjectLiteralGeneric: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LObjectLiteralGeneric(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric, "object-literal-generic")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralGeneric)
 };
 
 

@@ -367,6 +367,109 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
+
+void StringCharLoadGenerator::Generate(MacroAssembler* masm,
+                                       Register string,
+                                       Register index,
+                                       Register result,
+                                       Label* call_runtime) {
+  // Fetch the instance type of the receiver into result register.
+  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+
+  // We need special handling for indirect strings.
+  Label check_sequential;
+  __ testb(result, Immediate(kIsIndirectStringMask));
+  __ j(zero, &check_sequential, Label::kNear);
+
+  // Dispatch on the indirect string shape: slice or cons.
+  Label cons_string;
+  __ testb(result, Immediate(kSlicedNotConsMask));
+  __ j(zero, &cons_string, Label::kNear);
+
+  // Handle slices.
+  Label indirect_string_loaded;
+  __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
+  __ addq(index, result);
+  __ movq(string, FieldOperand(string, SlicedString::kParentOffset));
+  __ jmp(&indirect_string_loaded, Label::kNear);
+
+  // Handle cons strings.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ bind(&cons_string);
+  __ CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
+                 Heap::kEmptyStringRootIndex);
+  __ j(not_equal, call_runtime);
+  __ movq(string, FieldOperand(string, ConsString::kFirstOffset));
+
+  __ bind(&indirect_string_loaded);
+  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+
+  // Distinguish sequential and external strings. Only these two string
+  // representations can reach here (slices and flat cons strings have been
+  // reduced to the underlying sequential or external string).
+  Label seq_string;
+  __ bind(&check_sequential);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(result, Immediate(kStringRepresentationMask));
+  __ j(zero, &seq_string, Label::kNear);
+
+  // Handle external strings.
+  Label ascii_external, done;
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ testb(result, Immediate(kIsIndirectStringMask));
+    __ Assert(zero, "external string expected, but not found");
+  }
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ testb(result, Immediate(kShortExternalStringTag));
+  __ j(not_zero, call_runtime);
+  // Check encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ testb(result, Immediate(kStringEncodingMask));
+  __ movq(result, FieldOperand(string, ExternalString::kResourceDataOffset));
+  __ j(not_equal, &ascii_external, Label::kNear);
+  // Two-byte string.
+  __ movzxwl(result, Operand(result, index, times_2, 0));
+  __ jmp(&done, Label::kNear);
+  __ bind(&ascii_external);
+  // Ascii string.
+  __ movzxbl(result, Operand(result, index, times_1, 0));
+  __ jmp(&done, Label::kNear);
+
+  // Dispatch on the encoding: ASCII or two-byte.
+  Label ascii;
+  __ bind(&seq_string);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+  __ testb(result, Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii, Label::kNear);
+
+  // Two-byte string.
+  // Load the two-byte character code into the result register.
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ movzxwl(result, FieldOperand(string,
+                                  index,
+                                  times_2,
+                                  SeqTwoByteString::kHeaderSize));
+  __ jmp(&done, Label::kNear);
+
+  // ASCII string.
+  // Load the byte into the result register.
+  __ bind(&ascii);
+  __ movzxbl(result, FieldOperand(string,
+                                  index,
+                                  times_1,
+                                  SeqAsciiString::kHeaderSize));
+  __ bind(&done);
+}
+
 #undef __
 
 } }  // namespace v8::internal

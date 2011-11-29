@@ -29,6 +29,9 @@
 
 // Test for conflicting variable bindings.
 
+// TODO(ES6): properly activate extended mode
+"use strict";
+
 function CheckException(e) {
   var string = e.toString();
   assertTrue(string.indexOf("has already been declared") >= 0 ||

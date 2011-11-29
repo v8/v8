@@ -25,36 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8CONVERSIONS_H_
-#define V8_V8CONVERSIONS_H_
+// Flags: --harmony-scoping
 
-#include "conversions.h"
-
-namespace v8 {
-namespace internal {
-
-// Convert from Number object to C integer.
-inline int32_t NumberToInt32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToInt32(number->Number());
+function CheckException(e) {
+  var string = e.toString();
+  assertInstanceof(e, SyntaxError);
+  assertTrue(string.indexOf("Illegal let") >= 0);
 }
 
-
-inline uint32_t NumberToUint32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToUint32(number->Number());
+function Check(str) {
+  try {
+    eval("(function () { " + str + " })");
+    assertUnreachable();
+  } catch (e) {
+    CheckException(e);
+  }
+  try {
+    eval("(function () { { " + str + " } })");
+    assertUnreachable();
+  } catch (e) {
+    CheckException(e);
+  }
 }
 
-
-// Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(UnicodeCache* unicode_cache,
-                      String* str,
-                      int flags,
-                      double empty_string_val = 0);
-
-// Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
-
-} }  // namespace v8::internal
-
-#endif  // V8_V8CONVERSIONS_H_
+// Check for early syntax errors when using let
+// declarations outside of extended mode.
+Check("let x;");
+Check("let x = 1;");
+Check("let x, y;");

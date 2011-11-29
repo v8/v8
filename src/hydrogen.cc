@@ -3316,18 +3316,78 @@ void HGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+// Determines whether the given object literal boilerplate satisfies all
+// limits to be considered for fast deep-copying and computes the total
+// size of all objects that are part of the graph.
+static bool IsFastObjectLiteral(Handle<JSObject> boilerplate,
+                                int max_depth,
+                                int* max_properties,
+                                int* total_size) {
+  if (max_depth <= 0) return false;
+
+  FixedArrayBase* elements = boilerplate->elements();
+  if (elements->length() > 0 &&
+      elements->map() != HEAP->fixed_cow_array_map()) {
+    return false;
+  }
+
+  FixedArray* properties = boilerplate->properties();
+  if (properties->length() > 0) {
+    return false;
+  } else {
+    int nof = boilerplate->map()->inobject_properties();
+    for (int i = 0; i < nof; i++) {
+      if ((*max_properties)-- <= 0) return false;
+      Handle<Object> value(boilerplate->InObjectPropertyAt(i));
+      if (value->IsJSObject()) {
+        Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+        if (!IsFastObjectLiteral(value_object,
+                                 max_depth - 1,
+                                 max_properties,
+                                 total_size)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  *total_size += boilerplate->map()->instance_size();
+  return true;
+}
+
+
 void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  Handle<JSFunction> closure = function_state()->compilation_info()->closure();
   HValue* context = environment()->LookupContext();
-  HObjectLiteral* literal =
-      new(zone()) HObjectLiteral(context,
-                                 expr->constant_properties(),
-                                 expr->fast_elements(),
-                                 expr->literal_index(),
-                                 expr->depth(),
-                                 expr->has_function());
+  HInstruction* literal;
+
+  // Check whether to use fast or slow deep-copying for boilerplate.
+  int total_size = 0;
+  int max_properties = HObjectLiteralFast::kMaxObjectLiteralProperties;
+  Handle<Object> boilerplate(closure->literals()->get(expr->literal_index()));
+  if (boilerplate->IsJSObject() &&
+      IsFastObjectLiteral(Handle<JSObject>::cast(boilerplate),
+                          HObjectLiteralFast::kMaxObjectLiteralDepth,
+                          &max_properties,
+                          &total_size)) {
+    Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
+    literal = new(zone()) HObjectLiteralFast(context,
+                                             boilerplate_object,
+                                             total_size,
+                                             expr->literal_index(),
+                                             expr->depth());
+  } else {
+    literal = new(zone()) HObjectLiteralGeneric(context,
+                                                expr->constant_properties(),
+                                                expr->fast_elements(),
+                                                expr->literal_index(),
+                                                expr->depth(),
+                                                expr->has_function());
+  }
+
   // The object is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);
@@ -4703,7 +4763,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 
   // Parse and allocate variables.
   CompilationInfo target_info(target);
-  if (!ParserApi::Parse(&target_info) ||
+  if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
@@ -6589,6 +6649,18 @@ void HGraphBuilder::GenerateMathCos(CallRuntime* call) {
 }
 
 
+void HGraphBuilder::GenerateMathTan(CallRuntime* call) {
+  ASSERT_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitArgumentList(call->arguments()));
+  HValue* context = environment()->LookupContext();
+  HCallStub* result =
+      new(zone()) HCallStub(context, CodeStub::TranscendentalCache, 1);
+  result->set_transcendental_type(TranscendentalCache::TAN);
+  Drop(1);
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
 void HGraphBuilder::GenerateMathLog(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
@@ -6806,7 +6878,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   // If the function we are inlining is a strict mode function or a
   // builtin function, pass undefined as the receiver for function
   // calls (instead of the global receiver).
-  if ((target->shared()->native() || function->strict_mode()) &&
+  if ((target->shared()->native() || !function->is_classic_mode()) &&
       call_kind == CALL_AS_FUNCTION) {
     inner->SetValueAt(0, undefined);
   }

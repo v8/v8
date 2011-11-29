@@ -544,10 +544,10 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  ASSERT(DeclareGlobalsStrictModeFlag::is_valid(strict_mode_flag()));
+  ASSERT(DeclareGlobalsLanguageMode::is_valid(language_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
-      DeclareGlobalsStrictModeFlag::encode(strict_mode_flag()) |
-      DeclareGlobalsNativeFlag::encode(is_native());
+      DeclareGlobalsNativeFlag::encode(is_native()) |
+      DeclareGlobalsLanguageMode::encode(language_mode());
 }
 
 

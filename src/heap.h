@@ -110,6 +110,16 @@ inline Heap* _inline_get_heap_();
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
+  V(Map, short_external_symbol_map, ShortExternalSymbolMap)                    \
+  V(Map,                                                                       \
+    short_external_symbol_with_ascii_data_map,                                 \
+    ShortExternalSymbolWithAsciiDataMap)                                       \
+  V(Map, short_external_ascii_symbol_map, ShortExternalAsciiSymbolMap)         \
+  V(Map, short_external_string_map, ShortExternalStringMap)                    \
+  V(Map,                                                                       \
+    short_external_string_with_ascii_data_map,                                 \
+    ShortExternalStringWithAsciiDataMap)                                       \
+  V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
   V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
@@ -1559,6 +1569,10 @@ class Heap {
   HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
+  // Indicates that the new space should be kept small due to high promotion
+  // rates caused by the mutator allocating a lot of long-lived objects.
+  bool new_space_high_promotion_mode_active_;
+
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke.
@@ -1797,6 +1811,10 @@ class Heap {
 
   bool IsIncreasingSurvivalTrend() {
     return survival_rate_trend() == INCREASING;
+  }
+
+  bool IsDecreasingSurvivalTrend() {
+    return survival_rate_trend() == DECREASING;
   }
 
   bool IsHighSurvivalRate() {
@@ -2241,7 +2259,13 @@ class GCTracer BASE_EMBEDDED {
       MC_MARK,
       MC_SWEEP,
       MC_SWEEP_NEWSPACE,
-      MC_COMPACT,
+      MC_EVACUATE_PAGES,
+      MC_UPDATE_NEW_TO_NEW_POINTERS,
+      MC_UPDATE_ROOT_TO_NEW_POINTERS,
+      MC_UPDATE_OLD_TO_NEW_POINTERS,
+      MC_UPDATE_POINTERS_TO_EVACUATED,
+      MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
+      MC_UPDATE_MISC_POINTERS,
       MC_FLUSH_CODE,
       kNumberOfScopes
     };
