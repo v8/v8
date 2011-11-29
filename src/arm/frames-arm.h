@@ -35,22 +35,22 @@ namespace internal {
 // The ARM ABI does not specify the usage of register r9, which may be reserved
 // as the static base or thread register on some platforms, in which case we
 // leave it alone. Adjust the value of kR9Available accordingly:
-static const int kR9Available = 1;  // 1 if available to us, 0 if reserved
+const int kR9Available = 1;  // 1 if available to us, 0 if reserved
 
 
 // Register list in load/store instructions
 // Note that the bit values must match those used in actual instruction encoding
-static const int kNumRegs = 16;
+const int kNumRegs = 16;
 
 
 // Caller-saved/arguments registers
-static const RegList kJSCallerSaved =
+const RegList kJSCallerSaved =
   1 << 0 |  // r0 a1
   1 << 1 |  // r1 a2
   1 << 2 |  // r2 a3
   1 << 3;   // r3 a4
 
-static const int kNumJSCallerSaved = 4;
+const int kNumJSCallerSaved = 4;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
@@ -60,7 +60,7 @@ int JSCallerSavedCode(int n);
 
 
 // Callee-saved registers preserved when switching from C to JavaScript
-static const RegList kCalleeSaved =
+const RegList kCalleeSaved =
   1 <<  4 |  //  r4 v1
   1 <<  5 |  //  r5 v2
   1 <<  6 |  //  r6 v3
@@ -72,7 +72,7 @@ static const RegList kCalleeSaved =
 
 // When calling into C++ (only for C++ calls that can't cause a GC).
 // The call code will take care of lr, fp, etc.
-static const RegList kCallerSaved =
+const RegList kCallerSaved =
   1 <<  0 |  // r0
   1 <<  1 |  // r1
   1 <<  2 |  // r2
@@ -80,23 +80,22 @@ static const RegList kCallerSaved =
   1 <<  9;   // r9
 
 
-static const int kNumCalleeSaved = 7 + kR9Available;
+const int kNumCalleeSaved = 7 + kR9Available;
 
 // Double registers d8 to d15 are callee-saved.
-static const int kNumDoubleCalleeSaved = 8;
+const int kNumDoubleCalleeSaved = 8;
 
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
 // TODO(regis): Only 8 registers may actually be sufficient. Revisit.
-static const int kNumSafepointRegisters = 16;
+const int kNumSafepointRegisters = 16;
 
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-static const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-static const int kNumSafepointSavedRegisters =
-    kNumJSCallerSaved + kNumCalleeSaved;
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // ----------------------------------------------------
 

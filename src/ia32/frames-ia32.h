@@ -34,24 +34,24 @@ namespace internal {
 
 // Register lists
 // Note that the bit values must match those used in actual instruction encoding
-static const int kNumRegs = 8;
+const int kNumRegs = 8;
 
 
 // Caller-saved registers
-static const RegList kJSCallerSaved =
+const RegList kJSCallerSaved =
   1 << 0 |  // eax
   1 << 1 |  // ecx
   1 << 2 |  // edx
   1 << 3 |  // ebx - used as a caller-saved register in JavaScript code
   1 << 7;   // edi - callee function
 
-static const int kNumJSCallerSaved = 5;
+const int kNumJSCallerSaved = 5;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 
 // Number of registers for which space is reserved in safepoints.
-static const int kNumSafepointRegisters = 8;
+const int kNumSafepointRegisters = 8;
 
 // ----------------------------------------------------
 

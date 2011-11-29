@@ -102,25 +102,25 @@ bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
-static MemOperand ContextOperand(Register context, int index) {
+inline MemOperand ContextOperand(Register context, int index) {
   return MemOperand(context, Context::SlotOffset(index));
 }
 
 
-static inline MemOperand GlobalObjectOperand()  {
+inline MemOperand GlobalObjectOperand()  {
   return ContextOperand(cp, Context::GLOBAL_INDEX);
 }
 
 
 // Generate a MemOperand for loading a field from an object.
-static inline MemOperand FieldMemOperand(Register object, int offset) {
+inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
 
 // Generate a MemOperand for storing arguments 5..N on the stack
 // when calling CallCFunction().
-static inline MemOperand CFunctionArgumentOperand(int index) {
+inline MemOperand CFunctionArgumentOperand(int index) {
   ASSERT(index > kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
   int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;

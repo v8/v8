@@ -3704,8 +3704,8 @@ class V8EXPORT ActivityControl {  // NOLINT
 
 namespace internal {
 
-static const int kApiPointerSize = sizeof(void*);  // NOLINT
-static const int kApiIntSize = sizeof(int);  // NOLINT
+const int kApiPointerSize = sizeof(void*);  // NOLINT
+const int kApiIntSize = sizeof(int);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;

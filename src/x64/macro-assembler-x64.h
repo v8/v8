@@ -50,14 +50,14 @@ enum AllocationFlags {
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-static const Register kScratchRegister = { 10 };      // r10.
-static const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
-static const Register kRootRegister = { 13 };         // r13 (callee save).
+const Register kScratchRegister = { 10 };      // r10.
+const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
+const Register kRootRegister = { 13 };         // r13 (callee save).
 // Value of smi in kSmiConstantRegister.
-static const int kSmiConstantRegisterValue = 1;
+const int kSmiConstantRegisterValue = 1;
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
-static const int kRootRegisterBias = 128;
+const int kRootRegisterBias = 128;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -1367,32 +1367,32 @@ class CodePatcher {
 // Static helper functions.
 
 // Generate an Operand for loading a field from an object.
-static inline Operand FieldOperand(Register object, int offset) {
+inline Operand FieldOperand(Register object, int offset) {
   return Operand(object, offset - kHeapObjectTag);
 }
 
 
 // Generate an Operand for loading an indexed field from an object.
-static inline Operand FieldOperand(Register object,
-                                   Register index,
-                                   ScaleFactor scale,
-                                   int offset) {
+inline Operand FieldOperand(Register object,
+                            Register index,
+                            ScaleFactor scale,
+                            int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
 
 
-static inline Operand ContextOperand(Register context, int index) {
+inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
 }
 
 
-static inline Operand GlobalObjectOperand() {
+inline Operand GlobalObjectOperand() {
   return ContextOperand(rsi, Context::GLOBAL_INDEX);
 }
 
 
 // Provides access to exit frame stack space (not GCed).
-static inline Operand StackSpaceOperand(int index) {
+inline Operand StackSpaceOperand(int index) {
 #ifdef _WIN64
   const int kShaddowSpace = 4;
   return Operand(rsp, (index + kShaddowSpace) * kPointerSize);

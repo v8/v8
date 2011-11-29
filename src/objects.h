@@ -162,8 +162,7 @@ enum ElementsKind {
   LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
 };
 
-static const int kElementsKindCount =
-    LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
+const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
@@ -198,7 +197,7 @@ enum CreationFlag {
 
 
 // Instance size sentinel for objects of variable size.
-static const int kVariableSizeSentinel = 0;
+const int kVariableSizeSentinel = 0;
 
 
 // All Maps have a field instance_type containing a InstanceType.
@@ -650,8 +649,8 @@ enum InstanceType {
   NUM_OF_CALLABLE_SPEC_OBJECT_TYPES = 2
 };
 
-static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
-    FIRST_EXTERNAL_ARRAY_TYPE + 1;
+const int kExternalArrayTypeCount =
+    LAST_EXTERNAL_ARRAY_TYPE - FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);

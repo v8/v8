@@ -47,13 +47,13 @@ namespace internal {
 // Returns true iff x is a power of 2 (or zero). Cannot be used with the
 // maximally negative value of the type T (the -1 overflows).
 template <typename T>
-static inline bool IsPowerOf2(T x) {
+inline bool IsPowerOf2(T x) {
   return IS_POWER_OF_TWO(x);
 }
 
 
 // X must be a power of 2.  Returns the number of trailing zeros.
-static inline int WhichPowerOf2(uint32_t x) {
+inline int WhichPowerOf2(uint32_t x) {
   ASSERT(IsPowerOf2(x));
   ASSERT(x != 0);
   int bits = 0;
@@ -88,7 +88,7 @@ static inline int WhichPowerOf2(uint32_t x) {
 // The C++ standard leaves the semantics of '>>' undefined for
 // negative signed operands. Most implementations do the right thing,
 // though.
-static inline int ArithmeticShiftRight(int x, int s) {
+inline int ArithmeticShiftRight(int x, int s) {
   return x >> s;
 }
 
@@ -97,7 +97,7 @@ static inline int ArithmeticShiftRight(int x, int s) {
 // This allows conversion of Addresses and integral types into
 // 0-relative int offsets.
 template <typename T>
-static inline intptr_t OffsetFrom(T x) {
+inline intptr_t OffsetFrom(T x) {
   return x - static_cast<T>(0);
 }
 
@@ -106,14 +106,14 @@ static inline intptr_t OffsetFrom(T x) {
 // This allows conversion of 0-relative int offsets into Addresses and
 // integral types.
 template <typename T>
-static inline T AddressFrom(intptr_t x) {
+inline T AddressFrom(intptr_t x) {
   return static_cast<T>(static_cast<T>(0) + x);
 }
 
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
-static inline T RoundDown(T x, intptr_t m) {
+inline T RoundDown(T x, intptr_t m) {
   ASSERT(IsPowerOf2(m));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
@@ -121,13 +121,13 @@ static inline T RoundDown(T x, intptr_t m) {
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
-static inline T RoundUp(T x, intptr_t m) {
+inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
 
 
 template <typename T>
-static int Compare(const T& a, const T& b) {
+int Compare(const T& a, const T& b) {
   if (a == b)
     return 0;
   else if (a < b)
@@ -138,7 +138,7 @@ static int Compare(const T& a, const T& b) {
 
 
 template <typename T>
-static int PointerValueCompare(const T* a, const T* b) {
+int PointerValueCompare(const T* a, const T* b) {
   return Compare<T>(*a, *b);
 }
 
@@ -148,7 +148,7 @@ static int PointerValueCompare(const T* a, const T* b) {
 // handles.
 template<typename T> class Handle;  // Forward declaration.
 template <typename T>
-static int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
+int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
 }
 
@@ -157,7 +157,7 @@ static int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
 // number that is already a power of two, it is returned as is.
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
 // figure 3-3, page 48, where the function is called clp2.
-static inline uint32_t RoundUpToPowerOf2(uint32_t x) {
+inline uint32_t RoundUpToPowerOf2(uint32_t x) {
   ASSERT(x <= 0x80000000u);
   x = x - 1;
   x = x | (x >> 1);
@@ -169,7 +169,7 @@ static inline uint32_t RoundUpToPowerOf2(uint32_t x) {
 }
 
 
-static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
+inline uint32_t RoundDownToPowerOf2(uint32_t x) {
   uint32_t rounded_up = RoundUpToPowerOf2(x);
   if (rounded_up > x) return rounded_up >> 1;
   return rounded_up;
@@ -177,15 +177,15 @@ static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
 
 
 template <typename T, typename U>
-static inline bool IsAligned(T value, U alignment) {
+inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
 }
 
 
 // Returns true if (addr + offset) is aligned.
-static inline bool IsAddressAligned(Address addr,
-                                    intptr_t alignment,
-                                    int offset = 0) {
+inline bool IsAddressAligned(Address addr,
+                             intptr_t alignment,
+                             int offset = 0) {
   intptr_t offs = OffsetFrom(addr + offset);
   return IsAligned(offs, alignment);
 }
@@ -193,14 +193,14 @@ static inline bool IsAddressAligned(Address addr,
 
 // Returns the maximum of the two parameters.
 template <typename T>
-static T Max(T a, T b) {
+T Max(T a, T b) {
   return a < b ? b : a;
 }
 
 
 // Returns the minimum of the two parameters.
 template <typename T>
-static T Min(T a, T b) {
+T Min(T a, T b) {
   return a < b ? a : b;
 }
 
@@ -254,7 +254,7 @@ class BitField {
 
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm
-static inline uint32_t ComputeIntegerHash(uint32_t key) {
+inline uint32_t ComputeIntegerHash(uint32_t key) {
   uint32_t hash = key;
   hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
   hash = hash ^ (hash >> 12);
@@ -266,7 +266,7 @@ static inline uint32_t ComputeIntegerHash(uint32_t key) {
 }
 
 
-static inline uint32_t ComputeLongHash(uint64_t key) {
+inline uint32_t ComputeLongHash(uint64_t key) {
   uint64_t hash = key;
   hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
   hash = hash ^ (hash >> 31);
@@ -278,7 +278,7 @@ static inline uint32_t ComputeLongHash(uint64_t key) {
 }
 
 
-static inline uint32_t ComputePointerHash(void* ptr) {
+inline uint32_t ComputePointerHash(void* ptr) {
   return ComputeIntegerHash(
       static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
@@ -734,7 +734,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
 // Compare ASCII/16bit chars to ASCII/16bit chars.
 template <typename lchar, typename rchar>
-static inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
   const lchar* limit = lhs + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*lhs) == sizeof(*rhs)) {
@@ -761,7 +761,7 @@ static inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
 
 
 // Calculate 10^exponent.
-static inline int TenToThe(int exponent) {
+inline int TenToThe(int exponent) {
   ASSERT(exponent <= 9);
   ASSERT(exponent >= 1);
   int answer = 10;

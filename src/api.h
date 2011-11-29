@@ -112,7 +112,7 @@ void NeanderObject::set(int offset, v8::internal::Object* value) {
 }
 
 
-template <typename T> static inline T ToCData(v8::internal::Object* obj) {
+template <typename T> inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return reinterpret_cast<T>(
       reinterpret_cast<intptr_t>(
@@ -121,7 +121,7 @@ template <typename T> static inline T ToCData(v8::internal::Object* obj) {
 
 
 template <typename T>
-static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
+inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return FACTORY->NewForeign(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
@@ -236,7 +236,7 @@ class Utils {
 
 
 template <class T>
-static inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
+inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
   return reinterpret_cast<T*>(obj.location());
 }
 
@@ -477,7 +477,7 @@ class HandleScopeImplementer {
 };
 
 
-static const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
+const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
 
 void HandleScopeImplementer::SaveContext(Context* context) {

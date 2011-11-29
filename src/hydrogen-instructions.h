@@ -3370,7 +3370,7 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
-static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
       && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());

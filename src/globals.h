@@ -294,7 +294,7 @@ const uint32_t kMaxAsciiCharCodeU = 0x7fu;
 // The USE(x) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
 template <typename T>
-static inline void USE(T) { }
+inline void USE(T) { }
 
 
 // FUNCTION_ADDR(f) gets the address of a C function f.

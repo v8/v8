@@ -881,26 +881,26 @@ class CodePatcher {
 // Static helper functions.
 
 // Generate an Operand for loading a field from an object.
-static inline Operand FieldOperand(Register object, int offset) {
+inline Operand FieldOperand(Register object, int offset) {
   return Operand(object, offset - kHeapObjectTag);
 }
 
 
 // Generate an Operand for loading an indexed field from an object.
-static inline Operand FieldOperand(Register object,
-                                   Register index,
-                                   ScaleFactor scale,
-                                   int offset) {
+inline Operand FieldOperand(Register object,
+                            Register index,
+                            ScaleFactor scale,
+                            int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
 
 
-static inline Operand ContextOperand(Register context, int index) {
+inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
 }
 
 
-static inline Operand GlobalObjectOperand() {
+inline Operand GlobalObjectOperand() {
   return ContextOperand(esi, Context::GLOBAL_INDEX);
 }
 
