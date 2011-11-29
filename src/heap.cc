@@ -1486,10 +1486,10 @@ class ScavengingVisitor : public StaticVisitorBase {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  INLINE(static HeapObject* MigrateObject(Heap* heap,
-                                          HeapObject* source,
-                                          HeapObject* target,
-                                          int size)) {
+  INLINE(static void MigrateObject(Heap* heap,
+                                   HeapObject* source,
+                                   HeapObject* target,
+                                   int size)) {
     // Copy the content of source to target.
     heap->CopyBlock(target->address(), source->address(), size);
 
@@ -1515,8 +1515,6 @@ class ScavengingVisitor : public StaticVisitorBase {
         MemoryChunk::IncrementLiveBytes(target->address(), size);
       }
     }
-
-    return target;
   }
 
   template<ObjectContents object_contents, SizeRestriction size_restriction>
@@ -1547,7 +1545,12 @@ class ScavengingVisitor : public StaticVisitorBase {
       Object* result = NULL;  // Initialization to please compiler.
       if (maybe_result->ToObject(&result)) {
         HeapObject* target = HeapObject::cast(result);
-        *slot = MigrateObject(heap, object , target, object_size);
+
+        // Order is important: slot might be inside of the target if target
+        // was allocated over a dead object and slot comes from the store
+        // buffer.
+        *slot = target;
+        MigrateObject(heap, object, target, object_size);
 
         if (object_contents == POINTER_OBJECT) {
           heap->promotion_queue()->insert(target, object_size);
@@ -1560,8 +1563,13 @@ class ScavengingVisitor : public StaticVisitorBase {
     MaybeObject* allocation = heap->new_space()->AllocateRaw(object_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
+    HeapObject* target = HeapObject::cast(result);
 
-    *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
+    // Order is important: slot might be inside of the target if target
+    // was allocated over a dead object and slot comes from the store
+    // buffer.
+    *slot = target;
+    MigrateObject(heap, object, target, object_size);
     return;
   }
 
