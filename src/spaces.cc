@@ -738,7 +738,6 @@ bool PagedSpace::Expand() {
 }
 
 
-#ifdef DEBUG
 int PagedSpace::CountTotalPages() {
   PageIterator it(this);
   int count = 0;
@@ -748,7 +747,6 @@ int PagedSpace::CountTotalPages() {
   }
   return count;
 }
-#endif
 
 
 void PagedSpace::ReleasePage(Page* page) {
@@ -1853,6 +1851,13 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
   owner_->Free(owner_->top(), old_linear_size);
+
+#ifdef DEBUG
+  for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
+    reinterpret_cast<Object**>(new_node->address())[i] = Smi::FromInt(0);
+  }
+#endif
+
   owner_->heap()->incremental_marking()->OldSpaceStep(
       size_in_bytes - old_linear_size);
 
@@ -2443,8 +2448,17 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page->set_next_page(first_page_);
   first_page_ = page;
 
+  HeapObject* object = page->GetObject();
+
+#ifdef DEBUG
+  // Make the object consistent so the heap can be vefified in OldSpaceStep.
+  reinterpret_cast<Object**>(object->address())[0] =
+      heap()->fixed_array_map();
+  reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
+#endif
+
   heap()->incremental_marking()->OldSpaceStep(object_size);
-  return page->GetObject();
+  return object;
 }
 
 

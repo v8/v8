@@ -1557,6 +1557,7 @@ class PagedSpace : public Space {
   }
 
   void SetPagesToSweep(Page* first) {
+    if (first == &anchor_) first = NULL;
     first_unswept_page_ = first;
   }
 
@@ -1569,7 +1570,10 @@ class PagedSpace : public Space {
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
-  bool IsFragmented(Page* p) {
+  // Returns zero for pages that have so little fragmentation that it is not
+  // worth defragmenting them.  Otherwise a positive integer that gives an
+  // estimate of fragmentation on an arbitrary scale.
+  int Fragmentation(Page* p) {
     FreeList::SizeStats sizes;
     free_list_.CountFreeListItems(p, &sizes);
 
@@ -1604,13 +1608,20 @@ class PagedSpace : public Space {
              (ratio > ratio_threshold) ? "[fragmented]" : "");
     }
 
-    return (ratio > ratio_threshold) ||
-        (FLAG_always_compact && sizes.Total() != Page::kObjectAreaSize);
+    if (FLAG_always_compact && sizes.Total() != Page::kObjectAreaSize) {
+      return 1;
+    }
+    if (ratio <= ratio_threshold) return 0;  // Not fragmented.
+
+    return static_cast<int>(ratio - ratio_threshold);
   }
 
   void EvictEvacuationCandidatesFromFreeLists();
 
   bool CanExpand();
+
+  // Returns the number of total pages in this space.
+  int CountTotalPages();
 
  protected:
   // Maximum capacity of this space.
@@ -1648,11 +1659,6 @@ class PagedSpace : public Space {
 
   // Slow path of AllocateRaw.  This function is space-dependent.
   MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
-
-#ifdef DEBUG
-  // Returns the number of total pages in this space.
-  int CountTotalPages();
-#endif
 
   friend class PageIterator;
 };
