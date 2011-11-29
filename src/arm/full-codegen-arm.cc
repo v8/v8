@@ -1536,6 +1536,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT_EQ(2, constant_elements->length());
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+  bool has_fast_elements = constant_elements_kind == FAST_ELEMENTS;
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
@@ -1544,7 +1545,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(constant_elements));
   __ Push(r3, r2, r1);
-  if (constant_elements_values->map() ==
+  if (has_fast_elements && constant_elements_values->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
@@ -1559,10 +1560,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     ASSERT(constant_elements_kind == FAST_ELEMENTS ||
            constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    FastCloneShallowArrayStub::Mode mode = has_fast_elements
+      ? FastCloneShallowArrayStub::CLONE_ELEMENTS
+      : FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, length);
     __ CallStub(&stub);
   }
@@ -1586,12 +1586,23 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
     VisitForAccumulatorValue(subexpr);
 
-    __ ldr(r1, MemOperand(sp));  // Copy of array literal.
-    __ ldr(r2, FieldMemOperand(r1, JSObject::kMapOffset));
-    __ mov(r3, Operand(Smi::FromInt(i)));
-    __ mov(r4, Operand(Smi::FromInt(expr->literal_index())));
-    StoreArrayLiteralElementStub stub;
-    __ CallStub(&stub);
+    if (constant_elements_kind == FAST_ELEMENTS) {
+      int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+      __ ldr(r6, MemOperand(sp));  // Copy of array literal.
+      __ ldr(r1, FieldMemOperand(r6, JSObject::kElementsOffset));
+      __ str(result_register(), FieldMemOperand(r1, offset));
+      // Update the write barrier for the array store.
+      __ RecordWriteField(r1, offset, result_register(), r2,
+                          kLRHasBeenSaved, kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
+    } else {
+      __ ldr(r1, MemOperand(sp));  // Copy of array literal.
+      __ ldr(r2, FieldMemOperand(r1, JSObject::kMapOffset));
+      __ mov(r3, Operand(Smi::FromInt(i)));
+      __ mov(r4, Operand(Smi::FromInt(expr->literal_index())));
+      StoreArrayLiteralElementStub stub;
+      __ CallStub(&stub);
+    }
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }

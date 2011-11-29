@@ -255,21 +255,61 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+static void GenerateFastCloneShallowArrayCommon(
+    MacroAssembler* masm,
+    int length,
+    FastCloneShallowArrayStub::Mode mode,
+    Label* fail) {
+  // Registers on entry:
+  //
+  // r3: boilerplate literal array.
+  ASSERT(mode != FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS);
+
+  // All sizes here are multiples of kPointerSize.
+  int elements_size = 0;
+  if (length > 0) {
+    elements_size = mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
+        ? FixedDoubleArray::SizeFor(length)
+        : FixedArray::SizeFor(length);
+  }
+  int size = JSArray::kSize + elements_size;
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoids multiple limit checks.
+  __ AllocateInNewSpace(size,
+                        r0,
+                        r1,
+                        r2,
+                        fail,
+                        TAG_OBJECT);
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length == 0)) {
+      __ ldr(r1, FieldMemOperand(r3, i));
+      __ str(r1, FieldMemOperand(r0, i));
+    }
+  }
+
+  if (length > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ add(r2, r0, Operand(JSArray::kSize));
+    __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
+
+    // Copy the elements array.
+    ASSERT((elements_size % kPointerSize) == 0);
+    __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
+  }
+}
+
 void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // Stack layout on entry:
   //
   // [sp]: constant elements.
   // [sp + kPointerSize]: literal index.
   // [sp + (2 * kPointerSize)]: literals array.
-
-  // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length_ > 0) {
-    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length_)
-        : FixedArray::SizeFor(length_);
-  }
-  int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into r3 and check if we need to create a
   // boilerplate.
@@ -281,17 +321,46 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
   __ b(eq, &slow_case);
 
+  FastCloneShallowArrayStub::Mode mode = mode_;
+  if (mode == CLONE_ANY_ELEMENTS) {
+    Label double_elements, check_fast_elements;
+    __ ldr(r0, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
+    __ cmp(r0, ip);
+    __ b(ne, &check_fast_elements);
+    GenerateFastCloneShallowArrayCommon(masm, 0,
+                                        COPY_ON_WRITE_ELEMENTS, &slow_case);
+    // Return and remove the on-stack parameters.
+    __ add(sp, sp, Operand(3 * kPointerSize));
+    __ Ret();
+
+    __ bind(&check_fast_elements);
+    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    __ cmp(r0, ip);
+    __ b(ne, &double_elements);
+    GenerateFastCloneShallowArrayCommon(masm, length_,
+                                        CLONE_ELEMENTS, &slow_case);
+    // Return and remove the on-stack parameters.
+    __ add(sp, sp, Operand(3 * kPointerSize));
+    __ Ret();
+
+    __ bind(&double_elements);
+    mode = CLONE_DOUBLE_ELEMENTS;
+    // Fall through to generate the code to handle double elements.
+  }
+
   if (FLAG_debug_code) {
     const char* message;
     Heap::RootListIndex expected_map_index;
-    if (mode_ == CLONE_ELEMENTS) {
+    if (mode == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
+    } else if (mode == CLONE_DOUBLE_ELEMENTS) {
       message = "Expected (writable) fixed double array";
       expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
-      ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
+      ASSERT(mode == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
       expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
     }
@@ -303,34 +372,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(r3);
   }
 
-  // Allocate both the JS array and the elements array in one big
-  // allocation. This avoids multiple limit checks.
-  __ AllocateInNewSpace(size,
-                        r0,
-                        r1,
-                        r2,
-                        &slow_case,
-                        TAG_OBJECT);
-
-  // Copy the JS array part.
-  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
-    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
-      __ ldr(r1, FieldMemOperand(r3, i));
-      __ str(r1, FieldMemOperand(r0, i));
-    }
-  }
-
-  if (length_ > 0) {
-    // Get hold of the elements array of the boilerplate and setup the
-    // elements pointer in the resulting object.
-    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
-    __ add(r2, r0, Operand(JSArray::kSize));
-    __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
-
-    // Copy the elements array.
-    ASSERT((elements_size % kPointerSize) == 0);
-    __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
-  }
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
 
   // Return and remove the on-stack parameters.
   __ add(sp, sp, Operand(3 * kPointerSize));
