@@ -234,7 +234,8 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) {
   // at the current or the immediate next position.
   UsePosition* use_pos = NextRegisterPosition(pos);
   if (use_pos == NULL) return true;
-  return use_pos->pos().Value() > pos.NextInstruction().Value();
+  return
+      use_pos->pos().Value() > pos.NextInstruction().InstructionEnd().Value();
 }
 
 
