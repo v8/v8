@@ -2582,6 +2582,10 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
 
 void MarkCompactCollector::EvacuateNewSpace() {
+  // There are soft limits in the allocation code, designed trigger a mark
+  // sweep collection by failing allocations.  But since we are already in
+  // a mark-sweep allocation, there is no sense in trying to trigger one.
+  AlwaysAllocateScope scope;
   heap()->CheckNewSpaceExpansionCriteria();
 
   NewSpace* new_space = heap()->new_space();
