@@ -1086,7 +1086,7 @@ void Heap::Scavenge() {
 
   incremental_marking()->PrepareForScavenge();
 
-  AdvanceSweepers(new_space_.Size());
+  AdvanceSweepers(static_cast<int>(new_space_.Size()));
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -4559,7 +4559,8 @@ bool Heap::IdleNotification(int hint) {
   intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (incremental_marking()->IsStopped()) {
-    if (!IsSweepingComplete() && !AdvanceSweepers(step_size)) {
+    if (!IsSweepingComplete() &&
+        !AdvanceSweepers(static_cast<int>(step_size))) {
       return false;
     }
   }

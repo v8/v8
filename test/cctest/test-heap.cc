@@ -1313,7 +1313,7 @@ TEST(IdleNotificationAdvancesIncrementalMarking) {
   }
   intptr_t old_size = HEAP->SizeOfObjects();
   bool no_idle_work = v8::V8::IdleNotification();
-  while (!v8::V8::IdleNotification());
+  while (!v8::V8::IdleNotification()) ;
   intptr_t new_size = HEAP->SizeOfObjects();
   CHECK(no_idle_work || new_size < 3 * old_size / 4);
 }
