@@ -3360,6 +3360,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ Branch(&calculate, ne, a2, Operand(t0));
     __ Branch(&calculate, ne, a3, Operand(t1));
     // Cache hit. Load result, cleanup and return.
+    Counters* counters = masm->isolate()->counters();
+    __ IncrementCounter(
+        counters->transcendental_cache_hit(), 1, scratch0, scratch1);
     if (tagged) {
       // Pop input value from stack and load result into v0.
       __ Drop(1);
@@ -3372,6 +3375,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   }  // if (CpuFeatures::IsSupported(FPU))
 
   __ bind(&calculate);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(
+      counters->transcendental_cache_miss(), 1, scratch0, scratch1);
   if (tagged) {
     __ bind(&invalid_cache);
     __ TailCallExternalReference(ExternalReference(RuntimeFunction(),
@@ -3455,20 +3461,25 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
     __ mov_d(f12, f4);
   }
   AllowExternalCallThatCantCauseGC scope(masm);
+  Isolate* isolate = masm->isolate();
   switch (type_) {
     case TranscendentalCache::SIN:
       __ CallCFunction(
-          ExternalReference::math_sin_double_function(masm->isolate()),
+          ExternalReference::math_sin_double_function(isolate),
           0, 1);
       break;
     case TranscendentalCache::COS:
       __ CallCFunction(
-          ExternalReference::math_cos_double_function(masm->isolate()),
+          ExternalReference::math_cos_double_function(isolate),
+          0, 1);
+      break;
+    case TranscendentalCache::TAN:
+      __ CallCFunction(ExternalReference::math_tan_double_function(isolate),
           0, 1);
       break;
     case TranscendentalCache::LOG:
       __ CallCFunction(
-          ExternalReference::math_log_double_function(masm->isolate()),
+          ExternalReference::math_log_double_function(isolate),
           0, 1);
       break;
     default:
@@ -3484,6 +3495,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
     // Add more cases when necessary.
     case TranscendentalCache::SIN: return Runtime::kMath_sin;
     case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::TAN: return Runtime::kMath_tan;
     case TranscendentalCache::LOG: return Runtime::kMath_log;
     default:
       UNIMPLEMENTED();
