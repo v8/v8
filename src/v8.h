@@ -106,7 +106,7 @@ class V8 : public AllStatic {
                                           Context* context);
 
   // Idle notification directly from the API.
-  static bool IdleNotification();
+  static bool IdleNotification(int hint);
 
  private:
   static void InitializeOncePerProcess();
