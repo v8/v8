@@ -4746,7 +4746,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label seq_string;
   __ lw(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
-  // First check for flat string.
+  // First check for flat string.  None of the following string type tests will
+  // succeed if kIsNotStringTag is set.
   __ And(a1, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
   __ Branch(&seq_string, eq, a1, Operand(zero_reg));
@@ -4754,6 +4755,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // subject: Subject string
   // a0: instance type if Subject string
   // regexp_data: RegExp data (FixedArray)
+  // a1: whether subject is a string and if yes, its string representation
   // Check for flat cons string or sliced string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
@@ -4763,8 +4765,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label cons_string, check_encoding;
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   __ Branch(&cons_string, lt, a1, Operand(kExternalStringTag));
   __ Branch(&runtime, eq, a1, Operand(kExternalStringTag));
+
+  // Catch non-string subject (should already have been guarded against).
+  STATIC_ASSERT(kNotStringTag != 0);
+  __ And(at, a1, Operand(kIsNotStringMask));
+  __ Branch(&runtime, ne, at, Operand(zero_reg));
 
   // String is sliced.
   __ lw(t0, FieldMemOperand(subject, SlicedString::kOffsetOffset));
