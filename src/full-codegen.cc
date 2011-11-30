@@ -362,7 +362,7 @@ void FullCodeGenerator::RecordJSReturnSite(Call* call) {
 }
 
 
-void FullCodeGenerator::PrepareForBailoutForId(int id, State state) {
+void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
   // There's no need to prepare this code for bailouts from already optimized
   // code or code that can't be optimized.
   if (!FLAG_deopt || !info_->HasDeoptimizationSupport()) return;
@@ -383,10 +383,11 @@ void FullCodeGenerator::PrepareForBailoutForId(int id, State state) {
 }
 
 
-void FullCodeGenerator::RecordStackCheck(int ast_id) {
+void FullCodeGenerator::RecordStackCheck(unsigned ast_id) {
   // The pc offset does not need to be encoded and packed together with a
   // state.
-  BailoutEntry entry = { ast_id, masm_->pc_offset() };
+  ASSERT(masm_->pc_offset() > 0);
+  BailoutEntry entry = { ast_id, static_cast<unsigned>(masm_->pc_offset()) };
   stack_checks_.Add(entry);
 }
 
