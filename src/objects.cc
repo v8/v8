@@ -926,7 +926,7 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
                     len - first_length);
       }
       cs->set_first(result);
-      cs->set_second(heap->empty_string());
+      cs->set_second(heap->empty_string(), SKIP_WRITE_BARRIER);
       return result;
     }
     default:
