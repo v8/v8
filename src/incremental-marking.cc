@@ -773,7 +773,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   }
 
   if (state_ == SWEEPING) {
-    if (heap_->AdvanceSweepers(bytes_to_process)) {
+    if (heap_->AdvanceSweepers(static_cast<int>(bytes_to_process))) {
       bytes_scanned_ = 0;
       StartMarking(PREVENT_COMPACTION);
     }
