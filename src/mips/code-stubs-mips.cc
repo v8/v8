@@ -4759,8 +4759,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
   // First check for flat string.  None of the following string type tests will
-  // succeed if kIsNotStringTag is set.
-  __ And(a1, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
+  // succeed if subject is not a string or a short external string.
+  __ And(a1,
+         a0,
+         Operand(kIsNotStringMask |
+                 kStringRepresentationMask |
+                 kShortExternalStringMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
   __ Branch(&seq_string, eq, a1, Operand(zero_reg));
 
@@ -4774,16 +4778,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
   // In the case of a sliced string its offset has to be taken into account.
-  Label cons_string, check_encoding;
+  Label cons_string, external_string, check_encoding;
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
+  STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ Branch(&cons_string, lt, a1, Operand(kExternalStringTag));
-  __ Branch(&runtime, eq, a1, Operand(kExternalStringTag));
+  __ Branch(&external_string, eq, a1, Operand(kExternalStringTag));
 
-  // Catch non-string subject (should already have been guarded against).
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ And(at, a1, Operand(kIsNotStringMask));
+  // Catch non-string subject or short external string.
+  STATIC_ASSERT(kNotStringTag != 0 && kShortExternalStringTag !=0);
+  __ And(at, a1, Operand(kIsNotStringMask | kShortExternalStringMask));
   __ Branch(&runtime, ne, at, Operand(zero_reg));
 
   // String is sliced.
@@ -4804,7 +4809,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
   __ And(at, a0, Operand(kStringRepresentationMask));
-  __ Branch(&runtime, ne, at, Operand(zero_reg));
+  __ Branch(&external_string, ne, at, Operand(zero_reg));
 
   __ bind(&seq_string);
   // subject: Subject string
@@ -5029,6 +5034,29 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(v0, MemOperand(sp, kLastMatchInfoOffset));
   __ Addu(sp, sp, Operand(4 * kPointerSize));
   __ Ret();
+
+  // External string.  Short external strings have already been ruled out.
+  // a0: scratch
+  __ bind(&external_string);
+  __ lw(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
+  __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ And(at, a0, Operand(kIsIndirectStringMask));
+    __ Assert(eq,
+              "external string expected, but not found",
+              at,
+              Operand(zero_reg));
+  }
+  __ lw(subject,
+        FieldMemOperand(subject, ExternalString::kResourceDataOffset));
+  // Move the pointer so that offset-wise, it looks like a sequential string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  __ Subu(subject,
+          subject,
+          SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+  __ jmp(&seq_string);
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
