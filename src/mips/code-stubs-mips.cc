@@ -343,6 +343,51 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [sp]: object literal flags.
+  // [sp + kPointerSize]: constant properties.
+  // [sp + (2 * kPointerSize)]: literal index.
+  // [sp + (3 * kPointerSize)]: literals array.
+
+  // Load boilerplate object into a3 and check if we need to create a
+  // boilerplate.
+  Label slow_case;
+  __ lw(a3, MemOperand(sp, 3 * kPointerSize));
+  __ lw(a0, MemOperand(sp, 2 * kPointerSize));
+  __ Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sll(t0, a0, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(a3, t0, a3);
+  __ lw(a3, MemOperand(a3));
+  __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
+  __ Branch(&slow_case, eq, a3, Operand(t0));
+
+  // Check that the boilerplate contains only fast properties and we can
+  // statically determine the instance size.
+  int size = JSObject::kHeaderSize + length_ * kPointerSize;
+  __ lw(a0, FieldMemOperand(a3, HeapObject::kMapOffset));
+  __ lbu(a0, FieldMemOperand(a0, Map::kInstanceSizeOffset));
+  __ Branch(&slow_case, ne, a0, Operand(size >> kPointerSizeLog2));
+
+  // Allocate the JS object and copy header together with all in-object
+  // properties from the boilerplate.
+  __ AllocateInNewSpace(size, a0, a1, a2, &slow_case, TAG_OBJECT);
+  for (int i = 0; i < size; i += kPointerSize) {
+    __ lw(a1, FieldMemOperand(a3, i));
+    __ sw(a1, FieldMemOperand(a0, i));
+  }
+
+  // Return and remove the on-stack parameters.
+  __ Drop(4);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);
+
+  __ bind(&slow_case);
+  __ TailCallRuntime(Runtime::kCreateObjectLiteralShallow, 4, 1);
+}
+
+
 // Takes a Smi and converts to an IEEE 64 bit floating point value in two
 // registers.  The format is 1 sign bit, 11 exponent bits (biased 1023) and
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
