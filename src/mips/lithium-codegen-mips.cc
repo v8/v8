@@ -3070,6 +3070,14 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathTan(LUnaryMathOperation* instr) {
+  ASSERT(ToDoubleRegister(instr->result()).is(f4));
+  TranscendentalCacheStub stub(TranscendentalCache::TAN,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
 void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
   ASSERT(ToDoubleRegister(instr->result()).is(f4));
   TranscendentalCacheStub stub(TranscendentalCache::COS,
@@ -3108,6 +3116,9 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSin:
       DoMathSin(instr);
+      break;
+    case kMathTan:
+      DoMathTan(instr);
       break;
     case kMathLog:
       DoMathLog(instr);

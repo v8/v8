@@ -743,7 +743,9 @@ void IncrementalMarking::MarkingComplete() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
-  heap_->isolate()->stack_guard()->RequestGC();
+  if (!heap_->idle_notification_will_schedule_next_gc()) {
+    heap_->isolate()->stack_guard()->RequestGC();
+  }
 }
 
 
@@ -771,8 +773,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   }
 
   if (state_ == SWEEPING) {
-    if (heap_->old_pointer_space()->AdvanceSweeper(bytes_to_process) &&
-        heap_->old_data_space()->AdvanceSweeper(bytes_to_process)) {
+    if (heap_->AdvanceSweepers(static_cast<int>(bytes_to_process))) {
       bytes_scanned_ = 0;
       StartMarking(PREVENT_COMPACTION);
     }

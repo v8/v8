@@ -1650,7 +1650,8 @@ class PagedSpace : public Space {
   Page* first_unswept_page_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
-  // it cannot allocate requested number of pages from OS.
+  // it cannot allocate requested number of pages from OS, or if the hard heap
+  // size limit has been hit.
   bool Expand();
 
   // Generic fast case allocation function that tries linear allocation at the

@@ -1780,17 +1780,29 @@ void Debug::PrepareForBreakPoints() {
       // values and performing a heap iteration.
       AssertNoAllocation no_allocation;
 
-      // Find all non-optimized code functions with activation frames on
-      // the stack.
+      // Find all non-optimized code functions with activation frames
+      // on the stack. This includes functions which have optimized
+      // activations (including inlined functions) on the stack as the
+      // non-optimized code is needed for the lazy deoptimization.
       for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
         JavaScriptFrame* frame = it.frame();
-        if (frame->function()->IsJSFunction()) {
+        if (frame->is_optimized()) {
+          List<JSFunction*> functions(Compiler::kMaxInliningLevels + 1);
+          frame->GetFunctions(&functions);
+          for (int i = 0; i < functions.length(); i++) {
+            if (!functions[i]->shared()->code()->has_debug_break_slots()) {
+              active_functions.Add(Handle<JSFunction>(functions[i]));
+            }
+          }
+        } else if (frame->function()->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(frame->function());
           if (function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots())
+              !function->code()->has_debug_break_slots()) {
             active_functions.Add(Handle<JSFunction>(function));
+          }
         }
       }
+
       // Sort the functions on the object pointer value to prepare for
       // the binary search below.
       active_functions.Sort(HandleObjectPointerCompare<JSFunction>);
@@ -1838,6 +1850,9 @@ void Debug::PrepareForBreakPoints() {
 
       // Make sure that the shared full code is compiled with debug
       // break slots.
+      if (function->code() == *lazy_compile) {
+        function->set_code(shared->code());
+      }
       Handle<Code> current_code(function->code());
       if (shared->code()->has_debug_break_slots()) {
         // if the code is already recompiled to have break slots skip
@@ -1862,7 +1877,7 @@ void Debug::PrepareForBreakPoints() {
       }
       Handle<Code> new_code(shared->code());
 
-      // Find the function and patch return address.
+      // Find the function and patch the return address.
       for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
         JavaScriptFrame* frame = it.frame();
         // If the current frame is for this function in its

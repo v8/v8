@@ -1289,3 +1289,31 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   new_capacity = new_space->Capacity();
   CHECK(old_capacity == new_capacity);
 }
+
+
+TEST(IdleNotificationAdvancesIncrementalMarking) {
+  if (!FLAG_incremental_marking || !FLAG_incremental_marking_steps) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "function binom(n, m) {"
+                       "  var C = [[1]];"
+                       "  for (var i = 1; i <= n; ++i) {"
+                       "    C[i] = [1];"
+                       "    for (var j = 1; j < i; ++j) {"
+                       "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
+                       "    }"
+                       "    C[i][i] = 1;"
+                       "  }"
+                       "  return C[n][m];"
+                       "};"
+                       "binom(1000, 500)";
+  {
+    AlwaysAllocateScope aa_scope;
+    CompileRun(source);
+  }
+  intptr_t old_size = HEAP->SizeOfObjects();
+  bool no_idle_work = v8::V8::IdleNotification();
+  while (!v8::V8::IdleNotification()) ;
+  intptr_t new_size = HEAP->SizeOfObjects();
+  CHECK(no_idle_work || new_size < 3 * old_size / 4);
+}

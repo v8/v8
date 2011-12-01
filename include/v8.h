@@ -3194,8 +3194,12 @@ class V8EXPORT V8 {
    * Returns true if the embedder should stop calling IdleNotification
    * until real work has been done.  This indicates that V8 has done
    * as much cleanup as it will be able to do.
+   *
+   * The hint argument specifies the amount of work to be done in the function
+   * on scale from 1 to 1000. There is no guarantee that the actual work will
+   * match the hint.
    */
-  static bool IdleNotification();
+  static bool IdleNotification(int hint = 1000);
 
   /**
    * Optional notification that the system is running low on memory.

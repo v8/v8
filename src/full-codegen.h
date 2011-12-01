@@ -390,7 +390,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Bailout support.
   void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(int id, State state);
+  void PrepareForBailoutForId(unsigned id, State state);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -417,7 +417,7 @@ class FullCodeGenerator: public AstVisitor {
   // a loop.
   void EmitStackCheck(IterationStatement* stmt);
   // Record the OSR AST id corresponding to a stack check in the code.
-  void RecordStackCheck(int osr_ast_id);
+  void RecordStackCheck(unsigned osr_ast_id);
   // Emit a table of stack check ids and pcs into the code stream.  Return
   // the offset of the start of the table.
   unsigned EmitStackCheckTable();

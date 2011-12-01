@@ -166,13 +166,13 @@ uint32_t V8::RandomPrivate(Isolate* isolate) {
 }
 
 
-bool V8::IdleNotification() {
+bool V8::IdleNotification(int hint) {
   // Returning true tells the caller that there is no need to call
   // IdleNotification again.
   if (!FLAG_use_idle_notification) return true;
 
   // Tell the heap that it may want to adjust.
-  return HEAP->IdleNotification();
+  return HEAP->IdleNotification(hint);
 }
 
 

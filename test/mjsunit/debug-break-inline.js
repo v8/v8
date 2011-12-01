@@ -25,70 +25,76 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
-// This test tests that full code compiled without debug break slots
-// is recompiled with debug break slots when debugging is started.
+// This test tests that deoptimization due to debug breaks works for
+// inlined functions where the full-code is generated before the
+// debugger is attached.
+//
+//See http://code.google.com/p/chromium/issues/detail?id=105375
 
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+Debug = debug.Debug;
 
-var bp;
-var done = false;
-var step_count = 0;
-var set_bp = false
+var count = 0;
+var break_count = 0;
 
-// Debug event listener which steps until the global variable done is true.
+// Debug event listener which sets a breakpoint first time it is hit
+// and otherwise counts break points hit and checks that the expected
+// state is reached.
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
-    if (!done) exec_state.prepareStep(Debug.StepAction.StepNext);
-    step_count++;
-  }
-};
+    break_count++;
+    if (break_count == 1) {
+      Debug.setBreakPoint(g, 3);
 
-// Set the global variables state to prpare the stepping test.
-function prepare_step_test() {
-  done = false;
-  step_count = 0;
+      for (var i = 0; i < exec_state.frameCount(); i++) {
+        var frame = exec_state.frame(i);
+        // When function f is optimized (1 means YES, see runtime.cc) we
+        // expect an optimized frame for f and g.
+        if (%GetOptimizationStatus(f) == 1) {
+          if (i == 1) {
+            assertTrue(frame.isOptimizedFrame());
+            assertTrue(frame.isInlinedFrame());
+            assertEquals(4 - i, frame.inlinedFrameIndex());
+          } else if (i == 2) {
+            assertTrue(frame.isOptimizedFrame());
+            assertFalse(frame.isInlinedFrame());
+          } else {
+            assertFalse(frame.isOptimizedFrame());
+            assertFalse(frame.isInlinedFrame());
+          }
+        }
+      }
+    }
+  }
 }
 
-// Test function to step through.
 function f() {
-  var a = 0;
-  if (set_bp) { bp = Debug.setBreakPoint(f, 3); }
-  var i = 1;
-  var j = 2;
-  done = true;
-};
+  g();
+}
 
-prepare_step_test();
+function g() {
+  count++;
+  h();
+  var b = 1;  // Break point is set here.
+}
+
+function h() {
+  debugger;
+}
+
+f();f();f();
+%OptimizeFunctionOnNextCall(f);
 f();
 
 // Add the debug event listener.
 Debug.setListener(listener);
 
-// Make f set a breakpoint with an activation on the stack.
-prepare_step_test();
-set_bp = true;
 f();
-// TODO(1782): Fix issue to bring back this assert.
-//assertEquals(4, step_count);
-Debug.clearBreakPoint(bp);
 
-// Set a breakpoint on the first var statement (line 1).
-set_bp = false;
-bp = Debug.setBreakPoint(f, 3);
-
-// Step through the function ensuring that the var statements are hit as well.
-prepare_step_test();
-f();
-assertEquals(4, step_count);
-
-// Clear the breakpoint and check that no stepping happens.
-Debug.clearBreakPoint(bp);
-prepare_step_test();
-f();
-assertEquals(0, step_count);
+assertEquals(5, count);
+assertEquals(2, break_count);
 
 // Get rid of the debug event listener.
 Debug.setListener(null);

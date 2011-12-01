@@ -3844,9 +3844,11 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     ObjectLiteral::Property* property =
         new(zone()) ObjectLiteral::Property(key, value);
 
-    // Mark object literals that contain function literals and pretenure the
-    // literal so it can be added as a constant function property.
-    if (value->AsFunctionLiteral() != NULL) {
+    // Mark top-level object literals that contain function literals and
+    // pretenure the literal so it can be added as a constant function
+    // property.
+    if (top_scope_->DeclarationScope()->is_global_scope() &&
+        value->AsFunctionLiteral() != NULL) {
       has_function = true;
       value->AsFunctionLiteral()->set_pretenure();
     }

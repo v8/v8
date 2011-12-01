@@ -1,3 +1,18 @@
+2011-12-01: Version 3.7.12
+
+        Increase tick interval for the android platform.
+
+        Fix a bug in the register allocator. (chromium:105112)
+
+        Fix handling of recompiling code. (chromium:105375, v8:1782)
+
+        Start incremental marking on idle notification. (v8:1458)
+
+        Build fixes for various platforms.
+
+        Various performance improvements.
+
+
 2011-11-29: Version 3.7.11
 
         Fixed bug when generating padding to ensure space for lazy
