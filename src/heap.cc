@@ -4541,7 +4541,8 @@ void Heap::EnsureHeapIsIterable() {
 
 
 bool Heap::IdleNotification(int hint) {
-  if (!FLAG_incremental_marking || FLAG_expose_gc || Serializer::enabled()) {
+  if (contexts_disposed_ > 0 || !FLAG_incremental_marking ||
+      FLAG_expose_gc || Serializer::enabled()) {
     return hint < 1000 ? true : IdleGlobalGC();
   }
 
