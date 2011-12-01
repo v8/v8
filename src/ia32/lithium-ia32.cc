@@ -2328,9 +2328,15 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
 
 LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
-  LOperand* context = UseAny(instr->context());
-  return AssignEnvironment(
-      AssignPointerMap(new(zone()) LStackCheck(context)));
+  if (instr->is_function_entry()) {
+    LOperand* context = UseFixed(instr->context(), esi);
+    return MarkAsCall(new(zone()) LStackCheck(context), instr);
+  } else {
+    ASSERT(instr->is_backwards_branch());
+    LOperand* context = UseAny(instr->context());
+    return AssignEnvironment(
+        AssignPointerMap(new(zone()) LStackCheck(context)));
+  }
 }
 
 

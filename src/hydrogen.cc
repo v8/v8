@@ -2333,7 +2333,8 @@ HGraph* HGraphBuilder::CreateGraph() {
     AddSimulate(AstNode::kDeclarationsId);
 
     HValue* context = environment()->LookupContext();
-    AddInstruction(new(zone()) HStackCheck(context));
+    AddInstruction(
+        new(zone()) HStackCheck(context, HStackCheck::kFunctionEntry));
 
     VisitStatements(info()->function()->body());
     if (HasStackOverflow()) return NULL;
@@ -2921,7 +2922,8 @@ void HGraphBuilder::VisitLoopBody(IterationStatement* stmt,
   BreakAndContinueScope push(break_info, this);
   AddSimulate(stmt->StackCheckId());
   HValue* context = environment()->LookupContext();
-  HStackCheck* stack_check = new(zone()) HStackCheck(context);
+  HStackCheck* stack_check =
+    new(zone()) HStackCheck(context, HStackCheck::kBackwardsBranch);
   AddInstruction(stack_check);
   ASSERT(loop_entry->IsLoopHeader());
   loop_entry->loop_information()->set_stack_check(stack_check);
