@@ -134,7 +134,8 @@ class LCodeGen;
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
-  V(ObjectLiteral)                              \
+  V(ObjectLiteralFast)                          \
+  V(ObjectLiteralGeneric)                       \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
@@ -1899,10 +1900,17 @@ class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LObjectLiteral: public LTemplateInstruction<1, 0, 0> {
+class LObjectLiteralFast: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast, "object-literal-fast")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralFast)
+};
+
+
+class LObjectLiteralGeneric: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric, "object-literal-generic")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralGeneric)
 };
 
 
