@@ -49,7 +49,9 @@ class SafepointGenerator : public CallWrapper {
         deopt_mode_(mode) { }
   virtual ~SafepointGenerator() { }
 
-  virtual void BeforeCall(int call_size) const { }
+  virtual void BeforeCall(int call_size) const {
+    codegen_->EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - call_size);
+  }
 
   virtual void AfterCall() const {
     codegen_->RecordSafepoint(pointers_, deopt_mode_);
@@ -241,7 +243,7 @@ bool LCodeGen::GenerateBody() {
       instr->CompileToNative(this);
     }
   }
-  EnsureSpaceForLazyDeopt();
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   return !is_aborted();
 }
 
@@ -439,6 +441,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                int argc) {
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - masm()->CallSize(code));
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
@@ -4176,25 +4179,24 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 }
 
 
-void LCodeGen::EnsureSpaceForLazyDeopt() {
+void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
   int current_pc = masm()->pc_offset();
-  int patch_size = Deoptimizer::patch_size();
-  if (current_pc < last_lazy_deopt_pc_ + patch_size) {
-    int padding_size = last_lazy_deopt_pc_ + patch_size - current_pc;
+  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     while (padding_size > 0) {
       int nop_size = padding_size > 9 ? 9 : padding_size;
       __ nop(nop_size);
       padding_size -= nop_size;
     }
   }
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  EnsureSpaceForLazyDeopt();
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+  last_lazy_deopt_pc_ = masm()->pc_offset();
   ASSERT(instr->HasEnvironment());
   LEnvironment* env = instr->environment();
   RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
@@ -4265,7 +4267,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
       new DeferredStackCheck(this, instr);
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
   __ j(below, deferred_stack_check->entry());
-  EnsureSpaceForLazyDeopt();
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   __ bind(instr->done_label());
   deferred_stack_check->SetExit(instr->done_label());
   // There is no LLazyBailout instruction for stack-checks. We have to

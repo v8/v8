@@ -305,7 +305,7 @@ class LCodeGen BASE_EMBEDDED {
     Address address;
   };
 
-  void EnsureSpaceForLazyDeopt();
+  void EnsureSpaceForLazyDeopt(int space_needed);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
