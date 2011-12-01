@@ -2203,12 +2203,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
 
 LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
-  if (instr->is_function_entry()) {
-    return MarkAsCall(new LStackCheck, instr);
-  } else {
-    ASSERT(instr->is_backwards_branch());
-    return AssignEnvironment(AssignPointerMap(new LStackCheck));
-  }
+  return AssignEnvironment(AssignPointerMap(new LStackCheck));
 }
 
 

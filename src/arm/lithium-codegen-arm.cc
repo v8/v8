@@ -4649,38 +4649,22 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     LStackCheck* instr_;
   };
 
-  ASSERT(instr->HasEnvironment());
-  LEnvironment* env = instr->environment();
+  DeferredStackCheck* deferred_stack_check =
+      new DeferredStackCheck(this, instr);
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  __ cmp(sp, Operand(ip));
+  __ b(lo, deferred_stack_check->entry());
+  EnsureSpaceForLazyDeopt();
+  __ bind(instr->done_label());
+  deferred_stack_check->SetExit(instr->done_label());
   // There is no LLazyBailout instruction for stack-checks. We have to
   // prepare for lazy deoptimization explicitly here.
-  if (instr->hydrogen()->is_function_entry()) {
-    // Perform stack overflow check.
-    Label done;
-    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-    __ cmp(sp, Operand(ip));
-    __ b(hs, &done);
-    StackCheckStub stub;
-    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-    EnsureSpaceForLazyDeopt();
-    __ bind(&done);
-    RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
-    safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
-  } else {
-    ASSERT(instr->hydrogen()->is_backwards_branch());
-    // Perform stack overflow check if this goto needs it before jumping.
-    DeferredStackCheck* deferred_stack_check =
-        new DeferredStackCheck(this, instr);
-    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-    __ cmp(sp, Operand(ip));
-    __ b(lo, deferred_stack_check->entry());
-    EnsureSpaceForLazyDeopt();
-    __ bind(instr->done_label());
-    deferred_stack_check->SetExit(instr->done_label());
-    RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
-    // Don't record a deoptimization index for the safepoint here.
-    // This will be done explicitly when emitting call and the safepoint in
-    // the deferred code.
-  }
+  ASSERT(instr->HasEnvironment());
+  LEnvironment* env = instr->environment();
+  RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
+  // Don't record a deoptimization index for the safepoint here.
+  // This will be done explicitly when emitting call and the safepoint in
+  // the deferred code.
 }
 
 

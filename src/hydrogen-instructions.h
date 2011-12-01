@@ -1271,12 +1271,7 @@ class HSimulate: public HInstruction {
 
 class HStackCheck: public HTemplateInstruction<1> {
  public:
-  enum Type {
-    kFunctionEntry,
-    kBackwardsBranch
-  };
-
-  HStackCheck(HValue* context, Type type) : type_(type) {
+  explicit HStackCheck(HValue* context) {
     SetOperandAt(0, context);
   }
 
@@ -1294,13 +1289,7 @@ class HStackCheck: public HTemplateInstruction<1> {
     }
   }
 
-  bool is_function_entry() { return type_ == kFunctionEntry; }
-  bool is_backwards_branch() { return type_ == kBackwardsBranch; }
-
   DECLARE_CONCRETE_INSTRUCTION(StackCheck)
-
- private:
-  Type type_;
 };
 
 
