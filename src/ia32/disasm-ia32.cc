@@ -1213,7 +1213,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                              NameOfXMMRegister(rm),
                              static_cast<int>(imm8));
               data += 2;
-            } else if (*data == 0x17){
+            } else if (*data == 0x17) {
               data++;
               int mod, regop, rm;
               get_modrm(*data, &mod, &regop, &rm);
