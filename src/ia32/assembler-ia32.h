@@ -987,6 +987,7 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, const Operand& src);
 
   enum RoundingMode {
     kRoundToNearest = 0x0,

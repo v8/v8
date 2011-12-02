@@ -2938,9 +2938,28 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+
+  Label return_infinity, done;
+  // Check base for +/- infinity.
+  __ push(ecx);  // TODO(1848): reserve this register.
+  __ mov(ecx, factory()->infinity_value());
+  __ ucomisd(input_reg, FieldOperand(ecx, HeapNumber::kValueOffset));
+  __ j(equal, &return_infinity, Label::kNear);
+  __ xorps(xmm_scratch, xmm_scratch);
+  __ subsd(xmm_scratch, input_reg);
+  __ ucomisd(xmm_scratch, FieldOperand(ecx, HeapNumber::kValueOffset));
+  __ j(equal, &return_infinity, Label::kNear);
+
+  __ pop(ecx);
   __ xorps(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&return_infinity);
+  __ movdbl(input_reg, FieldOperand(ecx, HeapNumber::kValueOffset));
+  __ pop(ecx);
+  __ bind(&done);
 }
 
 

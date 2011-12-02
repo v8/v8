@@ -2057,6 +2057,16 @@ void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x2E);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);

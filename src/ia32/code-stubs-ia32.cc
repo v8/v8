@@ -3003,13 +3003,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Check base in xmm1 for NaN or +/-Infinity
       const int kExponentShift = kBitsPerByte *
           (HeapNumber::kExponentOffset - HeapNumber::kMantissaOffset);
-      if (CpuFeatures::IsSupported(SSE4_1)) {
-        __ extractps(ecx, xmm1, kExponentShift);
-      } else {
-        __ movsd(xmm4, xmm1);
-        __ psrlq(xmm4, kExponentShift);
-        __ movd(ecx, xmm4);
-      }
+      __ movsd(xmm4, xmm1);
+      __ psrlq(xmm4, kExponentShift);
+      __ movd(ecx, xmm4);
       __ and_(ecx, HeapNumber::kExponentMask);
       __ cmp(ecx, Immediate(HeapNumber::kExponentMask));
       __ j(equal, &generic_runtime);
