@@ -2945,61 +2945,32 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
   Representation exponent_type = instr->hydrogen()->right()->representation();
+  // Having marked this as a call, we can use any registers.
+  // Just make sure that the input registers are the expected ones.
+  ASSERT(!instr->InputAt(1)->IsDoubleRegister() ||
+         ToDoubleRegister(instr->InputAt(1)).is(xmm2));
+  ASSERT(!instr->InputAt(1)->IsRegister() ||
+         ToRegister(instr->InputAt(1)).is(eax));
+  ASSERT(ToDoubleRegister(instr->InputAt(0)).is(xmm1));
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm3));
 
-  if (exponent_type.IsDouble()) {
-    // It is safe to use ebx directly since the instruction is marked
-    // as a call.
-    __ PrepareCallCFunction(4, ebx);
-    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
-    __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
-    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
-                     4);
-  } else if (exponent_type.IsInteger32()) {
-    // It is safe to use ebx directly since the instruction is marked
-    // as a call.
-    ASSERT(!ToRegister(right).is(ebx));
-    __ PrepareCallCFunction(4, ebx);
-    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
-    __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
-    __ CallCFunction(ExternalReference::power_double_int_function(isolate()),
-                     4);
-  } else {
-    ASSERT(exponent_type.IsTagged());
-    CpuFeatures::Scope scope(SSE2);
-    Register right_reg = ToRegister(right);
-
-    Label non_smi, call;
-    __ JumpIfNotSmi(right_reg, &non_smi);
-    __ SmiUntag(right_reg);
-    __ cvtsi2sd(result_reg, Operand(right_reg));
-    __ jmp(&call);
-
-    __ bind(&non_smi);
-    // It is safe to use ebx directly since the instruction is marked
-    // as a call.
-    ASSERT(!right_reg.is(ebx));
-    __ CmpObjectType(right_reg, HEAP_NUMBER_TYPE , ebx);
+  if (exponent_type.IsTagged()) {
+    Label no_deopt;
+    __ JumpIfSmi(eax, &no_deopt);
+    __ CmpObjectType(eax, HEAP_NUMBER_TYPE, ecx);
     DeoptimizeIf(not_equal, instr->environment());
-    __ movdbl(result_reg, FieldOperand(right_reg, HeapNumber::kValueOffset));
-
-    __ bind(&call);
-    __ PrepareCallCFunction(4, ebx);
-    __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
-    __ movdbl(Operand(esp, 1 * kDoubleSize), result_reg);
-    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
-                     4);
+    __ bind(&no_deopt);
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
+  } else if (exponent_type.IsInteger32()) {
+    MathPowStub stub(MathPowStub::INTEGER);
+    __ CallStub(&stub);
+  } else {
+    ASSERT(exponent_type.IsDouble());
+    MathPowStub stub(MathPowStub::DOUBLE);
+    __ CallStub(&stub);
   }
-
-  // Return value is in st(0) on ia32.
-  // Store it into the (fixed) result register.
-  __ sub(Operand(esp), Immediate(kDoubleSize));
-  __ fstp_d(Operand(esp, 0));
-  __ movdbl(result_reg, Operand(esp, 0));
-  __ add(Operand(esp), Immediate(kDoubleSize));
 }
 
 

@@ -1640,6 +1640,27 @@ void Assembler::fyl2x() {
 }
 
 
+void Assembler::f2xm1() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xF0);
+}
+
+
+void Assembler::fscale() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xFD);
+}
+
+
+void Assembler::fninit() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDB);
+  EMIT(0xE3);
+}
+
+
 void Assembler::fadd(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xC0, i);
@@ -2155,6 +2176,19 @@ void Assembler::movd(const Operand& dst, XMMRegister src) {
   EMIT(0x0F);
   EMIT(0x7E);
   emit_sse_operand(src, dst);
+}
+
+
+void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
+  ASSERT(CpuFeatures::IsSupported(SSE4_1));
+  ASSERT(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x17);
+  emit_sse_operand(dst, src);
+  EMIT(imm8);
 }
 
 

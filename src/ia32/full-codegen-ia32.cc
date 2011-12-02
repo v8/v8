@@ -2883,7 +2883,7 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
 
   if (CpuFeatures::IsSupported(SSE2)) {
-    MathPowStub stub;
+    MathPowStub stub(MathPowStub::ON_STACK);
     __ CallStub(&stub);
   } else {
     __ CallRuntime(Runtime::kMath_pow, 2);

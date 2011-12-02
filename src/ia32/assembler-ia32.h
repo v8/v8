@@ -926,6 +926,9 @@ class Assembler : public AssemblerBase {
   void fsin();
   void fptan();
   void fyl2x();
+  void f2xm1();
+  void fscale();
+  void fninit();
 
   void fadd(int i);
   void fsub(int i);
@@ -1017,6 +1020,7 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
   void movss(XMMRegister dst, XMMRegister src);
+  void extractps(Register dst, XMMRegister src, byte imm8);
 
   void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);
