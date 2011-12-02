@@ -4458,9 +4458,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt() {
   int patch_size = Deoptimizer::patch_size();
   if (current_pc < last_lazy_deopt_pc_ + patch_size) {
     int padding_size = last_lazy_deopt_pc_ + patch_size - current_pc;
-    while (padding_size-- > 0) {
-      __ nop();
-    }
+    __ Nop(padding_size);
   }
   last_lazy_deopt_pc_ = masm()->pc_offset();
 }

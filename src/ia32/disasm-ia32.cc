@@ -992,7 +992,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0x0F:
-        { byte f0byte = *(data+1);
+        { byte f0byte = data[1];
           const char* f0mnem = F0Mnem(f0byte);
           if (f0byte == 0x18) {
             int mod, regop, rm;
@@ -1000,6 +1000,25 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             const char* suffix[] = {"nta", "1", "2", "3"};
             AppendToBuffer("%s%s ", f0mnem, suffix[regop & 0x03]);
             data += PrintRightOperand(data);
+          } else if (f0byte == 0x1F && data[2] == 0) {
+            AppendToBuffer("nop");  // 3 byte nop.
+            data += 3;
+          } else if (f0byte == 0x1F && data[2] == 0x40 && data[3] == 0) {
+            AppendToBuffer("nop");  // 4 byte nop.
+            data += 4;
+          } else if (f0byte == 0x1F && data[2] == 0x44 && data[3] == 0 &&
+                     data[4] == 0) {
+            AppendToBuffer("nop");  // 5 byte nop.
+            data += 5;
+          } else if (f0byte == 0x1F && data[2] == 0x80 && data[3] == 0 &&
+                     data[4] == 0 && data[5] == 0 && data[6] == 0) {
+            AppendToBuffer("nop");  // 7 byte nop.
+            data += 7;
+          } else if (f0byte == 0x1F && data[2] == 0x84 && data[3] == 0 &&
+                     data[4] == 0 && data[5] == 0 && data[6] == 0 &&
+                     data[7] == 0) {
+            AppendToBuffer("nop");  // 8 byte nop.
+            data += 8;
           } else if (f0byte == 0xA2 || f0byte == 0x31) {
             AppendToBuffer("%s", f0mnem);
             data += 2;
@@ -1135,8 +1154,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0x66:  // prefix
-        data++;
-        if (*data == 0x8B) {
+        while (*data == 0x66) data++;
+        if (*data == 0xf && data[1] == 0x1f) {
+          AppendToBuffer("nop");  // 0x66 prefix
+        } else if (*data == 0x90) {
+          AppendToBuffer("nop");  // 0x66 prefix
+        } else if (*data == 0x8B) {
           data++;
           data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
         } else if (*data == 0x89) {
@@ -1273,6 +1296,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(rm),
                            static_cast<int>(imm8));
             data += 2;
+          } else if (*data == 0x90) {
+            data++;
+            AppendToBuffer("nop");  // 2 byte nop.
           } else if (*data == 0xF3) {
             data++;
             int mod, regop, rm;

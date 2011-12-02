@@ -388,8 +388,91 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   ASSERT(IsPowerOf2(m));
-  while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+  int mask = m - 1;
+  int addr = pc_offset();
+  Nop((m - (addr & mask)) & mask);
+}
+
+
+bool Assembler::IsNop(Address addr) {
+  Address a = addr;
+  while (*a == 0x66) a++;
+  if (*a == 0x90) return true;
+  if (a[0] == 0xf && a[1] == 0x1f) return true;
+  return false;
+}
+
+
+void Assembler::Nop(int bytes) {
+  EnsureSpace ensure_space(this);
+
+  if (!CpuFeatures::IsSupported(SSE2)) {
+    // Older CPUs that do not support SSE2 may not support multibyte NOP
+    // instructions.
+    for (; bytes > 0; bytes--) {
+      EMIT(0x90);
+    }
+    return;
+  }
+
+  // Multi byte nops from http://support.amd.com/us/Processor_TechDocs/40546.pdf
+  while (bytes > 0) {
+    switch (bytes) {
+      case 2:
+        EMIT(0x66);
+      case 1:
+        EMIT(0x90);
+        return;
+      case 3:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0);
+        return;
+      case 4:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x40);
+        EMIT(0);
+        return;
+      case 6:
+        EMIT(0x66);
+      case 5:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x44);
+        EMIT(0);
+        EMIT(0);
+        return;
+      case 7:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x80);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        return;
+      default:
+      case 11:
+        EMIT(0x66);
+        bytes--;
+      case 10:
+        EMIT(0x66);
+        bytes--;
+      case 9:
+        EMIT(0x66);
+        bytes--;
+      case 8:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x84);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        bytes -= 8;
+    }
   }
 }
 

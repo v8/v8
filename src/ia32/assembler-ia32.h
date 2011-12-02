@@ -659,6 +659,7 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2.
   void Align(int m);
+  void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
 
@@ -1084,7 +1085,7 @@ class Assembler : public AssemblerBase {
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
 
-  static bool IsNop(Address addr) { return *addr == 0x90; }
+  static bool IsNop(Address addr);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
