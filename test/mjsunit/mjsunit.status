@@ -42,6 +42,9 @@ harmony/proxies-example-membrane: SKIP
 # NewGC: BUG(1719) slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 
+# Issue 397: This has only been fixed on ia32 for now.
+regress/regress-397: SKIP
+
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
