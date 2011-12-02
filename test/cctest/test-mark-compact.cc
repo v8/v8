@@ -528,7 +528,7 @@ TEST(BootUpMemoryUse) {
   if (initial_memory >= 0) {
     InitializeVM();
     intptr_t booted_memory = MemoryInUse();
-    CHECK_LE(booted_memory - initial_memory, 20 * 1024 * 1024);
+    CHECK_LE(booted_memory - initial_memory, 18 * 1024 * 1024);
   }
 }
 
