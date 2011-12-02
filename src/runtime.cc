@@ -625,6 +625,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
+    ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
@@ -4651,6 +4652,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   if (value->IsNumber()) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
     TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(boilerplate_object, FAST_DOUBLE_ELEMENTS);
     ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
     FixedDoubleArray* double_array =
         FixedDoubleArray::cast(object->elements());
@@ -4660,6 +4662,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            elements_kind == FAST_DOUBLE_ELEMENTS);
     TransitionElementsKind(object, FAST_ELEMENTS);
+    TransitionElementsKind(boilerplate_object, FAST_ELEMENTS);
     FixedArray* object_array =
         FixedArray::cast(object->elements());
     object_array->set(store_index, *value);

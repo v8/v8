@@ -4167,18 +4167,21 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
 class HArrayLiteral: public HMaterializedLiteral<1> {
  public:
   HArrayLiteral(HValue* context,
-                Handle<FixedArray> constant_elements,
+                Handle<JSObject> boilerplate_object,
                 int length,
                 int literal_index,
                 int depth)
       : HMaterializedLiteral<1>(literal_index, depth),
         length_(length),
-        constant_elements_(constant_elements) {
+        boilerplate_object_(boilerplate_object) {
     SetOperandAt(0, context);
   }
 
   HValue* context() { return OperandAt(0); }
-  Handle<FixedArray> constant_elements() const { return constant_elements_; }
+  ElementsKind boilerplate_elements_kind() const {
+    return boilerplate_object_->GetElementsKind();
+  }
+  Handle<JSObject> boilerplate_object() const { return boilerplate_object_; }
   int length() const { return length_; }
 
   bool IsCopyOnWrite() const;
@@ -4192,7 +4195,7 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
 
  private:
   int length_;
-  Handle<FixedArray> constant_elements_;
+  Handle<JSObject> boilerplate_object_;
 };
 
 

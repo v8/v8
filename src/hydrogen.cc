@@ -3457,11 +3457,25 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   int length = subexprs->length();
   HValue* context = environment()->LookupContext();
 
-  HArrayLiteral* literal = new(zone()) HArrayLiteral(context,
-                                                     expr->constant_elements(),
-                                                     length,
-                                                     expr->literal_index(),
-                                                     expr->depth());
+  FixedArray* literals = environment()->closure()->literals();
+  Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
+
+  // For now, no boilerplate causes a deopt.
+  if (raw_boilerplate->IsUndefined()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+    return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+  }
+
+  Handle<JSObject> boilerplate(Handle<JSObject>::cast(raw_boilerplate));
+  ElementsKind boilerplate_elements_kind = boilerplate->GetElementsKind();
+
+  HArrayLiteral* literal = new(zone()) HArrayLiteral(
+      context,
+      boilerplate,
+      length,
+      expr->literal_index(),
+      expr->depth());
+
   // The array is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);
@@ -3484,42 +3498,25 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* key = AddInstruction(
         new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
                               Representation::Integer32()));
-    HInstruction* elements_kind =
-        AddInstruction(new(zone()) HElementsKind(literal));
-    HBasicBlock* store_fast = graph()->CreateBasicBlock();
-    // Two empty blocks to satisfy edge split form.
-    HBasicBlock* store_fast_edgesplit1 = graph()->CreateBasicBlock();
-    HBasicBlock* store_fast_edgesplit2 = graph()->CreateBasicBlock();
-    HBasicBlock* store_generic = graph()->CreateBasicBlock();
-    HBasicBlock* check_smi_only_elements = graph()->CreateBasicBlock();
-    HBasicBlock* join = graph()->CreateBasicBlock();
 
-    HIsSmiAndBranch* smicheck = new(zone()) HIsSmiAndBranch(value);
-    smicheck->SetSuccessorAt(0, store_fast_edgesplit1);
-    smicheck->SetSuccessorAt(1, check_smi_only_elements);
-    current_block()->Finish(smicheck);
-    store_fast_edgesplit1->Finish(new(zone()) HGoto(store_fast));
-
-    set_current_block(check_smi_only_elements);
-    HCompareConstantEqAndBranch* smi_elements_check =
-        new(zone()) HCompareConstantEqAndBranch(elements_kind,
-                                                FAST_ELEMENTS,
-                                                Token::EQ_STRICT);
-    smi_elements_check->SetSuccessorAt(0, store_fast_edgesplit2);
-    smi_elements_check->SetSuccessorAt(1, store_generic);
-    current_block()->Finish(smi_elements_check);
-    store_fast_edgesplit2->Finish(new(zone()) HGoto(store_fast));
-
-    set_current_block(store_fast);
-    AddInstruction(new(zone()) HStoreKeyedFastElement(elements, key, value));
-    store_fast->Goto(join);
-
-    set_current_block(store_generic);
-    AddInstruction(BuildStoreKeyedGeneric(literal, key, value));
-    store_generic->Goto(join);
-
-    join->SetJoinId(expr->id());
-    set_current_block(join);
+    switch (boilerplate_elements_kind) {
+      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_ELEMENTS:
+        AddInstruction(new(zone()) HStoreKeyedFastElement(
+            elements,
+            key,
+            value,
+            boilerplate_elements_kind));
+        break;
+      case FAST_DOUBLE_ELEMENTS:
+        AddInstruction(new(zone()) HStoreKeyedFastDoubleElement(elements,
+                                                                key,
+                                                                value));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
 
     AddSimulate(expr->GetIdForElement(i));
   }

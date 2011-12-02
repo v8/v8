@@ -122,4 +122,76 @@ if (support_smi_only_arrays) {
   }
   %OptimizeFunctionOnNextCall(test_large_literal);
   test_large_literal();
+
+  function deopt_array(use_literal) {
+    if (use_literal) {
+      return [.5, 3, 4];
+    }  else {
+      return new Array();
+    }
+  }
+
+  deopt_array(false);
+  deopt_array(false);
+  deopt_array(false);
+  %OptimizeFunctionOnNextCall(deopt_array);
+  var array = deopt_array(false);
+  assertTrue(2 != %GetOptimizationStatus(deopt_array));
+  deopt_array(true);
+  assertTrue(1 != %GetOptimizationStatus(deopt_array));
+  array = deopt_array(false);
+  assertTrue(1 != %GetOptimizationStatus(deopt_array));
+
+  // Check that unexpected changes in the objects stored into the boilerplate
+  // also force a deopt.
+  function deopt_array_literal_all_smis(a) {
+    return [0, 1, a];
+  }
+
+  deopt_array_literal_all_smis(2);
+  deopt_array_literal_all_smis(3);
+  deopt_array_literal_all_smis(4);
+  array = deopt_array_literal_all_smis(4);
+  assertEquals(0, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(4, array[2]);
+  %OptimizeFunctionOnNextCall(deopt_array_literal_all_smis);
+  array = deopt_array_literal_all_smis(5);
+  array = deopt_array_literal_all_smis(6);
+  assertTrue(2 != %GetOptimizationStatus(deopt_array_literal_all_smis));
+  assertEquals(0, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(6, array[2]);
+
+  array = deopt_array_literal_all_smis(.5);
+  assertTrue(1 != %GetOptimizationStatus(deopt_array_literal_all_smis));
+  assertEquals(0, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(.5, array[2]);
+
+  function deopt_array_literal_all_doubles(a) {
+    return [0.5, 1, a];
+  }
+
+  deopt_array_literal_all_doubles(.5);
+  deopt_array_literal_all_doubles(.5);
+  deopt_array_literal_all_doubles(.5);
+  array = deopt_array_literal_all_doubles(0.5);
+  assertEquals(0.5, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(0.5, array[2]);
+  %OptimizeFunctionOnNextCall(deopt_array_literal_all_doubles);
+  array = deopt_array_literal_all_doubles(5);
+  array = deopt_array_literal_all_doubles(6);
+  assertTrue(2 != %GetOptimizationStatus(deopt_array_literal_all_doubles));
+  assertEquals(0.5, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(6, array[2]);
+
+  var foo = new Object();
+  array = deopt_array_literal_all_doubles(foo);
+  assertTrue(1 != %GetOptimizationStatus(deopt_array_literal_all_doubles));
+  assertEquals(0.5, array[0]);
+  assertEquals(1, array[1]);
+  assertEquals(foo, array[2]);
 }
