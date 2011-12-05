@@ -142,6 +142,9 @@ TEST(NoPromotion) {
 
   // Call mark compact GC, and it should pass.
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
+
+  // array should not be promoted because the old space is full.
+  CHECK(HEAP->InSpace(*array, NEW_SPACE));
 }
 
 

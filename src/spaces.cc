@@ -2142,16 +2142,6 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
-  // If there are unswept pages advance lazy sweeper then sweep one page before
-  // allocating a new page.
-  if (first_unswept_page_->is_valid()) {
-    AdvanceSweeper(size_in_bytes);
-
-    // Retry the free list allocation.
-    HeapObject* object = free_list_.Allocate(size_in_bytes);
-    if (object != NULL) return object;
-  }
-
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
@@ -2160,19 +2150,26 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     return NULL;
   }
 
-  // Try to expand the space and allocate in the new next page.
-  if (Expand()) {
-    return free_list_.Allocate(size_in_bytes);
-  }
-
-  // Last ditch, sweep all the remaining pages to try to find space.  This may
-  // cause a pause.
-  if (!IsSweepingComplete()) {
-    AdvanceSweeper(kMaxInt);
+  // If there are unswept pages advance lazy sweeper.
+  if (first_unswept_page_->is_valid()) {
+    AdvanceSweeper(size_in_bytes);
 
     // Retry the free list allocation.
     HeapObject* object = free_list_.Allocate(size_in_bytes);
     if (object != NULL) return object;
+
+    if (!IsSweepingComplete()) {
+      AdvanceSweeper(kMaxInt);
+
+      // Retry the free list allocation.
+      object = free_list_.Allocate(size_in_bytes);
+      if (object != NULL) return object;
+    }
+  }
+
+  // Try to expand the space and allocate in the new next page.
+  if (Expand()) {
+    return free_list_.Allocate(size_in_bytes);
   }
 
   // Finally, fail.
