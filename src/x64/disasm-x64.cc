@@ -109,6 +109,7 @@ static const ByteMnemonic zero_operands_instr[] = {
   { 0xC3, UNSET_OP_ORDER, "ret" },
   { 0xC9, UNSET_OP_ORDER, "leave" },
   { 0xF4, UNSET_OP_ORDER, "hlt" },
+  { 0xFC, UNSET_OP_ORDER, "cld" },
   { 0xCC, UNSET_OP_ORDER, "int3" },
   { 0x60, UNSET_OP_ORDER, "pushad" },
   { 0x61, UNSET_OP_ORDER, "popad" },
@@ -1034,7 +1035,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       }
     } else {
       get_modrm(*current, &mod, &regop, &rm);
-      if (opcode == 0x28) {
+      if (opcode == 0x1f) {
+        current++;
+        if (rm == 4) {  // SIB byte present.
+          current++;
+        }
+        if (mod == 1) {  // Byte displacement.
+          current += 1;
+        } else if (mod == 2) {  // 32-bit displacement.
+          current += 4;
+        }  // else no immediate displacement.
+        AppendToBuffer("nop");
+      } else if (opcode == 0x28) {
         AppendToBuffer("movapd %s, ", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
       } else if (opcode == 0x29) {
@@ -1178,7 +1190,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     current++;
-    if (regop == 4) {  // SIB byte present.
+    if (rm == 4) {  // SIB byte present.
       current++;
     }
     if (mod == 1) {  // Byte displacement.

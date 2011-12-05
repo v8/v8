@@ -4201,11 +4201,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
   int current_pc = masm()->pc_offset();
   if (current_pc < last_lazy_deopt_pc_ + space_needed) {
     int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    while (padding_size > 0) {
-      int nop_size = padding_size > 9 ? 9 : padding_size;
-      __ nop(nop_size);
-      padding_size -= nop_size;
-    }
+    __ Nop(padding_size);
   }
 }
 
