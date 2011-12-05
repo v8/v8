@@ -1124,6 +1124,8 @@ double power_double_double(double x, double y) {
     if (y == 0.5) return sqrt(x + 0.0);  // -0 must be converted to +0.
     if (y == -0.5) return 1.0 / sqrt(x + 0.0);
   }
+#else
+  if (y == 0) return 1.0;  // Returns 1.0 for exponent 0.
 #endif
   if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
     return OS::nan_value();
