@@ -13439,60 +13439,13 @@ TEST(SourceURLInStackTrace) {
 
 // Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
-  v8::HandleScope scope;
-  LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
   bool rv = false;
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool no_idle_work = v8::V8::IdleNotification();
   for (int i = 0; i < 100; i++) {
     rv = v8::V8::IdleNotification();
     if (rv)
       break;
   }
   CHECK(rv == true);
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(no_idle_work || new_size < 3 * old_size / 4);
-}
-
-// Test that idle notification can be handled and eventually returns true.
-THREADED_TEST(IdleNotificationWithHint) {
-  v8::HandleScope scope;
-  LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
-  bool rv = false;
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool no_idle_work = v8::V8::IdleNotification(10);
-  for (int i = 0; i < 200; i++) {
-    rv = v8::V8::IdleNotification(10);
-    if (rv)
-      break;
-  }
-  CHECK(rv == true);
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(no_idle_work || new_size < 3 * old_size / 4);
 }
 
 

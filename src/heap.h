@@ -1331,8 +1331,8 @@ class Heap {
     return Min(limit, halfway_to_the_max);
   }
 
-  // Implements the corresponding V8 API function.
-  bool IdleNotification(int hint);
+  // Can be called when the embedding application is idle.
+  bool IdleNotification();
 
   // Declare all the root indices.
   enum RootListIndex {
@@ -1455,17 +1455,6 @@ class Heap {
     return &incremental_marking_;
   }
 
-  bool IsSweepingComplete() {
-    return old_data_space()->IsSweepingComplete() &&
-           old_pointer_space()->IsSweepingComplete();
-  }
-
-  bool AdvanceSweepers(int step_size) {
-    bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
-    sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
-    return sweeping_complete;
-  }
-
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
   }
@@ -1500,10 +1489,6 @@ class Heap {
 
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
-
-  bool idle_notification_will_schedule_next_gc() {
-    return idle_notification_will_schedule_next_gc_;
-  }
 
  private:
   Heap();
@@ -1838,30 +1823,6 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void StartIdleRound() {
-    mark_sweeps_since_idle_round_started_ = 0;
-    ms_count_at_last_idle_notification_ = ms_count_;
-  }
-
-  void FinishIdleRound() {
-    mark_sweeps_since_idle_round_started_ = kMaxMarkSweepsInIdleRound;
-    scavenges_since_last_idle_round_ = 0;
-  }
-
-  bool EnoughGarbageSinceLastIdleRound() {
-    return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
-  }
-
-  bool WorthStartingGCWhenIdle() {
-    if (contexts_disposed_ > 0) {
-      return true;
-    }
-    return incremental_marking()->WorthActivating();
-  }
-
-  // Returns true if no more GC work is left.
-  bool IdleGlobalGC();
-
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
 
@@ -1890,15 +1851,6 @@ class Heap {
   int number_idle_notifications_;
   unsigned int last_idle_notification_gc_count_;
   bool last_idle_notification_gc_count_init_;
-
-  bool idle_notification_will_schedule_next_gc_;
-  int mark_sweeps_since_idle_round_started_;
-  int ms_count_at_last_idle_notification_;
-  unsigned int gc_count_at_last_idle_gc_;
-  int scavenges_since_last_idle_round_;
-
-  static const int kMaxMarkSweepsInIdleRound = 7;
-  static const int kIdleScavengeThreshold = 5;
 
   // Shared state read by the scavenge collector and set by ScavengeObject.
   PromotionQueue promotion_queue_;

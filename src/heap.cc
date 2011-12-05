@@ -144,11 +144,6 @@ Heap::Heap()
       number_idle_notifications_(0),
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
-      idle_notification_will_schedule_next_gc_(false),
-      mark_sweeps_since_idle_round_started_(0),
-      ms_count_at_last_idle_notification_(0),
-      gc_count_at_last_idle_gc_(0),
-      scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       promotion_queue_(this),
       configured_(false),
       chunks_queued_for_free_(NULL) {
@@ -1086,7 +1081,8 @@ void Heap::Scavenge() {
 
   incremental_marking()->PrepareForScavenge();
 
-  AdvanceSweepers(static_cast<int>(new_space_.Size()));
+  old_pointer_space()->AdvanceSweeper(new_space_.Size());
+  old_data_space()->AdvanceSweeper(new_space_.Size());
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -1175,8 +1171,6 @@ void Heap::Scavenge() {
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
-
-  scavenges_since_last_idle_round_++;
 }
 
 
@@ -4540,81 +4534,7 @@ void Heap::EnsureHeapIsIterable() {
 }
 
 
-bool Heap::IdleNotification(int hint) {
-  if (contexts_disposed_ > 0 || !FLAG_incremental_marking ||
-      FLAG_expose_gc || Serializer::enabled()) {
-    return hint < 1000 ? true : IdleGlobalGC();
-  }
-
-  // By doing small chunks of GC work in each IdleNotification,
-  // perform a round of incremental GCs and after that wait until
-  // the mutator creates enough garbage to justify a new round.
-  // An incremental GC progresses as follows:
-  // 1. many incremental marking steps,
-  // 2. one old space mark-sweep-compact,
-  // 3. many lazy sweep steps.
-  // Use mark-sweep-compact events to count incremental GCs in a round.
-
-  intptr_t size_factor = Min(Max(hint, 30), 1000) / 10;
-  // The size factor is in range [3..100].
-  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
-
-  if (incremental_marking()->IsStopped()) {
-    if (!IsSweepingComplete() &&
-        !AdvanceSweepers(static_cast<int>(step_size))) {
-      return false;
-    }
-  }
-
-  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
-    if (EnoughGarbageSinceLastIdleRound()) {
-      StartIdleRound();
-    } else {
-      return true;
-    }
-  }
-
-  int new_mark_sweeps = ms_count_ - ms_count_at_last_idle_notification_;
-  mark_sweeps_since_idle_round_started_ += new_mark_sweeps;
-  ms_count_at_last_idle_notification_ = ms_count_;
-
-  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
-    FinishIdleRound();
-    return true;
-  }
-
-  if (incremental_marking()->IsStopped()) {
-    if (hint < 1000 && !WorthStartingGCWhenIdle()) {
-      FinishIdleRound();
-      return true;
-    }
-    incremental_marking()->Start();
-  }
-
-  // This flag prevents incremental marking from requesting GC via stack guard
-  idle_notification_will_schedule_next_gc_ = true;
-  incremental_marking()->Step(step_size);
-  idle_notification_will_schedule_next_gc_ = false;
-
-  if (incremental_marking()->IsComplete()) {
-    bool uncommit = false;
-    if (gc_count_at_last_idle_gc_ == gc_count_) {
-      // No GC since the last full GC, the mutator is probably not active.
-      isolate_->compilation_cache()->Clear();
-      uncommit = true;
-    }
-    CollectAllGarbage(kNoGCFlags);
-    gc_count_at_last_idle_gc_ = gc_count_;
-    if (uncommit) {
-      new_space_.Shrink();
-      UncommitFromSpace();
-    }
-  }
-  return false;
-}
-
-
-bool Heap::IdleGlobalGC() {
+bool Heap::IdleNotification() {
   static const int kIdlesBeforeScavenge = 4;
   static const int kIdlesBeforeMarkSweep = 7;
   static const int kIdlesBeforeMarkCompact = 8;

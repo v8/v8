@@ -4020,12 +4020,12 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
 }
 
 
-bool v8::V8::IdleNotification(int hint) {
+bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate == NULL || !isolate->IsInitialized()) return true;
-  return i::V8::IdleNotification(hint);
+  return i::V8::IdleNotification();
 }
 
 
