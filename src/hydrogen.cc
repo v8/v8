@@ -2756,10 +2756,13 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   // 2. Build all the tests, with dangling true branches
+  int default_id = AstNode::kNoNumber;
   for (int i = 0; i < clause_count; ++i) {
     CaseClause* clause = clauses->at(i);
-    if (clause->is_default()) continue;
-
+    if (clause->is_default()) {
+      default_id = clause->EntryId();
+      continue;
+    }
     if (switch_type == SMI_SWITCH) {
       clause->RecordTypeFeedback(oracle());
     }
@@ -2806,7 +2809,10 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   HBasicBlock* last_block = current_block();
 
   if (not_string_block != NULL) {
-    last_block = CreateJoin(last_block, not_string_block, stmt->ExitId());
+    int join_id = (default_id != AstNode::kNoNumber)
+        ? default_id
+        : stmt->ExitId();
+    last_block = CreateJoin(last_block, not_string_block, join_id);
   }
 
   // 3. Loop over the clauses and the linked list of tests in lockstep,
