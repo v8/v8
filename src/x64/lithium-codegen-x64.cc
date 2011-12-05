@@ -2852,9 +2852,28 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+
+  // Note that according to ECMA-262 15.8.2.13:
+  // Math.pow(-Infinity, 0.5) == Infinity
+  // Math.sqrt(-Infinity) == NaN
+  Label done, sqrt;
+  // Check base for -Infinity.  According to IEEE-754, double-precision
+  // -Infinity has the highest 12 bits set and the lowest 52 bits cleared.
+  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE);
+  __ movq(xmm_scratch, kScratchRegister);
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(not_equal, &sqrt, Label::kNear);
+  // If input is -Infinity, return Infinity.
+  __ xorps(input_reg, input_reg);
+  __ subsd(input_reg, xmm_scratch);
+  __ jmp(&done, Label::kNear);
+
+  // Square root.
+  __ bind(&sqrt);
   __ xorps(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
+  __ bind(&done);
 }
 
 
