@@ -69,7 +69,7 @@ void StoreBuffer::Setup() {
   // Don't know the alignment requirements of the OS, but it is certainly not
   // less than 0xfff.
   ASSERT((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
-  int initial_length = OS::CommitPageSize() / kPointerSize;
+  int initial_length = static_cast<int>(OS::CommitPageSize() / kPointerSize);
   ASSERT(initial_length > 0);
   ASSERT(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;
