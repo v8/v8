@@ -2693,6 +2693,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
   }
+  MarkAsLValue(expression);
 
   Token::Value op = Next();  // Get assignment operator.
   int pos = scanner().location().beg_pos;
@@ -2926,6 +2927,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
+    MarkAsLValue(expression);
 
     int position = scanner().location().beg_pos;
     return new(zone()) CountOperation(isolate(),
@@ -2961,6 +2963,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
+    MarkAsLValue(expression);
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
@@ -4476,6 +4479,15 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     return Handle<String>();
   }
   return GetSymbol(ok);
+}
+
+
+void Parser::MarkAsLValue(Expression* expression) {
+  VariableProxy* proxy = expression != NULL
+      ? expression->AsVariableProxy()
+      : NULL;
+
+  if (proxy != NULL) proxy->MarkAsLValue();
 }
 
 
