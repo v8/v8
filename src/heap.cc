@@ -5151,29 +5151,29 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
-  v->Synchronize(VisitorSynchronization::kSymbolTable);
+  v->Synchronize("symbol_table");
   if (mode != VISIT_ALL_IN_SCAVENGE &&
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
   }
-  v->Synchronize(VisitorSynchronization::kExternalStringsTable);
+  v->Synchronize("external_string_table");
 }
 
 
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
-  v->Synchronize(VisitorSynchronization::kStrongRootList);
+  v->Synchronize("strong_root_list");
 
   v->VisitPointer(BitCast<Object**>(&hidden_symbol_));
-  v->Synchronize(VisitorSynchronization::kSymbol);
+  v->Synchronize("symbol");
 
   isolate_->bootstrapper()->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kBootstrapper);
+  v->Synchronize("bootstrapper");
   isolate_->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kTop);
+  v->Synchronize("top");
   Relocatable::Iterate(v);
-  v->Synchronize(VisitorSynchronization::kRelocatable);
+  v->Synchronize("relocatable");
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->Iterate(v);
@@ -5181,13 +5181,13 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
     isolate_->deoptimizer_data()->Iterate(v);
   }
 #endif
-  v->Synchronize(VisitorSynchronization::kDebug);
+  v->Synchronize("debug");
   isolate_->compilation_cache()->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kCompilationCache);
+  v->Synchronize("compilationcache");
 
   // Iterate over local handles in handle scopes.
   isolate_->handle_scope_implementer()->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kHandleScope);
+  v->Synchronize("handlescope");
 
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
@@ -5195,7 +5195,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   if (mode != VISIT_ALL_IN_SCAVENGE) {
     isolate_->builtins()->IterateBuiltins(v);
   }
-  v->Synchronize(VisitorSynchronization::kBuiltins);
+  v->Synchronize("builtins");
 
   // Iterate over global handles.
   switch (mode) {
@@ -5210,11 +5210,11 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
       isolate_->global_handles()->IterateAllRoots(v);
       break;
   }
-  v->Synchronize(VisitorSynchronization::kGlobalHandles);
+  v->Synchronize("globalhandles");
 
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);
-  v->Synchronize(VisitorSynchronization::kThreadManager);
+  v->Synchronize("threadmanager");
 
   // Iterate over the pointers the Serialization/Deserialization code is
   // holding.

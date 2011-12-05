@@ -299,7 +299,7 @@ class Genesis BASE_EMBEDDED {
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
   extensions_cache_.Iterate(v);
-  v->Synchronize(VisitorSynchronization::kExtensions);
+  v->Synchronize("Extensions");
 }
 
 

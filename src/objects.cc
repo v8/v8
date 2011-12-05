@@ -7639,22 +7639,6 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
-#define DECLARE_TAG(ignore1, name, ignore2) name,
-const char* const VisitorSynchronization::kTags[
-    VisitorSynchronization::kNumberOfSyncTags] = {
-  VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_TAG)
-};
-#undef DECLARE_TAG
-
-
-#define DECLARE_TAG(ignore1, ignore2, name) name,
-const char* const VisitorSynchronization::kTagNames[
-    VisitorSynchronization::kNumberOfSyncTags] = {
-  VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_TAG)
-};
-#undef DECLARE_TAG
-
-
 void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
