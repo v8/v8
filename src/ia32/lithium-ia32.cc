@@ -298,6 +298,12 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathPowHalf::PrintDataTo(StringStream* stream) {
+  stream->Add("/pow_half ");
+  InputAt(0)->PrintTo(stream);
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   InputAt(0)->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1184,6 +1190,11 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* context = UseAny(instr->context());  // Deferred use by MathAbs.
+    if (op == kMathPowHalf) {
+      LOperand* temp = TempRegister();
+      LMathPowHalf* result = new(zone()) LMathPowHalf(context, input, temp);
+      return DefineSameAsFirst(result);
+    }
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
     switch (op) {
@@ -1194,8 +1205,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathSqrt:
-        return DefineSameAsFirst(result);
-      case kMathPowHalf:
         return DefineSameAsFirst(result);
       default:
         UNREACHABLE();

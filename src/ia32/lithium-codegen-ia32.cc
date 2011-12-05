@@ -2934,31 +2934,33 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 }
 
 
-void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
+void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->value());
+  Register scratch = ToRegister(instr->temp());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
 
-  Label return_infinity, done;
-  // Check base for +/- infinity.
-  __ push(ecx);  // TODO(1848): reserve this register.
-  __ mov(ecx, factory()->infinity_value());
-  __ ucomisd(input_reg, FieldOperand(ecx, HeapNumber::kValueOffset));
-  __ j(equal, &return_infinity, Label::kNear);
-  __ xorps(xmm_scratch, xmm_scratch);
-  __ subsd(xmm_scratch, input_reg);
-  __ ucomisd(xmm_scratch, FieldOperand(ecx, HeapNumber::kValueOffset));
-  __ j(equal, &return_infinity, Label::kNear);
+  // Note that according to ECMA-262 15.8.2.13:
+  // Math.pow(-Infinity, 0.5) == Infinity
+  // Math.sqrt(-Infinity) == NaN
+  Label done, sqrt;
+  // Check base for -Infinity.  According to IEEE-754, single-precision
+  // -Infinity has the highest 9 bits set and the lowest 23 bits cleared.
+  __ mov(scratch, 0xFF800000);
+  __ movd(xmm_scratch, scratch);
+  __ cvtss2sd(xmm_scratch, xmm_scratch);
+  __ ucomisd(input_reg, xmm_scratch);
+  __ j(not_equal, &sqrt, Label::kNear);
+  // If input is -Infinity, return Infinity.
+  __ xorps(input_reg, input_reg);
+  __ subsd(input_reg, xmm_scratch);
+  __ jmp(&done, Label::kNear);
 
-  __ pop(ecx);
+  // Square root.
+  __ bind(&sqrt);
   __ xorps(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&return_infinity);
-  __ movdbl(input_reg, FieldOperand(ecx, HeapNumber::kValueOffset));
-  __ pop(ecx);
   __ bind(&done);
 }
 
@@ -3061,9 +3063,6 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSqrt:
       DoMathSqrt(instr);
-      break;
-    case kMathPowHalf:
-      DoMathPowHalf(instr);
       break;
     case kMathCos:
       DoMathCos(instr);
