@@ -1065,3 +1065,82 @@ TEST(FastCaseGetter) {
       GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set-propWithSetter");
   CHECK_NE(NULL, setterFunction);
 }
+
+
+bool HasWeakEdge(const v8::HeapGraphNode* node) {
+  for (int i = 0; i < node->GetChildrenCount(); ++i) {
+    const v8::HeapGraphEdge* handle_edge = node->GetChild(i);
+    if (handle_edge->GetType() == v8::HeapGraphEdge::kWeak) return true;
+  }
+  return false;
+}
+
+
+bool HasWeakGlobalHandle() {
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("weaks"));
+  const v8::HeapGraphNode* gc_roots = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+  CHECK_NE(NULL, gc_roots);
+  const v8::HeapGraphNode* global_handles = GetNode(
+      gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
+  CHECK_NE(NULL, global_handles);
+  return HasWeakEdge(global_handles);
+}
+
+
+static void PersistentHandleCallback(v8::Persistent<v8::Value> handle, void*) {
+  handle.Dispose();
+}
+
+
+TEST(WeakGlobalHandle) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CHECK(!HasWeakGlobalHandle());
+
+  v8::Persistent<v8::Object> handle =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  handle.MakeWeak(NULL, PersistentHandleCallback);
+
+  CHECK(HasWeakGlobalHandle());
+}
+
+
+TEST(WeakGlobalContextRefs) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("weaks"));
+  const v8::HeapGraphNode* gc_roots = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+  CHECK_NE(NULL, gc_roots);
+  const v8::HeapGraphNode* global_handles = GetNode(
+      gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
+  CHECK_NE(NULL, global_handles);
+  const v8::HeapGraphNode* global_context = GetNode(
+      global_handles, v8::HeapGraphNode::kHidden, "system / GlobalContext");
+  CHECK_NE(NULL, global_context);
+  CHECK(HasWeakEdge(global_context));
+}
+
+
+TEST(SfiAndJsFunctionWeakRefs) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "fun = (function (x) { return function () { return x + 1; } })(1);");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("fun"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* fun =
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "fun");
+  CHECK(HasWeakEdge(fun));
+  const v8::HeapGraphNode* shared =
+      GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
+  CHECK(HasWeakEdge(shared));
+}
