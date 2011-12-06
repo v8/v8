@@ -140,7 +140,7 @@ function test() {
   assertEquals(NaN, Math.pow(-16, 0.5));
   assertEquals(0.25, Math.pow(16, -0.5));
   assertEquals(NaN, Math.pow(-16, -0.5));
-  
+
   // Tests from Mozilla 15.8.2.13.
   assertEquals(2, Math.pow.length);
   assertEquals(NaN, Math.pow());
