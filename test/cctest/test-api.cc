@@ -13454,16 +13454,12 @@ THREADED_TEST(IdleNotification) {
              "};"
              "binom(1000, 500)");
   bool rv = false;
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool no_idle_work = v8::V8::IdleNotification();
   for (int i = 0; i < 100; i++) {
     rv = v8::V8::IdleNotification();
     if (rv)
       break;
   }
   CHECK(rv == true);
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(no_idle_work || new_size < 3 * old_size / 4);
 }
 
 // Test that idle notification can be handled and eventually returns true.
