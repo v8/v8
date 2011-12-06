@@ -546,13 +546,6 @@ void Assembler::push(const Operand& src) {
 }
 
 
-void Assembler::push(Handle<Object> handle) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x68);
-  emit(handle);
-}
-
-
 void Assembler::pop(Register dst) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   EnsureSpace ensure_space(this);

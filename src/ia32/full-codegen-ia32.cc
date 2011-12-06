@@ -3787,7 +3787,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (context()->IsAccumulatorValue()) {
           __ mov(eax, isolate()->factory()->true_value());
         } else {
-          __ push(isolate()->factory()->true_value());
+          __ Push(isolate()->factory()->true_value());
         }
         __ jmp(&done, Label::kNear);
         __ bind(&materialize_false);
@@ -3795,7 +3795,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (context()->IsAccumulatorValue()) {
           __ mov(eax, isolate()->factory()->false_value());
         } else {
-          __ push(isolate()->factory()->false_value());
+          __ Push(isolate()->factory()->false_value());
         }
         __ bind(&done);
       }

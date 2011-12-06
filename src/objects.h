@@ -2187,6 +2187,13 @@ class FixedArray: public FixedArrayBase {
                                        int index,
                                        Object* value);
 
+  // Set operation on FixedArray without incremental write barrier. Can
+  // only be used if the object is guaranteed to be white (whiteness witness
+  // is present).
+  static inline void NoIncrementalWriteBarrierSet(FixedArray* array,
+                                                  int index,
+                                                  Object* value);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
@@ -2465,12 +2472,12 @@ class DescriptorArray: public FixedArray {
         NULL_DESCRIPTOR;
   }
   // Swap operation on FixedArray without using write barriers.
-  static inline void NoWriteBarrierSwap(FixedArray* array,
-                                        int first,
-                                        int second);
+  static inline void NoIncrementalWriteBarrierSwap(
+      FixedArray* array, int first, int second);
 
   // Swap descriptor first and second.
-  inline void NoWriteBarrierSwapDescriptors(int first, int second);
+  inline void NoIncrementalWriteBarrierSwapDescriptors(
+      int first, int second);
 
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));

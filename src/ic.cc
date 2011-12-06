@@ -912,7 +912,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
             name, receiver, holder, lookup->GetFieldIndex());
         break;
       case CONSTANT_FUNCTION: {
-        Handle<Object> constant(lookup->GetConstantFunction());
+        Handle<JSFunction> constant(lookup->GetConstantFunction());
         code = isolate()->stub_cache()->ComputeLoadConstant(
             name, receiver, holder, constant);
         break;
@@ -1163,7 +1163,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
             name, receiver, holder, lookup->GetFieldIndex());
         break;
       case CONSTANT_FUNCTION: {
-        Handle<Object> constant(lookup->GetConstantFunction());
+        Handle<JSFunction> constant(lookup->GetConstantFunction());
         code = isolate()->stub_cache()->ComputeKeyedLoadConstant(
             name, receiver, holder, constant);
         break;

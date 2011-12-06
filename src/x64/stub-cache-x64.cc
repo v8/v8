@@ -421,7 +421,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
-  __ Move(rdi, function);
+  __ LoadHeapObject(rdi, function);
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // Pass the additional arguments.
@@ -1015,7 +1015,7 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
-                                        Handle<Object> value,
+                                        Handle<JSFunction> value,
                                         Handle<String> name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1026,7 +1026,7 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
       object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
-  __ Move(rax, value);
+  __ LoadHeapObject(rax, value);
   __ ret(0);
 }
 
@@ -2578,7 +2578,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
                                                    Handle<JSObject> holder,
-                                                   Handle<Object> value,
+                                                   Handle<JSFunction> value,
                                                    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
@@ -2732,7 +2732,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
     Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
-    Handle<Object> value) {
+    Handle<JSFunction> value) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver

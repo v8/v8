@@ -1703,6 +1703,20 @@ void FixedArray::set(int index,
 }
 
 
+void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
+                                              int index,
+                                              Object* value) {
+  ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
+  ASSERT(index >= 0 && index < array->length());
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(array, offset, value);
+  Heap* heap = array->GetHeap();
+  if (heap->InNewSpace(value)) {
+    heap->RecordWrite(array->address(), offset);
+  }
+}
+
+
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
@@ -1797,12 +1811,12 @@ void DescriptorArray::set_bit_field3_storage(int value) {
 }
 
 
-void DescriptorArray::NoWriteBarrierSwap(FixedArray* array,
-                                         int first,
-                                         int second) {
+void DescriptorArray::NoIncrementalWriteBarrierSwap(FixedArray* array,
+                                                    int first,
+                                                    int second) {
   Object* tmp = array->get(first);
-  NoWriteBarrierSet(array, first, array->get(second));
-  NoWriteBarrierSet(array, second, tmp);
+  NoIncrementalWriteBarrierSet(array, first, array->get(second));
+  NoIncrementalWriteBarrierSet(array, second, tmp);
 }
 
 
@@ -1914,20 +1928,16 @@ void DescriptorArray::Set(int descriptor_number,
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  // Make sure none of the elements in desc are in new space.
-  ASSERT(!HEAP->InNewSpace(desc->GetKey()));
-  ASSERT(!HEAP->InNewSpace(desc->GetValue()));
-
-  NoWriteBarrierSet(this,
-                    ToKeyIndex(descriptor_number),
-                    desc->GetKey());
+  NoIncrementalWriteBarrierSet(this,
+                               ToKeyIndex(descriptor_number),
+                               desc->GetKey());
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSet(content_array,
-                    ToValueIndex(descriptor_number),
-                    desc->GetValue());
-  NoWriteBarrierSet(content_array,
-                    ToDetailsIndex(descriptor_number),
-                    desc->GetDetails().AsSmi());
+  NoIncrementalWriteBarrierSet(content_array,
+                               ToValueIndex(descriptor_number),
+                               desc->GetValue());
+  NoIncrementalWriteBarrierSet(content_array,
+                               ToDetailsIndex(descriptor_number),
+                               desc->GetDetails().AsSmi());
 }
 
 
@@ -1941,15 +1951,16 @@ void DescriptorArray::CopyFrom(int index,
 }
 
 
-void DescriptorArray::NoWriteBarrierSwapDescriptors(int first, int second) {
-  NoWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
+void DescriptorArray::NoIncrementalWriteBarrierSwapDescriptors(
+    int first, int second) {
+  NoIncrementalWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSwap(content_array,
-                     ToValueIndex(first),
-                     ToValueIndex(second));
-  NoWriteBarrierSwap(content_array,
-                     ToDetailsIndex(first),
-                     ToDetailsIndex(second));
+  NoIncrementalWriteBarrierSwap(content_array,
+                                ToValueIndex(first),
+                                ToValueIndex(second));
+  NoIncrementalWriteBarrierSwap(content_array,
+                                ToDetailsIndex(first),
+                                ToDetailsIndex(second));
 }
 
 

@@ -198,7 +198,6 @@ class LCodeGen BASE_EMBEDDED {
                          LInstruction* instr,
                          CallKind call_kind);
 
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode,
