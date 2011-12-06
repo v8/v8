@@ -7869,6 +7869,34 @@ class BreakPointInfo: public Struct {
 #undef DECL_BOOLEAN_ACCESSORS
 #undef DECL_ACCESSORS
 
+#define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                            \
+  V(kSymbolTable, "symbol_table", "(Symbols)")                          \
+  V(kExternalStringsTable, "external_strings_table", "(External strings)") \
+  V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
+  V(kSymbol, "symbol", "(Symbol)")                                      \
+  V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
+  V(kTop, "top", "(Isolate)")                                           \
+  V(kRelocatable, "relocatable", "(Relocatable)")                       \
+  V(kDebug, "debug", "(Debugger)")                                      \
+  V(kCompilationCache, "compilationcache", "(Compilation cache)")       \
+  V(kHandleScope, "handlescope", "(Handle scope)")                      \
+  V(kBuiltins, "builtins", "(Builtins)")                                \
+  V(kGlobalHandles, "globalhandles", "(Global handles)")                \
+  V(kThreadManager, "threadmanager", "(Thread manager)")                \
+  V(kExtensions, "Extensions", "(Extensions)")
+
+class VisitorSynchronization : public AllStatic {
+ public:
+#define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
+  enum SyncTag {
+    VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_ENUM)
+    kNumberOfSyncTags
+  };
+#undef DECLARE_ENUM
+
+  static const char* const kTags[kNumberOfSyncTags];
+  static const char* const kTagNames[kNumberOfSyncTags];
+};
 
 // Abstract base class for visiting, and optionally modifying, the
 // pointers contained in Objects. Used in GC and serialization/deserialization.
@@ -7924,13 +7952,10 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits a handle that has an embedder-assigned class ID.
   virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}
 
-#ifdef DEBUG
   // Intended for serialization/deserialization checking: insert, or
   // check for the presence of, a tag at this position in the stream.
-  virtual void Synchronize(const char* tag) {}
-#else
-  inline void Synchronize(const char* tag) {}
-#endif
+  // Also used for marking up GC roots in heap snapshots.
+  virtual void Synchronize(VisitorSynchronization::SyncTag tag) {}
 };
 
 
