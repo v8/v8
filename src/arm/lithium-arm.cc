@@ -1153,7 +1153,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), d2);
     LUnaryMathOperation* result = new LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, d2), instr);
-  } if (op == kMathPowHalf) {
+  } else if (op == kMathPowHalf) {
     LOperand* input = UseFixedDouble(instr->value(), d2);
     LOperand* temp = FixedTemp(d3);
     LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
