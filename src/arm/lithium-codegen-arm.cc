@@ -3097,13 +3097,15 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   DoubleRegister result = ToDoubleRegister(instr->result());
+  DoubleRegister temp = ToDoubleRegister(instr->TempAt(0));
 
   // Note that according to ECMA-262 15.8.2.13:
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ VFPCompareAndSetFlags(input, -V8_INFINITY);
-  __ vneg(result, input, eq);
+  __ vmov(temp, -V8_INFINITY);
+  __ VFPCompareAndSetFlags(input, temp);
+  __ vneg(result, temp, eq);
   __ b(&done, eq);
 
   // Add +0 to convert -0 to +0.
