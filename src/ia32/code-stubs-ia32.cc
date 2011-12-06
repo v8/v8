@@ -3025,38 +3025,43 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ ucomisd(xmm2, xmm4);
     __ j(equal, &int_exponent);
 
-    // Detect square root case.
-    // Test for -0.5.
-    // Load xmm4 with -0.5.
-    __ mov(ecx, Immediate(0xBF000000u));
-    __ movd(xmm4, ecx);
-    __ cvtss2sd(xmm4, xmm4);
-    // xmm3 now has -0.5.
-    __ ucomisd(xmm4, xmm2);
-    __ j(not_equal, &not_minus_half, Label::kNear);
+    if (exponent_type_ == ON_STACK) {
+      // Detect square root case.  Crankshaft detects constant +/-0.5 at
+      // compile time and uses DoMathPowHalf instead.  We then skip this check
+      // for non-constant cases of +/-0.5 as these hardly occur.
 
-    // Calculates reciprocal of square root.eax
-    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-    __ xorps(xmm2, xmm2);
-    __ addsd(xmm2, xmm1);
-    __ sqrtsd(xmm2, xmm2);
-    __ divsd(xmm3, xmm2);
-    __ jmp(&done);
+      // Test for -0.5.
+      // Load xmm4 with -0.5.
+      __ mov(ecx, Immediate(0xBF000000u));
+      __ movd(xmm4, ecx);
+      __ cvtss2sd(xmm4, xmm4);
+      // xmm3 now has -0.5.
+      __ ucomisd(xmm4, xmm2);
+      __ j(not_equal, &not_minus_half, Label::kNear);
 
-    // Test for 0.5.
-    __ bind(&not_minus_half);
-    // Load xmm2 with 0.5.
-    // Since xmm3 is 1 and xmm4 is -0.5 this is simply xmm4 + xmm3.
-    __ addsd(xmm4, xmm3);
-    // xmm2 now has 0.5.
-    __ ucomisd(xmm4, xmm2);
-    __ j(not_equal, &fast_power, Label::kNear);
-    // Calculates square root.
-    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-    __ xorps(xmm4, xmm4);
-    __ addsd(xmm4, xmm1);
-    __ sqrtsd(xmm3, xmm4);
-    __ jmp(&done);
+      // Calculates reciprocal of square root.eax
+      // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+      __ xorps(xmm2, xmm2);
+      __ addsd(xmm2, xmm1);
+      __ sqrtsd(xmm2, xmm2);
+      __ divsd(xmm3, xmm2);
+      __ jmp(&done);
+
+      // Test for 0.5.
+      __ bind(&not_minus_half);
+      // Load xmm2 with 0.5.
+      // Since xmm3 is 1 and xmm4 is -0.5 this is simply xmm4 + xmm3.
+      __ addsd(xmm4, xmm3);
+      // xmm2 now has 0.5.
+      __ ucomisd(xmm4, xmm2);
+      __ j(not_equal, &fast_power, Label::kNear);
+      // Calculates square root.
+      // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+      __ xorps(xmm4, xmm4);
+      __ addsd(xmm4, xmm1);
+      __ sqrtsd(xmm3, xmm4);
+      __ jmp(&done);
+    }
 
     // Using FPU instructions to calculate power.
     Label fast_power_failed;
