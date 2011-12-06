@@ -135,6 +135,11 @@ function test() {
   assertEquals(+Infinity, Math.pow(-0, -0.6));
   assertEquals(-Infinity, Math.pow(-0, -1));
   assertEquals(-Infinity, Math.pow(-0, -10000000001));
+  
+  assertEquals(4, Math.pow(16, 0.5));
+  assertEquals(NaN, Math.pow(-16, 0.5));
+  assertEquals(0.25, Math.pow(16, -0.5));
+  assertEquals(NaN, Math.pow(-16, -0.5));
 
   // Tests from Sputnik S8.5_A13_T1.
   assertTrue(
