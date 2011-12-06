@@ -7414,6 +7414,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   }
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
+  // Returning a smi would not confuse crankshaft as this part of code is only
+  // run if SSE2 was not available, in which case crankshaft is disabled.
+  if (y == 0) return Smi::FromInt(1);  // Returns 1 if exponent is 0.
   return isolate->heap()->AllocateHeapNumber(power_double_double(x, y));
 }
 
