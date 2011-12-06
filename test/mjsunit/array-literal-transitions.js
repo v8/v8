@@ -33,7 +33,13 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array());
+support_smi_only_arrays = %HasFastSmiOnlyElements([1,2,3,4,5,6,7,8,9,10]);
+
+if (support_smi_only_arrays) {
+  print("Tests include smi-only arrays.");
+} else {
+  print("Tests do NOT include smi-only arrays.");
+}
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
