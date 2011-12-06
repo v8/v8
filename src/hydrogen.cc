@@ -3336,13 +3336,13 @@ static bool IsFastObjectLiteral(Handle<JSObject> boilerplate,
                                 int* total_size) {
   if (max_depth <= 0) return false;
 
-  FixedArrayBase* elements = boilerplate->elements();
+  Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
       elements->map() != HEAP->fixed_cow_array_map()) {
     return false;
   }
 
-  FixedArray* properties = boilerplate->properties();
+  Handle<FixedArray> properties(boilerplate->properties());
   if (properties->length() > 0) {
     return false;
   } else {
@@ -3468,7 +3468,7 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   int length = subexprs->length();
   HValue* context = environment()->LookupContext();
 
-  FixedArray* literals = environment()->closure()->literals();
+  Handle<FixedArray> literals(environment()->closure()->literals());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
 
   // For now, no boilerplate causes a deopt.
