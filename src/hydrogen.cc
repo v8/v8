@@ -3228,11 +3228,11 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   Variable* variable = expr->var();
-  if (variable->mode() == LET) {
-    return Bailout("reference to let variable");
-  }
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
+      if (variable->mode() == LET || variable->mode() == CONST_HARMONY) {
+        return Bailout("reference to global harmony declared variable");
+      }
       // Handle known global constants like 'undefined' specially to avoid a
       // load from a global cell for them.
       Handle<Object> constant_value =
@@ -3275,14 +3275,19 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     case Variable::PARAMETER:
     case Variable::LOCAL: {
       HValue* value = environment()->Lookup(variable);
-      if (variable->mode() == CONST &&
-          value == graph()->GetConstantHole()) {
-        return Bailout("reference to uninitialized const variable");
+      if (value == graph()->GetConstantHole()) {
+        ASSERT(variable->mode() == CONST ||
+               variable->mode() == CONST_HARMONY ||
+               variable->mode() == LET);
+        return Bailout("reference to uninitialized variable");
       }
       return ast_context()->ReturnValue(value);
     }
 
     case Variable::CONTEXT: {
+      if (variable->mode() == LET || variable->mode() == CONST_HARMONY) {
+        return Bailout("reference to harmony declared context slot");
+      }
       if (variable->mode() == CONST) {
         return Bailout("reference to const context slot");
       }
@@ -3963,7 +3968,16 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       HValue* old_value = environment()->Lookup(var);
       AddInstruction(new HUseConst(old_value));
     } else if (var->mode() == LET) {
-      return Bailout("unsupported assignment to let");
+      if (!var->IsStackAllocated()) {
+        return Bailout("assignment to let context slot");
+      }
+    } else if (var->mode() == CONST_HARMONY) {
+      if (expr->op() != Token::INIT_CONST_HARMONY) {
+        return Bailout("non-initializer assignment to const");
+      }
+      if (!var->IsStackAllocated()) {
+        return Bailout("assignment to const context slot");
+      }
     }
 
     if (proxy->IsArguments()) return Bailout("assignment to arguments");
@@ -3980,6 +3994,14 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
 
       case Variable::PARAMETER:
       case Variable::LOCAL: {
+        // Perform an initialization check for let declared variables
+        // or parameters.
+        if (var->mode() == LET && expr->op() == Token::ASSIGN) {
+          HValue* env_value = environment()->Lookup(var);
+          if (env_value == graph()->GetConstantHole()) {
+            return Bailout("assignment to let variable before initialization");
+          }
+        }
         // We do not allow the arguments object to occur in a context where it
         // may escape, but assignments to stack-allocated locals are
         // permitted.
@@ -6191,23 +6213,22 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
 void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
                                       VariableMode mode,
                                       FunctionLiteral* function) {
-  if (mode == LET || mode == CONST_HARMONY) {
-    return Bailout("unsupported harmony declaration");
-  }
   Variable* var = proxy->var();
+  bool binding_needs_init =
+      (mode == CONST || mode == CONST_HARMONY || mode == LET);
   switch (var->location()) {
     case Variable::UNALLOCATED:
       return Bailout("unsupported global declaration");
     case Variable::PARAMETER:
     case Variable::LOCAL:
     case Variable::CONTEXT:
-      if (mode == CONST || function != NULL) {
+      if (binding_needs_init || function != NULL) {
         HValue* value = NULL;
-        if (mode == CONST) {
-          value = graph()->GetConstantHole();
-        } else {
+        if (function != NULL) {
           VisitForValue(function);
           value = Pop();
+        } else {
+          value = graph()->GetConstantHole();
         }
         if (var->IsContextSlot()) {
           HValue* context = environment()->LookupContext();
