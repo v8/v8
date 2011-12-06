@@ -454,7 +454,10 @@ TEST(EmptyObjectGroups) {
 }
 
 
-#ifdef __linux__
+// Here is a memory use test that uses /proc, and is therefore Linux-only.  We
+// do not care how much memory the simulator uses, since it is only there for
+// debugging purposes.
+#if defined(__linux__) && !defined(USE_SIMULATOR)
 
 
 static uintptr_t ReadLong(char* buffer, intptr_t* position, int base) {
@@ -532,4 +535,4 @@ TEST(BootUpMemoryUse) {
   }
 }
 
-#endif  // __linux__
+#endif  // __linux__ and !USE_SIMULATOR
