@@ -108,9 +108,10 @@ HeapObject* V8HeapExplorer::GetNthGcSubrootObject(int delta) {
 
 
 int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
-  return (reinterpret_cast<char*>(subroot) -
-          reinterpret_cast<char*>(kFirstGcSubrootObject)) /
-      HeapObjectsMap::kObjectIdStep;
+  return static_cast<int>(
+      (reinterpret_cast<char*>(subroot) -
+       reinterpret_cast<char*>(kFirstGcSubrootObject)) /
+      HeapObjectsMap::kObjectIdStep);
 }
 
 
