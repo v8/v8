@@ -5392,7 +5392,9 @@ MaybeObject* FixedArray::CopySize(int new_length) {
   AssertNoAllocation no_gc;
   int len = length();
   if (new_length < len) len = new_length;
-  result->set_map(map());
+  // We are taking the map from the old fixed array so the map is sure to
+  // be an immortal immutable object.
+  result->set_map_unsafe(map());
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
@@ -8112,9 +8114,20 @@ void Code::Disassemble(const char* name, FILE* out) {
 static void CopyFastElementsToFast(FixedArray* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
-  uint32_t count = static_cast<uint32_t>(source->length());
-  for (uint32_t i = 0; i < count; ++i) {
-    destination->set(i, source->get(i), mode);
+  int count = source->length();
+  if (mode == SKIP_WRITE_BARRIER ||
+      !Page::FromAddress(destination->address())->IsFlagSet(
+          MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
+    ASSERT(count <= destination->length());
+    Address to = destination->address() + FixedArray::kHeaderSize;
+    Address from = source->address() + FixedArray::kHeaderSize;
+    memcpy(reinterpret_cast<void*>(to),
+           reinterpret_cast<void*>(from),
+           kPointerSize * count);
+  } else {
+    for (int i = 0; i < count; ++i) {
+      destination->set(i, source->get(i), mode);
+    }
   }
 }
 
