@@ -2861,7 +2861,10 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
+  // Comparing -Infinity with NaN results in "unordered", which sets the
+  // zero flag as if both were equal.  However, it also sets the carry flag.
   __ j(not_equal, &sqrt, Label::kNear);
+  __ j(carry, &sqrt, Label::kNear);
   // If input is -Infinity, return Infinity.
   __ xorps(input_reg, input_reg);
   __ subsd(input_reg, xmm_scratch);

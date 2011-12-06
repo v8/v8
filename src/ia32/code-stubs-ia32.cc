@@ -2997,7 +2997,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cmp(eax, Immediate(0x80000000u));
     __ j(equal, &generic_runtime);
     __ cvtsi2sd(xmm4, eax);
-    __ ucomisd(xmm2, xmm4);
+    __ ucomisd(xmm2, xmm4);  // Already ruled out NaNs for exponent.
     __ j(equal, &int_exponent);
 
     if (exponent_type_ == ON_STACK) {
@@ -3011,7 +3011,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ movd(xmm4, ecx);
       __ cvtss2sd(xmm4, xmm4);
       // xmm4 now has 0.5.
-      __ ucomisd(xmm4, xmm2);
+      __ ucomisd(xmm4, xmm2);  // Already ruled out NaNs for exponent.
       __ j(not_equal, &not_plus_half, Label::kNear);
 
       // Calculates square root of base.  Check for the special case of
@@ -3022,7 +3022,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ movd(xmm4, ecx);
       __ cvtss2sd(xmm4, xmm4);
       __ ucomisd(xmm1, xmm4);
+      // Comparing -Infinity with NaN results in "unordered", which sets the
+      // zero flag as if both were equal.  However, it also sets the carry flag.
       __ j(not_equal, &continue_sqrt, Label::kNear);
+      __ j(carry, &continue_sqrt, Label::kNear);
 
       // Set result to Infinity in the special case.
       __ xorps(xmm3, xmm3);
@@ -3042,7 +3045,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Since xmm3 is 1 and xmm4 is 0.5 this is simply xmm4 - xmm3.
       __ subsd(xmm4, xmm3);
       // xmm4 now has -0.5.
-      __ ucomisd(xmm4, xmm2);
+      __ ucomisd(xmm4, xmm2);  // Already ruled out NaNs for exponent.
       __ j(not_equal, &fast_power, Label::kNear);
 
       // Calculates reciprocal of square root of base.  Check for the special
@@ -3053,7 +3056,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ movd(xmm4, ecx);
       __ cvtss2sd(xmm4, xmm4);
       __ ucomisd(xmm1, xmm4);
+      // Comparing -Infinity with NaN results in "unordered", which sets the
+      // zero flag as if both were equal.  However, it also sets the carry flag.
       __ j(not_equal, &continue_rsqrt, Label::kNear);
+      __ j(carry, &continue_rsqrt, Label::kNear);
 
       // Set result to 0 in the special case.
       __ xorps(xmm3, xmm3);
@@ -3143,7 +3149,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
   __ xorps(xmm2, xmm2);
-  __ ucomisd(xmm2, xmm3);
+  __ ucomisd(xmm2, xmm3);  // Result cannot be NaN.
   __ j(equal, &double_int_runtime);
 
   // Returning or bailing out.
