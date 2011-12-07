@@ -2307,6 +2307,27 @@ void Assembler::fyl2x() {
 }
 
 
+void Assembler::f2xm1() {
+  EnsureSpace ensure_space(this);
+  emit(0xD9);
+  emit(0xF0);
+}
+
+
+void Assembler::fscale() {
+  EnsureSpace ensure_space(this);
+  emit(0xD9);
+  emit(0xFD);
+}
+
+
+void Assembler::fninit() {
+  EnsureSpace ensure_space(this);
+  emit(0xDB);
+  emit(0xE3);
+}
+
+
 void Assembler::fadd(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xC0, i);

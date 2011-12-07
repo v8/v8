@@ -911,15 +911,19 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
           switch (modrm_byte) {
             case 0xE0: mnem = "fchs"; break;
             case 0xE1: mnem = "fabs"; break;
+            case 0xE3: mnem = "fninit"; break;
             case 0xE4: mnem = "ftst"; break;
             case 0xE8: mnem = "fld1"; break;
             case 0xEB: mnem = "fldpi"; break;
             case 0xED: mnem = "fldln2"; break;
             case 0xEE: mnem = "fldz"; break;
+            case 0xF0: mnem = "f2xm1"; break;
             case 0xF1: mnem = "fyl2x"; break;
+            case 0xF2: mnem = "fptan"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
+            case 0xFD: mnem = "fscale"; break;
             case 0xFE: mnem = "fsin"; break;
             case 0xFF: mnem = "fcos"; break;
             default: UnimplementedInstruction();

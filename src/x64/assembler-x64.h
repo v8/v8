@@ -1277,6 +1277,9 @@ class Assembler : public AssemblerBase {
   void fcos();
   void fptan();
   void fyl2x();
+  void f2xm1();
+  void fscale();
+  void fninit();
 
   void frndint();
 

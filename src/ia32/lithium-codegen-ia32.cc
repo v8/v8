@@ -2991,12 +2991,12 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
 void LCodeGen::DoPower(LPower* instr) {
   Representation exponent_type = instr->hydrogen()->right()->representation();
   // Having marked this as a call, we can use any registers.
-  // Just make sure that the input registers are the expected ones.
+  // Just make sure that the input/output registers are the expected ones.
   ASSERT(!instr->InputAt(1)->IsDoubleRegister() ||
-         ToDoubleRegister(instr->InputAt(1)).is(xmm2));
+         ToDoubleRegister(instr->InputAt(1)).is(xmm1));
   ASSERT(!instr->InputAt(1)->IsRegister() ||
          ToRegister(instr->InputAt(1)).is(eax));
-  ASSERT(ToDoubleRegister(instr->InputAt(0)).is(xmm1));
+  ASSERT(ToDoubleRegister(instr->InputAt(0)).is(xmm2));
   ASSERT(ToDoubleRegister(instr->result()).is(xmm3));
 
   if (exponent_type.IsTagged()) {

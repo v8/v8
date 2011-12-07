@@ -1446,9 +1446,9 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   // We need to use fixed result register for the call.
   Representation exponent_type = instr->right()->representation();
   ASSERT(instr->left()->representation().IsDouble());
-  LOperand* left = UseFixedDouble(instr->left(), xmm1);
+  LOperand* left = UseFixedDouble(instr->left(), xmm2);
   LOperand* right = exponent_type.IsDouble() ?
-      UseFixedDouble(instr->right(), xmm2) :
+      UseFixedDouble(instr->right(), xmm1) :
       UseFixed(instr->right(), eax);
   LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
