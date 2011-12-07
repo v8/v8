@@ -4126,15 +4126,32 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
 
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Handle<FixedArray> constant_elements = instr->hydrogen()->constant_elements();
-  ASSERT_EQ(2, constant_elements->length());
-  ElementsKind constant_elements_kind =
-      static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+  Heap* heap = isolate()->heap();
+  ElementsKind boilerplate_elements_kind =
+      instr->hydrogen()->boilerplate_elements_kind();
 
+  // Deopt if the array literal boilerplate ElementsKind is of a type different
+  // than the expected one. The check isn't necessary if the boilerplate has
+  // already been converted to FAST_ELEMENTS.
+  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+    LoadHeapObject(a1, instr->hydrogen()->boilerplate_object());
+    // Load map into a2.
+    __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
+    // Load the map's "bit field 2".
+    __ lbu(a2, FieldMemOperand(a2, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ Ext(a2, a2, Map::kElementsKindShift, Map::kElementsKindBitCount);
+    DeoptimizeIf(ne,
+                 instr->environment(),
+                 a2,
+                 Operand(boilerplate_elements_kind));
+  }
   __ lw(a3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
   __ li(a2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(a1, Operand(constant_elements));
+  // Boilerplate already exists, constant elements are never accessed.
+  // Pass an empty fixed array.
+  __ li(a1, Operand(Handle<FixedArray>(heap->empty_fixed_array())));
   __ Push(a3, a2, a1);
 
   // Pick the right runtime function or stub to call.
@@ -4151,9 +4168,9 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     CallRuntime(Runtime::kCreateArrayLiteralShallow, 3, instr);
   } else {
     FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
+        boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
+            ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
+            : FastCloneShallowArrayStub::CLONE_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, length);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
