@@ -2081,6 +2081,24 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   PrepareForCodeFlushing();
 
+  if (was_marked_incrementally_) {
+    // There is no write barrier on cells so we have to scan them now at the end
+    // of the incremental marking.
+    {
+      HeapObjectIterator cell_iterator(heap()->cell_space());
+      HeapObject* cell;
+      while ((cell = cell_iterator.Next()) != NULL) {
+        ASSERT(cell->IsJSGlobalPropertyCell());
+        if (IsMarked(cell)) {
+          int offset = JSGlobalPropertyCell::kValueOffset;
+          StaticMarkingVisitor::VisitPointer(
+              heap(),
+              reinterpret_cast<Object**>(cell->address() + offset));
+        }
+      }
+    }
+  }
+
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
 

@@ -4657,7 +4657,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // megamorphic.
     __ cmp(ecx, Immediate(UninitializedSentinel(isolate)));
     __ j(equal, &initialize, Label::kNear);
-    // MegamorphicSentinel is a root so no write-barrier is needed.
+    // MegamorphicSentinel is an immortal immovable object (undefined) so no
+    // write-barrier is needed.
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
            Immediate(MegamorphicSentinel(isolate)));
     __ jmp(&call, Label::kNear);
@@ -4665,14 +4666,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // An uninitialized cache is patched with the function.
     __ bind(&initialize);
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
-    __ mov(ecx, edi);
-    __ RecordWriteField(ebx,
-                        JSGlobalPropertyCell::kValueOffset,
-                        ecx,
-                        edx,
-                        kDontSaveFPRegs,
-                        OMIT_REMEMBERED_SET,  // Cells are rescanned.
-                        OMIT_SMI_CHECK);
+    // No need for a write barrier here - cells are rescanned.
 
     __ bind(&call);
   }
@@ -4704,6 +4698,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // non-function case.
     __ mov(ebx, Operand(esp, 0));
     __ mov(ebx, Operand(ebx, 1));
+    // MegamorphicSentinel is an immortal immovable object (undefined) so no
+    // write barrier is needed.
     __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
            Immediate(MegamorphicSentinel(isolate)));
   }

@@ -2144,20 +2144,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ mov(FieldOperand(object, offset), value);
-
-  // Cells are always in the remembered set.
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
-    HType type = instr->hydrogen()->value()->type();
-    SmiCheck check_needed =
-        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-    __ RecordWriteField(object,
-                        offset,
-                        value,
-                        address,
-                        kSaveFPRegs,
-                        OMIT_REMEMBERED_SET,
-                        check_needed);
-  }
+  // Cells are always rescanned, so no write barrier here.
 }
 
 

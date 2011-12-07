@@ -2522,23 +2522,9 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 
   // Store the value in the cell.
   __ mov(cell_operand, eax);
-  Label done;
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &done);
-
-  __ mov(ecx, eax);
-  __ lea(edx, cell_operand);
-  // Cells are always in the remembered set.
-  __ RecordWrite(ebx,  // Object.
-                 edx,  // Address.
-                 ecx,  // Value.
-                 kDontSaveFPRegs,
-                 OMIT_REMEMBERED_SET,
-                 OMIT_SMI_CHECK);
+  // No write barrier here, because cells are always rescanned.
 
   // Return the value (register eax).
-  __ bind(&done);
-
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1);
   __ ret(0);
