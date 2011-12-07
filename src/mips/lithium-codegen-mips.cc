@@ -2928,11 +2928,11 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   __ And(scratch, result, Operand(HeapNumber::kSignMask));
 
   __ Move(double_scratch0(), 0.5);
-  __ add_d(input, input, double_scratch0());
+  __ add_d(double_scratch0(), input, double_scratch0());
 
   // Check sign of the result: if the sign changed, the input
   // value was in ]0.5, 0[ and the result should be -0.
-  __ mfc1(result, input.high());
+  __ mfc1(result, double_scratch0().high());
   __ Xor(result, result, Operand(scratch));
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // ARM uses 'mi' here, which is 'lt'
@@ -2952,7 +2952,7 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
   __ EmitFPUTruncate(kRoundToMinusInf,
                      double_scratch0().low(),
-                     input,
+                     double_scratch0(),
                      result,
                      except_flag);
 
