@@ -2370,23 +2370,9 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 
   // Store the value in the cell.
   __ movq(cell_operand, rax);
-  Label done;
-  __ JumpIfSmi(rax, &done);
-
-  __ movq(rcx, rax);
-  __ lea(rdx, cell_operand);
-  // Cells are always in the remembered set.
-  __ RecordWrite(rbx,  // Object.
-                 rdx,  // Address.
-                 rcx,  // Value.
-                 kDontSaveFPRegs,
-                 OMIT_REMEMBERED_SET,
-                 OMIT_SMI_CHECK);
-
+  // Cells are always rescanned, so no write barrier here.
 
   // Return the value (register rax).
-  __ bind(&done);
-
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1);
   __ ret(0);

@@ -2047,25 +2047,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ movq(Operand(address, 0), value);
-
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
-    Label smi_store;
-    HType type = instr->hydrogen()->value()->type();
-    if (!type.IsHeapNumber() && !type.IsString() && !type.IsNonPrimitive()) {
-      __ JumpIfSmi(value, &smi_store, Label::kNear);
-    }
-
-    int offset = JSGlobalPropertyCell::kValueOffset - kHeapObjectTag;
-    __ lea(object, Operand(address, -offset));
-    // Cells are always in the remembered set.
-    __ RecordWrite(object,
-                   address,
-                   value,
-                   kSaveFPRegs,
-                   OMIT_REMEMBERED_SET,
-                   OMIT_SMI_CHECK);
-    __ bind(&smi_store);
-  }
+  // Cells are always rescanned, so no write barrier here.
 }
 
 
