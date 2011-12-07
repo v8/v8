@@ -2948,8 +2948,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const XMMRegister double_exponent = xmm1;
   const XMMRegister double_scratch = xmm4;
 
-  Label double_int_runtime, generic_runtime, done;
-  Label exponent_not_smi, int_exponent;
+  Label call_runtime, done, exponent_not_smi, int_exponent;
 
   // Save 1 in double_result - we need this several times later on.
   __ mov(scratch, Immediate(1));
@@ -2966,7 +2965,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(base, &base_is_smi, Label::kNear);
     __ cmp(FieldOperand(base, HeapObject::kMapOffset),
            factory->heap_number_map());
-    __ j(not_equal, &generic_runtime);
+    __ j(not_equal, &call_runtime);
 
     __ movdbl(double_base, FieldOperand(base, HeapNumber::kValueOffset));
     __ jmp(&unpack_exponent, Label::kNear);
@@ -2983,7 +2982,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&exponent_not_smi);
     __ cmp(FieldOperand(exponent, HeapObject::kMapOffset),
            factory->heap_number_map());
-    __ j(not_equal, &generic_runtime);
+    __ j(not_equal, &call_runtime);
     __ movdbl(double_exponent,
               FieldOperand(exponent, HeapNumber::kValueOffset));
   } else if (exponent_type_ == TAGGED) {
@@ -3002,7 +3001,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cvttsd2si(exponent, Operand(double_exponent));
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cmp(exponent, Immediate(0x80000000u));
-    __ j(equal, &generic_runtime);
+    __ j(equal, &call_runtime);
     __ cvtsi2sd(double_scratch, exponent);
     // Already ruled out NaNs for exponent.
     __ ucomisd(double_exponent, double_scratch);
@@ -3119,33 +3118,35 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&fast_power_failed);
     __ fninit();
     __ add(esp, Immediate(kDoubleSize));
-    __ jmp(&generic_runtime);
+    __ jmp(&call_runtime);
   }
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
   const XMMRegister double_scratch2 = double_exponent;
-  __ mov(scratch, exponent);      // Back up exponent.
+  __ mov(scratch, exponent);  // Back up exponent.
   __ movsd(double_scratch, double_base);  // Back up base.
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label while_true, no_multiply;
-  const uint32_t kClearSignBitMask = 0x7FFFFFFF;
-  __ and_(exponent, Immediate(kClearSignBitMask));
+  Label no_neg, while_true, no_multiply;
+  __ test(scratch, scratch);
+  __ j(positive, &no_neg, Label::kNear);
+  __ neg(scratch);
+  __ bind(&no_neg);
 
   __ bind(&while_true);
-  __ shr(exponent, 1);
+  __ shr(scratch, 1);
   __ j(not_carry, &no_multiply, Label::kNear);
-  __ mulsd(double_result, double_base);
+  __ mulsd(double_result, double_scratch);
   __ bind(&no_multiply);
 
-  __ mulsd(double_base, double_base);
+  __ mulsd(double_scratch, double_scratch);
   __ j(not_zero, &while_true);
 
   // scratch has the original value of the exponent - if the exponent is
   // negative, return 1/result.
-  __ test(scratch, scratch);
+  __ test(exponent, exponent);
   __ j(positive, &done);
   __ divsd(double_scratch2, double_result);
   __ movsd(double_result, double_scratch2);
@@ -3153,47 +3154,36 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
   __ xorps(double_scratch2, double_scratch2);
   __ ucomisd(double_scratch2, double_result);  // Result cannot be NaN.
-  __ j(equal, &double_int_runtime);
+  // double_exponent aliased as double_scratch2 has already been overwritten
+  // and may not have contained the exponent value in the first place when the
+  // exponent is a smi.  We reset it with exponent value before bailing out.
+  __ j(not_equal, &done);
+  __ cvtsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
+  Counters* counters = masm->isolate()->counters();
   if (exponent_type_ == ON_STACK) {
+    // The arguments are still on the stack.
+    __ bind(&call_runtime);
+    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+
     // The stub is called from non-optimized code, which expects the result
     // as heap number in exponent.
     __ bind(&done);
-    __ AllocateHeapNumber(exponent, scratch, base, &generic_runtime);
-    __ movdbl(FieldOperand(exponent, HeapNumber::kValueOffset), double_result);
+    __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
+    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), double_result);
+    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(2 * kPointerSize);
-
-    // The arguments are still on the stack.
-    __ bind(&generic_runtime);
-    __ bind(&double_int_runtime);
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
   } else {
-    __ jmp(&done);
-
-    Label return_from_runtime;
-    __ bind(&generic_runtime);
+    __ bind(&call_runtime);
     {
       AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(4, exponent);
+      __ PrepareCallCFunction(4, scratch);
       __ movdbl(Operand(esp, 0 * kDoubleSize), double_base);
       __ movdbl(Operand(esp, 1 * kDoubleSize), double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()), 4);
     }
-    __ jmp(&return_from_runtime, Label::kNear);
-
-    __ bind(&double_int_runtime);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(4, exponent);
-      __ movdbl(Operand(esp, 0 * kDoubleSize), double_scratch);
-      __ mov(Operand(esp, 1 * kDoubleSize), scratch);
-      __ CallCFunction(
-          ExternalReference::power_double_int_function(masm->isolate()), 4);
-    }
-
-    __ bind(&return_from_runtime);
     // Return value is in st(0) on ia32.
     // Store it into the (fixed) result register.
     __ sub(esp, Immediate(kDoubleSize));
@@ -3202,6 +3192,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ add(esp, Immediate(kDoubleSize));
 
     __ bind(&done);
+    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(0);
   }
 }

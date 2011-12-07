@@ -2004,8 +2004,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const XMMRegister double_exponent = xmm1;
   const XMMRegister double_scratch = xmm4;
 
-  Label double_int_runtime, generic_runtime, done;
-  Label exponent_not_smi, int_exponent;
+  Label call_runtime, done, exponent_not_smi, int_exponent;
 
   // Save 1 in double_result - we need this several times later on.
   __ movq(scratch, Immediate(1));
@@ -2021,7 +2020,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(base, &base_is_smi, Label::kNear);
     __ CompareRoot(FieldOperand(base, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &generic_runtime);
+    __ j(not_equal, &call_runtime);
 
     __ movsd(double_base, FieldOperand(base, HeapNumber::kValueOffset));
     __ jmp(&unpack_exponent, Label::kNear);
@@ -2038,7 +2037,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&exponent_not_smi);
     __ CompareRoot(FieldOperand(exponent, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &generic_runtime);
+    __ j(not_equal, &call_runtime);
     __ movsd(double_exponent, FieldOperand(exponent, HeapNumber::kValueOffset));
   } else if (exponent_type_ == TAGGED) {
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
@@ -2055,7 +2054,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cvttsd2si(exponent, double_exponent);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cmpl(exponent, Immediate(0x80000000u));
-    __ j(equal, &generic_runtime);
+    __ j(equal, &call_runtime);
     __ cvtlsi2sd(double_scratch, exponent);
     // Already ruled out NaNs for exponent.
     __ ucomisd(double_exponent, double_scratch);
@@ -2169,7 +2168,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&fast_power_failed);
     __ fninit();
     __ addq(rsp, Immediate(kDoubleSize));
-    __ jmp(&generic_runtime);
+    __ jmp(&call_runtime);
   }
 
   // Calculate power with integer exponent.
@@ -2181,9 +2180,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label while_true, no_multiply;
-  const uint32_t kClearSignBitMask = 0x7FFFFFFF;
-  __ andl(scratch, Immediate(kClearSignBitMask));
+  Label no_neg, while_true, no_multiply;
+  __ testl(scratch, scratch);
+  __ j(positive, &no_neg, Label::kNear);
+  __ negl(scratch);
+  __ bind(&no_neg);
 
   __ bind(&while_true);
   __ shrl(scratch, Immediate(1));
@@ -2194,8 +2195,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ mulsd(double_scratch, double_scratch);
   __ j(not_zero, &while_true);
 
-  // scratch has the original value of the exponent - if the exponent is
-  // negative, return 1/result.
+  // If the exponent is negative, return 1/result.
   __ testl(exponent, exponent);
   __ j(greater, &done);
   __ divsd(double_scratch2, double_result);
@@ -2204,27 +2204,28 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
   __ xorps(double_scratch2, double_scratch2);
   __ ucomisd(double_scratch2, double_result);
-  __ j(equal, &double_int_runtime);
+  // double_exponent aliased as double_scratch2 has already been overwritten
+  // and may not have contained the exponent value in the first place when the
+  // input was a smi.  We reset it with exponent value before bailing out.
+  __ j(not_equal, &done);
+  __ cvtlsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
+  Counters* counters = masm->isolate()->counters();
   if (exponent_type_ == ON_STACK) {
+    // The arguments are still on the stack.
+    __ bind(&call_runtime);
+    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+
     // The stub is called from non-optimized code, which expects the result
     // as heap number in eax.
     __ bind(&done);
-    __ AllocateHeapNumber(rax, rcx, &generic_runtime);
+    __ AllocateHeapNumber(rax, rcx, &call_runtime);
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), double_result);
+    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(2 * kPointerSize);
-
-    // The arguments are still on the stack.
-    __ bind(&generic_runtime);
-    __ bind(&double_int_runtime);
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
   } else {
-    __ jmp(&done);
-
-    Label return_from_runtime;
-    StubRuntimeCallHelper callhelper;
-    __ bind(&generic_runtime);
+    __ bind(&call_runtime);
     // Move base to the correct argument register.  Exponent is already in xmm1.
     __ movsd(xmm0, double_base);
     ASSERT(double_exponent.is(xmm1));
@@ -2234,27 +2235,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()), 2);
     }
-    __ jmp(&return_from_runtime, Label::kNear);
-
-    __ bind(&double_int_runtime);
-    // Move base to the correct argument register.
-    __ movsd(xmm0, double_base);
-    // Exponent is already in the correct argument register:
-    // edi (not rdi) on Linux and edx on Windows.
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(2);
-      __ CallCFunction(
-          ExternalReference::power_double_int_function(masm->isolate()), 2);
-    }
-
-    __ bind(&return_from_runtime);
     // Return value is in xmm0.
     __ movsd(double_result, xmm0);
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
     __ bind(&done);
+    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(0);
   }
 }

@@ -7398,7 +7398,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
 }
 
-
+// Slow version of Math.pow.  We check for fast paths for special cases.
+// Used if SSE2/VFP3 is not available.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7414,25 +7415,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   }
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  // Returning a smi would not confuse crankshaft as this part of code is only
-  // run if SSE2 was not available, in which case crankshaft is disabled.
-  if (y == 0) return Smi::FromInt(1);  // Returns 1 if exponent is 0.
-  return isolate->heap()->AllocateHeapNumber(power_double_double(x, y));
+  int y_int = static_cast<int>(y);
+  double result;
+  if (y == y_int) {
+    result = power_double_int(x, y_int);  // Returns 1 if exponent is 0.
+  } else  if (y == 0.5) {
+    result = (isinf(x)) ? V8_INFINITY : sqrt(x + 0.0);  // Convert -0 to +0.
+  } else if (y == -0.5) {
+    result = (isinf(x)) ? 0 : 1.0 / sqrt(x + 0.0);  // Convert -0 to +0.
+  } else {
+    result = power_double_double(x, y);
+  }
+  if (isnan(result)) return isolate->heap()->nan_value();
+  return isolate->heap()->AllocateHeapNumber(result);
 }
 
-// Fast version of Math.pow if we know that y is not an integer and
-// y is not -0.5 or 0.5. Used as slowcase from codegen.
+// Fast version of Math.pow if we know that y is not an integer and y is not
+// -0.5 or 0.5.  Used as slow case from fullcodegen.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  isolate->counters()->math_pow()->Increment();
+
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   if (y == 0) {
     return Smi::FromInt(1);
-  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return isolate->heap()->nan_value();
   } else {
-    return isolate->heap()->AllocateHeapNumber(pow(x, y));
+    double result = power_double_double(x, y);
+    if (isnan(result)) return isolate->heap()->nan_value();
+    return isolate->heap()->AllocateHeapNumber(result);
   }
 }
 
