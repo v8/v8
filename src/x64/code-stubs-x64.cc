@@ -2181,11 +2181,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label no_neg, while_true, no_multiply;
-  __ cmpl(scratch, Immediate(0));
-  __ j(positive, &no_neg, Label::kNear);
-  __ negl(scratch);
-  __ bind(&no_neg);
+  Label while_true, no_multiply;
+  const uint32_t kClearSignBitMask = 0x7FFFFFFF;
+  __ andl(scratch, Immediate(kClearSignBitMask));
 
   __ bind(&while_true);
   __ shrl(scratch, Immediate(1));
