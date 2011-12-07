@@ -961,14 +961,14 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
   if (size >= ExternalString::kSize) {
-    this->set_map(
+    this->set_map_no_write_barrier(
         is_symbol
             ? (is_ascii ?  heap->external_symbol_with_ascii_data_map()
                         :  heap->external_symbol_map())
             : (is_ascii ?  heap->external_string_with_ascii_data_map()
                         :  heap->external_string_map()));
   } else {
-    this->set_map(
+    this->set_map_no_write_barrier(
         is_symbol
             ? (is_ascii ?  heap->short_external_symbol_with_ascii_data_map()
                         :  heap->short_external_symbol_map())
@@ -1011,11 +1011,13 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.  Use short version if space is limited.
   if (size >= ExternalString::kSize) {
-    this->set_map(is_symbol ? heap->external_ascii_symbol_map()
-                            : heap->external_ascii_string_map());
+    this->set_map_no_write_barrier(
+        is_symbol ? heap->external_ascii_symbol_map()
+                  : heap->external_ascii_string_map());
   } else {
-    this->set_map(is_symbol ? heap->short_external_ascii_symbol_map()
-                            : heap->short_external_ascii_string_map());
+    this->set_map_no_write_barrier(
+        is_symbol ? heap->short_external_ascii_symbol_map()
+                  : heap->short_external_ascii_string_map());
   }
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_resource(resource);
@@ -4852,7 +4854,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
           // of the next map and recording the index in the transition array in
           // the map field of the array.
           Map* next = Map::cast(contents->get(i));
-          next->set_map_unsafe(current);
+          next->set_map_no_write_barrier(current);
           *map_or_index_field = Smi::FromInt(i + 2);
           current = next;
           map_done = false;
@@ -4877,7 +4879,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
       Object* perhaps_map = prototype_transitions->get(i);
       if (perhaps_map->IsMap()) {
         Map* next = Map::cast(perhaps_map);
-        next->set_map_unsafe(current);
+        next->set_map_no_write_barrier(current);
         *proto_map_or_index_field =
             Smi::FromInt(i + kProtoTransitionElementsPerEntry);
         current = next;
@@ -4893,7 +4895,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
     // the map field, which is being used to track the traversal and put the
     // correct map (the meta_map) in place while we do the callback.
     Map* prev = current->map();
-    current->set_map_unsafe(meta_map);
+    current->set_map_no_write_barrier(meta_map);
     callback(current, data);
     current = prev;
   }
@@ -5394,7 +5396,7 @@ MaybeObject* FixedArray::CopySize(int new_length) {
   if (new_length < len) len = new_length;
   // We are taking the map from the old fixed array so the map is sure to
   // be an immortal immutable object.
-  result->set_map_unsafe(map());
+  result->set_map_no_write_barrier(map());
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
@@ -10624,7 +10626,7 @@ class SymbolKey : public HashTableKey {
     // Transform string to symbol if possible.
     Map* map = heap->SymbolMapForString(string_);
     if (map != NULL) {
-      string_->set_map(map);
+      string_->set_map_no_write_barrier(map);
       ASSERT(string_->IsSymbol());
       return string_;
     }

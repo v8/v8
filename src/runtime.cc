@@ -7997,7 +7997,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStrictArgumentsFast) {
 
     AssertNoAllocation no_gc;
     FixedArray* array = reinterpret_cast<FixedArray*>(obj);
-    array->set_map(isolate->heap()->fixed_array_map());
+    array->set_map_no_write_barrier(isolate->heap()->fixed_array_map());
     array->set_length(length);
 
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
@@ -8117,7 +8117,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionBindArguments) {
   for (int j = 0; j < argc; j++, i++) {
     new_bindings->set(i, *arguments[j + 1]);
   }
-  new_bindings->set_map(isolate->heap()->fixed_cow_array_map());
+  new_bindings->set_map_no_write_barrier(
+      isolate->heap()->fixed_cow_array_map());
   bound_function->set_function_bindings(*new_bindings);
 
   // Update length.

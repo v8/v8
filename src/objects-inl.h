@@ -1115,7 +1115,7 @@ void HeapObject::set_map(Map* value) {
 
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_unsafe(Map* value) {
+void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
@@ -1311,8 +1311,6 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
   ASSERT(!val->IsJSGlobalPropertyCell());
   WRITE_FIELD(this, kValueOffset, val);
-  GetHeap()->incremental_marking()->RecordWrite(
-      this, HeapObject::RawField(this, kValueOffset), val);
 }
 
 

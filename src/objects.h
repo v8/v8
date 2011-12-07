@@ -1131,7 +1131,10 @@ class HeapObject: public Object {
   // information.
   inline Map* map();
   inline void set_map(Map* value);
-  inline void set_map_unsafe(Map* value);
+  // The no-write-barrier version.  This is OK if the object is white and in
+  // new space, or if the value is an immortal immutable object, like the maps
+  // of primitive (non-JS) objects like strings, heap numbers etc.
+  inline void set_map_no_write_barrier(Map* value);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
