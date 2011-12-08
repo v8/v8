@@ -3002,13 +3002,24 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   DoubleRegister result = ToDoubleRegister(instr->result());
-  DoubleRegister double_scratch = double_scratch0();
+  DoubleRegister temp = ToDoubleRegister(instr->TempAt(0));
+
+  ASSERT(!input.is(result));
+
+  // Note that according to ECMA-262 15.8.2.13:
+  // Math.pow(-Infinity, 0.5) == Infinity
+  // Math.sqrt(-Infinity) == NaN
+  Label done;
+  __ Move(temp, -V8_INFINITY);
+  __ BranchF(USE_DELAY_SLOT, &done, NULL, eq, temp, input);
+  // Set up Infinity in the delay slot.
+  // result is overwritten if the branch is not taken.
+  __ neg_d(result, temp);
 
   // Add +0 to convert -0 to +0.
-  __ mtc1(zero_reg, double_scratch.low());
-  __ mtc1(zero_reg, double_scratch.high());
-  __ add_d(result, input, double_scratch);
+  __ add_d(result, input, kDoubleRegZero);
   __ sqrt_d(result, result);
+  __ bind(&done);
 }
 
 

@@ -1152,6 +1152,13 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), f4);
     LUnaryMathOperation* result = new LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, f4), instr);
+  } else if (op == kMathPowHalf) {
+    // Input cannot be the same as the result.
+    // See lithium-codegen-mips.cc::DoMathPowHalf.
+    LOperand* input = UseFixedDouble(instr->value(), f8);
+    LOperand* temp = FixedTemp(f6);
+    LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
+    return DefineFixedDouble(result, f4);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
@@ -1165,8 +1172,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return DefineAsRegister(result);
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
-      case kMathPowHalf:
-        return DefineAsRegister(result);
       default:
         UNREACHABLE();
         return NULL;
