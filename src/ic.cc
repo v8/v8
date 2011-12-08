@@ -2320,7 +2320,6 @@ const char* CompareIC::GetStateName(State state) {
     case SMIS: return "SMIS";
     case HEAP_NUMBERS: return "HEAP_NUMBERS";
     case OBJECTS: return "OBJECTS";
-    case KNOWN_OBJECTS: return "OBJECTS";
     case SYMBOLS: return "SYMBOLS";
     case STRINGS: return "STRINGS";
     case GENERIC: return "GENERIC";
@@ -2335,37 +2334,20 @@ CompareIC::State CompareIC::TargetState(State state,
                                         bool has_inlined_smi_code,
                                         Handle<Object> x,
                                         Handle<Object> y) {
-  switch (state) {
-    case UNINITIALIZED:
-      if (x->IsSmi() && y->IsSmi()) return SMIS;
-      if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
-      if (!Token::IsEqualityOp(op_)) return GENERIC;
-      if (x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
-      if (x->IsString() && y->IsString()) return STRINGS;
-      if (x->IsJSObject() && y->IsJSObject()) {
-        if (Handle<JSObject>::cast(x)->map() ==
-            Handle<JSObject>::cast(y)->map() &&
-            Token::IsEqualityOp(op_)) {
-          return KNOWN_OBJECTS;
-        } else {
-          return OBJECTS;
-        }
-      }
-      return GENERIC;
-    case SMIS:
-      return has_inlined_smi_code && x->IsNumber() && y->IsNumber()
-          ? HEAP_NUMBERS
-          : GENERIC;
-    case SYMBOLS:
-      ASSERT(Token::IsEqualityOp(op_));
-      return x->IsString() && y->IsString() ? STRINGS : GENERIC;
-    case HEAP_NUMBERS:
-    case STRINGS:
-    case OBJECTS:
-    case KNOWN_OBJECTS:
-    case GENERIC:
-      return GENERIC;
+  if (!has_inlined_smi_code && state != UNINITIALIZED && state != SYMBOLS) {
+    return GENERIC;
   }
+  if (state == UNINITIALIZED && x->IsSmi() && y->IsSmi()) return SMIS;
+  if ((state == UNINITIALIZED || (state == SMIS && has_inlined_smi_code)) &&
+      x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
+  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return GENERIC;
+  if (state == UNINITIALIZED &&
+      x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
+  if ((state == UNINITIALIZED || state == SYMBOLS) &&
+      x->IsString() && y->IsString()) return STRINGS;
+  if (state == UNINITIALIZED &&
+      x->IsJSObject() && y->IsJSObject()) return OBJECTS;
+  return GENERIC;
 }
 
 

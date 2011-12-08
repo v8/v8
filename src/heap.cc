@@ -2417,7 +2417,6 @@ bool Heap::CreateInitialObjects() {
   }
   set_code_stubs(NumberDictionary::cast(obj));
 
-
   // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
   { MaybeObject* maybe_obj = NumberDictionary::Allocate(64);

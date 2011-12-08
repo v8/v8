@@ -6141,27 +6141,14 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
-        // Can we get away with map check and not instance type check?
-        Handle<Map> map = oracle()->GetCompareMap(expr);
-        if (!map.is_null()) {
-          AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(new(zone()) HCheckMap(left, map));
-          AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(new(zone()) HCheckMap(right, map));
-          HCompareObjectEqAndBranch* result =
-              new(zone()) HCompareObjectEqAndBranch(left, right);
-          result->set_position(expr->position());
-          return ast_context()->ReturnControl(result, expr->id());
-        } else {
-          AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(HCheckInstanceType::NewIsSpecObject(left));
-          AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(HCheckInstanceType::NewIsSpecObject(right));
-          HCompareObjectEqAndBranch* result =
-              new(zone()) HCompareObjectEqAndBranch(left, right);
-          result->set_position(expr->position());
-          return ast_context()->ReturnControl(result, expr->id());
-        }
+        AddInstruction(new(zone()) HCheckNonSmi(left));
+        AddInstruction(HCheckInstanceType::NewIsSpecObject(left));
+        AddInstruction(new(zone()) HCheckNonSmi(right));
+        AddInstruction(HCheckInstanceType::NewIsSpecObject(right));
+        HCompareObjectEqAndBranch* result =
+            new(zone()) HCompareObjectEqAndBranch(left, right);
+        result->set_position(expr->position());
+        return ast_context()->ReturnControl(result, expr->id());
       }
       default:
         return Bailout("Unsupported non-primitive compare");

@@ -724,7 +724,6 @@ class CompareIC: public IC {
     SYMBOLS,
     STRINGS,
     OBJECTS,
-    KNOWN_OBJECTS,
     GENERIC
   };
 
