@@ -6716,26 +6716,47 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  __ Push(r1, r0);
-  __ push(lr);
+void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
+  Label miss;
+  __ and_(r2, r1, Operand(r0));
+  __ JumpIfSmi(r2, &miss);
+  __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(known_map_));
+  __ b(ne, &miss);
+  __ cmp(r3, Operand(known_map_));
+  __ b(ne, &miss);
 
-  // Call the runtime system in a fresh internal frame.
-  ExternalReference miss =
-      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+  __ sub(r0, r0, Operand(r1));
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+
+void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   {
+    // Call the runtime system in a fresh internal frame.
+    ExternalReference miss =
+        ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r1, r0);
+    __ push(lr);
     __ Push(r1, r0);
     __ mov(ip, Operand(Smi::FromInt(op_)));
     __ push(ip);
     __ CallExternalReference(miss, 3);
+    // Compute the entry point of the rewritten stub.
+    __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Restore registers.
+    __ pop(lr);
+    __ pop(r0);
+    __ pop(r1);
   }
-  // Compute the entry point of the rewritten stub.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  // Restore registers.
-  __ pop(lr);
-  __ pop(r0);
-  __ pop(r1);
+
   __ Jump(r2);
 }
 

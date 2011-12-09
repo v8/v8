@@ -6670,32 +6670,44 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  // Save the registers.
-  __ pop(ecx);
-  __ push(edx);
-  __ push(eax);
-  __ push(ecx);
+void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
+  Label miss;
+  __ mov(ecx, edx);
+  __ and_(ecx, eax);
+  __ JumpIfSmi(ecx, &miss, Label::kNear);
 
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ cmp(ecx, known_map_);
+  __ j(not_equal, &miss, Label::kNear);
+  __ cmp(ebx, known_map_);
+  __ j(not_equal, &miss, Label::kNear);
+
+  __ sub(eax, edx);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
     ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
                                                masm->isolate());
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(edx);
+    __ push(edx);  // Preserve edx and eax.
+    __ push(eax);
+    __ push(edx);  // And also use them as the arguments.
     __ push(eax);
     __ push(Immediate(Smi::FromInt(op_)));
     __ CallExternalReference(miss, 3);
+    // Compute the entry point of the rewritten stub.
+    __ lea(edi, FieldOperand(eax, Code::kHeaderSize));
+    __ pop(eax);
+    __ pop(edx);
   }
-
-  // Compute the entry point of the rewritten stub.
-  __ lea(edi, FieldOperand(eax, Code::kHeaderSize));
-
-  // Restore registers.
-  __ pop(ecx);
-  __ pop(eax);
-  __ pop(edx);
-  __ push(ecx);
 
   // Do a tail call to the rewritten stub.
   __ jmp(edi);

@@ -883,8 +883,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
-      // Please note targets for cleared inline cached do not have to be
-      // marked since they are contained in HEAP->non_monomorphic_cache().
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
       if (FLAG_cleanup_code_caches_at_gc &&
@@ -893,9 +891,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
           target->has_function_cache()) {
         CallFunctionStub::Clear(heap, rinfo->pc());
       }
-      MarkBit code_mark = Marking::MarkBitFrom(target);
-      heap->mark_compact_collector()->MarkObject(target, code_mark);
     }
+    MarkBit code_mark = Marking::MarkBitFrom(target);
+    heap->mark_compact_collector()->MarkObject(target, code_mark);
+
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
