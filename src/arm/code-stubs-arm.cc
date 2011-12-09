@@ -3515,14 +3515,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type_ != INTEGER) {
+    Label int_exponent_convert;
     // Detect integer exponents stored as double.
     __ vcvt_u32_f64(single_scratch, double_exponent);
     // We do not check for NaN or Infinity here because comparing numbers on
     // ARM correctly distinguishes NaNs.  We end up calling the built-in.
     __ vcvt_f64_u32(double_scratch, single_scratch);
     __ VFPCompareAndSetFlags(double_scratch, double_exponent);
-    __ vmov(exponent, single_scratch, eq);
-    __ b(eq, &int_exponent);
+    __ b(eq, &int_exponent_convert);
 
     if (exponent_type_ == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at
@@ -3579,6 +3579,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ pop(lr);
     __ GetCFunctionDoubleResult(double_result);
     __ jmp(&done);
+
+    __ bind(&int_exponent_convert);
+    __ vcvt_u32_f64(single_scratch, double_exponent);
+    __ vmov(exponent, single_scratch);
   }
 
   // Calculate power with integer exponent.
@@ -3629,7 +3633,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     ASSERT(heapnumber.is(r0));
     __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
-    __ Ret(2 * kPointerSize);
+    __ Ret(2);
   } else {
     __ push(lr);
     {
