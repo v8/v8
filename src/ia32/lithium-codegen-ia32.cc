@@ -2165,13 +2165,22 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ mov(result, ContextOperand(context, instr->slot_index()));
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ cmp(result, factory()->the_hole_value());
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
-  __ mov(ContextOperand(context, instr->slot_index()), value);
+  Operand target = ContextOperand(context, instr->slot_index());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ cmp(target, factory()->the_hole_value());
+    DeoptimizeIf(equal, instr->environment());
+  }
+  __ mov(target, value);
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     HType type = instr->hydrogen()->value()->type();
     SmiCheck check_needed =

@@ -31,7 +31,8 @@
 "use strict";
 
 // Check that the following functions are optimizable.
-var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12 ];
+var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14,
+                  f15, f16, f17, f18, f19, f20, f21, f22, f23 ];
 
 for (var i = 0; i < functions.length; ++i) {
   var func = functions[i];
@@ -95,6 +96,66 @@ function f12() {
   x = 1;
 }
 
+function f13(x) {
+  (function() { x; });
+}
+
+function f14() {
+  let x;
+  (function() { x; });
+}
+
+function f15() {
+  function x() {
+  }
+  (function() { x; });
+}
+
+function f16() {
+  let x = 1;
+  (function() { x; });
+}
+
+function f17() {
+  const x = 1;
+  (function() { x; });
+}
+
+function f18(x) {
+  return x;
+  (function() { x; });
+}
+
+function f19() {
+  let x;
+  return x;
+  (function() { x; });
+}
+
+function f20() {
+  function x() {
+  }
+  return x;
+  (function() { x; });
+}
+
+function f21(x) {
+  x = 1;
+  (function() { x; });
+}
+
+function f22() {
+  let x;
+  x = 1;
+  (function() { x; });
+}
+
+function f23() {
+  function x() { }
+  x = 1;
+  (function() { x; });
+}
+
 
 // Test that temporal dead zone semantics for function and block scoped
 // let bindings are handled by the optimizing compiler.
@@ -121,8 +182,35 @@ function TestFunctionLocal(s) {
   }
 }
 
+function TestFunctionContext(s) {
+  'use strict';
+  var func = eval("(function baz(){ " + s + "; (function() { x; }); })");
+  print("Testing:");
+  print(func);
+  for (var i = 0; i < 5; ++i) {
+    print(i);
+    try {
+      func();
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, ReferenceError);
+    }
+  }
+  print("optimize");
+  %OptimizeFunctionOnNextCall(func);
+  try {
+    print("call");
+    func();
+    assertUnreachable();
+  } catch (e) {
+    print("catch");
+    assertInstanceof(e, ReferenceError);
+  }
+}
+
 function TestAll(s) {
   TestFunctionLocal(s);
+  TestFunctionContext(s);
 }
 
 // Use before initialization in declaration statement.

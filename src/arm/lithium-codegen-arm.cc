@@ -2303,6 +2303,11 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ ldr(result, ContextOperand(context, instr->slot_index()));
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ cmp(result, ip);
+    DeoptimizeIf(eq, instr->environment());
+  }
 }
 
 
@@ -2310,6 +2315,13 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
   MemOperand target = ContextOperand(context, instr->slot_index());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    Register scratch = scratch0();
+    __ ldr(scratch, target);
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ cmp(scratch, ip);
+    DeoptimizeIf(eq, instr->environment());
+  }
   __ str(value, target);
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     HType type = instr->hydrogen()->value()->type();

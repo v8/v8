@@ -3285,15 +3285,11 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     }
 
     case Variable::CONTEXT: {
-      if (variable->mode() == LET || variable->mode() == CONST_HARMONY) {
-        return Bailout("reference to harmony declared context slot");
-      }
       if (variable->mode() == CONST) {
         return Bailout("reference to const context slot");
       }
       HValue* context = BuildContextChainWalk(variable);
-      HLoadContextSlot* instr =
-          new(zone()) HLoadContextSlot(context, variable->index());
+      HLoadContextSlot* instr = new(zone()) HLoadContextSlot(context, variable);
       return ast_context()->ReturnInstruction(instr, expr->id());
     }
 
@@ -3846,8 +3842,11 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         }
 
         HValue* context = BuildContextChainWalk(var);
+        HStoreContextSlot::Mode mode =
+            (var->mode() == LET || var->mode() == CONST_HARMONY)
+            ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
         HStoreContextSlot* instr =
-            new(zone()) HStoreContextSlot(context, var->index(), Top());
+            new(zone()) HStoreContextSlot(context, var->index(), mode, Top());
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
           AddSimulate(expr->AssignmentId());
@@ -3967,16 +3966,9 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       // variables (e.g. initialization inside a loop).
       HValue* old_value = environment()->Lookup(var);
       AddInstruction(new HUseConst(old_value));
-    } else if (var->mode() == LET) {
-      if (!var->IsStackAllocated()) {
-        return Bailout("assignment to let context slot");
-      }
     } else if (var->mode() == CONST_HARMONY) {
       if (expr->op() != Token::INIT_CONST_HARMONY) {
         return Bailout("non-initializer assignment to const");
-      }
-      if (!var->IsStackAllocated()) {
-        return Bailout("assignment to const context slot");
       }
     }
 
@@ -4029,8 +4021,18 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
 
         CHECK_ALIVE(VisitForValue(expr->value()));
         HValue* context = BuildContextChainWalk(var);
-        HStoreContextSlot* instr =
-            new(zone()) HStoreContextSlot(context, var->index(), Top());
+        HStoreContextSlot::Mode mode;
+        if (expr->op() == Token::ASSIGN) {
+          mode = (var->mode() == LET || var->mode() == CONST_HARMONY)
+              ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
+        } else {
+          ASSERT(expr->op() == Token::INIT_VAR ||
+                 expr->op() == Token::INIT_LET ||
+                 expr->op() == Token::INIT_CONST_HARMONY);
+          mode = HStoreContextSlot::kAssign;
+        }
+        HStoreContextSlot* instr = new(zone()) HStoreContextSlot(
+            context, var->index(), mode, Top());
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
           AddSimulate(expr->AssignmentId());
@@ -5639,8 +5641,11 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         }
 
         HValue* context = BuildContextChainWalk(var);
+        HStoreContextSlot::Mode mode =
+            (var->mode() == LET || var->mode() == CONST_HARMONY)
+            ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
         HStoreContextSlot* instr =
-            new(zone()) HStoreContextSlot(context, var->index(), after);
+            new(zone()) HStoreContextSlot(context, var->index(), mode, after);
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
           AddSimulate(expr->AssignmentId());
@@ -6245,8 +6250,8 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
         }
         if (var->IsContextSlot()) {
           HValue* context = environment()->LookupContext();
-          HStoreContextSlot* store =
-              new HStoreContextSlot(context, var->index(), value);
+          HStoreContextSlot* store = new HStoreContextSlot(
+              context, var->index(), HStoreContextSlot::kAssign, value);
           AddInstruction(store);
           if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
         } else {

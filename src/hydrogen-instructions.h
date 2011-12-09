@@ -3447,14 +3447,31 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
 
 class HLoadContextSlot: public HUnaryOperation {
  public:
-  HLoadContextSlot(HValue* context , int slot_index)
-      : HUnaryOperation(context), slot_index_(slot_index) {
+  enum Mode {
+    // Perform a normal load of the context slot without checking its value.
+    kLoad,
+    // Load and check the value of the context slot. Deoptimize if it's the
+    // hole value. This is used for checking for loading of uninitialized
+    // harmony bindings where we deoptimize into full-codegen generated code
+    // which will subsequently throw a reference error.
+    kLoadCheck
+  };
+
+  HLoadContextSlot(HValue* context, Variable* var)
+      : HUnaryOperation(context), slot_index_(var->index()) {
+    ASSERT(var->IsContextSlot());
+    mode_ = (var->mode() == LET || var->mode() == CONST_HARMONY)
+        ? kLoadCheck : kLoad;
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnContextSlots);
   }
 
   int slot_index() const { return slot_index_; }
+
+  bool RequiresHoleCheck() {
+    return mode_ == kLoadCheck;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -3472,13 +3489,25 @@ class HLoadContextSlot: public HUnaryOperation {
 
  private:
   int slot_index_;
+  Mode mode_;
 };
 
 
 class HStoreContextSlot: public HTemplateInstruction<2> {
  public:
-  HStoreContextSlot(HValue* context, int slot_index, HValue* value)
-      : slot_index_(slot_index) {
+  enum Mode {
+    // Perform a normal store to the context slot without checking its previous
+    // value.
+    kAssign,
+    // Check the previous value of the context slot and deoptimize if it's the
+    // hole value. This is used for checking for assignments to uninitialized
+    // harmony bindings where we deoptimize into full-codegen generated code
+    // which will subsequently throw a reference error.
+    kAssignCheck
+  };
+
+  HStoreContextSlot(HValue* context, int slot_index, Mode mode, HValue* value)
+      : slot_index_(slot_index), mode_(mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
     SetFlag(kChangesContextSlots);
@@ -3487,9 +3516,14 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
   HValue* context() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
   int slot_index() const { return slot_index_; }
+  Mode mode() const { return mode_; }
 
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
+  }
+
+  bool RequiresHoleCheck() {
+    return mode_ == kAssignCheck;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3502,6 +3536,7 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 
  private:
   int slot_index_;
+  Mode mode_;
 };
 
 
