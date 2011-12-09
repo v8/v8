@@ -3738,11 +3738,6 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ELEMENT_ACCESSORS(OsrAstId, Smi)
   DEFINE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 
-  // Unchecked accessor to be used during GC.
-  FixedArray* UncheckedLiteralArray() {
-    return reinterpret_cast<FixedArray*>(get(kLiteralArrayIndex));
-  }
-
 #undef DEFINE_ELEMENT_ACCESSORS
 
   // Accessors for elements of the ith deoptimization entry.
