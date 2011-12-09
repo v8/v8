@@ -6093,20 +6093,23 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotSmi(edx, &runtime);
   __ sub(ecx, edx);
   __ cmp(ecx, FieldOperand(eax, String::kLengthOffset));
-  Label return_eax;
-  __ j(equal, &return_eax);
+  Label not_original_string;
+  __ j(not_equal, &not_original_string, Label::kNear);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->sub_string_native(), 1);
+  __ ret(3 * kPointerSize);
+  __ bind(&not_original_string);
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
-  __ SmiUntag(ecx);  // Result length is no longer smi.
-  __ cmp(ecx, 2);
+  __ cmp(ecx, Immediate(Smi::FromInt(2)));
   __ j(greater, &result_longer_than_two);
   __ j(less, &runtime);
 
   // Sub string of length 2 requested.
   // eax: string
   // ebx: instance type
-  // ecx: sub string length (value is 2)
+  // ecx: sub string length (smi, value is 2)
   // edx: from index (smi)
   __ JumpIfInstanceTypeIsNotSequentialAscii(ebx, ebx, &runtime);
 
@@ -6121,6 +6124,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, ebx, ecx, eax, edx, edi,
       &make_two_character_string, &make_two_character_string);
+  __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
@@ -6128,55 +6132,61 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, 3 * kPointerSize));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ Set(ecx, Immediate(2));
+  __ Set(ecx, Immediate(Smi::FromInt(2)));
+  __ mov(edx, Operand(esp, 2 * kPointerSize));  // Load index.
+
+  __ bind(&result_longer_than_two);
+  // eax: string
+  // ebx: instance type
+  // ecx: sub string length (smi)
+  // edx: from index (smi)
+  // Deal with different string types: update the index if necessary
+  // and put the underlying string into edi.
+  Label underlying_unpacked, sliced_string, seq_or_external_string;
+  // If the string is not indirect, it can only be sequential or external.
+  STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
+  STATIC_ASSERT(kIsIndirectStringMask != 0);
+  __ test(ebx, Immediate(kIsIndirectStringMask));
+  __ j(zero, &seq_or_external_string, Label::kNear);
+
+  Factory* factory = masm->isolate()->factory();
+  __ test(ebx, Immediate(kSlicedNotConsMask));
+  __ j(not_zero, &sliced_string, Label::kNear);
+  // Cons string.  Check whether it is flat, then fetch first part.
+  // Flat cons strings have an empty second part.
+  __ cmp(FieldOperand(eax, ConsString::kSecondOffset),
+         factory->empty_string());
+  __ j(not_equal, &runtime);
+  __ mov(edi, FieldOperand(eax, ConsString::kFirstOffset));
+  // Update instance type.
+  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ jmp(&underlying_unpacked, Label::kNear);
+
+  __ bind(&sliced_string);
+  // Sliced string.  Fetch parent and adjust start index by offset.
+  __ add(edx, FieldOperand(eax, SlicedString::kOffsetOffset));
+  __ mov(edi, FieldOperand(eax, SlicedString::kParentOffset));
+  // Update instance type.
+  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ jmp(&underlying_unpacked, Label::kNear);
+
+  __ bind(&seq_or_external_string);
+  // Sequential or external string.  Just move string to the expected register.
+  __ mov(edi, eax);
+
+  __ bind(&underlying_unpacked);
 
   if (FLAG_string_slices) {
     Label copy_routine;
-    // If coming from the make_two_character_string path, the string
-    // is too short to be sliced anyways.
-    STATIC_ASSERT(2 < SlicedString::kMinLength);
-    __ jmp(&copy_routine);
-    __ bind(&result_longer_than_two);
-
-    // eax: string
-    // ebx: instance type
-    // ecx: sub string length
-    // edx: from index (smi)
-    Label allocate_slice, sliced_string, seq_or_external_string;
-    __ cmp(ecx, SlicedString::kMinLength);
-    // Short slice.  Copy instead of slicing.
-    __ j(less, &copy_routine);
-    // If the string is not indirect, it can only be sequential or external.
-    STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
-    STATIC_ASSERT(kIsIndirectStringMask != 0);
-    __ test(ebx, Immediate(kIsIndirectStringMask));
-    __ j(zero, &seq_or_external_string, Label::kNear);
-
-    Factory* factory = masm->isolate()->factory();
-    __ test(ebx, Immediate(kSlicedNotConsMask));
-    __ j(not_zero, &sliced_string, Label::kNear);
-    // Cons string.  Check whether it is flat, then fetch first part.
-    __ cmp(FieldOperand(eax, ConsString::kSecondOffset),
-           factory->empty_string());
-    __ j(not_equal, &runtime);
-    __ mov(edi, FieldOperand(eax, ConsString::kFirstOffset));
-    __ jmp(&allocate_slice, Label::kNear);
-
-    __ bind(&sliced_string);
-    // Sliced string.  Fetch parent and correct start index by offset.
-    __ add(edx, FieldOperand(eax, SlicedString::kOffsetOffset));
-    __ mov(edi, FieldOperand(eax, SlicedString::kParentOffset));
-    __ jmp(&allocate_slice, Label::kNear);
-
-    __ bind(&seq_or_external_string);
-    // Sequential or external string.  Just move string to the correct register.
-    __ mov(edi, eax);
-
-    __ bind(&allocate_slice);
     // edi: underlying subject string
     // ebx: instance type of original subject string
-    // edx: offset
-    // ecx: length
+    // edx: adjusted start index (smi)
+    // ecx: length (smi)
+    __ cmp(ecx, Immediate(Smi::FromInt(SlicedString::kMinLength)));
+    // Short slice.  Copy instead of slicing.
+    __ j(less, &copy_routine);
     // Allocate new sliced string.  At this point we do not reload the instance
     // type including the string encoding because we simply rely on the info
     // provided by the original string.  It does not matter if the original
@@ -6193,27 +6203,50 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ AllocateTwoByteSlicedString(eax, ebx, no_reg, &runtime);
     __ bind(&set_slice_header);
     __ mov(FieldOperand(eax, SlicedString::kOffsetOffset), edx);
-    __ SmiTag(ecx);
     __ mov(FieldOperand(eax, SlicedString::kLengthOffset), ecx);
     __ mov(FieldOperand(eax, SlicedString::kParentOffset), edi);
     __ mov(FieldOperand(eax, SlicedString::kHashFieldOffset),
            Immediate(String::kEmptyHashField));
-    __ jmp(&return_eax);
+    __ IncrementCounter(counters->sub_string_native(), 1);
+    __ ret(3 * kPointerSize);
 
     __ bind(&copy_routine);
-  } else {
-    __ bind(&result_longer_than_two);
   }
 
-  // eax: string
-  // ebx: instance type
-  // ecx: result string length
-  // Check for flat ascii string
-  Label non_ascii_flat;
-  __ JumpIfInstanceTypeIsNotSequentialAscii(ebx, ebx, &non_ascii_flat);
+  // edi: underlying subject string
+  // ebx: instance type of original subject string
+  // edx: adjusted start index (smi)
+  // ecx: length (smi)
+  // The subject string can only be external or sequential string of either
+  // encoding at this point.
+  Label two_byte_sequential, runtime_drop_two, sequential_string;
+  STATIC_ASSERT(kExternalStringTag != 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ test_b(ebx, kExternalStringTag);
+  __ j(zero, &sequential_string);
 
-  // Allocate the result.
-  __ AllocateAsciiString(eax, ecx, ebx, edx, edi, &runtime);
+  // Handle external string.
+  Label ascii_external, done;
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ test_b(ebx, kShortExternalStringMask);
+  __ j(not_zero, &runtime);
+  __ mov(edi, FieldOperand(edi, ExternalString::kResourceDataOffset));
+  // Move the pointer so that offset-wise, it looks like a sequential string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  __ sub(edi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+
+  __ bind(&sequential_string);
+  // Stash away (adjusted) index and (underlying) string.
+  __ push(edx);
+  __ push(edi);
+  __ SmiUntag(ecx);
+  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  __ test_b(ebx, kStringEncodingMask);
+  __ j(zero, &two_byte_sequential);
+
+  // Sequential ascii string.  Allocate the result.
+  __ AllocateAsciiString(eax, ecx, ebx, edx, edi, &runtime_drop_two);
 
   // eax: result string
   // ecx: result string length
@@ -6222,11 +6255,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ mov(edi, eax);
   __ add(edi, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // Load string argument and locate character of sub string start.
-  __ mov(esi, Operand(esp, 3 * kPointerSize));
-  __ add(esi, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // from
+  __ pop(esi);
+  __ pop(ebx);
   __ SmiUntag(ebx);
-  __ add(esi, ebx);
+  __ lea(esi, FieldOperand(esi, ebx, times_1, SeqAsciiString::kHeaderSize));
 
   // eax: result string
   // ecx: result length
@@ -6235,20 +6267,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // esi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, true);
   __ mov(esi, edx);  // Restore esi.
-  Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
-  __ bind(&non_ascii_flat);
-  // eax: string
-  // ebx: instance type & kStringRepresentationMask | kStringEncodingMask
-  // ecx: result string length
-  // Check for flat two byte string
-  __ cmp(ebx, kSeqStringTag | kTwoByteStringTag);
-  __ j(not_equal, &runtime);
-
-  // Allocate the result.
-  __ AllocateTwoByteString(eax, ecx, ebx, edx, edi, &runtime);
+  __ bind(&two_byte_sequential);
+  // Sequential two-byte string.  Allocate the result.
+  __ AllocateTwoByteString(eax, ecx, ebx, edx, edi, &runtime_drop_two);
 
   // eax: result string
   // ecx: result string length
@@ -6258,14 +6282,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ add(edi,
          Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Load string argument and locate character of sub string start.
-  __ mov(esi, Operand(esp, 3 * kPointerSize));
-  __ add(esi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // from
+  __ pop(esi);
+  __ pop(ebx);
   // As from is a smi it is 2 times the value which matches the size of a two
   // byte character.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
-  __ add(esi, ebx);
+  __ lea(esi, FieldOperand(esi, ebx, times_1, SeqTwoByteString::kHeaderSize));
 
   // eax: result string
   // ecx: result length
@@ -6274,10 +6297,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // esi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, false);
   __ mov(esi, edx);  // Restore esi.
-
-  __ bind(&return_eax);
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
+
+  // Drop pushed values on the stack before tail call.
+  __ bind(&runtime_drop_two);
+  __ Drop(2);
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
