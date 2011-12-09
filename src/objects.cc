@@ -8372,7 +8372,7 @@ MaybeObject* JSArray::Initialize(int capacity) {
 
 void JSArray::Expand(int required_size) {
   GetIsolate()->factory()->SetElementsCapacityAndLength(
-      Handle<JSArray>(this), required_size, Smi::cast(length())->value());
+      Handle<JSArray>(this), required_size, required_size);
 }
 
 
