@@ -71,7 +71,7 @@ class ThreadState {
 };
 
 
-// Defined in top.h
+// Defined in isolate.h.
 class ThreadLocalTop;
 
 
