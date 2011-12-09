@@ -8133,17 +8133,17 @@ static void CopyFastElementsToFast(FixedArray* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
   int count = source->length();
+  int copy_size = Min(count, destination->length());
   if (mode == SKIP_WRITE_BARRIER ||
       !Page::FromAddress(destination->address())->IsFlagSet(
           MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
-    ASSERT(count <= destination->length());
     Address to = destination->address() + FixedArray::kHeaderSize;
     Address from = source->address() + FixedArray::kHeaderSize;
     memcpy(reinterpret_cast<void*>(to),
            reinterpret_cast<void*>(from),
-           kPointerSize * count);
+           kPointerSize * copy_size);
   } else {
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < copy_size; ++i) {
       destination->set(i, source->get(i), mode);
     }
   }
@@ -8153,11 +8153,14 @@ static void CopyFastElementsToFast(FixedArray* source,
 static void CopySlowElementsToFast(NumberDictionary* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
+  int destination_length = destination->length();
   for (int i = 0; i < source->Capacity(); ++i) {
     Object* key = source->KeyAt(i);
     if (key->IsNumber()) {
       uint32_t entry = static_cast<uint32_t>(key->Number());
-      destination->set(entry, source->ValueAt(i), mode);
+      if (entry < static_cast<uint32_t>(destination_length)) {
+        destination->set(entry, source->ValueAt(i), mode);
+      }
     }
   }
 }
@@ -8368,14 +8371,8 @@ MaybeObject* JSArray::Initialize(int capacity) {
 
 
 void JSArray::Expand(int required_size) {
-  Handle<JSArray> self(this);
-  Handle<FixedArray> old_backing(FixedArray::cast(elements()));
-  int old_size = old_backing->length();
-  int new_size = required_size > old_size ? required_size : old_size;
-  Handle<FixedArray> new_backing = FACTORY->NewFixedArray(new_size);
-  // Can't use this any more now because we may have had a GC!
-  for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
-  GetIsolate()->factory()->SetContent(self, new_backing);
+  GetIsolate()->factory()->SetElementsCapacityAndLength(
+      Handle<JSArray>(this), required_size, Smi::cast(length())->value());
 }
 
 
@@ -8529,13 +8526,14 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
 
 MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
                                                 uint32_t first_arg,
-                                                uint32_t arg_count) {
+                                                uint32_t arg_count,
+                                                EnsureElementsMode mode) {
   // Elements in |Arguments| are ordered backwards (because they're on the
   // stack), but the method that's called here iterates over them in forward
   // direction.
   return EnsureCanContainElements(
       args->arguments() - first_arg - (arg_count - 1),
-      arg_count);
+      arg_count, mode);
 }
 
 
@@ -9487,31 +9485,45 @@ MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
   FixedArrayBase* elms = FixedArrayBase::cast(elements());
   uint32_t capacity = static_cast<uint32_t>(elms->length());
   uint32_t length = capacity;
+
   if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
-  }
-  if (from_kind == FAST_SMI_ONLY_ELEMENTS) {
-    if (to_kind == FAST_DOUBLE_ELEMENTS) {
-      MaybeObject* maybe_result =
-          SetFastDoubleElementsCapacityAndLength(capacity, length);
-      if (maybe_result->IsFailure()) return maybe_result;
-      return this;
-    } else if (to_kind == FAST_ELEMENTS) {
-      MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
-      Map* new_map;
-      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-      if (FLAG_trace_elements_transitions) {
-        PrintElementsTransition(stdout, from_kind, elms, FAST_ELEMENTS, elms);
-      }
-      set_map(new_map);
-      return this;
+    Object* raw_length = JSArray::cast(this)->length();
+    if (raw_length->IsUndefined()) {
+      // If length is undefined, then JSArray is being initialized and has no
+      // elements, assume a length of zero.
+      length = 0;
+    } else {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
     }
-  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+  }
+
+  if ((from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) ||
+      (length == 0)) {
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(to_kind);
+    Map* new_map;
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    if (FLAG_trace_elements_transitions) {
+      PrintElementsTransition(stdout, from_kind, elms, to_kind, elms);
+    }
+    set_map(new_map);
+    return this;
+  }
+
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      to_kind == FAST_DOUBLE_ELEMENTS) {
+    MaybeObject* maybe_result =
+        SetFastDoubleElementsCapacityAndLength(capacity, length);
+    if (maybe_result->IsFailure()) return maybe_result;
+    return this;
+  }
+
+  if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
     MaybeObject* maybe_result = SetFastElementsCapacityAndLength(
         capacity, length, kDontAllowSmiOnlyElements);
     if (maybe_result->IsFailure()) return maybe_result;
     return this;
   }
+
   // This method should never be called for any other case than the ones
   // handled above.
   UNREACHABLE();

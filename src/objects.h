@@ -1322,6 +1322,13 @@ class HeapNumber: public HeapObject {
 };
 
 
+enum EnsureElementsMode {
+  DONT_ALLOW_DOUBLE_ELEMENTS,
+  ALLOW_COPIED_DOUBLE_ELEMENTS,
+  ALLOW_CONVERTED_DOUBLE_ELEMENTS
+};
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1615,16 +1622,19 @@ class JSObject: public JSReceiver {
 
   inline void ValidateSmiOnlyElements();
 
-  // Makes sure that this object can contain non-smi Object as elements.
-  inline MaybeObject* EnsureCanContainNonSmiElements();
+  // Makes sure that this object can contain HeapObject as elements.
+  inline MaybeObject* EnsureCanContainHeapObjectElements();
 
   // Makes sure that this object can contain the specified elements.
   inline MaybeObject* EnsureCanContainElements(Object** elements,
-                                               uint32_t count);
-  inline MaybeObject* EnsureCanContainElements(FixedArray* elements);
+                                               uint32_t count,
+                                               EnsureElementsMode mode);
+  inline MaybeObject* EnsureCanContainElements(FixedArrayBase* elements,
+                                               EnsureElementsMode mode);
   MaybeObject* EnsureCanContainElements(Arguments* arguments,
                                         uint32_t first_arg,
-                                        uint32_t arg_count);
+                                        uint32_t arg_count,
+                                        EnsureElementsMode mode);
 
   // Do we want to keep the elements in fast case when increasing the
   // capacity?
@@ -2123,6 +2133,9 @@ class FixedArray: public FixedArrayBase {
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
+
+  inline Object** GetFirstElementAddress();
+  inline bool ContainsOnlySmisOrHoles();
 
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
@@ -7386,7 +7399,7 @@ class JSArray: public JSObject {
   MUST_USE_RESULT MaybeObject* Initialize(int capacity);
 
   // Set the content of the array to the content of storage.
-  inline MaybeObject* SetContent(FixedArray* storage);
+  inline MaybeObject* SetContent(FixedArrayBase* storage);
 
   // Casting.
   static inline JSArray* cast(Object* obj);

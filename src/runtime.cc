@@ -6296,7 +6296,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   int part_count = indices.length();
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(part_count);
-  MaybeObject* maybe_result = result->EnsureCanContainNonSmiElements();
+  MaybeObject* maybe_result = result->EnsureCanContainHeapObjectElements();
   if (maybe_result->IsFailure()) return maybe_result;
   result->set_length(Smi::FromInt(part_count));
 
@@ -6672,7 +6672,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
-  MaybeObject* maybe_result = array->EnsureCanContainNonSmiElements();
+  MaybeObject* maybe_result = array->EnsureCanContainHeapObjectElements();
   if (maybe_result->IsFailure()) return maybe_result;
 
   int special_length = special->length();
@@ -9318,7 +9318,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   CONVERT_ARG_CHECKED(JSArray, output, 1);
 
   MaybeObject* maybe_result_array =
-      output->EnsureCanContainNonSmiElements();
+      output->EnsureCanContainHeapObjectElements();
   if (maybe_result_array->IsFailure()) return maybe_result_array;
   RUNTIME_ASSERT(output->HasFastElements());
 
