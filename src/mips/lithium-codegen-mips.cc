@@ -3520,89 +3520,13 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
     LStringCharCodeAt* instr_;
   };
 
-  Register temp = scratch1();
-  Register string = ToRegister(instr->string());
-  Register index = ToRegister(instr->index());
-  Register result = ToRegister(instr->result());
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(this, instr);
-
-  // Fetch the instance type of the receiver into result register.
-  __ lw(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
-
-  // We need special handling for indirect strings.
-  Label check_sequential;
-  __ And(temp, result, kIsIndirectStringMask);
-  __ Branch(&check_sequential, eq, temp, Operand(zero_reg));
-
-  // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ And(temp, result, kSlicedNotConsMask);
-  __ Branch(&cons_string, eq, temp, Operand(zero_reg));
-
-  // Handle slices.
-  Label indirect_string_loaded;
-  __ lw(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
-  __ sra(temp, result, kSmiTagSize);
-  __ addu(index, index, temp);
-  __ lw(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ jmp(&indirect_string_loaded);
-
-  // Handle conses.
-  // Check whether the right hand side is the empty string (i.e. if
-  // this is really a flat string in a cons string). If that is not
-  // the case we would rather go to the runtime system now to flatten
-  // the string.
-  __ bind(&cons_string);
-  __ lw(result, FieldMemOperand(string, ConsString::kSecondOffset));
-  __ LoadRoot(temp, Heap::kEmptyStringRootIndex);
-  __ Branch(deferred->entry(), ne, result, Operand(temp));
-  // Get the first of the two strings and load its instance type.
-  __ lw(string, FieldMemOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ lw(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
-
-  // Check whether the string is sequential. The only non-sequential
-  // shapes we support have just been unwrapped above.
-  // Note that if the original string is a cons or slice with an external
-  // string as underlying string, we pass that unpacked underlying string with
-  // the adjusted index to the runtime function.
-  __ bind(&check_sequential);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ And(temp, result, Operand(kStringRepresentationMask));
-  __ Branch(deferred->entry(), ne, temp, Operand(zero_reg));
-
-  // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii_string;
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ And(temp, result, Operand(kStringEncodingMask));
-  __ Branch(&ascii_string, ne, temp, Operand(zero_reg));
-
-  // Two-byte string.
-  // Load the two-byte character code into the result register.
-  Label done;
-  __ Addu(result,
-          string,
-          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  __ sll(temp, index, 1);
-  __ Addu(result, result, temp);
-  __ lhu(result, MemOperand(result, 0));
-  __ Branch(&done);
-
-  // ASCII string.
-  // Load the byte into the result register.
-  __ bind(&ascii_string);
-  __ Addu(result,
-          string,
-          Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ Addu(result, result, index);
-  __ lbu(result, MemOperand(result, 0));
-
-  __ bind(&done);
+  StringCharLoadGenerator::Generate(masm(),
+                                    ToRegister(instr->string()),
+                                    ToRegister(instr->index()),
+                                    ToRegister(instr->result()),
+                                    deferred->entry());
   __ bind(deferred->exit());
 }
 
@@ -4250,20 +4174,99 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 }
 
 
-void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
+void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
+                            Register result,
+                            Register source,
+                            int* offset) {
+  ASSERT(!source.is(a2));
+  ASSERT(!result.is(a2));
+
+  // Increase the offset so that subsequent objects end up right after
+  // this one.
+  int current_offset = *offset;
+  int size = object->map()->instance_size();
+  *offset += size;
+
+  // Copy object header.
+  ASSERT(object->properties()->length() == 0);
+  ASSERT(object->elements()->length() == 0 ||
+         object->elements()->map() == isolate()->heap()->fixed_cow_array_map());
+  int inobject_properties = object->map()->inobject_properties();
+  int header_size = size - inobject_properties * kPointerSize;
+  for (int i = 0; i < header_size; i += kPointerSize) {
+    __ lw(a2, FieldMemOperand(source, i));
+    __ sw(a2, FieldMemOperand(result, current_offset + i));
+  }
+
+  // Copy in-object properties.
+  for (int i = 0; i < inobject_properties; i++) {
+    int total_offset = current_offset + object->GetInObjectPropertyOffset(i);
+    Handle<Object> value = Handle<Object>(object->InObjectPropertyAt(i));
+    if (value->IsJSObject()) {
+      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+      __ Addu(a2, result, Operand(*offset));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+      LoadHeapObject(source, value_object);
+      EmitDeepCopy(value_object, result, source, offset);
+    } else if (value->IsHeapObject()) {
+      LoadHeapObject(a2, Handle<HeapObject>::cast(value));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+    } else {
+      __ li(a2, Operand(value));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+    }
+  }
+}
+
+
+void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
+  int size = instr->hydrogen()->total_size();
+
+  // Allocate all objects that are part of the literal in one big
+  // allocation. This avoids multiple limit checks.
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, v0, a2, a3, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ li(a0, Operand(Smi::FromInt(size)));
+  __ push(a0);
+  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+
+  __ bind(&allocated);
+  int offset = 0;
+  LoadHeapObject(a1, instr->hydrogen()->boilerplate());
+  EmitDeepCopy(instr->hydrogen()->boilerplate(), v0, a1, &offset);
+  ASSERT_EQ(size, offset);
+}
+
+
+void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
+
+  Handle<FixedArray> constant_properties =
+      instr->hydrogen()->constant_properties();
+
   __ lw(t0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(t0, FieldMemOperand(t0, JSFunction::kLiteralsOffset));
   __ li(a3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(a2, Operand(instr->hydrogen()->constant_properties()));
-  __ li(a1, Operand(Smi::FromInt(instr->hydrogen()->fast_elements() ? 1 : 0)));
+  __ li(a2, Operand(constant_properties));
+  int flags = instr->hydrogen()->fast_elements()
+      ? ObjectLiteral::kFastElements
+      : ObjectLiteral::kNoFlags;
+  __ li(a1, Operand(Smi::FromInt(flags)));
   __ Push(t0, a3, a2, a1);
 
   // Pick the right runtime function to call.
+  int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
-  } else {
+  } else if (flags != ObjectLiteral::kFastElements ||
+      properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
+  } else {
+    FastCloneShallowObjectStub stub(properties_count);
+    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
 }
 
