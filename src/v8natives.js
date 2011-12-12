@@ -873,27 +873,31 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       throw new $RangeError('defineProperty() array length out of range');
     }
     var length_desc = GetOwnProperty(obj, "length");
-    // Make sure the below call to DefineObjectProperty() doesn't overwrite
-    // any magic "length" property by removing the value.
-    desc.value_ = void 0;
-    desc.hasValue_ = false;
-    if ((new_length != length && !length_desc.isWritable()) ||
-        !DefineObjectProperty(obj, "length", desc, should_throw)) {
+    if (new_length != length && !length_desc.isWritable()) {
       if (should_throw) {
         throw MakeTypeError("redefine_disallowed", [p]);
       } else {
         return false;
       }
     }
-    obj.length = new_length;
+    var threw = false;
     while (new_length < length--) {
-      if (!Delete(obj, length, false)) {
-        obj.length = length + 1;
-        if (should_throw) {
-          throw MakeTypeError("redefine_disallowed", [p]);
-        } else {
-          return false;
-        }
+      if (!Delete(obj, ToString(length), false)) {
+        new_length = length + 1;
+        threw = true;
+        break;
+      }
+    }
+    // Make sure the below call to DefineObjectProperty() doesn't overwrite
+    // any magic "length" property by removing the value.
+    obj.length = new_length;
+    desc.value_ = void 0;
+    desc.hasValue_ = false;
+    if (!DefineObjectProperty(obj, "length", desc, should_throw) || threw) {
+      if (should_throw) {
+        throw MakeTypeError("redefine_disallowed", [p]);
+      } else {
+        return false;
       }
     }
     return true;

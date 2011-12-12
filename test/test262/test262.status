@@ -43,13 +43,12 @@ S10.4.2.1_A1: FAIL
 S15.3.3.1_A4: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1756
-15.2.3.6-4-167: FAIL
-15.2.3.6-4-168: FAIL
-15.2.3.6-4-181: FAIL
-15.2.3.7-6-a-163: FAIL
-15.2.3.7-6-a-164: FAIL
+15.2.3.6-4-167: FAIL || PASS
+15.2.3.6-4-181: FAIL || PASS
+15.2.3.7-6-a-163: FAIL || PASS
+15.2.3.7-6-a-164: FAIL || PASS
 15.2.3.7-6-a-176: FAIL || PASS
-15.2.3.7-6-a-177: FAIL
+15.2.3.7-6-a-177: FAIL || PASS
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
 15.2.3.6-4-292-1: FAIL
