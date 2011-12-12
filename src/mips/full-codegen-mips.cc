@@ -2958,8 +2958,12 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  MathPowStub stub(MathPowStub::ON_STACK);
-  __ CallStub(&stub);
+  if (CpuFeatures::IsSupported(FPU)) {
+    MathPowStub stub(MathPowStub::ON_STACK);
+    __ CallStub(&stub);
+  } else {
+    __ CallRuntime(Runtime::kMath_pow, 2);
+  }
   context()->Plug(v0);
 }
 

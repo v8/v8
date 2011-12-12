@@ -3024,58 +3024,32 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
-  Register scratch = scratch0();
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
   Representation exponent_type = instr->hydrogen()->right()->representation();
-  if (exponent_type.IsDouble()) {
-    // Prepare arguments and call C function.
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ SetCallCDoubleArguments(ToDoubleRegister(left),
-                               ToDoubleRegister(right));
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(isolate()), 0, 2);
+  // Having marked this as a call, we can use any registers.
+  // Just make sure that the input/output registers are the expected ones.
+  ASSERT(!instr->InputAt(1)->IsDoubleRegister() ||
+         ToDoubleRegister(instr->InputAt(1)).is(f4));
+  ASSERT(!instr->InputAt(1)->IsRegister() ||
+         ToRegister(instr->InputAt(1)).is(a2));
+  ASSERT(ToDoubleRegister(instr->InputAt(0)).is(f2));
+  ASSERT(ToDoubleRegister(instr->result()).is(f0));
+
+  if (exponent_type.IsTagged()) {
+    Label no_deopt;
+    __ JumpIfSmi(a2, &no_deopt);
+    __ lw(t3, FieldMemOperand(a2, HeapObject::kMapOffset));
+    DeoptimizeIf(ne, instr->environment(), t3, Operand(at));
+    __ bind(&no_deopt);
+    MathPowStub stub(MathPowStub::TAGGED);
+    __ CallStub(&stub);
   } else if (exponent_type.IsInteger32()) {
-    ASSERT(ToRegister(right).is(a0));
-    // Prepare arguments and call C function.
-    __ PrepareCallCFunction(1, 1, scratch);
-    __ SetCallCDoubleArguments(ToDoubleRegister(left), ToRegister(right));
-    __ CallCFunction(
-        ExternalReference::power_double_int_function(isolate()), 1, 1);
+    MathPowStub stub(MathPowStub::INTEGER);
+    __ CallStub(&stub);
   } else {
-    ASSERT(exponent_type.IsTagged());
-    ASSERT(instr->hydrogen()->left()->representation().IsDouble());
-
-    Register right_reg = ToRegister(right);
-
-    // Check for smi on the right hand side.
-    Label non_smi, call;
-    __ JumpIfNotSmi(right_reg, &non_smi);
-
-    // Untag smi and convert it to a double.
-    __ SmiUntag(right_reg);
-    FPURegister single_scratch = double_scratch0();
-    __ mtc1(right_reg, single_scratch);
-    __ cvt_d_w(result_reg, single_scratch);
-    __ Branch(&call);
-
-    // Heap number map check.
-    __ bind(&non_smi);
-    __ lw(scratch, FieldMemOperand(right_reg, HeapObject::kMapOffset));
-    __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-    DeoptimizeIf(ne, instr->environment(), scratch, Operand(at));
-    __ ldc1(result_reg, FieldMemOperand(right_reg, HeapNumber::kValueOffset));
-
-    // Prepare arguments and call C function.
-    __ bind(&call);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ SetCallCDoubleArguments(ToDoubleRegister(left), result_reg);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(isolate()), 0, 2);
+    ASSERT(exponent_type.IsDouble());
+    MathPowStub stub(MathPowStub::DOUBLE);
+    __ CallStub(&stub);
   }
-  // Store the result in the result register.
-  __ GetCFunctionDoubleResult(result_reg);
 }
 
 

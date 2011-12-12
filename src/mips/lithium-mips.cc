@@ -1406,9 +1406,9 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LOperand* left = UseFixedDouble(instr->left(), f2);
   LOperand* right = exponent_type.IsDouble() ?
       UseFixedDouble(instr->right(), f4) :
-      UseFixed(instr->right(), a0);
+      UseFixed(instr->right(), a2);
   LPower* result = new LPower(left, right);
-  return MarkAsCall(DefineFixedDouble(result, f6),
+  return MarkAsCall(DefineFixedDouble(result, f0),
                     instr,
                     CAN_DEOPTIMIZE_EAGERLY);
 }
