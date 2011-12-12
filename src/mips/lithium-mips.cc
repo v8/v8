@@ -1801,7 +1801,8 @@ LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadContextSlot(context));
+  LInstruction* result = DefineAsRegister(new LLoadContextSlot(context));
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
@@ -1815,7 +1816,8 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     context = UseRegister(instr->context());
     value = UseRegister(instr->value());
   }
-  return new LStoreContextSlot(context, value);
+  LInstruction* result = new LStoreContextSlot(context, value);
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
