@@ -3449,28 +3449,45 @@ class HLoadContextSlot: public HUnaryOperation {
  public:
   enum Mode {
     // Perform a normal load of the context slot without checking its value.
-    kLoad,
+    kNoCheck,
     // Load and check the value of the context slot. Deoptimize if it's the
     // hole value. This is used for checking for loading of uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kLoadCheck
+    kCheckDeoptimize,
+    // Load and check the value of the context slot. Return undefined if it's
+    // the hole value. This is used for non-harmony const assignments
+    kCheckReturnUndefined
   };
 
   HLoadContextSlot(HValue* context, Variable* var)
       : HUnaryOperation(context), slot_index_(var->index()) {
     ASSERT(var->IsContextSlot());
-    mode_ = (var->mode() == LET || var->mode() == CONST_HARMONY)
-        ? kLoadCheck : kLoad;
+    switch (var->mode()) {
+      case LET:
+      case CONST_HARMONY:
+        mode_ = kCheckDeoptimize;
+        break;
+      case CONST:
+        mode_ = kCheckReturnUndefined;
+        break;
+      default:
+        mode_ = kNoCheck;
+    }
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnContextSlots);
   }
 
   int slot_index() const { return slot_index_; }
+  Mode mode() const { return mode_; }
+
+  bool DeoptimizesOnHole() {
+    return mode_ == kCheckDeoptimize;
+  }
 
   bool RequiresHoleCheck() {
-    return mode_ == kLoadCheck;
+    return mode_ != kNoCheck;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3498,12 +3515,14 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
   enum Mode {
     // Perform a normal store to the context slot without checking its previous
     // value.
-    kAssign,
+    kNoCheck,
     // Check the previous value of the context slot and deoptimize if it's the
     // hole value. This is used for checking for assignments to uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kAssignCheck
+    kCheckDeoptimize,
+    // Check the previous value and ignore assignment if it isn't a hole value
+    kCheckIgnoreAssignment
   };
 
   HStoreContextSlot(HValue* context, int slot_index, Mode mode, HValue* value)
@@ -3522,8 +3541,12 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
     return StoringValueNeedsWriteBarrier(value());
   }
 
+  bool DeoptimizesOnHole() {
+    return mode_ == kCheckDeoptimize;
+  }
+
   bool RequiresHoleCheck() {
-    return mode_ == kAssignCheck;
+    return mode_ != kNoCheck;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
