@@ -3464,14 +3464,22 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<FixedArray> literals(environment()->closure()->literals());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
 
-  // For now, no boilerplate causes a deopt.
   if (raw_boilerplate->IsUndefined()) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+    raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
+        isolate(), literals, expr->constant_elements());
+    if (raw_boilerplate.is_null()) {
+      return Bailout("array boilerplate creation failed");
+    }
+    literals->set(expr->literal_index(), *raw_boilerplate);
+    if (JSObject::cast(*raw_boilerplate)->elements()->map() ==
+        isolate()->heap()->fixed_cow_array_map()) {
+      isolate()->counters()->cow_arrays_created_runtime()->Increment();
+    }
   }
 
-  Handle<JSObject> boilerplate(Handle<JSObject>::cast(raw_boilerplate));
-  ElementsKind boilerplate_elements_kind = boilerplate->GetElementsKind();
+  Handle<JSObject> boilerplate = Handle<JSObject>::cast(raw_boilerplate);
+  ElementsKind boilerplate_elements_kind =
+        Handle<JSObject>::cast(boilerplate)->GetElementsKind();
 
   HArrayLiteral* literal = new(zone()) HArrayLiteral(
       context,

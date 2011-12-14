@@ -434,7 +434,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
 static const int kSmiOnlyLiteralMinimumLength = 1024;
 
 
-static Handle<Object> CreateArrayLiteralBoilerplate(
+// static
+Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
     Handle<FixedArray> elements) {
@@ -536,7 +537,8 @@ static Handle<Object> CreateLiteralBoilerplate(
                                             false,
                                             kHasNoFunctionLiteral);
     case CompileTimeValue::ARRAY_LITERAL:
-      return CreateArrayLiteralBoilerplate(isolate, literals, elements);
+      return Runtime::CreateArrayLiteralBoilerplate(
+          isolate, literals, elements);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -606,7 +608,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
-    boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    boilerplate =
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -626,7 +629,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
-    boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    boilerplate =
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
