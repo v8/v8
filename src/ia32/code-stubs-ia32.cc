@@ -6120,20 +6120,20 @@ void SubStringStub::Generate(MacroAssembler* masm) {
              FieldOperand(eax, edx, times_1, SeqAsciiString::kHeaderSize + 1));
 
   // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
+  Label combine_two_char, save_two_char;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, ebx, ecx, eax, edx, edi,
-      &make_two_character_string, &make_two_character_string);
+      masm, ebx, ecx, eax, edx, edi, &combine_two_char, &save_two_char);
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
-  __ bind(&make_two_character_string);
-  // Setup registers for allocating the two character string.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ Set(ecx, Immediate(Smi::FromInt(2)));
-  __ mov(edx, Operand(esp, 2 * kPointerSize));  // Load index.
+  __ bind(&combine_two_char);
+  __ shl(ecx, kBitsPerByte);
+  __ or_(ebx, ecx);
+  __ bind(&save_two_char);
+  __ AllocateAsciiString(eax, 2, ecx, edx, &runtime);
+  __ mov_w(FieldOperand(eax, SeqAsciiString::kHeaderSize), ebx);
+  __ IncrementCounter(counters->sub_string_native(), 1);
+  __ ret(3 * kPointerSize);
 
   __ bind(&result_longer_than_two);
   // eax: string
