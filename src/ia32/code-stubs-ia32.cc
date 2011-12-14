@@ -5598,7 +5598,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(ecx, Immediate(kStringEncodingMask));
-  __ j(zero, &non_ascii, Label::kNear);
+  __ j(zero, &non_ascii);
   __ bind(&ascii_data);
   // Allocate an acsii cons string.
   __ AllocateAsciiConsString(ecx, edi, no_reg, &call_runtime);
