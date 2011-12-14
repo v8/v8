@@ -2074,7 +2074,7 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
     } else {
       Label is_not_hole;
       __ j(not_equal, &is_not_hole, Label::kNear);
-      __ movq(result, factory()->undefined_value(), RelocInfo::NONE);
+      __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
       __ bind(&is_not_hole);
     }
   }
@@ -2093,7 +2093,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
     if (instr->hydrogen()->DeoptimizesOnHole()) {
       DeoptimizeIf(equal, instr->environment());
     } else {
-      __ j(not_equal, &skip_assignment, Label::kNear);
+      __ j(not_equal, &skip_assignment);
     }
   }
   __ movq(target, value);
