@@ -8376,7 +8376,7 @@ void JSArray::Expand(int required_size) {
 }
 
 
-MaybeObject* JSObject::SetElementsLength(Object* len) {
+MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
   return GetElementsAccessor()->SetLength(this, len);
