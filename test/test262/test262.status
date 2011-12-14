@@ -42,6 +42,12 @@ S10.4.2.1_A1: FAIL
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
 S15.3.3.1_A4: FAIL
 
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
+15.2.3.6-4-405: FAIL
+15.2.3.6-4-410: FAIL
+15.2.3.6-4-415: FAIL
+15.2.3.6-4-420: FAIL
+
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
 15.2.3.6-4-292-1: FAIL
 15.2.3.6-4-293-2: FAIL
@@ -213,22 +219,6 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
 #      accessor property, 'O' is the global object (8.12.9 - step 9.b.i)
 15.2.3.6-4-360-7: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      object has a property with same name and [[Writable]] attribute is set to
-#      false (Number instance)
-15.2.3.6-4-405: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      prototype has a property with the same name and [[Writable]] set to false
-#      (JSON)
-15.2.3.6-4-410: FAIL
-# Bug? ES5 Attributes - Failed to add properties to an object when the object's
-#      prototype has properties with the same name and [[Writable]] set to false
-#      (Object.create)
-15.2.3.6-4-415: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      prototype has a property with the same name and [[Writable]] set to
-#      false(Function.prototype.bind)
-15.2.3.6-4-420: FAIL
 
 ############################ SKIPPED TESTS #############################
 
