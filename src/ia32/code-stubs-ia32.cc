@@ -6181,7 +6181,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   if (FLAG_string_slices) {
     Label copy_routine;
     // edi: underlying subject string
-    // ebx: instance type of original subject string
+    // ebx: instance type of underlying subject string
     // edx: adjusted start index (smi)
     // ecx: length (smi)
     __ cmp(ecx, Immediate(Smi::FromInt(SlicedString::kMinLength)));
@@ -6214,7 +6214,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   }
 
   // edi: underlying subject string
-  // ebx: instance type of original subject string
+  // ebx: instance type of underlying subject string
   // edx: adjusted start index (smi)
   // ecx: length (smi)
   // The subject string can only be external or sequential string of either
@@ -6226,7 +6226,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ j(zero, &sequential_string);
 
   // Handle external string.
-  Label ascii_external, done;
   // Rule out short external strings.
   STATIC_CHECK(kShortExternalStringTag != 0);
   __ test_b(ebx, kShortExternalStringMask);

@@ -5040,8 +5040,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
   __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);
-  Label return_rax;
-  __ j(equal, &return_rax);
+  Label not_original_string;
+  __ j(not_equal, &not_original_string, Label::kNear);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->sub_string_native(), 1);
+  __ ret(kArgumentsSize);
+  __ bind(&not_original_string);
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
@@ -5060,68 +5064,77 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Get the two characters forming the sub string.
   __ SmiToInteger32(rdx, rdx);  // From index is no longer smi.
   __ movzxbq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
-  __ movzxbq(rcx,
+  __ movzxbq(rdi,
              FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize + 1));
 
   // Try to lookup two character string in symbol table.
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, rbx, rcx, rax, rdx, rdi, r14, &make_two_character_string);
+      masm, rbx, rdi, r9, r11, r14, r15, &make_two_character_string);
+  __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
   // Setup registers for allocating the two character string.
-  __ movq(rax, Operand(rsp, kStringOffset));
-  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxwq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
+  __ AllocateAsciiString(rax, rcx, r11, r14, r15, &runtime);
+  __ movw(FieldOperand(rax, SeqAsciiString::kHeaderSize), rbx);
+  __ IncrementCounter(counters->sub_string_native(), 1);
+  __ ret(3 * kPointerSize);
+
+  __ bind(&result_longer_than_two);
+  // rax: string
+  // rbx: instance type
+  // rcx: sub string length
+  // rdx: from index (smi)
+  // Deal with different string types: update the index if necessary
+  // and put the underlying string into edi.
+  Label underlying_unpacked, sliced_string, seq_or_external_string;
+  // If the string is not indirect, it can only be sequential or external.
+  STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
+  STATIC_ASSERT(kIsIndirectStringMask != 0);
+  __ testb(rbx, Immediate(kIsIndirectStringMask));
+  __ j(zero, &seq_or_external_string, Label::kNear);
+
+  __ testb(rbx, Immediate(kSlicedNotConsMask));
+  __ j(not_zero, &sliced_string, Label::kNear);
+  // Cons string.  Check whether it is flat, then fetch first part.
+  // Flat cons strings have an empty second part.
+  __ CompareRoot(FieldOperand(rax, ConsString::kSecondOffset),
+                 Heap::kEmptyStringRootIndex);
+  __ j(not_equal, &runtime);
+  __ movq(rdi, FieldOperand(rax, ConsString::kFirstOffset));
+  // Update instance type.
+  __ movq(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
   __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  __ Set(rcx, 2);
+  __ jmp(&underlying_unpacked, Label::kNear);
+
+  __ bind(&sliced_string);
+  // Sliced string.  Fetch parent and correct start index by offset.
+  __ addq(rdx, FieldOperand(rax, SlicedString::kOffsetOffset));
+  __ movq(rdi, FieldOperand(rax, SlicedString::kParentOffset));
+  // Update instance type.
+  __ movq(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ jmp(&underlying_unpacked, Label::kNear);
+
+  __ bind(&seq_or_external_string);
+  // Sequential or external string.  Just move string to the correct register.
+  __ movq(rdi, rax);
+
+  __ bind(&underlying_unpacked);
 
   if (FLAG_string_slices) {
     Label copy_routine;
+    // rdi: underlying subject string
+    // rbx: instance type of underlying subject string
+    // rdx: adjusted start index (smi)
+    // rcx: length
     // If coming from the make_two_character_string path, the string
     // is too short to be sliced anyways.
-    STATIC_ASSERT(2 < SlicedString::kMinLength);
-    __ jmp(&copy_routine);
-    __ bind(&result_longer_than_two);
-
-    // rax: string
-    // rbx: instance type
-    // rcx: sub string length
-    // rdx: from index (smi)
-    Label allocate_slice, sliced_string, seq_or_external_string;
     __ cmpq(rcx, Immediate(SlicedString::kMinLength));
     // Short slice.  Copy instead of slicing.
     __ j(less, &copy_routine);
-    // If the string is not indirect, it can only be sequential or external.
-    STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
-    STATIC_ASSERT(kIsIndirectStringMask != 0);
-    __ testb(rbx, Immediate(kIsIndirectStringMask));
-    __ j(zero, &seq_or_external_string, Label::kNear);
-
-    __ testb(rbx, Immediate(kSlicedNotConsMask));
-    __ j(not_zero, &sliced_string, Label::kNear);
-    // Cons string.  Check whether it is flat, then fetch first part.
-    __ CompareRoot(FieldOperand(rax, ConsString::kSecondOffset),
-                   Heap::kEmptyStringRootIndex);
-    __ j(not_equal, &runtime);
-    __ movq(rdi, FieldOperand(rax, ConsString::kFirstOffset));
-    __ jmp(&allocate_slice, Label::kNear);
-
-    __ bind(&sliced_string);
-    // Sliced string.  Fetch parent and correct start index by offset.
-    __ addq(rdx, FieldOperand(rax, SlicedString::kOffsetOffset));
-    __ movq(rdi, FieldOperand(rax, SlicedString::kParentOffset));
-    __ jmp(&allocate_slice, Label::kNear);
-
-    __ bind(&seq_or_external_string);
-    // Sequential or external string.  Just move string to the correct register.
-    __ movq(rdi, rax);
-
-    __ bind(&allocate_slice);
-    // edi: underlying subject string
-    // ebx: instance type of original subject string
-    // edx: offset
-    // ecx: length
     // Allocate new sliced string.  At this point we do not reload the instance
     // type including the string encoding because we simply rely on the info
     // provided by the original string.  It does not matter if the original
@@ -5132,10 +5145,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
-    __ AllocateAsciiSlicedString(rax, rbx, no_reg, &runtime);
+    __ AllocateAsciiSlicedString(rax, rbx, r14, &runtime);
     __ jmp(&set_slice_header, Label::kNear);
     __ bind(&two_byte_slice);
-    __ AllocateTwoByteSlicedString(rax, rbx, no_reg, &runtime);
+    __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);
     __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ Integer32ToSmi(rcx, rcx);
@@ -5143,82 +5156,85 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
     __ movq(FieldOperand(rax, SlicedString::kHashFieldOffset),
            Immediate(String::kEmptyHashField));
-    __ jmp(&return_rax);
+    __ IncrementCounter(counters->sub_string_native(), 1);
+    __ ret(kArgumentsSize);
 
     __ bind(&copy_routine);
-  } else {
-    __ bind(&result_longer_than_two);
   }
 
-  // rax: string
-  // rbx: instance type
-  // rcx: result string length
-  // Check for flat ascii string
-  Label non_ascii_flat;
-  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &non_ascii_flat);
+  // rdi: underlying subject string
+  // rbx: instance type of underlying subject string
+  // rdx: adjusted start index (smi)
+  // rcx: length
+  // The subject string can only be external or sequential string of either
+  // encoding at this point.
+  Label two_byte_sequential, sequential_string;
+  STATIC_ASSERT(kExternalStringTag != 0);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(rbx, Immediate(kExternalStringTag));
+  __ j(zero, &sequential_string);
+
+  // Handle external string.
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ testb(rbx, Immediate(kShortExternalStringMask));
+  __ j(not_zero, &runtime);
+  __ movq(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
+  // Move the pointer so that offset-wise, it looks like a sequential string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+
+  __ bind(&sequential_string);
+  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  __ testb(rbx, Immediate(kStringEncodingMask));
+  __ j(zero, &two_byte_sequential);
 
   // Allocate the result.
-  __ AllocateAsciiString(rax, rcx, rbx, rdx, rdi, &runtime);
+  __ AllocateAsciiString(rax, rcx, r11, r14, r15, &runtime);
 
   // rax: result string
   // rcx: result string length
-  __ movq(rdx, rsi);  // esi used by following code.
-  // Locate first character of result.
-  __ lea(rdi, FieldOperand(rax, SeqAsciiString::kHeaderSize));
-  // Load string argument and locate character of sub string start.
-  __ movq(rsi, Operand(rsp, kStringOffset));
-  __ movq(rbx, Operand(rsp, kFromOffset));
-  {
-    SmiIndex smi_as_index = masm->SmiToIndex(rbx, rbx, times_1);
-    __ lea(rsi, Operand(rsi, smi_as_index.reg, smi_as_index.scale,
+  __ movq(r14, rsi);  // esi used by following code.
+  {  // Locate character of sub string start.
+    SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_1);
+    __ lea(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
                         SeqAsciiString::kHeaderSize - kHeapObjectTag));
   }
+  // Locate first character of result.
+  __ lea(rdi, FieldOperand(rax, SeqAsciiString::kHeaderSize));
 
   // rax: result string
   // rcx: result length
-  // rdx: original value of rsi
   // rdi: first character of result
   // rsi: character of sub string start
+  // r14: original value of rsi
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, true);
-  __ movq(rsi, rdx);  // Restore rsi.
-  Counters* counters = masm->isolate()->counters();
+  __ movq(rsi, r14);  // Restore rsi.
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(kArgumentsSize);
 
-  __ bind(&non_ascii_flat);
-  // rax: string
-  // rbx: instance type & kStringRepresentationMask | kStringEncodingMask
-  // rcx: result string length
-  // Check for sequential two byte string
-  __ cmpb(rbx, Immediate(kSeqStringTag | kTwoByteStringTag));
-  __ j(not_equal, &runtime);
-
+  __ bind(&two_byte_sequential);
   // Allocate the result.
-  __ AllocateTwoByteString(rax, rcx, rbx, rdx, rdi, &runtime);
+  __ AllocateTwoByteString(rax, rcx, r11, r14, r15, &runtime);
 
   // rax: result string
   // rcx: result string length
-  __ movq(rdx, rsi);  // esi used by following code.
-  // Locate first character of result.
-  __ lea(rdi, FieldOperand(rax, SeqTwoByteString::kHeaderSize));
-  // Load string argument and locate character of sub string start.
-  __ movq(rsi, Operand(rsp, kStringOffset));
-  __ movq(rbx, Operand(rsp, kFromOffset));
-  {
-    SmiIndex smi_as_index = masm->SmiToIndex(rbx, rbx, times_2);
-    __ lea(rsi, Operand(rsi, smi_as_index.reg, smi_as_index.scale,
+  __ movq(r14, rsi);  // esi used by following code.
+  {  // Locate character of sub string start.
+    SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_2);
+    __ lea(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
                         SeqAsciiString::kHeaderSize - kHeapObjectTag));
   }
+  // Locate first character of result.
+  __ lea(rdi, FieldOperand(rax, SeqTwoByteString::kHeaderSize));
 
   // rax: result string
   // rcx: result length
-  // rdx: original value of rsi
   // rdi: first character of result
   // rsi: character of sub string start
+  // r14: original value of rsi
   StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
-  __ movq(rsi, rdx);  // Restore esi.
-
-  __ bind(&return_rax);
+  __ movq(rsi, r14);  // Restore esi.
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(kArgumentsSize);
 
