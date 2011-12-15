@@ -5647,8 +5647,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test_b(ecx, kStringRepresentationMask);
   __ j(zero, &first_is_sequential, Label::kNear);
-  // Rule out short external string and prepare it so that offset-wise, it
-  // looks like a sequential string.
+  // Rule out short external string and load string resource.
   STATIC_ASSERT(kShortExternalStringTag != 0);
   __ test_b(ecx, kShortExternalStringMask);
   __ j(not_zero, &call_runtime);
@@ -5669,8 +5668,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test_b(edi, kStringRepresentationMask);
   __ j(zero, &second_is_sequential, Label::kNear);
-  // Rule out short external string and prepare it so that offset-wise, it
-  // looks like a sequential string.
+  // Rule out short external string and load string resource.
   STATIC_ASSERT(kShortExternalStringTag != 0);
   __ test_b(edi, kShortExternalStringMask);
   __ j(not_zero, &call_runtime);
@@ -5736,8 +5734,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // eax: result string
   __ mov(ecx, eax);
   // Locate first character of result.
-  __ add(ecx,
-         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ add(ecx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Load second argument's length and first character location.  Account for
   // values currently on the stack when fetching arguments from it.
   __ mov(edx, Operand(esp, 4 * kPointerSize));

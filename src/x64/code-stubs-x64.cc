@@ -4434,7 +4434,7 @@ void StringCharAtGenerator::GenerateSlow(
 
 
 void StringAddStub::Generate(MacroAssembler* masm) {
-  Label string_add_runtime, call_builtin;
+  Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
 
   // Load the two arguments.
@@ -4443,14 +4443,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Make sure that both arguments are strings if not known in advance.
   if (flags_ == NO_STRING_ADD_FLAGS) {
-    __ JumpIfSmi(rax, &string_add_runtime);
+    __ JumpIfSmi(rax, &call_runtime);
     __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, r8);
-    __ j(above_equal, &string_add_runtime);
+    __ j(above_equal, &call_runtime);
 
     // First argument is a a string, test second.
-    __ JumpIfSmi(rdx, &string_add_runtime);
+    __ JumpIfSmi(rdx, &call_runtime);
     __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, r9);
-    __ j(above_equal, &string_add_runtime);
+    __ j(above_equal, &call_runtime);
   } else {
     // Here at least one of the arguments is definitely a string.
     // We convert the one that is not known to be a string.
@@ -4518,7 +4518,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Check that both strings are non-external ascii strings.
   __ JumpIfBothInstanceTypesAreNotSequentialAscii(r8, r9, rbx, rcx,
-                                                  &string_add_runtime);
+                                                  &call_runtime);
 
   // Get the two characters forming the sub string.
   __ movzxbq(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
@@ -4533,8 +4533,18 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
 
   __ bind(&make_two_character_string);
-  __ Set(rbx, 2);
-  __ jmp(&make_flat_ascii_string);
+  __ Set(rdi, 2);
+  __ AllocateAsciiString(rax, rdi, r8, r9, r11, &call_runtime);
+  // rbx - first byte: first character
+  // rbx - second byte: *maybe* second character
+  // Make sure that the second byte of rbx contains the second character.
+  __ movzxbq(rcx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+  __ shll(rcx, Immediate(kBitsPerByte));
+  __ orl(rbx, rcx);
+  // Write both characters to the new string.
+  __ movw(FieldOperand(rax, SeqAsciiString::kHeaderSize), rbx);
+  __ IncrementCounter(counters->string_add_native(), 1);
+  __ ret(2 * kPointerSize);
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
@@ -4543,7 +4553,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   __ SmiCompare(rbx, Smi::FromInt(String::kMaxLength));
-  __ j(above, &string_add_runtime);
+  __ j(above, &call_runtime);
 
   // If result is not supposed to be flat, allocate a cons string object. If
   // both strings are ascii the result is an ascii cons string.
@@ -4561,7 +4571,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
   // Allocate an acsii cons string.
-  __ AllocateAsciiConsString(rcx, rdi, no_reg, &string_add_runtime);
+  __ AllocateAsciiConsString(rcx, rdi, no_reg, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
   __ movq(FieldOperand(rcx, ConsString::kLengthOffset), rbx);
@@ -4586,111 +4596,103 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ cmpb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
-  __ AllocateTwoByteConsString(rcx, rdi, no_reg, &string_add_runtime);
+  __ AllocateTwoByteConsString(rcx, rdi, no_reg, &call_runtime);
   __ jmp(&allocated);
 
-  // Handle creating a flat result. First check that both strings are not
-  // external strings.
+  // We cannot encounter sliced strings or cons strings here since:
+  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  // Handle creating a flat result from either external or sequential strings.
+  // Locate the first characters' locations.
   // rax: first string
   // rbx: length of resulting flat string as smi
   // rdx: second string
   // r8: instance type of first string
   // r9: instance type of first string
+  Label first_prepared, second_prepared;
+  Label first_is_sequential, second_is_sequential;
   __ bind(&string_add_flat_result);
-  __ SmiToInteger32(rbx, rbx);
-  __ movl(rcx, r8);
-  __ and_(rcx, Immediate(kStringRepresentationMask));
-  __ cmpl(rcx, Immediate(kExternalStringTag));
-  __ j(equal, &string_add_runtime);
-  __ movl(rcx, r9);
-  __ and_(rcx, Immediate(kStringRepresentationMask));
-  __ cmpl(rcx, Immediate(kExternalStringTag));
-  __ j(equal, &string_add_runtime);
-  // We cannot encounter sliced strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
-  // Now check if both strings are ascii strings.
-  // rax: first string
-  // rbx: length of resulting flat string
-  // rdx: second string
-  // r8: instance type of first string
-  // r9: instance type of second string
+
+  __ SmiToInteger32(r14, FieldOperand(rax, SeqString::kLengthOffset));
+  // r14: length of first string
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(r8, Immediate(kStringRepresentationMask));
+  __ j(zero, &first_is_sequential, Label::kNear);
+  // Rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ testb(r8, Immediate(kShortExternalStringMask));
+  __ j(not_zero, &call_runtime);
+  __ movq(rcx, FieldOperand(rax, ExternalString::kResourceDataOffset));
+  __ jmp(&first_prepared, Label::kNear);
+  __ bind(&first_is_sequential);
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ lea(rcx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  __ bind(&first_prepared);
+
+  // Check whether both strings have same encoding.
+  __ xorl(r8, r9);
+  __ testb(r8, Immediate(kStringEncodingMask));
+  __ j(not_zero, &call_runtime);
+
+  __ SmiToInteger32(r15, FieldOperand(rdx, SeqString::kLengthOffset));
+  // r15: length of second string
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(r9, Immediate(kStringRepresentationMask));
+  __ j(zero, &second_is_sequential, Label::kNear);
+  // Rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ testb(r9, Immediate(kShortExternalStringMask));
+  __ j(not_zero, &call_runtime);
+  __ movq(rdx, FieldOperand(rdx, ExternalString::kResourceDataOffset));
+  __ jmp(&second_prepared, Label::kNear);
+  __ bind(&second_is_sequential);
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ lea(rdx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+  __ bind(&second_prepared);
+
   Label non_ascii_string_add_flat_result;
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ testl(r8, Immediate(kStringEncodingMask));
+  // r9: instance type of second string
+  // First string and second string have the same encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ SmiToInteger32(rbx, rbx);
+  __ testb(r9, Immediate(kStringEncodingMask));
   __ j(zero, &non_ascii_string_add_flat_result);
-  __ testl(r9, Immediate(kStringEncodingMask));
-  __ j(zero, &string_add_runtime);
 
   __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings. As they are short they are both flat.
-  __ AllocateAsciiString(rcx, rbx, rdi, r14, r11, &string_add_runtime);
-  // rcx: result string
-  __ movq(rbx, rcx);
+  __ AllocateAsciiString(rax, rbx, rdi, r8, r9, &call_runtime);
+  // rax: result string
   // Locate first character of result.
-  __ addq(rcx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // Locate first character of first argument
-  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ addq(rax, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // rax: first char of first argument
-  // rbx: result string
-  // rcx: first character of result
-  // rdx: second string
-  // rdi: length of first argument
-  StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, true);
-  // Locate first character of second argument.
-  __ SmiToInteger32(rdi, FieldOperand(rdx, String::kLengthOffset));
-  __ addq(rdx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // rbx: result string
-  // rcx: next character of result
-  // rdx: first char of second argument
-  // rdi: length of second argument
-  StringHelper::GenerateCopyCharacters(masm, rcx, rdx, rdi, true);
-  __ movq(rax, rbx);
+  __ lea(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  // rcx: first char of first string
+  // rbx: first character of result
+  // r14: length of first string
+  StringHelper::GenerateCopyCharacters(masm, rbx, rcx, r14, true);
+  // rbx: next character of result
+  // rdx: first char of second string
+  // r15: length of second string
+  StringHelper::GenerateCopyCharacters(masm, rbx, rdx, r15, true);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
-  // Handle creating a flat two byte result.
-  // rax: first string - known to be two byte
-  // rbx: length of resulting flat string
-  // rdx: second string
-  // r8: instance type of first string
-  // r9: instance type of first string
   __ bind(&non_ascii_string_add_flat_result);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ and_(r9, Immediate(kStringEncodingMask));
-  __ j(not_zero, &string_add_runtime);
-  // Both strings are two byte strings. As they are short they are both
-  // flat.
-  __ AllocateTwoByteString(rcx, rbx, rdi, r14, r11, &string_add_runtime);
-  // rcx: result string
-  __ movq(rbx, rcx);
+  // Both strings are ascii strings. As they are short they are both flat.
+  __ AllocateTwoByteString(rax, rbx, rdi, r8, r9, &call_runtime);
+  // rax: result string
   // Locate first character of result.
-  __ addq(rcx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // Locate first character of first argument.
-  __ SmiToInteger32(rdi, FieldOperand(rax, String::kLengthOffset));
-  __ addq(rax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // rax: first char of first argument
-  // rbx: result string
-  // rcx: first character of result
-  // rdx: second argument
-  // rdi: length of first argument
-  StringHelper::GenerateCopyCharacters(masm, rcx, rax, rdi, false);
-  // Locate first character of second argument.
-  __ SmiToInteger32(rdi, FieldOperand(rdx, String::kLengthOffset));
-  __ addq(rdx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // rbx: result string
-  // rcx: next character of result
-  // rdx: first char of second argument
-  // rdi: length of second argument
-  StringHelper::GenerateCopyCharacters(masm, rcx, rdx, rdi, false);
-  __ movq(rax, rbx);
+  __ lea(rbx, FieldOperand(rax, SeqTwoByteString::kHeaderSize));
+  // rcx: first char of first string
+  // rbx: first character of result
+  // r14: length of first string
+  StringHelper::GenerateCopyCharacters(masm, rbx, rcx, r14, false);
+  // rbx: next character of result
+  // rdx: first char of second string
+  // r15: length of second string
+  StringHelper::GenerateCopyCharacters(masm, rbx, rdx, r15, false);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Just jump to runtime to add the two strings.
-  __ bind(&string_add_runtime);
+  __ bind(&call_runtime);
   __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
