@@ -6140,7 +6140,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
 
 void StringAddStub::Generate(MacroAssembler* masm) {
-  Label string_add_runtime, call_builtin;
+  Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
 
   Counters* counters = masm->isolate()->counters();
@@ -6155,7 +6155,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Make sure that both arguments are strings if not known in advance.
   if (flags_ == NO_STRING_ADD_FLAGS) {
-    __ JumpIfEitherSmi(r0, r1, &string_add_runtime);
+    __ JumpIfEitherSmi(r0, r1, &call_runtime);
     // Load instance types.
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldr(r5, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -6165,7 +6165,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     // If either is not a string, go to runtime.
     __ tst(r4, Operand(kIsNotStringMask));
     __ tst(r5, Operand(kIsNotStringMask), eq);
-    __ b(ne, &string_add_runtime);
+    __ b(ne, &call_runtime);
   } else {
     // Here at least one of the arguments is definitely a string.
     // We convert the one that is not known to be a string.
@@ -6234,7 +6234,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ ldrb(r5, FieldMemOperand(r5, Map::kInstanceTypeOffset));
   }
   __ JumpIfBothInstanceTypesAreNotSequentialAscii(r4, r5, r6, r7,
-                                                  &string_add_runtime);
+                                                  &call_runtime);
 
   // Get the two characters forming the sub string.
   __ ldrb(r2, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
@@ -6256,7 +6256,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // halfword store instruction (which assumes that processor is
   // in a little endian mode)
   __ mov(r6, Operand(2));
-  __ AllocateAsciiString(r0, r6, r4, r5, r9, &string_add_runtime);
+  __ AllocateAsciiString(r0, r6, r4, r5, r9, &call_runtime);
   __ strh(r2, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
   __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
@@ -6271,7 +6271,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   ASSERT(IsPowerOf2(String::kMaxLength + 1));
   // kMaxLength + 1 is representable as shifted literal, kMaxLength is not.
   __ cmp(r6, Operand(String::kMaxLength + 1));
-  __ b(hs, &string_add_runtime);
+  __ b(hs, &call_runtime);
 
   // If result is not supposed to be flat, allocate a cons string object.
   // If both strings are ASCII the result is an ASCII cons string.
@@ -6289,7 +6289,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Allocate an ASCII cons string.
   __ bind(&ascii_data);
-  __ AllocateAsciiConsString(r7, r6, r4, r5, &string_add_runtime);
+  __ AllocateAsciiConsString(r7, r6, r4, r5, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
   __ str(r0, FieldMemOperand(r7, ConsString::kFirstOffset));
@@ -6314,11 +6314,13 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ b(eq, &ascii_data);
 
   // Allocate a two byte cons string.
-  __ AllocateTwoByteConsString(r7, r6, r4, r5, &string_add_runtime);
+  __ AllocateTwoByteConsString(r7, r6, r4, r5, &call_runtime);
   __ jmp(&allocated);
 
-  // Handle creating a flat result. First check that both strings are
-  // sequential and that they have the same encoding.
+  // We cannot encounter sliced strings or cons strings here since:
+  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  // Handle creating a flat result from either external or sequential strings.
+  // Locate the first characters' locations.
   // r0: first string
   // r1: second string
   // r2: length of first string
@@ -6326,6 +6328,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r4: first string instance type (if flags_ == NO_STRING_ADD_FLAGS)
   // r5: second string instance type (if flags_ == NO_STRING_ADD_FLAGS)
   // r6: sum of lengths.
+  Label first_prepared, second_prepared;
   __ bind(&string_add_flat_result);
   if (flags_ != NO_STRING_ADD_FLAGS) {
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -6333,97 +6336,88 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
     __ ldrb(r5, FieldMemOperand(r5, Map::kInstanceTypeOffset));
   }
-  // Check that both strings are sequential.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ tst(r4, Operand(kStringRepresentationMask));
-  __ tst(r5, Operand(kStringRepresentationMask), eq);
-  __ b(ne, &string_add_runtime);
-  // Now check if both strings have the same encoding (ASCII/Two-byte).
-  // r0: first string.
-  // r1: second string.
-  // r2: length of first string.
-  // r3: length of second string.
-  // r6: sum of lengths..
-  Label non_ascii_string_add_flat_result;
-  ASSERT(IsPowerOf2(kStringEncodingMask));  // Just one bit to test.
+
+  // Check whether both strings have same encoding
   __ eor(r7, r4, Operand(r5));
   __ tst(r7, Operand(kStringEncodingMask));
-  __ b(ne, &string_add_runtime);
-  // And see if it's ASCII or two-byte.
-  __ tst(r4, Operand(kStringEncodingMask));
+  __ b(ne, &call_runtime);
+
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(r4, Operand(kStringRepresentationMask));
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ add(r7,
+         r0,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag),
+         LeaveCC,
+         eq);
+  __ b(eq, &first_prepared);
+  // External string: rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ tst(r4, Operand(kShortExternalStringMask));
+  __ b(ne, &call_runtime);
+  __ ldr(r7, FieldMemOperand(r0, ExternalString::kResourceDataOffset));
+  __ bind(&first_prepared);
+
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(r5, Operand(kStringRepresentationMask));
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ add(r1,
+         r1,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag),
+         LeaveCC,
+         eq);
+  __ b(eq, &second_prepared);
+  // External string: rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ tst(r5, Operand(kShortExternalStringMask));
+  __ b(ne, &call_runtime);
+  __ ldr(r1, FieldMemOperand(r1, ExternalString::kResourceDataOffset));
+  __ bind(&second_prepared);
+
+  Label non_ascii_string_add_flat_result;
+  // r7: first character of first string
+  // r1: first character of second string
+  // r2: length of first string.
+  // r3: length of second string.
+  // r6: sum of lengths.
+  // Both strings have the same encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ tst(r5, Operand(kStringEncodingMask));
   __ b(eq, &non_ascii_string_add_flat_result);
 
-  // Both strings are sequential ASCII strings. We also know that they are
-  // short (since the sum of the lengths is less than kMinNonFlatLength).
-  // r6: length of resulting flat string
-  __ AllocateAsciiString(r7, r6, r4, r5, r9, &string_add_runtime);
-  // Locate first character of result.
-  __ add(r6, r7, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // Locate first character of first argument.
-  __ add(r0, r0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // r0: first character of first string.
-  // r1: second string.
+  __ AllocateAsciiString(r0, r6, r4, r5, r9, &call_runtime);
+  __ add(r6, r0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // r0: result string.
+  // r7: first character of first string.
+  // r1: first character of second string.
   // r2: length of first string.
   // r3: length of second string.
   // r6: first character of result.
-  // r7: result string.
-  StringHelper::GenerateCopyCharacters(masm, r6, r0, r2, r4, true);
-
-  // Load second argument and locate first character.
-  __ add(r1, r1, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // r1: first character of second string.
-  // r3: length of second string.
+  StringHelper::GenerateCopyCharacters(masm, r6, r7, r2, r4, true);
   // r6: next character of result.
-  // r7: result string.
   StringHelper::GenerateCopyCharacters(masm, r6, r1, r3, r4, true);
-  __ mov(r0, Operand(r7));
   __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
   __ bind(&non_ascii_string_add_flat_result);
-  // Both strings are sequential two byte strings.
-  // r0: first string.
-  // r1: second string.
-  // r2: length of first string.
-  // r3: length of second string.
-  // r6: sum of length of strings.
-  __ AllocateTwoByteString(r7, r6, r4, r5, r9, &string_add_runtime);
-  // r0: first string.
-  // r1: second string.
-  // r2: length of first string.
-  // r3: length of second string.
-  // r7: result string.
-
-  // Locate first character of result.
-  __ add(r6, r7, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // Locate first character of first argument.
-  __ add(r0, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-
-  // r0: first character of first string.
-  // r1: second string.
+  __ AllocateTwoByteString(r0, r6, r4, r5, r9, &call_runtime);
+  __ add(r6, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // r0: result string.
+  // r7: first character of first string.
+  // r1: first character of second string.
   // r2: length of first string.
   // r3: length of second string.
   // r6: first character of result.
-  // r7: result string.
-  StringHelper::GenerateCopyCharacters(masm, r6, r0, r2, r4, false);
-
-  // Locate first character of second argument.
-  __ add(r1, r1, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-
-  // r1: first character of second string.
-  // r3: length of second string.
-  // r6: next character of result (after copy of first string).
-  // r7: result string.
+  StringHelper::GenerateCopyCharacters(masm, r6, r7, r2, r4, false);
+  // r6: next character of result.
   StringHelper::GenerateCopyCharacters(masm, r6, r1, r3, r4, false);
-
-  __ mov(r0, Operand(r7));
   __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
 
   // Just jump to runtime to add the two strings.
-  __ bind(&string_add_runtime);
+  __ bind(&call_runtime);
   __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
