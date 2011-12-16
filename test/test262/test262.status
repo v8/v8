@@ -205,21 +205,6 @@ S15.1.1.3_A2_T2: FAIL_OK  # undefined
 S15.4.4.2_A2_T1: FAIL_OK
 S15.4.4.3_A2_T1: FAIL_OK
 
-######################### UNANALYZED FAILURES ##########################
-
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'A' is an Array object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-1: FAIL
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'O' is an Arguments object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-6: FAIL
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'O' is the global object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-7: FAIL
-
 ############################ SKIPPED TESTS #############################
 
 # These tests take a looong time to run in debug mode.

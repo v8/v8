@@ -4248,27 +4248,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag_setter, args[2]);
   Object* fun = args[3];
-  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   CONVERT_CHECKED(Smi, flag_attr, args[4]);
+
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  RUNTIME_ASSERT(!obj->IsNull());
-  LookupResult result(isolate);
-  obj->LocalLookupRealNamedProperty(name, &result);
-
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
-  // If an existing property is either FIELD, NORMAL or CONSTANT_FUNCTION
-  // delete it to avoid running into trouble in DefineAccessor, which
-  // handles this incorrectly if the property is readonly (does nothing)
-  if (result.IsProperty() &&
-      (result.type() == FIELD || result.type() == NORMAL
-       || result.type() == CONSTANT_FUNCTION)) {
-    Object* ok;
-    { MaybeObject* maybe_ok =
-          obj->DeleteProperty(name, JSReceiver::NORMAL_DELETION);
-      if (!maybe_ok->ToObject(&ok)) return maybe_ok;
-    }
-  }
+
+  RUNTIME_ASSERT(!obj->IsNull());
+  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
 
@@ -4284,11 +4271,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   CONVERT_ARG_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   Handle<Object> obj_value = args.at<Object>(2);
-
   CONVERT_CHECKED(Smi, flag, args[3]);
+
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
   // Check if this is an element.
