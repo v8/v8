@@ -565,6 +565,7 @@ DEFINE_implication(print_all_code, print_code_verbose)
 DEFINE_implication(print_all_code, print_builtin_code)
 DEFINE_implication(print_all_code, print_code_stubs)
 DEFINE_implication(print_all_code, trace_codegen)
+DEFINE_implication(print_all_code, code_comments)
 #endif
 
 // Cleanup...
