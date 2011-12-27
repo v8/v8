@@ -178,6 +178,8 @@ enum BuiltinExtraArguments {
   V(FunctionApply,                  BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
                                                                         \
+  V(InternalArrayCode,              BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   V(ArrayCode,                      BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(ArrayConstructCode,             BUILTIN, UNINITIALIZED,             \
@@ -359,6 +361,7 @@ class Builtins {
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
 
+  static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
   static void Generate_ArrayConstructCode(MacroAssembler* masm);
 
