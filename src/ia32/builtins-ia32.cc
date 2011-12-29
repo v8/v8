@@ -1337,7 +1337,7 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   // the construction.
   __ bind(&generic_array_code);
   Handle<Code> array_code =
-      masm->isolate()->builtins()->ArrayCodeGeneric();
+      masm->isolate()->builtins()->InternalArrayCodeGeneric();
   __ jmp(array_code, RelocInfo::CODE_TARGET);
 }
 

@@ -44,6 +44,7 @@ enum BuiltinExtraArguments {
                                                                     \
   V(EmptyFunction, NO_EXTRA_ARGUMENTS)                              \
                                                                     \
+  V(InternalArrayCodeGeneric, NO_EXTRA_ARGUMENTS)                   \
   V(ArrayCodeGeneric, NO_EXTRA_ARGUMENTS)                           \
                                                                     \
   V(ArrayPush, NO_EXTRA_ARGUMENTS)                                  \
