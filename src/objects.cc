@@ -8188,13 +8188,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   Map* new_map = NULL;
   if (elements()->map() != heap->non_strict_arguments_elements_map()) {
     Object* object;
-    // The resized array has FAST_SMI_ONLY_ELEMENTS if the capacity mode forces
-    // it, or if it's allowed and the old elements array contained only SMIs.
     bool has_fast_smi_only_elements =
-        (set_capacity_mode == kForceSmiOnlyElements) ||
-        ((set_capacity_mode == kAllowSmiOnlyElements) &&
-         (elements()->map()->has_fast_smi_only_elements() ||
-          elements() == heap->empty_fixed_array()));
+        (set_capacity_mode == kAllowSmiOnlyElements) &&
+        (elements()->map()->has_fast_smi_only_elements() ||
+         elements() == heap->empty_fixed_array());
     ElementsKind elements_kind = has_fast_smi_only_elements
         ? FAST_SMI_ONLY_ELEMENTS
         : FAST_ELEMENTS;
@@ -9244,20 +9241,11 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
-    SetFastElementsCapacityMode set_capacity_mode = FLAG_smi_only_arrays
-        ? kAllowSmiOnlyElements
-        : kDontAllowSmiOnlyElements;
-    bool has_smi_only_elements = false;
-    bool should_convert_to_fast_double_elements =
-        ShouldConvertToFastDoubleElements(&has_smi_only_elements);
-    if (has_smi_only_elements) {
-      set_capacity_mode = kForceSmiOnlyElements;
-    }
-    MaybeObject* result = should_convert_to_fast_double_elements
+    MaybeObject* result = CanConvertToFastDoubleElements()
         ? SetFastDoubleElementsCapacityAndLength(new_length, new_length)
         : SetFastElementsCapacityAndLength(new_length,
                                            new_length,
-                                           set_capacity_mode);
+                                           kDontAllowSmiOnlyElements);
     if (result->IsFailure()) return result;
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
@@ -9736,25 +9724,17 @@ bool JSObject::ShouldConvertToFastElements() {
 }
 
 
-bool JSObject::ShouldConvertToFastDoubleElements(
-    bool* has_smi_only_elements) {
-  *has_smi_only_elements = false;
+bool JSObject::CanConvertToFastDoubleElements() {
   if (FLAG_unbox_double_arrays) {
     ASSERT(HasDictionaryElements());
     NumberDictionary* dictionary = NumberDictionary::cast(elements());
-    bool found_double = false;
     for (int i = 0; i < dictionary->Capacity(); i++) {
       Object* key = dictionary->KeyAt(i);
       if (key->IsNumber()) {
-        Object* value = dictionary->ValueAt(i);
-        if (!value->IsNumber()) return false;
-        if (!value->IsSmi()) {
-          found_double = true;
-        }
+        if (!dictionary->ValueAt(i)->IsNumber()) return false;
       }
     }
-    *has_smi_only_elements = !found_double;
-    return found_double;
+    return true;
   } else {
     return false;
   }

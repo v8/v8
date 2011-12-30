@@ -1219,7 +1219,7 @@ void JSObject::ValidateSmiOnlyElements() {
         map != heap->free_space_map()) {
       for (int i = 0; i < fixed_array->length(); i++) {
         Object* current = fixed_array->get(i);
-        ASSERT(current->IsSmi() || current->IsTheHole());
+        ASSERT(current->IsSmi() || current == heap->the_hole_value());
       }
     }
   }

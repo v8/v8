@@ -1644,9 +1644,8 @@ class JSObject: public JSReceiver {
   // elements.
   bool ShouldConvertToFastElements();
   // Returns true if the elements of JSObject contains only values that can be
-  // represented in a FixedDoubleArray and has at least one value that can only
-  // be represented as a double and not a Smi.
-  bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
+  // represented in a FixedDoubleArray.
+  bool CanConvertToFastDoubleElements();
 
   // Tells whether the index'th element is present.
   bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
@@ -1709,7 +1708,6 @@ class JSObject: public JSReceiver {
 
   enum SetFastElementsCapacityMode {
     kAllowSmiOnlyElements,
-    kForceSmiOnlyElements,
     kDontAllowSmiOnlyElements
   };
 
