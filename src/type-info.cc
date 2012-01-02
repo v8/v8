@@ -85,7 +85,8 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
         Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
-        code->FindFirstMap() != NULL;
+        code->FindFirstMap() != NULL &&
+        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
   return false;
 }
@@ -111,7 +112,9 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_store_stub() &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL;
+        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
+        code->FindFirstMap() != NULL &&
+        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
   return false;
 }
@@ -144,7 +147,9 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
     ASSERT(first_map != NULL);
-    return Handle<Map>(first_map);
+    return CanRetainOtherContext(first_map, *global_context_)
+        ? Handle<Map>::null()
+        : Handle<Map>(first_map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -155,7 +160,11 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    return Handle<Map>(code->FindFirstMap());
+    Map* first_map = code->FindFirstMap();
+    ASSERT(first_map != NULL);
+    return CanRetainOtherContext(first_map, *global_context_)
+        ? Handle<Map>::null()
+        : Handle<Map>(first_map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -423,8 +432,45 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
       Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     types->Reserve(4);
     ASSERT(object->IsCode());
-    isolate_->stub_cache()->CollectMatchingMaps(types, *name, flags);
+    isolate_->stub_cache()->CollectMatchingMaps(types,
+                                                *name,
+                                                flags,
+                                                global_context_);
   }
+}
+
+
+// Check if a map originates from a given global context. We use this
+// information to filter out maps from different context to avoid
+// retaining objects from different tabs in Chrome via optimized code.
+bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
+                                               Context* global_context) {
+  Object* constructor = NULL;
+  while (!map->prototype()->IsNull()) {
+    constructor = map->constructor();
+    if (!constructor->IsNull()) {
+      // If the constructor is not null or a JSFunction, we have to
+      // conservatively assume that it may retain a global context.
+      if (!constructor->IsJSFunction()) return true;
+      // Check if the constructor directly references a foreign context.
+      if (CanRetainOtherContext(JSFunction::cast(constructor),
+                                global_context)) {
+        return true;
+      }
+    }
+    map = HeapObject::cast(map->prototype())->map();
+  }
+  constructor = map->constructor();
+  if (constructor->IsNull()) return false;
+  JSFunction* function = JSFunction::cast(constructor);
+  return CanRetainOtherContext(function, global_context);
+}
+
+
+bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
+                                               Context* global_context) {
+  return function->context()->global() != global_context->global()
+      && function->context()->global() != global_context->builtins();
 }
 
 
@@ -449,7 +495,10 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
       RelocInfo* info = it.rinfo();
       Object* object = info->target_object();
       if (object->IsMap()) {
-        AddMapIfMissing(Handle<Map>(Map::cast(object)), types);
+        Map* map = Map::cast(object);
+        if (!CanRetainOtherContext(map, *global_context_)) {
+          AddMapIfMissing(Handle<Map>(map), types);
+        }
       }
     }
   }
@@ -524,7 +573,12 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
             SetInfo(ast_id, Smi::FromInt(target->check_type()));
           } else {
             Object* map = target->FindFirstMap();
-            SetInfo(ast_id, map == NULL ? static_cast<Object*>(target) : map);
+            if (map == NULL) {
+              SetInfo(ast_id, static_cast<Object*>(target));
+            } else if (!CanRetainOtherContext(Map::cast(map),
+                                              *global_context_)) {
+              SetInfo(ast_id, map);
+            }
           }
         } else if (target->ic_state() == MEGAMORPHIC) {
           SetInfo(ast_id, target);
@@ -550,7 +604,9 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
         if (target->major_key() == CodeStub::CallFunction &&
             target->has_function_cache()) {
           Object* value = CallFunctionStub::GetCachedValue(reloc_entry.pc());
-          if (value->IsJSFunction()) {
+          if (value->IsJSFunction() &&
+              !CanRetainOtherContext(JSFunction::cast(value),
+                                     *global_context_)) {
             SetInfo(ast_id, value);
           }
         }
