@@ -486,7 +486,7 @@ class MinidumpReader(object):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return self.exception_context.rbp
+      return self.exception_context.esp
 
   def FormatIntPtr(self, value):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
