@@ -324,7 +324,8 @@ static void AllocateJSArray(MacroAssembler* masm,
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label* call_generic_code) {
   Counters* counters = masm->isolate()->counters();
-  Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array;
+  Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array,
+      has_non_smi_element;
 
   // Check for array construction with zero arguments or one.
   __ Branch(&argc_one_or_more, ne, a0, Operand(zero_reg));
@@ -422,7 +423,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ lw(a2, MemOperand(t3));
   __ Addu(t3, t3, kPointerSize);
   if (FLAG_smi_only_arrays) {
-    __ JumpIfNotSmi(a2, call_generic_code);
+    __ JumpIfNotSmi(a2, &has_non_smi_element);
   }
   __ Addu(t1, t1, -kPointerSize);
   __ sw(a2, MemOperand(t1));
@@ -438,6 +439,10 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ Addu(sp, sp, Operand(kPointerSize));
   __ mov(v0, a3);
   __ Ret();
+
+  __ bind(&has_non_smi_element);
+  __ UndoAllocationInNewSpace(a3, t0);
+  __ b(call_generic_code);
 }
 
 
