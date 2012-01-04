@@ -15726,3 +15726,97 @@ THREADED_TEST(ForeignFunctionReceiver) {
 
   foreign_context.Dispose();
 }
+
+
+uint8_t callback_fired = 0;
+
+
+void CallCompletedCallback1() {
+  printf("Firing callback 1.\n");
+  callback_fired ^= 1;  // Toggle first bit.
+}
+
+
+void CallCompletedCallback2() {
+  printf("Firing callback 2.\n");
+  callback_fired ^= 2;  // Toggle second bit.
+}
+
+
+Handle<Value> RecursiveCall(const Arguments& args) {
+  uint32_t level = args[0]->Uint32Value();
+  if (level < 3) {
+    level++;
+    printf("Entering recursion level %d.\n", level);
+    char script[64];
+    snprintf(script, sizeof(script), "recursion(%d)", level);
+    CompileRun(script);
+    printf("Leaving recursion level %d.\n", level);
+    CHECK_EQ(0, callback_fired);
+  } else {
+    printf("Recursion ends.\n");
+    CHECK_EQ(0, callback_fired);
+  }
+  return Undefined();
+}
+
+
+TEST(CallCompletedCallback) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::Handle<v8::FunctionTemplate> recursive_runtime =
+      v8::FunctionTemplate::New(RecursiveCall);
+  env->Global()->Set(v8_str("recursion"),
+                     recursive_runtime->GetFunction());
+  // Adding the same callback a second time has no effect.
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback2);
+  printf("--- Script (1) ---\n");
+  Local<Script> script =
+      v8::Script::Compile(v8::String::New("recursion(0)"));
+  script->Run();
+  CHECK_EQ(3, callback_fired);
+
+  printf("\n--- Script (2) ---\n");
+  callback_fired = 0;
+  v8::V8::RemoveCallCompletedCallback(CallCompletedCallback1);
+  script->Run();
+  CHECK_EQ(2, callback_fired);
+
+  printf("\n--- Function ---\n");
+  callback_fired = 0;
+  Local<Function> recursive_function =
+      Local<Function>::Cast(env->Global()->Get(v8_str("recursion")));
+  v8::Handle<Value> args[] = { v8_num(0) };
+  recursive_function->Call(env->Global(), 1, args);
+  CHECK_EQ(2, callback_fired);
+}
+
+
+void CallCompletedCallbackNoException() {
+  v8::HandleScope scope;
+  CompileRun("1+1;");
+}
+
+
+void CallCompletedCallbackException() {
+  v8::HandleScope scope;
+  CompileRun("throw 'second exception';");
+}
+
+
+TEST(CallCompletedCallbackOneException) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddCallCompletedCallback(CallCompletedCallbackNoException);
+  CompileRun("throw 'exception';");
+}
+
+
+TEST(CallCompletedCallbackTwoExceptions) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddCallCompletedCallback(CallCompletedCallbackException);
+  CompileRun("throw 'first exception';");
+}
