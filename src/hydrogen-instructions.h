@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1921,8 +1921,11 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 
 class HCheckMap: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value, Handle<Map> map, HValue* typecheck = NULL)
-      : map_(map) {
+  HCheckMap(HValue* value, Handle<Map> map,
+            HValue* typecheck = NULL,
+            CompareMapMode mode = REQUIRE_EXACT_MAP)
+      : map_(map),
+        mode_(mode) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -1940,17 +1943,24 @@ class HCheckMap: public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   Handle<Map> map() const { return map_; }
+  CompareMapMode mode() const { return mode_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMap)
 
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckMap* b = HCheckMap::cast(other);
-    return map_.is_identical_to(b->map());
+    // Two CheckMaps instructions are DataEqual if their maps are identical and
+    // they have the same mode. If the map to check has FAST_ELEMENTS, then the
+    // mode doesn't have to match: since there are no transitioned maps to
+    // compare the generated code will be equivalent regardless of mode.
+    return map_.is_identical_to(b->map()) &&
+        (b->mode() == mode() || map_->elements_kind() == FAST_ELEMENTS);
   }
 
  private:
   Handle<Map> map_;
+  CompareMapMode mode_;
 };
 
 
