@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -4033,23 +4033,13 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 }
 
 
-void LCodeGen::DoCheckMapCommon(Register reg,
-                                Handle<Map> map,
-                                CompareMapMode mode,
-                                LEnvironment* env) {
-  Label success;
-  __ CompareMap(reg, map, &success, mode);
-  DeoptimizeIf(not_equal, env);
-  __ bind(&success);
-}
-
-
 void LCodeGen::DoCheckMap(LCheckMap* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
-  Handle<Map> map = instr->hydrogen()->map();
-  DoCheckMapCommon(reg, map, instr->hydrogen()->mode(), instr->environment());
+  __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         instr->hydrogen()->map());
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 
@@ -4112,9 +4102,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
-    DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                     ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
-
+    __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+           Handle<Map>(current_prototype->map()));
+    DeoptimizeIf(not_equal, instr->environment());
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
@@ -4122,8 +4112,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   }
 
   // Check the holder map.
-  DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                   ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
+  __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+         Handle<Map>(current_prototype->map()));
+  DeoptimizeIf(not_equal, instr->environment());
 }
 
 

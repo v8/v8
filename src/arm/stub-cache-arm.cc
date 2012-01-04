@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1019,9 +1019,10 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
       Handle<Map> current_map(current->map());
-      __ CheckMap(reg, scratch1, current_map, miss, DONT_DO_SMI_CHECK,
-                  ALLOW_ELEMENT_TRANSITION_MAPS);
-
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      __ cmp(scratch1, Operand(current_map));
+      // Branch on the result of the map check.
+      __ b(ne, miss);
       // Check access rights to the global object.  This has to happen after
       // the map check so that we know that the object is actually a global
       // object.
@@ -1052,8 +1053,9 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   LOG(masm()->isolate(), IntEvent("check-maps-depth", depth + 1));
 
   // Check the holder map.
-  __ CheckMap(reg, scratch1, Handle<Map>(current->map()), miss,
-              DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+  __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ cmp(scratch1, Operand(Handle<Map>(current->map())));
+  __ b(ne, miss);
 
   // Perform security check for access to the global object.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
