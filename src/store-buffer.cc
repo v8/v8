@@ -688,9 +688,9 @@ void StoreBuffer::Compact() {
     int hash1 =
         ((int_addr ^ (int_addr >> kHashSetLengthLog2)) & (kHashSetLength - 1));
     if (hash_set_1_[hash1] == int_addr) continue;
-    int hash2 =
-        ((int_addr - (int_addr >> kHashSetLengthLog2)) & (kHashSetLength - 1));
+    uintptr_t hash2 = (int_addr - (int_addr >> kHashSetLengthLog2));
     hash2 ^= hash2 >> (kHashSetLengthLog2 * 2);
+    hash2 &= (kHashSetLength - 1);
     if (hash_set_2_[hash2] == int_addr) continue;
     if (hash_set_1_[hash1] == 0) {
       hash_set_1_[hash1] = int_addr;
