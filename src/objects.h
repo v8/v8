@@ -6459,6 +6459,10 @@ class String: public HeapObject {
   // Shift constant retrieving hash code from hash field.
   static const int kHashShift = kNofHashBitFields;
 
+  // Only these bits are relevant in the hash, since the top two are shifted
+  // out.
+  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
+
   // Array index strings this short can keep their index in the hash
   // field.
   static const int kMaxCachedArrayIndexLength = 7;

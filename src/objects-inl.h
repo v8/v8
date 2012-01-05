@@ -4381,7 +4381,7 @@ uint32_t StringHasher::GetHash() {
   result += (result << 3);
   result ^= (result >> 11);
   result += (result << 15);
-  if (result == 0) {
+  if ((result & String::kHashBitMask) == 0) {
     result = 27;
   }
   return result;

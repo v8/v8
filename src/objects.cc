@@ -11444,7 +11444,7 @@ class TwoCharHashTableKey : public HashTableKey {
     hash += hash << 3;
     hash ^= hash >> 11;
     hash += hash << 15;
-    if (hash == 0) hash = 27;
+    if ((hash & String::kHashBitMask) == 0) hash = 27;
 #ifdef DEBUG
     StringHasher hasher(2, seed);
     hasher.AddCharacter(c1);
