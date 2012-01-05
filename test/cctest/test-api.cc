@@ -14238,7 +14238,7 @@ THREADED_TEST(RoundRobinGetFromCache) {
       "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
       "  for (var i = 0; i < 16; i++) {"
       "    var v = %_GetFromCache(0, keys[i]);"
-      "    if (v !== values[i])"
+      "    if (v.toString() !== values[i].toString())"
       "      return 'Wrong value for ' + "
       "          keys[i] + ': ' + v + ' vs. ' + values[i];"
       "  };"
