@@ -751,7 +751,10 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   // property that refers to the function.
   SetPrototypeProperty(function, prototype);
   // Currently safe because it is only invoked from Genesis.
-  SetLocalPropertyNoThrow(prototype, constructor_symbol(), function, DONT_ENUM);
+  CHECK_NOT_EMPTY_HANDLE(isolate(),
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             prototype, constructor_symbol(),
+                             function, DONT_ENUM));
   return function;
 }
 

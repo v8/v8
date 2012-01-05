@@ -1342,6 +1342,11 @@ class JSReceiver: public HeapObject {
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
+  static Handle<Object> SetProperty(Handle<JSReceiver> object,
+                                    Handle<String> key,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes,
+                                    StrictModeFlag strict_mode);
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
@@ -1521,6 +1526,14 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
+
+  static Handle<Object> SetLocalPropertyIgnoreAttributes(
+      Handle<JSObject> object,
+      Handle<String> key,
+      Handle<Object> value,
+      PropertyAttributes attributes);
+
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
@@ -1536,6 +1549,11 @@ class JSObject: public JSReceiver {
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
+  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                              Handle<String> key,
+                                              Handle<Object> value,
+                                              PropertyDetails details);
+
   MUST_USE_RESULT MaybeObject* SetNormalizedProperty(String* name,
                                                      Object* value,
                                                      PropertyDetails details);
@@ -1605,8 +1623,11 @@ class JSObject: public JSReceiver {
   // hidden properties.
 
   // Sets a hidden property on this object. Returns this object if successful,
-  // undefined if called on a detached proxy, and a failure if a GC
-  // is required
+  // undefined if called on a detached proxy.
+  static Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                          Handle<String> key,
+                                          Handle<Object> value);
+  // Returns a failure if a GC is required.
   MaybeObject* SetHiddenProperty(String* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns undefined
   // if the property doesn't exist (or if called on a detached proxy),
@@ -1618,10 +1639,15 @@ class JSObject: public JSReceiver {
   // Returns true if the object has a property with the hidden symbol as name.
   bool HasHiddenProperties();
 
+  static int GetIdentityHash(Handle<JSObject> obj);
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Object* hash, CreationFlag flag);
 
+  static Handle<Object> DeleteProperty(Handle<JSObject> obj,
+                                       Handle<String> name);
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+
+  static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   inline void ValidateSmiOnlyElements();
@@ -1701,7 +1727,18 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool check_prototype = true);
 
-  // Set the index'th array element.
+
+  static Handle<Object> SetOwnElement(Handle<JSObject> object,
+                                      uint32_t index,
+                                      Handle<Object> value,
+                                      StrictModeFlag strict_mode);
+
+  // Empty handle is returned if the element cannot be set to the given value.
+  static MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictModeFlag strict_mode);
+
   // A Failure object is returned if GC is needed.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
@@ -1811,6 +1848,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
       ElementsKind elements_kind);
 
+  static Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                               ElementsKind to_kind);
+
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
   // Converts a descriptor of any other type to a real field,
@@ -1851,12 +1891,18 @@ class JSObject: public JSReceiver {
   // representation. If the object is expected to have additional properties
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
+  static void NormalizeProperties(Handle<JSObject> object,
+                                  PropertyNormalizationMode mode,
+                                  int expected_additional_properties);
+
   MUST_USE_RESULT MaybeObject* NormalizeProperties(
       PropertyNormalizationMode mode,
       int expected_additional_properties);
 
   // Convert and update the elements backing store to be a NumberDictionary
   // dictionary.  Returns the backing after conversion.
+  static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
+
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   static void UpdateMapCodeCache(Handle<JSObject> object,
@@ -1867,6 +1913,9 @@ class JSObject: public JSReceiver {
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
+  static void TransformToFastProperties(Handle<JSObject> object,
+                                        int unused_property_fields);
+
   MUST_USE_RESULT MaybeObject* TransformToFastProperties(
       int unused_property_fields);
 
@@ -1898,6 +1947,7 @@ class JSObject: public JSReceiver {
   static inline JSObject* cast(Object* obj);
 
   // Disalow further properties to be added to the object.
+  static Handle<Object> PreventExtensions(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* PreventExtensions();
 
 
@@ -2973,6 +3023,13 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
                                               PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
+  // Return the updated dictionary.
+  MUST_USE_RESULT static Handle<NumberDictionary> Set(
+      Handle<NumberDictionary> dictionary,
+      uint32_t index,
+      Handle<Object> value,
+      PropertyDetails details);
+
   MUST_USE_RESULT MaybeObject* Set(uint32_t key,
                                    Object* value,
                                    PropertyDetails details);

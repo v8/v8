@@ -378,7 +378,9 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   } else {
     attributes = DONT_ENUM;
   }
-  SetLocalPropertyNoThrow(target, symbol, function, attributes);
+  CHECK_NOT_EMPTY_HANDLE(isolate,
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             target, symbol, function, attributes));
   if (is_ecma_native) {
     function->shared()->set_instance_class_name(*symbol);
   }
@@ -600,7 +602,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
     throw_type_error_function->shared()->set_code(*code);
     throw_type_error_function->shared()->DontAdaptArguments();
 
-    PreventExtensions(throw_type_error_function);
+    JSObject::PreventExtensions(throw_type_error_function);
   }
   return throw_type_error_function;
 }
@@ -753,11 +755,10 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(js_global_function->instance_prototype()));
-    SetLocalPropertyNoThrow(
-        prototype,
-        factory()->constructor_symbol(),
-        isolate()->object_function(),
-        NONE);
+    CHECK_NOT_EMPTY_HANDLE(isolate(),
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               prototype, factory()->constructor_symbol(),
+                               isolate()->object_function(), NONE));
   } else {
     Handle<FunctionTemplateInfo> js_global_constructor(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
@@ -863,8 +864,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Heap* heap = isolate->heap();
 
   Handle<String> object_name = Handle<String>(heap->Object_symbol());
-  SetLocalPropertyNoThrow(inner_global, object_name,
-                          isolate->object_function(), DONT_ENUM);
+  CHECK_NOT_EMPTY_HANDLE(isolate,
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             inner_global, object_name,
+                             isolate->object_function(), DONT_ENUM));
 
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
@@ -1046,14 +1049,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   {  // -- J S O N
     Handle<String> name = factory->NewStringFromAscii(CStrVector("JSON"));
-    Handle<JSFunction> cons = factory->NewFunction(
-        name,
-        factory->the_hole_value());
+    Handle<JSFunction> cons = factory->NewFunction(name,
+                                                   factory->the_hole_value());
     cons->SetInstancePrototype(global_context()->initial_object_prototype());
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
-    SetLocalPropertyNoThrow(global, name, json_object, DONT_ENUM);
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                                 global, name, json_object, DONT_ENUM));
     global_context()->set_json_object(*json_object);
   }
 
@@ -1083,12 +1087,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     global_context()->set_arguments_boilerplate(*result);
     // Note: length must be added as the first property and
     //       callee must be added as the second property.
-    SetLocalPropertyNoThrow(result, factory->length_symbol(),
-                            factory->undefined_value(),
-                            DONT_ENUM);
-    SetLocalPropertyNoThrow(result, factory->callee_symbol(),
-                            factory->undefined_value(),
-                            DONT_ENUM);
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               result, factory->length_symbol(),
+                               factory->undefined_value(), DONT_ENUM));
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               result, factory->callee_symbol(),
+                               factory->undefined_value(), DONT_ENUM));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1183,9 +1189,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     global_context()->set_strict_mode_arguments_boilerplate(*result);
 
     // Add length property only for strict mode boilerplate.
-    SetLocalPropertyNoThrow(result, factory->length_symbol(),
-                            factory->undefined_value(),
-                            DONT_ENUM);
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               result, factory->length_symbol(),
+                               factory->undefined_value(), DONT_ENUM));
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1448,7 +1455,9 @@ bool Genesis::InstallNatives() {
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Handle<String> global_symbol = factory()->LookupAsciiSymbol("global");
   Handle<Object> global_obj(global_context()->global());
-  SetLocalPropertyNoThrow(builtins, global_symbol, global_obj, attributes);
+  CHECK_NOT_EMPTY_HANDLE(isolate(),
+                         JSObject::SetLocalPropertyIgnoreAttributes(
+                             builtins, global_symbol, global_obj, attributes));
 
   // Setup the reference from the global object to the builtins object.
   JSGlobalObject::cast(global_context()->global())->set_builtins(*builtins);
@@ -1911,25 +1920,28 @@ bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
 
 
 void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
-  Factory* factory = global_context->GetIsolate()->factory();
+  Isolate* isolate = global_context->GetIsolate();
+  Factory* factory = isolate->factory();
   HandleScope scope;
-  Handle<JSGlobalObject> js_global(
-      JSGlobalObject::cast(global_context->global()));
+  Handle<JSGlobalObject> global(JSGlobalObject::cast(global_context->global()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
-    Handle<String> natives_string =
-        factory->LookupAsciiSymbol(FLAG_expose_natives_as);
-    SetLocalPropertyNoThrow(js_global, natives_string,
-                            Handle<JSObject>(js_global->builtins()), DONT_ENUM);
+    Handle<String> natives = factory->LookupAsciiSymbol(FLAG_expose_natives_as);
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               global, natives,
+                               Handle<JSObject>(global->builtins()),
+                               DONT_ENUM));
   }
 
-  Handle<Object> Error = GetProperty(js_global, "Error");
+  Handle<Object> Error = GetProperty(global, "Error");
   if (Error->IsJSObject()) {
     Handle<String> name = factory->LookupAsciiSymbol("stackTraceLimit");
-    SetLocalPropertyNoThrow(Handle<JSObject>::cast(Error),
-                            name,
-                            Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
-                            NONE);
+    Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit));
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               Handle<JSObject>::cast(Error), name,
+                               stack_trace_limit, NONE));
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1948,7 +1960,9 @@ void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
     Handle<String> debug_string =
         factory->LookupAsciiSymbol(FLAG_expose_debug_as);
     Handle<Object> global_proxy(debug->debug_context()->global_proxy());
-    SetLocalPropertyNoThrow(js_global, debug_string, global_proxy, DONT_ENUM);
+    CHECK_NOT_EMPTY_HANDLE(isolate,
+                           JSObject::SetLocalPropertyIgnoreAttributes(
+                               global, debug_string, global_proxy, DONT_ENUM));
   }
 #endif
 }
@@ -2164,7 +2178,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<String> key = Handle<String>(descs->GetKey(i));
           int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
-          SetLocalPropertyNoThrow(to, key, value, details.attributes());
+          CHECK_NOT_EMPTY_HANDLE(to->GetIsolate(),
+                                 JSObject::SetLocalPropertyIgnoreAttributes(
+                                     to, key, value, details.attributes()));
           break;
         }
         case CONSTANT_FUNCTION: {
@@ -2172,7 +2188,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<String> key = Handle<String>(descs->GetKey(i));
           Handle<JSFunction> fun =
               Handle<JSFunction>(descs->GetConstantFunction(i));
-          SetLocalPropertyNoThrow(to, key, fun, details.attributes());
+          CHECK_NOT_EMPTY_HANDLE(to->GetIsolate(),
+                                 JSObject::SetLocalPropertyIgnoreAttributes(
+                                     to, key, fun, details.attributes()));
           break;
         }
         case CALLBACKS: {
@@ -2187,7 +2205,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Object> callbacks(descs->GetCallbacksObject(i));
           PropertyDetails d =
               PropertyDetails(details.attributes(), CALLBACKS, details.index());
-          SetNormalizedProperty(to, key, callbacks, d);
+          JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
         case MAP_TRANSITION:
@@ -2224,7 +2242,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        SetLocalPropertyNoThrow(to, key, value, details.attributes());
+        CHECK_NOT_EMPTY_HANDLE(to->GetIsolate(),
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   to, key, value, details.attributes()));
       }
     }
   }

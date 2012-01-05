@@ -485,6 +485,16 @@ Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
 }
 
 
+Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
+                                               Handle<String> key,
+                                               Handle<Object> value,
+                                               PropertyDetails details) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetNormalizedProperty(*key, *value, details),
+                     Object);
+}
+
+
 MaybeObject* JSObject::SetNormalizedProperty(String* name,
                                              Object* value,
                                              PropertyDetails details) {
@@ -1961,6 +1971,17 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 }
 
 
+Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
+                                       Handle<String> key,
+                                       Handle<Object> value,
+                                       PropertyAttributes attributes,
+                                       StrictModeFlag strict_mode) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetProperty(*key, *value, attributes, strict_mode),
+                     Object);
+}
+
+
 MaybeObject* JSReceiver::SetProperty(String* name,
                                      Object* value,
                                      PropertyAttributes attributes,
@@ -3024,6 +3045,18 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
 // Note that this method cannot be used to set the prototype of a function
 // because ConvertDescriptorToField() which is called in "case CALLBACKS:"
 // doesn't handle function prototypes correctly.
+Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
+    Handle<JSObject> object,
+    Handle<String> key,
+    Handle<Object> value,
+    PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(
+    object->GetIsolate(),
+    object->SetLocalPropertyIgnoreAttributes(*key, *value, attributes),
+    Object);
+}
+
+
 MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,
@@ -3314,6 +3347,15 @@ MaybeObject* JSObject::UpdateMapCodeCache(String* name, Code* code) {
 }
 
 
+void JSObject::NormalizeProperties(Handle<JSObject> object,
+                                   PropertyNormalizationMode mode,
+                                   int expected_additional_properties) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->NormalizeProperties(
+                              mode, expected_additional_properties));
+}
+
+
 MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                            int expected_additional_properties) {
   if (!HasFastProperties()) return this;
@@ -3436,11 +3478,25 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 }
 
 
+void JSObject::TransformToFastProperties(Handle<JSObject> object,
+                                         int unused_property_fields) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->TransformToFastProperties(unused_property_fields));
+}
+
+
 MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
   ASSERT(!IsGlobalObject());
   return property_dictionary()->
       TransformPropertiesToFastFor(this, unused_property_fields);
+}
+
+
+Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(
+      object->GetIsolate(), object->NormalizeElements(), NumberDictionary);
 }
 
 
@@ -3560,6 +3616,14 @@ MaybeObject* JSObject::SetIdentityHash(Object* hash, CreationFlag flag) {
 }
 
 
+int JSObject::GetIdentityHash(Handle<JSObject> obj) {
+  CALL_AND_RETRY(obj->GetIsolate(),
+                 obj->GetIdentityHash(ALLOW_CREATION),
+                 return Smi::cast(__object__)->value(),
+                 return 0);
+}
+
+
 MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
   Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_symbol());
   if (stored_value->IsSmi()) return stored_value;
@@ -3609,6 +3673,15 @@ Object* JSObject::GetHiddenProperty(String* key) {
   int entry = dictionary->FindEntry(key);
   if (entry == StringDictionary::kNotFound) return GetHeap()->undefined_value();
   return dictionary->ValueAt(entry);
+}
+
+
+Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->SetHiddenProperty(*key, *value),
+                     Object);
 }
 
 
@@ -3839,6 +3912,14 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 }
 
 
+Handle<Object> JSObject::DeleteElement(Handle<JSObject> obj,
+                                       uint32_t index) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->DeleteElement(index, JSObject::NORMAL_DELETION),
+                     Object);
+}
+
+
 MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   // Check access rights if needed.
@@ -3867,19 +3948,11 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 }
 
 
-MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
-  }
-  return JSObject::cast(this)->DeleteProperty(name, mode);
-}
-
-
-MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
-  }
-  return JSObject::cast(this)->DeleteElement(index, mode);
+Handle<Object> JSObject::DeleteProperty(Handle<JSObject> obj,
+                              Handle<String> prop) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 
@@ -3937,6 +4010,22 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
     // Make sure the properties are normalized before removing the entry.
     return DeleteNormalizedProperty(name, mode);
   }
+}
+
+
+MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
+  }
+  return JSObject::cast(this)->DeleteElement(index, mode);
+}
+
+
+MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
+  }
+  return JSObject::cast(this)->DeleteProperty(name, mode);
 }
 
 
@@ -4063,6 +4152,11 @@ bool JSObject::ReferencesObject(Object* obj) {
 
   // No references to object.
   return false;
+}
+
+
+Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
 }
 
 
@@ -9388,6 +9482,35 @@ MaybeObject* JSReceiver::SetElement(uint32_t index,
 }
 
 
+Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                       uint32_t index,
+                                       Handle<Object> value,
+                                       StrictModeFlag strict_mode) {
+  ASSERT(!object->HasExternalArrayElements());
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetElement(index, *value, strict_mode, false),
+                     Object);
+}
+
+
+Handle<Object> JSObject::SetElement(Handle<JSObject> object,
+                                    uint32_t index,
+                                    Handle<Object> value,
+                                    StrictModeFlag strict_mode) {
+  if (object->HasExternalArrayElements()) {
+    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+      bool has_exception;
+      Handle<Object> number = Execution::ToNumber(value, &has_exception);
+      if (has_exception) return Handle<Object>();
+      value = number;
+    }
+  }
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetElement(index, *value, strict_mode, true),
+                     Object);
+}
+
+
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
                                   StrictModeFlag strict_mode,
@@ -9507,6 +9630,14 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   // complaints from the compiler.
   UNREACHABLE();
   return isolate->heap()->null_value();
+}
+
+
+Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
+                                                ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->TransitionElementsKind(to_kind),
+                     Object);
 }
 
 
@@ -11961,6 +12092,17 @@ MaybeObject* NumberDictionary::AddNumberEntry(uint32_t key,
 MaybeObject* NumberDictionary::AtNumberPut(uint32_t key, Object* value) {
   UpdateMaxNumberKey(key);
   return AtPut(key, value);
+}
+
+
+Handle<NumberDictionary> NumberDictionary::Set(
+    Handle<NumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Set(index, *value, details),
+                     NumberDictionary);
 }
 
 

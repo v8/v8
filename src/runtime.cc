@@ -355,7 +355,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
   Handle<JSObject> boilerplate = isolate->factory()->NewJSObjectFromMap(map);
 
   // Normalize the elements of the boilerplate to save space if needed.
-  if (!should_have_fast_elements) NormalizeElements(boilerplate);
+  if (!should_have_fast_elements) JSObject::NormalizeElements(boilerplate);
 
   // Add the constant properties to the boilerplate.
   int length = constant_properties->length();
@@ -365,7 +365,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     // Normalize the properties of object to avoid n^2 behavior
     // when extending the object multiple properties. Indicate the number of
     // properties to be added.
-    NormalizeProperties(boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
+    JSObject::NormalizeProperties(
+        boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
   }
 
   for (int index = 0; index < length; index +=2) {
@@ -383,22 +384,18 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     if (key->IsSymbol()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
-        result = SetOwnElement(boilerplate,
-                               element_index,
-                               value,
-                               kNonStrictMode);
+        result = JSObject::SetOwnElement(
+            boilerplate, element_index, value, kNonStrictMode);
       } else {
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
-        result = SetLocalPropertyIgnoreAttributes(boilerplate, name,
-                                                  value, NONE);
+        result = JSObject::SetLocalPropertyIgnoreAttributes(
+            boilerplate, name, value, NONE);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
-      result = SetOwnElement(boilerplate,
-                             element_index,
-                             value,
-                             kNonStrictMode);
+      result = JSObject::SetOwnElement(
+          boilerplate, element_index, value, kNonStrictMode);
     } else {
       // Non-uint32 number.
       ASSERT(key->IsNumber());
@@ -408,8 +405,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name =
           isolate->factory()->NewStringFromAscii(CStrVector(str));
-      result = SetLocalPropertyIgnoreAttributes(boilerplate, name,
-                                                value, NONE);
+      result = JSObject::SetLocalPropertyIgnoreAttributes(
+          boilerplate, name, value, NONE);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -423,8 +420,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
   // computed properties have been assigned so that we can generate
   // constant function properties.
   if (should_transform && !has_function_literal) {
-    TransformToFastProperties(boilerplate,
-                              boilerplate->map()->unused_property_fields());
+    JSObject::TransformToFastProperties(
+        boilerplate, boilerplate->map()->unused_property_fields());
   }
 
   return boilerplate;
@@ -1335,21 +1332,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       }
       PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
 
-      RETURN_IF_EMPTY_HANDLE(isolate,
-                             SetLocalPropertyIgnoreAttributes(global,
-                                                              name,
-                                                              value,
-                                                              attributes));
+      RETURN_IF_EMPTY_HANDLE(
+          isolate,
+          JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
+                                                     attributes));
     } else {
       LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
       StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
           ? kNonStrictMode : kStrictMode;
-      RETURN_IF_EMPTY_HANDLE(isolate,
-                             SetProperty(global,
-                                         name,
-                                         value,
-                                         static_cast<PropertyAttributes>(attr),
-                                         strict_mode_flag));
+      RETURN_IF_EMPTY_HANDLE(
+          isolate,
+          JSReceiver::SetProperty(global, name, value,
+                                  static_cast<PropertyAttributes>(attr),
+                                  strict_mode_flag));
     }
   }
 
@@ -1403,7 +1398,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         Handle<JSObject> object = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
             isolate,
-            SetProperty(object, name, initial_value, mode, kNonStrictMode));
+            JSReceiver::SetProperty(object, name, initial_value, mode,
+                                    kNonStrictMode));
       }
     }
 
@@ -1443,9 +1439,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
-    RETURN_IF_EMPTY_HANDLE(isolate,
-                           SetProperty(object, name, value, mode,
-                                       kNonStrictMode));
+    RETURN_IF_EMPTY_HANDLE(
+        isolate,
+        JSReceiver::SetProperty(object, name, value, mode, kNonStrictMode));
   }
 
   return isolate->heap()->undefined_value();
@@ -1554,12 +1550,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
     // property through an interceptor and only do it if it's
     // uninitialized, e.g. the hole. Nirk...
     // Passing non-strict mode because the property is writable.
-    RETURN_IF_EMPTY_HANDLE(isolate,
-                           SetProperty(global,
-                                       name,
-                                       value,
-                                       attributes,
-                                       kNonStrictMode));
+    RETURN_IF_EMPTY_HANDLE(
+        isolate,
+        JSReceiver::SetProperty(global, name, value, attributes,
+                                kNonStrictMode));
     return *value;
   }
 
@@ -1629,7 +1623,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
     // Strict mode not needed (const disallowed in strict mode).
     RETURN_IF_EMPTY_HANDLE(
         isolate,
-        SetProperty(global, name, value, NONE, kNonStrictMode));
+        JSReceiver::SetProperty(global, name, value, NONE, kNonStrictMode));
     return *value;
   }
 
@@ -1681,7 +1675,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
       // Strict mode not needed (const disallowed in strict mode).
       RETURN_IF_EMPTY_HANDLE(
           isolate,
-          SetProperty(object, name, value, attributes, kNonStrictMode));
+          JSReceiver::SetProperty(object, name, value, attributes,
+                                  kNonStrictMode));
     }
   }
 
@@ -1696,7 +1691,7 @@ RUNTIME_FUNCTION(MaybeObject*,
   CONVERT_ARG_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(properties, 1);
   if (object->HasFastProperties()) {
-    NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
   }
   return *object;
 }
@@ -1852,7 +1847,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
                                       code,
                                       false);
   optimized->shared()->DontAdaptArguments();
-  SetProperty(holder, key, optimized, NONE, kStrictMode);
+  JSReceiver::SetProperty(holder, key, optimized, NONE, kStrictMode);
   return optimized;
 }
 
@@ -4066,8 +4061,7 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    Handle<Object> prototype = GetPrototype(object);
-    return prototype->GetElement(index);
+    return object->GetPrototype()->GetElement(index);
   }
 
   return object->GetElement(index);
@@ -4134,8 +4128,8 @@ MaybeObject* TransitionElements(Handle<Object> object,
   ElementsKind from_kind =
       Handle<JSObject>::cast(object)->map()->elements_kind();
   if (Map::IsValidElementsTransition(from_kind, to_kind)) {
-    Handle<Object> result =
-        TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
+    Handle<Object> result = JSObject::TransitionElementsKind(
+        Handle<JSObject>::cast(object), to_kind);
     if (result.is_null()) return isolate->ThrowIllegalOperation();
     return *result;
   }
@@ -4307,12 +4301,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       return isolate->Throw(*error);
     }
 
-    Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
+    Handle<NumberDictionary> dictionary =
+        JSObject::NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     Handle<NumberDictionary> extended_dictionary =
-        NumberDictionarySet(dictionary, index, obj_value, details);
+        NumberDictionary::Set(dictionary, index, obj_value, details);
     if (*extended_dictionary != *dictionary) {
       if (js_object->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
@@ -4362,7 +4357,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       // we don't have to check for null.
       js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
     }
-    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+    JSObject::NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     return js_object->SetLocalPropertyIgnoreAttributes(*name,
@@ -4387,12 +4382,12 @@ static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
                                               Handle<Object> value,
                                               PropertyAttributes attr) {
   // Normalize the elements to enable attributes on the property.
-  Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
+  Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(js_object);
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
   PropertyDetails details = PropertyDetails(attr, NORMAL);
   Handle<NumberDictionary> extended_dictionary =
-      NumberDictionarySet(dictionary, index, value, details);
+      NumberDictionary::Set(dictionary, index, value, details);
   if (*extended_dictionary != *dictionary) {
     js_object->set_elements(*extended_dictionary);
   }
@@ -4447,7 +4442,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return NormalizeObjectSetElement(isolate, js_object, index, value, attr);
     }
 
-    Handle<Object> result = SetElement(js_object, index, value, strict_mode);
+    Handle<Object> result =
+        JSObject::SetElement(js_object, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
   }
@@ -4462,11 +4458,13 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                          value,
                                          attr);
       }
-      result = SetElement(js_object, index, value, strict_mode);
+      result =
+          JSObject::SetElement(js_object, index, value, strict_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      result = SetProperty(js_object, key_string, value, attr, strict_mode);
+      result = JSReceiver::SetProperty(
+          js_object, key_string, value, attr, strict_mode);
     }
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -4655,8 +4653,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
 
   if (value->IsNumber()) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
-    TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
-    TransitionElementsKind(boilerplate_object, FAST_DOUBLE_ELEMENTS);
+    JSObject::TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    JSObject::TransitionElementsKind(boilerplate_object, FAST_DOUBLE_ELEMENTS);
     ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
     FixedDoubleArray* double_array =
         FixedDoubleArray::cast(object->elements());
@@ -4665,8 +4663,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   } else {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            elements_kind == FAST_DOUBLE_ELEMENTS);
-    TransitionElementsKind(object, FAST_ELEMENTS);
-    TransitionElementsKind(boilerplate_object, FAST_ELEMENTS);
+    JSObject::TransitionElementsKind(object, FAST_ELEMENTS);
+    JSObject::TransitionElementsKind(boilerplate_object, FAST_ELEMENTS);
     FixedArray* object_array =
         FixedArray::cast(object->elements());
     object_array->set(store_index, *value);
@@ -5144,31 +5142,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ToFastProperties) {
-  HandleScope scope(isolate);
-
   ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    if (!js_object->HasFastProperties() && !js_object->IsGlobalObject()) {
-      MaybeObject* ok = js_object->TransformToFastProperties(0);
-      if (ok->IsRetryAfterGC()) return ok;
-    }
-  }
-  return *object;
+  Object* object = args[0];
+  return (object->IsJSObject() && !object->IsGlobalObject())
+      ? JSObject::cast(object)->TransformToFastProperties(0)
+      : object;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ToSlowProperties) {
-  HandleScope scope(isolate);
-
   ASSERT(args.length() == 1);
-  Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject() && !object->IsJSGlobalProxy()) {
-    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
-  }
-  return *object;
+  Object* obj = args[0];
+  return (obj->IsJSObject() && !obj->IsJSGlobalProxy())
+      ? JSObject::cast(obj)->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0)
+      : obj;
 }
 
 
@@ -9133,7 +9120,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
       (object->GetLocalPropertyAttribute(*name) == ABSENT)) {
     RETURN_IF_EMPTY_HANDLE(
         isolate,
-        SetProperty(object, name, value, NONE, strict_mode));
+        JSReceiver::SetProperty(object, name, value, NONE, strict_mode));
   } else if (strict_mode == kStrictMode && (attributes & READ_ONLY) != 0) {
     // Setting read only property in strict mode.
     Handle<Object> error =
@@ -10049,7 +10036,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
         // FAST_ELEMENTS.
         if (array->HasFastDoubleElements()) {
           array = Handle<JSArray>::cast(
-              TransitionElementsKind(array, FAST_ELEMENTS));
+              JSObject::TransitionElementsKind(array, FAST_ELEMENTS));
         }
         length_estimate =
             static_cast<uint32_t>(array->length()->Number());
@@ -10209,10 +10196,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SwapElements) {
   Handle<Object> tmp2 = Object::GetElement(jsobject, index2);
   RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
-                         SetElement(jsobject, index1, tmp2, kStrictMode));
-  RETURN_IF_EMPTY_HANDLE(isolate,
-                         SetElement(jsobject, index2, tmp1, kStrictMode));
+  RETURN_IF_EMPTY_HANDLE(
+      isolate, JSObject::SetElement(jsobject, index1, tmp2, kStrictMode));
+  RETURN_IF_EMPTY_HANDLE(
+      isolate, JSObject::SetElement(jsobject, index2, tmp1, kStrictMode));
 
   return isolate->heap()->undefined_value();
 }

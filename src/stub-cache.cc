@@ -679,10 +679,10 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
 
 static void FillCache(Isolate* isolate, Handle<Code> code) {
   Handle<NumberDictionary> dictionary =
-      NumberDictionarySet(isolate->factory()->non_monomorphic_cache(),
-                          code->flags(),
-                          code,
-                          PropertyDetails(NONE, NORMAL));
+      NumberDictionary::Set(isolate->factory()->non_monomorphic_cache(),
+                            code->flags(),
+                            code,
+                            PropertyDetails(NONE, NORMAL));
   isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
 }
 

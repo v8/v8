@@ -54,7 +54,7 @@ void SetElementNonStrict(Handle<JSObject> object,
   // are element setters causing exceptions and the debugger context has none
   // of these.
   Handle<Object> no_failure;
-  no_failure = SetElement(object, index, value, kNonStrictMode);
+  no_failure = JSObject::SetElement(object, index, value, kNonStrictMode);
   ASSERT(!no_failure.is_null());
   USE(no_failure);
 }

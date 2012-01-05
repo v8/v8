@@ -2739,7 +2739,7 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::SetElement(
+  i::Handle<i::Object> obj = i::JSObject::SetElement(
       self,
       index,
       value_obj,
@@ -2845,7 +2845,7 @@ Local<Value> v8::Object::GetPrototype() {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result = i::GetPrototype(self);
+  i::Handle<i::Object> result(self->GetPrototype());
   return Utils::ToLocal(result);
 }
 
@@ -2999,7 +2999,7 @@ bool v8::Object::Delete(v8::Handle<String> key) {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return i::DeleteProperty(self, key_obj)->IsTrue();
+  return i::JSObject::DeleteProperty(self, key_obj)->IsTrue();
 }
 
 
@@ -3020,7 +3020,7 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::DeleteElement(self, index)->IsTrue();
+  return i::JSObject::DeleteElement(self, index)->IsTrue();
 }
 
 
@@ -3225,7 +3225,7 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::GetIdentityHash(self);
+  return i::JSObject::GetIdentityHash(self);
 }
 
 
@@ -3238,7 +3238,8 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  i::Handle<i::Object> result = i::SetHiddenProperty(self, key_obj, value_obj);
+  i::Handle<i::Object> result =
+      i::JSObject::SetHiddenProperty(self, key_obj, value_obj);
   return *result == *self;
 }
 
