@@ -1082,10 +1082,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Set up the context from the function argument.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-    // Set up the roots register.
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(masm->isolate());
-    __ mov(r10, Operand(roots_array_start));
+    __ InitializeRootRegister();
 
     // Push the function and the receiver onto the stack.
     __ push(r1);

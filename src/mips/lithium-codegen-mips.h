@@ -148,9 +148,9 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
-  Register scratch0() { return lithiumScratchReg; }
-  Register scratch1() { return lithiumScratchReg2; }
-  DoubleRegister double_scratch0() { return lithiumScratchDouble; }
+  Register scratch0() { return kLithiumScratchReg; }
+  Register scratch1() { return kLithiumScratchReg2; }
+  DoubleRegister double_scratch0() { return kLithiumScratchDouble; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();

@@ -46,65 +46,71 @@ typedef uint32_t (*HASH_FUNCTION)();
 
 static v8::Persistent<v8::Context> env;
 
-#define __ assm->
+#define __ masm->
 
 
-void generate(MacroAssembler* assm, i::Vector<const char> string) {
+void generate(MacroAssembler* masm, i::Vector<const char> string) {
+  // GenerateHashInit takes the first character as an argument so it can't
+  // handle the zero length string.
+  ASSERT(string.length() > 0);
 #ifdef V8_TARGET_ARCH_IA32
   __ push(ebx);
   __ push(ecx);
   __ mov(eax, Immediate(0));
-  if (string.length() > 0) {
-    __ mov(ebx, Immediate(string.at(0)));
-    StringHelper::GenerateHashInit(assm, eax, ebx, ecx);
-  }
+  __ mov(ebx, Immediate(string.at(0)));
+  StringHelper::GenerateHashInit(masm, eax, ebx, ecx);
   for (int i = 1; i < string.length(); i++) {
     __ mov(ebx, Immediate(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, eax, ebx, ecx);
+    StringHelper::GenerateHashAddCharacter(masm, eax, ebx, ecx);
   }
-  StringHelper::GenerateHashGetHash(assm, eax, ecx);
+  StringHelper::GenerateHashGetHash(masm, eax, ecx);
   __ pop(ecx);
   __ pop(ebx);
   __ Ret();
 #elif V8_TARGET_ARCH_X64
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
   __ push(rbx);
   __ push(rcx);
   __ movq(rax, Immediate(0));
-  if (string.length() > 0) {
-    __ movq(rbx, Immediate(string.at(0)));
-    StringHelper::GenerateHashInit(assm, rax, rbx, rcx);
-  }
+  __ movq(rbx, Immediate(string.at(0)));
+  StringHelper::GenerateHashInit(masm, rax, rbx, rcx);
   for (int i = 1; i < string.length(); i++) {
     __ movq(rbx, Immediate(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, rax, rbx, rcx);
+    StringHelper::GenerateHashAddCharacter(masm, rax, rbx, rcx);
   }
-  StringHelper::GenerateHashGetHash(assm, rax, rcx);
+  StringHelper::GenerateHashGetHash(masm, rax, rcx);
   __ pop(rcx);
   __ pop(rbx);
+  __ pop(kRootRegister);
   __ Ret();
 #elif V8_TARGET_ARCH_ARM
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+
   __ mov(r0, Operand(0));
-  if (string.length() > 0) {
-    __ mov(ip, Operand(string.at(0)));
-    StringHelper::GenerateHashInit(assm, r0, ip);
-  }
+  __ mov(ip, Operand(string.at(0)));
+  StringHelper::GenerateHashInit(masm, r0, ip);
   for (int i = 1; i < string.length(); i++) {
     __ mov(ip, Operand(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, r0, ip);
+    StringHelper::GenerateHashAddCharacter(masm, r0, ip);
   }
-  StringHelper::GenerateHashGetHash(assm, r0);
+  StringHelper::GenerateHashGetHash(masm, r0);
+  __ pop(kRootRegister);
   __ mov(pc, Operand(lr));
 #elif V8_TARGET_ARCH_MIPS
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+
   __ li(v0, Operand(0));
-  if (string.length() > 0) {
-    __ li(t1, Operand(string.at(0)));
-    StringHelper::GenerateHashInit(assm, v0, t1);
-  }
+  __ li(t1, Operand(string.at(0)));
+  StringHelper::GenerateHashInit(masm, v0, t1);
   for (int i = 1; i < string.length(); i++) {
     __ li(t1, Operand(string.at(i)));
-    StringHelper::GenerateHashAddCharacter(assm, v0, t1);
+    StringHelper::GenerateHashAddCharacter(masm, v0, t1);
   }
-  StringHelper::GenerateHashGetHash(assm, v0);
+  StringHelper::GenerateHashGetHash(masm, v0);
+  __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
 #endif
@@ -114,12 +120,12 @@ void generate(MacroAssembler* assm, i::Vector<const char> string) {
 void check(i::Vector<const char> string) {
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
-  MacroAssembler assm(Isolate::Current(), buffer, sizeof buffer);
+  MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
 
-  generate(&assm, string);
+  generate(&masm, string);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  masm.GetCode(&desc);
   Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
@@ -156,7 +162,6 @@ TEST(StringHash) {
       check_twochars(static_cast<char>(a), static_cast<char>(b));
     }
   }
-  check(i::Vector<const char>("",        0));
   check(i::Vector<const char>("*",       1));
   check(i::Vector<const char>(".zZ",     3));
   check(i::Vector<const char>("muc",     3));
