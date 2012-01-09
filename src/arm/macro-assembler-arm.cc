@@ -1456,8 +1456,9 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // hash = hash ^ (hash >> 4);
   eor(t0, t0, Operand(t0, LSR, 4));
   // hash = hash * 2057;
-  mov(t1, Operand(2057));
-  mul(t0, t0, t1);
+  mov(t1, Operand(t0, LSL, 11));
+  add(t0, t0, Operand(t0, LSL, 3));
+  add(t0, t0, t1);
   // hash = hash ^ (hash >> 16);
   eor(t0, t0, Operand(t0, LSR, 16));
 
