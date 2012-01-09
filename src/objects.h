@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -160,6 +160,11 @@ enum ElementsKind {
   LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
   FIRST_ELEMENTS_KIND = FAST_SMI_ONLY_ELEMENTS,
   LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
+};
+
+enum CompareMapMode {
+  REQUIRE_EXACT_MAP,
+  ALLOW_ELEMENT_TRANSITION_MAPS
 };
 
 const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;

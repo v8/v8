@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -376,13 +376,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // r0 : value
   Label exit;
 
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver_reg, miss_label);
-
-  // Check that the map of the receiver hasn't changed.
-  __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
-  __ cmp(scratch, Operand(Handle<Map>(object->map())));
-  __ b(ne, miss_label);
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(receiver_reg, scratch, Handle<Map>(object->map()), miss_label,
+              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -1019,10 +1015,9 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
       __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
       Handle<Map> current_map(current->map());
-      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-      __ cmp(scratch1, Operand(current_map));
-      // Branch on the result of the map check.
-      __ b(ne, miss);
+      __ CheckMap(reg, scratch1, current_map, miss, DONT_DO_SMI_CHECK,
+                  ALLOW_ELEMENT_TRANSITION_MAPS);
+
       // Check access rights to the global object.  This has to happen after
       // the map check so that we know that the object is actually a global
       // object.
@@ -1053,9 +1048,8 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
   LOG(masm()->isolate(), IntEvent("check-maps-depth", depth + 1));
 
   // Check the holder map.
-  __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-  __ cmp(scratch1, Operand(Handle<Map>(current->map())));
-  __ b(ne, miss);
+  __ CheckMap(reg, scratch1, Handle<Map>(current->map()), miss,
+              DONT_DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform security check for access to the global object.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
@@ -2472,13 +2466,9 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
   // -----------------------------------
   Label miss;
 
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(r1, &miss);
-
   // Check that the map of the object hasn't changed.
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Handle<Map>(object->map())));
-  __ b(ne, &miss);
+  __ CheckMap(r1, r3, Handle<Map>(object->map()), &miss,
+              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -2520,13 +2510,9 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
   // -----------------------------------
   Label miss;
 
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(r1, &miss);
-
   // Check that the map of the object hasn't changed.
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Handle<Map>(receiver->map())));
-  __ b(ne, &miss);
+  __ CheckMap(r1, r3, Handle<Map>(receiver->map()), &miss,
+              DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
 
   // Perform global security token check if needed.
   if (receiver->IsJSGlobalProxy()) {

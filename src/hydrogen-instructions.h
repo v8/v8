@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1921,8 +1921,11 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 
 class HCheckMap: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value, Handle<Map> map, HValue* typecheck = NULL)
-      : map_(map) {
+  HCheckMap(HValue* value, Handle<Map> map,
+            HValue* typecheck = NULL,
+            CompareMapMode mode = REQUIRE_EXACT_MAP)
+      : map_(map),
+        mode_(mode) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -1930,6 +1933,9 @@ class HCheckMap: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
+    has_element_transitions_ =
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL) != NULL ||
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL) != NULL;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1940,17 +1946,24 @@ class HCheckMap: public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   Handle<Map> map() const { return map_; }
+  CompareMapMode mode() const { return mode_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMap)
 
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckMap* b = HCheckMap::cast(other);
-    return map_.is_identical_to(b->map());
+    // Two CheckMaps instructions are DataEqual if their maps are identical and
+    // they have the same mode. The mode comparison can be ignored if the map
+    // has no elements transitions.
+    return map_.is_identical_to(b->map()) &&
+        (b->mode() == mode() || !has_element_transitions_);
   }
 
  private:
+  bool has_element_transitions_;
   Handle<Map> map_;
+  CompareMapMode mode_;
 };
 
 

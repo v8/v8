@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2363,7 +2363,9 @@ Object* Map::GetDescriptorContents(String* sentinel_name,
     if (details.type() == ELEMENTS_TRANSITION) {
       return descriptors->GetValue(index);
     } else {
-      *safe_to_add_transition = false;
+      if (safe_to_add_transition != NULL) {
+        *safe_to_add_transition = false;
+      }
     }
   }
   return NULL;

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3572,7 +3572,8 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type));
+    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
 
   int index = ComputeStoredFieldIndex(type, name, lookup);
@@ -4117,7 +4118,8 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type));
+    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
 
   int index = lookup->GetLocalFieldIndexFromMap(*type);
@@ -4157,7 +4159,8 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                true);
   } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
     AddInstruction(new(zone()) HCheckNonSmi(obj));
-    AddInstruction(new(zone()) HCheckMap(obj, map));
+    AddInstruction(new(zone()) HCheckMap(obj, map, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   } else {
@@ -4652,7 +4655,8 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
   // its prototypes.
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(receiver));
-    AddInstruction(new(zone()) HCheckMap(receiver, receiver_map));
+    AddInstruction(new(zone()) HCheckMap(receiver, receiver_map, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
   if (!expr->holder().is_null()) {
     AddInstruction(new(zone()) HCheckPrototypeMaps(
@@ -6195,9 +6199,11 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<Map> map = oracle()->GetCompareMap(expr);
         if (!map.is_null()) {
           AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(new(zone()) HCheckMap(left, map));
+          AddInstruction(new(zone()) HCheckMap(left, map, NULL,
+                                               ALLOW_ELEMENT_TRANSITION_MAPS));
           AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(new(zone()) HCheckMap(right, map));
+          AddInstruction(new(zone()) HCheckMap(right, map, NULL,
+                                               ALLOW_ELEMENT_TRANSITION_MAPS));
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
           result->set_position(expr->position());
