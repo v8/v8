@@ -4606,14 +4606,15 @@ MaybeObject* JSObject::DefineAccessor(String* name,
                                                  fun, attributes);
   }
 
-  AccessorPair* accessors;
+  Object* accessors;
   { MaybeObject* maybe_accessors = DefineGetterSetter(name, attributes);
-    if (!maybe_accessors->To<AccessorPair>(&accessors)) return maybe_accessors;
+    if (!maybe_accessors->To<Object>(&accessors)) return maybe_accessors;
   }
+  if (accessors->IsUndefined()) return accessors;
   if (is_getter) {
-    accessors->set_getter(fun);
+    AccessorPair::cast(accessors)->set_getter(fun);
   } else {
-    accessors->set_setter(fun);
+    AccessorPair::cast(accessors)->set_setter(fun);
   }
   return this;
 }
