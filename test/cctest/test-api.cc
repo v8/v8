@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2864,6 +2864,16 @@ THREADED_TEST(isNumberType) {
   CHECK(!obj->IsUint32());
   // Large negative fraction.
   CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Positive zero
+  CompileRun("var obj = 0.0;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Positive zero
+  CompileRun("var obj = -0.0;");
   obj = env->Global()->Get(v8_str("obj"));
   CHECK(!obj->IsInt32());
   CHECK(!obj->IsUint32());

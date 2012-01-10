@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2165,6 +2165,11 @@ bool Value::IsInt32() const {
   if (obj->IsSmi()) return true;
   if (obj->IsNumber()) {
     double value = obj->Number();
+    static const i::DoubleRepresentation minus_zero(-0.0);
+    i::DoubleRepresentation rep(value);
+    if (rep.bits == minus_zero.bits) {
+      return false;
+    }
     return i::FastI2D(i::FastD2I(value)) == value;
   }
   return false;
@@ -2177,6 +2182,11 @@ bool Value::IsUint32() const {
   if (obj->IsSmi()) return i::Smi::cast(*obj)->value() >= 0;
   if (obj->IsNumber()) {
     double value = obj->Number();
+    static const i::DoubleRepresentation minus_zero(-0.0);
+    i::DoubleRepresentation rep(value);
+    if (rep.bits == minus_zero.bits) {
+      return false;
+    }
     return i::FastUI2D(i::FastD2UI(value)) == value;
   }
   return false;
