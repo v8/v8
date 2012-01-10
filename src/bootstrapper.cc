@@ -264,13 +264,13 @@ class Genesis BASE_EMBEDDED {
   Handle<Map> CreateStrictModeFunctionMap(
       PrototypePropertyMode prototype_mode,
       Handle<JSFunction> empty_function,
-      Handle<FixedArray> arguments_callbacks,
-      Handle<FixedArray> caller_callbacks);
+      Handle<AccessorPair> arguments_callbacks,
+      Handle<AccessorPair> caller_callbacks);
 
   Handle<DescriptorArray> ComputeStrictFunctionInstanceDescriptor(
       PrototypePropertyMode propertyMode,
-      Handle<FixedArray> arguments,
-      Handle<FixedArray> caller);
+      Handle<AccessorPair> arguments,
+      Handle<AccessorPair> caller);
 
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
@@ -540,8 +540,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
 Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
     PrototypePropertyMode prototypeMode,
-    Handle<FixedArray> arguments,
-    Handle<FixedArray> caller) {
+    Handle<AccessorPair> arguments,
+    Handle<AccessorPair> caller) {
   Handle<DescriptorArray> descriptors =
       factory()->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE
                                     ? 4
@@ -611,8 +611,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
 Handle<Map> Genesis::CreateStrictModeFunctionMap(
     PrototypePropertyMode prototype_mode,
     Handle<JSFunction> empty_function,
-    Handle<FixedArray> arguments_callbacks,
-    Handle<FixedArray> caller_callbacks) {
+    Handle<AccessorPair> arguments_callbacks,
+    Handle<AccessorPair> caller_callbacks) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   Handle<DescriptorArray> descriptors =
       ComputeStrictFunctionInstanceDescriptor(prototype_mode,
@@ -629,8 +629,8 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // Create the callbacks arrays for ThrowTypeError functions.
   // The get/set callacks are filled in after the maps are created below.
   Factory* factory = empty->GetIsolate()->factory();
-  Handle<FixedArray> arguments = factory->NewFixedArray(2, TENURED);
-  Handle<FixedArray> caller = factory->NewFixedArray(2, TENURED);
+  Handle<AccessorPair> arguments(factory->NewAccessorPair());
+  Handle<AccessorPair> caller(factory->NewAccessorPair());
 
   // Allocate map for the strict mode function instances.
   Handle<Map> strict_mode_function_instance_map =
@@ -665,11 +665,11 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   Handle<JSFunction> throw_function =
       GetThrowTypeErrorFunction();
 
-  // Complete the callback fixed arrays.
-  arguments->set(0, *throw_function);
-  arguments->set(1, *throw_function);
-  caller->set(0, *throw_function);
-  caller->set(1, *throw_function);
+  // Complete the callbacks.
+  arguments->set_getter(*throw_function);
+  arguments->set_setter(*throw_function);
+  caller->set_getter(*throw_function);
+  caller->set_setter(*throw_function);
 }
 
 
@@ -1142,17 +1142,17 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     // Create the ThrowTypeError functions.
-    Handle<FixedArray> callee = factory->NewFixedArray(2, TENURED);
-    Handle<FixedArray> caller = factory->NewFixedArray(2, TENURED);
+    Handle<AccessorPair> callee = factory->NewAccessorPair();
+    Handle<AccessorPair> caller = factory->NewAccessorPair();
 
     Handle<JSFunction> throw_function =
         GetThrowTypeErrorFunction();
 
     // Install the ThrowTypeError functions.
-    callee->set(0, *throw_function);
-    callee->set(1, *throw_function);
-    caller->set(0, *throw_function);
-    caller->set(1, *throw_function);
+    callee->set_getter(*throw_function);
+    callee->set_setter(*throw_function);
+    caller->set_getter(*throw_function);
+    caller->set_setter(*throw_function);
 
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);

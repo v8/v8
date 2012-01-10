@@ -246,8 +246,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   }
 
   // __defineGetter__ callback
-  if (structure->IsFixedArray()) {
-    Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* getter = AccessorPair::cast(structure)->getter();
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
@@ -2039,8 +2039,8 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     return *value_handle;
   }
 
-  if (structure->IsFixedArray()) {
-    Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* setter = AccessorPair::cast(structure)->setter();
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
      return SetPropertyWithDefinedSetter(JSReceiver::cast(setter), value);
@@ -4353,10 +4353,9 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 
 
 // Search for a getter or setter in an elements dictionary and update its
-// attributes.  Returns either undefined if the element is non-deletable, or
-// the getter/setter pair (fixed array) if there is an existing one, or the
-// hole value if the element does not exist or is a normal non-getter/setter
-// data element.
+// attributes.  Returns either undefined if the element is non-deletable, or the
+// getter/setter pair if there is an existing one, or the hole value if the
+// element does not exist or is a normal non-getter/setter data element.
 static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
                                               uint32_t index,
                                               PropertyAttributes attributes,
@@ -4367,7 +4366,7 @@ static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
     PropertyDetails details = dictionary->DetailsAt(entry);
     // TODO(mstarzinger): We should check for details.IsDontDelete() here once
     // we only call into the runtime once to set both getter and setter.
-    if (details.type() == CALLBACKS && result->IsFixedArray()) {
+    if (details.type() == CALLBACKS && result->IsAccessorPair()) {
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(entry,
                                  PropertyDetails(attributes, CALLBACKS, index));
@@ -4455,7 +4454,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
       if (result.type() == CALLBACKS) {
         Object* obj = result.GetCallbackObject();
         // Need to preserve old getters/setters.
-        if (obj->IsFixedArray()) {
+        if (obj->IsAccessorPair()) {
           // Use set to update attributes.
           return SetPropertyCallback(name, obj, attributes);
         }
@@ -4463,16 +4462,15 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     }
   }
 
-  // Allocate the fixed array to hold getter and setter.
-  Object* structure;
-  { MaybeObject* maybe_structure = heap->AllocateFixedArray(2, TENURED);
-    if (!maybe_structure->ToObject(&structure)) return maybe_structure;
+  AccessorPair* accessors;
+  { MaybeObject* maybe_accessors = heap->AllocateAccessorPair();
+    if (!maybe_accessors->To<AccessorPair>(&accessors)) return maybe_accessors;
   }
 
   if (is_element) {
-    return SetElementCallback(index, structure, attributes);
+    return SetElementCallback(index, accessors, attributes);
   } else {
-    return SetPropertyCallback(name, structure, attributes);
+    return SetPropertyCallback(name, accessors, attributes);
   }
 }
 
@@ -4608,12 +4606,15 @@ MaybeObject* JSObject::DefineAccessor(String* name,
                                                  fun, attributes);
   }
 
-  Object* array;
-  { MaybeObject* maybe_array = DefineGetterSetter(name, attributes);
-    if (!maybe_array->ToObject(&array)) return maybe_array;
+  AccessorPair* accessors;
+  { MaybeObject* maybe_accessors = DefineGetterSetter(name, attributes);
+    if (!maybe_accessors->To<AccessorPair>(&accessors)) return maybe_accessors;
   }
-  if (array->IsUndefined()) return array;
-  FixedArray::cast(array)->set(is_getter ? 0 : 1, fun);
+  if (is_getter) {
+    accessors->set_getter(fun);
+  } else {
+    accessors->set_setter(fun);
+  }
   return this;
 }
 
@@ -4717,11 +4718,6 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
   }
 
   // Make the lookup and include prototypes.
-  // Introducing constants below makes static constants usage purely static
-  // and avoids linker errors in debug build using gcc.
-  const int getter_index = kGetterIndex;
-  const int setter_index = kSetterIndex;
-  int accessor_index = is_getter ? getter_index : setter_index;
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
@@ -4735,8 +4731,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
           Object* element = dictionary->ValueAt(entry);
           PropertyDetails details = dictionary->DetailsAt(entry);
           if (details.type() == CALLBACKS) {
-            if (element->IsFixedArray()) {
-              return FixedArray::cast(element)->get(accessor_index);
+            if (element->IsAccessorPair()) {
+              AccessorPair *accessors = AccessorPair::cast(element);
+              return is_getter ? accessors->getter() : accessors->setter();
             }
           }
         }
@@ -4752,8 +4749,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         if (result.IsReadOnly()) return heap->undefined_value();
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
-          if (obj->IsFixedArray()) {
-            return FixedArray::cast(obj)->get(accessor_index);
+          if (obj->IsAccessorPair()) {
+            AccessorPair *accessors = AccessorPair::cast(obj);
+            return is_getter ? accessors->getter() : accessors->setter();
           }
         }
       }
@@ -9060,8 +9058,8 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   }
 
   // __defineGetter__ callback
-  if (structure->IsFixedArray()) {
-    Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* getter = AccessorPair::cast(structure)->getter();
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
@@ -9117,8 +9115,8 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     return *value_handle;
   }
 
-  if (structure->IsFixedArray()) {
-    Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
+  if (structure->IsAccessorPair()) {
+    Handle<Object> setter(AccessorPair::cast(structure)->setter());
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return SetPropertyWithDefinedSetter(JSReceiver::cast(*setter), value);

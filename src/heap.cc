@@ -1869,6 +1869,19 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 }
 
 
+MaybeObject* Heap::AllocateAccessorPair() {
+  Object* result;
+  { MaybeObject* maybe_result = AllocateStruct(ACCESSOR_PAIR_TYPE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  AccessorPair* accessors = AccessorPair::cast(result);
+  // Later we will have to distinguish between undefined and the hole...
+  // accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
+  // accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
+  return accessors;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},

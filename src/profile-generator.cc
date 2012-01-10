@@ -2230,13 +2230,13 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
           break;
         case CALLBACKS: {
           Object* callback_obj = descs->GetValue(i);
-          if (callback_obj->IsFixedArray()) {
-            FixedArray* accessors = FixedArray::cast(callback_obj);
-            if (Object* getter = accessors->get(JSObject::kGetterIndex)) {
+          if (callback_obj->IsAccessorPair()) {
+            AccessorPair* accessors = AccessorPair::cast(callback_obj);
+            if (Object* getter = accessors->getter()) {
               SetPropertyReference(js_obj, entry, descs->GetKey(i),
                                    getter, "get-%s");
             }
-            if (Object* setter = accessors->get(JSObject::kSetterIndex)) {
+            if (Object* setter = accessors->setter()) {
               SetPropertyReference(js_obj, entry, descs->GetKey(i),
                                    setter, "set-%s");
             }

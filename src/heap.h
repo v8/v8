@@ -615,6 +615,9 @@ class Heap {
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
+  // Allocates an empty AccessorPair.
+  MaybeObject* AllocateAccessorPair();
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 

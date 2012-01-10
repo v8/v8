@@ -107,6 +107,7 @@
 //       - SharedFunctionInfo
 //       - Struct
 //         - AccessorInfo
+//         - AccessorPair
 //         - AccessCheckInfo
 //         - InterceptorInfo
 //         - CallHandlerInfo
@@ -275,6 +276,7 @@ const int kVariableSizeSentinel = 0;
   V(FILLER_TYPE)                                                               \
                                                                                \
   V(ACCESSOR_INFO_TYPE)                                                        \
+  V(ACCESSOR_PAIR_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
   V(CALL_HANDLER_INFO_TYPE)                                                    \
@@ -422,6 +424,7 @@ const int kVariableSizeSentinel = 0;
 // manually.
 #define STRUCT_LIST_ALL(V)                                                     \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                                \
+  V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                                \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                     \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                       \
   V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                     \
@@ -575,6 +578,7 @@ enum InstanceType {
 
   // Structs.
   ACCESSOR_INFO_TYPE,
+  ACCESSOR_PAIR_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
   CALL_HANDLER_INFO_TYPE,
@@ -2005,11 +2009,6 @@ class JSObject: public JSReceiver {
   void IncrementSpillStatistics(SpillInformation* info);
 #endif
   Object* SlowReverseLookup(Object* value);
-
-  // Getters and setters are stored in a fixed array property.
-  // These are constants for their indices.
-  static const int kGetterIndex = 0;
-  static const int kSetterIndex = 1;
 
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
@@ -7633,6 +7632,35 @@ class AccessorInfo: public Struct {
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
+};
+
+
+// Support for JavaScript accessors: A pair of a getter and a setter. Each
+// accessor can either be
+//   * a pointer to a JavaScript function or proxy: a real accessor
+//   * undefined: considered an accessor by the spec, too, strangely enough
+//   * the hole: an accessor which has not been set
+//   * a pointer to a map: a transition used to ensure map sharing
+class AccessorPair: public Struct {
+ public:
+  DECL_ACCESSORS(getter, Object)
+  DECL_ACCESSORS(setter, Object)
+
+  static inline AccessorPair* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  void AccessorPairPrint(FILE* out = stdout);
+#endif
+#ifdef DEBUG
+  void AccessorPairVerify();
+#endif
+
+  static const int kGetterOffset = HeapObject::kHeaderSize;
+  static const int kSetterOffset = kGetterOffset + kPointerSize;
+  static const int kSize = kSetterOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 
 

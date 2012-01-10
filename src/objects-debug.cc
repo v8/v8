@@ -602,6 +602,13 @@ void AccessorInfo::AccessorInfoVerify() {
 }
 
 
+void AccessorPair::AccessorPairVerify() {
+  CHECK(IsAccessorPair());
+  VerifyPointer(getter());
+  VerifyPointer(setter());
+}
+
+
 void AccessCheckInfo::AccessCheckInfoVerify() {
   CHECK(IsAccessCheckInfo());
   VerifyPointer(named_callback());

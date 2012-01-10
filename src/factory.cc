@@ -131,6 +131,13 @@ Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
 }
 
 
+Handle<AccessorPair> Factory::NewAccessorPair() {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateAccessorPair(),
+                     AccessorPair);
+}
+
+
 // Symbols are created in the old generation (data space).
 Handle<String> Factory::LookupSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
