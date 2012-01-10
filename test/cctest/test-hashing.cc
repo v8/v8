@@ -206,7 +206,7 @@ void check(uint32_t key) {
 
   uint32_t runtime_hash = ComputeIntegerHash(
       key,
-      Isolate::Current()->heap()->StringHashSeed());
+      Isolate::Current()->heap()->HashSeed());
   CHECK(runtime_hash == codegen_hash);
 }
 

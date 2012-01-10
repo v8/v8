@@ -4328,7 +4328,7 @@ StringHasher::StringHasher(int length, uint32_t seed)
     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
     is_first_char_(true),
     is_valid_(true) {
-  ASSERT(FLAG_randomize_string_hashes || raw_running_hash_ == 0);
+  ASSERT(FLAG_randomize_hashes || raw_running_hash_ == 0);
 }
 
 

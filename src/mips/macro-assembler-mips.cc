@@ -411,7 +411,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
 void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   // First of all we assign the hash seed to scratch.
-  LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  LoadRoot(scratch, Heap::kHashSeedRootIndex);
   SmiUntag(scratch);
 
   // Xor original key with a seed.

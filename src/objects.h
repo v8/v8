@@ -2599,7 +2599,7 @@ class BaseShape {
   static const bool UsesSeed = false;
   static uint32_t Hash(Key key) { return 0; }
   static uint32_t SeededHash(Key key, uint32_t seed) {
-    // Won't be called if UsesSeed isn't overridden by child class.
+    ASSERT(UsesSeed);
     return Hash(key);
   }
   static uint32_t HashForObject(Key key, Object* object) { return 0; }
@@ -2616,7 +2616,7 @@ class HashTable: public FixedArray {
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
       return Shape::SeededHash(key,
-          GetHeap()->StringHashSeed());
+          GetHeap()->HashSeed());
     } else {
       return Shape::Hash(key);
     }
@@ -2625,7 +2625,7 @@ class HashTable: public FixedArray {
   inline uint32_t HashForObject(Key key, Object* object) {
     if (Shape::UsesSeed) {
       return Shape::SeededHashForObject(key,
-          GetHeap()->StringHashSeed(), object);
+          GetHeap()->HashSeed(), object);
     } else {
       return Shape::HashForObject(key, object);
     }

@@ -1001,12 +1001,12 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   if (Serializer::enabled()) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
-    mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
+    mov(scratch, Immediate(Heap::kHashSeedRootIndex));
     xor_(r0, Operand::StaticArray(scratch,
                                   times_pointer_size,
                                   roots_array_start));
   } else {
-    int32_t seed = isolate()->heap()->StringHashSeed();
+    int32_t seed = isolate()->heap()->HashSeed();
     xor_(r0, Immediate(seed));
   }
 

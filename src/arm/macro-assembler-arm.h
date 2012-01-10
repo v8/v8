@@ -590,9 +590,7 @@ class MacroAssembler: public Assembler {
                               Register scratch,
                               Label* miss);
 
-
   void GetNumberHash(Register t0, Register scratch);
-
 
   void LoadFromNumberDictionary(Label* miss,
                                 Register elements,

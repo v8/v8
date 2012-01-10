@@ -111,7 +111,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
   uint32_t hash =
-      HashSequentialString(dst.start(), len, HEAP->StringHashSeed());
+      HashSequentialString(dst.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(dst.start(), hash);
 }
 
@@ -145,7 +145,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
     return format;
   }
   uint32_t hash = HashSequentialString(
-      str.start(), len, HEAP->StringHashSeed());
+      str.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(str.start(), hash);
 }
 
@@ -156,7 +156,7 @@ const char* StringsStorage::GetName(String* name) {
     SmartArrayPointer<char> data =
         name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
     uint32_t hash =
-        HashSequentialString(*data, length, name->GetHeap()->StringHashSeed());
+        HashSequentialString(*data, length, name->GetHeap()->HashSeed());
     return AddOrDisposeString(data.Detach(), hash);
   }
   return "";
@@ -1509,7 +1509,7 @@ uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   const char* label = info->GetLabel();
   id ^= HashSequentialString(label,
                              static_cast<int>(strlen(label)),
-                             HEAP->StringHashSeed());
+                             HEAP->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
