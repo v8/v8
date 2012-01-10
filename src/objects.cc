@@ -4733,7 +4733,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
           PropertyDetails details = dictionary->DetailsAt(entry);
           if (details.type() == CALLBACKS) {
             if (element->IsAccessorPair()) {
-              AccessorPair *accessors = AccessorPair::cast(element);
+              AccessorPair* accessors = AccessorPair::cast(element);
               return is_getter ? accessors->getter() : accessors->setter();
             }
           }
@@ -4751,7 +4751,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            AccessorPair *accessors = AccessorPair::cast(obj);
+            AccessorPair* accessors = AccessorPair::cast(obj);
             return is_getter ? accessors->getter() : accessors->setter();
           }
         }

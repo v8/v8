@@ -69,6 +69,7 @@ class Factory {
   Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
+  // Allocates a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
   Handle<String> LookupSymbol(Vector<const char> str);
