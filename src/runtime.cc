@@ -431,7 +431,6 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
 static const int kSmiOnlyLiteralMinimumLength = 1024;
 
 
-// static
 Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,

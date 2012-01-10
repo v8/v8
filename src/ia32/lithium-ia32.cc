@@ -1047,22 +1047,31 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
-  HValue* v = instr->value();
-  if (v->EmitAtUses()) {
-    ASSERT(v->IsConstant());
-    ASSERT(!v->representation().IsDouble());
-    HBasicBlock* successor = HConstant::cast(v)->ToBoolean()
+  HValue* value = instr->value();
+  if (value->EmitAtUses()) {
+    ASSERT(value->IsConstant());
+    ASSERT(!value->representation().IsDouble());
+    HBasicBlock* successor = HConstant::cast(value)->ToBoolean()
         ? instr->FirstSuccessor()
         : instr->SecondSuccessor();
     return new(zone()) LGoto(successor->block_id());
   }
+
+  // Untagged integers or doubles, smis and booleans don't require a
+  // deoptimization environment nor a temp register.
+  Representation rep = value->representation();
+  HType type = value->type();
+  if (!rep.IsTagged() || type.IsSmi() || type.IsBoolean()) {
+    return new(zone()) LBranch(UseRegister(value), NULL);
+  }
+
   ToBooleanStub::Types expected = instr->expected_input_types();
   // We need a temporary register when we have to access the map *or* we have
   // no type info yet, in which case we handle all cases (including the ones
   // involving maps).
   bool needs_temp = expected.NeedsMap() || expected.IsEmpty();
   LOperand* temp = needs_temp ? TempRegister() : NULL;
-  return AssignEnvironment(new(zone()) LBranch(UseRegister(v), temp));
+  return AssignEnvironment(new(zone()) LBranch(UseRegister(value), temp));
 }
 
 
@@ -1388,7 +1397,11 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
       temp = TempRegister();
     }
     LMulI* mul = new(zone()) LMulI(left, right, temp);
-    return AssignEnvironment(DefineSameAsFirst(mul));
+    if (instr->CheckFlag(HValue::kCanOverflow) ||
+        instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      AssignEnvironment(mul);
+    }
+    return DefineSameAsFirst(mul);
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
   } else {
@@ -1616,7 +1629,7 @@ LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
   LValueOf* result = new(zone()) LValueOf(object, TempRegister());
-  return AssignEnvironment(DefineSameAsFirst(result));
+  return DefineSameAsFirst(result);
 }
 
 
@@ -1956,7 +1969,8 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastElement* result = new(zone()) LLoadKeyedFastElement(obj, key);
-  return AssignEnvironment(DefineAsRegister(result));
+  if (instr->RequiresHoleCheck()) AssignEnvironment(result);
+  return DefineAsRegister(result);
 }
 
 

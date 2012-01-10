@@ -1038,14 +1038,23 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 
 LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
-  HValue* v = instr->value();
-  if (v->EmitAtUses()) {
-    HBasicBlock* successor = HConstant::cast(v)->ToBoolean()
+  HValue* value = instr->value();
+  if (value->EmitAtUses()) {
+    HBasicBlock* successor = HConstant::cast(value)->ToBoolean()
         ? instr->FirstSuccessor()
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  return AssignEnvironment(new LBranch(UseRegister(v)));
+
+  LBranch* result = new LBranch(UseRegister(value));
+  // Tagged values that are not known smis or booleans require a
+  // deoptimization environment.
+  Representation rep = value->representation();
+  HType type = value->type();
+  if (rep.IsTagged() && !type.IsSmi() && !type.IsBoolean()) {
+    return AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1344,7 +1353,12 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     } else {
       left = UseRegisterAtStart(instr->LeastConstantOperand());
     }
-    return AssignEnvironment(DefineAsRegister(new LMulI(left, right, temp)));
+    LMulI* mul = new LMulI(left, right, temp);
+    if (instr->CheckFlag(HValue::kCanOverflow) ||
+        instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      AssignEnvironment(mul);
+    }
+    return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
@@ -1556,7 +1570,7 @@ LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
   LValueOf* result = new LValueOf(object, TempRegister());
-  return AssignEnvironment(DefineAsRegister(result));
+  return DefineAsRegister(result);
 }
 
 
@@ -1874,7 +1888,8 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterAtStart(instr->key());
   LLoadKeyedFastElement* result = new LLoadKeyedFastElement(obj, key);
-  return AssignEnvironment(DefineAsRegister(result));
+  if (instr->RequiresHoleCheck()) AssignEnvironment(result);
+  return DefineAsRegister(result);
 }
 
 
