@@ -496,13 +496,10 @@ void MacroAssembler::RecordWrite(Register object,
   // registers are cp.
   ASSERT(!address.is(cp) && !value.is(cp));
 
-  if (FLAG_debug_code) {
-    Label ok;
+  if (emit_debug_code()) {
     ldr(ip, MemOperand(address));
     cmp(ip, value);
-    b(eq, &ok);
-    stop("Wrong address or value passed to RecordWrite");
-    bind(&ok);
+    Check(eq, "Wrong address or value passed to RecordWrite");
   }
 
   Label done;
@@ -551,7 +548,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          SaveFPRegsMode fp_mode,
                                          RememberedSetFinalAction and_then) {
   Label done;
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok);
     stop("Remembered set pointer is in new space");
@@ -3504,7 +3501,7 @@ void MacroAssembler::EnsureNotWhite(
   tst(mask_scratch, load_scratch);
   b(ne, &done);
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check for impossible bit pattern.
     Label ok;
     // LSL may overflow, making the check conservative.
