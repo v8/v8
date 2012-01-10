@@ -6210,6 +6210,11 @@ class StringHasher {
   // value is represented decimal value.
   static uint32_t MakeArrayIndexHash(uint32_t value, int length);
 
+  // No string is allowed to have a hash of zero.  That value is reserved
+  // for internal properties.  If the hash calculation yields zero then we
+  // use 27 instead.
+  static const int kZeroHash = 27;
+
  private:
   uint32_t array_index() {
     ASSERT(is_array_index());

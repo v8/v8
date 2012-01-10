@@ -5954,7 +5954,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
 
 
 void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                         Register hash) {
+                                       Register hash) {
   // hash += hash << 3;
   __ sll(at, hash, 3);
   __ addu(hash, hash, at);
@@ -5965,12 +5965,11 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ sll(at, hash, 15);
   __ addu(hash, hash, at);
 
-  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
-  __ li(at, Operand(kHashShiftCutOffMask));
+  __ li(at, Operand(String::kHashBitMask));
   __ and_(hash, hash, at);
 
   // if (hash == 0) hash = 27;
-  __ ori(at, zero_reg, 27);
+  __ ori(at, zero_reg, StringHasher::kZeroHash);
   __ movz(hash, at, hash);
 }
 
