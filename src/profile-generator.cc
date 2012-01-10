@@ -181,18 +181,21 @@ void CodeEntry::CopyData(const CodeEntry& source) {
 
 
 uint32_t CodeEntry::GetCallUid() const {
-  uint32_t hash = ComputeIntegerHash(tag_);
+  uint32_t hash = ComputeIntegerHash(tag_, v8::internal::kZeroHashSeed);
   if (shared_id_ != 0) {
-    hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(shared_id_));
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(shared_id_),
+                               v8::internal::kZeroHashSeed);
   } else {
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)),
+        v8::internal::kZeroHashSeed);
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)),
+        v8::internal::kZeroHashSeed);
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
-    hash ^= ComputeIntegerHash(line_number_);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)),
+        v8::internal::kZeroHashSeed);
+    hash ^= ComputeIntegerHash(line_number_, v8::internal::kZeroHashSeed);
   }
   return hash;
 }
@@ -1509,7 +1512,8 @@ uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
                              HEAP->StringHashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
-    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
+    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
+                             v8::internal::kZeroHashSeed);
   return id << 1;
 }
 

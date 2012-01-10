@@ -2593,9 +2593,44 @@ class DescriptorArray: public FixedArray {
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
+template<typename Key>
+class BaseShape {
+ public:
+  static const bool UsesSeed = false;
+  static uint32_t Hash(Key key) { return 0; }
+  static uint32_t SeededHash(Key key, uint32_t seed) {
+    // Won't be called if UsesSeed isn't overridden by child class.
+    return Hash(key);
+  }
+  static uint32_t HashForObject(Key key, Object* object) { return 0; }
+  static uint32_t SeededHashForObject(Key key, uint32_t seed, Object* object) {
+    // Won't be called if UsesSeed isn't overridden by child class.
+    return HashForObject(key, object);
+  }
+};
+
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
+  // Wrapper methods
+  inline uint32_t Hash(Key key) {
+    if (Shape::UsesSeed) {
+      return Shape::SeededHash(key,
+          GetHeap()->StringHashSeed());
+    } else {
+      return Shape::Hash(key);
+    }
+  }
+
+  inline uint32_t HashForObject(Key key, Object* object) {
+    if (Shape::UsesSeed) {
+      return Shape::SeededHashForObject(key,
+          GetHeap()->StringHashSeed(), object);
+    } else {
+      return Shape::HashForObject(key, object);
+    }
+  }
+
   // Returns the number of elements in the hash table.
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
@@ -2737,7 +2772,6 @@ class HashTable: public FixedArray {
 };
 
 
-
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
  public:
@@ -2754,7 +2788,8 @@ class HashTableKey {
   virtual ~HashTableKey() {}
 };
 
-class SymbolTableShape {
+
+class SymbolTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -2813,7 +2848,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 };
 
 
-class MapCacheShape {
+class MapCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -2969,7 +3004,7 @@ class Dictionary: public HashTable<Shape, Key> {
 };
 
 
-class StringDictionaryShape {
+class StringDictionaryShape : public BaseShape<String*> {
  public:
   static inline bool IsMatch(String* key, Object* other);
   static inline uint32_t Hash(String* key);
@@ -3002,11 +3037,17 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
 };
 
 
-class NumberDictionaryShape {
+class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
+  static const bool UsesSeed = true;
+
   static inline bool IsMatch(uint32_t key, Object* other);
   static inline uint32_t Hash(uint32_t key);
+  static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
   static inline uint32_t HashForObject(uint32_t key, Object* object);
+  static inline uint32_t SeededHashForObject(uint32_t key,
+                                             uint32_t seed,
+                                             Object* object);
   MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -3062,7 +3103,7 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 
 
 template <int entrysize>
-class ObjectHashTableShape {
+class ObjectHashTableShape : public BaseShape<Object*> {
  public:
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
@@ -5974,7 +6015,7 @@ class JSRegExp: public JSObject {
 };
 
 
-class CompilationCacheShape {
+class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -6078,7 +6119,7 @@ class CodeCache: public Struct {
 };
 
 
-class CodeCacheHashTableShape {
+class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);

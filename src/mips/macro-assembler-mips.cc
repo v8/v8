@@ -409,6 +409,44 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
+  // First of all we assign the hash seed to scratch.
+  LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  SmiUntag(scratch);
+
+  // Xor original key with a seed.
+  xor_(reg0, reg0, scratch);
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  nor(scratch, reg0, zero_reg);
+  sll(at, reg0, 15);
+  addu(reg0, scratch, at);
+
+  // hash = hash ^ (hash >> 12);
+  srl(at, reg0, 12);
+  xor_(reg0, reg0, at);
+
+  // hash = hash + (hash << 2);
+  sll(at, reg0, 2);
+  addu(reg0, reg0, at);
+
+  // hash = hash ^ (hash >> 4);
+  srl(at, reg0, 4);
+  xor_(reg0, reg0, at);
+
+  // hash = hash * 2057;
+  li(scratch, Operand(2057));
+  mul(reg0, reg0, scratch);
+
+  // hash = hash ^ (hash >> 16);
+  srl(at, reg0, 16);
+  xor_(reg0, reg0, at);
+}
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -440,33 +478,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // at   - Temporary (avoid MacroAssembler instructions also using 'at').
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  nor(reg1, reg0, zero_reg);
-  sll(at, reg0, 15);
-  addu(reg0, reg1, at);
-
-  // hash = hash ^ (hash >> 12);
-  srl(at, reg0, 12);
-  xor_(reg0, reg0, at);
-
-  // hash = hash + (hash << 2);
-  sll(at, reg0, 2);
-  addu(reg0, reg0, at);
-
-  // hash = hash ^ (hash >> 4);
-  srl(at, reg0, 4);
-  xor_(reg0, reg0, at);
-
-  // hash = hash * 2057;
-  li(reg1, Operand(2057));
-  mul(reg0, reg0, reg1);
-
-  // hash = hash ^ (hash >> 16);
-  srl(at, reg0, 16);
-  xor_(reg0, reg0, at);
+  GetNumberHash(reg0, reg1);
 
   // Compute the capacity mask.
   lw(reg1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));

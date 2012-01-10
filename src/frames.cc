@@ -1303,7 +1303,8 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
   isolate_->counters()->pc_to_code()->Increment();
   ASSERT(IsPowerOf2(kInnerPointerToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(inner_pointer)));
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(inner_pointer)),
+      v8::internal::kZeroHashSeed);
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

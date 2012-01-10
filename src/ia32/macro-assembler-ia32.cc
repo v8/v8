@@ -992,6 +992,49 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync
+// with ComputeIntegerHash in utils.h.
+//
+// Note: r0 will contain hash code
+void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
+  // Xor original key with a seed.
+  if (Serializer::enabled()) {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
+    xor_(r0, Operand::StaticArray(scratch,
+                                  times_pointer_size,
+                                  roots_array_start));
+  } else {
+    int32_t seed = isolate()->heap()->StringHashSeed();
+    xor_(r0, Immediate(seed));
+  }
+
+  // hash = ~hash + (hash << 15);
+  mov(scratch, r0);
+  not_(r0);
+  shl(scratch, 15);
+  add(r0, scratch);
+  // hash = hash ^ (hash >> 12);
+  mov(scratch, r0);
+  shr(scratch, 12);
+  xor_(r0, scratch);
+  // hash = hash + (hash << 2);
+  lea(r0, Operand(r0, r0, times_4, 0));
+  // hash = hash ^ (hash >> 4);
+  mov(scratch, r0);
+  shr(scratch, 4);
+  xor_(r0, scratch);
+  // hash = hash * 2057;
+  imul(r0, r0, 2057);
+  // hash = hash ^ (hash >> 16);
+  mov(scratch, r0);
+  shr(scratch, 16);
+  xor_(r0, scratch);
+}
+
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -1017,30 +1060,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  mov(r1, r0);
-  not_(r0);
-  shl(r1, 15);
-  add(r0, r1);
-  // hash = hash ^ (hash >> 12);
-  mov(r1, r0);
-  shr(r1, 12);
-  xor_(r0, r1);
-  // hash = hash + (hash << 2);
-  lea(r0, Operand(r0, r0, times_4, 0));
-  // hash = hash ^ (hash >> 4);
-  mov(r1, r0);
-  shr(r1, 4);
-  xor_(r0, r1);
-  // hash = hash * 2057;
-  imul(r0, r0, 2057);
-  // hash = hash ^ (hash >> 16);
-  mov(r1, r0);
-  shr(r1, 16);
-  xor_(r0, r1);
+  GetNumberHash(r0, r1);
 
   // Compute capacity mask.
   mov(r1, FieldOperand(elements, NumberDictionary::kCapacityOffset));

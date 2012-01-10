@@ -1414,6 +1414,35 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
+  // First of all we assign the hash seed to scratch.
+  LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  SmiUntag(scratch);
+
+  // Xor original key with a seed.
+  eor(t0, t0, Operand(scratch));
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  mvn(scratch, Operand(t0));
+  add(t0, scratch, Operand(t0, LSL, 15));
+  // hash = hash ^ (hash >> 12);
+  eor(t0, t0, Operand(t0, LSR, 12));
+  // hash = hash + (hash << 2);
+  add(t0, t0, Operand(t0, LSL, 2));
+  // hash = hash ^ (hash >> 4);
+  eor(t0, t0, Operand(t0, LSR, 4));
+  // hash = hash * 2057;
+  mov(scratch, Operand(t0, LSL, 11));
+  add(t0, t0, Operand(t0, LSL, 3));
+  add(t0, t0, scratch);
+  // hash = hash ^ (hash >> 16);
+  eor(t0, t0, Operand(t0, LSR, 16));
+}
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -1443,24 +1472,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // t2 - used for the index into the dictionary.
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  mvn(t1, Operand(t0));
-  add(t0, t1, Operand(t0, LSL, 15));
-  // hash = hash ^ (hash >> 12);
-  eor(t0, t0, Operand(t0, LSR, 12));
-  // hash = hash + (hash << 2);
-  add(t0, t0, Operand(t0, LSL, 2));
-  // hash = hash ^ (hash >> 4);
-  eor(t0, t0, Operand(t0, LSR, 4));
-  // hash = hash * 2057;
-  mov(t1, Operand(t0, LSL, 11));
-  add(t0, t0, Operand(t0, LSL, 3));
-  add(t0, t0, t1);
-  // hash = hash ^ (hash >> 16);
-  eor(t0, t0, Operand(t0, LSR, 16));
+  GetNumberHash(t0, t1);
 
   // Compute the capacity mask.
   ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));

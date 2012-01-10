@@ -10927,7 +10927,7 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = get(from_index);
     if (IsKey(k)) {
-      uint32_t hash = Shape::HashForObject(key, k);
+      uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -12013,8 +12013,9 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL);
-  return Dictionary<Shape, Key>::cast(obj)->
-      AddEntry(key, value, details, Shape::Hash(key));
+
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 
@@ -12029,8 +12030,9 @@ MaybeObject* Dictionary<Shape, Key>::Add(Key key,
   { MaybeObject* maybe_obj = EnsureCapacity(1, key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
-  return Dictionary<Shape, Key>::cast(obj)->
-      AddEntry(key, value, details, Shape::Hash(key));
+
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 

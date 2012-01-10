@@ -3419,6 +3419,42 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
+  // First of all we assign the hash seed to scratch.
+  LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  SmiToInteger32(scratch, scratch);
+
+  // Xor original key with a seed.
+  xorl(r0, scratch);
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  movl(scratch, r0);
+  notl(r0);
+  shll(scratch, Immediate(15));
+  addl(r0, scratch);
+  // hash = hash ^ (hash >> 12);
+  movl(scratch, r0);
+  shrl(scratch, Immediate(12));
+  xorl(r0, scratch);
+  // hash = hash + (hash << 2);
+  leal(r0, Operand(r0, r0, times_4, 0));
+  // hash = hash ^ (hash >> 4);
+  movl(scratch, r0);
+  shrl(scratch, Immediate(4));
+  xorl(r0, scratch);
+  // hash = hash * 2057;
+  imull(r0, r0, Immediate(2057));
+  // hash = hash ^ (hash >> 16);
+  movl(scratch, r0);
+  shrl(scratch, Immediate(16));
+  xorl(r0, scratch);
+}
+
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -3449,30 +3485,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  movl(r1, r0);
-  notl(r0);
-  shll(r1, Immediate(15));
-  addl(r0, r1);
-  // hash = hash ^ (hash >> 12);
-  movl(r1, r0);
-  shrl(r1, Immediate(12));
-  xorl(r0, r1);
-  // hash = hash + (hash << 2);
-  leal(r0, Operand(r0, r0, times_4, 0));
-  // hash = hash ^ (hash >> 4);
-  movl(r1, r0);
-  shrl(r1, Immediate(4));
-  xorl(r0, r1);
-  // hash = hash * 2057;
-  imull(r0, r0, Immediate(2057));
-  // hash = hash ^ (hash >> 16);
-  movl(r1, r0);
-  shrl(r1, Immediate(16));
-  xorl(r0, r1);
+  GetNumberHash(r0, r1);
 
   // Compute capacity mask.
   SmiToInteger32(r1,

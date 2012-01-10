@@ -987,6 +987,9 @@ class MacroAssembler: public Assembler {
                               Label* miss);
 
 
+  void GetNumberHash(Register r0, Register scratch);
+
+
   void LoadFromNumberDictionary(Label* miss,
                                 Register elements,
                                 Register key,
