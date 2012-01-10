@@ -9373,20 +9373,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,
                                       Handle<Context> context) {
-  if (context->allow_code_gen_from_strings()->IsFalse()) {
-    // Check with callback if set.
-    AllowCodeGenerationFromStringsCallback callback =
-        isolate->allow_code_gen_callback();
-    if (callback == NULL) {
-      // No callback set and code generation disallowed.
-      return false;
-    } else {
-      // Callback set. Let it decide if code generation is allowed.
-      VMState state(isolate, EXTERNAL);
-      return callback(v8::Utils::ToLocal(context));
-    }
+  ASSERT(context->allow_code_gen_from_strings()->IsFalse());
+  // Check with callback if set.
+  AllowCodeGenerationFromStringsCallback callback =
+      isolate->allow_code_gen_callback();
+  if (callback == NULL) {
+    // No callback set and code generation disallowed.
+    return false;
+  } else {
+    // Callback set. Let it decide if code generation is allowed.
+    VMState state(isolate, EXTERNAL);
+    return callback(v8::Utils::ToLocal(context));
   }
-  return true;
 }
 
 
@@ -9400,7 +9398,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
 
   // Check if global context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (!CodeGenerationFromStringsAllowed(isolate, context)) {
+  if (context->allow_code_gen_from_strings()->IsFalse() &&
+      !CodeGenerationFromStringsAllowed(isolate, context)) {
     return isolate->Throw(*isolate->factory()->NewError(
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
   }
@@ -9427,7 +9426,8 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
 
   // Check if global context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (!CodeGenerationFromStringsAllowed(isolate, global_context)) {
+  if (global_context->allow_code_gen_from_strings()->IsFalse() &&
+      !CodeGenerationFromStringsAllowed(isolate, global_context)) {
     isolate->Throw(*isolate->factory()->NewError(
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
     return MakePair(Failure::Exception(), NULL);
