@@ -1197,16 +1197,17 @@ TEST(TestSizeOfObjects) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(HEAP->old_pointer_space()->IsSweepingComplete());
-  intptr_t initial_size = HEAP->SizeOfObjects();
+  int initial_size = static_cast<int>(HEAP->SizeOfObjects());
 
   {
     // Allocate objects on several different old-space pages so that
     // lazy sweeping kicks in for subsequent GC runs.
     AlwaysAllocateScope always_allocate;
-    intptr_t filler_size = FixedArray::SizeFor(8192);
+    int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
       HEAP->AllocateFixedArray(8192, TENURED)->ToObjectChecked();
-      CHECK_EQ(initial_size + i * filler_size, HEAP->SizeOfObjects());
+      CHECK_EQ(initial_size + i * filler_size,
+               static_cast<int>(HEAP->SizeOfObjects()));
     }
   }
 
@@ -1214,12 +1215,12 @@ TEST(TestSizeOfObjects) {
   // though sweeping didn't finish yet.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(!HEAP->old_pointer_space()->IsSweepingComplete());
-  CHECK_EQ(initial_size, HEAP->SizeOfObjects());
+  CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
 
   // Advancing the sweeper step-wise should not change the heap size.
   while (!HEAP->old_pointer_space()->IsSweepingComplete()) {
     HEAP->old_pointer_space()->AdvanceSweeper(KB);
-    CHECK_EQ(initial_size, HEAP->SizeOfObjects());
+    CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
   }
 }
 
