@@ -1476,3 +1476,59 @@ TEST(LeakGlobalContextViaMapProto) {
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
+
+
+TEST(InstanceOfStubWriteBarrier) {
+  if (!i::FLAG_crankshaft) return;
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_verify_heap = true;
+  InitializeVM();
+  v8::HandleScope outer_scope;
+
+  {
+    v8::HandleScope scope;
+    CompileRun(
+        "function foo () { }"
+        "function mkbar () { return new (new Function(\"\")) (); }"
+        "function f (x) { return (x instanceof foo); }"
+        "function g () { f(mkbar()); }"
+        "f(new foo()); f(new foo());"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f(new foo()); g();");
+  }
+
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  marking->Abort();
+  marking->Start();
+
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  CHECK(f->IsOptimized());
+
+  while (!Marking::IsBlack(Marking::MarkBitFrom(f->code())) &&
+         !marking->IsStopped()) {
+    marking->Step(MB);
+  }
+
+  CHECK(marking->IsMarking());
+
+  // Discard any pending GC requests otherwise we will get GC when we enter
+  // code below.
+  if (ISOLATE->stack_guard()->IsGCRequest()) {
+    ISOLATE->stack_guard()->Continue(GC_REQUEST);
+  }
+
+  {
+    v8::HandleScope scope;
+    v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
+    v8::Handle<v8::Function> g =
+        v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
+    g->Call(global, 0, NULL);
+  }
+
+  HEAP->incremental_marking()->set_should_hurry(true);
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+}

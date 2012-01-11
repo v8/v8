@@ -5081,8 +5081,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kDeltaToCmpImmediate = 2;
   static const int kDeltaToMov = 8;
   static const int kDeltaToMovImmediate = 9;
-  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
-  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kCmpEdiOperandByte1 = BitCast<int8_t, uint8_t>(0x3b);
+  static const int8_t kCmpEdiOperandByte2 = BitCast<int8_t, uint8_t>(0x3d);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
   ExternalReference roots_array_start =
@@ -5147,12 +5147,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ mov(scratch, Operand(esp, 0 * kPointerSize));
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
-      __ cmpb(Operand(scratch, 0), kCmpEdiImmediateByte1);
+      __ cmpb(Operand(scratch, 0), kCmpEdiOperandByte1);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
-      __ cmpb(Operand(scratch, 1), kCmpEdiImmediateByte2);
+      __ cmpb(Operand(scratch, 1), kCmpEdiOperandByte2);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
     }
-    __ mov(Operand(scratch, kDeltaToCmpImmediate), map);
+    __ mov(scratch, Operand(scratch, kDeltaToCmpImmediate));
+    __ mov(Operand(scratch, 0), map);
   }
 
   // Loop through the prototype chain of the object looking for the function
