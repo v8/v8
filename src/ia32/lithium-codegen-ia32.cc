@@ -1982,7 +1982,9 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register map = ToRegister(instr->TempAt(0));
   __ mov(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
-  __ cmp(map, factory()->the_hole_value());  // Patched to cached map.
+  Handle<JSGlobalPropertyCell> cache_cell =
+      factory()->NewJSGlobalPropertyCell(factory()->the_hole_value());
+  __ cmp(map, Operand::Cell(cache_cell));  // Patched to cached map.
   __ j(not_equal, &cache_miss, Label::kNear);
   __ mov(eax, factory()->the_hole_value());  // Patched to either true or false.
   __ jmp(&done);

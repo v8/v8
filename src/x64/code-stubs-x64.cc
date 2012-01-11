@@ -4049,12 +4049,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Get return address and delta to inlined map check.
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
-    __ movq(Operand(kScratchRegister, kOffsetToMapCheckValue), rax);
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
       __ Assert(equal, "InstanceofStub unexpected call site cache (check).");
     }
+    __ movq(kScratchRegister,
+            Operand(kScratchRegister, kOffsetToMapCheckValue));
+    __ movq(Operand(kScratchRegister, 0), rax);
   }
 
   __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));

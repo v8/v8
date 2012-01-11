@@ -3989,7 +3989,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register inline_site = r9;
   const Register scratch = r2;
 
-  const int32_t kDeltaToLoadBoolResult = 3 * kPointerSize;
+  const int32_t kDeltaToLoadBoolResult = 4 * kPointerSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -4040,7 +4040,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ sub(inline_site, lr, scratch);
     // Get the map location in scratch and patch it.
     __ GetRelocatedValueLocation(inline_site, scratch);
-    __ str(map, MemOperand(scratch));
+    __ ldr(scratch, MemOperand(scratch));
+    __ str(map, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
   }
 
   // Register mapping: r3 is object map and r4 is function prototype.
