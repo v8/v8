@@ -1601,9 +1601,9 @@ LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
 LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
     HClassOfTestAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
-  return new(zone()) LClassOfTestAndBranch(UseTempRegister(instr->value()),
-                                   TempRegister(),
-                                   TempRegister());
+  return new(zone()) LClassOfTestAndBranch(UseRegister(instr->value()),
+                                           TempRegister(),
+                                           TempRegister());
 }
 
 

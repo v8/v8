@@ -1755,13 +1755,17 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
 
 // Branches to a label or falls through with the answer in the z flag.
-// Trashes the temp register and possibly input (if it and temp are aliased).
+// Trashes the temp register.
 void LCodeGen::EmitClassOfTest(Label* is_true,
                                Label* is_false,
                                Handle<String> class_name,
                                Register input,
                                Register temp,
-                               Register scratch) {
+                               Register temp2) {
+  ASSERT(!input.is(temp));
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp.is(temp2));
+
   __ JumpIfSmi(input, is_false);
 
   if (class_name->IsEqualTo(CStrVector("Function"))) {
@@ -1782,9 +1786,9 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // Faster code path to avoid two compares: subtract lower bound from the
     // actual type and do a signed compare with the width of the type range.
     __ movq(temp, FieldOperand(input, HeapObject::kMapOffset));
-    __ movq(scratch, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ subb(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ cmpb(scratch,
+    __ movq(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ subb(temp2, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ cmpb(temp2,
             Immediate(static_cast<int8_t>(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
                                           FIRST_NONCALLABLE_SPEC_OBJECT_TYPE)));
     __ j(above, is_false);

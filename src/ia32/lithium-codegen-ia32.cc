@@ -1831,7 +1831,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
 
 // Branches to a label or falls through with the answer in the z flag.  Trashes
-// the temp registers, but not the input.  Only input and temp2 may alias.
+// the temp registers, but not the input.
 void LCodeGen::EmitClassOfTest(Label* is_true,
                                Label* is_false,
                                Handle<String>class_name,
@@ -1839,7 +1839,8 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register temp,
                                Register temp2) {
   ASSERT(!input.is(temp));
-  ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp.is(temp2));
   __ JumpIfSmi(input, is_false);
 
   if (class_name->IsEqualTo(CStrVector("Function"))) {
@@ -1899,12 +1900,7 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
   Register temp2 = ToRegister(instr->TempAt(1));
-  if (input.is(temp)) {
-    // Swap.
-    Register swapper = temp;
-    temp = temp2;
-    temp2 = swapper;
-  }
+
   Handle<String> class_name = instr->hydrogen()->class_name();
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());

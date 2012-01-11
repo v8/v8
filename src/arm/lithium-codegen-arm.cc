@@ -1994,7 +1994,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
 
 // Branches to a label or falls through with the answer in flags.  Trashes
-// the temp registers, but not the input.  Only input and temp2 may alias.
+// the temp registers, but not the input.
 void LCodeGen::EmitClassOfTest(Label* is_true,
                                Label* is_false,
                                Handle<String>class_name,
@@ -2002,7 +2002,9 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register temp,
                                Register temp2) {
   ASSERT(!input.is(temp));
-  ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp.is(temp2));
+
   __ JumpIfSmi(input, is_false);
 
   if (class_name->IsEqualTo(CStrVector("Function"))) {
