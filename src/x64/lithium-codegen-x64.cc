@@ -2931,6 +2931,38 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
+void LCodeGen::DoRandom(LRandom* instr) {
+  // Having marked this instruction as a call we can use any
+  // registers.
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+
+  // Choose the right register for the first argument depending on
+  // calling convention.
+#ifdef _WIN64
+  ASSERT(ToRegister(instr->InputAt(0)).is(rcx));
+  Register global_object = rcx;
+#else
+  ASSERT(ToRegister(instr->InputAt(0)).is(rdi));
+  Register global_object = rdi;
+#endif
+
+  __ PrepareCallCFunction(1);
+  __ movq(global_object,
+          FieldOperand(global_object, GlobalObject::kGlobalContextOffset));
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm2, rcx);
+  __ movd(xmm1, rax);
+  __ cvtss2sd(xmm2, xmm2);
+  __ xorps(xmm1, xmm2);
+  __ subsd(xmm1, xmm2);
+}
+
+
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
   TranscendentalCacheStub stub(TranscendentalCache::LOG,

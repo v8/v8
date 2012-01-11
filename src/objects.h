@@ -4893,7 +4893,8 @@ class Script: public Struct {
   V(Math, atan, MathATan)                           \
   V(Math, exp, MathExp)                             \
   V(Math, sqrt, MathSqrt)                           \
-  V(Math, pow, MathPow)
+  V(Math, pow, MathPow)                             \
+  V(Math, random, MathRandom)
 
 
 enum BuiltinFunctionId {

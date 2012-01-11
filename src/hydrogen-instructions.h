@@ -146,6 +146,7 @@ class LChunkBuilder;
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
+  V(Random)                                    \
   V(RegExpLiteral)                             \
   V(Return)                                    \
   V(Sar)                                       \
@@ -2995,6 +2996,23 @@ class HPower: public HTemplateInstruction<2> {
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HRandom: public HTemplateInstruction<1> {
+ public:
+  explicit HRandom(HValue* global_object) {
+    SetOperandAt(0, global_object);
+    set_representation(Representation::Double());
+  }
+
+  HValue* global_object() { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Random)
 };
 
 

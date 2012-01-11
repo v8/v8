@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1412,6 +1412,19 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LPower* result = new LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
                     CAN_DEOPTIMIZE_EAGERLY);
+}
+
+
+LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
+  ASSERT(instr->representation().IsDouble());
+  ASSERT(instr->global_object()->representation().IsTagged());
+#ifdef _WIN64
+  LOperand* global_object = UseFixed(instr->global_object(), rcx);
+#else
+  LOperand* global_object = UseFixed(instr->global_object(), rdi);
+#endif
+  LRandom* result = new LRandom(global_object);
+  return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
 }
 
 

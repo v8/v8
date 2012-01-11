@@ -5128,6 +5128,18 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
         return true;
       }
       break;
+    case kMathRandom:
+      if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        Drop(1);
+        HValue* context = environment()->LookupContext();
+        HGlobalObject* global_object = new(zone()) HGlobalObject(context);
+        AddInstruction(global_object);
+        HRandom* result = new(zone()) HRandom(global_object);
+        ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
     default:
       // Not yet supported for inlining.
       break;
@@ -6575,7 +6587,11 @@ void HGraphBuilder::GenerateLog(CallRuntime* call) {
 
 // Fast support for Math.random().
 void HGraphBuilder::GenerateRandomHeapNumber(CallRuntime* call) {
-  return Bailout("inlined runtime function: RandomHeapNumber");
+  HValue* context = environment()->LookupContext();
+  HGlobalObject* global_object = new(zone()) HGlobalObject(context);
+  AddInstruction(global_object);
+  HRandom* result = new(zone()) HRandom(global_object);
+  return ast_context()->ReturnInstruction(result, call->id());
 }
 
 
