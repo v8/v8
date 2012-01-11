@@ -1517,12 +1517,12 @@ TEST(LeakGlobalContextViaMapProto) {
 
 
 TEST(InstanceOfStubWriteBarrier) {
-  if (!i::FLAG_crankshaft) return;
   i::FLAG_allow_natives_syntax = true;
 #ifdef DEBUG
   i::FLAG_verify_heap = true;
 #endif
   InitializeVM();
+  if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
 
   {
