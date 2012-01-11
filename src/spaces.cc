@@ -658,7 +658,8 @@ PagedSpace::PagedSpace(Heap* heap,
     : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
-      first_unswept_page_(Page::FromAddress(NULL)) {
+      first_unswept_page_(Page::FromAddress(NULL)),
+      unswept_free_bytes_(0) {
   max_capacity_ = (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize)
                   * Page::kObjectAreaSize;
   accounting_stats_.Clear();
@@ -2062,6 +2063,7 @@ void PagedSpace::PrepareForMarkCompact() {
     } while (p != anchor());
   }
   first_unswept_page_ = Page::FromAddress(NULL);
+  unswept_free_bytes_ = 0;
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
@@ -2110,6 +2112,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily advanced.\n",
                reinterpret_cast<intptr_t>(p));
       }
+      unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;

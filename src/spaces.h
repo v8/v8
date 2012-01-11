@@ -1469,9 +1469,12 @@ class PagedSpace : public Space {
   // linear allocation area (between top and limit) are also counted here.
   virtual intptr_t Size() { return accounting_stats_.Size(); }
 
-  // As size, but the bytes in the current linear allocation area are not
-  // included.
-  virtual intptr_t SizeOfObjects() { return Size() - (limit() - top()); }
+  // As size, but the bytes in lazily swept pages are estimated and the bytes
+  // in the current linear allocation area are not included.
+  virtual intptr_t SizeOfObjects() {
+    ASSERT(!IsSweepingComplete() || (unswept_free_bytes_ == 0));
+    return Size() - unswept_free_bytes_ - (limit() - top());
+  }
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1479,9 +1482,7 @@ class PagedSpace : public Space {
   virtual intptr_t Waste() { return accounting_stats_.Waste(); }
 
   // Returns the allocation pointer in this space.
-  Address top() {
-    return allocation_info_.top;
-  }
+  Address top() { return allocation_info_.top; }
   Address limit() { return allocation_info_.limit; }
 
   // Allocate the requested number of bytes in the space if possible, return a
@@ -1557,8 +1558,13 @@ class PagedSpace : public Space {
   }
 
   void SetPagesToSweep(Page* first) {
+    ASSERT(unswept_free_bytes_ == 0);
     if (first == &anchor_) first = NULL;
     first_unswept_page_ = first;
+  }
+
+  void MarkPageForLazySweeping(Page* p) {
+    unswept_free_bytes_ += (Page::kObjectAreaSize - p->LiveBytes());
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
@@ -1647,7 +1653,14 @@ class PagedSpace : public Space {
 
   bool was_swept_conservatively_;
 
+  // The first page to be swept when the lazy sweeper advances. Is set
+  // to NULL when all pages have been swept.
   Page* first_unswept_page_;
+
+  // The number of free bytes which could be reclaimed by advancing the
+  // lazy sweeper.  This is only an estimation because lazy sweeping is
+  // done conservatively.
+  intptr_t unswept_free_bytes_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap

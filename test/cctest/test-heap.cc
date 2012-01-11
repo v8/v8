@@ -1187,6 +1187,43 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 }
 
 
+TEST(TestSizeOfObjects) {
+  v8::V8::Initialize();
+
+  // Get initial heap size after several full GCs, which will stabilize
+  // the heap size and return with sweeping finished completely.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(HEAP->old_pointer_space()->IsSweepingComplete());
+  intptr_t initial_size = HEAP->SizeOfObjects();
+
+  {
+    // Allocate objects on several different old-space pages so that
+    // lazy sweeping kicks in for subsequent GC runs.
+    AlwaysAllocateScope always_allocate;
+    intptr_t filler_size = FixedArray::SizeFor(8192);
+    for (int i = 1; i <= 100; i++) {
+      HEAP->AllocateFixedArray(8192, TENURED)->ToObjectChecked();
+      CHECK_EQ(initial_size + i * filler_size, HEAP->SizeOfObjects());
+    }
+  }
+
+  // The heap size should go back to initial size after a full GC, even
+  // though sweeping didn't finish yet.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(!HEAP->old_pointer_space()->IsSweepingComplete());
+  CHECK_EQ(initial_size, HEAP->SizeOfObjects());
+
+  // Advancing the sweeper step-wise should not change the heap size.
+  while (!HEAP->old_pointer_space()->IsSweepingComplete()) {
+    HEAP->old_pointer_space()->AdvanceSweeper(KB);
+    CHECK_EQ(initial_size, HEAP->SizeOfObjects());
+  }
+}
+
+
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
   HEAP->EnsureHeapIsIterable();
