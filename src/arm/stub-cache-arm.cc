@@ -2587,15 +2587,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 
   // Store the value in the cell.
   __ str(r0, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
-
-  __ mov(r1, r0);
-  __ RecordWriteField(r4,
-                      JSGlobalPropertyCell::kValueOffset,
-                      r1,
-                      r2,
-                      kLRHasNotBeenSaved,
-                      kDontSaveFPRegs,
-                      OMIT_REMEMBERED_SET);
+  // Cells are always rescanned, so no write barrier here.
 
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1, r4, r3);

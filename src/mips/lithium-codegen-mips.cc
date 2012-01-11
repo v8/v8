@@ -2141,21 +2141,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ sw(value, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
-
-  // Cells are always in the remembered set.
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
-    HType type = instr->hydrogen()->value()->type();
-    SmiCheck check_needed =
-        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-    __ RecordWriteField(scratch,
-                        JSGlobalPropertyCell::kValueOffset,
-                        value,
-                        scratch2,
-                        kRAHasBeenSaved,
-                        kSaveFPRegs,
-                        OMIT_REMEMBERED_SET,
-                        check_needed);
-  }
+  // Cells are always rescanned, so no write barrier here.
 }
 
 
