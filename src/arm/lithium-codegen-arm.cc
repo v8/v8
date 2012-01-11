@@ -3903,6 +3903,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
                                 bool deoptimize_on_undefined,
+                                bool deoptimize_on_minus_zero,
                                 LEnvironment* env) {
   Register scratch = scratch0();
   SwVfpRegister flt_scratch = double_scratch0().low();
@@ -3938,6 +3939,14 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Heap number to double register conversion.
   __ sub(ip, input_reg, Operand(kHeapObjectTag));
   __ vldr(result_reg, ip, HeapNumber::kValueOffset);
+  if (deoptimize_on_minus_zero) {
+    __ vmov(ip, result_reg.low());
+    __ cmp(ip, Operand(0));
+    __ b(ne, &done);
+    __ vmov(ip, result_reg.high());
+    __ cmp(ip, Operand(HeapNumber::kSignMask));
+    DeoptimizeIf(eq, env);
+  }
   __ jmp(&done);
 
   // Smi to double register conversion
@@ -4071,6 +4080,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
   EmitNumberUntagD(input_reg, result_reg,
                    instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment());
 }
 

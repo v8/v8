@@ -268,8 +268,10 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block);
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitNumberUntagD(Register input,
+                        Register temp,
                         XMMRegister result,
                         bool deoptimize_on_undefined,
+                        bool deoptimize_on_minus_zero,
                         LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.

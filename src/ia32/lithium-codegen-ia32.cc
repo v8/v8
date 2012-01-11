@@ -3699,8 +3699,10 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
+                                Register temp_reg,
                                 XMMRegister result_reg,
                                 bool deoptimize_on_undefined,
+                                bool deoptimize_on_minus_zero,
                                 LEnvironment* env) {
   Label load_smi, done;
 
@@ -3729,6 +3731,15 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   }
   // Heap number to XMM conversion.
   __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  if (deoptimize_on_minus_zero) {
+    XMMRegister xmm_scratch = xmm0;
+    __ xorps(xmm_scratch, xmm_scratch);
+    __ ucomisd(result_reg, xmm_scratch);
+    __ j(not_zero, &done, Label::kNear);
+    __ movmskpd(temp_reg, result_reg);
+    __ test_b(temp_reg, 1);
+    DeoptimizeIf(not_zero, env);
+  }
   __ jmp(&done, Label::kNear);
 
   // Smi to XMM conversion
@@ -3851,14 +3862,23 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister());
+  LOperand* temp = instr->TempAt(0);
+  ASSERT(temp == NULL || temp->IsRegister());
   LOperand* result = instr->result();
   ASSERT(result->IsDoubleRegister());
 
   Register input_reg = ToRegister(input);
   XMMRegister result_reg = ToDoubleRegister(result);
 
-  EmitNumberUntagD(input_reg, result_reg,
+  bool deoptimize_on_minus_zero =
+      instr->hydrogen()->deoptimize_on_minus_zero();
+  Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
+
+  EmitNumberUntagD(input_reg,
+                   temp_reg,
+                   result_reg,
                    instr->hydrogen()->deoptimize_on_undefined(),
+                   deoptimize_on_minus_zero,
                    instr->environment());
 }
 

@@ -1137,6 +1137,9 @@ class HChange: public HUnaryOperation {
   bool deoptimize_on_undefined() const {
     return CheckFlag(kDeoptimizeOnUndefined);
   }
+  bool deoptimize_on_minus_zero() const {
+    return CheckFlag(kBailoutOnMinusZero);
+  }
   virtual Representation RequiredInputRepresentation(int index) {
     return from();
   }

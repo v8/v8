@@ -1624,10 +1624,11 @@ class LSmiTag: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberUntagD: public LTemplateInstruction<1, 1, 0> {
+class LNumberUntagD: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LNumberUntagD(LOperand* value) {
+  explicit LNumberUntagD(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")

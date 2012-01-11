@@ -1682,7 +1682,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   if (from.IsTagged()) {
     if (to.IsDouble()) {
       LOperand* value = UseRegister(instr->value());
-      LNumberUntagD* res = new(zone()) LNumberUntagD(value);
+      // Temp register only necessary for minus zero check.
+      LOperand* temp = instr->deoptimize_on_minus_zero()
+                       ? TempRegister()
+                       : NULL;
+      LNumberUntagD* res = new(zone()) LNumberUntagD(value, temp);
       return AssignEnvironment(DefineAsRegister(res));
     } else {
       ASSERT(to.IsInteger32());
