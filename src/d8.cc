@@ -387,8 +387,8 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     }
 
     if (offset > array_buffer_length) {
-        return ThrowException(
-            String::New("byteOffset must be less than ArrayBuffer length."));
+      return ThrowException(
+          String::New("byteOffset must be less than ArrayBuffer length."));
     }
 
     if (args.Length() == 2) {

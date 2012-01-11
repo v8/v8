@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -59,12 +59,6 @@ var derived_uint32_2 = new Uint32Array(ab,4);
 assertEquals(2, derived_uint32_2.length);
 var derived_uint32_3 = new Uint32Array(ab,4,1);
 assertEquals(1, derived_uint32_3.length);
-
-// Resulting array length of zero should fail.
-function abfunc2() {
-  new Uint32Array(ab,3);
-}
-assertThrows(abfunc2);
 
 // If a given byteOffset and length references an area beyond the end of the
 // ArrayBuffer an exception is raised.
