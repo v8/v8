@@ -3151,6 +3151,8 @@ class HBitwise: public HBitwiseBinaryOperation {
 
   virtual bool IsCommutative() const { return true; }
 
+  virtual HValue* Canonicalize();
+
   static HInstruction* NewHBitwise(Zone* zone,
                                    Token::Value op,
                                    HValue* context,

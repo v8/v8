@@ -788,6 +788,24 @@ HValue* HTypeof::Canonicalize() {
 }
 
 
+HValue* HBitwise::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
+  int32_t nop_constant = (op() == Token::BIT_AND) ? -1 : 0;
+  if (left()->IsConstant() &&
+      HConstant::cast(left())->HasInteger32Value() &&
+      HConstant::cast(left())->Integer32Value() == nop_constant) {
+    return right();
+  }
+  if (right()->IsConstant() &&
+      HConstant::cast(right())->HasInteger32Value() &&
+      HConstant::cast(right())->Integer32Value() == nop_constant) {
+    return left();
+  }
+  return this;
+}
+
+
 void HTypeof::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
