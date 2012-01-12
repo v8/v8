@@ -628,7 +628,11 @@ HGraph::HGraph(CompilationInfo* info)
 Handle<Code> HGraph::Compile(CompilationInfo* info) {
   int values = GetMaximumValueID();
   if (values > LAllocator::max_initial_value_ids()) {
-    if (FLAG_trace_bailout) PrintF("Function is too big\n");
+    if (FLAG_trace_bailout) {
+      SmartArrayPointer<char> name(
+          info->shared_info()->DebugName()->ToCString());
+      PrintF("Function @\"%s\" is too big.\n", *name);
+    }
     return Handle<Code>::null();
   }
 
