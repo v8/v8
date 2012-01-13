@@ -2603,7 +2603,7 @@ class BaseShape {
   }
   static uint32_t HashForObject(Key key, Object* object) { return 0; }
   static uint32_t SeededHashForObject(Key key, uint32_t seed, Object* object) {
-    // Won't be called if UsesSeed isn't overridden by child class.
+    ASSERT(UsesSeed);
     return HashForObject(key, object);
   }
 };

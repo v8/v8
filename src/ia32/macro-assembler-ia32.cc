@@ -649,7 +649,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFramePrologue() {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
@@ -701,7 +701,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
 void MacroAssembler::EnterExitFrame(bool save_doubles) {
   EnterExitFramePrologue();
 
-  // Setup argc and argv in callee-saved registers.
+  // Set up argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   mov(edi, eax);
   lea(esi, Operand(ebp, eax, times_4, offset));
@@ -1002,9 +1002,10 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(scratch, Immediate(Heap::kHashSeedRootIndex));
-    xor_(r0, Operand::StaticArray(scratch,
-                                  times_pointer_size,
-                                  roots_array_start));
+    mov(scratch,
+        Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+    SmiUntag(scratch);
+    xor_(r0, scratch);
   } else {
     int32_t seed = isolate()->heap()->HashSeed();
     xor_(r0, Immediate(seed));
