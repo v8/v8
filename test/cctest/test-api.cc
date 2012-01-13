@@ -13675,6 +13675,59 @@ THREADED_TEST(GetHeapStatistics) {
 }
 
 
+class VisitorImpl : public v8::ExternalResourceVisitor {
+ public:
+  VisitorImpl(TestResource* r1, TestResource* r2)
+      : resource1_(r1),
+        resource2_(r2),
+        found_resource1_(false),
+        found_resource2_(false) {}
+  virtual ~VisitorImpl() {}
+  virtual void VisitExternalString(v8::Handle<v8::String> string) {
+    if (!string->IsExternal()) {
+      CHECK(string->IsExternalAscii());
+      return;
+    }
+    v8::String::ExternalStringResource* resource =
+        string->GetExternalStringResource();
+    CHECK(resource);
+    if (resource1_ == resource) {
+      CHECK(!found_resource1_);
+      found_resource1_ = true;
+    }
+    if (resource2_ == resource) {
+      CHECK(!found_resource2_);
+      found_resource2_ = true;
+    }
+  }
+  void CheckVisitedResources() {
+    CHECK(found_resource1_);
+    CHECK(found_resource2_);
+  }
+
+ private:
+  v8::String::ExternalStringResource* resource1_;
+  v8::String::ExternalStringResource* resource2_;
+  bool found_resource1_;
+  bool found_resource2_;
+};
+
+TEST(VisitExternalStrings) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const char* string = "Some string";
+  uint16_t* two_byte_string = AsciiToTwoByteString(string);
+  TestResource* resource1 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string1 = v8::String::NewExternal(resource1);
+  TestResource* resource2 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
+
+  VisitorImpl visitor(resource1, resource2);
+  v8::V8::VisitExternalResources(&visitor);
+  visitor.CheckVisitedResources();
+}
+
+
 static double DoubleFromBits(uint64_t value) {
   double target;
   memcpy(&target, &value, sizeof(target));

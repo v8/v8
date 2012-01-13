@@ -1412,6 +1412,8 @@ class Heap {
 
   void ProcessWeakReferences(WeakObjectRetainer* retainer);
 
+  void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
+
   // Helper function that governs the promotion policy from new space to
   // old.  If the object's old address lies below the new space's age
   // mark or if we've already filled the bottom 1/16th of the to space,
