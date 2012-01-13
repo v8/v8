@@ -1228,7 +1228,7 @@ class RelocInfoBuffer {
       V8::FatalProcessOutOfMemory("RelocInfoBuffer::GrowBuffer");
     }
 
-    // Setup new buffer.
+    // Set up new buffer.
     byte* new_buffer = NewArray<byte>(new_buffer_size);
 
     // Copy the data.

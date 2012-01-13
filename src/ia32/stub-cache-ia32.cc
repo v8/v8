@@ -2330,7 +2330,7 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
   }
 
-  // Setup the context (function already in edi).
+  // Set up the context (function already in edi).
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).

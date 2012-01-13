@@ -339,7 +339,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        t1,
                        call_generic_code);
   __ IncrementCounter(counters->array_function_native(), 1, a3, t0);
-  // Setup return value, remove receiver from stack and return.
+  // Set up return value, remove receiver from stack and return.
   __ mov(v0, a2);
   __ Addu(sp, sp, Operand(kPointerSize));
   __ Ret();
@@ -382,7 +382,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   call_generic_code);
   __ IncrementCounter(counters->array_function_native(), 1, a2, t0);
 
-  // Setup return value, remove receiver and argument from stack and return.
+  // Set up return value, remove receiver and argument from stack and return.
   __ mov(v0, a3);
   __ Addu(sp, sp, Operand(2 * kPointerSize));
   __ Ret();
@@ -981,10 +981,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[4]: number of arguments (smi-tagged)
     __ lw(a3, MemOperand(sp, 4 * kPointerSize));
 
-    // Setup pointer to last argument.
+    // Set up pointer to last argument.
     __ Addu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
 
-    // Setup number of arguments for function call below.
+    // Set up number of arguments for function call below.
     __ srl(a0, a3, kSmiTagSize);
 
     // Copy arguments and receiver to the expression stack.

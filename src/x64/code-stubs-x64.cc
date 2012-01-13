@@ -124,12 +124,12 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Get the function from the stack.
   __ movq(rcx, Operand(rsp, 1 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   __ LoadRoot(kScratchRegister, Heap::kFunctionContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ Set(rbx, 0);  // Set to NULL.
   __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
   __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rsi);
@@ -173,7 +173,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Get the serialized scope info from the stack.
   __ movq(rbx, Operand(rsp, 2 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   __ LoadRoot(kScratchRegister, Heap::kBlockContextMapRootIndex);
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
@@ -194,7 +194,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, ContextOperand(rcx, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ movq(ContextOperand(rax, Context::CLOSURE_INDEX), rcx);
   __ movq(ContextOperand(rax, Context::PREVIOUS_INDEX), rsi);
   __ movq(ContextOperand(rax, Context::EXTENSION_INDEX), rbx);
@@ -2399,7 +2399,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, i), rdx);
   }
 
-  // Setup the callee in-object property.
+  // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ movq(rdx, Operand(rsp, 3 * kPointerSize));
   __ movq(FieldOperand(rax, JSObject::kHeaderSize +
@@ -2414,7 +2414,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
                        Heap::kArgumentsLengthIndex * kPointerSize),
           rcx);
 
-  // Setup the elements pointer in the allocated arguments object.
+  // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, edi will point there, otherwise to the
   // backing store.
   __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
@@ -2621,7 +2621,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the parameters pointer from the stack.
   __ movq(rdx, Operand(rsp, 2 * kPointerSize));
 
-  // Setup the elements pointer in the allocated arguments object and
+  // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSizeStrict));
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
@@ -3942,7 +3942,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label not_outermost_js, not_outermost_js_2;
   {  // NOLINT. Scope block confuses linter.
     MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
-    // Setup frame.
+    // Set up frame.
     __ push(rbp);
     __ movq(rbp, rsp);
 
@@ -5081,7 +5081,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
-  // Setup registers for allocating the two character string.
+  // Set up registers for allocating the two character string.
   __ movzxwq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
   __ AllocateAsciiString(rax, rcx, r11, r14, r15, &runtime);
   __ movw(FieldOperand(rax, SeqAsciiString::kHeaderSize), rbx);

@@ -156,13 +156,13 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Load the function from the stack.
   __ ldr(r3, MemOperand(sp, 0));
 
-  // Setup the object header.
+  // Set up the object header.
   __ LoadRoot(r2, Heap::kFunctionContextMapRootIndex);
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ mov(r2, Operand(Smi::FromInt(length)));
   __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ mov(r1, Operand(Smi::FromInt(0)));
   __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ str(cp, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
@@ -207,7 +207,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Load the serialized scope info from the stack.
   __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   __ LoadRoot(r2, Heap::kBlockContextMapRootIndex);
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ mov(r2, Operand(Smi::FromInt(length)));
@@ -229,7 +229,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, ContextOperand(r3, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ str(r3, ContextOperand(r0, Context::CLOSURE_INDEX));
   __ str(cp, ContextOperand(r0, Context::PREVIOUS_INDEX));
   __ str(r1, ContextOperand(r0, Context::EXTENSION_INDEX));
@@ -3842,7 +3842,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
-  // Setup argc and the builtin function in callee-saved registers.
+  // Set up argc and the builtin function in callee-saved registers.
   __ mov(r4, Operand(r0));
   __ mov(r5, Operand(r1));
 
@@ -3919,7 +3919,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r2: receiver
   // r3: argc
 
-  // Setup argv in r4.
+  // Set up argv in r4.
   int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
   if (CpuFeatures::IsSupported(VFP3)) {
     offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize;
@@ -3942,7 +3942,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ ldr(r5, MemOperand(r5));
   __ Push(r8, r7, r6, r5);
 
-  // Setup frame pointer for the frame to be pushed.
+  // Set up frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
 
   // If this is the outermost JS call, set js_entry_sp value.
@@ -4402,7 +4402,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
     __ str(r3, FieldMemOperand(r0, i));
   }
 
-  // Setup the callee in-object property.
+  // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
   const int kCalleeOffset = JSObject::kHeaderSize +
@@ -4415,7 +4415,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
       Heap::kArgumentsLengthIndex * kPointerSize;
   __ str(r2, FieldMemOperand(r0, kLengthOffset));
 
-  // Setup the elements pointer in the allocated arguments object.
+  // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, r4 will point there, otherwise
   // it will point to the backing store.
   __ add(r4, r0, Operand(Heap::kArgumentsObjectSize));
@@ -4583,7 +4583,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the parameters pointer from the stack.
   __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
 
-  // Setup the elements pointer in the allocated arguments object and
+  // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   __ add(r4, r0, Operand(Heap::kArgumentsObjectSizeStrict));
   __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
@@ -4595,7 +4595,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Copy the fixed array slots.
   Label loop;
-  // Setup r4 to point to the first array slot.
+  // Set up r4 to point to the first array slot.
   __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ bind(&loop);
   // Pre-decrement r2 with kPointerSize on each iteration.
@@ -5210,7 +5210,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // of the original receiver from the call site).
   __ bind(&non_function);
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
-  __ mov(r0, Operand(argc_));  // Setup the number of arguments.
+  __ mov(r0, Operand(argc_));  // Set up the number of arguments.
   __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
   __ SetCallKind(r5, CALL_AS_METHOD);

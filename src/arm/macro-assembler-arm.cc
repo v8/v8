@@ -817,12 +817,12 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   ASSERT_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
   Push(lr, fp);
-  mov(fp, Operand(sp));  // Setup new frame pointer.
+  mov(fp, Operand(sp));  // Set up new frame pointer.
   // Reserve room for saved entry sp and code object.
   sub(sp, sp, Operand(2 * kPointerSize));
   if (emit_debug_code()) {

@@ -904,7 +904,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       entry++;
     }
 
-    for (const Address *stack_pos = sample.stack,
+    for (const Address* stack_pos = sample.stack,
            *stack_end = stack_pos + sample.frames_count;
          stack_pos != stack_end;
          ++stack_pos) {
@@ -1595,7 +1595,7 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
 }
 
 
-HeapEntry *const HeapEntriesMap::kHeapEntryPlaceholder =
+HeapEntry* const HeapEntriesMap::kHeapEntryPlaceholder =
     reinterpret_cast<HeapEntry*>(1);
 
 HeapEntriesMap::HeapEntriesMap()
@@ -1724,16 +1724,16 @@ void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
 }
 
 
-HeapObject *const V8HeapExplorer::kInternalRootObject =
+HeapObject* const V8HeapExplorer::kInternalRootObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kInternalRootObjectId));
-HeapObject *const V8HeapExplorer::kGcRootsObject =
+HeapObject* const V8HeapExplorer::kGcRootsObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kGcRootsObjectId));
-HeapObject *const V8HeapExplorer::kFirstGcSubrootObject =
+HeapObject* const V8HeapExplorer::kFirstGcSubrootObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kGcRootsFirstSubrootId));
-HeapObject *const V8HeapExplorer::kLastGcSubrootObject =
+HeapObject* const V8HeapExplorer::kLastGcSubrootObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kFirstAvailableObjectId));
 

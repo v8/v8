@@ -4189,7 +4189,7 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     DeoptimizeIf(not_equal, instr->environment());
   }
 
-  // Setup the parameters to the stub/runtime call.
+  // Set up the parameters to the stub/runtime call.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
@@ -4297,7 +4297,7 @@ void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
-  // Setup the parameters to the stub/runtime call.
+  // Set up the parameters to the stub/runtime call.
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));

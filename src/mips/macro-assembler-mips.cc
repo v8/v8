@@ -4279,7 +4279,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 void MacroAssembler::EnterExitFrame(bool save_doubles,
                                     int stack_space) {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   STATIC_ASSERT(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
   STATIC_ASSERT(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT(0 * kPointerSize == ExitFrameConstants::kCallerFPOffset);
@@ -4297,7 +4297,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   addiu(sp, sp, -4 * kPointerSize);
   sw(ra, MemOperand(sp, 3 * kPointerSize));
   sw(fp, MemOperand(sp, 2 * kPointerSize));
-  addiu(fp, sp, 2 * kPointerSize);  // Setup new frame pointer.
+  addiu(fp, sp, 2 * kPointerSize);  // Set up new frame pointer.
 
   if (emit_debug_code()) {
     sw(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));

@@ -2305,7 +2305,7 @@ HGraph* HGraphBuilder::CreateGraph() {
       Bailout("function with illegal redeclaration");
       return NULL;
     }
-    SetupScope(scope);
+    SetUpScope(scope);
 
     // Add an edge to the body entry.  This is warty: the graph's start
     // environment will be used by the Lithium translation as the initial
@@ -2469,7 +2469,7 @@ HInstruction* HGraphBuilder::PreProcessCall(HCall<V>* call) {
 }
 
 
-void HGraphBuilder::SetupScope(Scope* scope) {
+void HGraphBuilder::SetUpScope(Scope* scope) {
   HConstant* undefined_constant = new(zone()) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);

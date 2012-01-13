@@ -835,7 +835,7 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
                    factory()->LookupAsciiSymbol("global"),
                    inner_global,
                    attributes);
-  // Setup the reference from the global object to the builtins object.
+  // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
   TransferNamedProperties(inner_global_from_snapshot, inner_global);
   TransferIndexedProperties(inner_global_from_snapshot, inner_global);
@@ -1360,7 +1360,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
     if (cache != NULL) cache->Add(name, function_info);
   }
 
-  // Setup the function context. Conceptually, we should clone the
+  // Set up the function context. Conceptually, we should clone the
   // function before overwriting the context but since we're in a
   // single-threaded environment it is not strictly necessary.
   ASSERT(top_context->IsGlobalContext());
@@ -1447,7 +1447,7 @@ bool Genesis::InstallNatives() {
   builtins->set_global_context(*global_context());
   builtins->set_global_receiver(*builtins);
 
-  // Setup the 'global' properties of the builtins object. The
+  // Set up the 'global' properties of the builtins object. The
   // 'global' property that refers to the global object is the only
   // way to get from code running in the builtins context to the
   // global object.
@@ -1459,7 +1459,7 @@ bool Genesis::InstallNatives() {
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              builtins, global_symbol, global_obj, attributes));
 
-  // Setup the reference from the global object to the builtins object.
+  // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(global_context()->global())->set_builtins(*builtins);
 
   // Create a bridge function that has context in the global context.
@@ -1683,7 +1683,7 @@ bool Genesis::InstallNatives() {
   InstallNativeFunctions();
 
   // Store the map for the string prototype after the natives has been compiled
-  // and the String function has been setup.
+  // and the String function has been set up.
   Handle<JSFunction> string_function(global_context()->string_function());
   ASSERT(JSObject::cast(
       string_function->initial_map()->prototype())->HasFastProperties());

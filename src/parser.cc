@@ -1186,8 +1186,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
     if (directive_prologue) {
       // A shot at a directive.
-      ExpressionStatement *e_stat;
-      Literal *literal;
+      ExpressionStatement* e_stat;
+      Literal* literal;
       // Still processing directive prologue?
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
@@ -1562,7 +1562,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
-  // other functions are setup when entering the surrounding scope.
+  // other functions are set up when entering the surrounding scope.
   SharedFunctionInfoLiteral* lit =
       new(zone()) SharedFunctionInfoLiteral(isolate(), shared);
   VariableProxy* var = Declare(name, VAR, NULL, true, CHECK_OK);
@@ -3607,7 +3607,7 @@ void ObjectLiteralPropertyChecker::CheckProperty(
 
   ASSERT(property != NULL);
 
-  Literal *lit = property->key();
+  Literal* lit = property->key();
   Handle<Object> handle = lit->handle();
 
   uint32_t hash;

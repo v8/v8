@@ -485,7 +485,7 @@ Code* ExitFrame::unchecked_code() const {
 
 
 void ExitFrame::ComputeCallerState(State* state) const {
-  // Setup the caller state.
+  // Set up the caller state.
   state->sp = caller_sp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address

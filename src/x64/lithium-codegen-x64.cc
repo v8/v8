@@ -2641,7 +2641,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     __ call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   }
 
-  // Setup deoptimization.
+  // Set up deoptimization.
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT, 0);
 
   // Restore context.
@@ -3911,7 +3911,7 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     DeoptimizeIf(not_equal, instr->environment());
   }
 
-  // Setup the parameters to the stub/runtime call.
+  // Set up the parameters to the stub/runtime call.
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(rax, JSFunction::kLiteralsOffset));
   __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
@@ -4012,7 +4012,7 @@ void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
-  // Setup the parameters to the stub/runtime call.
+  // Set up the parameters to the stub/runtime call.
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(rax, JSFunction::kLiteralsOffset));
   __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));

@@ -176,7 +176,7 @@ Heap::Heap()
 
 
 intptr_t Heap::Capacity() {
-  if (!HasBeenSetup()) return 0;
+  if (!HasBeenSetUp()) return 0;
 
   return new_space_.Capacity() +
       old_pointer_space_->Capacity() +
@@ -188,7 +188,7 @@ intptr_t Heap::Capacity() {
 
 
 intptr_t Heap::CommittedMemory() {
-  if (!HasBeenSetup()) return 0;
+  if (!HasBeenSetUp()) return 0;
 
   return new_space_.CommittedMemory() +
       old_pointer_space_->CommittedMemory() +
@@ -200,14 +200,14 @@ intptr_t Heap::CommittedMemory() {
 }
 
 intptr_t Heap::CommittedMemoryExecutable() {
-  if (!HasBeenSetup()) return 0;
+  if (!HasBeenSetUp()) return 0;
 
   return isolate()->memory_allocator()->SizeExecutable();
 }
 
 
 intptr_t Heap::Available() {
-  if (!HasBeenSetup()) return 0;
+  if (!HasBeenSetUp()) return 0;
 
   return new_space_.Available() +
       old_pointer_space_->Available() +
@@ -218,7 +218,7 @@ intptr_t Heap::Available() {
 }
 
 
-bool Heap::HasBeenSetup() {
+bool Heap::HasBeenSetUp() {
   return old_pointer_space_ != NULL &&
          old_data_space_ != NULL &&
          code_space_ != NULL &&
@@ -3807,7 +3807,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   }
   Map* new_map = Map::cast(obj);
 
-  // Setup the global object as a normalized object.
+  // Set up the global object as a normalized object.
   global->set_map(new_map);
   global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
@@ -4740,7 +4740,7 @@ bool Heap::IdleGlobalGC() {
 #ifdef DEBUG
 
 void Heap::Print() {
-  if (!HasBeenSetup()) return;
+  if (!HasBeenSetUp()) return;
   isolate()->PrintStack();
   AllSpaces spaces;
   for (Space* space = spaces.next(); space != NULL; space = spaces.next())
@@ -4805,7 +4805,7 @@ bool Heap::Contains(HeapObject* value) {
 
 bool Heap::Contains(Address addr) {
   if (OS::IsOutsideAllocatedSpace(addr)) return false;
-  return HasBeenSetup() &&
+  return HasBeenSetUp() &&
     (new_space_.ToSpaceContains(addr) ||
      old_pointer_space_->Contains(addr) ||
      old_data_space_->Contains(addr) ||
@@ -4823,7 +4823,7 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
 
 bool Heap::InSpace(Address addr, AllocationSpace space) {
   if (OS::IsOutsideAllocatedSpace(addr)) return false;
-  if (!HasBeenSetup()) return false;
+  if (!HasBeenSetUp()) return false;
 
   switch (space) {
     case NEW_SPACE:
@@ -4848,7 +4848,7 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 
 #ifdef DEBUG
 void Heap::Verify() {
-  ASSERT(HasBeenSetup());
+  ASSERT(HasBeenSetUp());
 
   store_buffer()->Verify();
 
@@ -5275,7 +5275,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 bool Heap::ConfigureHeap(int max_semispace_size,
                          intptr_t max_old_gen_size,
                          intptr_t max_executable_size) {
-  if (HasBeenSetup()) return false;
+  if (HasBeenSetUp()) return false;
 
   if (max_semispace_size > 0) {
     if (max_semispace_size < Page::kPageSize) {
@@ -5564,7 +5564,7 @@ class HeapDebugUtils {
 
 #endif
 
-bool Heap::Setup(bool create_heap_objects) {
+bool Heap::SetUp(bool create_heap_objects) {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
   debug_utils_ = new HeapDebugUtils(this);
@@ -5594,12 +5594,12 @@ bool Heap::Setup(bool create_heap_objects) {
 
   MarkMapPointersAsEncoded(false);
 
-  // Setup memory allocator.
-  if (!isolate_->memory_allocator()->Setup(MaxReserved(), MaxExecutableSize()))
+  // Set up memory allocator.
+  if (!isolate_->memory_allocator()->SetUp(MaxReserved(), MaxExecutableSize()))
       return false;
 
-  // Setup new space.
-  if (!new_space_.Setup(reserved_semispace_size_, max_semispace_size_)) {
+  // Set up new space.
+  if (!new_space_.SetUp(reserved_semispace_size_, max_semispace_size_)) {
     return false;
   }
 
@@ -5610,7 +5610,7 @@ bool Heap::Setup(bool create_heap_objects) {
                    OLD_POINTER_SPACE,
                    NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
-  if (!old_pointer_space_->Setup()) return false;
+  if (!old_pointer_space_->SetUp()) return false;
 
   // Initialize old data space.
   old_data_space_ =
@@ -5619,14 +5619,14 @@ bool Heap::Setup(bool create_heap_objects) {
                    OLD_DATA_SPACE,
                    NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
-  if (!old_data_space_->Setup()) return false;
+  if (!old_data_space_->SetUp()) return false;
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
   // On 64-bit platform(s), we put all code objects in a 2 GB range of
   // virtual address space, so that they can call each other with near calls.
   if (code_range_size_ > 0) {
-    if (!isolate_->code_range()->Setup(code_range_size_)) {
+    if (!isolate_->code_range()->SetUp(code_range_size_)) {
       return false;
     }
   }
@@ -5634,7 +5634,7 @@ bool Heap::Setup(bool create_heap_objects) {
   code_space_ =
       new OldSpace(this, max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
-  if (!code_space_->Setup()) return false;
+  if (!code_space_->SetUp()) return false;
 
   // Initialize map space.
   map_space_ = new MapSpace(this,
@@ -5642,21 +5642,21 @@ bool Heap::Setup(bool create_heap_objects) {
                             FLAG_max_map_space_pages,
                             MAP_SPACE);
   if (map_space_ == NULL) return false;
-  if (!map_space_->Setup()) return false;
+  if (!map_space_->SetUp()) return false;
 
   // Initialize global property cell space.
   cell_space_ = new CellSpace(this, max_old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
-  if (!cell_space_->Setup()) return false;
+  if (!cell_space_->SetUp()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
   lo_space_ = new LargeObjectSpace(this, max_old_generation_size_, LO_SPACE);
   if (lo_space_ == NULL) return false;
-  if (!lo_space_->Setup()) return false;
+  if (!lo_space_->SetUp()) return false;
 
-  // Setup the seed that is used to randomize the string hash function.
+  // Set up the seed that is used to randomize the string hash function.
   ASSERT(hash_seed() == 0);
   if (FLAG_randomize_hashes) {
     if (FLAG_hash_seed == 0) {
@@ -5681,7 +5681,7 @@ bool Heap::Setup(bool create_heap_objects) {
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
-  store_buffer()->Setup();
+  store_buffer()->SetUp();
 
   return true;
 }

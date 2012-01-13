@@ -799,7 +799,7 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
-  // Setup call kind marking in t1. The method takes t1 as an
+  // Set up call kind marking in t1. The method takes t1 as an
   // explicit first parameter to make the code more readable at the
   // call sites.
   void SetCallKind(Register dst, CallKind kind);

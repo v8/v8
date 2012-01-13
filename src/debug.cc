@@ -682,7 +682,7 @@ void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
 }
 
 
-void Debug::Setup(bool create_heap_objects) {
+void Debug::SetUp(bool create_heap_objects) {
   ThreadInit();
   if (create_heap_objects) {
     // Get code to handle debug break on return.
@@ -1213,7 +1213,7 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
   PrepareForBreakPoints();
-  // Make sure the function has setup the debug info.
+  // Make sure the function has set up the debug info.
   if (!EnsureDebugInfo(shared)) {
     // Return if we failed to retrieve the debug info.
     return;
@@ -3065,7 +3065,7 @@ bool Debugger::StartAgent(const char* name, int port,
     v8::Debug::DebugBreak();
   }
 
-  if (Socket::Setup()) {
+  if (Socket::SetUp()) {
     if (agent_ == NULL) {
       agent_ = new DebuggerAgent(name, port);
       agent_->Start();

@@ -2794,7 +2794,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   __ lw(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   __ Call(at);
 
-  // Setup deoptimization.
+  // Set up deoptimization.
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 
   // Restore context.

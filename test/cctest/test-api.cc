@@ -7951,7 +7951,7 @@ THREADED_TEST(CrossEval) {
   other->SetSecurityToken(token);
   current->SetSecurityToken(token);
 
-  // Setup reference from current to other.
+  // Set up reference from current to other.
   current->Global()->Set(v8_str("other"), other->Global());
 
   // Check that new variables are introduced in other context.
@@ -8031,7 +8031,7 @@ THREADED_TEST(EvalInDetachedGlobal) {
   v8::Persistent<Context> context0 = Context::New();
   v8::Persistent<Context> context1 = Context::New();
 
-  // Setup function in context0 that uses eval from context0.
+  // Set up function in context0 that uses eval from context0.
   context0->Enter();
   v8::Handle<v8::Value> fun =
       CompileRun("var x = 42;"
@@ -8069,7 +8069,7 @@ THREADED_TEST(CrossLazyLoad) {
   other->SetSecurityToken(token);
   current->SetSecurityToken(token);
 
-  // Setup reference from current to other.
+  // Set up reference from current to other.
   current->Global()->Set(v8_str("other"), other->Global());
 
   // Trigger lazy loading in other context.
@@ -10180,7 +10180,7 @@ void ApiTestFuzzer::Run() {
 static unsigned linear_congruential_generator;
 
 
-void ApiTestFuzzer::Setup(PartOfTest part) {
+void ApiTestFuzzer::SetUp(PartOfTest part) {
   linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
   int count = RegisterThreadedTest::count();
@@ -10244,25 +10244,25 @@ void ApiTestFuzzer::TearDown() {
 
 // Lets not be needlessly self-referential.
 TEST(Threading) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::FIRST_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading2) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::SECOND_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading3) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::THIRD_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading4) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::FOURTH_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
@@ -12121,7 +12121,7 @@ THREADED_TEST(GetCallingContext) {
                                   callback_templ->GetFunction());
   calling_context0->Exit();
 
-  // Expose context0 in context1 and setup a function that calls the
+  // Expose context0 in context1 and set up a function that calls the
   // callback function.
   calling_context1->Enter();
   calling_context1->Global()->Set(v8_str("context0"),

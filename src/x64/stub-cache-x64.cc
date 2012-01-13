@@ -2181,7 +2181,7 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
   }
 
-  // Setup the context (function already in rdi).
+  // Set up the context (function already in rdi).
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).

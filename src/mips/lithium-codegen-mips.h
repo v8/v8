@@ -423,7 +423,7 @@ class LDeferredCode: public ZoneObject {
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 
-  void SetExit(Label *exit) { external_exit_ = exit; }
+  void SetExit(Label* exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
   int instruction_index() const { return instruction_index_; }

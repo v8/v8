@@ -132,7 +132,7 @@ CodeRange::CodeRange(Isolate* isolate)
 }
 
 
-bool CodeRange::Setup(const size_t requested) {
+bool CodeRange::SetUp(const size_t requested) {
   ASSERT(code_range_ == NULL);
 
   code_range_ = new VirtualMemory(requested);
@@ -268,7 +268,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
 }
 
 
-bool MemoryAllocator::Setup(intptr_t capacity, intptr_t capacity_executable) {
+bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
   ASSERT_GE(capacity_, capacity_executable_);
@@ -671,12 +671,12 @@ PagedSpace::PagedSpace(Heap* heap,
 }
 
 
-bool PagedSpace::Setup() {
+bool PagedSpace::SetUp() {
   return true;
 }
 
 
-bool PagedSpace::HasBeenSetup() {
+bool PagedSpace::HasBeenSetUp() {
   return true;
 }
 
@@ -874,9 +874,9 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 // NewSpace implementation
 
 
-bool NewSpace::Setup(int reserved_semispace_capacity,
+bool NewSpace::SetUp(int reserved_semispace_capacity,
                      int maximum_semispace_capacity) {
-  // Setup new space based on the preallocated memory block defined by
+  // Set up new space based on the preallocated memory block defined by
   // start and size. The provided space is divided into two semi-spaces.
   // To support fast containment testing in the new space, the size of
   // this chunk must be a power of two and it must be aligned to its size.
@@ -895,7 +895,7 @@ bool NewSpace::Setup(int reserved_semispace_capacity,
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
 
-  // Allocate and setup the histogram arrays if necessary.
+  // Allocate and set up the histogram arrays if necessary.
   allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
   promoted_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
 
@@ -909,12 +909,12 @@ bool NewSpace::Setup(int reserved_semispace_capacity,
          2 * heap()->ReservedSemiSpaceSize());
   ASSERT(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
 
-  if (!to_space_.Setup(chunk_base_,
+  if (!to_space_.SetUp(chunk_base_,
                        initial_semispace_capacity,
                        maximum_semispace_capacity)) {
     return false;
   }
-  if (!from_space_.Setup(chunk_base_ + reserved_semispace_capacity,
+  if (!from_space_.SetUp(chunk_base_ + reserved_semispace_capacity,
                          initial_semispace_capacity,
                          maximum_semispace_capacity)) {
     return false;
@@ -1149,7 +1149,7 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-bool SemiSpace::Setup(Address start,
+bool SemiSpace::SetUp(Address start,
                       int initial_capacity,
                       int maximum_capacity) {
   // Creates a space in the young generation. The constructor does not
@@ -2411,7 +2411,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
       objects_size_(0) {}
 
 
-bool LargeObjectSpace::Setup() {
+bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
   page_count_ = 0;
@@ -2431,7 +2431,7 @@ void LargeObjectSpace::TearDown() {
         space, kAllocationActionFree, page->size());
     heap()->isolate()->memory_allocator()->Free(page);
   }
-  Setup();
+  SetUp();
 }
 
 

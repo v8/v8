@@ -705,7 +705,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, the_hole_value());
 
-  // Setup the code pointer in both the shared function info and in
+  // Set up the code pointer in both the shared function info and in
   // the function itself.
   function->shared()->set_code(*code);
   function->set_code(*code);
@@ -736,7 +736,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   // Allocate the function.
   Handle<JSFunction> function = NewFunction(name, prototype);
 
-  // Setup the code pointer in both the shared function info and in
+  // Set up the code pointer in both the shared function info and in
   // the function itself.
   function->shared()->set_code(*code);
   function->set_code(*code);

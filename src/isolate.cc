@@ -1751,10 +1751,10 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_->isolate_ = this;
 
   // Enable logging before setting up the heap
-  logger_->Setup();
+  logger_->SetUp();
 
-  CpuProfiler::Setup();
-  HeapProfiler::Setup();
+  CpuProfiler::SetUp();
+  HeapProfiler::SetUp();
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -1771,10 +1771,10 @@ bool Isolate::Init(Deserializer* des) {
     stack_guard_.InitThread(lock);
   }
 
-  // Setup the object heap.
+  // SetUp the object heap.
   const bool create_heap_objects = (des == NULL);
-  ASSERT(!heap_.HasBeenSetup());
-  if (!heap_.Setup(create_heap_objects)) {
+  ASSERT(!heap_.HasBeenSetUp());
+  if (!heap_.SetUp(create_heap_objects)) {
     V8::SetFatalError();
     return false;
   }
@@ -1782,7 +1782,7 @@ bool Isolate::Init(Deserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  builtins_.Setup(create_heap_objects);
+  builtins_.SetUp(create_heap_objects);
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {
@@ -1801,7 +1801,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_->Setup(create_heap_objects);
+  debug_->SetUp(create_heap_objects);
 #endif
   stub_cache_->Initialize(create_heap_objects);
 
@@ -1822,7 +1822,7 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->Setup();
+  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.

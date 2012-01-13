@@ -128,14 +128,14 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Get the function from the stack.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   Factory* factory = masm->isolate()->factory();
   __ mov(FieldOperand(eax, HeapObject::kMapOffset),
          factory->function_context_map());
   __ mov(FieldOperand(eax, Context::kLengthOffset),
          Immediate(Smi::FromInt(length)));
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ Set(ebx, Immediate(0));  // Set to NULL.
   __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
   __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), esi);
@@ -179,7 +179,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Get the serialized scope info from the stack.
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   Factory* factory = masm->isolate()->factory();
   __ mov(FieldOperand(eax, HeapObject::kMapOffset),
          factory->block_context_map());
@@ -202,7 +202,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, ContextOperand(ecx, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ mov(ContextOperand(eax, Context::CLOSURE_INDEX), ecx);
   __ mov(ContextOperand(eax, Context::PREVIOUS_INDEX), esi);
   __ mov(ContextOperand(eax, Context::EXTENSION_INDEX), ebx);
@@ -3379,7 +3379,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
     __ mov(FieldOperand(eax, i), edx);
   }
 
-  // Setup the callee in-object property.
+  // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ mov(edx, Operand(esp, 4 * kPointerSize));
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
@@ -3392,7 +3392,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
                       Heap::kArgumentsLengthIndex * kPointerSize),
          ecx);
 
-  // Setup the elements pointer in the allocated arguments object.
+  // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, edi will point there, otherwise to the
   // backing store.
   __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
@@ -3571,7 +3571,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the parameters pointer from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
 
-  // Setup the elements pointer in the allocated arguments object and
+  // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   __ lea(edi, Operand(eax, Heap::kArgumentsObjectSizeStrict));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
@@ -4950,7 +4950,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  // Setup frame.
+  // Set up frame.
   __ push(ebp);
   __ mov(ebp, esp);
 

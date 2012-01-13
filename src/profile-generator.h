@@ -834,7 +834,7 @@ class HeapEntriesMap {
   int total_children_count() { return total_children_count_; }
   int total_retainers_count() { return total_retainers_count_; }
 
-  static HeapEntry *const kHeapEntryPlaceholder;
+  static HeapEntry* const kHeapEntryPlaceholder;
 
  private:
   struct EntryInfo {

@@ -434,7 +434,7 @@ class ExternalStringTable {
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
-  // setup already.
+  // set up already.
   bool ConfigureHeap(int max_semispace_size,
                      intptr_t max_old_gen_size,
                      intptr_t max_executable_size);
@@ -443,7 +443,7 @@ class Heap {
   // Initializes the global object heap. If create_heap_objects is true,
   // also creates the basic non-mutable objects.
   // Returns whether it succeeded.
-  bool Setup(bool create_heap_objects);
+  bool SetUp(bool create_heap_objects);
 
   // Destroys all memory allocated by the heap.
   void TearDown();
@@ -453,8 +453,8 @@ class Heap {
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
 
-  // Returns whether Setup has been called.
-  bool HasBeenSetup();
+  // Returns whether SetUp has been called.
+  bool HasBeenSetUp();
 
   // Returns the maximum amount of memory reserved for the heap.  For
   // the young generation, we reserve 4 times the amount needed for a
@@ -1914,7 +1914,7 @@ class Heap {
   PromotionQueue promotion_queue_;
 
   // Flag is set when the heap has been configured.  The heap can be repeatedly
-  // configured through the API until it is setup.
+  // configured through the API until it is set up.
   bool configured_;
 
   ExternalStringTable external_string_table_;

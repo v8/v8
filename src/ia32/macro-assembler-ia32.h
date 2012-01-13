@@ -251,7 +251,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Setup call kind marking in ecx. The method takes ecx as an
+  // Set up call kind marking in ecx. The method takes ecx as an
   // explicit first parameter to make the code more readable at the
   // call sites.
   void SetCallKind(Register dst, CallKind kind);

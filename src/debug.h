@@ -224,7 +224,7 @@ class DebugInfoListNode {
 // DebugInfo.
 class Debug {
  public:
-  void Setup(bool create_heap_objects);
+  void SetUp(bool create_heap_objects);
   bool Load();
   void Unload();
   bool IsLoaded() { return !debug_context_.is_null(); }

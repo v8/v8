@@ -495,7 +495,7 @@ void MacroAssembler::Abort(const char* msg) {
   // from the real pointer as a smi.
   intptr_t p1 = reinterpret_cast<intptr_t>(msg);
   intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
-  // Note: p0 might not be a valid Smi *value*, but it has a valid Smi tag.
+  // Note: p0 might not be a valid Smi _value_, but it has a valid Smi tag.
   ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
 #ifdef DEBUG
   if (msg != NULL) {
@@ -3231,7 +3231,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
@@ -3291,7 +3291,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles) {
   EnterExitFramePrologue(true);
 
-  // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
+  // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   lea(r15, Operand(rbp, r14, times_pointer_size, offset));
