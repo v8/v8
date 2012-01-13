@@ -1131,6 +1131,7 @@ class HChange: public HUnaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
   virtual HType CalculateInferredType();
+  virtual HValue* Canonicalize();
 
   Representation from() { return value()->representation(); }
   Representation to() { return representation(); }
