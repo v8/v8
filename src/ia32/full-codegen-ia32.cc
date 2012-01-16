@@ -227,7 +227,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
     __ SafePush(Immediate(Smi::FromInt(num_parameters)));
-    // Arguments to ArgumentsAccessStub and/or New...:
+    // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.

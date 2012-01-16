@@ -2357,6 +2357,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   Label no_parameter_map;
+  __ xor_(r8, r8);
   __ testq(rbx, rbx);
   __ j(zero, &no_parameter_map, Label::kNear);
   __ lea(r8, Operand(rbx, times_pointer_size, kParameterMapHeaderSize));
@@ -2450,16 +2451,13 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   Label parameters_loop, parameters_test;
 
   // Load tagged parameter count into r9.
-  __ movq(r9, Operand(rsp, 1 * kPointerSize));
+  __ Integer32ToSmi(r9, rbx);
   __ Move(r8, Smi::FromInt(Context::MIN_CONTEXT_SLOTS));
-  __ addq(r8, Operand(rsp, 3 * kPointerSize));
+  __ addq(r8, Operand(rsp, 1 * kPointerSize));
   __ subq(r8, r9);
   __ Move(r11, factory->the_hole_value());
   __ movq(rdx, rdi);
-  __ SmiToInteger64(kScratchRegister, r9);
-  __ lea(rdi, Operand(rdi, kScratchRegister,
-                      times_pointer_size,
-                      kParameterMapHeaderSize));
+  __ lea(rdi, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
   // r9 = loop variable (tagged)
   // r8 = mapping index (tagged)
   // r11 = the hole value
@@ -2495,9 +2493,8 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   Label arguments_loop, arguments_test;
   __ movq(r8, rbx);
   __ movq(rdx, Operand(rsp, 2 * kPointerSize));
-  // Untag rcx and r8 for the loop below.
+  // Untag rcx for the loop below.
   __ SmiToInteger64(rcx, rcx);
-  __ SmiToInteger64(r8, r8);
   __ lea(kScratchRegister, Operand(r8, times_pointer_size, 0));
   __ subq(rdx, kScratchRegister);
   __ jmp(&arguments_test, Label::kNear);
