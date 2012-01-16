@@ -13725,6 +13725,10 @@ TEST(VisitExternalStrings) {
   TestResource* resource2 = new TestResource(two_byte_string);
   v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
 
+  // We need to add usages for string1 and string2 to avoid warnings in GCC 4.7
+  CHECK(string1->IsExternal());
+  CHECK(string2->IsExternal());
+
   VisitorImpl visitor(resource1, resource2);
   v8::V8::VisitExternalResources(&visitor);
   visitor.CheckVisitedResources();
