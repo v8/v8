@@ -13559,21 +13559,24 @@ THREADED_TEST(IdleNotification) {
 // Test that idle notification can be handled and eventually returns true.
 // This just checks the contract of the IdleNotification() function,
 // and does not verify that it does reasonable work.
-THREADED_TEST(IdleNotificationWithHint) {
+TEST(IdleNotificationWithHint) {
   v8::HandleScope scope;
   LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
+  {
+    i::AlwaysAllocateScope always_allocate;
+    CompileRun("function binom(n, m) {"
+               "  var C = [[1]];"
+               "  for (var i = 1; i <= n; ++i) {"
+               "    C[i] = [1];"
+               "    for (var j = 1; j < i; ++j) {"
+               "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
+               "    }"
+               "    C[i][i] = 1;"
+               "  }"
+               "  return C[n][m];"
+               "};"
+               "binom(1000, 500)");
+  }
   bool rv = false;
   intptr_t old_size = HEAP->SizeOfObjects();
   bool no_idle_work = v8::V8::IdleNotification(10);
