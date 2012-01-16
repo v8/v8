@@ -3233,6 +3233,59 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
 }
 
 
+Handle<String> Runtime::StringReplaceOneCharWithString(Isolate* isolate,
+                                                       Handle<String> subject,
+                                                       Handle<String> search,
+                                                       Handle<String> replace,
+                                                       bool* found) {
+  if (subject->IsConsString()) {
+    ConsString* cons = ConsString::cast(*subject);
+    Handle<String> first = Handle<String>(cons->first());
+    Handle<String> second = Handle<String>(cons->second());
+    Handle<String> new_first = StringReplaceOneCharWithString(isolate,
+                                                              first,
+                                                              search,
+                                                              replace,
+                                                              found);
+    if (*found) {
+      return isolate->factory()->NewConsString(new_first, second);
+    } else {
+      Handle<String> new_second = StringReplaceOneCharWithString(isolate,
+                                                                 second,
+                                                                 search,
+                                                                 replace,
+                                                                 found);
+      return isolate->factory()->NewConsString(first, new_second);
+    }
+  } else {
+    int index = StringMatch(isolate, subject, search, 0);
+    if (index == -1) return subject;
+    *found = true;
+    Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
+    Handle<String> cons1 = isolate->factory()->NewConsString(first, replace);
+    Handle<String> second =
+        isolate->factory()->NewSubString(subject, index + 1, subject->length());
+    return isolate->factory()->NewConsString(cons1, second);
+  }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
+  ASSERT(args.length() == 3);
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_CHECKED(String, search, 1);
+  CONVERT_ARG_CHECKED(String, replace, 2);
+  bool found = false;
+
+  return *(Runtime::StringReplaceOneCharWithString(isolate,
+                                                   subject,
+                                                   search,
+                                                   replace,
+                                                   &found));
+}
+
+
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
 // and should check that pat->length() + start_index <= sub->length().

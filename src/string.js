@@ -244,6 +244,11 @@ function StringReplace(search, replace) {
 
   // Convert the search argument to a string and search for it.
   search = TO_STRING_INLINE(search);
+  if (search.length == 1 &&
+      IS_STRING(replace) &&
+      %StringIndexOf(replace, '$', 0) < 0) {
+    return %StringReplaceOneCharWithString(subject, search, replace);
+  }
   var start = %StringIndexOf(subject, search, 0);
   if (start < 0) return subject;
   var end = start + search.length;

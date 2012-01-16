@@ -3011,7 +3011,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
                                      int end,
                                      PretenureFlag pretenure) {
   int length = end - start;
-  if (length == 0) {
+  if (length <= 0) {
     return empty_string();
   } else if (length == 1) {
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
