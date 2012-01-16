@@ -5560,7 +5560,7 @@ void Debug::DisableAgent() {
 
 
 void Debug::ProcessDebugMessages() {
-  i::Execution::ProcessDebugMesssages(true);
+  i::Execution::ProcessDebugMessages(true);
 }
 
 Local<Context> Debug::GetDebugContext() {
