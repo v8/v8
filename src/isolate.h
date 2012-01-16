@@ -258,7 +258,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 #endif
 #endif  // USE_SIMULATOR
 
-  Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+  Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
   Address external_callback_;  // the external callback we're currently in
   StateTag current_vm_state_;
 
@@ -485,7 +485,7 @@ class Isolate {
   bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   // Ensures that process-wide resources and the default isolate have been
-  // allocated. It is only necessary to call this method in rare casses, for
+  // allocated. It is only necessary to call this method in rare cases, for
   // example if you are using V8 from within the body of a static initializer.
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
@@ -635,7 +635,7 @@ class Isolate {
   void* formal_count_address() { return &thread_local_top_.formal_count_; }
 
   // Returns the global object of the current context. It could be
-  // a builtin object, or a js global object.
+  // a builtin object, or a JS global object.
   Handle<GlobalObject> global() {
     return Handle<GlobalObject>(context()->global());
   }

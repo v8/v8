@@ -1176,7 +1176,7 @@ void MacroAssembler::ConvertToInt32(Register source,
   Branch(not_int32, gt, scratch2, Operand(non_smi_exponent));
 
   // We know the exponent is smaller than 30 (biased).  If it is less than
-  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, i.e.
   // it rounds to zero.
   const uint32_t zero_exponent =
       (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;

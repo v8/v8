@@ -2771,7 +2771,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                          kShortExternalStringMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string, Label::kNear);
-  // Any other flat string must be a flat ascii string.  None of the following
+  // Any other flat string must be a flat ASCII string.  None of the following
   // string type tests will succeed if subject is not a string or a short
   // external string.
   __ andb(rbx, Immediate(kIsNotStringMask |
@@ -2822,16 +2822,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
            Immediate(kStringRepresentationMask | kStringEncodingMask));
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string, Label::kNear);
-  // Any other flat string must be sequential ascii or external.
+  // Any other flat string must be sequential ASCII or external.
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask));
   __ j(not_zero, &external_string);
 
   __ bind(&seq_ascii_string);
-  // rdi: subject string (sequential ascii)
+  // rdi: subject string (sequential ASCII)
   // rax: RegExp data (FixedArray)
   __ movq(r11, FieldOperand(rax, JSRegExp::kDataAsciiCodeOffset));
-  __ Set(rcx, 1);  // Type is ascii.
+  __ Set(rcx, 1);  // Type is ASCII.
   __ jmp(&check_code, Label::kNear);
 
   __ bind(&seq_two_byte_string);
@@ -2847,7 +2847,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(r11, &runtime);
 
   // rdi: subject string
-  // rcx: encoding of subject string (1 if ascii, 0 if two_byte);
+  // rcx: encoding of subject string (1 if ASCII, 0 if two_byte);
   // r11: code
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
@@ -2855,7 +2855,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rdi: subject string
   // rbx: previous index
-  // rcx: encoding of subject string (1 if ascii 0 if two_byte);
+  // rcx: encoding of subject string (1 if ASCII 0 if two_byte);
   // r11: code
   // All checks done. Now push arguments for native regexp code.
   Counters* counters = masm->isolate()->counters();
@@ -2912,7 +2912,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Keep track on aliasing between argX defined above and the registers used.
   // rdi: subject string
   // rbx: previous index
-  // rcx: encoding of subject string (1 if ascii 0 if two_byte);
+  // rcx: encoding of subject string (1 if ASCII 0 if two_byte);
   // r11: code
   // r14: slice offset
   // r15: original subject string
@@ -3483,7 +3483,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(
       rdx, rax, rcx, rbx, &check_unequal_objects);
 
-  // Inline comparison of ascii strings.
+  // Inline comparison of ASCII strings.
   if (cc_ == equal) {
     StringCompareStub::GenerateFlatAsciiStringEquals(masm,
                                                      rdx,
@@ -4518,7 +4518,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ SmiCompare(rbx, Smi::FromInt(2));
   __ j(not_equal, &longer_than_two);
 
-  // Check that both strings are non-external ascii strings.
+  // Check that both strings are non-external ASCII strings.
   __ JumpIfBothInstanceTypesAreNotSequentialAscii(r8, r9, rbx, rcx,
                                                   &call_runtime);
 
@@ -4558,7 +4558,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(above, &call_runtime);
 
   // If result is not supposed to be flat, allocate a cons string object. If
-  // both strings are ascii the result is an ascii cons string.
+  // both strings are ASCII the result is an ASCII cons string.
   // rax: first string
   // rbx: length of resulting flat string
   // rdx: second string
@@ -4572,7 +4572,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ testl(rcx, Immediate(kStringEncodingMask));
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
-  // Allocate an acsii cons string.
+  // Allocate an ASCII cons string.
   __ AllocateAsciiConsString(rcx, rdi, no_reg, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
@@ -4586,7 +4586,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ascii characters.
+  // to contain only ASCII characters.
   // rcx: first instance type AND second instance type.
   // r8: first instance type.
   // r9: second instance type.
@@ -4660,7 +4660,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &non_ascii_string_add_flat_result);
 
   __ bind(&make_flat_ascii_string);
-  // Both strings are ascii strings. As they are short they are both flat.
+  // Both strings are ASCII strings. As they are short they are both flat.
   __ AllocateAsciiString(rax, rbx, rdi, r8, r9, &call_runtime);
   // rax: result string
   // Locate first character of result.
@@ -4677,7 +4677,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ ret(2 * kPointerSize);
 
   __ bind(&non_ascii_string_add_flat_result);
-  // Both strings are ascii strings. As they are short they are both flat.
+  // Both strings are ASCII strings. As they are short they are both flat.
   __ AllocateTwoByteString(rax, rbx, rdi, r8, r9, &call_runtime);
   // rax: result string
   // Locate first character of result.
@@ -4931,7 +4931,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     // JumpIfInstanceTypeIsNotSequentialAscii does not use it implicitly
     Register temp = kScratchRegister;
 
-    // Check that the candidate is a non-external ascii string.
+    // Check that the candidate is a non-external ASCII string.
     __ movzxbl(temp, FieldOperand(map, Map::kInstanceTypeOffset));
     __ JumpIfInstanceTypeIsNotSequentialAscii(
         temp, temp, &next_probe[i]);
@@ -5411,7 +5411,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Check that both are sequential ASCII strings.
   __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &runtime);
 
-  // Inline comparison of ascii strings.
+  // Inline comparison of ASCII strings.
   __ IncrementCounter(counters->string_compare_native(), 1);
   // Drop arguments from the stack
   __ pop(rcx);

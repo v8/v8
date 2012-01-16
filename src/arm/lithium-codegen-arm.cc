@@ -262,7 +262,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateDeoptJumpTable() {
   // Check that the jump table is accessible from everywhere in the function
-  // code, ie that offsets to the table can be encoded in the 24bit signed
+  // code, i.e. that offsets to the table can be encoded in the 24bit signed
   // immediate of a branch instruction.
   // To simplify we consider the code size from the first instruction to the
   // end of the jump table. We also don't consider the pc load delta.

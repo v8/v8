@@ -1387,7 +1387,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   add(scratch1, Immediate(kObjectAlignmentMask));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
-  // Allocate ascii string in new space.
+  // Allocate ASCII string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
                      times_1,
                      scratch1,
@@ -1415,7 +1415,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   ASSERT(length > 0);
 
-  // Allocate ascii string in new space.
+  // Allocate ASCII string in new space.
   AllocateInNewSpace(SeqAsciiString::SizeFor(length),
                      result,
                      scratch1,
@@ -2464,7 +2464,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
   movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
-  // Check that both are flat ascii strings.
+  // Check that both are flat ASCII strings.
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;

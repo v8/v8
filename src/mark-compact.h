@@ -407,7 +407,7 @@ class MarkCompactCollector {
   // object from the forwarding address of the previous live object in the
   // page as input, and is updated to contain the offset to be used for the
   // next live object in the same page.  For spaces using a different
-  // encoding (ie, contiguous spaces), the offset parameter is ignored.
+  // encoding (i.e., contiguous spaces), the offset parameter is ignored.
   typedef void (*EncodingFunction)(Heap* heap,
                                    HeapObject* old_object,
                                    int object_size,

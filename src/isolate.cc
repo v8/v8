@@ -1219,7 +1219,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // Allways reschedule out of memory exceptions.
+  // Always reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
         pending_exception() == heap_.termination_exception();

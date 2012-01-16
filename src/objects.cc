@@ -10885,7 +10885,7 @@ int StringDictionary::FindEntry(String* key) {
 
   // Optimized for symbol key. Knowledge of the key type allows:
   // 1. Move the check if the key is a symbol out of the loop.
-  // 2. Avoid comparing hash codes in symbol to symbol comparision.
+  // 2. Avoid comparing hash codes in symbol to symbol comparison.
   // 3. Detect a case when a dictionary key is not a symbol but the key is.
   //    In case of positive result the dictionary key may be replaced by
   //    the symbol with minimal performance penalty. It gives a chance to

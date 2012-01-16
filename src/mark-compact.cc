@@ -737,7 +737,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // it in place to its left substring.  Return the updated value.
   //
   // Here we assume that if we change *p, we replace it with a heap object
-  // (ie, the left substring of a cons string is always a heap object).
+  // (i.e., the left substring of a cons string is always a heap object).
   //
   // The check performed is:
   //   object->IsConsString() && !object->IsSymbol() &&
@@ -1196,7 +1196,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       return;
     }
     JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
-    // Flush code or set age on both ascii and two byte code.
+    // Flush code or set age on both ASCII and two byte code.
     UpdateRegExpCodeAgeAndFlush(heap, re, true);
     UpdateRegExpCodeAgeAndFlush(heap, re, false);
     // Visit the fields of the RegExp, including the updated FixedArray.

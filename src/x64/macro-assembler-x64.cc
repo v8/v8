@@ -2114,7 +2114,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   movzxbl(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
   movzxbl(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
-  // Check that both are flat ascii strings.
+  // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
@@ -2160,7 +2160,7 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
   movq(scratch1, first_object_instance_type);
   movq(scratch2, second_object_instance_type);
 
-  // Check that both are flat ascii strings.
+  // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
@@ -3825,7 +3825,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
     subq(scratch1, Immediate(kHeaderAlignment));
   }
 
-  // Allocate ascii string in new space.
+  // Allocate ASCII string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
                      times_1,
                      scratch1,

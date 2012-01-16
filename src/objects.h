@@ -217,7 +217,7 @@ const int kVariableSizeSentinel = 0;
 // encoding is considered TWO_BYTE.  It is not mentioned in the name.  ASCII
 // encoding is mentioned explicitly in the name.  Likewise, the default
 // representation is considered sequential.  It is not mentioned in the
-// name.  The other representations (eg, CONS, EXTERNAL) are explicitly
+// name.  The other representations (e.g. CONS, EXTERNAL) are explicitly
 // mentioned.  Finally, the string is either a SYMBOL_TYPE (if it is a
 // symbol) or a STRING_TYPE (if it is not a symbol).
 //
@@ -492,7 +492,7 @@ const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
 STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
 
 // If bit 7 is clear, then bit 3 indicates whether this two-byte
-// string actually contains ascii data.
+// string actually contains ASCII data.
 const uint32_t kAsciiDataHintMask = 0x08;
 const uint32_t kAsciiDataHintTag = 0x08;
 
@@ -1086,7 +1086,7 @@ class Failure: public MaybeObject {
 
 
 // Heap objects typically have a map pointer in their first word.  However,
-// during GC other data (eg, mark bits, forwarding addresses) is sometimes
+// during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
 // value in a heap object's first word.
 class MapWord BASE_EMBEDDED {
@@ -1105,7 +1105,7 @@ class MapWord BASE_EMBEDDED {
 
   // True if this map word is a forwarding address for a scavenge
   // collection.  Only valid during a scavenge collection (specifically,
-  // when all map words are heap object pointers, ie. not during a full GC).
+  // when all map words are heap object pointers, i.e. not during a full GC).
   inline bool IsForwardingAddress();
 
   // Create a map word from a forwarding address.
@@ -6489,7 +6489,7 @@ class String: public HeapObject {
   inline String* GetUnderlying();
 
   // Mark the string as an undetectable object. It only applies to
-  // ascii and two byte string types.
+  // ASCII and two byte string types.
   bool MarkAsUndetectable();
 
   // Return a substring.
@@ -6586,7 +6586,7 @@ class String: public HeapObject {
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
 
-  // Max ascii char code.
+  // Max ASCII char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
   static const int kMaxUC16CharCode = 0xffff;
@@ -6772,8 +6772,8 @@ class SeqString: public String {
 };
 
 
-// The AsciiString class captures sequential ascii string objects.
-// Each character in the AsciiString is an ascii character.
+// The AsciiString class captures sequential ASCII string objects.
+// Each character in the AsciiString is an ASCII character.
 class SeqAsciiString: public SeqString {
  public:
   static const bool kHasAsciiEncoding = true;

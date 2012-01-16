@@ -5926,8 +5926,8 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   //
   // Allocate the resulting string.
   //
-  // NOTE: This assumes that the upper/lower case of an ascii
-  // character is also ascii.  This is currently the case, but it
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o;
@@ -6027,9 +6027,9 @@ static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
 // This function is only useful when it can be inlined and the
 // boundaries are statically known.
 // Requires: all bytes in the input word and the boundaries must be
-// ascii (less than 0x7F).
+// ASCII (less than 0x7F).
 static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
-  // Every byte in an ascii string is less than or equal to 0x7F.
+  // Every byte in an ASCII string is less than or equal to 0x7F.
   ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
@@ -6157,10 +6157,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
-  // Simpler handling of ascii strings.
+  // Simpler handling of ASCII strings.
   //
-  // NOTE: This assumes that the upper/lower case of an ascii
-  // character is also ascii.  This is currently the case, but it
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   if (s->IsSeqAsciiString()) {
@@ -6323,7 +6323,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 }
 
 
-// Copies ascii characters to the given fixed array looking up
+// Copies ASCII characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
 // the length of the successfully copied prefix.
@@ -7422,7 +7422,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
 }
 
 // Fast version of Math.pow if we know that y is not an integer and y is not
-// -0.5 or 0.5.  Used as slow case from fullcodegen.
+// -0.5 or 0.5.  Used as slow case from full codegen.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7465,7 +7465,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
 
   // We compare with kSmiValueSize - 2 because (2^30 - 0.1) has exponent 29 and
   // should be rounded to 2^30, which is not smi (for 31-bit smis, similar
-  // agument holds for 32-bit smis).
+  // argument holds for 32-bit smis).
   if (!sign && exponent < kSmiValueSize - 2) {
     return Smi::FromInt(static_cast<int>(value + 0.5));
   }
@@ -9355,7 +9355,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   CONVERT_ARG_CHECKED(String, source, 0);
 
   source = Handle<String>(source->TryFlattenGetString());
-  // Optimized fast case where we only have ascii characters.
+  // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
   if (source->IsSeqAsciiString()) {
     result = JsonParser<true>::Parse(source);
@@ -10257,7 +10257,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
 
 
 // DefineAccessor takes an optional final argument which is the
-// property attributes (eg, DONT_ENUM, DONT_DELETE).  IMPORTANT: due
+// property attributes (e.g. DONT_ENUM, DONT_DELETE).  IMPORTANT: due
 // to the way accessors are implemented, it is set for both the getter
 // and setter on the first call to DefineAccessor and ignored on
 // subsequent calls.
@@ -11089,7 +11089,7 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
-  // Allocate and initialize a JSObject with all the content of theis function
+  // Allocate and initialize a JSObject with all the content of this function
   // closure.
   Handle<JSObject> closure_scope =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -12257,7 +12257,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
     // because using
     //   instances->set(i, *GetScriptWrapper(script))
     // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
-    // already have deferenced the instances handle.
+    // already have dereferenced the instances handle.
     Handle<JSValue> wrapper = GetScriptWrapper(script);
     instances->set(i, *wrapper);
   }

@@ -5821,7 +5821,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ b(eq, &return_r0);
 
   Label result_longer_than_two;
-  // Check for special case of two character ascii string, in which case
+  // Check for special case of two character ASCII string, in which case
   // we do a lookup in the symbol table first.
   __ cmp(r2, Operand(2));
   __ b(gt, &result_longer_than_two);
@@ -5951,7 +5951,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ tst(r1, Operand(kStringEncodingMask));
   __ b(eq, &two_byte_sequential);
 
-  // Allocate and copy the resulting ascii string.
+  // Allocate and copy the resulting ASCII string.
   __ AllocateAsciiString(r0, r2, r4, r6, r7, &runtime);
 
   // Locate first character of substring to copy.

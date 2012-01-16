@@ -562,11 +562,11 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
                                       int argc) {
   // ----------- S t a t e -------------
   //  -- sp[0]              : holder (set by CheckPrototypes)
-  //  -- sp[4]              : callee js function
+  //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
-  //  -- sp[12]             : last js argument
+  //  -- sp[12]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 3) * 4] : first js argument
+  //  -- sp[(argc + 3) * 4] : first JS argument
   //  -- sp[(argc + 4) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
@@ -583,7 +583,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   } else {
     __ Move(r6, call_data);
   }
-  // Store js function and call data.
+  // Store JS function and call data.
   __ stm(ib, sp, r5.bit() | r6.bit());
 
   // r2 points to call data as expected by Arguments
@@ -1983,7 +1983,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ vmrs(r3);
   // Set custom FPCSR:
   //  - Set rounding mode to "Round towards Minus Infinity"
-  //    (ie bits [23:22] = 0b10).
+  //    (i.e. bits [23:22] = 0b10).
   //  - Clear vfp cumulative exception flags (bits [3:0]).
   //  - Make sure Flush-to-zero mode control bit is unset (bit 22).
   __ bic(r9, r3,

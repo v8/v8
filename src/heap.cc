@@ -2923,8 +2923,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   bool is_ascii_data_in_two_byte_string = false;
   if (!is_ascii) {
     // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for short ascii strings below, but
-    // we can try to save memory if all chars actually fit in ascii.
+    // can't use the fast case code for short ASCII strings below, but
+    // we can try to save memory if all chars actually fit in ASCII.
     is_ascii_data_in_two_byte_string =
         first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
     if (is_ascii_data_in_two_byte_string) {
@@ -3635,8 +3635,8 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
   // instance type is JS_ARRAY_TYPE, the length field should be initialized
-  // to a number (eg, Smi::FromInt(0)) and the elements initialized to a
-  // fixed array (eg, Heap::empty_fixed_array()).  Currently, the object
+  // to a number (e.g. Smi::FromInt(0)) and the elements initialized to a
+  // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
   Object* filler;
@@ -4103,7 +4103,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   ASSERT(chars >= 0);
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
-  // Determine whether the string is ascii.
+  // Determine whether the string is ASCII.
   bool is_ascii = true;
   while (buffer->has_more()) {
     if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
@@ -5596,7 +5596,7 @@ bool Heap::SetUp(bool create_heap_objects) {
   // goes wrong, just return false. The caller should check the results and
   // call Heap::TearDown() to release allocated memory.
   //
-  // If the heap is not yet configured (eg, through the API), configure it.
+  // If the heap is not yet configured (e.g. through the API), configure it.
   // Configuration is based on the flags new-space-size (really the semispace
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.

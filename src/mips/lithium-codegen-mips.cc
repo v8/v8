@@ -2884,7 +2884,7 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
   __ mov(result, input);
   ASSERT_EQ(2, masm()->InstructionsGeneratedSince(&done));
   __ subu(result, zero_reg, input);
-  // Overflow if result is still negative, ie 0x80000000.
+  // Overflow if result is still negative, i.e. 0x80000000.
   DeoptimizeIf(lt, instr->environment(), result, Operand(zero_reg));
   __ bind(&done);
 }

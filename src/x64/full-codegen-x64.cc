@@ -106,7 +106,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o rdi: the JS function object being called (ie, ourselves)
+//   o rdi: the JS function object being called (i.e. ourselves)
 //   o rsi: our context
 //   o rbp: our caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
@@ -3530,7 +3530,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // One-character separator case
   __ bind(&one_char_separator);
-  // Get the separator ascii character value.
+  // Get the separator ASCII character value.
   // Register "string" holds the separator.
   __ movzxbl(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ Set(index, 0);

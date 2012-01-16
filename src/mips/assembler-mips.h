@@ -667,7 +667,7 @@ class Assembler : public AssemblerBase {
   // Never use the int16_t b(l)cond version with a branch offset
   // instead of using the Label* version.
 
-  // Jump targets must be in the current 256 MB-aligned region. ie 28 bits.
+  // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
   void j(int32_t target);
   void jal(int32_t target);
   void jalr(Register rs, Register rd = ra);
