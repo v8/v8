@@ -1725,7 +1725,7 @@ void FixedDoubleArray::Initialize(FixedArray* from) {
 }
 
 
-void FixedDoubleArray::Initialize(NumberDictionary* from) {
+void FixedDoubleArray::Initialize(SeededNumberDictionary* from) {
   int offset = kHeaderSize;
   for (int current = 0; current < length(); ++current) {
     WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
@@ -2072,14 +2072,14 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
 }
 
 
-bool NumberDictionary::requires_slow_elements() {
+bool SeededNumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
   return 0 !=
       (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
 }
 
-uint32_t NumberDictionary::max_number_key() {
+uint32_t SeededNumberDictionary::max_number_key() {
   ASSERT(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
@@ -2087,7 +2087,7 @@ uint32_t NumberDictionary::max_number_key() {
   return value >> kRequiresSlowElementsTagSize;
 }
 
-void NumberDictionary::set_requires_slow_elements() {
+void SeededNumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
 }
 
@@ -4299,9 +4299,9 @@ StringDictionary* JSObject::property_dictionary() {
 }
 
 
-NumberDictionary* JSObject::element_dictionary() {
+SeededNumberDictionary* JSObject::element_dictionary() {
   ASSERT(HasDictionaryElements());
-  return NumberDictionary::cast(elements());
+  return SeededNumberDictionary::cast(elements());
 }
 
 
@@ -4538,26 +4538,24 @@ bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
 }
 
 
-uint32_t NumberDictionaryShape::Hash(uint32_t key) {
-  // This function is unreachable, since shape has UsesSeed=true flag.
-  UNREACHABLE();
-  return 0;
+uint32_t UnseededNumberDictionaryShape::Hash(uint32_t key) {
+  return ComputeIntegerHash(key, 0);
 }
 
 
-uint32_t NumberDictionaryShape::HashForObject(uint32_t key, Object* other) {
-  // This function is unreachable, since shape has UsesSeed=true flag.
-  UNREACHABLE();
-  return 0;
+uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
+                                                      Object* other) {
+  ASSERT(other->IsNumber());
+  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
 }
 
-uint32_t NumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
+uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
   return ComputeIntegerHash(key, seed);
 }
 
-uint32_t NumberDictionaryShape::SeededHashForObject(uint32_t key,
-                                                    uint32_t seed,
-                                                    Object* other) {
+uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
+                                                          uint32_t seed,
+                                                          Object* other) {
   ASSERT(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }

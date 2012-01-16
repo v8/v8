@@ -3488,8 +3488,8 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   GetNumberHash(r0, r1);
 
   // Compute capacity mask.
-  SmiToInteger32(r1,
-                 FieldOperand(elements, NumberDictionary::kCapacityOffset));
+  SmiToInteger32(r1, FieldOperand(elements,
+                                  SeededNumberDictionary::kCapacityOffset));
   decl(r1);
 
   // Generate an unrolled loop that performs a few probes before giving up.
@@ -3499,19 +3499,19 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     movq(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      addl(r2, Immediate(NumberDictionary::GetProbeOffset(i)));
+      addl(r2, Immediate(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(r2, r1);
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
 
     // Check if the key matches.
     cmpq(key, FieldOperand(elements,
                            r2,
                            times_pointer_size,
-                           NumberDictionary::kElementsStartOffset));
+                           SeededNumberDictionary::kElementsStartOffset));
     if (i != (kProbes - 1)) {
       j(equal, &done);
     } else {
@@ -3522,7 +3522,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   bind(&done);
   // Check that the value is a normal propety.
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
        Smi::FromInt(PropertyDetails::TypeField::kMask));
@@ -3530,7 +3530,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   // Get the value at the masked, scaled index.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   movq(result, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 

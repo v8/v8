@@ -2463,18 +2463,18 @@ bool Heap::CreateInitialObjects() {
 
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = NumberDictionary::Allocate(128);
+  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(128);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_code_stubs(NumberDictionary::cast(obj));
+  set_code_stubs(UnseededNumberDictionary::cast(obj));
 
 
   // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = NumberDictionary::Allocate(64);
+  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(64);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_non_monomorphic_cache(NumberDictionary::cast(obj));
+  set_non_monomorphic_cache(UnseededNumberDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
     if (!maybe_obj->ToObject(&obj)) return false;

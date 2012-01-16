@@ -487,7 +487,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   GetNumberHash(reg0, reg1);
 
   // Compute the capacity mask.
-  lw(reg1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  lw(reg1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
   sra(reg1, reg1, kSmiTagSize);
   Subu(reg1, reg1, Operand(1));
 
@@ -498,12 +498,12 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     mov(reg2, reg0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      Addu(reg2, reg2, Operand(NumberDictionary::GetProbeOffset(i)));
+      Addu(reg2, reg2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(reg2, reg2, reg1);
 
     // Scale the index by multiplying by the element size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     sll(at, reg2, 1);  // 2x.
     addu(reg2, reg2, at);  // reg2 = reg2 * 3.
 
@@ -511,7 +511,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     sll(at, reg2, kPointerSizeLog2);
     addu(reg2, elements, at);
 
-    lw(at, FieldMemOperand(reg2, NumberDictionary::kElementsStartOffset));
+    lw(at, FieldMemOperand(reg2, SeededNumberDictionary::kElementsStartOffset));
     if (i != kProbes - 1) {
       Branch(&done, eq, key, Operand(at));
     } else {
@@ -523,14 +523,14 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a normal property.
   // reg2: elements + (index * kPointerSize).
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   lw(reg1, FieldMemOperand(reg2, kDetailsOffset));
   And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   Branch(miss, ne, at, Operand(zero_reg));
 
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   lw(result, FieldMemOperand(reg2, kValueOffset));
 }
 

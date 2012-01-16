@@ -1485,7 +1485,7 @@ class JSObject: public JSReceiver {
   inline bool HasExternalDoubleElements();
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
-  inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   inline void set_map_and_elements(
       Map* map,
@@ -1908,9 +1908,10 @@ class JSObject: public JSReceiver {
       PropertyNormalizationMode mode,
       int expected_additional_properties);
 
-  // Convert and update the elements backing store to be a NumberDictionary
-  // dictionary.  Returns the backing after conversion.
-  static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
+  // Convert and update the elements backing store to be a
+  // SeededNumberDictionary dictionary.  Returns the backing after conversion.
+  static Handle<SeededNumberDictionary> NormalizeElements(
+      Handle<JSObject> object);
 
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
@@ -2277,7 +2278,7 @@ class FixedDoubleArray: public FixedArrayBase {
  public:
   inline void Initialize(FixedArray* from);
   inline void Initialize(FixedDoubleArray* from);
-  inline void Initialize(NumberDictionary* from);
+  inline void Initialize(SeededNumberDictionary* from);
 
   // Setter and getter for elements.
   inline double get_scalar(int index);
@@ -3038,27 +3039,40 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
 
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
-  static const bool UsesSeed = true;
-
   static inline bool IsMatch(uint32_t key, Object* other);
-  static inline uint32_t Hash(uint32_t key);
-  static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
-  static inline uint32_t HashForObject(uint32_t key, Object* object);
-  static inline uint32_t SeededHashForObject(uint32_t key,
-                                             uint32_t seed,
-                                             Object* object);
   MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
-  static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
 
 
-class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
+class SeededNumberDictionaryShape : public NumberDictionaryShape {
  public:
-  static NumberDictionary* cast(Object* obj) {
+  static const bool UsesSeed = true;
+  static const int kPrefixSize = 2;
+
+  static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
+  static inline uint32_t SeededHashForObject(uint32_t key,
+                                             uint32_t seed,
+                                             Object* object);
+};
+
+
+class UnseededNumberDictionaryShape : public NumberDictionaryShape {
+ public:
+  static const int kPrefixSize = 0;
+
+  static inline uint32_t Hash(uint32_t key);
+  static inline uint32_t HashForObject(uint32_t key, Object* object);
+};
+
+
+class SeededNumberDictionary
+    : public Dictionary<SeededNumberDictionaryShape, uint32_t> {
+ public:
+  static SeededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
-    return reinterpret_cast<NumberDictionary*>(obj);
+    return reinterpret_cast<SeededNumberDictionary*>(obj);
   }
 
   // Type specific at put (default NONE attributes is used when adding).
@@ -3069,8 +3083,8 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
-  MUST_USE_RESULT static Handle<NumberDictionary> Set(
-      Handle<NumberDictionary> dictionary,
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
+      Handle<SeededNumberDictionary> dictionary,
       uint32_t index,
       Handle<Object> value,
       PropertyDetails details);
@@ -3098,6 +3112,29 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
   static const int kRequiresSlowElementsMask = 1;
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
+};
+
+
+class UnseededNumberDictionary
+    : public Dictionary<UnseededNumberDictionaryShape, uint32_t> {
+ public:
+  static UnseededNumberDictionary* cast(Object* obj) {
+    ASSERT(obj->IsDictionary());
+    return reinterpret_cast<UnseededNumberDictionary*>(obj);
+  }
+
+  // Type specific at put (default NONE attributes is used when adding).
+  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key, Object* value);
+
+  // Set an existing entry or add a new one if needed.
+  // Return the updated dictionary.
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t index,
+      Handle<Object> value);
+
+  MUST_USE_RESULT MaybeObject* Set(uint32_t key, Object* value);
 };
 
 

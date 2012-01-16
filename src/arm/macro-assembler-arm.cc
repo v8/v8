@@ -1472,7 +1472,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   GetNumberHash(t0, t1);
 
   // Compute the capacity mask.
-  ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  ldr(t1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
   mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
   sub(t1, t1, Operand(1));
 
@@ -1483,17 +1483,17 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     mov(t2, t0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      add(t2, t2, Operand(NumberDictionary::GetProbeOffset(i)));
+      add(t2, t2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(t2, t2, Operand(t1));
 
     // Scale the index by multiplying by the element size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     add(t2, t2, Operand(t2, LSL, 1));  // t2 = t2 * 3
 
     // Check if the key is identical to the name.
     add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
-    ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    ldr(ip, FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
     cmp(key, Operand(ip));
     if (i != kProbes - 1) {
       b(eq, &done);
@@ -1506,14 +1506,14 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a normal property.
   // t2: elements + (index * kPointerSize)
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ldr(t1, FieldMemOperand(t2, kDetailsOffset));
   tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   ldr(result, FieldMemOperand(t2, kValueOffset));
 }
 

@@ -146,8 +146,8 @@ inline Heap* _inline_get_heap_();
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
-  V(NumberDictionary, code_stubs, CodeStubs)                                   \
-  V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
+  V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
   V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
@@ -1139,7 +1139,7 @@ class Heap {
   inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void public_set_code_stubs(NumberDictionary* value) {
+  void public_set_code_stubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
   }
 
@@ -1151,7 +1151,7 @@ class Heap {
   }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void public_set_non_monomorphic_cache(NumberDictionary* value) {
+  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
   }
 
