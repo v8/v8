@@ -827,6 +827,7 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       const Operand& code_operand,
                       Label* done,
+                      bool* definitely_mismatches,
                       InvokeFlag flag,
                       Label::Distance done_distance,
                       const CallWrapper& call_wrapper = NullCallWrapper(),
