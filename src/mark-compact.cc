@@ -2887,8 +2887,7 @@ static void SweepPrecisely(PagedSpace* space,
     for ( ; live_objects != 0; live_objects--) {
       Address free_end = object_address + offsets[live_index++] * kPointerSize;
       if (free_end != free_start) {
-        space->AddToFreeLists(free_start,
-                              static_cast<int>(free_end - free_start));
+        space->Free(free_start, static_cast<int>(free_end - free_start));
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
       ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
@@ -2914,8 +2913,7 @@ static void SweepPrecisely(PagedSpace* space,
     cells[cell_index] = 0;
   }
   if (free_start != p->ObjectAreaEnd()) {
-    space->AddToFreeLists(free_start,
-                          static_cast<int>(p->ObjectAreaEnd() - free_start));
+    space->Free(free_start, static_cast<int>(p->ObjectAreaEnd() - free_start));
   }
   p->ResetLiveBytes();
 }
@@ -3208,8 +3206,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     Page* p = evacuation_candidates_[i];
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    space->AddToFreeLists(p->ObjectAreaStart(),
-                          p->ObjectAreaEnd() - p->ObjectAreaStart());
+    space->Free(p->ObjectAreaStart(), Page::kObjectAreaSize);
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ClearEvacuationCandidate();
@@ -3526,8 +3523,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   }
   size_t size = block_address - p->ObjectAreaStart();
   if (cell_index == last_cell_index) {
-    freed_bytes += static_cast<int>(space->AddToFreeLists(
-        p->ObjectAreaStart(), static_cast<int>(size)));
+    freed_bytes += static_cast<int>(space->Free(p->ObjectAreaStart(),
+                                                static_cast<int>(size)));
     ASSERT_EQ(0, p->LiveBytes());
     return freed_bytes;
   }
@@ -3536,8 +3533,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
   // Free the first free space.
   size = free_end - p->ObjectAreaStart();
-  freed_bytes += space->AddToFreeLists(p->ObjectAreaStart(),
-                                       static_cast<int>(size));
+  freed_bytes += space->Free(p->ObjectAreaStart(),
+                             static_cast<int>(size));
   // The start of the current free area is represented in undigested form by
   // the address of the last 32-word section that contained a live object and
   // the marking bitmap for that cell, which describes where the live object
@@ -3566,8 +3563,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
           // so now we need to find the start of the first live object at the
           // end of the free space.
           free_end = StartOfLiveObject(block_address, cell);
-          freed_bytes += space->AddToFreeLists(
-              free_start, static_cast<int>(free_end - free_start));
+          freed_bytes += space->Free(free_start,
+                                     static_cast<int>(free_end - free_start));
         }
       }
       // Update our undigested record of where the current free area started.
@@ -3581,8 +3578,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   // Handle the free space at the end of the page.
   if (block_address - free_start > 32 * kPointerSize) {
     free_start = DigestFreeStart(free_start, free_start_cell);
-    freed_bytes += space->AddToFreeLists(
-        free_start, static_cast<int>(block_address - free_start));
+    freed_bytes += space->Free(free_start,
+                               static_cast<int>(block_address - free_start));
   }
 
   p->ResetLiveBytes();

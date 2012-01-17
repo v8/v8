@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "isolate.h"
-#include "spaces.h"
 
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_
@@ -86,21 +85,6 @@ class Snapshot {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
-
-
-// These are the sizes of the spaces that are needed in order to unpack the
-// VM boot snapshot.
-const intptr_t kMinimumSpaceSizes[LAST_SPACE + 1] = {
-  0,           // New space.
-  512 * 1024,  // Old pointer space.
-  128 * 1024,  // Old data space.
-  256 * 1024,  // Code space.
-  64 * 1024,   // Map space.
-  64 * 1024,   // Cell space.
-  0            // Large object space.
-};
-
-
 
 } }  // namespace v8::internal
 

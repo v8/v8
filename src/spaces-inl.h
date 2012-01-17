@@ -164,12 +164,12 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(chunk->size() <= kPageSize);
+  ASSERT(chunk->size() == static_cast<size_t>(kPageSize));
   ASSERT(chunk->owner() == owner);
-  int object_bytes =
-      static_cast<int>(page->ObjectAreaEnd() - page->ObjectAreaStart());
-  owner->IncreaseCapacity(object_bytes);
-  owner->AddToFreeLists(page->ObjectAreaStart(), object_bytes);
+  owner->IncreaseCapacity(Page::kObjectAreaSize);
+  owner->Free(page->ObjectAreaStart(),
+              static_cast<int>(page->ObjectAreaEnd() -
+                               page->ObjectAreaStart()));
 
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
 
@@ -257,7 +257,6 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
   if (new_top > allocation_info_.limit) return NULL;
 
   allocation_info_.top = new_top;
-  ASSERT(new_top >= Page::FromAllocationTop(new_top)->ObjectAreaStart());
   return HeapObject::FromAddress(current_top);
 }
 

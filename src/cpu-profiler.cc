@@ -42,11 +42,10 @@ namespace internal {
 static const int kEventsBufferSize = 256*KB;
 static const int kTickSamplesBufferChunkSize = 64*KB;
 static const int kTickSamplesBufferChunksCount = 16;
-static const int kProfilerStackSize = 32 * KB;
 
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
-    : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
+    : Thread("v8:ProfEvntProc"),
       generator_(generator),
       running_(true),
       ticks_buffer_(sizeof(TickSampleEventRecord),

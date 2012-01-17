@@ -126,9 +126,6 @@ ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
 
-const int MB = 1024 * 1024;
-
-
 #ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
@@ -1194,11 +1191,14 @@ Handle<String> SourceGroup::ReadFile(const char* name) {
 
 #ifndef V8_SHARED
 i::Thread::Options SourceGroup::GetThreadOptions() {
+  i::Thread::Options options;
+  options.name = "IsolateThread";
   // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
   // which is not enough to parse the big literal expressions used in tests.
   // The stack size should be at least StackGuard::kLimitSize + some
-  // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
-  return i::Thread::Options("IsolateThread", 2 * MB);
+  // OS-specific padding for thread startup code.
+  options.stack_size = 2 << 20;  // 2 Mb seems to be enough
+  return options;
 }
 
 
