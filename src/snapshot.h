@@ -90,7 +90,7 @@ class Snapshot {
 
 // These are the sizes of the spaces that are needed in order to unpack the
 // VM boot snapshot.
-const int kMinimumSpaceSizes[LAST_SPACE + 1] = {
+const intptr_t kMinimumSpaceSizes[LAST_SPACE + 1] = {
   0,           // New space.
   512 * 1024,  // Old pointer space.
   128 * 1024,  // Old data space.
