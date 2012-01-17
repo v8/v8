@@ -1563,8 +1563,14 @@ class PagedSpace : public Space {
     first_unswept_page_ = first;
   }
 
-  void MarkPageForLazySweeping(Page* p) {
+  void IncreaseUnsweptFreeBytes(Page* p) {
+    ASSERT(ShouldBeSweptLazily(p));
     unswept_free_bytes_ += (Page::kObjectAreaSize - p->LiveBytes());
+  }
+
+  void DecreaseUnsweptFreeBytes(Page* p) {
+    ASSERT(ShouldBeSweptLazily(p));
+    unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);

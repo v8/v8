@@ -765,6 +765,8 @@ void PagedSpace::ReleasePage(Page* page) {
     intptr_t size = free_list_.EvictFreeListItems(page);
     accounting_stats_.AllocateBytes(size);
     ASSERT_EQ(Page::kObjectAreaSize, static_cast<int>(size));
+  } else {
+    DecreaseUnsweptFreeBytes(page);
   }
 
   if (Page::FromAllocationTop(allocation_info_.top) == page) {
@@ -2112,7 +2114,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily advanced.\n",
                reinterpret_cast<intptr_t>(p));
       }
-      unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
+      DecreaseUnsweptFreeBytes(p);
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;

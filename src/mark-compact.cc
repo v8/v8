@@ -3630,6 +3630,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
           PrintF("Sweeping 0x%" V8PRIxPTR " released page.\n",
                  reinterpret_cast<intptr_t>(p));
         }
+        // Adjust unswept free bytes because releasing a page expects said
+        // counter to be accurate for unswept pages.
+        space->IncreaseUnsweptFreeBytes(p);
         space->ReleasePage(p);
         continue;
       }
@@ -3641,7 +3644,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
                reinterpret_cast<intptr_t>(p));
       }
-      space->MarkPageForLazySweeping(p);
+      space->IncreaseUnsweptFreeBytes(p);
       continue;
     }
 
