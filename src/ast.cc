@@ -725,6 +725,10 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
+  // If there is an interceptor, we can't compute the target for
+  // a direct call.
+  if (type->has_named_interceptor()) return false;
+
   if (check_type_ == RECEIVER_MAP_CHECK) {
     // For primitive checks the holder is set up to point to the
     // corresponding prototype object, i.e. one step of the algorithm
