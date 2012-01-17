@@ -6591,9 +6591,6 @@ class String: public HeapObject {
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
   static const int kMaxUC16CharCode = 0xffff;
 
-  // Minimum length for a cons string.
-  static const int kMinNonFlatLength = 13;
-
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates
   // whether a hash code has been computed.  If the hash code has been

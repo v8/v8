@@ -2933,9 +2933,9 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   }
 
   // If the resulting string is small make a flat string.
-  if (length < String::kMinNonFlatLength) {
+  if (length < ConsString::kMinLength) {
     // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(String::kMinNonFlatLength <= SlicedString::kMinLength);
+    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
     ASSERT(first->IsFlat());
     ASSERT(second->IsFlat());
     if (is_ascii) {

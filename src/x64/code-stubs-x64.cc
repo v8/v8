@@ -4547,7 +4547,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ SmiCompare(rbx, Smi::FromInt(String::kMinNonFlatLength));
+  __ SmiCompare(rbx, Smi::FromInt(ConsString::kMinLength));
   __ j(below, &string_add_flat_result);
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
@@ -4599,7 +4599,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ jmp(&allocated);
 
   // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
   // Handle creating a flat result from either external or sequential strings.
   // Locate the first characters' locations.
   // rax: first string

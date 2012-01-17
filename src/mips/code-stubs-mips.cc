@@ -6491,7 +6491,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ Branch(&string_add_flat_result, lt, t2,
-           Operand(String::kMinNonFlatLength));
+           Operand(ConsString::kMinLength));
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   ASSERT(IsPowerOf2(String::kMaxLength + 1));
@@ -6543,7 +6543,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Branch(&allocated);
 
   // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
   // Handle creating a flat result from either external or sequential strings.
   // Locate the first characters' locations.
   // a0: first string

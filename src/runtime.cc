@@ -3237,26 +3237,34 @@ Handle<String> Runtime::StringReplaceOneCharWithString(Isolate* isolate,
                                                        Handle<String> subject,
                                                        Handle<String> search,
                                                        Handle<String> replace,
-                                                       bool* found) {
+                                                       bool* found,
+                                                       int recursion_limit) {
+  if (recursion_limit == 0) return Handle<String>::null();
   if (subject->IsConsString()) {
     ConsString* cons = ConsString::cast(*subject);
     Handle<String> first = Handle<String>(cons->first());
     Handle<String> second = Handle<String>(cons->second());
-    Handle<String> new_first = StringReplaceOneCharWithString(isolate,
-                                                              first,
-                                                              search,
-                                                              replace,
-                                                              found);
-    if (*found) {
-      return isolate->factory()->NewConsString(new_first, second);
-    } else {
-      Handle<String> new_second = StringReplaceOneCharWithString(isolate,
-                                                                 second,
-                                                                 search,
-                                                                 replace,
-                                                                 found);
-      return isolate->factory()->NewConsString(first, new_second);
-    }
+    Handle<String> new_first =
+        StringReplaceOneCharWithString(isolate,
+                                       first,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (*found) return isolate->factory()->NewConsString(new_first, second);
+    if (new_first.is_null()) return new_first;
+
+    Handle<String> new_second =
+        StringReplaceOneCharWithString(isolate,
+                                       second,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (*found) return isolate->factory()->NewConsString(first, new_second);
+    if (new_second.is_null()) return new_second;
+
+    return subject;
   } else {
     int index = StringMatch(isolate, subject, search, 0);
     if (index == -1) return subject;
@@ -3276,13 +3284,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
   CONVERT_ARG_CHECKED(String, subject, 0);
   CONVERT_ARG_CHECKED(String, search, 1);
   CONVERT_ARG_CHECKED(String, replace, 2);
-  bool found = false;
 
-  return *(Runtime::StringReplaceOneCharWithString(isolate,
-                                                   subject,
-                                                   search,
-                                                   replace,
-                                                   &found));
+  // If the cons string tree is too deep, we simply abort the recursion and
+  // retry with a flattened subject string.
+  const int kRecursionLimit = 0x1000;
+  bool found = false;
+  Handle<String> result =
+      Runtime::StringReplaceOneCharWithString(isolate,
+                                              subject,
+                                              search,
+                                              replace,
+                                              &found,
+                                              kRecursionLimit);
+  if (!result.is_null()) return *result;
+  return *Runtime::StringReplaceOneCharWithString(isolate,
+                                                  FlattenGetString(subject),
+                                                  search,
+                                                  replace,
+                                                  &found,
+                                                  kRecursionLimit);
 }
 
 

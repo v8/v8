@@ -5585,7 +5585,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ cmp(ebx, Immediate(Smi::FromInt(String::kMinNonFlatLength)));
+  __ cmp(ebx, Immediate(Smi::FromInt(ConsString::kMinLength)));
   __ j(below, &string_add_flat_result);
 
   // If result is not supposed to be flat allocate a cons string object. If both
@@ -5633,7 +5633,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ jmp(&allocated);
 
   // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
   // Handle creating a flat result from either external or sequential strings.
   // Locate the first characters' locations.
   // eax: first string

@@ -634,7 +634,8 @@ class Runtime : public AllStatic {
                                                        Handle<String> subject,
                                                        Handle<String> search,
                                                        Handle<String> replace,
-                                                       bool* found);
+                                                       bool* found,
+                                                       int recursion_limit);
 
   // General-purpose helper functions for runtime system.
   static int StringMatch(Isolate* isolate,
