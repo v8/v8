@@ -66,11 +66,7 @@
 
 namespace v8 {
 
-
-#ifndef V8_SHARED
 LineEditor *LineEditor::first_ = NULL;
-const char* Shell::kHistoryFileName = ".d8_history";
-const int Shell::kMaxHistoryEntries = 1000;
 
 
 LineEditor::LineEditor(Type type, const char* name)
@@ -96,31 +92,29 @@ LineEditor* LineEditor::Get() {
 class DumbLineEditor: public LineEditor {
  public:
   DumbLineEditor() : LineEditor(LineEditor::DUMB, "dumb") { }
-  virtual i::SmartArrayPointer<char> Prompt(const char* prompt);
+  virtual Handle<String> Prompt(const char* prompt);
 };
 
 
 static DumbLineEditor dumb_line_editor;
 
 
-i::SmartArrayPointer<char> DumbLineEditor::Prompt(const char* prompt) {
-  static const int kBufferSize = 256;
-  char buffer[kBufferSize];
+Handle<String> DumbLineEditor::Prompt(const char* prompt) {
   printf("%s", prompt);
-  char* str = fgets(buffer, kBufferSize, stdin);
-  return i::SmartArrayPointer<char>(str ? i::StrDup(str) : str);
+  return Shell::ReadFromStdin();
 }
 
 
+#ifndef V8_SHARED
 CounterMap* Shell::counter_map_;
 i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
 Persistent<Context> Shell::utility_context_;
-LineEditor* Shell::console = NULL;
 #endif  // V8_SHARED
 
+LineEditor* Shell::console = NULL;
 Persistent<Context> Shell::evaluation_context_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
@@ -238,7 +232,7 @@ Handle<Value> Shell::Read(const Arguments& args) {
 }
 
 
-Handle<Value> Shell::ReadLine(const Arguments& args) {
+Handle<String> Shell::ReadFromStdin() {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   Handle<String> accumulator = String::New("");
@@ -247,7 +241,7 @@ Handle<Value> Shell::ReadLine(const Arguments& args) {
     // Continue reading if the line ends with an escape '\\' or the line has
     // not been fully read into the buffer yet (does not end with '\n').
     // If fgets gets an error, just give up.
-    if (fgets(buffer, kBufferSize, stdin) == NULL) return Null();
+    if (fgets(buffer, kBufferSize, stdin) == NULL) return Handle<String>();
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
@@ -1047,28 +1041,15 @@ void Shell::RunShell() {
   Context::Scope context_scope(evaluation_context_);
   HandleScope outer_scope;
   Handle<String> name = String::New("(d8)");
-#ifndef V8_SHARED
   console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
   console->Open();
   while (true) {
-    i::SmartArrayPointer<char> input = console->Prompt(Shell::kPrompt);
-    if (input.is_empty()) break;
-    console->AddHistory(*input);
     HandleScope inner_scope;
-    ExecuteString(String::New(*input), name, true, true);
+    Handle<String> input = console->Prompt(Shell::kPrompt);
+    if (input.IsEmpty()) break;
+    ExecuteString(input, name, true, true);
   }
-#else
-  printf("V8 version %s [D8 light using shared library]\n", V8::GetVersion());
-  static const int kBufferSize = 256;
-  while (true) {
-    char buffer[kBufferSize];
-    printf("%s", Shell::kPrompt);
-    if (fgets(buffer, kBufferSize, stdin) == NULL) break;
-    HandleScope inner_scope;
-    ExecuteString(String::New(buffer), name, true, true);
-  }
-#endif  // V8_SHARED
   printf("\n");
 }
 
