@@ -166,10 +166,10 @@ Page* Page::Initialize(Heap* heap,
   Page* page = reinterpret_cast<Page*>(chunk);
   ASSERT(chunk->size() <= kPageSize);
   ASSERT(chunk->owner() == owner);
-  intptr_t object_bytes = page->ObjectAreaEnd() - page->ObjectAreaStart();
+  int object_bytes =
+      static_cast<int>(page->ObjectAreaEnd() - page->ObjectAreaStart());
   owner->IncreaseCapacity(object_bytes);
-  owner->AddToFreeLists(page->ObjectAreaStart(),
-                        static_cast<int>(object_bytes));
+  owner->AddToFreeLists(page->ObjectAreaStart(), object_bytes);
 
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
 
