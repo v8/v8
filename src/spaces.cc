@@ -1026,14 +1026,13 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
          2 * heap()->ReservedSemiSpaceSize());
   ASSERT(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
 
-  if (!to_space_.SetUp(chunk_base_,
-                       initial_semispace_capacity,
-                       maximum_semispace_capacity)) {
-    return false;
-  }
-  if (!from_space_.SetUp(chunk_base_ + reserved_semispace_capacity,
-                         initial_semispace_capacity,
-                         maximum_semispace_capacity)) {
+  to_space_.SetUp(chunk_base_,
+                  initial_semispace_capacity,
+                  maximum_semispace_capacity);
+  from_space_.SetUp(chunk_base_ + reserved_semispace_capacity,
+                    initial_semispace_capacity,
+                    maximum_semispace_capacity);
+  if (!to_space_.Commit()) {
     return false;
   }
 
@@ -1266,7 +1265,7 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-bool SemiSpace::SetUp(Address start,
+void SemiSpace::SetUp(Address start,
                       int initial_capacity,
                       int maximum_capacity) {
   // Creates a space in the young generation. The constructor does not
@@ -1285,8 +1284,6 @@ bool SemiSpace::SetUp(Address start,
   object_mask_ = address_mask_ | kHeapObjectTagMask;
   object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
   age_mark_ = start_;
-
-  return Commit();
 }
 
 
