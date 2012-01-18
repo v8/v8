@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -579,6 +579,8 @@ class MarkCompactCollector {
   bool was_marked_incrementally_;
 
   bool collect_maps_;
+
+  bool flush_monomorphic_ics_;
 
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).

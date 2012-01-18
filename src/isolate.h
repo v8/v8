@@ -1023,6 +1023,13 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
+  bool context_exit_happened() {
+    return context_exit_happened_;
+  }
+  void set_context_exit_happened(bool context_exit_happened) {
+    context_exit_happened_ = context_exit_happened;
+  }
+
  private:
   Isolate();
 
@@ -1187,6 +1194,10 @@ class Isolate {
   RegExpStack* regexp_stack_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   void* embedder_data_;
+
+  // The garbage collector should be a little more aggressive when it knows
+  // that a context was recently exited.
+  bool context_exit_happened_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -872,6 +872,8 @@ void Heap::MarkCompact(GCTracer* tracer) {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   contexts_disposed_ = 0;
+
+  isolate_->set_context_exit_happened(false);
 }
 
 

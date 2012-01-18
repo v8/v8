@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -63,6 +63,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       compacting_(false),
       was_marked_incrementally_(false),
       collect_maps_(FLAG_collect_maps),
+      flush_monomorphic_ics_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
       heap_(NULL),
@@ -515,6 +516,12 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // order which is not implemented for incremental marking.
   collect_maps_ = FLAG_collect_maps && !was_marked_incrementally_;
 
+  // Monomorphic ICs are preserved when possible, but need to be flushed
+  // when they might be keeping a Context alive, or when the heap is about
+  // to be serialized.
+  flush_monomorphic_ics_ =
+      heap()->isolate()->context_exit_happened() || Serializer::enabled();
+
   // Rather than passing the tracer around we stash it in a static member
   // variable.
   tracer_ = tracer;
@@ -881,7 +888,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()) {
+    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+        && (target->ic_state() == MEGAMORPHIC ||
+            heap->mark_compact_collector()->flush_monomorphic_ics_)) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
