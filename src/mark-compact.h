@@ -198,7 +198,7 @@ class MarkingDeque {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
       Marking::BlackToGrey(object);
-      MemoryChunk::IncrementLiveBytes(object->address(), -object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
       SetOverflowed();
     } else {
       array_[top_] = object;

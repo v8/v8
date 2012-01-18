@@ -3178,7 +3178,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   Address end_of_string = answer->address() + string_size;
   isolate->heap()->CreateFillerObjectAt(end_of_string, delta);
   if (Marking::IsBlack(Marking::MarkBitFrom(*answer))) {
-    MemoryChunk::IncrementLiveBytes(answer->address(), -delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(answer->address(), -delta);
   }
 
   return *answer;

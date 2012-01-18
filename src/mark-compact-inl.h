@@ -53,7 +53,7 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
     mark_bit.Set();
-    MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
+    MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
     ProcessNewlyMarkedObject(obj);
   }
 }
@@ -63,7 +63,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(!mark_bit.Get());
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
-  MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
+  MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
 }
 
 

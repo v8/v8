@@ -993,7 +993,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -1037,7 +1038,8 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -3460,7 +3462,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
                                      instance_size_delta);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), -instance_size_delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               -instance_size_delta);
   }
 
 

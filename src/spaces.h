@@ -472,9 +472,12 @@ class MemoryChunk {
     ASSERT(static_cast<unsigned>(live_byte_count_) <= size_);
     return live_byte_count_;
   }
-  static void IncrementLiveBytes(Address address, int by) {
+
+  static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
   }
+
+  static void IncrementLiveBytesFromMutator(Address address, int by);
 
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
@@ -1561,6 +1564,10 @@ class PagedSpace : public Space {
     ASSERT(unswept_free_bytes_ == 0);
     if (first == &anchor_) first = NULL;
     first_unswept_page_ = first;
+  }
+
+  void IncrementUnsweptFreeBytes(int by) {
+    unswept_free_bytes_ += by;
   }
 
   void IncreaseUnsweptFreeBytes(Page* p) {

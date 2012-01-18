@@ -649,6 +649,17 @@ void MemoryAllocator::ReportStatistics() {
 #endif
 
 // -----------------------------------------------------------------------------
+// MemoryChunk implementation
+
+void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->WasSwept()) {
+    static_cast<PagedSpace*>(chunk->owner())->IncrementUnsweptFreeBytes(-by);
+  }
+  chunk->IncrementLiveBytes(by);
+}
+
+// -----------------------------------------------------------------------------
 // PagedSpace implementation
 
 PagedSpace::PagedSpace(Heap* heap,
@@ -2515,7 +2526,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
-      MemoryChunk::IncrementLiveBytes(object->address(), -object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
       previous = current;
       current = current->next_page();
     } else {

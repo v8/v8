@@ -332,7 +332,7 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
   string->set_length(length);
   if (Marking::IsBlack(Marking::MarkBitFrom(string))) {
     int delta = static_cast<int>(old_top - allocation_info_.top);
-    MemoryChunk::IncrementLiveBytes(string->address(), -delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(string->address(), -delta);
   }
 }
 

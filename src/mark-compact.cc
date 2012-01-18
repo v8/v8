@@ -1641,8 +1641,8 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
   if (!mark.Get()) {
     mark.Set();
-    MemoryChunk::IncrementLiveBytes(prototype_transitions->address(),
-                                    prototype_transitions->Size());
+    MemoryChunk::IncrementLiveBytesFromGC(prototype_transitions->address(),
+                                          prototype_transitions->Size());
   }
 
   Object** raw_descriptor_array_slot =
@@ -1756,7 +1756,7 @@ static void DiscoverGreyObjectsWithIterator(Heap* heap,
     MarkBit markbit = Marking::MarkBitFrom(object);
     if ((object->map() != filler_map) && Marking::IsGrey(markbit)) {
       Marking::GreyToBlack(markbit);
-      MemoryChunk::IncrementLiveBytes(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
     }
@@ -1808,7 +1808,7 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
       Marking::GreyToBlack(markbit);
       Address addr = cell_base + offset * kPointerSize;
       HeapObject* object = HeapObject::FromAddress(addr);
-      MemoryChunk::IncrementLiveBytes(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
       offset += 2;
