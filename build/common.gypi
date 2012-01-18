@@ -73,6 +73,9 @@
     # Enable profiling support. Only required on Windows.
     'v8_enable_prof%': 0,
 
+    # Some versions of GCC 4.5 seem to need -fno-strict-aliasing.
+    'v8_no_strict_aliasing%': 0,
+
     # Chrome needs this definition unconditionally. For standalone V8 builds,
     # it's handled in build/standalone.gypi.
     'want_separate_host_toolset%': 1,
@@ -227,7 +230,10 @@
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
-        ],
+          [ 'v8_no_strict_aliasing==1', {
+            'cflags': [ '-fno-strict-aliasing' ],
+          }],
+        ],  # conditions
       }],
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.

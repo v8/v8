@@ -87,6 +87,10 @@ endif
 ifeq ($(presubmit), no)
   TESTFLAGS += --no-presubmit
 endif
+# strictaliasing=off (workaround for GCC-4.5)
+ifeq ($(strictaliasing), off)
+  GYPFLAGS += -Dv8_no_strict_aliasing=1
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
