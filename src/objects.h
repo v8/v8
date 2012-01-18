@@ -4492,6 +4492,11 @@ class Map: public HeapObject {
     return elements_kind() == DICTIONARY_ELEMENTS;
   }
 
+  inline bool has_slow_elements_kind() {
+    return elements_kind() == DICTIONARY_ELEMENTS
+        || elements_kind() == NON_STRICT_ARGUMENTS_ELEMENTS;
+  }
+
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
 
