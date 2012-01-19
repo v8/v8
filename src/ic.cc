@@ -1677,9 +1677,6 @@ MaybeObject* KeyedStoreIC::Store(State state,
       if (receiver->elements()->map() ==
           isolate()->heap()->non_strict_arguments_elements_map()) {
         stub = non_strict_arguments_stub();
-      } else if (receiver->elements()->map() ==
-          isolate()->heap()->fixed_cow_array_map()) {
-        // Do nothing, just keep the generic stub.
       } else if (!force_generic) {
         if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = STORE_NO_TRANSITION;
