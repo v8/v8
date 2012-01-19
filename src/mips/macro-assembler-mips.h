@@ -51,16 +51,6 @@ class JumpTarget;
 // MIPS generated code calls C code, it must be via t9 register.
 
 
-// Register aliases.
-// cp is assumed to be a callee saved register.
-const Register kLithiumScratchReg = s3;  // Scratch register.
-const Register kLithiumScratchReg2 = s4;  // Scratch register.
-const Register kCondReg = s5;  // Simulated (partial) condition code for mips.
-const Register kRootRegister = s6;  // Roots array pointer.
-const Register cp = s7;     // JavaScript context pointer.
-const Register fp = s8_fp;  // Alias for fp.
-const DoubleRegister kLithiumScratchDouble = f30;  // Double scratch register.
-
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
