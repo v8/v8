@@ -2316,26 +2316,19 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
               cached_map,
               SKIP_WRITE_BARRIER);
         }
+        new_number_of_transitions++;
       }
+    }
 
-      // Fill slots that became free with undefined value.
-      Object* undefined = heap()->undefined_value();
-      for (int i = new_number_of_transitions * step;
-           i < number_of_transitions * step;
-           i++) {
-        // The undefined object is on a page that is never compacted and never
-        // in new space so it is OK to skip the write barrier.  Also it's a
-        // root.
-        prototype_transitions->set_unchecked(heap_,
-                                             header + i,
-                                             undefined,
-                                             SKIP_WRITE_BARRIER);
-
-        Object** undefined_slot =
-            prototype_transitions->data_start() + i;
-        RecordSlot(undefined_slot, undefined_slot, undefined);
-      }
+    if (new_number_of_transitions != number_of_transitions) {
       map->SetNumberOfProtoTransitions(new_number_of_transitions);
+    }
+
+    // Fill slots that became free with undefined value.
+    for (int i = new_number_of_transitions * step;
+         i < number_of_transitions * step;
+         i++) {
+      prototype_transitions->set_undefined(heap_, header + i);
     }
 
     // Follow the chain of back pointers to find the prototype.
