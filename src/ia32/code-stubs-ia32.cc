@@ -5610,16 +5610,17 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
   if (Serializer::enabled()) {
     ExternalReference roots_address =
         ExternalReference::roots_address(masm->isolate());
-    __ mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
+    __ mov(scratch, Immediate(Heap::kHashSeedRootIndex));
     __ mov(scratch, Operand::StaticArray(scratch,
                                          times_pointer_size,
                                          roots_address));
+    __ SmiUntag(scratch);
     __ add(scratch, Operand(character));
     __ mov(hash, scratch);
     __ shl(scratch, 10);
     __ add(hash, Operand(scratch));
   } else {
-    int32_t seed = masm->isolate()->heap()->StringHashSeed();
+    int32_t seed = masm->isolate()->heap()->HashSeed();
     __ lea(scratch, Operand(character, seed));
     __ shl(scratch, 10);
     __ lea(hash, Operand(scratch, character, times_1, seed));
