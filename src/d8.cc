@@ -526,8 +526,10 @@ Handle<Value> Shell::Version(const Arguments& args) {
 
 void Shell::ReportException(v8::TryCatch* try_catch) {
   HandleScope handle_scope;
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   bool enter_context = !Context::InContext();
   if (enter_context) utility_context_->Enter();
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
   Handle<Message> message = try_catch->Message();
@@ -562,7 +564,9 @@ void Shell::ReportException(v8::TryCatch* try_catch) {
     }
   }
   printf("\n");
+#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
   if (enter_context) utility_context_->Exit();
+#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
 }
 
 
