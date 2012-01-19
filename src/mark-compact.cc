@@ -2304,18 +2304,24 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       Object* prototype = prototype_transitions->get(proto_offset + i * step);
       Object* cached_map = prototype_transitions->get(map_offset + i * step);
       if (IsMarked(prototype) && IsMarked(cached_map)) {
+        int proto_index = proto_offset + new_number_of_transitions * step;
+        int map_index = map_offset + new_number_of_transitions * step;
         if (new_number_of_transitions != i) {
           prototype_transitions->set_unchecked(
               heap_,
-              proto_offset + new_number_of_transitions * step,
+              proto_index,
               prototype,
               UPDATE_WRITE_BARRIER);
           prototype_transitions->set_unchecked(
               heap_,
-              map_offset + new_number_of_transitions * step,
+              map_index,
               cached_map,
               SKIP_WRITE_BARRIER);
         }
+        Object** slot =
+            HeapObject::RawField(prototype_transitions,
+                                 FixedArray::OffsetOfElementAt(proto_index));
+        RecordSlot(slot, slot, prototype);
         new_number_of_transitions++;
       }
     }
