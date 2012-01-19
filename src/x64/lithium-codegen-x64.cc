@@ -2962,6 +2962,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ movq(global_object,
           FieldOperand(global_object, GlobalObject::kGlobalContextOffset));
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
