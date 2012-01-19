@@ -444,8 +444,10 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   xor_(reg0, reg0, at);
 
   // hash = hash * 2057;
-  li(scratch, Operand(2057));
-  mul(reg0, reg0, scratch);
+  sll(scratch, reg0, 11);
+  sll(at, reg0, 3);
+  addu(reg0, reg0, at);
+  addu(reg0, reg0, scratch);
 
   // hash = hash ^ (hash >> 16);
   srl(at, reg0, 16);
