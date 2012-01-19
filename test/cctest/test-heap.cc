@@ -1572,3 +1572,38 @@ TEST(InstanceOfStubWriteBarrier) {
   HEAP->incremental_marking()->set_should_hurry(true);
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 }
+
+
+TEST(PrototypeTransitionClearing) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  CompileRun(
+      "var base = {};"
+      "var live = [];"
+      "for (var i = 0; i < 10; i++) {"
+      "  var object = {};"
+      "  var prototype = {};"
+      "  object.__proto__ = prototype;"
+      "  if (i >= 3) live.push(object, prototype);"
+      "}");
+
+  Handle<JSObject> baseObject =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("base"))));
+
+  // Verify that only dead prototype transitions are cleared.
+  CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK_EQ(10 - 3, baseObject->map()->NumberOfProtoTransitions());
+
+  // Verify that prototype transitions array was compacted.
+  FixedArray* trans = baseObject->map()->prototype_transitions();
+  for (int i = 0; i < 10 - 3; i++) {
+    int j = Map::kProtoTransitionHeaderSize +
+        i * Map::kProtoTransitionElementsPerEntry;
+    CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
+    CHECK(trans->get(j + Map::kProtoTransitionPrototypeOffset)->IsJSObject());
+  }
+}

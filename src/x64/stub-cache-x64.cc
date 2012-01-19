@@ -982,7 +982,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   __ movq(name_arg, rsp);
   __ push(scratch2);  // Restore return address.
 
-  // 3 elements array for v8::Agruments::values_ and handler for name.
+  // 3 elements array for v8::Arguments::values_ and handler for name.
   const int kStackSpace = 4;
 
   // Allocate v8::AccessorInfo in non-GCed stack space.

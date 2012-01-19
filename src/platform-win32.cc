@@ -198,7 +198,7 @@ double modulo(double x, double y) {
 
 // ----------------------------------------------------------------------------
 // The Time class represents time on win32. A timestamp is represented as
-// a 64-bit integer in 100 nano-seconds since January 1, 1601 (UTC). JavaScript
+// a 64-bit integer in 100 nanoseconds since January 1, 1601 (UTC). JavaScript
 // timestamps are represented as a doubles in milliseconds since 00:00:00 UTC,
 // January 1, 1970.
 
@@ -776,7 +776,7 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
-// and verification).  The estimate is conservative, ie, not all addresses in
+// and verification).  The estimate is conservative, i.e., not all addresses in
 // 'allocated' space are actually allocated to our heap.  The range is
 // [lowest, highest), inclusive on the low and and exclusive on the high end.
 static void* lowest_ever_allocated = reinterpret_cast<void*>(-1);

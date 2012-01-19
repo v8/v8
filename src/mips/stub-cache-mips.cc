@@ -565,11 +565,11 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
                                       int argc) {
   // ----------- S t a t e -------------
   //  -- sp[0]              : holder (set by CheckPrototypes)
-  //  -- sp[4]              : callee js function
+  //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
-  //  -- sp[12]             : last js argument
+  //  -- sp[12]             : last JS argument
   //  -- ...
-  //  -- sp[(argc + 3) * 4] : first js argument
+  //  -- sp[(argc + 3) * 4] : first JS argument
   //  -- sp[(argc + 4) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
@@ -587,7 +587,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ li(t2, call_data);
   }
 
-  // Store js function and call data.
+  // Store JS function and call data.
   __ sw(t1, MemOperand(sp, 1 * kPointerSize));
   __ sw(t2, MemOperand(sp, 2 * kPointerSize));
 

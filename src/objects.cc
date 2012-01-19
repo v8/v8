@@ -993,7 +993,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -1037,7 +1038,8 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -3460,7 +3462,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
                                      instance_size_delta);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), -instance_size_delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               -instance_size_delta);
   }
 
 
@@ -10885,7 +10888,7 @@ int StringDictionary::FindEntry(String* key) {
 
   // Optimized for symbol key. Knowledge of the key type allows:
   // 1. Move the check if the key is a symbol out of the loop.
-  // 2. Avoid comparing hash codes in symbol to symbol comparision.
+  // 2. Avoid comparing hash codes in symbol to symbol comparison.
   // 3. Detect a case when a dictionary key is not a symbol but the key is.
   //    In case of positive result the dictionary key may be replaced by
   //    the symbol with minimal performance penalty. It gives a chance to

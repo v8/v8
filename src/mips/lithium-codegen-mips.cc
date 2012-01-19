@@ -1862,9 +1862,8 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 }
 
 
-// Branches to a label or falls through with this instance class-name adr
-// returned in temp reg, available for comparison by the caller. Trashes the
-// temp registers, but not the input. Only input and temp2 may alias.
+// Branches to a label or falls through with the answer in flags.  Trashes
+// the temp registers, but not the input.
 void LCodeGen::EmitClassOfTest(Label* is_true,
                                Label* is_false,
                                Handle<String>class_name,
@@ -1872,7 +1871,9 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register temp,
                                Register temp2) {
   ASSERT(!input.is(temp));
-  ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
+  ASSERT(!input.is(temp2));
+  ASSERT(!temp.is(temp2));
+
   __ JumpIfSmi(input, is_false);
 
   if (class_name->IsEqualTo(CStrVector("Function"))) {
@@ -2884,7 +2885,7 @@ void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
   __ mov(result, input);
   ASSERT_EQ(2, masm()->InstructionsGeneratedSince(&done));
   __ subu(result, zero_reg, input);
-  // Overflow if result is still negative, ie 0x80000000.
+  // Overflow if result is still negative, i.e. 0x80000000.
   DeoptimizeIf(lt, instr->environment(), result, Operand(zero_reg));
   __ bind(&done);
 }
@@ -3816,6 +3817,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 DoubleRegister result_reg,
                                 bool deoptimize_on_undefined,
+                                bool deoptimize_on_minus_zero,
                                 LEnvironment* env) {
   Register scratch = scratch0();
 
@@ -3845,6 +3847,12 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   }
   // Heap number to double register conversion.
   __ ldc1(result_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+  if (deoptimize_on_minus_zero) {
+    __ mfc1(at, result_reg.low());
+    __ Branch(&done, ne, at, Operand(zero_reg));
+    __ mfc1(scratch, result_reg.high());
+    DeoptimizeIf(eq, env, scratch, Operand(HeapNumber::kSignMask));
+  }
   __ Branch(&done);
 
   // Smi to double register conversion
@@ -3976,6 +3984,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
   EmitNumberUntagD(input_reg, result_reg,
                    instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->hydrogen()->deoptimize_on_minus_zero(),
                    instr->environment());
 }
 

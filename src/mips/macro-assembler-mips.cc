@@ -444,8 +444,10 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   xor_(reg0, reg0, at);
 
   // hash = hash * 2057;
-  li(scratch, Operand(2057));
-  mul(reg0, reg0, scratch);
+  sll(scratch, reg0, 11);
+  sll(at, reg0, 3);
+  addu(reg0, reg0, at);
+  addu(reg0, reg0, scratch);
 
   // hash = hash ^ (hash >> 16);
   srl(at, reg0, 16);
@@ -1176,7 +1178,7 @@ void MacroAssembler::ConvertToInt32(Register source,
   Branch(not_int32, gt, scratch2, Operand(non_smi_exponent));
 
   // We know the exponent is smaller than 30 (biased).  If it is less than
-  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, i.e.
   // it rounds to zero.
   const uint32_t zero_exponent =
       (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;

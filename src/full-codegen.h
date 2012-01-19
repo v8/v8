@@ -618,8 +618,8 @@ class FullCodeGenerator: public AstVisitor {
                              Label** if_false,
                              Label** fall_through) const = 0;
 
-    // Returns true if we are evaluating only for side effects (ie if the result
-    // will be discarded).
+    // Returns true if we are evaluating only for side effects (i.e. if the
+    // result will be discarded).
     virtual bool IsEffect() const { return false; }
 
     // Returns true if we are evaluating for the value (in accu/on stack).
