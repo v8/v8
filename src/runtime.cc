@@ -1869,9 +1869,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
-  NoHandleAllocation handle_free;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(JSFunction, function, args[0]);
+  CONVERT_CHECKED(JSReceiver, callable, args[0]);
+
+  if (!callable->IsJSFunction()) {
+    HandleScope scope(isolate);
+    bool threw = false;
+    Handle<Object> delegate =
+        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    if (threw) return Failure::Exception();
+    callable = JSFunction::cast(*delegate);
+  }
+  JSFunction* function = JSFunction::cast(callable);
+
   SharedFunctionInfo* shared = function->shared();
   if (shared->native() || !shared->is_classic_mode()) {
     return isolate->heap()->undefined_value();
