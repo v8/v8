@@ -2716,7 +2716,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
       this, pointers, Safepoint::kLazyDeopt);
   // The number of arguments is stored in receiver which is a0, as expected
   // by InvokeFunction.
-  v8::internal::ParameterCount actual(receiver);
+  ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
                     safepoint_generator, CALL_AS_METHOD);
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2772,31 +2772,41 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr,
                                  CallKind call_kind) {
-  // Change context if needed.
-  bool change_context =
-      (info()->closure()->context() != function->context()) ||
-      scope()->contains_with() ||
-      (scope()->num_heap_slots() > 0);
-  if (change_context) {
-    __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-  }
-
-  // Set a0 to arguments count if adaption is not needed. Assumes that a0
-  // is available to write to at this point.
-  if (!function->NeedsArgumentsAdaption()) {
-    __ li(a0, Operand(arity));
-  }
+  bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
+      function->shared()->formal_parameter_count() == arity;
 
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
 
-  // Invoke function.
-  __ SetCallKind(t1, call_kind);
-  __ lw(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  __ Call(at);
+  if (can_invoke_directly) {
+    __ LoadHeapObject(a1, function);
+    // Change context if needed.
+    bool change_context =
+        (info()->closure()->context() != function->context()) ||
+        scope()->contains_with() ||
+        (scope()->num_heap_slots() > 0);
+    if (change_context) {
+      __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+    }
 
-  // Set up deoptimization.
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+    // Set r0 to arguments count if adaption is not needed. Assumes that r0
+    // is available to write to at this point.
+    if (!function->NeedsArgumentsAdaption()) {
+      __ li(a0, Operand(arity));
+    }
+
+    // Invoke function.
+    __ SetCallKind(t1, call_kind);
+    __ lw(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    __ Call(at);
+
+    // Set up deoptimization.
+    RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  } else {
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(arity);
+    __ InvokeFunction(function, count, CALL_FUNCTION, generator, call_kind);
+  }
 
   // Restore context.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2806,7 +2816,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
   __ mov(a0, v0);
-  __ LoadHeapObject(a1, instr->function());
   CallKnownFunction(instr->function(), instr->arity(), instr, CALL_AS_METHOD);
 }
 
@@ -3249,7 +3258,6 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-  __ LoadHeapObject(a1, instr->target());
   CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 

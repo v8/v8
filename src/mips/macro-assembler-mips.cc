@@ -3432,10 +3432,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     Register code_reg,
                                     Label* done,
+                                    bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   bool definitely_matches = false;
+  *definitely_mismatches = false;
   Label regular_invoke;
 
   // Check whether the expected and actual arguments count match. If not,
@@ -3466,6 +3468,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
+        *definitely_mismatches = true;
         li(a2, Operand(expected.immediate()));
       }
     }
@@ -3489,7 +3492,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       SetCallKind(t1, call_kind);
       Call(adaptor);
       call_wrapper.AfterCall();
-      jmp(done);
+      if (!*definitely_mismatches) {
+        Branch(done);
+      }
     } else {
       SetCallKind(t1, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -3510,21 +3515,25 @@ void MacroAssembler::InvokeCode(Register code,
 
   Label done;
 
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, Handle<Code>::null(), code,
+                 &done, &definitely_mismatches, flag,
                  call_wrapper, call_kind);
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(CallSize(code));
-    SetCallKind(t1, call_kind);
-    Call(code);
-    call_wrapper.AfterCall();
-  } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(t1, call_kind);
-    Jump(code);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(CallSize(code));
+      SetCallKind(t1, call_kind);
+      Call(code);
+      call_wrapper.AfterCall();
+    } else {
+      ASSERT(flag == JUMP_FUNCTION);
+      SetCallKind(t1, call_kind);
+      Jump(code);
+    }
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
   }
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
 }
 
 
@@ -3539,18 +3548,22 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
   Label done;
 
-  InvokePrologue(expected, actual, code, no_reg, &done, flag,
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, code, no_reg,
+                 &done, &definitely_mismatches, flag,
                  NullCallWrapper(), call_kind);
-  if (flag == CALL_FUNCTION) {
-    SetCallKind(t1, call_kind);
-    Call(code, rmode);
-  } else {
-    SetCallKind(t1, call_kind);
-    Jump(code, rmode);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      SetCallKind(t1, call_kind);
+      Call(code, rmode);
+    } else {
+      SetCallKind(t1, call_kind);
+      Jump(code, rmode);
+    }
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
   }
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
 }
 
 
@@ -3583,6 +3596,7 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
@@ -3596,7 +3610,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // allow recompilation to take effect without changing any of the
   // call sites.
   lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
+  InvokeCode(a3, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
