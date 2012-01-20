@@ -4127,7 +4127,6 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetGVNFlag(kChangesMaps);
     SetGVNFlag(kChangesElementsKind);
     set_representation(Representation::Tagged());
   }
