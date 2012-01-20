@@ -1110,10 +1110,10 @@ HValueMap::HValueMap(Zone* zone, const HValueMap* other)
 }
 
 
-void HValueMap::Kill(int flags) {
-  int depends_flags = HValue::ConvertChangesToDependsFlags(flags);
-  if ((present_flags_ & depends_flags) == 0) return;
-  present_flags_ = 0;
+void HValueMap::Kill(GVNFlagSet flags) {
+  GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(flags);
+  if (!present_flags_.ContainsAnyOf(depends_flags)) return;
+  present_flags_.RemoveAll();
   for (int i = 0; i < array_size_; ++i) {
     HValue* value = array_[i].value;
     if (value != NULL) {
@@ -1122,7 +1122,8 @@ void HValueMap::Kill(int flags) {
       int next;
       for (int current = array_[i].next; current != kNil; current = next) {
         next = lists_[current].next;
-        if ((lists_[current].value->flags() & depends_flags) != 0) {
+        HValue* value = lists_[current].value;
+        if (value->gvn_flags().ContainsAnyOf(depends_flags)) {
           // Drop it.
           count_--;
           lists_[current].next = free_list_head_;
@@ -1131,13 +1132,14 @@ void HValueMap::Kill(int flags) {
           // Keep it.
           lists_[current].next = kept;
           kept = current;
-          present_flags_ |= lists_[current].value->flags();
+          present_flags_.Add(value->gvn_flags());
         }
       }
       array_[i].next = kept;
 
       // Now possibly drop directly indexed element.
-      if ((array_[i].value->flags() & depends_flags) != 0) {  // Drop it.
+      value = array_[i].value;
+      if (value->gvn_flags().ContainsAnyOf(depends_flags)) {  // Drop it.
         count_--;
         int head = array_[i].next;
         if (head == kNil) {
@@ -1149,7 +1151,7 @@ void HValueMap::Kill(int flags) {
           free_list_head_ = head;
         }
       } else {
-        present_flags_ |= array_[i].value->flags();  // Keep it.
+        present_flags_.Add(value->gvn_flags());  // Keep it.
       }
     }
   }
@@ -1356,8 +1358,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         loop_side_effects_(graph->blocks()->length()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
     ASSERT(info->isolate()->heap()->allow_allocation(false));
-    block_side_effects_.AddBlock(0, graph_->blocks()->length());
-    loop_side_effects_.AddBlock(0, graph_->blocks()->length());
+    block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length());
+    loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length());
   }
   ~HGlobalValueNumberer() {
     ASSERT(!info_->isolate()->heap()->allow_allocation(true));
@@ -1367,14 +1369,15 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   bool Analyze();
 
  private:
-  int CollectSideEffectsOnPathsToDominatedBlock(HBasicBlock* dominator,
-                                                HBasicBlock* dominated);
+  GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
+      HBasicBlock* dominator,
+      HBasicBlock* dominated);
   void AnalyzeBlock(HBasicBlock* block, HValueMap* map);
   void ComputeBlockSideEffects();
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
-                        int loop_kills);
+                        GVNFlagSet loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
@@ -1387,10 +1390,10 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   bool removed_side_effects_;
 
   // A map of block IDs to their side effects.
-  ZoneList<int> block_side_effects_;
+  ZoneList<GVNFlagSet> block_side_effects_;
 
   // A map of loop header block IDs to their loop's side effects.
-  ZoneList<int> loop_side_effects_;
+  ZoneList<GVNFlagSet> loop_side_effects_;
 
   // Used when collecting side effects on paths from dominator to
   // dominated.
@@ -1415,23 +1418,24 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
     HBasicBlock* block = graph_->blocks()->at(i);
     HInstruction* instr = block->first();
     int id = block->block_id();
-    int side_effects = 0;
+    GVNFlagSet side_effects;
     while (instr != NULL) {
-      side_effects |= instr->ChangesFlags();
+      side_effects.Add(instr->ChangesFlags());
       instr = instr->next();
     }
-    block_side_effects_[id] |= side_effects;
+    block_side_effects_[id].Add(side_effects);
 
     // Loop headers are part of their loop.
     if (block->IsLoopHeader()) {
-      loop_side_effects_[id] |= side_effects;
+      loop_side_effects_[id].Add(side_effects);
     }
 
     // Propagate loop side effects upwards.
     if (block->HasParentLoopHeader()) {
       int header_id = block->parent_loop_header()->block_id();
-      loop_side_effects_[header_id] |=
-          block->IsLoopHeader() ? loop_side_effects_[id] : side_effects;
+      loop_side_effects_[header_id].Add(block->IsLoopHeader()
+                                        ? loop_side_effects_[id]
+                                        : side_effects);
     }
   }
 }
@@ -1441,10 +1445,10 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
   for (int i = graph_->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
-      int side_effects = loop_side_effects_[block->block_id()];
+      GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
       TraceGVN("Try loop invariant motion for block B%d effects=0x%x\n",
                block->block_id(),
-               side_effects);
+               side_effects.ToIntegral());
 
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
@@ -1457,17 +1461,17 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
 
 void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
                                             HBasicBlock* loop_header,
-                                            int loop_kills) {
+                                            GVNFlagSet loop_kills) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
-  int depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
+  GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
            block->block_id(),
-           depends_flags);
+           depends_flags.ToIntegral());
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
     if (instr->CheckFlag(HValue::kUseGVN) &&
-        (instr->flags() & depends_flags) == 0) {
+        !instr->gvn_flags().ContainsAnyOf(depends_flags)) {
       TraceGVN("Checking instruction %d (%s)\n",
                instr->id(),
                instr->Mnemonic());
@@ -1503,20 +1507,20 @@ bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
 }
 
 
-int HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
+GVNFlagSet HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
     HBasicBlock* dominator, HBasicBlock* dominated) {
-  int side_effects = 0;
+  GVNFlagSet side_effects;
   for (int i = 0; i < dominated->predecessors()->length(); ++i) {
     HBasicBlock* block = dominated->predecessors()->at(i);
     if (dominator->block_id() < block->block_id() &&
         block->block_id() < dominated->block_id() &&
         visited_on_paths_.Add(block->block_id())) {
-      side_effects |= block_side_effects_[block->block_id()];
+      side_effects.Add(block_side_effects_[block->block_id()]);
       if (block->IsLoopHeader()) {
-        side_effects |= loop_side_effects_[block->block_id()];
+        side_effects.Add(loop_side_effects_[block->block_id()]);
       }
-      side_effects |= CollectSideEffectsOnPathsToDominatedBlock(
-          dominator, block);
+      side_effects.Add(CollectSideEffectsOnPathsToDominatedBlock(
+          dominator, block));
     }
   }
   return side_effects;
@@ -1537,8 +1541,8 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
-    int flags = instr->ChangesFlags();
-    if (flags != 0) {
+    GVNFlagSet flags = instr->ChangesFlags();
+    if (!flags.IsEmpty()) {
       // Clear all instructions in the map that are affected by side effects.
       map->Kill(flags);
       TraceGVN("Instruction %d kills\n", instr->id());
@@ -3597,7 +3601,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
     instr->set_transition(transition);
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
-    instr->SetFlag(HValue::kChangesMaps);
+    instr->SetGVNFlag(kChangesMaps);
   }
   return instr;
 }
