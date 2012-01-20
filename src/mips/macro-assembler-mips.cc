@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3315,17 +3315,51 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 }
 
 
+void MacroAssembler::CompareMapAndBranch(Register obj,
+                                         Register scratch,
+                                         Handle<Map> map,
+                                         Label* early_success,
+                                         Condition cond,
+                                         Label* branch_to,
+                                         CompareMapMode mode) {
+  lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  Operand right = Operand(map);
+  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
+    Map* transitioned_fast_element_map(
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
+    ASSERT(transitioned_fast_element_map == NULL ||
+           map->elements_kind() != FAST_ELEMENTS);
+    if (transitioned_fast_element_map != NULL) {
+      Branch(early_success, eq, scratch, right);
+      right = Operand(Handle<Map>(transitioned_fast_element_map));
+    }
+
+    Map* transitioned_double_map(
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
+    ASSERT(transitioned_double_map == NULL ||
+           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    if (transitioned_double_map != NULL) {
+      Branch(early_success, eq, scratch, right);
+      right = Operand(Handle<Map>(transitioned_double_map));
+    }
+  }
+
+  Branch(branch_to, cond, scratch, right);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type) {
+                              SmiCheckType smi_check_type,
+                              CompareMapMode mode) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
-  lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  li(at, Operand(map));
-  Branch(fail, ne, scratch, Operand(at));
+  Label success;
+  CompareMapAndBranch(obj, scratch, map, &success, ne, fail, mode);
+  bind(&success);
 }
 
 

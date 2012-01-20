@@ -4106,16 +4106,26 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 }
 
 
+void LCodeGen::DoCheckMapCommon(Register reg,
+                                Register scratch,
+                                Handle<Map> map,
+                                CompareMapMode mode,
+                                LEnvironment* env) {
+  Label success;
+  __ CompareMapAndBranch(reg, scratch, map, &success, eq, &success, mode);
+  DeoptimizeIf(al, env);
+  __ bind(&success);
+}
+
+
 void LCodeGen::DoCheckMap(LCheckMap* instr) {
   Register scratch = scratch0();
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
-  __ lw(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
-  DeoptimizeIf(ne,
-               instr->environment(),
-               scratch,
-               Operand(instr->hydrogen()->map()));
+  Handle<Map> map = instr->hydrogen()->map();
+  DoCheckMapCommon(reg, scratch, map, instr->hydrogen()->mode(),
+                   instr->environment());
 }
 
 
@@ -4183,11 +4193,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
-    __ lw(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
-    DeoptimizeIf(ne,
-                 instr->environment(),
-                 temp2,
-                 Operand(Handle<Map>(current_prototype->map())));
+    DoCheckMapCommon(temp1, temp2,
+                     Handle<Map>(current_prototype->map()),
+                     ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
@@ -4195,11 +4203,9 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   }
 
   // Check the holder map.
-  __ lw(temp2, FieldMemOperand(temp1, HeapObject::kMapOffset));
-  DeoptimizeIf(ne,
-               instr->environment(),
-               temp2,
-               Operand(Handle<Map>(current_prototype->map())));
+  DoCheckMapCommon(temp1, temp2,
+                   Handle<Map>(current_prototype->map()),
+                   ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
 }
 
 
