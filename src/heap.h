@@ -2615,6 +2615,7 @@ class PathTracer : public ObjectVisitor {
 
   AssertNoAllocation no_alloc;  // i.e. no gc allowed.
 
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
 #endif  // DEBUG || LIVE_OBJECT_LIST

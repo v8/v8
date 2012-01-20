@@ -7806,7 +7806,8 @@ class TemplateInfo: public Struct {
   static const int kTagOffset          = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
   static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
- protected:
+
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
 };
 
