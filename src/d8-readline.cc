@@ -91,7 +91,11 @@ bool ReadLineEditor::Close() {
 
 
 Handle<String> ReadLineEditor::Prompt(const char* prompt) {
-  char* result = readline(prompt);
+  char* result = NULL;
+  {  // Release lock for blocking input.
+    Unlocker unlock(Isolate::GetCurrent());
+    result = readline(prompt);
+  }
   if (result != NULL) {
     AddHistory(result);
   } else {

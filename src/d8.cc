@@ -241,7 +241,12 @@ Handle<String> Shell::ReadFromStdin() {
     // Continue reading if the line ends with an escape '\\' or the line has
     // not been fully read into the buffer yet (does not end with '\n').
     // If fgets gets an error, just give up.
-    if (fgets(buffer, kBufferSize, stdin) == NULL) return Handle<String>();
+    char* input = NULL;
+    {  // Release lock for blocking input.
+      Unlocker unlock(Isolate::GetCurrent());
+      input = fgets(buffer, kBufferSize, stdin);
+    }
+    if (input == NULL) return Handle<String>();
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
@@ -604,6 +609,12 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
   return val;
 }
+
+
+void Shell::DispatchDebugMessages() {
+  v8::Context::Scope scope(Shell::evaluation_context_);
+  v8::Debug::ProcessDebugMessages();
+}
 #endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // V8_SHARED
 
@@ -873,6 +884,7 @@ void Shell::Initialize() {
   // Start the debugger agent if requested.
   if (i::FLAG_debugger_agent) {
     v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
+    v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
   }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // V8_SHARED
