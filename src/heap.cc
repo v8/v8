@@ -6515,10 +6515,16 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
 
 
 int KeyedLookupCache::Lookup(Map* map, String* name) {
-  int index = Hash(map, name);
+  int index = (Hash(map, name) & kHashMask);
   Key& key = keys_[index];
   if ((key.map == map) && key.name->Equals(name)) {
     return field_offsets_[index];
+  }
+  ASSERT(kEntriesPerBucket == 2);  // There are two entries to check.
+  // First entry in the bucket missed, check the second.
+  Key& key2 = keys_[index + 1];
+  if ((key2.map == map) && key2.name->Equals(name)) {
+    return field_offsets_[index + 1];
   }
   return kNotFound;
 }
@@ -6527,8 +6533,14 @@ int KeyedLookupCache::Lookup(Map* map, String* name) {
 void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
   String* symbol;
   if (HEAP->LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(map, symbol);
+    int index = (Hash(map, symbol) & kHashMask);
     Key& key = keys_[index];
+    Key& key2 = keys_[index + 1];  // Second entry in the bucket.
+    // Demote the first entry to the second in the bucket.
+    key2.map = key.map;
+    key2.name = key.name;
+    field_offsets_[index + 1] = field_offsets_[index];
+    // Write the new first entry.
     key.map = map;
     key.name = symbol;
     field_offsets_[index] = field_offset;

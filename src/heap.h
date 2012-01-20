@@ -2135,9 +2135,11 @@ class KeyedLookupCache {
   // Clear the cache.
   void Clear();
 
-  static const int kLength = 64;
+  static const int kLength = 128;
   static const int kCapacityMask = kLength - 1;
-  static const int kMapHashShift = 2;
+  static const int kMapHashShift = 5;
+  static const int kHashMask = -2;  // Zero the last bit.
+  static const int kEntriesPerBucket = 2;
   static const int kNotFound = -1;
 
  private:
