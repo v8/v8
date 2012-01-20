@@ -1206,10 +1206,12 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
 
 static bool StoreICableLookup(LookupResult* lookup) {
   // Bail out if we didn't find a result.
-  if (!lookup->IsPropertyOrTransition() || !lookup->IsCacheable()) return false;
+  if (!lookup->IsFound() || lookup->type() == NULL_DESCRIPTOR) return false;
 
-  // If the property is read-only, we leave the IC in its current
-  // state.
+  // Bail out if inline caching is not allowed.
+  if (!lookup->IsCacheable()) return false;
+
+  // If the property is read-only, we leave the IC in its current state.
   if (lookup->IsReadOnly()) return false;
 
   return true;

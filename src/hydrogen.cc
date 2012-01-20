@@ -3552,7 +3552,7 @@ static bool ComputeStoredField(Handle<Map> type,
                                Handle<String> name,
                                LookupResult* lookup) {
   type->LookupInDescriptors(NULL, *name, lookup);
-  if (!lookup->IsPropertyOrTransition()) return false;
+  if (!lookup->IsFound()) return false;
   if (lookup->type() == FIELD) return true;
   return (lookup->type() == MAP_TRANSITION) &&
       (type->unused_property_fields() > 0);
