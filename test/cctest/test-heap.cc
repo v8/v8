@@ -1606,4 +1606,23 @@ TEST(PrototypeTransitionClearing) {
     CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
     CHECK(trans->get(j + Map::kProtoTransitionPrototypeOffset)->IsJSObject());
   }
+
+  // Make sure next prototype is placed on an old-space evacuation candidate.
+  Handle<JSObject> prototype;
+  PagedSpace* space = HEAP->old_pointer_space();
+  do {
+    prototype = FACTORY->NewJSArray(32 * KB, TENURED);
+  } while (space->FirstPage() == space->LastPage() ||
+      !space->LastPage()->Contains(prototype->address()));
+
+  // Add a prototype on an evacuation candidate and verify that transition
+  // clearing correctly records slots in prototype transition array.
+  i::FLAG_always_compact = true;
+  Handle<Map> map(baseObject->map());
+  CHECK(!space->LastPage()->Contains(map->prototype_transitions()->address()));
+  CHECK(space->LastPage()->Contains(prototype->address()));
+  baseObject->SetPrototype(*prototype, false)->ToObjectChecked();
+  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
 }

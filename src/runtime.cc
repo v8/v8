@@ -1434,7 +1434,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         !object->IsJSContextExtensionObject()) {
       LookupResult lookup(isolate);
       object->Lookup(*name, &lookup);
-      if (lookup.IsProperty() && (lookup.type() == CALLBACKS)) {
+      if (lookup.IsFound() && (lookup.type() == CALLBACKS)) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
@@ -1482,7 +1482,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
          JSObject::cast(object)->map()->is_hidden_prototype()) {
     JSObject* raw_holder = JSObject::cast(object);
     raw_holder->LocalLookup(*name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
       HandleScope handle_scope(isolate);
       Handle<JSObject> holder(raw_holder);
       PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
@@ -1648,7 +1648,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
     // GetProperty() to get the current value as it 'unholes' the value.
     LookupResult lookup(isolate);
     object->LocalLookupRealNamedProperty(*name, &lookup);
-    ASSERT(lookup.IsProperty());  // the property was declared
+    ASSERT(lookup.IsFound());  // the property was declared
     ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
 
     PropertyType type = lookup.type();
@@ -1869,9 +1869,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
-  NoHandleAllocation handle_free;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(JSFunction, function, args[0]);
+  CONVERT_CHECKED(JSReceiver, callable, args[0]);
+
+  if (!callable->IsJSFunction()) {
+    HandleScope scope(isolate);
+    bool threw = false;
+    Handle<Object> delegate =
+        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    if (threw) return Failure::Exception();
+    callable = JSFunction::cast(*delegate);
+  }
+  JSFunction* function = JSFunction::cast(callable);
+
   SharedFunctionInfo* shared = function->shared();
   if (shared->native() || !shared->is_classic_mode()) {
     return isolate->heap()->undefined_value();
@@ -4246,7 +4256,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         // appropriate.
         LookupResult result(isolate);
         receiver->LocalLookup(key, &result);
-        if (result.IsProperty() && result.type() == FIELD) {
+        if (result.IsFound() && result.type() == FIELD) {
           int offset = result.GetFieldIndex();
           keyed_lookup_cache->Update(receiver_map, key, offset);
           return receiver->FastPropertyAt(offset);
@@ -4394,7 +4404,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // Special case for callback properties.
-  if (result.IsProperty() && result.type() == CALLBACKS) {
+  if (result.IsFound() && result.type() == CALLBACKS) {
     Object* callback = result.GetCallbackObject();
     // To be compatible with Safari we do not change the value on API objects
     // in Object.defineProperty(). Firefox disagrees here, and actually changes

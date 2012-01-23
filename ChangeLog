@@ -1,3 +1,18 @@
+2012-01-23: Version 3.8.8
+
+        Limited number of loop iterations in Heap::ReserveSpace
+        (Chromium issue 99027).
+
+        Fixed solaris build (VirtualMemory) (issue 1761).
+
+        Fixed strict vs. non-strict handling of function proxies in
+        higher-order array and string methods.
+
+        Enabled asynchronous remote debugging with d8 (issue 1691).
+
+        Stability and performance improvements on all platforms.
+
+
 2012-01-19: Version 3.8.7
 
         Ensure that LRandom restores rsi after call to the C function on x64.

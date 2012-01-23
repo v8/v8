@@ -1071,6 +1071,7 @@ class Isolate {
     Isolate* previous_isolate;
     EntryStackItem* previous_item;
 
+   private:
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 

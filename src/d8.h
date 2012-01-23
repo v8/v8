@@ -266,12 +266,13 @@ class Shell : public i::AllStatic {
                                size_t buckets);
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
-#endif  // V8_SHARED
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<Object> DebugMessageDetails(Handle<String> message);
   static Handle<Value> DebugCommandToJSONRequest(Handle<String> command);
-#endif
+  static void DispatchDebugMessages();
+#endif  // ENABLE_DEBUGGER_SUPPORT
+#endif  // V8_SHARED
 
 #ifdef WIN32
 #undef Yield

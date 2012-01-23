@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -923,6 +923,7 @@ class SignalSender : public Thread {
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(SignalSender);
 };
 

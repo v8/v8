@@ -1178,6 +1178,7 @@ class SignalSender : public Thread {
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(SignalSender);
 };
 

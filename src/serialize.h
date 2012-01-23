@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -581,6 +581,7 @@ class Serializer : public SerializerDeserializer {
   friend class ObjectSerializer;
   friend class Deserializer;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
