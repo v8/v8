@@ -2135,12 +2135,16 @@ class KeyedLookupCache {
   // Clear the cache.
   void Clear();
 
-  static const int kLength = 128;
+  static const int kLength = 256;
   static const int kCapacityMask = kLength - 1;
   static const int kMapHashShift = 5;
-  static const int kHashMask = -2;  // Zero the last bit.
-  static const int kEntriesPerBucket = 2;
+  static const int kHashMask = -4;  // Zero the last two bits.
+  static const int kEntriesPerBucket = 4;
   static const int kNotFound = -1;
+
+  // kEntriesPerBucket should be a power of 2.
+  STATIC_ASSERT((kEntriesPerBucket & (kEntriesPerBucket - 1)) == 0);
+  STATIC_ASSERT(kEntriesPerBucket == -kHashMask);
 
  private:
   KeyedLookupCache() {
