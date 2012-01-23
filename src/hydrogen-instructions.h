@@ -3844,6 +3844,8 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
   HValue* key() { return OperandAt(1); }
   ElementsKind elements_kind() const { return elements_kind_; }
 
+  virtual Range* InferRange();
+
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 
  protected:
