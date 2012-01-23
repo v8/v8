@@ -746,7 +746,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
         && type->prototype()->IsJSObject()) {
       holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
       type = Handle<Map>(holder()->map());
-    } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
+    } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
       target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
       return true;
     } else {
@@ -760,7 +760,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<JSGlobalPropertyCell>::null();
-  ASSERT(lookup->IsProperty() &&
+  ASSERT(lookup->IsFound() &&
          lookup->type() == NORMAL &&
          lookup->holder() == *global);
   cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));

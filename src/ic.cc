@@ -860,7 +860,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   PropertyAttributes attr;
-  if (lookup.IsProperty() &&
+  if (lookup.IsFound() &&
       (lookup.type() == INTERCEPTOR || lookup.type() == HANDLER)) {
     // Get the property.
     Handle<Object> result =
@@ -1083,7 +1083,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     PropertyAttributes attr;
-    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
       // Get the property.
       Handle<Object> result =
           Object::GetProperty(object, object, &lookup, name, &attr);

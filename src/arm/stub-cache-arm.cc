@@ -1179,7 +1179,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
   // and CALLBACKS, so inline only them, other cases may be added
   // later.
   bool compile_followup_inline = false;
-  if (lookup->IsProperty() && lookup->IsCacheable()) {
+  if (lookup->IsFound() && lookup->IsCacheable()) {
     if (lookup->type() == FIELD) {
       compile_followup_inline = true;
     } else if (lookup->type() == CALLBACKS &&

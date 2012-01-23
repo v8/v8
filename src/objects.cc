@@ -4353,7 +4353,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
        current != heap->null_value() && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsProperty() && result->type() == CALLBACKS) return;
+    if (result->IsFound() && result->type() == CALLBACKS) return;
   }
   result->NotFound();
 }
@@ -4457,7 +4457,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     // Lookup the name.
     LookupResult result(heap->isolate());
     LocalLookupRealNamedProperty(name, &result);
-    if (result.IsProperty()) {
+    if (result.IsFound()) {
       // TODO(mstarzinger): We should check for result.IsDontDelete() here once
       // we only call into the runtime once to set both getter and setter.
       if (result.type() == CALLBACKS) {
@@ -7588,7 +7588,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
       LookupResult result(heap->isolate());
       String* name = GetThisPropertyAssignmentName(i);
       js_object->LocalLookupRealNamedProperty(name, &result);
-      if (result.IsProperty() && result.type() == CALLBACKS) {
+      if (result.IsFound() && result.type() == CALLBACKS) {
         return false;
       }
     }
@@ -10262,7 +10262,7 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
   LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsProperty() && (result.type() == CALLBACKS);
+  return result.IsFound() && (result.type() == CALLBACKS);
 }
 
 

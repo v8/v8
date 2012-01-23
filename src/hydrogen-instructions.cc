@@ -1415,7 +1415,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
     Handle<Map> map = types->at(i);
     LookupResult lookup(map->GetIsolate());
     map->LookupInDescriptors(NULL, *name, &lookup);
-    if (lookup.IsProperty()) {
+    if (lookup.IsFound()) {
       switch (lookup.type()) {
         case FIELD: {
           int index = lookup.GetLocalFieldIndexFromMap(*map);

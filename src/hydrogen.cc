@@ -3207,7 +3207,7 @@ HGraphBuilder::GlobalPropertyAccess HGraphBuilder::LookupGlobalProperty(
   }
   Handle<GlobalObject> global(info()->global_object());
   global->Lookup(*var->name(), lookup);
-  if (!lookup->IsProperty() ||
+  if (!lookup->IsFound() ||
       lookup->type() != NORMAL ||
       (is_store && lookup->IsReadOnly()) ||
       lookup->holder() != *global) {
@@ -4159,13 +4159,13 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Handle<String> name) {
   LookupResult lookup(isolate());
   map->LookupInDescriptors(NULL, *name, &lookup);
-  if (lookup.IsProperty() && lookup.type() == FIELD) {
+  if (lookup.IsFound() && lookup.type() == FIELD) {
     return BuildLoadNamedField(obj,
                                expr,
                                map,
                                &lookup,
                                true);
-  } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
+  } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
     AddInstruction(new(zone()) HCheckNonSmi(obj));
     AddInstruction(new(zone()) HCheckMap(obj, map, NULL,
                                          ALLOW_ELEMENT_TRANSITION_MAPS));
@@ -6253,7 +6253,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       Handle<GlobalObject> global(info()->global_object());
       LookupResult lookup(isolate());
       global->Lookup(*name, &lookup);
-      if (lookup.IsProperty() &&
+      if (lookup.IsFound() &&
           lookup.type() == NORMAL &&
           lookup.GetValue()->IsJSFunction()) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));

@@ -2142,7 +2142,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name) {
   LookupResult lookup(isolate());
   type->LookupInDescriptors(NULL, *name, &lookup);
-  ASSERT(lookup.IsProperty() &&
+  ASSERT(lookup.IsFound() &&
          (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION));
   if (lookup.type() == FIELD) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
