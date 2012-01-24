@@ -4700,6 +4700,34 @@ void MacroAssembler::PatchRelocatedValue(Register li_location,
   FlushICache(li_location, 2);
 }
 
+void MacroAssembler::GetRelocatedValue(Register li_location,
+                                       Register value,
+                                       Register scratch) {
+  lw(value, MemOperand(li_location));
+  if (emit_debug_code()) {
+    And(value, value, kOpcodeMask);
+    Check(eq, "The instruction should be a lui.",
+        value, Operand(LUI));
+    lw(value, MemOperand(li_location));
+  }
+
+  // value now holds a lui instruction. Extract the immediate.
+  sll(value, value, kImm16Bits);
+
+  lw(scratch, MemOperand(li_location, kInstrSize));
+  if (emit_debug_code()) {
+    And(scratch, scratch, kOpcodeMask);
+    Check(eq, "The instruction should be an ori.",
+        scratch, Operand(ORI));
+    lw(scratch, MemOperand(li_location, kInstrSize));
+  }
+  // "scratch" now holds an ori instruction. Extract the immediate.
+  andi(scratch, scratch, kImm16Mask);
+
+  // Merge the results.
+  or_(value, value, scratch);
+}
+
 
 void MacroAssembler::CheckPageFlag(
     Register object,

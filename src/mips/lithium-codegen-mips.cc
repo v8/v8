@@ -1986,7 +1986,10 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch with
   // the cached map.
-  __ li(at, Operand(factory()->the_hole_value()), true);
+  Handle<JSGlobalPropertyCell> cell =
+      factory()->NewJSGlobalPropertyCell(factory()->the_hole_value());
+  __ li(at, Operand(Handle<Object>(cell)));
+  __ lw(at, FieldMemOperand(at, JSGlobalPropertyCell::kValueOffset));
   __ Branch(&cache_miss, ne, map, Operand(at));
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch

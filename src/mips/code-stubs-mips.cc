@@ -4147,7 +4147,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register inline_site = t5;
   const Register scratch = a2;
 
-  const int32_t kDeltaToLoadBoolResult = 4 * kPointerSize;
+  const int32_t kDeltaToLoadBoolResult = 5 * kPointerSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -4191,11 +4191,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Patch the (relocated) inlined map check.
 
     // The offset was stored in t0 safepoint slot.
-    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal)
+    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
     __ LoadFromSafepointRegisterSlot(scratch, t0);
     __ Subu(inline_site, ra, scratch);
-    // Patch the relocated value to map.
-    __ PatchRelocatedValue(inline_site, scratch, map);
+    // Get the map location in scratch and patch it.
+    __ GetRelocatedValue(inline_site, scratch, v1);  // v1 used as scratch.
+    __ sw(map, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
   }
 
   // Register mapping: a3 is object map and t0 is function prototype.
