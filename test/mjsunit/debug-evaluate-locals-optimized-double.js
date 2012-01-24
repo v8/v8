@@ -47,7 +47,8 @@ var expected = [
   { locals: {a1: 3.03, b1: 4.04}, args: { names: ["i", "x1", "y1"], values: [1, 5.05, 6.06] } },
   { locals: {a2: 5.05, b2: 6.06}, args: { names: ["i"], values: [2] } },
   { locals: {a3: 7.07, b3: 8.08}, args: { names: ["i", "x3", "y3", "z3"],
-					values: [3, 9.09, 10.10, undefined] } },
+                                          values: [3, 9.09, 10.10, undefined] }
+  },
   { locals: {a4: 9.09, b4: 10.10}, args: { names: ["i", "x4", "y4"], values: [4, 11.11, 12.12] } }
 ];
 
