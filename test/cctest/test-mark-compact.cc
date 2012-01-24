@@ -526,12 +526,25 @@ static intptr_t MemoryInUse() {
 
 TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
+  FLAG_crankshaft = false;  // Avoid flakiness.
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not
   // there we just skip the test.
   if (initial_memory >= 0) {
     InitializeVM();
     intptr_t booted_memory = MemoryInUse();
-    CHECK_LE(booted_memory - initial_memory, 16 * 1024 * 1024);
+    if (sizeof(initial_memory) == 8) {
+      if (v8::internal::Snapshot::IsEnabled()) {
+        CHECK_LE(booted_memory - initial_memory, 7654 * 1024);  // 7468.
+      } else {
+        CHECK_LE(booted_memory - initial_memory, 7777 * 1024);  // 7620.
+      }
+    } else {
+      if (v8::internal::Snapshot::IsEnabled()) {
+        CHECK_LE(booted_memory - initial_memory, 7500 * 1024);  // 7380.
+      } else {
+        CHECK_LE(booted_memory - initial_memory, 7654 * 1024);  // 7448
+      }
+    }
   }
 }
 
