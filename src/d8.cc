@@ -1036,9 +1036,7 @@ Handle<Value> Shell::ReadBinary(const Arguments& args) {
   // We skip checking the string for UTF8 characters and use it raw as
   // backing store for the external string with 8-bit characters.
   BinaryResource* resource = new BinaryResource(chars, size);
-  i::Handle<i::String> string(
-      FACTORY->NewExternalStringFromAscii(resource));
-  return Utils::ToLocal(string);
+  return String::NewExternal(resource);
 }
 
 
