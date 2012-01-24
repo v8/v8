@@ -2717,7 +2717,7 @@ class RetainedObjectInfo;
  * default isolate is implicitly created and entered.  The embedder
  * can create additional isolates and use them in parallel in multiple
  * threads.  An isolate can be entered by at most one thread at any
- * given time.  The Locker/Unlocker API can be used to synchronize.
+ * given time.  The Locker/Unlocker API must be used to synchronize.
  */
 class V8EXPORT Isolate {
  public:
@@ -3559,7 +3559,9 @@ class V8EXPORT Context {
  * accessing handles or holding onto object pointers obtained
  * from V8 handles while in the particular V8 isolate.  It is up
  * to the user of V8 to ensure (perhaps with locking) that this
- * constraint is not violated.
+ * constraint is not violated.  In addition to any other synchronization
+ * mechanism that may be used, the v8::Locker and v8::Unlocker classes
+ * must be used to signal thead switches to V8.
  *
  * v8::Locker is a scoped lock object. While it's
  * active (i.e. between its construction and destruction) the current thread is
