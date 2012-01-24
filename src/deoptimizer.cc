@@ -632,7 +632,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
 
       int index = (info->parameters_count() - 1) -
-          (slot - parameters_top) / kPointerSize;
+          static_cast<int>(slot - parameters_top) / kPointerSize;
 
       if (FLAG_trace_deopt) {
         PrintF("Materializing a new heap number %p [%e] in slot %p"
@@ -648,7 +648,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
       Handle<Object> num = isolate_->factory()->NewNumber(d.value());
 
       int index = info->expression_count() - 1 -
-          (slot - expressions_top) / kPointerSize;
+          static_cast<int>(slot - expressions_top) / kPointerSize;
 
       if (FLAG_trace_deopt) {
         PrintF("Materializing a new heap number %p [%e] in slot %p"
