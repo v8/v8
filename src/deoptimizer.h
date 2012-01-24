@@ -258,7 +258,7 @@ class Deoptimizer : public Malloced {
   };
 
  private:
-  static const int kNumberOfEntries = 4096;
+  static const int kNumberOfEntries = 8192;
 
   Deoptimizer(Isolate* isolate,
               JSFunction* function,
