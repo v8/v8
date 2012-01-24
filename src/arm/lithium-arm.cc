@@ -1923,12 +1923,11 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
   ElementsKind elements_kind = instr->elements_kind();
-  Representation representation(instr->representation());
   ASSERT(
-      (representation.IsInteger32() &&
+      (instr->representation().IsInteger32() &&
        (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
        (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
-      (representation.IsDouble() &&
+      (instr->representation().IsDouble() &&
        ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->key()->representation().IsInteger32());
@@ -1988,13 +1987,12 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
 
 LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
-  Representation representation(instr->value()->representation());
   ElementsKind elements_kind = instr->elements_kind();
   ASSERT(
-      (representation.IsInteger32() &&
+      (instr->value()->representation().IsInteger32() &&
        (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
        (elements_kind != EXTERNAL_DOUBLE_ELEMENTS)) ||
-      (representation.IsDouble() &&
+      (instr->value()->representation().IsDouble() &&
        ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->external_pointer()->representation().IsExternal());
