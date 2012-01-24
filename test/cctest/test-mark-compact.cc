@@ -534,15 +534,15 @@ TEST(BootUpMemoryUse) {
     intptr_t booted_memory = MemoryInUse();
     if (sizeof(initial_memory) == 8) {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 7654 * 1024);  // 7468.
+        CHECK_LE(booted_memory - initial_memory, 6654 * 1024);  // 6444.
       } else {
-        CHECK_LE(booted_memory - initial_memory, 7777 * 1024);  // 7620.
+        CHECK_LE(booted_memory - initial_memory, 6777 * 1024);  // 6596.
       }
     } else {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 7500 * 1024);  // 7380.
+        CHECK_LE(booted_memory - initial_memory, 6500 * 1024);  // 6365.
       } else {
-        CHECK_LE(booted_memory - initial_memory, 7654 * 1024);  // 7448
+        CHECK_LE(booted_memory - initial_memory, 6654 * 1024);  // 6424
       }
     }
   }
