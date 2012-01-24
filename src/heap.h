@@ -156,6 +156,7 @@ inline Heap* _inline_get_heap_();
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
+  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1067,7 +1068,7 @@ class Heap {
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
   // TODO(1490): Try removing the unchecked accessors, now that GC marking does
-  // not corrupt the stack.
+  // not corrupt the map.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   type* name() {                                                               \
     return type::cast(roots_[k##camel_name##RootIndex]);                       \
@@ -1515,6 +1516,11 @@ class Heap {
     uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
     ASSERT(FLAG_randomize_hashes || seed == 0);
     return seed;
+  }
+
+  void SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
+    ASSERT(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+    set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
  private:

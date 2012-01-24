@@ -27,60 +27,36 @@
 
 // Flags: --allow-natives-syntax
 
-// Test function.arguments.
+// Test inlining at call sites with mismatched arity.
 
-function A() {}
-function B() {}
-
-function fee(x, y) {
-  if (x == 1) return fee["arg" + "uments"];
-  if (x == 2) return gee["arg" + "uments"];
-  return 42;
+function f(a) {
+  return a.x;
 }
 
-function gee(x) { return this.f(2 - x, "f"); }
-
-function foo(x, y) {
-  if (x == 0) return foo["arg" + "uments"];
-  if (x == 1) return goo["arg" + "uments"];
-  return 42;
+function g(a, b) {
+  return a.x;
 }
 
-function goo(x) { return this.f(x, "f"); }
-
-A.prototype.f = fee;
-A.prototype.g = gee;
-
-B.prototype.f = foo;
-B.prototype.g = goo;
-
-var o = new A();
-
-function hej(x) {
-  if (x == 0) return o.g(x, "h");
-  if (x == 1) return o.g(x, "h");
-  return o.g(x, "z");
+function h1(a, b) {
+  return f(a, a) * g(b);
 }
 
-function opt() {
-  for (var k=0; k<2; k++) {
-    for (var i=0; i<5; i++) o.g(i, "g");
-    for (var j=0; j<5; j++) hej(j);
-  }
-  %OptimizeFunctionOnNextCall(o.g);
-  %OptimizeFunctionOnNextCall(hej);
+function h2(a, b) {
+  return f(a, a) * g(b);
 }
 
-opt();
-assertArrayEquals([0, "g"], o.g(0, "g"));
-assertArrayEquals([1, "f"], o.g(1, "g"));
-assertArrayEquals([0, "h"], hej(0));
-assertArrayEquals([1, "f"], hej(1));
 
-o = new B();
+var o = {x: 2};
 
-opt();
-assertArrayEquals([0, "f"], o.g(0, "g"));
-assertArrayEquals([1, "g"], o.g(1, "g"));
-assertArrayEquals([0, "f"], hej(0));
-assertArrayEquals([1, "h"], hej(1));
+assertEquals(4, h1(o, o));
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
+assertEquals(4, h2(o, o));
+%OptimizeFunctionOnNextCall(h1);
+%OptimizeFunctionOnNextCall(h2);
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
+
+var u = {y:0, x:1};
+assertEquals(2, h1(u, o));
+assertEquals(2, h2(o, u));

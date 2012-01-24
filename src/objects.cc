@@ -8113,8 +8113,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         static_cast<Translation::Opcode>(iterator.Next());
     ASSERT(Translation::BEGIN == opcode);
     int frame_count = iterator.Next();
-    PrintF(out, "  %s {count=%d}\n", Translation::StringFor(opcode),
-           frame_count);
+    int jsframe_count = iterator.Next();
+    PrintF(out, "  %s {frame count=%d, js frame count=%d}\n",
+           Translation::StringFor(opcode),
+           frame_count,
+           jsframe_count);
 
     while (iterator.HasNext() &&
            Translation::BEGIN !=
@@ -8126,7 +8129,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           UNREACHABLE();
           break;
 
-        case Translation::FRAME: {
+        case Translation::JS_FRAME: {
           int ast_id = iterator.Next();
           int function_id = iterator.Next();
           JSFunction* function =
@@ -8135,6 +8138,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           PrintF(out, "{ast_id=%d, function=", ast_id);
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
+          break;
+        }
+
+        case Translation::ARGUMENTS_ADAPTOR_FRAME: {
+          unsigned height = iterator.Next();
+          PrintF(out, "{arguments adaptor, height=%d}", height);
           break;
         }
 

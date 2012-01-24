@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -574,11 +574,12 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
   Factory* factory = Isolate::Current()->factory();
-  int args_count = inlined_function->shared()->formal_parameter_count();
-  ScopedVector<SlotRef> args_slots(args_count);
-  SlotRef::ComputeSlotMappingForArguments(frame,
-                                          inlined_frame_index,
-                                          &args_slots);
+  Vector<SlotRef> args_slots =
+      SlotRef::ComputeSlotMappingForArguments(
+          frame,
+          inlined_frame_index,
+          inlined_function->shared()->formal_parameter_count());
+  int args_count = args_slots.length();
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
@@ -587,6 +588,7 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     array->set(i, *value);
   }
   arguments->set_elements(*array);
+  args_slots.Dispose();
 
   // Return the freshly allocated arguments object.
   return *arguments;

@@ -439,12 +439,14 @@ class LPointerMap: public ZoneObject {
 class LEnvironment: public ZoneObject {
  public:
   LEnvironment(Handle<JSFunction> closure,
+               bool is_arguments_adaptor,
                int ast_id,
                int parameter_count,
                int argument_count,
                int value_count,
                LEnvironment* outer)
       : closure_(closure),
+        is_arguments_adaptor_(is_arguments_adaptor),
         arguments_stack_height_(argument_count),
         deoptimization_index_(Safepoint::kNoDeoptimizationIndex),
         translation_index_(-1),
@@ -501,8 +503,11 @@ class LEnvironment: public ZoneObject {
 
   void PrintTo(StringStream* stream);
 
+  bool is_arguments_adaptor() const { return is_arguments_adaptor_; }
+
  private:
   Handle<JSFunction> closure_;
+  bool is_arguments_adaptor_;
   int arguments_stack_height_;
   int deoptimization_index_;
   int translation_index_;
