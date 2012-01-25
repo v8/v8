@@ -696,6 +696,8 @@ class MarkCompactCollector {
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
+  void ClearNonLivePrototypeTransitions(Map* map);
+  void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
 
   // Marking detaches initial maps from SharedFunctionInfo objects
   // to make this reference weak. We need to reattach initial maps
