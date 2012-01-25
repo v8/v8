@@ -1798,8 +1798,13 @@ class Heap {
   GCTracer* tracer_;
 
 
-  // Initializes the number to string cache based on the max semispace size.
-  MUST_USE_RESULT MaybeObject* InitializeNumberStringCache();
+  // Allocates a small number to string cache.
+  MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
+  // Creates and installs the full-sized number string cache.
+  void AllocateFullSizeNumberStringCache();
+  // Get the length of the number to string cache based on the max semispace
+  // size.
+  int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
@@ -1896,6 +1901,7 @@ class Heap {
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
+  static const int kInitialNumberStringCacheSize = 256;
 
   // Maximum GC pause.
   int max_gc_pause_;

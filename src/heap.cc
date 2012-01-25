@@ -902,8 +902,7 @@ void Heap::MarkCompactPrologue() {
 
   CompletelyClearInstanceofCache();
 
-  // TODO(1605) select heuristic for flushing NumberString cache with
-  // FlushNumberStringCache
+  FlushNumberStringCache();
   if (FLAG_cleanup_code_caches_at_gc) {
     polymorphic_code_cache()->set_cache(undefined_value());
   }
@@ -2512,7 +2511,10 @@ bool Heap::CreateInitialObjects() {
   }
   set_intrinsic_function_names(StringDictionary::cast(obj));
 
-  if (InitializeNumberStringCache()->IsFailure()) return false;
+  { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_number_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for single character ASCII strings.
   { MaybeObject* maybe_obj =
@@ -2622,17 +2624,41 @@ void StringSplitCache::Clear(FixedArray* cache) {
 }
 
 
-MaybeObject* Heap::InitializeNumberStringCache() {
-  // Compute the size of the number string cache based on the max heap size.
-  // max_semispace_size_ == 512 KB => number_string_cache_size = 32.
-  // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
-  int number_string_cache_size = max_semispace_size_ / 512;
-  number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
-  Object* obj;
+MaybeObject* Heap::AllocateInitialNumberStringCache() {
   MaybeObject* maybe_obj =
-      AllocateFixedArray(number_string_cache_size * 2, TENURED);
-  if (maybe_obj->ToObject(&obj)) set_number_string_cache(FixedArray::cast(obj));
+      AllocateFixedArray(kInitialNumberStringCacheSize * 2, TENURED);
   return maybe_obj;
+}
+
+
+int Heap::FullSizeNumberStringCacheLength() {
+  // Compute the size of the number string cache based on the max newspace size.
+  // The number string cache has a minimum size based on twice the initial cache
+  // size to ensure that it is bigger after being made 'full size'.
+  int number_string_cache_size = max_semispace_size_ / 512;
+  number_string_cache_size = Max(kInitialNumberStringCacheSize * 2,
+                                 Min(0x4000, number_string_cache_size));
+  // There is a string and a number per entry so the length is twice the number
+  // of entries.
+  return number_string_cache_size * 2;
+}
+
+
+void Heap::AllocateFullSizeNumberStringCache() {
+  // The idea is to have a small number string cache in the snapshot to keep
+  // boot-time memory usage down.  If we expand the number string cache already
+  // while creating the snapshot then that didn't work out.
+  ASSERT(!Serializer::enabled());
+  MaybeObject* maybe_obj =
+      AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
+  Object* new_cache;
+  if (maybe_obj->ToObject(&new_cache)) {
+    // We don't bother to repopulate the cache with entries from the old cache.
+    // It will be repopulated soon enough with new strings.
+    set_number_string_cache(FixedArray::cast(new_cache));
+  }
+  // If allocation fails then we just return without doing anything.  It is only
+  // a cache, so best effort is OK here.
 }
 
 
@@ -2681,11 +2707,17 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
-    number_string_cache()->set(hash * 2, number);
   }
+  if (number_string_cache()->get(hash * 2) != undefined_value() &&
+      number_string_cache()->length() != FullSizeNumberStringCacheLength()) {
+    // The first time we have a hash collision, we move to the full sized
+    // number string cache.
+    AllocateFullSizeNumberStringCache();
+    return;
+  }
+  number_string_cache()->set(hash * 2, number);
   number_string_cache()->set(hash * 2 + 1, string);
 }
 
