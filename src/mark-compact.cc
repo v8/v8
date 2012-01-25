@@ -1672,6 +1672,16 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 }
 
 
+void MarkCompactCollector::MarkAccessorPairSlot(HeapObject* accessors,
+                                                int offset) {
+  Object** slot = HeapObject::RawField(accessors, offset);
+  HeapObject* accessor = HeapObject::cast(*slot);
+  if (accessor->IsMap()) return;
+  RecordSlot(slot, slot, accessor);
+  MarkObjectAndPush(accessor);
+}
+
+
 void MarkCompactCollector::MarkDescriptorArray(
     DescriptorArray* descriptors) {
   MarkBit descriptors_mark = Marking::MarkBitFrom(descriptors);
@@ -1699,27 +1709,37 @@ void MarkCompactCollector::MarkDescriptorArray(
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
 
     Object** slot = contents->data_start() + i;
-    Object* value = *slot;
-    if (!value->IsHeapObject()) continue;
+    if (!(*slot)->IsHeapObject()) continue;
+    HeapObject* value = HeapObject::cast(*slot);
 
     RecordSlot(slot, slot, *slot);
 
-    if (details.IsProperty()) {
-      HeapObject* object = HeapObject::cast(value);
-      MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
-      if (!mark.Get()) {
-        SetMark(HeapObject::cast(object), mark);
-        marking_deque_.PushBlack(object);
-      }
-    } else if (details.type() == ELEMENTS_TRANSITION && value->IsFixedArray()) {
-      // For maps with multiple elements transitions, the transition maps are
-      // stored in a FixedArray. Keep the fixed array alive but not the maps
-      // that it refers to.
-      HeapObject* object = HeapObject::cast(value);
-      MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
-      if (!mark.Get()) {
-        SetMark(HeapObject::cast(object), mark);
-      }
+    switch (details.type()) {
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+      case HANDLER:
+      case INTERCEPTOR:
+        MarkObjectAndPush(value);
+        break;
+      case CALLBACKS:
+        if (!value->IsAccessorPair()) {
+          MarkObjectAndPush(value);
+        } else if (!MarkObjectWithoutPush(value)) {
+          MarkAccessorPairSlot(value, AccessorPair::kGetterOffset);
+          MarkAccessorPairSlot(value, AccessorPair::kSetterOffset);
+        }
+        break;
+      case ELEMENTS_TRANSITION:
+        // For maps with multiple elements transitions, the transition maps are
+        // stored in a FixedArray. Keep the fixed array alive but not the maps
+        // that it refers to.
+        if (value->IsFixedArray()) MarkObjectWithoutPush(value);
+        break;
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        break;
     }
   }
   // The DescriptorArray descriptors contains a pointer to its contents array,

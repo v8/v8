@@ -628,6 +628,9 @@ class MarkCompactCollector {
   // This is for non-incremental marking.
   INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
 
+  INLINE(bool MarkObjectWithoutPush(HeapObject* object));
+  INLINE(void MarkObjectAndPush(HeapObject* value));
+
   // Marks the object black.  This is for non-incremental marking.
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
 
@@ -645,6 +648,7 @@ class MarkCompactCollector {
 
   // Mark a Map and its DescriptorArray together, skipping transitions.
   void MarkMapContents(Map* map);
+  void MarkAccessorPairSlot(HeapObject* accessors, int offset);
   void MarkDescriptorArray(DescriptorArray* descriptors);
 
   // Mark the heap roots and all objects reachable from them.
