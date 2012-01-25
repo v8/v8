@@ -710,16 +710,17 @@ class CodeFlusher {
       SharedFunctionInfo* candidate) {
     Code* code = candidate->code();
     return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kNextCodeFlushingCandidateOffset);
+        code->address() + Code::kGCMetadataOffset);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
-    return *GetNextCandidateField(candidate);
+    return reinterpret_cast<SharedFunctionInfo*>(
+        candidate->code()->gc_metadata());
   }
 
   static void SetNextCandidate(SharedFunctionInfo* candidate,
                                SharedFunctionInfo* next_candidate) {
-    *GetNextCandidateField(candidate) = next_candidate;
+    candidate->code()->set_gc_metadata(next_candidate);
   }
 
   Isolate* isolate_;
