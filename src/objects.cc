@@ -4954,15 +4954,43 @@ class IntrusiveMapTransitionIterator {
   Map* Next() {
     ASSERT(IsIterating());
     FixedArray* contents = ContentArray();
+    // Attention, tricky index manipulation ahead: Every entry in the contents
+    // array consists of a value/details pair, so the index is typically even.
+    // An exception is made for CALLBACKS entries: An even index means we look
+    // at its getter, and an odd index means we look at its setter.
     int index = Smi::cast(*ContentHeader())->value();
     while (index < contents->length()) {
-      int next_index = index + 2;
-      PropertyDetails details(Smi::cast(contents->get(index + 1)));
-      if (details.IsTransition()) {
-        *ContentHeader() = Smi::FromInt(next_index);
-        return static_cast<Map*>(contents->get(index));
+      PropertyDetails details(Smi::cast(contents->get(index | 1)));
+      switch (details.type()) {
+        case MAP_TRANSITION:
+        case CONSTANT_TRANSITION:
+        case ELEMENTS_TRANSITION:
+          // We definitely have a map transition.
+          *ContentHeader() = Smi::FromInt(index + 2);
+          return static_cast<Map*>(contents->get(index));
+        case CALLBACKS: {
+          // We might have a map transition in a getter or in a setter.
+          AccessorPair* accessors =
+              static_cast<AccessorPair*>(contents->get(index & ~1));
+          Object* accessor =
+              ((index & 1) == 0) ? accessors->getter() : accessors->setter();
+          index++;
+          if (accessor->IsMap()) {
+            *ContentHeader() = Smi::FromInt(index);
+            return static_cast<Map*>(accessor);
+          }
+          break;
+        }
+        case NORMAL:
+        case FIELD:
+        case CONSTANT_FUNCTION:
+        case HANDLER:
+        case INTERCEPTOR:
+        case NULL_DESCRIPTOR:
+          // We definitely have no map transition.
+          index += 2;
+          break;
       }
-      index = next_index;
     }
     *ContentHeader() = descriptor_array_->GetHeap()->fixed_array_map();
     return NULL;
