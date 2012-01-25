@@ -26,15 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
-
 #include "accessors.h"
-#include "ast.h"
+
+#include "contexts.h"
 #include "deoptimizer.h"
 #include "execution.h"
 #include "factory.h"
+#include "frames-inl.h"
+#include "isolate.h"
 #include "list-inl.h"
-#include "safepoint-table.h"
-#include "scopeinfo.h"
+#include "property-details.h"
 
 namespace v8 {
 namespace internal {
