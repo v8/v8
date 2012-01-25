@@ -764,6 +764,7 @@ class HValue: public ZoneObject {
   int flags_;
   GVNFlagSet gvn_flags_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(HValue);
 };
 
