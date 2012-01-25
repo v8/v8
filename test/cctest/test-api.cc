@@ -14042,6 +14042,17 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, script_origin_g.ResourceLineOffset()->Int32Value());
 }
 
+THREADED_TEST(FunctionGetInferredName) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Handle<v8::String> script = v8::String::New(
+      "var foo = { bar : { baz : function() {}}}; var f = foo.bar.baz;");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("f")));
+  CHECK_EQ("foo.bar.baz", *v8::String::AsciiValue(f->GetInferredName()));
+}
 
 THREADED_TEST(ScriptLineNumber) {
   v8::HandleScope scope;

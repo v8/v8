@@ -1732,6 +1732,14 @@ class Function : public Object {
   V8EXPORT Handle<Value> GetName() const;
 
   /**
+   * Name inferred from variable or property assignment of this function.
+   * Used to facilitate debugging and profiling of JavaScript code written
+   * in an OO style, where many functions are anonymous but are assigned
+   * to object properties.
+   */
+  V8EXPORT Handle<Value> GetInferredName() const;
+
+  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
