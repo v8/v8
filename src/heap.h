@@ -1382,6 +1382,7 @@ class Heap {
   void CheckNewSpaceExpansionCriteria();
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
+    ASSERT(survived >= 0);
     young_survivors_after_last_gc_ = survived;
     survived_since_last_expansion_ += survived;
   }
@@ -1431,6 +1432,7 @@ class Heap {
 
   // Returns the size of objects residing in non new spaces.
   intptr_t PromotedSpaceSize();
+  intptr_t PromotedSpaceSizeOfObjects();
 
   double total_regexp_code_generated() { return total_regexp_code_generated_; }
   void IncreaseTotalRegexpCodeGenerated(int size) {
@@ -1805,11 +1807,13 @@ class Heap {
 
   enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
 
-  static const int kYoungSurvivalRateThreshold = 90;
+  static const int kYoungSurvivalRateHighThreshold = 90;
+  static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
 
   int young_survivors_after_last_gc_;
   int high_survival_rate_period_length_;
+  int low_survival_rate_period_length_;
   double survival_rate_;
   SurvivalRateTrend previous_survival_rate_trend_;
   SurvivalRateTrend survival_rate_trend_;
@@ -1842,16 +1846,26 @@ class Heap {
     }
   }
 
+  bool IsStableOrDecreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case DECREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   bool IsIncreasingSurvivalTrend() {
     return survival_rate_trend() == INCREASING;
   }
 
-  bool IsDecreasingSurvivalTrend() {
-    return survival_rate_trend() == DECREASING;
-  }
-
   bool IsHighSurvivalRate() {
     return high_survival_rate_period_length_ > 0;
+  }
+
+  bool IsLowSurvivalRate() {
+    return low_survival_rate_period_length_ > 0;
   }
 
   void SelectScavengingVisitorsTable();
