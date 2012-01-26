@@ -432,6 +432,11 @@ class ExternalStringTable {
 };
 
 
+enum ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
@@ -532,6 +537,30 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return AllocateJSArrayAndStorage(elements_kind, 0, 0,
+                                     DONT_INITIALIZE_ARRAY_ELEMENTS,
+                                     pretenure);
+  }
+
+  // Allocate a JSArray with a specified length but elements that are left
+  // uninitialized.
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
+      FixedArrayBase* array_base,
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -776,6 +805,13 @@ class Heap {
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedDoubleArray(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates a fixed double array with hole values. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateFixedDoubleArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -1750,6 +1786,11 @@ class Heap {
   MaybeObject* CreateOddball(const char* to_string,
                              Object* to_number,
                              byte kind);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();

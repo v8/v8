@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #include <stdlib.h>
 
@@ -811,7 +811,7 @@ TEST(Iteration) {
 
   // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
   objs[next_objs_index++] = FACTORY->NewJSArray(10);
-  objs[next_objs_index++] = FACTORY->NewJSArray(10, TENURED);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10, FAST_ELEMENTS, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
@@ -1611,7 +1611,7 @@ TEST(PrototypeTransitionClearing) {
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
   do {
-    prototype = FACTORY->NewJSArray(32 * KB, TENURED);
+    prototype = FACTORY->NewJSArray(32 * KB, FAST_ELEMENTS, TENURED);
   } while (space->FirstPage() == space->LastPage() ||
       !space->LastPage()->Contains(prototype->address()));
 

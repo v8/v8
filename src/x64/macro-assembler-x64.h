@@ -1123,6 +1123,11 @@ class MacroAssembler: public Assembler {
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the initial map for new Arrays of a given type.
+  void LoadGlobalInitialConstructedArrayMap(Register function_in,
+                                            Register scratch,
+                                            Register map_out);
+
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1290,6 +1290,29 @@ MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
 }
 
 
+MaybeObject* JSObject::GetElementsTransitionMap(Isolate* isolate,
+                                                ElementsKind to_kind) {
+  Map* current_map = map();
+  ElementsKind from_kind = current_map->elements_kind();
+
+  if (from_kind == to_kind) return current_map;
+
+  Context* global_context = isolate->context()->global_context();
+  if (current_map == global_context->smi_js_array_map()) {
+    if (to_kind == FAST_ELEMENTS) {
+      return global_context->object_js_array_map();
+    } else {
+      if (to_kind == FAST_DOUBLE_ELEMENTS) {
+        return global_context->double_js_array_map();
+      } else {
+        ASSERT(to_kind == DICTIONARY_ELEMENTS);
+      }
+    }
+  }
+  return GetElementsTransitionMapSlow(to_kind);
+}
+
+
 void JSObject::set_map_and_elements(Map* new_map,
                                     FixedArrayBase* value,
                                     WriteBarrierMode mode) {
@@ -1339,7 +1362,8 @@ MaybeObject* JSObject::ResetElements() {
   ElementsKind elements_kind = FLAG_smi_only_arrays
       ? FAST_SMI_ONLY_ELEMENTS
       : FAST_ELEMENTS;
-  MaybeObject* maybe_obj = GetElementsTransitionMap(elements_kind);
+  MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
+                                                    elements_kind);
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   set_map(Map::cast(obj));
   initialize_elements();
@@ -3875,6 +3899,36 @@ Map* JSFunction::initial_map() {
 
 void JSFunction::set_initial_map(Map* value) {
   set_prototype_or_initial_map(value);
+}
+
+
+MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
+    Map* initial_map) {
+  Context* global_context = context()->global_context();
+  Object* array_function =
+      global_context->get(Context::ARRAY_FUNCTION_INDEX);
+  if (array_function->IsJSFunction() &&
+      this == JSFunction::cast(array_function)) {
+    ASSERT(initial_map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+
+    MaybeObject* maybe_map = initial_map->CopyDropTransitions();
+    Map* new_double_map = NULL;
+    if (!maybe_map->To<Map>(&new_double_map)) return maybe_map;
+    new_double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
+    initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS, new_double_map);
+
+    maybe_map = new_double_map->CopyDropTransitions();
+    Map* new_object_map = NULL;
+    if (!maybe_map->To<Map>(&new_object_map)) return maybe_map;
+    new_object_map->set_elements_kind(FAST_ELEMENTS);
+    new_double_map->AddElementsTransition(FAST_ELEMENTS, new_object_map);
+
+    global_context->set_smi_js_array_map(initial_map);
+    global_context->set_double_js_array_map(new_double_map);
+    global_context->set_object_js_array_map(new_object_map);
+  }
+  set_initial_map(initial_map);
+  return this;
 }
 
 

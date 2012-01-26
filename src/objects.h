@@ -1854,7 +1854,10 @@ class JSObject: public JSReceiver {
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
                                               ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
+  inline MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
+      Isolate* isolate,
+      ElementsKind elements_kind);
+  MUST_USE_RESULT MaybeObject* GetElementsTransitionMapSlow(
       ElementsKind elements_kind);
 
   static Handle<Object> TransitionElementsKind(Handle<JSObject> object,
@@ -5565,6 +5568,7 @@ class JSFunction: public JSObject {
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
+  inline MaybeObject* set_initial_map_and_cache_transitions(Map* value);
   inline bool has_initial_map();
 
   // Get and set the prototype property on a JSFunction. If the
@@ -5575,7 +5579,7 @@ class JSFunction: public JSObject {
   inline bool has_instance_prototype();
   inline Object* prototype();
   inline Object* instance_prototype();
-  Object* SetInstancePrototype(Object* value);
+  MaybeObject* SetInstancePrototype(Object* value);
   MUST_USE_RESULT MaybeObject* SetPrototype(Object* value);
 
   // After prototype is removed, it will not be created when accessed, and

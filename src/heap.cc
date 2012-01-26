@@ -3758,14 +3758,72 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
     Map::cast(initial_map)->set_constructor(constructor);
   }
   // Allocate the object based on the constructors initial map.
-  MaybeObject* result =
-      AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  MaybeObject* result = AllocateJSObjectFromMap(
+      constructor->initial_map(), pretenure);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayAndStorage(
+    ElementsKind elements_kind,
+    int length,
+    int capacity,
+    ArrayStorageAllocationMode mode,
+    PretenureFlag pretenure) {
+  ASSERT(capacity >= length);
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  if (capacity == 0) {
+    array->set_length(Smi::FromInt(0));
+    array->set_elements(empty_fixed_array());
+    return array;
+  }
+
+  FixedArrayBase* elms;
+  MaybeObject* maybe_elms = NULL;
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
+    }
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS ||
+           elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedArrayWithHoles(capacity);
+    }
+  }
+  if (!maybe_elms->To(&elms)) return maybe_elms;
+
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(length));
+  return array;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayWithElements(
+    FixedArrayBase* elements,
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements->length()));
+  return array;
 }
 
 
@@ -4273,6 +4331,25 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 }
 
 
+MaybeObject* Heap::AllocateJSArray(
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  Context* global_context = isolate()->context()->global_context();
+  JSFunction* array_function = global_context->array_function();
+  Map* map = array_function->initial_map();
+  if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
+    map = Map::cast(global_context->object_js_array_map());
+  } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    map = Map::cast(global_context->double_js_array_map());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    ASSERT(map == global_context->smi_js_array_map());
+  }
+
+  return AllocateJSObjectFromMap(map, pretenure);
+}
+
+
 MaybeObject* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
   Object* result;
@@ -4463,15 +4540,36 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_double_array();
 
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
+}
+
+
+MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  for (int i = 0; i < length; ++i) {
+    elements->set_the_hole(i);
   }
 
-  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_no_write_barrier(
-      fixed_double_array_map());
-  FixedDoubleArray::cast(obj)->set_length(length);
-  return obj;
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
 }
 
 
@@ -4520,6 +4618,9 @@ MaybeObject* Heap::AllocateGlobalContext() {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
+  context->set_smi_js_array_map(undefined_value());
+  context->set_double_js_array_map(undefined_value());
+  context->set_object_js_array_map(undefined_value());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;

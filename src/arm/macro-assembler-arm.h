@@ -491,6 +491,11 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the initial map for new Arrays of a given type.
+  void LoadGlobalInitialConstructedArrayMap(Register function_in,
+                                            Register scratch,
+                                            Register map_out);
+
   void LoadGlobalFunction(int index, Register function);
 
   // Load the initial map from the global function. The registers

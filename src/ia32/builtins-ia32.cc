@@ -929,9 +929,8 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Label* gc_required) {
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
   STATIC_ASSERT(initial_capacity >= 0);
-  // Load the initial map from the array function.
-  __ mov(scratch1, FieldOperand(array_function,
-                                JSFunction::kPrototypeOrInitialMapOffset));
+
+  __ LoadGlobalInitialConstructedArrayMap(array_function, scratch2, scratch1);
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
@@ -1034,10 +1033,9 @@ static void AllocateJSArray(MacroAssembler* masm,
   ASSERT(!fill_with_hole || array_size.is(ecx));  // rep stos count
   ASSERT(!fill_with_hole || !result.is(eax));  // result is never eax
 
-  // Load the initial map from the array function.
-  __ mov(elements_array,
-         FieldOperand(array_function,
-                      JSFunction::kPrototypeOrInitialMapOffset));
+  __ LoadGlobalInitialConstructedArrayMap(array_function,
+                                          scratch,
+                                          elements_array);
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
@@ -1321,7 +1319,7 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::INTERNAL_ARRAY_FUNCTION_INDEX, edi);
 
   if (FLAG_debug_code) {
-    // Initial map for the builtin InternalArray function shoud be a map.
+    // Initial map for the builtin InternalArray function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
@@ -1334,8 +1332,8 @@ void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
   // function.
   ArrayNativeCode(masm, false, &generic_array_code);
 
-  // Jump to the generic array code in case the specialized code cannot handle
-  // the construction.
+  // Jump to the generic internal array code in case the specialized code cannot
+  // handle the construction.
   __ bind(&generic_array_code);
   Handle<Code> array_code =
       masm->isolate()->builtins()->InternalArrayCodeGeneric();
@@ -1355,7 +1353,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, edi);
 
   if (FLAG_debug_code) {
-    // Initial map for the builtin Array function shoud be a map.
+    // Initial map for the builtin Array function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));

@@ -2456,12 +2456,12 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
                                                ElementsKind to_kind) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementsTransitionMap(to_kind),
+                     object->GetElementsTransitionMap(isolate, to_kind),
                      Map);
 }
 
 
-MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind to_kind) {
+MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
   Map* current_map = map();
   ElementsKind from_kind = current_map->elements_kind();
 
@@ -2503,9 +2503,9 @@ MaybeObject* JSObject::GetElementsTransitionMap(ElementsKind to_kind) {
   // Only remember the map transition if the object's map is NOT equal to the
   // global object_function's map and there is not an already existing
   // non-matching element transition.
+  Context* global_context = GetIsolate()->context()->global_context();
   bool allow_map_transition = safe_to_add_transition &&
-      (GetIsolate()->context()->global_context()->object_function()->map() !=
-       map());
+      (global_context->object_function()->map() != map());
   if (allow_map_transition) {
     MaybeObject* maybe_transition =
         current_map->AddElementsTransition(to_kind, new_map);
@@ -3578,7 +3578,8 @@ MaybeObject* JSObject::NormalizeElements() {
     // Set the new map first to satify the elements type assert in
     // set_elements().
     Object* new_map;
-    MaybeObject* maybe = GetElementsTransitionMap(DICTIONARY_ELEMENTS);
+    MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(),
+                                                  DICTIONARY_ELEMENTS);
     if (!maybe->ToObject(&new_map)) return maybe;
     set_map(Map::cast(new_map));
     set_elements(dictionary);
@@ -7445,11 +7446,19 @@ bool JSFunction::IsInlineable() {
 }
 
 
-Object* JSFunction::SetInstancePrototype(Object* value) {
+MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSObject());
   Heap* heap = GetHeap();
   if (has_initial_map()) {
-    initial_map()->set_prototype(value);
+    // If the function has allocated the initial map
+    // replace it with a copy containing the new prototype.
+    Map* new_map;
+    MaybeObject* maybe_new_map = initial_map()->CopyDropTransitions();
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    new_map->set_prototype(value);
+    MaybeObject* maybe_object =
+        set_initial_map_and_cache_transitions(new_map);
+    if (maybe_object->IsFailure()) return maybe_object;
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -8474,7 +8483,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     ElementsKind elements_kind = has_fast_smi_only_elements
         ? FAST_SMI_ONLY_ELEMENTS
         : FAST_ELEMENTS;
-    MaybeObject* maybe = GetElementsTransitionMap(elements_kind);
+    MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(), elements_kind);
     if (!maybe->ToObject(&object)) return maybe;
     new_map = Map::cast(object);
   }
@@ -8558,7 +8567,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 
   if (FLAG_trace_elements_transitions) {
     PrintElementsTransition(stdout, elements_kind, old_elements_raw,
-                            FAST_ELEMENTS, new_elements);
+                            GetElementsKind(), new_elements);
   }
 
   // Update the length if necessary.
@@ -8585,7 +8594,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   FixedDoubleArray* elems = FixedDoubleArray::cast(obj);
 
   { MaybeObject* maybe_obj =
-        GetElementsTransitionMap(FAST_DOUBLE_ELEMENTS);
+        GetElementsTransitionMap(heap->isolate(), FAST_DOUBLE_ELEMENTS);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
@@ -9395,7 +9404,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   }
   // Change elements kind from SMI_ONLY to generic FAST if necessary.
   if (HasFastSmiOnlyElements() && !value->IsSmi()) {
-    MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
+                                                          FAST_ELEMENTS);
     Map* new_map;
     if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
     set_map(new_map);
@@ -9805,9 +9815,24 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
-MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
-    ElementsKind to_kind) {
+MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   ElementsKind from_kind = map()->elements_kind();
+
+  Isolate* isolate = GetIsolate();
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      (to_kind == FAST_ELEMENTS ||
+       elements() == isolate->heap()->empty_fixed_array())) {
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(isolate, to_kind);
+    Map* new_map;
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    set_map(new_map);
+    if (FLAG_trace_elements_transitions) {
+      FixedArrayBase* elms = FixedArrayBase::cast(elements());
+      PrintElementsTransition(stdout, from_kind, elms, to_kind, elms);
+    }
+    return this;
+  }
+
   FixedArrayBase* elms = FixedArrayBase::cast(elements());
   uint32_t capacity = static_cast<uint32_t>(elms->length());
   uint32_t length = capacity;
@@ -9821,18 +9846,6 @@ MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
     } else {
       CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
     }
-  }
-
-  if ((from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) ||
-      (length == 0)) {
-    MaybeObject* maybe_new_map = GetElementsTransitionMap(to_kind);
-    Map* new_map;
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-    if (FLAG_trace_elements_transitions) {
-      PrintElementsTransition(stdout, from_kind, elms, to_kind, elms);
-    }
-    set_map(new_map);
-    return this;
   }
 
   if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
@@ -11401,7 +11414,8 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     // Convert to fast elements.
 
     Object* obj;
-    { MaybeObject* maybe_obj = GetElementsTransitionMap(FAST_ELEMENTS);
+    { MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
+                                                        FAST_ELEMENTS);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     Map* new_map = Map::cast(obj);
