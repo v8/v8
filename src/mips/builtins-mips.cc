@@ -1800,6 +1800,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   __ Call(a3);
 
+  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
   // Exit frame and return.
   LeaveArgumentsAdaptorFrame(masm);
   __ Ret();
