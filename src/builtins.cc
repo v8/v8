@@ -198,8 +198,9 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     array->set_length(Smi::FromInt(0));
     array->set_elements(heap->empty_fixed_array());
     if (!FLAG_smi_only_arrays) {
-      if (array->GetElementsKind() == FAST_SMI_ONLY_ELEMENTS) {
-        Context* global_context = isolate->context()->global_context();
+      Context* global_context = isolate->context()->global_context();
+      if (array->GetElementsKind() == FAST_SMI_ONLY_ELEMENTS &&
+          !global_context->object_js_array_map()->IsUndefined()) {
         array->set_map(Map::cast(global_context->object_js_array_map()));
       }
     }
