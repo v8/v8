@@ -2338,7 +2338,7 @@ void BinaryOpStub::GenerateSmiSmiOperation(MacroAssembler* masm) {
       __ cmp(ip, Operand(scratch2));
       __ b(ne, &not_smi_result);
       // Go slow on zero result to handle -0.
-      __ tst(scratch1, Operand(scratch1));
+      __ cmp(scratch1, Operand(0));
       __ mov(right, Operand(scratch1), LeaveCC, ne);
       __ Ret(ne);
       // We need -0 if we were multiplying a negative number with 0 to get 0.
@@ -4656,7 +4656,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       ExternalReference::address_of_regexp_stack_memory_size(isolate);
   __ mov(r0, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r0, MemOperand(r0, 0));
-  __ tst(r0, Operand(r0));
+  __ cmp(r0, Operand(0));
   __ b(eq, &runtime);
 
   // Check that the first argument is a JSRegExp object.
@@ -5108,9 +5108,9 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // r3: Start of elements in FixedArray.
   // r5: Number of elements to fill.
   Label loop;
-  __ tst(r5, Operand(r5));
+  __ cmp(r5, Operand(0));
   __ bind(&loop);
-  __ b(le, &done);  // Jump if r1 is negative or zero.
+  __ b(le, &done);  // Jump if r5 is negative or zero.
   __ sub(r5, r5, Operand(1), SetCC);
   __ str(r2, MemOperand(r3, r5, LSL, kPointerSizeLog2));
   __ jmp(&loop);
@@ -6020,7 +6020,7 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   Label compare_chars;
   __ bind(&check_zero_length);
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(length, Operand(length));
+  __ cmp(length, Operand(0));
   __ b(ne, &compare_chars);
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
   __ Ret();
@@ -6053,7 +6053,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ mov(scratch1, scratch2, LeaveCC, gt);
   Register min_length = scratch1;
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(min_length, Operand(min_length));
+  __ cmp(min_length, Operand(0));
   __ b(eq, &compare_lengths);
 
   // Compare loop.
@@ -6811,7 +6811,7 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ mov(r1, Operand(Handle<String>(name)));
   StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
   __ CallStub(&stub);
-  __ tst(r0, Operand(r0));
+  __ cmp(r0, Operand(0));
   __ ldm(ia_w, sp, spill_mask);
 
   __ b(eq, done);
@@ -6888,7 +6888,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   }
   StringDictionaryLookupStub stub(POSITIVE_LOOKUP);
   __ CallStub(&stub);
-  __ tst(r0, Operand(r0));
+  __ cmp(r0, Operand(0));
   __ mov(scratch2, Operand(r2));
   __ ldm(ia_w, sp, spill_mask);
 

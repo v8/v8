@@ -1820,7 +1820,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ mov(ip, Operand(scratch1, ASR, 31));
       __ cmp(ip, Operand(scratch2));
       __ b(ne, &stub_call);
-      __ tst(scratch1, Operand(scratch1));
+      __ cmp(scratch1, Operand(0));
       __ mov(right, Operand(scratch1), LeaveCC, ne);
       __ b(ne, &done);
       __ add(scratch2, right, Operand(left), SetCC);
