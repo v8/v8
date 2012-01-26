@@ -25,30 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load definitions of standard types.
+// Flags: --allow-natives-syntax --hydrogen-filter=Debug.setBreakPoint --expose-debug-as debug
 
-#ifndef V8STDINT_H_
-#define V8STDINT_H_
+Debug = debug.Debug
 
-#include <stddef.h>
-#include <stdio.h>
+function f() {a=1;b=2};
+function g() {
+  a=1;
+  b=2;
+}
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;  // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-// intptr_t and friends are defined in crtdefs.h through stdio.h.
-
-#else
-
-#include <stdint.h>
-
-#endif
-
-#endif  // V8STDINT_H_
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);

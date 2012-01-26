@@ -25,30 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load definitions of standard types.
+// Flags: --allow-natives-syntax
 
-#ifndef V8STDINT_H_
-#define V8STDINT_H_
+// Test inlining at call sites with mismatched arity.
 
-#include <stddef.h>
-#include <stdio.h>
+function f(a) {
+  return a.x;
+}
 
-#if defined(_WIN32) && !defined(__MINGW32__)
+function g(a, b) {
+  return a.x;
+}
 
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;  // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-// intptr_t and friends are defined in crtdefs.h through stdio.h.
+function h1(a, b) {
+  return f(a, a) * g(b);
+}
 
-#else
+function h2(a, b) {
+  return f(a, a) * g(b);
+}
 
-#include <stdint.h>
 
-#endif
+var o = {x: 2};
 
-#endif  // V8STDINT_H_
+assertEquals(4, h1(o, o));
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
+assertEquals(4, h2(o, o));
+%OptimizeFunctionOnNextCall(h1);
+%OptimizeFunctionOnNextCall(h2);
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
+
+var u = {y:0, x:1};
+assertEquals(2, h1(u, o));
+assertEquals(2, h2(o, u));
