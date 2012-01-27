@@ -2833,7 +2833,7 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
 
  private:
   bool disposed_;
-  int hash_;
+  intptr_t hash_;
   const char* label_;
 };
 
