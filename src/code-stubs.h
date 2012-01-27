@@ -739,6 +739,10 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_has_function_cache(RecordCallTarget());
+  }
+
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
@@ -774,6 +778,10 @@ class CallConstructStub: public CodeStub {
   explicit CallConstructStub(CallFunctionFlags flags) : flags_(flags) {}
 
   void Generate(MacroAssembler* masm);
+
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_has_function_cache(RecordCallTarget());
+  }
 
  private:
   CallFunctionFlags flags_;

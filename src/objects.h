@@ -4201,6 +4201,11 @@ class Code: public HeapObject {
   inline byte to_boolean_state();
   inline void set_to_boolean_state(byte value);
 
+  // [has_function_cache]: For kind STUB tells whether there is a function
+  // cache is passed to the stub.
+  inline bool has_function_cache();
+  inline void set_has_function_cache(bool flag);
+
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
@@ -4341,6 +4346,7 @@ class Code: public HeapObject {
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
+  static const int kHasFunctionCacheOffset = kStubMajorKeyOffset + 1;
 
   static const int kFullCodeFlags = kOptimizableOffset + 1;
   class FullCodeFlagsHasDeoptimizationSupportField:

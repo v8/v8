@@ -1508,11 +1508,6 @@ static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
 }
 
 
-static void Generate_ConstructCall_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateConstructCallDebugBreak(masm);
-}
-
-
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateReturnDebugBreak(masm);
 }
@@ -1520,6 +1515,23 @@ static void Generate_Return_DebugBreak(MacroAssembler* masm) {
 
 static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateCallFunctionStubDebugBreak(masm);
+}
+
+
+static void Generate_CallFunctionStub_Recording_DebugBreak(
+    MacroAssembler* masm) {
+  Debug::GenerateCallFunctionStubRecordDebugBreak(masm);
+}
+
+
+static void Generate_CallConstructStub_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateCallConstructStubDebugBreak(masm);
+}
+
+
+static void Generate_CallConstructStub_Recording_DebugBreak(
+    MacroAssembler* masm) {
+  Debug::GenerateCallConstructStubRecordDebugBreak(masm);
 }
 
 

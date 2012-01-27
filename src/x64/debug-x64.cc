@@ -229,19 +229,6 @@ void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
-  // Register state just before return from JS function (from codegen-x64.cc).
-  // rax is the actual number of arguments not encoded as a smi, see comment
-  // above IC call.
-  // ----------- S t a t e -------------
-  //  -- rax: number of arguments
-  //  -- rbx: cache cell for call target
-  // -----------------------------------
-  // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), rax.bit(), false);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-x64.cc).
   // ----------- S t a t e -------------
@@ -257,6 +244,41 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- rdi : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rdi.bit(), 0, false);
+}
+
+
+void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-x64.cc).
+  // ----------- S t a t e -------------
+  //  -- rdi : function
+  //  -- rbx: cache cell for call target
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), 0, false);
+}
+
+
+void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallConstructStub (from code-stubs-x64.cc).
+  // rax is the actual number of arguments not encoded as a smi, see comment
+  // above IC call.
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  // -----------------------------------
+  // The number of arguments in rax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, rdi.bit(), rax.bit(), false);
+}
+
+
+void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
+  // Register state for CallConstructStub (from code-stubs-x64.cc).
+  // rax is the actual number of arguments not encoded as a smi, see comment
+  // above IC call.
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  //  -- rbx: cache cell for call target
+  // -----------------------------------
+  // The number of arguments in rax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), rax.bit(), false);
 }
 
 
