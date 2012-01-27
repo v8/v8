@@ -666,11 +666,13 @@ namespace {
 class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
  public:
   TestRetainedObjectInfo(int hash,
+                         const char* group_label,
                          const char* label,
                          intptr_t element_count = -1,
                          intptr_t size = -1)
       : disposed_(false),
         hash_(hash),
+        group_label_(group_label),
         label_(label),
         element_count_(element_count),
         size_(size) {
@@ -685,6 +687,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
     return GetHash() == other->GetHash();
   }
   virtual intptr_t GetHash() { return hash_; }
+  virtual const char* GetGroupLabel() { return group_label_; }
   virtual const char* GetLabel() { return label_; }
   virtual intptr_t GetElementCount() { return element_count_; }
   virtual intptr_t GetSizeInBytes() { return size_; }
@@ -696,15 +699,15 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
       if (wrapper->IsString()) {
         v8::String::AsciiValue ascii(wrapper);
         if (strcmp(*ascii, "AAA") == 0)
-          return new TestRetainedObjectInfo(1, "aaa", 100);
+          return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
         else if (strcmp(*ascii, "BBB") == 0)
-          return new TestRetainedObjectInfo(1, "aaa", 100);
+          return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
       }
     } else if (class_id == 2) {
       if (wrapper->IsString()) {
         v8::String::AsciiValue ascii(wrapper);
         if (strcmp(*ascii, "CCC") == 0)
-          return new TestRetainedObjectInfo(2, "ccc");
+          return new TestRetainedObjectInfo(2, "ccc-group", "ccc");
       }
     }
     CHECK(false);
@@ -717,6 +720,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool disposed_;
   int category_;
   int hash_;
+  const char* group_label_;
   const char* label_;
   intptr_t element_count_;
   intptr_t size_;
@@ -769,18 +773,21 @@ TEST(HeapSnapshotRetainedObjectInfo) {
     delete TestRetainedObjectInfo::instances[i];
   }
 
-  const v8::HeapGraphNode* natives = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(Native objects)");
-  CHECK_NE(NULL, natives);
-  CHECK_EQ(2, natives->GetChildrenCount());
+  const v8::HeapGraphNode* native_group_aaa = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kNative, "aaa-group");
+  CHECK_NE(NULL, native_group_aaa);
+  CHECK_EQ(1, native_group_aaa->GetChildrenCount());
   const v8::HeapGraphNode* aaa = GetNode(
-      natives, v8::HeapGraphNode::kNative, "aaa / 100 entries");
+      native_group_aaa, v8::HeapGraphNode::kNative, "aaa / 100 entries");
   CHECK_NE(NULL, aaa);
+  CHECK_EQ(2, aaa->GetChildrenCount());
+
+  const v8::HeapGraphNode* native_group_ccc = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kNative, "ccc-group");
   const v8::HeapGraphNode* ccc = GetNode(
-      natives, v8::HeapGraphNode::kNative, "ccc");
+      native_group_ccc, v8::HeapGraphNode::kNative, "ccc");
   CHECK_NE(NULL, ccc);
 
-  CHECK_EQ(2, aaa->GetChildrenCount());
   const v8::HeapGraphNode* n_AAA = GetNode(
       aaa, v8::HeapGraphNode::kString, "AAA");
   CHECK_NE(NULL, n_AAA);
