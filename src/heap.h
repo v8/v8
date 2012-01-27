@@ -45,12 +45,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(isolates): remove HEAP here
-#define HEAP (_inline_get_heap_())
-class Heap;
-inline Heap* _inline_get_heap_();
-
-
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
@@ -2042,32 +2036,15 @@ class HeapStats {
 
 class AlwaysAllocateScope {
  public:
-  AlwaysAllocateScope() {
-    // We shouldn't hit any nested scopes, because that requires
-    // non-handle code to call handle code. The code still works but
-    // performance will degrade, so we want to catch this situation
-    // in debug mode.
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-    HEAP->always_allocate_scope_depth_++;
-  }
-
-  ~AlwaysAllocateScope() {
-    HEAP->always_allocate_scope_depth_--;
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-  }
+  inline AlwaysAllocateScope();
+  inline ~AlwaysAllocateScope();
 };
 
 
 class LinearAllocationScope {
  public:
-  LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_++;
-  }
-
-  ~LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_--;
-    ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
-  }
+  inline LinearAllocationScope();
+  inline ~LinearAllocationScope();
 };
 
 
@@ -2079,15 +2056,7 @@ class LinearAllocationScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor: public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        ASSERT(HEAP->Contains(object));
-        ASSERT(object->map()->IsMap());
-      }
-    }
-  }
+  inline void VisitPointers(Object** start, Object** end);
 };
 #endif
 
@@ -2313,6 +2282,18 @@ class DescriptorLookupCache {
 };
 
 
+#ifdef DEBUG
+class DisallowAllocationFailure {
+ public:
+  inline DisallowAllocationFailure();
+  inline ~DisallowAllocationFailure();
+
+ private:
+  bool old_state_;
+};
+#endif
+
+
 // A helper class to document/test C++ scopes where we do not
 // expect a GC. Usage:
 //
@@ -2320,65 +2301,28 @@ class DescriptorLookupCache {
 // { AssertNoAllocation nogc;
 //   ...
 // }
+class AssertNoAllocation {
+ public:
+  inline AssertNoAllocation();
+  inline ~AssertNoAllocation();
 
 #ifdef DEBUG
-
-class DisallowAllocationFailure {
- public:
-  DisallowAllocationFailure() {
-    old_state_ = HEAP->disallow_allocation_failure_;
-    HEAP->disallow_allocation_failure_ = true;
-  }
-  ~DisallowAllocationFailure() {
-    HEAP->disallow_allocation_failure_ = old_state_;
-  }
  private:
   bool old_state_;
-};
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(false);
-  }
-
-  ~AssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(true);
-  }
-
-  ~DisableAssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-#else  // ndef DEBUG
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() { }
-  ~AssertNoAllocation() { }
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() { }
-  ~DisableAssertNoAllocation() { }
-};
-
 #endif
+};
+
+
+class DisableAssertNoAllocation {
+ public:
+  inline DisableAssertNoAllocation();
+  inline ~DisableAssertNoAllocation();
+
+#ifdef DEBUG
+ private:
+  bool old_state_;
+#endif
+};
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -2441,9 +2385,7 @@ class GCTracer BASE_EMBEDDED {
   const char* CollectorString();
 
   // Returns size of object in heap (in MB).
-  double SizeOfHeapObjects() {
-    return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
-  }
+  inline double SizeOfHeapObjects();
 
   double start_time_;  // Timestamp set in the constructor.
   intptr_t start_size_;  // Size of objects in heap set in constructor.
@@ -2692,7 +2634,5 @@ class PathTracer : public ObjectVisitor {
 #endif  // DEBUG || LIVE_OBJECT_LIST
 
 } }  // namespace v8::internal
-
-#undef HEAP
 
 #endif  // V8_HEAP_H_
