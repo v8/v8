@@ -2368,9 +2368,9 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
 void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
                                                       MarkBit map_mark) {
   // Follow the chain of back pointers to find the prototype.
-  Map* real_prototype = map;
+  Object* real_prototype = map;
   while (real_prototype->IsMap()) {
-    real_prototype = reinterpret_cast<Map*>(real_prototype->prototype());
+    real_prototype = Map::cast(real_prototype)->prototype();
     ASSERT(real_prototype->IsHeapObject());
   }
 
