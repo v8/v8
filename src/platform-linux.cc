@@ -944,37 +944,6 @@ typedef struct ucontext {
 } ucontext_t;
 enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 
-#elif !defined(__GLIBC__) && defined(__mips__)
-  struct sigcontext {
-    unsigned int regmask;
-    unsigned int status;
-    unsigned long long pc;
-    unsigned long long gregs[32];
-    unsigned long long fpregs[32];
-    unsigned int acx;
-    unsigned int fpc_csr;
-    unsigned int fpc_eir;
-    unsigned int used_math;
-    unsigned int dsp;
-    unsigned long long mdhi;
-    unsigned long long mdlo;
-    unsigned long hi1;
-    unsigned long lo1;
-    unsigned long hi2;
-    unsigned long lo2;
-    unsigned long hi3;
-    unsigned long lo3;
-  };
-  typedef uint32_t __sigset_t;
-  typedef struct sigcontext mcontext_t;
-  typedef struct ucontext {
-    uint32_t uc_flags;
-    struct ucontext* uc_link;
-    stack_t uc_stack;
-    mcontext_t uc_mcontext;
-    __sigset_t uc_sigmask;
-  } ucontext_t;
-
 #endif
 
 
