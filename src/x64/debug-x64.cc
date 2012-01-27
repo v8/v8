@@ -235,9 +235,10 @@ void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
   // above IC call.
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
+  //  -- rbx: cache cell for call target
   // -----------------------------------
   // The number of arguments in rax is not smi encoded.
-  Generate_DebugBreakCallHelper(masm, rdi.bit(), rax.bit(), false);
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdi.bit(), rax.bit(), false);
 }
 
 
@@ -251,7 +252,7 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
-  // Register state for stub CallFunction (from CallFunctionStub in ic-x64.cc).
+  // Register state for CallFunctionStub (from code-stubs-x64.cc).
   // ----------- S t a t e -------------
   //  -- rdi : function
   // -----------------------------------
