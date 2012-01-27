@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -122,7 +122,6 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ str(r1, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   __ str(r4, FieldMemOperand(r0, JSFunction::kNextFunctionLinkOffset));
 
-
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
   __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
@@ -157,20 +156,18 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, MemOperand(sp, 0));
 
   // Set up the object header.
-  __ LoadRoot(r2, Heap::kFunctionContextMapRootIndex);
-  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ LoadRoot(r1, Heap::kFunctionContextMapRootIndex);
   __ mov(r2, Operand(Smi::FromInt(length)));
   __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
+  __ str(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
 
-  // Set up the fixed slots.
+  // Set up the fixed slots, copy the global object from the previous context.
+  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(r1, Operand(Smi::FromInt(0)));
   __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ str(cp, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
   __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
-
-  // Copy the global object from the previous context.
-  __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ str(r2, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
@@ -229,14 +226,12 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ ldr(r3, ContextOperand(r3, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
-  // Set up the fixed slots.
+  // Set up the fixed slots, copy the global object from the previous context.
+  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ str(r3, ContextOperand(r0, Context::CLOSURE_INDEX));
   __ str(cp, ContextOperand(r0, Context::PREVIOUS_INDEX));
   __ str(r1, ContextOperand(r0, Context::EXTENSION_INDEX));
-
-  // Copy the global object from the previous context.
-  __ ldr(r1, ContextOperand(cp, Context::GLOBAL_INDEX));
-  __ str(r1, ContextOperand(r0, Context::GLOBAL_INDEX));
+  __ str(r2, ContextOperand(r0, Context::GLOBAL_INDEX));
 
   // Initialize the rest of the slots to the hole value.
   __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
@@ -326,8 +321,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     Label double_elements, check_fast_elements;
     __ ldr(r0, FieldMemOperand(r3, JSArray::kElementsOffset));
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
-    __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kFixedCOWArrayMapRootIndex);
     __ b(ne, &check_fast_elements);
     GenerateFastCloneShallowArrayCommon(masm, 0,
                                         COPY_ON_WRITE_ELEMENTS, &slow_case);
@@ -336,8 +330,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ Ret();
 
     __ bind(&check_fast_elements);
-    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
     __ b(ne, &double_elements);
     GenerateFastCloneShallowArrayCommon(masm, length_,
                                         CLONE_ELEMENTS, &slow_case);
@@ -590,7 +583,9 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   Label is_smi, done;
 
-  __ JumpIfSmi(object, &is_smi);
+  // Smi-check
+  __ UntagAndJumpIfSmi(scratch1, object, &is_smi);
+  // Heap number check
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
@@ -612,7 +607,6 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Convert smi to double using VFP instructions.
-    __ SmiUntag(scratch1, object);
     __ vmov(dst.high(), scratch1);
     __ vcvt_f64_s32(dst, dst.high());
     if (destination == kCoreRegisters) {
@@ -647,11 +641,10 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                            Heap::kHeapNumberMapRootIndex,
                            "HeapNumberMap register clobbered.");
   }
-  Label is_smi;
   Label done;
   Label not_in_int32_range;
 
-  __ JumpIfSmi(object, &is_smi);
+  __ UntagAndJumpIfSmi(dst, object, &done);
   __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMapOffset));
   __ cmp(scratch1, heap_number_map);
   __ b(ne, not_number);
@@ -671,10 +664,6 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                                  scratch1,
                                  scratch2,
                                  scratch3);
-  __ jmp(&done);
-
-  __ bind(&is_smi);
-  __ SmiUntag(dst, object);
   __ bind(&done);
 }
 
@@ -847,10 +836,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   Label done;
 
-  // Untag the object into the destination register.
-  __ SmiUntag(dst, object);
-  // Just return if the object is a smi.
-  __ JumpIfSmi(object, &done);
+  __ UntagAndJumpIfSmi(dst, object, &done);
 
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
@@ -3310,8 +3296,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Check if cache matches: Double value is stored in uint32_t[2] array.
     __ ldm(ia, cache_entry, r4.bit() | r5.bit() | r6.bit());
     __ cmp(r2, r4);
-    __ b(ne, &calculate);
-    __ cmp(r3, r5);
+    __ cmp(r3, r5, eq);
     __ b(ne, &calculate);
     // Cache hit. Load result, cleanup and return.
     Counters* counters = masm->isolate()->counters();
@@ -3468,7 +3453,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register scratch = r9;
   const Register scratch2 = r7;
 
-  Label call_runtime, done, exponent_not_smi, int_exponent;
+  Label call_runtime, done, int_exponent;
   if (exponent_type_ == ON_STACK) {
     Label base_is_smi, unpack_exponent;
     // The exponent and base are supplied as arguments on the stack.
@@ -3479,7 +3464,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
 
-    __ JumpIfSmi(base, &base_is_smi);
+    __ UntagAndJumpIfSmi(scratch, base, &base_is_smi);
     __ ldr(scratch, FieldMemOperand(base, JSObject::kMapOffset));
     __ cmp(scratch, heapnumbermap);
     __ b(ne, &call_runtime);
@@ -3488,16 +3473,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ jmp(&unpack_exponent);
 
     __ bind(&base_is_smi);
-    __ SmiUntag(base);
-    __ vmov(single_scratch, base);
+    __ vmov(single_scratch, scratch);
     __ vcvt_f64_s32(double_base, single_scratch);
     __ bind(&unpack_exponent);
 
-    __ JumpIfNotSmi(exponent, &exponent_not_smi);
-    __ SmiUntag(exponent);
-    __ jmp(&int_exponent);
+    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ bind(&exponent_not_smi);
     __ ldr(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
     __ cmp(scratch, heapnumbermap);
     __ b(ne, &call_runtime);
@@ -3505,11 +3486,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
             FieldMemOperand(exponent, HeapNumber::kValueOffset));
   } else if (exponent_type_ == TAGGED) {
     // Base is already in double_base.
-    __ JumpIfNotSmi(exponent, &exponent_not_smi);
-    __ SmiUntag(exponent);
-    __ jmp(&int_exponent);
+    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
 
-    __ bind(&exponent_not_smi);
     __ vldr(double_exponent,
             FieldMemOperand(exponent, HeapNumber::kValueOffset));
   }
@@ -3582,13 +3560,19 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
     __ bind(&int_exponent_convert);
     __ vcvt_u32_f64(single_scratch, double_exponent);
-    __ vmov(exponent, single_scratch);
+    __ vmov(scratch, single_scratch);
   }
 
   // Calculate power with integer exponent.
   __ bind(&int_exponent);
 
-  __ mov(scratch, exponent);  // Back up exponent.
+  // Get two copies of exponent in the registers scratch and exponent.
+  if (exponent_type_ == INTEGER) {
+    __ mov(scratch, exponent);
+  } else {
+    // Exponent has previously been stored into scratch as untagged integer.
+    __ mov(exponent, scratch);
+  }
   __ vmov(double_scratch, double_base);  // Back up base.
   __ vmov(double_result, 1.0);
 
@@ -4098,11 +4082,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // real lookup and update the call site cache.
   if (!HasCallSiteInlineCheck()) {
     Label miss;
-    __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
-    __ cmp(function, ip);
+    __ CompareRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
     __ b(ne, &miss);
-    __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
-    __ cmp(map, ip);
+    __ CompareRoot(map, Heap::kInstanceofCacheMapRootIndex);
     __ b(ne, &miss);
     __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
@@ -4727,8 +4709,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(last_match_info_elements,
          FieldMemOperand(r0, JSArray::kElementsOffset));
   __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r0, ip);
+  __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
   __ b(ne, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information.
@@ -5082,11 +5063,11 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 
   // Set input, index and length fields from arguments.
   __ ldr(r1, MemOperand(sp, kPointerSize * 0));
+  __ ldr(r2, MemOperand(sp, kPointerSize * 1));
+  __ ldr(r6, MemOperand(sp, kPointerSize * 2));
   __ str(r1, FieldMemOperand(r0, JSRegExpResult::kInputOffset));
-  __ ldr(r1, MemOperand(sp, kPointerSize * 1));
-  __ str(r1, FieldMemOperand(r0, JSRegExpResult::kIndexOffset));
-  __ ldr(r1, MemOperand(sp, kPointerSize * 2));
-  __ str(r1, FieldMemOperand(r0, JSArray::kLengthOffset));
+  __ str(r2, FieldMemOperand(r0, JSRegExpResult::kIndexOffset));
+  __ str(r6, FieldMemOperand(r0, JSArray::kLengthOffset));
 
   // Fill out the elements FixedArray.
   // r0: JSArray, tagged.
@@ -5436,8 +5417,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTag == 0);
   __ add(result_, result_, Operand(code_, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(result_, Operand(ip));
+  __ CompareRoot(result_, Heap::kUndefinedValueRootIndex);
   __ b(eq, &slow_case_);
   __ bind(&exit_);
 }
@@ -5865,10 +5845,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ mov(r3, Operand(r3, ASR, 1), SetCC, cc);
   // If either to or from had the smi tag bit set, then carry is set now.
   __ b(cs, &runtime);  // Either "from" or "to" is not a smi.
-  __ b(mi, &runtime);  // From is negative.
-
+  // We want to bailout to runtime here if From is negative.  In that case, the
+  // next instruction is not executed and we fall through to bailing out to
+  // runtime.  pl is the opposite of mi.
   // Both r2 and r3 are untagged integers.
-  __ sub(r2, r2, Operand(r3), SetCC);
+  __ sub(r2, r2, Operand(r3), SetCC, pl);
   __ b(mi, &runtime);  // Fail if from > to.
 
   // Make sure first argument is a string.
@@ -5941,9 +5922,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&sliced_string);
   // Sliced string.  Fetch parent and correct start index by offset.
-  __ ldr(r5, FieldMemOperand(r0, SlicedString::kOffsetOffset));
-  __ add(r3, r3, Operand(r5, ASR, 1));
+  __ ldr(r4, FieldMemOperand(r0, SlicedString::kOffsetOffset));
   __ ldr(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
+  __ add(r3, r3, Operand(r4, ASR, 1));  // Add offset to index.
   // Update instance type.
   __ ldr(r1, FieldMemOperand(r5, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));

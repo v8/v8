@@ -3929,7 +3929,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Label load_smi, heap_number, done;
 
   // Smi check.
-  __ JumpIfSmi(input_reg, &load_smi);
+  __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
 
   // Heap number map check.
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
@@ -3968,7 +3968,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   // Smi to double register conversion
   __ bind(&load_smi);
-  __ SmiUntag(scratch, input_reg);  // Untag smi before converting to float.
+  // scratch: untagged value of input_reg
   __ vmov(flt_scratch, scratch);
   __ vcvt_f64_s32(result_reg, flt_scratch);
   __ bind(&done);
@@ -4256,7 +4256,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   Label is_smi, done, heap_number;
 
   // Both smi and heap number cases are handled.
-  __ JumpIfSmi(input_reg, &is_smi);
+  __ UntagAndJumpIfSmi(result_reg, input_reg, &is_smi);
 
   // Check for heap number
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
@@ -4279,7 +4279,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // smi
   __ bind(&is_smi);
-  __ SmiUntag(result_reg, input_reg);
   __ ClampUint8(result_reg, result_reg);
 
   __ bind(&done);
