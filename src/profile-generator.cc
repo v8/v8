@@ -2816,7 +2816,7 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
  public:
   explicit NativeGroupRetainedObjectInfo(const char* label)
       : disposed_(false),
-        hash_(reinterpret_cast<intptr_t>(label)),
+        hash_(reinterpret_cast<int>(label)),
         label_(label) {
   }
 
@@ -2841,7 +2841,8 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
 NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
     const char* label) {
   const char* label_copy = collection_->names()->GetCopy(label);
-  intptr_t hash = HashSequentialString(label_copy, strlen(label_copy),
+  uint32_t hash = HashSequentialString(label_copy,
+                                       static_cast<int>(strlen(label_copy)),
                                        HEAP->HashSeed());
   HashMap::Entry* entry = native_groups_.Lookup(const_cast<char*>(label_copy),
                                                 hash, true);
