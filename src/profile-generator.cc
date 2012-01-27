@@ -2816,7 +2816,7 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
  public:
   explicit NativeGroupRetainedObjectInfo(const char* label)
       : disposed_(false),
-        hash_(reinterpret_cast<int>(label)),
+        hash_(reinterpret_cast<intptr_t>(label)),
         label_(label) {
   }
 
