@@ -5130,13 +5130,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // megamorphic.
   // r1 : the function to call
   // r2 : cache cell for call target
-  Isolate* isolate = masm->isolate();
   Label done;
 
-  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(isolate),
-            isolate->heap()->undefined_value());
-  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(isolate),
-            isolate->heap()->the_hole_value());
+  ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+            masm->isolate()->heap()->undefined_value());
+  ASSERT_EQ(*TypeFeedbackCells::UninitializedSentinel(masm->isolate()),
+            masm->isolate()->heap()->the_hole_value());
 
   // Load the cache state into r3.
   __ ldr(r3, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
