@@ -582,10 +582,14 @@ void Heap::ReserveSpace(
   PagedSpace* map_space = Heap::map_space();
   PagedSpace* cell_space = Heap::cell_space();
   LargeObjectSpace* lo_space = Heap::lo_space();
+  bool one_old_space_gc_has_been_performed = false;
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
+  bool old_space_gc_performed;
+
   while (gc_performed && counter++ < kThreshold) {
+    old_space_gc_performed = false;
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
       Heap::CollectGarbage(NEW_SPACE);
@@ -594,22 +598,27 @@ void Heap::ReserveSpace(
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
       Heap::CollectGarbage(OLD_POINTER_SPACE);
       gc_performed = true;
+      old_space_gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
       Heap::CollectGarbage(OLD_DATA_SPACE);
       gc_performed = true;
+      old_space_gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
       Heap::CollectGarbage(CODE_SPACE);
       gc_performed = true;
+      old_space_gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
       Heap::CollectGarbage(MAP_SPACE);
       gc_performed = true;
+      old_space_gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
       Heap::CollectGarbage(CELL_SPACE);
       gc_performed = true;
+      old_space_gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
     // large-object allocations that are only just larger than the page size.
@@ -619,15 +628,22 @@ void Heap::ReserveSpace(
     // allocation in the other spaces.
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
-    if (!(lo_space->ReserveSpace(large_object_size))) {
+
+    // If we already did one GC in order to make space in old space, there is
+    // no sense in doing another one.  We will attempt to force through the
+    // large object space allocation, which comes directly from the OS,
+    // regardless of any soft limit.
+    if (!one_old_space_gc_has_been_performed &&
+        !(lo_space->ReserveSpace(large_object_size))) {
       Heap::CollectGarbage(LO_SPACE);
       gc_performed = true;
     }
+    if (old_space_gc_performed) one_old_space_gc_has_been_performed = true;
   }
 
   if (gc_performed) {
     // Failed to reserve the space after several attempts.
-    V8::FatalProcessOutOfMemory("Heap::ReserveSpace");
+    V8::FatalProcessOutOfMemory("Heap.:ReserveSpace");
   }
 }
 

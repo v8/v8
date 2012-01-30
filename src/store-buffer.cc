@@ -496,7 +496,6 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
   Address map_aligned_end   = MapEndAlign(end);
 
   ASSERT(map_aligned_start == start);
-  ASSERT(map_aligned_end == end);
 
   FindPointersToNewSpaceInMaps(map_aligned_start,
                                map_aligned_end,
@@ -524,52 +523,57 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
     RegionCallback region_callback,
     ObjectSlotCallback slot_callback) {
   Address visitable_start = page->ObjectAreaStart();
-  Address end_of_page = page->ObjectAreaEnd();
 
   Address visitable_end = visitable_start;
 
   Object* free_space_map = heap_->free_space_map();
   Object* two_pointer_filler_map = heap_->two_pointer_filler_map();
 
-  while (visitable_end < end_of_page) {
-    Object* o = *reinterpret_cast<Object**>(visitable_end);
-    // Skip fillers but not things that look like fillers in the special
-    // garbage section which can contain anything.
-    if (o == free_space_map ||
-        o == two_pointer_filler_map ||
-        (visitable_end == space->top() && visitable_end != space->limit())) {
-      if (visitable_start != visitable_end) {
-        // After calling this the special garbage section may have moved.
-        (this->*region_callback)(visitable_start,
-                                 visitable_end,
-                                 slot_callback);
-        if (visitable_end >= space->top() && visitable_end < space->limit()) {
-          visitable_end = space->limit();
-          visitable_start = visitable_end;
-          continue;
+  while (true) {  // While the page grows (doesn't normally happen).
+    Address end_of_page = page->ObjectAreaEnd();
+    while (visitable_end < end_of_page) {
+      Object* o = *reinterpret_cast<Object**>(visitable_end);
+      // Skip fillers but not things that look like fillers in the special
+      // garbage section which can contain anything.
+      if (o == free_space_map ||
+          o == two_pointer_filler_map ||
+          (visitable_end == space->top() && visitable_end != space->limit())) {
+        if (visitable_start != visitable_end) {
+          // After calling this the special garbage section may have moved.
+          (this->*region_callback)(visitable_start,
+                                   visitable_end,
+                                   slot_callback);
+          if (visitable_end >= space->top() && visitable_end < space->limit()) {
+            visitable_end = space->limit();
+            visitable_start = visitable_end;
+            continue;
+          }
         }
-      }
-      if (visitable_end == space->top() && visitable_end != space->limit()) {
-        visitable_start = visitable_end = space->limit();
+        if (visitable_end == space->top() && visitable_end != space->limit()) {
+          visitable_start = visitable_end = space->limit();
+        } else {
+          // At this point we are either at the start of a filler or we are at
+          // the point where the space->top() used to be before the
+          // visit_pointer_region call above.  Either way we can skip the
+          // object at the current spot:  We don't promise to visit objects
+          // allocated during heap traversal, and if space->top() moved then it
+          // must be because an object was allocated at this point.
+          visitable_start =
+              visitable_end + HeapObject::FromAddress(visitable_end)->Size();
+          visitable_end = visitable_start;
+        }
       } else {
-        // At this point we are either at the start of a filler or we are at
-        // the point where the space->top() used to be before the
-        // visit_pointer_region call above.  Either way we can skip the
-        // object at the current spot:  We don't promise to visit objects
-        // allocated during heap traversal, and if space->top() moved then it
-        // must be because an object was allocated at this point.
-        visitable_start =
-            visitable_end + HeapObject::FromAddress(visitable_end)->Size();
-        visitable_end = visitable_start;
+        ASSERT(o != free_space_map);
+        ASSERT(o != two_pointer_filler_map);
+        ASSERT(visitable_end < space->top() || visitable_end >= space->limit());
+        visitable_end += kPointerSize;
       }
-    } else {
-      ASSERT(o != free_space_map);
-      ASSERT(o != two_pointer_filler_map);
-      ASSERT(visitable_end < space->top() || visitable_end >= space->limit());
-      visitable_end += kPointerSize;
     }
+    ASSERT(visitable_end >= end_of_page);
+    // If the page did not grow we are done.
+    if (end_of_page == page->ObjectAreaEnd()) break;
   }
-  ASSERT(visitable_end == end_of_page);
+  ASSERT(visitable_end == page->ObjectAreaEnd());
   if (visitable_start != visitable_end) {
     (this->*region_callback)(visitable_start,
                              visitable_end,

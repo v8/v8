@@ -1150,6 +1150,7 @@ MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
 
   MemoryChunk* chunk =
       Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
+                                                            desc.instr_size,
                                                             EXECUTABLE,
                                                             NULL);
   if (chunk == NULL) {

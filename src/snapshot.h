@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "isolate.h"
+#include "spaces.h"
 
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_
@@ -85,6 +86,7 @@ class Snapshot {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
+
 
 } }  // namespace v8::internal
 
