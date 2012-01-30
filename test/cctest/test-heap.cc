@@ -612,7 +612,7 @@ TEST(ObjectProperties) {
   CHECK(!obj->HasLocalProperty(*second));
 
   // check string and symbol match
-  static const char* string1 = "fisk";
+  const char* string1 = "fisk";
   Handle<String> s1 = FACTORY->NewStringFromAscii(CStrVector(string1));
   obj->SetProperty(
       *s1, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
@@ -620,7 +620,7 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
-  static const char* string2 = "fugl";
+  const char* string2 = "fugl";
   Handle<String> s2_symbol = FACTORY->LookupAsciiSymbol(string2);
   obj->SetProperty(
       *s2_symbol, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
