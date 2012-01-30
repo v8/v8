@@ -2161,7 +2161,6 @@ class LChunkBuilder BASE_EMBEDDED {
   void Abort(const char* format, ...);
 
   // Methods for getting operands for Use / Define / Temp.
-  LRegister* ToOperand(Register reg);
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(DoubleRegister reg);
 
