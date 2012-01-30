@@ -749,6 +749,10 @@ class DeoptimizedFrameInfo : public Malloced {
     return expression_stack_[index];
   }
 
+  Address GetPc() {
+    return reinterpret_cast<Address>(pc_);
+  }
+
  private:
   // Set the frame function.
   void SetFunction(JSFunction* function) {
@@ -772,6 +776,7 @@ class DeoptimizedFrameInfo : public Malloced {
   int expression_count_;
   Object** parameters_;
   Object** expression_stack_;
+  intptr_t pc_;
 
   friend class Deoptimizer;
 };

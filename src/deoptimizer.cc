@@ -1603,6 +1603,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(
   SetFunction(output_frame->GetFunction());
   expression_count_ = output_frame->GetExpressionCount();
   expression_stack_ = new Object*[expression_count_];
+  pc_ = output_frame->GetPc();
   for (int i = 0; i < expression_count_; i++) {
     SetExpression(i, output_frame->GetExpression(i));
   }
