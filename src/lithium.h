@@ -61,7 +61,6 @@ class LOperand: public ZoneObject {
   bool IsUnallocated() const { return kind() == UNALLOCATED; }
   bool IsIgnored() const { return kind() == INVALID; }
   bool Equals(LOperand* other) const { return value_ == other->value_; }
-  int VirtualRegister();
 
   void PrintTo(StringStream* stream);
   void ConvertTo(Kind kind, int index) {
@@ -169,7 +168,7 @@ class LUnallocated: public LOperand {
     return static_cast<int>(value_) >> kFixedIndexShift;
   }
 
-  unsigned virtual_register() const {
+  int virtual_register() const {
     return VirtualRegisterField::decode(value_);
   }
 

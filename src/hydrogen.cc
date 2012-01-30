@@ -7329,7 +7329,9 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
     }
     LOperand* op = range->FirstHint();
     int hint_index = -1;
-    if (op != NULL && op->IsUnallocated()) hint_index = op->VirtualRegister();
+    if (op != NULL && op->IsUnallocated()) {
+      hint_index = LUnallocated::cast(op)->virtual_register();
+    }
     trace_.Add(" %d %d", parent_index, hint_index);
     UseInterval* cur_interval = range->first_interval();
     while (cur_interval != NULL && range->Covers(cur_interval->start())) {

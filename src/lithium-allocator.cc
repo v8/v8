@@ -697,7 +697,7 @@ LGap* LAllocator::GetLastGap(HBasicBlock* block) {
 
 HPhi* LAllocator::LookupPhi(LOperand* operand) const {
   if (!operand->IsUnallocated()) return NULL;
-  int index = operand->VirtualRegister();
+  int index = LUnallocated::cast(operand)->virtual_register();
   HValue* instr = graph_->LookupValue(index);
   if (instr != NULL && instr->IsPhi()) {
     return HPhi::cast(instr);
@@ -765,7 +765,8 @@ void LAllocator::AddConstraintsGapMove(int index,
       LMoveOperands cur = move_operands->at(i);
       LOperand* cur_to = cur.destination();
       if (cur_to->IsUnallocated()) {
-        if (cur_to->VirtualRegister() == from->VirtualRegister()) {
+        if (LUnallocated::cast(cur_to)->virtual_register() ==
+            LUnallocated::cast(from)->virtual_register()) {
           move->AddMove(cur.source(), to);
           return;
         }
@@ -807,11 +808,11 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
   // Handle fixed output operand.
   if (first != NULL && first->Output() != NULL) {
     LUnallocated* first_output = LUnallocated::cast(first->Output());
-    LiveRange* range = LiveRangeFor(first_output->VirtualRegister());
+    LiveRange* range = LiveRangeFor(first_output->virtual_register());
     bool assigned = false;
     if (first_output->HasFixedPolicy()) {
       LUnallocated* output_copy = first_output->CopyUnconstrained();
-      bool is_tagged = HasTaggedValue(first_output->VirtualRegister());
+      bool is_tagged = HasTaggedValue(first_output->virtual_register());
       AllocateFixed(first_output, gap_index, is_tagged);
 
       // This value is produced on the stack, we never need to spill it.
@@ -842,7 +843,7 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
       LUnallocated* cur_input = LUnallocated::cast(it.Current());
       if (cur_input->HasFixedPolicy()) {
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
-        bool is_tagged = HasTaggedValue(cur_input->VirtualRegister());
+        bool is_tagged = HasTaggedValue(cur_input->virtual_register());
         AllocateFixed(cur_input, gap_index + 1, is_tagged);
         AddConstraintsGapMove(gap_index, input_copy, cur_input);
       } else if (cur_input->policy() == LUnallocated::WRITABLE_REGISTER) {
@@ -869,8 +870,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
     LUnallocated* second_output = LUnallocated::cast(second->Output());
     if (second_output->HasSameAsInputPolicy()) {
       LUnallocated* cur_input = LUnallocated::cast(second->FirstInput());
-      int output_vreg = second_output->VirtualRegister();
-      int input_vreg = cur_input->VirtualRegister();
+      int output_vreg = second_output->virtual_register();
+      int input_vreg = cur_input->virtual_register();
 
       LUnallocated* input_copy = cur_input->CopyUnconstrained();
       cur_input->set_virtual_register(second_output->virtual_register());
@@ -925,9 +926,9 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         } else {
           if (to->IsUnallocated()) {
-            if (live->Contains(to->VirtualRegister())) {
+            if (live->Contains(LUnallocated::cast(to)->virtual_register())) {
               Define(curr_position, to, from);
-              live->Remove(to->VirtualRegister());
+              live->Remove(LUnallocated::cast(to)->virtual_register());
             } else {
               cur->Eliminate();
               continue;
@@ -938,7 +939,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
         }
         Use(block_start_position, curr_position, from, hint);
         if (from->IsUnallocated()) {
-          live->Add(from->VirtualRegister());
+          live->Add(LUnallocated::cast(from)->virtual_register());
         }
       }
     } else {
@@ -948,7 +949,9 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
       if (instr != NULL) {
         LOperand* output = instr->Output();
         if (output != NULL) {
-          if (output->IsUnallocated()) live->Remove(output->VirtualRegister());
+          if (output->IsUnallocated()) {
+            live->Remove(LUnallocated::cast(output)->virtual_register());
+          }
           Define(curr_position, output, NULL);
         }
 
@@ -986,7 +989,9 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
 
           Use(block_start_position, use_pos, input, NULL);
-          if (input->IsUnallocated()) live->Add(input->VirtualRegister());
+          if (input->IsUnallocated()) {
+            live->Add(LUnallocated::cast(input)->virtual_register());
+          }
         }
 
         for (TempIterator it(instr); !it.Done(); it.Advance()) {
@@ -1270,7 +1275,8 @@ void LAllocator::BuildLiveRanges() {
       LParallelMove* move = gap->GetOrCreateParallelMove(LGap::START);
       for (int j = 0; j < move->move_operands()->length(); ++j) {
         LOperand* to = move->move_operands()->at(j).destination();
-        if (to->IsUnallocated() && to->VirtualRegister() == phi->id()) {
+        if (to->IsUnallocated() &&
+            LUnallocated::cast(to)->virtual_register() == phi->id()) {
           hint = move->move_operands()->at(j).source();
           phi_operand = to;
           break;
