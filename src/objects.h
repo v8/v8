@@ -4670,13 +4670,20 @@ class Map: public HeapObject {
   // This is undone in MarkCompactCollector::ClearNonLiveTransitions().
   void CreateBackPointers();
 
-  void CreateOneBackPointer(Map* transition_target);
+  void CreateOneBackPointer(Object* transition_target);
 
   // Set all map transitions from this map to dead maps to null.
   // Also, restore the original prototype on the targets of these
   // transitions, so that we do not process this map again while
   // following back pointers.
   void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
+
+  // Restore a possible back pointer in the prototype field of object.
+  // Return true in that case and false otherwise. Set *keep_entry to
+  // true when a live map transition has been found.
+  bool RestoreOneBackPointer(Object* object,
+                             Object* real_prototype,
+                             bool* keep_entry);
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();

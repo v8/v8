@@ -7222,7 +7222,9 @@ void String::PrintOn(FILE* file) {
 }
 
 
-void Map::CreateOneBackPointer(Map* target) {
+void Map::CreateOneBackPointer(Object* transition_target) {
+  if (!transition_target->IsMap()) return;
+  Map* target = Map::cast(transition_target);
 #ifdef DEBUG
   // Verify target.
   Object* source_prototype = prototype();
@@ -7244,86 +7246,131 @@ void Map::CreateOneBackPointer(Map* target) {
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
   for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
-    if (descriptors->IsTransition(i)) {
-      Object* object = reinterpret_cast<Object*>(descriptors->GetValue(i));
-      if (object->IsMap()) {
-        CreateOneBackPointer(reinterpret_cast<Map*>(object));
-      } else {
-        ASSERT(object->IsFixedArray());
-        ASSERT(descriptors->GetType(i) == ELEMENTS_TRANSITION);
-        FixedArray* array = reinterpret_cast<FixedArray*>(object);
-        for (int i = 0; i < array->length(); ++i) {
-          Map* target = reinterpret_cast<Map*>(array->get(i));
-          if (!target->IsUndefined()) {
-            CreateOneBackPointer(target);
+    switch (descriptors->GetType(i)) {
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+        CreateOneBackPointer(descriptors->GetValue(i));
+        break;
+      case ELEMENTS_TRANSITION: {
+        Object* object = descriptors->GetValue(i);
+        if (object->IsMap()) {
+          CreateOneBackPointer(object);
+        } else {
+          FixedArray* array = FixedArray::cast(object);
+          for (int i = 0; i < array->length(); ++i) {
+            CreateOneBackPointer(array->get(i));
           }
         }
+        break;
       }
+      case CALLBACKS: {
+        Object* object = descriptors->GetValue(i);
+        if (object->IsAccessorPair()) {
+          AccessorPair* accessors = AccessorPair::cast(object);
+          CreateOneBackPointer(accessors->getter());
+          CreateOneBackPointer(accessors->setter());
+        }
+        break;
+      }
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+      case HANDLER:
+      case INTERCEPTOR:
+      case NULL_DESCRIPTOR:
+        break;
     }
   }
 }
 
 
+bool Map::RestoreOneBackPointer(Object* object,
+                                Object* real_prototype,
+                                bool* keep_entry) {
+  if (!object->IsMap()) return false;
+  Map* map = Map::cast(object);
+  if (Marking::MarkBitFrom(map).Get()) {
+    *keep_entry = true;
+    return false;
+  }
+  ASSERT(map->prototype() == this || map->prototype() == real_prototype);
+  // Getter prototype() is read-only, set_prototype() has side effects.
+  *RawField(map, Map::kPrototypeOffset) = real_prototype;
+  return true;
+}
+
+
 void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
-  // Live DescriptorArray objects will be marked, so we must use
-  // low-level accessors to get and modify their data.
-  DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
+  DescriptorArray* d = DescriptorArray::cast(
       *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
   if (d->IsEmpty()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
-  FixedArray* contents = reinterpret_cast<FixedArray*>(
+  FixedArray* contents = FixedArray::cast(
       d->get(DescriptorArray::kContentArrayIndex));
   ASSERT(contents->length() >= 2);
   for (int i = 0; i < contents->length(); i += 2) {
-    // If the pair (value, details) is a map transition,
-    // check if the target is live.  If not, null the descriptor.
-    // Also drop the back pointer for that map transition, so that this
-    // map is not reached again by following a back pointer from a
-    // non-live object.
+    // If the pair (value, details) is a map transition, check if the target is
+    // live. If not, null the descriptor. Also drop the back pointer for that
+    // map transition, so that this map is not reached again by following a back
+    // pointer from a non-live object.
+    bool keep_entry = false;
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
-    if (IsTransitionType(details.type())) {
-      Object* object = reinterpret_cast<Object*>(contents->get(i));
-      if (object->IsMap()) {
-        Map* target = reinterpret_cast<Map*>(object);
-        ASSERT(target->IsHeapObject());
-        MarkBit map_mark = Marking::MarkBitFrom(target);
-        if (!map_mark.Get()) {
-          ASSERT(target->IsMap());
-          contents->set_unchecked(i + 1, NullDescriptorDetails);
-          contents->set_null_unchecked(heap, i);
-          ASSERT(target->prototype() == this ||
-                 target->prototype() == real_prototype);
-          // Getter prototype() is read-only, set_prototype() has side effects.
-          *RawField(target, Map::kPrototypeOffset) = real_prototype;
-        }
-      } else {
-        ASSERT(object->IsFixedArray());
-        ASSERT(details.type() == ELEMENTS_TRANSITION);
-        FixedArray* array = reinterpret_cast<FixedArray*>(object);
-        bool reachable_map_found = false;
-        for (int j = 0; j < array->length(); ++j) {
-          Map* target = reinterpret_cast<Map*>(array->get(j));
-          ASSERT(target->IsHeapObject());
-          MarkBit map_mark = Marking::MarkBitFrom(target);
-          if (!map_mark.Get()) {
-            ASSERT(target->IsMap());
-            array->set_undefined(j);
-            ASSERT(target->prototype() == this ||
-                   target->prototype() == real_prototype);
-            // Getter prototype() is read-only, set_prototype() has side
-            // effects.
-            *RawField(target, Map::kPrototypeOffset) = real_prototype;
-          } else if (target->IsMap()) {
-            reachable_map_found = true;
+    switch (details.type()) {
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+        RestoreOneBackPointer(contents->get(i), real_prototype, &keep_entry);
+        break;
+      case ELEMENTS_TRANSITION: {
+        Object* object = contents->get(i);
+        if (object->IsMap()) {
+          RestoreOneBackPointer(object, real_prototype, &keep_entry);
+        } else {
+          FixedArray* array = FixedArray::cast(object);
+          for (int j = 0; j < array->length(); ++j) {
+            if (RestoreOneBackPointer(array->get(j),
+                                      real_prototype,
+                                      &keep_entry)) {
+              array->set_undefined(j);
+            }
           }
         }
-        // If no map was found, make sure the FixedArray also gets collected.
-        if (!reachable_map_found) {
-          contents->set_unchecked(i + 1, NullDescriptorDetails);
-          contents->set_null_unchecked(heap, i);
-        }
+        break;
       }
+      case CALLBACKS: {
+        Object* object = contents->get(i);
+        if (object->IsAccessorPair()) {
+          AccessorPair* accessors = AccessorPair::cast(object);
+          if (RestoreOneBackPointer(accessors->getter(),
+                                    real_prototype,
+                                    &keep_entry)) {
+            accessors->set_getter(heap->the_hole_value());
+          }
+          if (RestoreOneBackPointer(accessors->setter(),
+                                    real_prototype,
+                                    &keep_entry)) {
+            accessors->set_setter(heap->the_hole_value());
+          }
+        } else {
+          keep_entry = true;
+        }
+        break;
+      }
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+      case HANDLER:
+      case INTERCEPTOR:
+      case NULL_DESCRIPTOR:
+        keep_entry = true;
+        break;
+    }
+    // Make sure that an entry containing only dead transitions gets collected.
+    // What we *really* want to do here is removing this entry completely, but
+    // for technical reasons we can't do this, so we zero it out instead.
+    if (!keep_entry) {
+      contents->set_unchecked(i + 1, NullDescriptorDetails);
+      contents->set_null_unchecked(heap, i);
     }
   }
 }
