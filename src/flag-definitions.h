@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -118,13 +118,14 @@ DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 
 // Flags for experimental implementation features.
-DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
-DEFINE_bool(string_slices, true, "use string slices")
-
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
+
+// Flags for data representation optimizations
+DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
+DEFINE_bool(string_slices, true, "use string slices")
 
 // Flags for Crankshaft.
 DEFINE_bool(crankshaft, true, "use crankshaft")
@@ -249,7 +250,7 @@ DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
 // execution.cc
 DEFINE_int(stack_size, kPointerSize * 128,
-           "default size of stack region v8 is allowed to use (in KkBytes)")
+           "default size of stack region v8 is allowed to use (in kBytes)")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
@@ -324,10 +325,6 @@ DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
            "Maximum number of pages in map space which still allows to encode "
            "forwarding pointers.  That's actually a constant, but it's useful "
            "to control it with a flag for better testing.")
-
-// mksnapshot.cc
-DEFINE_bool(h, false, "print this message")
-DEFINE_bool(new_snapshot, true, "use new snapshot implementation")
 
 // objects.cc
 DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
