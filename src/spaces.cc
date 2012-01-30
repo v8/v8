@@ -31,7 +31,6 @@
 #include "macro-assembler.h"
 #include "mark-compact.h"
 #include "platform.h"
-#include "snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -264,7 +263,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
     : isolate_(isolate),
       capacity_(0),
       capacity_executable_(0),
-      memory_allocator_reserved_(0),
+      size_(0),
       size_executable_(0) {
 }
 
@@ -274,7 +273,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
   ASSERT_GE(capacity_, capacity_executable_);
 
-  memory_allocator_reserved_ = 0;
+  size_ = 0;
   size_executable_ = 0;
 
   return true;
@@ -283,7 +282,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
 
 void MemoryAllocator::TearDown() {
   // Check that spaces were torn down before MemoryAllocator.
-  CHECK_EQ(memory_allocator_reserved_, 0);
+  ASSERT(size_ == 0);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // ASSERT(size_executable_ == 0);
   capacity_ = 0;
@@ -296,8 +295,8 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
   // TODO(gc) make code_range part of memory allocator?
   ASSERT(reservation->IsReserved());
   size_t size = reservation->size();
-  ASSERT(memory_allocator_reserved_ >= size);
-  memory_allocator_reserved_ -= size;
+  ASSERT(size_ >= size);
+  size_ -= size;
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
@@ -317,8 +316,8 @@ void MemoryAllocator::FreeMemory(Address base,
                                  size_t size,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  ASSERT(memory_allocator_reserved_ >= size);
-  memory_allocator_reserved_ -= size;
+  ASSERT(size_ >= size);
+  size_ -= size;
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
@@ -344,7 +343,7 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size,
   VirtualMemory reservation(size, alignment);
 
   if (!reservation.IsReserved()) return NULL;
-  memory_allocator_reserved_ += reservation.size();
+  size_ += reservation.size();
   Address base = RoundUp(static_cast<Address>(reservation.address()),
                          alignment);
   controller->TakeControl(&reservation);
@@ -353,14 +352,11 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size,
 
 
 Address MemoryAllocator::AllocateAlignedMemory(size_t size,
-                                               size_t reserved_size,
                                                size_t alignment,
                                                Executability executable,
                                                VirtualMemory* controller) {
-  ASSERT(RoundUp(reserved_size, OS::CommitPageSize()) >=
-         RoundUp(size, OS::CommitPageSize()));
   VirtualMemory reservation;
-  Address base = ReserveAlignedMemory(reserved_size, alignment, &reservation);
+  Address base = ReserveAlignedMemory(size, alignment, &reservation);
   if (base == NULL) return NULL;
   if (!reservation.Commit(base,
                           size,
@@ -376,53 +372,6 @@ void Page::InitializeAsAnchor(PagedSpace* owner) {
   set_owner(owner);
   set_prev_page(this);
   set_next_page(this);
-}
-
-
-void Page::CommitMore(intptr_t space_needed) {
-  intptr_t reserved_page_size = reservation_.IsReserved() ?
-      reservation_.size() :
-      Page::kPageSize;
-  ASSERT(size() + space_needed <= reserved_page_size);
-  // At increase the page size by at least 64k (this also rounds to OS page
-  // size).
-  int expand = Min(reserved_page_size - size(),
-                   RoundUp(size() + space_needed, Page::kGrowthUnit) - size());
-  ASSERT(expand <= kPageSize - size());
-  ASSERT(expand <= reserved_page_size - size());
-  Executability executable =
-      IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-  Address old_end = ObjectAreaEnd();
-  if (!VirtualMemory::CommitRegion(old_end, expand, executable)) return;
-
-  set_size(size() + expand);
-
-  PagedSpace* paged_space = reinterpret_cast<PagedSpace*>(owner());
-  paged_space->heap()->isolate()->memory_allocator()->AllocationBookkeeping(
-      paged_space,
-      old_end,
-      0,  // No new memory was reserved.
-      expand,  // New memory committed.
-      executable);
-  paged_space->IncreaseCapacity(expand);
-
-  // In spaces with alignment requirements (e.g. map space) we have to align
-  // the expanded area with the correct object alignment.
-  uintptr_t object_area_size = old_end - ObjectAreaStart();
-  uintptr_t aligned_object_area_size =
-      object_area_size - object_area_size % paged_space->ObjectAlignment();
-  if (aligned_object_area_size != object_area_size) {
-    aligned_object_area_size += paged_space->ObjectAlignment();
-  }
-  Address new_area =
-      reinterpret_cast<Address>(ObjectAreaStart() + aligned_object_area_size);
-  // In spaces with alignment requirements, this will waste the space for one
-  // object per doubling of the page size until the next GC.
-  paged_space->AddToFreeLists(old_end, new_area - old_end);
-
-  expand -= (new_area - old_end);
-
-  paged_space->AddToFreeLists(new_area, expand);
 }
 
 
@@ -511,15 +460,9 @@ void MemoryChunk::Unlink() {
 
 
 MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
-                                            intptr_t committed_body_size,
                                             Executability executable,
                                             Space* owner) {
-  ASSERT(body_size >= committed_body_size);
-  size_t chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + body_size,
-                              OS::CommitPageSize());
-  intptr_t committed_chunk_size =
-      committed_body_size + MemoryChunk::kObjectStartOffset;
-  committed_chunk_size = RoundUp(committed_chunk_size, OS::CommitPageSize());
+  size_t chunk_size = MemoryChunk::kObjectStartOffset + body_size;
   Heap* heap = isolate_->heap();
   Address base = NULL;
   VirtualMemory reservation;
@@ -539,21 +482,20 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
       ASSERT(IsAligned(reinterpret_cast<intptr_t>(base),
                        MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
-      // The AllocateAlignedMemory method will update the memory allocator
-      // memory used, but we are not using that if we have a code range, so
-      // we update it here.
-      memory_allocator_reserved_ += chunk_size;
+      size_ += chunk_size;
+      // Update executable memory size.
+      size_executable_ += chunk_size;
     } else {
-      base = AllocateAlignedMemory(committed_chunk_size,
-                                   chunk_size,
+      base = AllocateAlignedMemory(chunk_size,
                                    MemoryChunk::kAlignment,
                                    executable,
                                    &reservation);
       if (base == NULL) return NULL;
+      // Update executable memory size.
+      size_executable_ += reservation.size();
     }
   } else {
-    base = AllocateAlignedMemory(committed_chunk_size,
-                                 chunk_size,
+    base = AllocateAlignedMemory(chunk_size,
                                  MemoryChunk::kAlignment,
                                  executable,
                                  &reservation);
@@ -561,12 +503,21 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
     if (base == NULL) return NULL;
   }
 
-  AllocationBookkeeping(
-      owner, base, chunk_size, committed_chunk_size, executable);
+#ifdef DEBUG
+  ZapBlock(base, chunk_size);
+#endif
+  isolate_->counters()->memory_allocated()->
+      Increment(static_cast<int>(chunk_size));
+
+  LOG(isolate_, NewEvent("MemoryChunk", base, chunk_size));
+  if (owner != NULL) {
+    ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
+    PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
+  }
 
   MemoryChunk* result = MemoryChunk::Initialize(heap,
                                                 base,
-                                                committed_chunk_size,
+                                                chunk_size,
                                                 executable,
                                                 owner);
   result->set_reserved_memory(&reservation);
@@ -574,40 +525,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 }
 
 
-void MemoryAllocator::AllocationBookkeeping(Space* owner,
-                                            Address base,
-                                            intptr_t reserved_chunk_size,
-                                            intptr_t committed_chunk_size,
-                                            Executability executable) {
-  if (executable == EXECUTABLE) {
-    // Update executable memory size.
-    size_executable_ += reserved_chunk_size;
-  }
-
-#ifdef DEBUG
-  ZapBlock(base, committed_chunk_size);
-#endif
-  isolate_->counters()->memory_allocated()->
-      Increment(static_cast<int>(committed_chunk_size));
-
-  LOG(isolate_, NewEvent("MemoryChunk", base, committed_chunk_size));
-  if (owner != NULL) {
-    ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
-    PerformAllocationCallback(
-        space, kAllocationActionAllocate, committed_chunk_size);
-  }
-}
-
-
-Page* MemoryAllocator::AllocatePage(intptr_t committed_object_area_size,
-                                    PagedSpace* owner,
+Page* MemoryAllocator::AllocatePage(PagedSpace* owner,
                                     Executability executable) {
-  ASSERT(committed_object_area_size <= Page::kObjectAreaSize);
-
-  MemoryChunk* chunk = AllocateChunk(Page::kObjectAreaSize,
-                                     committed_object_area_size,
-                                     executable,
-                                     owner);
+  MemoryChunk* chunk = AllocateChunk(Page::kObjectAreaSize, executable, owner);
 
   if (chunk == NULL) return NULL;
 
@@ -618,8 +538,7 @@ Page* MemoryAllocator::AllocatePage(intptr_t committed_object_area_size,
 LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
                                               Executability executable,
                                               Space* owner) {
-  MemoryChunk* chunk =
-      AllocateChunk(object_size, object_size, executable, owner);
+  MemoryChunk* chunk = AllocateChunk(object_size, executable, owner);
   if (chunk == NULL) return NULL;
   return LargePage::Initialize(isolate_->heap(), chunk);
 }
@@ -640,12 +559,8 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   if (reservation->IsReserved()) {
     FreeMemory(reservation, chunk->executable());
   } else {
-    // When we do not have a reservation that is because this allocation
-    // is part of the huge reserved chunk of memory reserved for code on
-    // x64.  In that case the size was rounded up to the page size on
-    // allocation so we do the same now when freeing.
     FreeMemory(chunk->address(),
-               RoundUp(chunk->size(), Page::kPageSize),
+               chunk->size(),
                chunk->executable());
   }
 }
@@ -725,12 +640,11 @@ void MemoryAllocator::RemoveMemoryAllocationCallback(
 
 #ifdef DEBUG
 void MemoryAllocator::ReportStatistics() {
-  float pct =
-      static_cast<float>(capacity_ - memory_allocator_reserved_) / capacity_;
+  float pct = static_cast<float>(capacity_ - size_) / capacity_;
   PrintF("  capacity: %" V8_PTR_PREFIX "d"
              ", used: %" V8_PTR_PREFIX "d"
              ", available: %%%d\n\n",
-         capacity_, memory_allocator_reserved_, static_cast<int>(pct*100));
+         capacity_, size_, static_cast<int>(pct*100));
 }
 #endif
 
@@ -809,6 +723,7 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   ASSERT(max_capacity_ % Page::kObjectAreaSize == 0);
+  ASSERT(Capacity() % Page::kObjectAreaSize == 0);
 
   if (Capacity() == max_capacity_) return false;
 
@@ -820,43 +735,11 @@ bool PagedSpace::CanExpand() {
   return true;
 }
 
-bool PagedSpace::Expand(intptr_t size_in_bytes) {
+bool PagedSpace::Expand() {
   if (!CanExpand()) return false;
 
-  Page* last_page = anchor_.prev_page();
-  if (last_page != &anchor_) {
-    // We have run out of linear allocation space.  This may be  because the
-    // most recently allocated page (stored last in the list) is a small one,
-    // that starts on a page aligned boundary, but has not a full kPageSize of
-    // committed memory.  Let's commit more memory for the page.
-    intptr_t reserved_page_size = last_page->reserved_memory()->IsReserved() ?
-        last_page->reserved_memory()->size() :
-        Page::kPageSize;
-    if (last_page->size() < reserved_page_size &&
-        (reserved_page_size - last_page->size()) >= size_in_bytes &&
-        !last_page->IsEvacuationCandidate() &&
-        last_page->WasSwept()) {
-      last_page->CommitMore(size_in_bytes);
-      return true;
-    }
-  }
-
-  // We initially only commit a part of the page, but the deserialization
-  // of the initial snapshot makes the assumption that it can deserialize
-  // into linear memory of a certain size per space, so some of the spaces
-  // need to have a little more committed memory.
-  int initial =
-      Max(OS::CommitPageSize(), static_cast<intptr_t>(Page::kGrowthUnit));
-
-  ASSERT(Page::kPageSize - initial < Page::kObjectAreaSize);
-
-  intptr_t expansion_size =
-      Max(initial,
-          RoundUpToPowerOf2(MemoryChunk::kObjectStartOffset + size_in_bytes)) -
-      MemoryChunk::kObjectStartOffset;
-
   Page* p = heap()->isolate()->memory_allocator()->
-      AllocatePage(expansion_size, this, executable());
+      AllocatePage(this, executable());
   if (p == NULL) return false;
 
   ASSERT(Capacity() <= max_capacity_);
@@ -901,8 +784,6 @@ void PagedSpace::ReleasePage(Page* page) {
     allocation_info_.top = allocation_info_.limit = NULL;
   }
 
-  intptr_t size = page->ObjectAreaEnd() - page->ObjectAreaStart();
-
   page->Unlink();
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
@@ -911,7 +792,8 @@ void PagedSpace::ReleasePage(Page* page) {
   }
 
   ASSERT(Capacity() > 0);
-  accounting_stats_.ShrinkSpace(size);
+  ASSERT(Capacity() % Page::kObjectAreaSize == 0);
+  accounting_stats_.ShrinkSpace(Page::kObjectAreaSize);
 }
 
 
@@ -1789,7 +1671,7 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   // is big enough to be a FreeSpace with at least one extra word (the next
   // pointer), we set its map to be the free space map and its size to an
   // appropriate array length for the desired size from HeapObject::Size().
-  // If the block is too small (e.g. one or two words), to hold both a size
+  // If the block is too small (eg, one or two words), to hold both a size
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
   if (size_in_bytes > FreeSpace::kHeaderSize) {
@@ -1893,14 +1775,10 @@ int FreeList::Free(Address start, int size_in_bytes) {
 }
 
 
-FreeListNode* FreeList::PickNodeFromList(FreeListNode** list,
-                                         int* node_size,
-                                         int minimum_size) {
+FreeListNode* FreeList::PickNodeFromList(FreeListNode** list, int* node_size) {
   FreeListNode* node = *list;
 
   if (node == NULL) return NULL;
-
-  ASSERT(node->map() == node->GetHeap()->raw_unchecked_free_space_map());
 
   while (node != NULL &&
          Page::FromAddress(node->address())->IsEvacuationCandidate()) {
@@ -1908,87 +1786,58 @@ FreeListNode* FreeList::PickNodeFromList(FreeListNode** list,
     node = node->next();
   }
 
-  if (node == NULL) {
+  if (node != NULL) {
+    *node_size = node->Size();
+    *list = node->next();
+  } else {
     *list = NULL;
-    return NULL;
   }
-
-  // Gets the size without checking the map.  When we are booting we have
-  // a FreeListNode before we have created its map.
-  intptr_t size = reinterpret_cast<FreeSpace*>(node)->Size();
-
-  // We don't search the list for one that fits, preferring to look in the
-  // list of larger nodes, but we do check the first in the list, because
-  // if we had to expand the space or page we may have placed an entry that
-  // was just long enough at the head of one of the lists.
-  if (size < minimum_size) return NULL;
-
-  *node_size = size;
-  available_ -= size;
-  *list = node->next();
 
   return node;
 }
 
 
-FreeListNode* FreeList::FindAbuttingNode(
-  int size_in_bytes, int* node_size, Address limit, FreeListNode** list_head) {
-  FreeListNode* first_node = *list_head;
-  if (first_node != NULL &&
-      first_node->address() == limit &&
-      reinterpret_cast<FreeSpace*>(first_node)->Size() >= size_in_bytes &&
-      !Page::FromAddress(first_node->address())->IsEvacuationCandidate()) {
-    FreeListNode* answer = first_node;
-    int size = reinterpret_cast<FreeSpace*>(first_node)->Size();
-    available_ -= size;
-    *node_size = size;
-    *list_head = first_node->next();
-    ASSERT(IsVeryLong() || available_ == SumFreeLists());
-    return answer;
-  }
-  return NULL;
-}
-
-
-FreeListNode* FreeList::FindNodeFor(int size_in_bytes,
-                                    int* node_size,
-                                    Address limit) {
+FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeListNode* node = NULL;
 
-  if (limit != NULL) {
-    // We may have a memory area at the head of the free list, which abuts the
-    // old linear allocation area.  This happens if the linear allocation area
-    // has been shortened to allow an incremental marking step to be performed.
-    // In that case we prefer to return the free memory area that is contiguous
-    // with the old linear allocation area.
-    node = FindAbuttingNode(size_in_bytes, node_size, limit, &large_list_);
-    if (node != NULL) return node;
-    node = FindAbuttingNode(size_in_bytes, node_size, limit, &huge_list_);
+  if (size_in_bytes <= kSmallAllocationMax) {
+    node = PickNodeFromList(&small_list_, node_size);
     if (node != NULL) return node;
   }
 
-  node = PickNodeFromList(&small_list_, node_size, size_in_bytes);
-  ASSERT(IsVeryLong() || available_ == SumFreeLists());
-  if (node != NULL) return node;
+  if (size_in_bytes <= kMediumAllocationMax) {
+    node = PickNodeFromList(&medium_list_, node_size);
+    if (node != NULL) return node;
+  }
 
-  node = PickNodeFromList(&medium_list_, node_size, size_in_bytes);
-  ASSERT(IsVeryLong() || available_ == SumFreeLists());
-  if (node != NULL) return node;
+  if (size_in_bytes <= kLargeAllocationMax) {
+    node = PickNodeFromList(&large_list_, node_size);
+    if (node != NULL) return node;
+  }
 
-  node = PickNodeFromList(&large_list_, node_size, size_in_bytes);
-  ASSERT(IsVeryLong() || available_ == SumFreeLists());
-  if (node != NULL) return node;
-
-  // The tricky third clause in this for statement is due to the fact that
-  // PickNodeFromList can cut pages out of the list if they are unavailable for
-  // new allocation (e.g. if they are on a page that has been scheduled for
-  // evacuation).
   for (FreeListNode** cur = &huge_list_;
        *cur != NULL;
-       cur = (*cur) == NULL ? cur : (*cur)->next_address()) {
-    node = PickNodeFromList(cur, node_size, size_in_bytes);
-    ASSERT(IsVeryLong() || available_ == SumFreeLists());
-    if (node != NULL) return node;
+       cur = (*cur)->next_address()) {
+    FreeListNode* cur_node = *cur;
+    while (cur_node != NULL &&
+           Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
+      available_ -= reinterpret_cast<FreeSpace*>(cur_node)->Size();
+      cur_node = cur_node->next();
+    }
+
+    *cur = cur_node;
+    if (cur_node == NULL) break;
+
+    ASSERT((*cur)->map() == HEAP->raw_unchecked_free_space_map());
+    FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
+    int size = cur_as_free_space->Size();
+    if (size >= size_in_bytes) {
+      // Large enough node found.  Unlink it from the list.
+      node = *cur;
+      *node_size = size;
+      *cur = node->next();
+      break;
+    }
   }
 
   return node;
@@ -2007,23 +1856,10 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   ASSERT(owner_->limit() - owner_->top() < size_in_bytes);
 
   int new_node_size = 0;
-  FreeListNode* new_node =
-      FindNodeFor(size_in_bytes, &new_node_size, owner_->limit());
+  FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == NULL) return NULL;
 
-  if (new_node->address() == owner_->limit()) {
-    // The new freelist node we were given is an extension of the one we had
-    // last.  This is a common thing to happen when we extend a small page by
-    // committing more memory.  In this case we just add the new node to the
-    // linear allocation area and recurse.
-    owner_->Allocate(new_node_size);
-    owner_->SetTop(owner_->top(), new_node->address() + new_node_size);
-    MaybeObject* allocation = owner_->AllocateRaw(size_in_bytes);
-    Object* answer;
-    if (!allocation->ToObject(&answer)) return NULL;
-    return HeapObject::cast(answer);
-  }
-
+  available_ -= new_node_size;
   ASSERT(IsVeryLong() || available_ == SumFreeLists());
 
   int bytes_left = new_node_size - size_in_bytes;
@@ -2033,9 +1869,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
-  if (old_linear_size != 0) {
-    owner_->AddToFreeLists(owner_->top(), old_linear_size);
-  }
+  owner_->Free(owner_->top(), old_linear_size);
 
 #ifdef DEBUG
   for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
@@ -2064,8 +1898,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
     // we want to do another increment until the linear area is used up.
-    owner_->AddToFreeLists(new_node->address() + size_in_bytes + linear_size,
-                           new_node_size - size_in_bytes - linear_size);
+    owner_->Free(new_node->address() + size_in_bytes + linear_size,
+                 new_node_size - size_in_bytes - linear_size);
     owner_->SetTop(new_node->address() + size_in_bytes,
                    new_node->address() + size_in_bytes + linear_size);
   } else if (bytes_left > 0) {
@@ -2074,7 +1908,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     owner_->SetTop(new_node->address() + size_in_bytes,
                    new_node->address() + new_node_size);
   } else {
-    ASSERT(bytes_left == 0);
     // TODO(gc) Try not freeing linear allocation region when bytes_left
     // are zero.
     owner_->SetTop(NULL, NULL);
@@ -2207,9 +2040,7 @@ bool NewSpace::ReserveSpace(int bytes) {
   HeapObject* allocation = HeapObject::cast(object);
   Address top = allocation_info_.top;
   if ((top - bytes) == allocation->address()) {
-    Address new_top = allocation->address();
-    ASSERT(new_top >= Page::FromAddress(new_top - 1)->ObjectAreaStart());
-    allocation_info_.top = new_top;
+    allocation_info_.top = allocation->address();
     return true;
   }
   // There may be a borderline case here where the allocation succeeded, but
@@ -2224,7 +2055,7 @@ void PagedSpace::PrepareForMarkCompact() {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.
   int old_linear_size = static_cast<int>(limit() - top());
-  AddToFreeLists(top(), old_linear_size);
+  Free(top(), old_linear_size);
   SetTop(NULL, NULL);
 
   // Stop lazy sweeping and clear marking bits for unswept pages.
@@ -2267,13 +2098,10 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
   // Mark the old linear allocation area with a free space so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
-  AddToFreeLists(top(), old_linear_size);
+  Free(top(), old_linear_size);
 
   SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  // The AddToFreeLists call above will reduce the size of the space in the
-  // allocation stats.  We don't need to add this linear area to the size
-  // with an Allocate(size_in_bytes) call here, because the
-  // free_list_.Allocate() call above already accounted for this memory.
+  Allocate(size_in_bytes);
   return true;
 }
 
@@ -2354,7 +2182,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   }
 
   // Try to expand the space and allocate in the new next page.
-  if (Expand(size_in_bytes)) {
+  if (Expand()) {
     return free_list_.Allocate(size_in_bytes);
   }
 
@@ -2715,7 +2543,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       heap()->mark_compact_collector()->ReportDeleteIfNeeded(
           object, heap()->isolate());
       size_ -= static_cast<int>(page->size());
-      ASSERT(size_ >= 0);
       objects_size_ -= object->Size();
       page_count_--;
 
