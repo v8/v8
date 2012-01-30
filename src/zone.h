@@ -29,6 +29,10 @@
 #define V8_ZONE_H_
 
 #include "allocation.h"
+#include "checks.h"
+#include "globals.h"
+#include "list.h"
+#include "splay-tree.h"
 
 namespace v8 {
 namespace internal {
@@ -42,6 +46,7 @@ enum ZoneScopeMode {
 };
 
 class Segment;
+class Isolate;
 
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead

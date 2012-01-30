@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
-
 #include "zone-inl.h"
-#include "splay-tree-inl.h"
+
+#include <string.h>
 
 namespace v8 {
 namespace internal {

@@ -28,8 +28,11 @@
 #ifndef V8_ZONE_INL_H_
 #define V8_ZONE_INL_H_
 
-#include "isolate.h"
 #include "zone.h"
+
+#include "counters.h"
+#include "isolate.h"
+#include "utils.h"
 #include "v8-counters.h"
 
 namespace v8 {
