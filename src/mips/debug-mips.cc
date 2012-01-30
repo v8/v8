@@ -247,7 +247,8 @@ void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
   // Calling convention for construct call (from builtins-mips.cc).
   //  -- a0     : number of arguments (not smi)
   //  -- a1     : constructor function
-  Generate_DebugBreakCallHelper(masm, a1.bit(), a0.bit());
+  //  -- a2     : cache cell for call target
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit(), a0.bit());
 }
 
 
@@ -260,6 +261,7 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-mips.cc).
   // ----------- S t a t e -------------
   //  -- a1 : function
   // -----------------------------------
