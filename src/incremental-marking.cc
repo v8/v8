@@ -287,7 +287,7 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
 
     // It's difficult to filter out slots recorded for large objects.
     if (chunk->owner()->identity() == LO_SPACE &&
-        chunk->size() > static_cast<size_t>(Page::kPageSize) &&
+        chunk->size() > Page::kPageSize &&
         is_compacting) {
       chunk->SetFlag(MemoryChunk::RESCAN_ON_EVACUATION);
     }

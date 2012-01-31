@@ -505,11 +505,9 @@ class MemoryChunk {
   static const int kObjectStartOffset = kBodyOffset - 1 +
       (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
 
-  size_t size() const { return size_; }
+  intptr_t size() const { return size_; }
 
-  void set_size(size_t size) {
-    size_ = size;
-  }
+  void set_size(size_t size) { size_ = size; }
 
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
@@ -661,7 +659,7 @@ class Page : public MemoryChunk {
   Address ObjectAreaStart() { return address() + kObjectStartOffset; }
 
   // Returns the end address (exclusive) of the object area in this page.
-  Address ObjectAreaEnd() { return address() + Page::kPageSize; }
+  Address ObjectAreaEnd() { return address() + size(); }
 
   // Checks whether an address is page aligned.
   static bool IsAlignedToPageSize(Address a) {
@@ -680,10 +678,16 @@ class Page : public MemoryChunk {
     return address() + offset;
   }
 
+  // Expand the committed area for pages that are small.
+  void CommitMore(intptr_t space_needed);
+
   // ---------------------------------------------------------------------
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
+
+  // For a 1Mbyte page grow 64k at a time.
+  static const int kGrowthUnit = 1 << (kPageSizeBits - 4);
 
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
@@ -719,6 +723,8 @@ class Page : public MemoryChunk {
 
   void ClearSweptPrecisely() { ClearFlag(WAS_SWEPT_PRECISELY); }
   void ClearSweptConservatively() { ClearFlag(WAS_SWEPT_CONSERVATIVELY); }
+
+  Address RoundUpToObjectAlignment(Address a);
 
 #ifdef DEBUG
   void Print();
@@ -849,12 +855,10 @@ class CodeRange {
     FreeBlock(Address start_arg, size_t size_arg)
         : start(start_arg), size(size_arg) {
       ASSERT(IsAddressAligned(start, MemoryChunk::kAlignment));
-      ASSERT(size >= static_cast<size_t>(Page::kPageSize));
     }
     FreeBlock(void* start_arg, size_t size_arg)
         : start(static_cast<Address>(start_arg)), size(size_arg) {
       ASSERT(IsAddressAligned(start, MemoryChunk::kAlignment));
-      ASSERT(size >= static_cast<size_t>(Page::kPageSize));
     }
 
     Address start;
@@ -950,7 +954,9 @@ class MemoryAllocator {
 
   void TearDown();
 
-  Page* AllocatePage(PagedSpace* owner, Executability executable);
+  Page* AllocatePage(intptr_t object_area_size,
+                     PagedSpace* owner,
+                     Executability executable);
 
   LargePage* AllocateLargePage(intptr_t object_size,
                                       Executability executable,
@@ -959,10 +965,14 @@ class MemoryAllocator {
   void Free(MemoryChunk* chunk);
 
   // Returns the maximum available bytes of heaps.
-  intptr_t Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
+  intptr_t Available() {
+    return capacity_ < memory_allocator_reserved_ ?
+           0 :
+           capacity_ - memory_allocator_reserved_;
+  }
 
   // Returns allocated spaces in bytes.
-  intptr_t Size() { return size_; }
+  intptr_t Size() { return memory_allocator_reserved_; }
 
   // Returns the maximum available executable bytes of heaps.
   intptr_t AvailableExecutable() {
@@ -984,6 +994,7 @@ class MemoryAllocator {
 #endif
 
   MemoryChunk* AllocateChunk(intptr_t body_size,
+                             intptr_t committed_body_size,
                              Executability executable,
                              Space* space);
 
@@ -991,6 +1002,7 @@ class MemoryAllocator {
                                size_t alignment,
                                VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t requested,
+                                size_t committed,
                                 size_t alignment,
                                 Executability executable,
                                 VirtualMemory* controller);
@@ -1009,6 +1021,12 @@ class MemoryAllocator {
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool UncommitBlock(Address start, size_t size);
+
+  void AllocationBookkeeping(Space* owner,
+                             Address base,
+                             intptr_t reserved_size,
+                             intptr_t committed_size,
+                             Executability executable);
 
   // Zaps a contiguous block of memory [start..(start+size)[ thus
   // filling it up with a recognizable non-NULL bit pattern.
@@ -1037,7 +1055,7 @@ class MemoryAllocator {
   size_t capacity_executable_;
 
   // Allocated space size in bytes.
-  size_t size_;
+  size_t memory_allocator_reserved_;
   // Allocated executable space size in bytes.
   size_t size_executable_;
 
@@ -1382,9 +1400,15 @@ class FreeList BASE_EMBEDDED {
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
 
-  FreeListNode* PickNodeFromList(FreeListNode** list, int* node_size);
+  FreeListNode* PickNodeFromList(FreeListNode** list,
+                                 int* node_size,
+                                 int minimum_size);
 
-  FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
+  FreeListNode* FindNodeFor(int size_in_bytes, int* node_size, Address limit);
+  FreeListNode* FindAbuttingNode(int size_in_bytes,
+                                 int* node_size,
+                                 Address limit,
+                                 FreeListNode** list_head);
 
   PagedSpace* owner_;
   Heap* heap_;
@@ -1484,6 +1508,8 @@ class PagedSpace : public Space {
   // free bytes that were not found at all due to lazy sweeping.
   virtual intptr_t Waste() { return accounting_stats_.Waste(); }
 
+  virtual int ObjectAlignment() { return kObjectAlignment; }
+
   // Returns the allocation pointer in this space.
   Address top() { return allocation_info_.top; }
   Address limit() { return allocation_info_.limit; }
@@ -1498,7 +1524,7 @@ class PagedSpace : public Space {
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
-  int Free(Address start, int size_in_bytes) {
+  int AddToFreeLists(Address start, int size_in_bytes) {
     int wasted = free_list_.Free(start, size_in_bytes);
     accounting_stats_.DeallocateBytes(size_in_bytes - wasted);
     return size_in_bytes - wasted;
@@ -1506,6 +1532,7 @@ class PagedSpace : public Space {
 
   // Set space allocation info.
   void SetTop(Address top, Address limit) {
+    ASSERT(top == NULL || top >= Page::FromAddress(top - 1)->ObjectAreaStart());
     ASSERT(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
     allocation_info_.top = top;
@@ -1572,12 +1599,14 @@ class PagedSpace : public Space {
 
   void IncreaseUnsweptFreeBytes(Page* p) {
     ASSERT(ShouldBeSweptLazily(p));
-    unswept_free_bytes_ += (Page::kObjectAreaSize - p->LiveBytes());
+    unswept_free_bytes_ +=
+        (p->ObjectAreaEnd() - p->ObjectAreaStart()) - p->LiveBytes();
   }
 
   void DecreaseUnsweptFreeBytes(Page* p) {
     ASSERT(ShouldBeSweptLazily(p));
-    unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
+    unswept_free_bytes_ -=
+        (p->ObjectAreaEnd() - p->ObjectAreaStart() - p->LiveBytes());
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
@@ -1586,6 +1615,7 @@ class PagedSpace : public Space {
     return !first_unswept_page_->is_valid();
   }
 
+  inline bool HasAPage() { return anchor_.next_page() != &anchor_; }
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
@@ -1596,15 +1626,17 @@ class PagedSpace : public Space {
     FreeList::SizeStats sizes;
     free_list_.CountFreeListItems(p, &sizes);
 
+    intptr_t object_area_size = p->ObjectAreaEnd() - p->ObjectAreaStart();
+
     intptr_t ratio;
     intptr_t ratio_threshold;
     if (identity() == CODE_SPACE) {
       ratio = (sizes.medium_size_ * 10 + sizes.large_size_ * 2) * 100 /
-          Page::kObjectAreaSize;
+          object_area_size;
       ratio_threshold = 10;
     } else {
       ratio = (sizes.small_size_ * 5 + sizes.medium_size_) * 100 /
-          Page::kObjectAreaSize;
+          object_area_size;
       ratio_threshold = 15;
     }
 
@@ -1614,20 +1646,20 @@ class PagedSpace : public Space {
              identity(),
              static_cast<int>(sizes.small_size_),
              static_cast<double>(sizes.small_size_ * 100) /
-                 Page::kObjectAreaSize,
+                 object_area_size,
              static_cast<int>(sizes.medium_size_),
              static_cast<double>(sizes.medium_size_ * 100) /
-                 Page::kObjectAreaSize,
+                 object_area_size,
              static_cast<int>(sizes.large_size_),
              static_cast<double>(sizes.large_size_ * 100) /
-                 Page::kObjectAreaSize,
+                 object_area_size,
              static_cast<int>(sizes.huge_size_),
              static_cast<double>(sizes.huge_size_ * 100) /
-                 Page::kObjectAreaSize,
+                 object_area_size,
              (ratio > ratio_threshold) ? "[fragmented]" : "");
     }
 
-    if (FLAG_always_compact && sizes.Total() != Page::kObjectAreaSize) {
+    if (FLAG_always_compact && sizes.Total() != object_area_size) {
       return 1;
     }
     if (ratio <= ratio_threshold) return 0;  // Not fragmented.
@@ -1658,12 +1690,6 @@ class PagedSpace : public Space {
   // Normal allocation information.
   AllocationInfo allocation_info_;
 
-  // Bytes of each page that cannot be allocated.  Possibly non-zero
-  // for pages in spaces with only fixed-size objects.  Always zero
-  // for pages in spaces with variable sized objects (those pages are
-  // padded with free-list nodes).
-  int page_extra_;
-
   bool was_swept_conservatively_;
 
   // The first page to be swept when the lazy sweeper advances. Is set
@@ -1675,10 +1701,11 @@ class PagedSpace : public Space {
   // done conservatively.
   intptr_t unswept_free_bytes_;
 
-  // Expands the space by allocating a fixed number of pages. Returns false if
-  // it cannot allocate requested number of pages from OS, or if the hard heap
-  // size limit has been hit.
-  bool Expand();
+  // Expands the space by allocating a page. Returns false if it cannot
+  // allocate a page from OS, or if the hard heap size limit has been hit.  The
+  // new page will have at least enough committed space to satisfy the object
+  // size indicated by the allocation_size argument;
+  bool Expand(intptr_t allocation_size);
 
   // Generic fast case allocation function that tries linear allocation at the
   // address denoted by top in allocation_info_.
@@ -1833,7 +1860,8 @@ class SemiSpace : public Space {
       anchor_(this),
       current_page_(NULL) { }
 
-  // Sets up the semispace using the given chunk.
+  // Sets up the semispace using the given chunk.  After this, call Commit()
+  // to make the semispace usable.
   void SetUp(Address start, int initial_capacity, int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
@@ -2338,14 +2366,7 @@ class OldSpace : public PagedSpace {
            intptr_t max_capacity,
            AllocationSpace id,
            Executability executable)
-      : PagedSpace(heap, max_capacity, id, executable) {
-    page_extra_ = 0;
-  }
-
-  // The limit of allocation for a page in this space.
-  virtual Address PageAllocationLimit(Page* page) {
-    return page->ObjectAreaEnd();
-  }
+      : PagedSpace(heap, max_capacity, id, executable) { }
 
  public:
   TRACK_MEMORY("OldSpace")
@@ -2372,16 +2393,11 @@ class FixedSpace : public PagedSpace {
              const char* name)
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
         object_size_in_bytes_(object_size_in_bytes),
-        name_(name) {
-    page_extra_ = Page::kObjectAreaSize % object_size_in_bytes;
-  }
-
-  // The limit of allocation for a page in this space.
-  virtual Address PageAllocationLimit(Page* page) {
-    return page->ObjectAreaEnd() - page_extra_;
-  }
+        name_(name) { }
 
   int object_size_in_bytes() { return object_size_in_bytes_; }
+
+  virtual int ObjectAlignment() { return object_size_in_bytes_; }
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact();

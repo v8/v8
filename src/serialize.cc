@@ -612,6 +612,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     pages_[LO_SPACE].Add(address);
   }
   last_object_address_ = address;
+  ASSERT(address >= Page::FromAddress(address)->ObjectAreaStart());
   return address;
 }
 
@@ -622,7 +623,12 @@ HeapObject* Deserializer::GetAddressFromEnd(int space) {
   int offset = source_->GetInt();
   ASSERT(!SpaceIsLarge(space));
   offset <<= kObjectAlignmentBits;
-  return HeapObject::FromAddress(high_water_[space] - offset);
+  Address address = high_water_[space] - offset;
+  // This assert will fail if kMinimumSpaceSizes is too small for a space,
+  // because we rely on the fact that all allocation is linear when the VM
+  // is very young.
+  ASSERT(address >= Page::FromAddress(address)->ObjectAreaStart());
+  return HeapObject::FromAddress(address);
 }
 
 
