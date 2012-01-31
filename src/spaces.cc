@@ -283,7 +283,8 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
 
 void MemoryAllocator::TearDown() {
   // Check that spaces were torn down before MemoryAllocator.
-  CHECK_EQ(memory_allocator_reserved_, static_cast<size_t>(0));
+  CHECK_EQ(static_cast<int64_t>(memory_allocator_reserved_),
+           static_cast<int64_t>(0));
   // TODO(gc) this will be true again when we fix FreeMemory.
   // ASSERT(size_executable_ == 0);
   capacity_ = 0;
