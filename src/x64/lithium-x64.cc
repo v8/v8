@@ -679,12 +679,6 @@ LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
 
 
 template<int I, int T>
-LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::NONE));
-}
-
-
-template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsRegister(
     LTemplateInstruction<1, I, T>* instr) {
   return Define(instr, new LUnallocated(LUnallocated::MUST_HAVE_REGISTER));

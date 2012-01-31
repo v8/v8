@@ -2211,8 +2211,6 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* Define(LTemplateInstruction<1, I, T>* instr,
                            LUnallocated* result);
   template<int I, int T>
-      LInstruction* Define(LTemplateInstruction<1, I, T>* instr);
-  template<int I, int T>
       LInstruction* DefineAsRegister(LTemplateInstruction<1, I, T>* instr);
   template<int I, int T>
       LInstruction* DefineAsSpilled(LTemplateInstruction<1, I, T>* instr,
