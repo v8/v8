@@ -10747,10 +10747,10 @@ class FrameInspector {
         ? deoptimized_frame_->GetExpression(index)
         : frame_->GetExpression(index);
   }
-  Address GetPc() {
+  int GetSourcePosition() {
     return is_optimized_
-        ? deoptimized_frame_->GetPc()
-        : frame_->pc();
+        ? deoptimized_frame_->GetSourcePosition()
+        : frame_->LookupCode()->SourcePosition(frame_->pc());
   }
 
   // To inspect all the provided arguments the frame might need to be
@@ -10858,15 +10858,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()), isolate);
 
   // Find source position in unoptimized code.
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
-  Handle<SharedFunctionInfo> shared(function->shared());
-  int position = shared->code()->SourcePosition(frame_inspector.GetPc());
+  int position = frame_inspector.GetSourcePosition();
 
   // Check for constructor frame. Inlined frames cannot be construct calls.
   bool inlined_frame = is_optimized && inlined_jsframe_index != 0;
   bool constructor = !inlined_frame && it.frame()->IsConstructor();
 
   // Get scope info and read from it for local variable information.
+  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
   ASSERT(*scope_info != ScopeInfo::Empty());
 

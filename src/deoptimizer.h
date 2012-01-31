@@ -749,8 +749,8 @@ class DeoptimizedFrameInfo : public Malloced {
     return expression_stack_[index];
   }
 
-  Address GetPc() {
-    return reinterpret_cast<Address>(pc_);
+  int GetSourcePosition() {
+    return source_position_;
   }
 
  private:
@@ -776,7 +776,7 @@ class DeoptimizedFrameInfo : public Malloced {
   int expression_count_;
   Object** parameters_;
   Object** expression_stack_;
-  intptr_t pc_;
+  int source_position_;
 
   friend class Deoptimizer;
 };
