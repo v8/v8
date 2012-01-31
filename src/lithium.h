@@ -453,7 +453,7 @@ class LEnvironment: public ZoneObject {
         parameter_count_(parameter_count),
         pc_offset_(-1),
         values_(value_count),
-        representations_(value_count),
+        is_tagged_(value_count),
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
         outer_(outer) {
@@ -475,11 +475,13 @@ class LEnvironment: public ZoneObject {
 
   void AddValue(LOperand* operand, Representation representation) {
     values_.Add(operand);
-    representations_.Add(representation);
+    if (representation.IsTagged()) {
+      is_tagged_.Add(values_.length() - 1);
+    }
   }
 
   bool HasTaggedValueAt(int index) const {
-    return representations_[index].IsTagged();
+    return is_tagged_.Contains(index);
   }
 
   void Register(int deoptimization_index,
@@ -514,7 +516,7 @@ class LEnvironment: public ZoneObject {
   int parameter_count_;
   int pc_offset_;
   ZoneList<LOperand*> values_;
-  ZoneList<Representation> representations_;
+  BitVector is_tagged_;
 
   // Allocation index indexed arrays of spill slot operands for registers
   // that are also in spill slots at an OSR entry.  NULL for environments
