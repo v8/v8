@@ -1222,24 +1222,13 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // Smi utilities.
 
-  // Try to convert int32 to smi. If the value is to large, preserve
-  // the original value and jump to not_a_smi. Destroys scratch and
-  // sets flags.
-  // This is only used by crankshaft atm so it is unimplemented on MIPS.
-  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
-    UNIMPLEMENTED_MIPS();
-  }
-
   void SmiTag(Register reg) {
     Addu(reg, reg, reg);
   }
 
   // Test for overflow < 0: use BranchOnOverflow() or BranchOnNoOverflow().
-  void SmiTagCheckOverflow(Register reg, Register overflow) {
-    mov(overflow, reg);  // Save original value.
-    addu(reg, reg, reg);
-    xor_(overflow, overflow, reg);  // Overflow if (value ^ 2 * value) < 0.
-  }
+  void SmiTagCheckOverflow(Register reg, Register overflow);
+  void SmiTagCheckOverflow(Register dst, Register src, Register overflow);
 
   void SmiTag(Register dst, Register src) {
     Addu(dst, src, src);

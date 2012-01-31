@@ -4517,6 +4517,30 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
 }
 
 
+void MacroAssembler::SmiTagCheckOverflow(Register reg, Register overflow) {
+  ASSERT(!reg.is(overflow));
+  mov(overflow, reg);  // Save original value.
+  SmiTag(reg);
+  xor_(overflow, overflow, reg);  // Overflow if (value ^ 2 * value) < 0.
+}
+
+
+void MacroAssembler::SmiTagCheckOverflow(Register dst,
+                                         Register src,
+                                         Register overflow) {
+  if (dst.is(src)) {
+    // Fall back to slower case.
+    SmiTagCheckOverflow(dst, overflow);
+  } else {
+    ASSERT(!dst.is(src));
+    ASSERT(!dst.is(overflow));
+    ASSERT(!src.is(overflow));
+    SmiTag(dst, src);
+    xor_(overflow, dst, src);  // Overflow if (value ^ 2 * value) < 0.
+  }
+}
+
+
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {

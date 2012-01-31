@@ -3714,13 +3714,12 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
     LNumberTagI* instr_;
   };
 
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
-  Register reg = ToRegister(input);
+  Register src = ToRegister(instr->InputAt(0));
+  Register dst = ToRegister(instr->result());
   Register overflow = scratch0();
 
   DeferredNumberTagI* deferred = new DeferredNumberTagI(this, instr);
-  __ SmiTagCheckOverflow(reg, overflow);
+  __ SmiTagCheckOverflow(dst, src, overflow);
   __ BranchOnOverflow(deferred->entry(), overflow);
   __ bind(deferred->exit());
 }
@@ -3728,7 +3727,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
 
 void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   Label slow;
-  Register reg = ToRegister(instr->InputAt(0));
+  Register src = ToRegister(instr->InputAt(0));
+  Register dst = ToRegister(instr->result());
   FPURegister dbl_scratch = double_scratch0();
 
   // Preserve the value of all registers.
@@ -3738,14 +3738,16 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // disagree. Try to allocate a heap number in new space and store
   // the value in there. If that fails, call the runtime system.
   Label done;
-  __ SmiUntag(reg);
-  __ Xor(reg, reg, Operand(0x80000000));
-  __ mtc1(reg, dbl_scratch);
+  if (dst.is(src)) {
+    __ SmiUntag(src, dst);
+    __ Xor(src, src, Operand(0x80000000));
+  }
+  __ mtc1(src, dbl_scratch);
   __ cvt_d_w(dbl_scratch, dbl_scratch);
   if (FLAG_inline_new) {
     __ LoadRoot(t2, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(t1, a3, t0, t2, &slow);
-    if (!reg.is(t1)) __ mov(reg, t1);
+    __ Move(dst, t1);
     __ Branch(&done);
   }
 
@@ -3755,15 +3757,16 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // TODO(3095996): Put a valid pointer value in the stack slot where the result
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
-  __ StoreToSafepointRegisterSlot(zero_reg, reg);
+  __ StoreToSafepointRegisterSlot(zero_reg, src);
+  __ StoreToSafepointRegisterSlot(zero_reg, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
-  if (!reg.is(v0)) __ mov(reg, v0);
+  __ Move(dst, v0);
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sdc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
-  __ StoreToSafepointRegisterSlot(reg, reg);
+  __ sdc1(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
+  __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
 
@@ -3810,25 +3813,23 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
   ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(input));
+  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->InputAt(0)));
 }
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   Register scratch = scratch0();
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
   if (instr->needs_check()) {
     STATIC_ASSERT(kHeapObjectTag == 1);
     // If the input is a HeapObject, value of scratch won't be zero.
-    __ And(scratch, ToRegister(input), Operand(kHeapObjectTag));
-    __ SmiUntag(ToRegister(input));
+    __ And(scratch, input, Operand(kHeapObjectTag));
+    __ SmiUntag(result, input);
     DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
   } else {
-    __ SmiUntag(ToRegister(input));
+    __ SmiUntag(result, input);
   }
 }
 
@@ -3876,10 +3877,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   // Smi to double register conversion
   __ bind(&load_smi);
-  __ SmiUntag(input_reg);  // Untag smi before converting to float.
-  __ mtc1(input_reg, result_reg);
+  __ SmiUntag(scratch, input_reg);  // Untag smi before converting to float.
+  __ mtc1(scratch, result_reg);
   __ cvt_d_w(result_reg, result_reg);
-  __ SmiTag(input_reg);  // Retag smi.
   __ bind(&done);
 }
 
