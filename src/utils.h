@@ -153,9 +153,11 @@ int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
 }
 
 
-template<typename int_type>
-inline int RoundUpToPowerOf2(int_type x_argument) {
-  uintptr_t x = static_cast<uintptr_t>(x_argument);
+// Returns the smallest power of two which is >= x. If you pass in a
+// number that is already a power of two, it is returned as is.
+// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
+// figure 3-3, page 48, where the function is called clp2.
+inline uint32_t RoundUpToPowerOf2(uint32_t x) {
   ASSERT(x <= 0x80000000u);
   x = x - 1;
   x = x | (x >> 1);
@@ -163,7 +165,7 @@ inline int RoundUpToPowerOf2(int_type x_argument) {
   x = x | (x >> 4);
   x = x | (x >> 8);
   x = x | (x >> 16);
-  return static_cast<int_type>(x + 1);
+  return x + 1;
 }
 
 
