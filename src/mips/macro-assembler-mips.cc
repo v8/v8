@@ -4541,6 +4541,40 @@ void MacroAssembler::SmiTagCheckOverflow(Register dst,
 }
 
 
+void MacroAssembler::UntagAndJumpIfSmi(Register dst,
+                                       Register src,
+                                       Label* smi_case) {
+  JumpIfSmi(src, smi_case, at, USE_DELAY_SLOT);
+  SmiUntag(dst, src);
+}
+
+
+void MacroAssembler::UntagAndJumpIfNotSmi(Register dst,
+                                          Register src,
+                                          Label* non_smi_case) {
+  JumpIfNotSmi(src, non_smi_case, at, USE_DELAY_SLOT);
+  SmiUntag(dst, src);
+}
+
+void MacroAssembler::JumpIfSmi(Register value,
+                               Label* smi_label,
+                               Register scratch,
+                               BranchDelaySlot bd) {
+  ASSERT_EQ(0, kSmiTag);
+  andi(scratch, value, kSmiTagMask);
+  Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfNotSmi(Register value,
+                                  Label* not_smi_label,
+                                  Register scratch,
+                                  BranchDelaySlot bd) {
+  ASSERT_EQ(0, kSmiTag);
+  andi(scratch, value, kSmiTagMask);
+  Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
+}
+
+
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
