@@ -894,17 +894,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
             heap->mark_compact_collector()->flush_monomorphic_ics_)) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    } else {
-      if (FLAG_cleanup_code_caches_at_gc &&
-          target->kind() == Code::STUB &&
-          target->major_key() == CodeStub::CallFunction &&
-          target->has_function_cache()) {
-        CallFunctionStub::Clear(heap, rinfo->pc());
-      }
     }
     MarkBit code_mark = Marking::MarkBitFrom(target);
     heap->mark_compact_collector()->MarkObject(target, code_mark);
-
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
@@ -1025,8 +1017,17 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   static void VisitCode(Map* map, HeapObject* object) {
-    reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>(
-        map->GetHeap());
+    Heap* heap = map->GetHeap();
+    Code* code = reinterpret_cast<Code*>(object);
+    if (FLAG_cleanup_code_caches_at_gc) {
+      TypeFeedbackCells* type_feedback_cells = code->type_feedback_cells();
+      for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+        ASSERT(type_feedback_cells->AstId(i)->IsSmi());
+        JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+      }
+    }
+    code->CodeIterateBody<StaticMarkingVisitor>(heap);
   }
 
   // Code flushing support.
@@ -2368,9 +2369,9 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
 void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
                                                       MarkBit map_mark) {
   // Follow the chain of back pointers to find the prototype.
-  Map* real_prototype = map;
+  Object* real_prototype = map;
   while (real_prototype->IsMap()) {
-    real_prototype = reinterpret_cast<Map*>(real_prototype->prototype());
+    real_prototype = Map::cast(real_prototype)->prototype();
     ASSERT(real_prototype->IsHeapObject());
   }
 

@@ -902,8 +902,7 @@ void Heap::MarkCompactPrologue() {
 
   CompletelyClearInstanceofCache();
 
-  // TODO(1605) select heuristic for flushing NumberString cache with
-  // FlushNumberStringCache
+  FlushNumberStringCache();
   if (FLAG_cleanup_code_caches_at_gc) {
     polymorphic_code_cache()->set_cache(undefined_value());
   }
@@ -2512,7 +2511,10 @@ bool Heap::CreateInitialObjects() {
   }
   set_intrinsic_function_names(StringDictionary::cast(obj));
 
-  if (InitializeNumberStringCache()->IsFailure()) return false;
+  { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_number_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for single character ASCII strings.
   { MaybeObject* maybe_obj =
@@ -2622,17 +2624,41 @@ void StringSplitCache::Clear(FixedArray* cache) {
 }
 
 
-MaybeObject* Heap::InitializeNumberStringCache() {
-  // Compute the size of the number string cache based on the max heap size.
-  // max_semispace_size_ == 512 KB => number_string_cache_size = 32.
-  // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
-  int number_string_cache_size = max_semispace_size_ / 512;
-  number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
-  Object* obj;
+MaybeObject* Heap::AllocateInitialNumberStringCache() {
   MaybeObject* maybe_obj =
-      AllocateFixedArray(number_string_cache_size * 2, TENURED);
-  if (maybe_obj->ToObject(&obj)) set_number_string_cache(FixedArray::cast(obj));
+      AllocateFixedArray(kInitialNumberStringCacheSize * 2, TENURED);
   return maybe_obj;
+}
+
+
+int Heap::FullSizeNumberStringCacheLength() {
+  // Compute the size of the number string cache based on the max newspace size.
+  // The number string cache has a minimum size based on twice the initial cache
+  // size to ensure that it is bigger after being made 'full size'.
+  int number_string_cache_size = max_semispace_size_ / 512;
+  number_string_cache_size = Max(kInitialNumberStringCacheSize * 2,
+                                 Min(0x4000, number_string_cache_size));
+  // There is a string and a number per entry so the length is twice the number
+  // of entries.
+  return number_string_cache_size * 2;
+}
+
+
+void Heap::AllocateFullSizeNumberStringCache() {
+  // The idea is to have a small number string cache in the snapshot to keep
+  // boot-time memory usage down.  If we expand the number string cache already
+  // while creating the snapshot then that didn't work out.
+  ASSERT(!Serializer::enabled());
+  MaybeObject* maybe_obj =
+      AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
+  Object* new_cache;
+  if (maybe_obj->ToObject(&new_cache)) {
+    // We don't bother to repopulate the cache with entries from the old cache.
+    // It will be repopulated soon enough with new strings.
+    set_number_string_cache(FixedArray::cast(new_cache));
+  }
+  // If allocation fails then we just return without doing anything.  It is only
+  // a cache, so best effort is OK here.
 }
 
 
@@ -2681,11 +2707,17 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
-    number_string_cache()->set(hash * 2, number);
   }
+  if (number_string_cache()->get(hash * 2) != undefined_value() &&
+      number_string_cache()->length() != FullSizeNumberStringCacheLength()) {
+    // The first time we have a hash collision, we move to the full sized
+    // number string cache.
+    AllocateFullSizeNumberStringCache();
+    return;
+  }
+  number_string_cache()->set(hash * 2, number);
   number_string_cache()->set(hash * 2 + 1, string);
 }
 
@@ -3307,6 +3339,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
+                                SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   // Allow self references to created code object by patching the handle to
@@ -3726,14 +3760,72 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
     Map::cast(initial_map)->set_constructor(constructor);
   }
   // Allocate the object based on the constructors initial map.
-  MaybeObject* result =
-      AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  MaybeObject* result = AllocateJSObjectFromMap(
+      constructor->initial_map(), pretenure);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayAndStorage(
+    ElementsKind elements_kind,
+    int length,
+    int capacity,
+    ArrayStorageAllocationMode mode,
+    PretenureFlag pretenure) {
+  ASSERT(capacity >= length);
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  if (capacity == 0) {
+    array->set_length(Smi::FromInt(0));
+    array->set_elements(empty_fixed_array());
+    return array;
+  }
+
+  FixedArrayBase* elms;
+  MaybeObject* maybe_elms = NULL;
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
+    }
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS ||
+           elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedArrayWithHoles(capacity);
+    }
+  }
+  if (!maybe_elms->To(&elms)) return maybe_elms;
+
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(length));
+  return array;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayWithElements(
+    FixedArrayBase* elements,
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements->length()));
+  return array;
 }
 
 
@@ -4241,6 +4333,25 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 }
 
 
+MaybeObject* Heap::AllocateJSArray(
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  Context* global_context = isolate()->context()->global_context();
+  JSFunction* array_function = global_context->array_function();
+  Map* map = array_function->initial_map();
+  if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
+    map = Map::cast(global_context->object_js_array_map());
+  } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    map = Map::cast(global_context->double_js_array_map());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    ASSERT(map == global_context->smi_js_array_map());
+  }
+
+  return AllocateJSObjectFromMap(map, pretenure);
+}
+
+
 MaybeObject* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
   Object* result;
@@ -4431,15 +4542,36 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_double_array();
 
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
+}
+
+
+MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  for (int i = 0; i < length; ++i) {
+    elements->set_the_hole(i);
   }
 
-  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_no_write_barrier(
-      fixed_double_array_map());
-  FixedDoubleArray::cast(obj)->set_length(length);
-  return obj;
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
 }
 
 
@@ -4488,6 +4620,9 @@ MaybeObject* Heap::AllocateGlobalContext() {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
+  context->set_smi_js_array_map(undefined_value());
+  context->set_double_js_array_map(undefined_value());
+  context->set_object_js_array_map(undefined_value());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;

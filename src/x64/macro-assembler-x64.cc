@@ -4033,6 +4033,32 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
+
+void MacroAssembler::LoadGlobalInitialConstructedArrayMap(
+    Register function_in, Register scratch, Register map_out) {
+  ASSERT(!function_in.is(map_out));
+  Label done;
+  movq(map_out, FieldOperand(function_in,
+                             JSFunction::kPrototypeOrInitialMapOffset));
+  if (!FLAG_smi_only_arrays) {
+    // Load the global or builtins object from the current context.
+    movq(scratch, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+    // Check that the function's map is same as the cached map.
+    cmpq(map_out,
+         Operand(scratch,
+                 Context::SlotOffset(Context::SMI_JS_ARRAY_MAP_INDEX)));
+    j(not_equal, &done);
+
+    // Use the cached transitioned map.
+    movq(map_out,
+         Operand(scratch,
+                 Context::SlotOffset(Context::OBJECT_JS_ARRAY_MAP_INDEX)));
+  }
+  bind(&done);
+}
+
 #ifdef _WIN64
 static const int kRegisterPassedArguments = 4;
 #else

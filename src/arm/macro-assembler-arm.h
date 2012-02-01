@@ -491,6 +491,11 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the initial map for new Arrays of a given type.
+  void LoadGlobalInitialConstructedArrayMap(Register function_in,
+                                            Register scratch,
+                                            Register map_out);
+
   void LoadGlobalFunction(int index, Register function);
 
   // Load the initial map from the global function. The registers
@@ -1143,6 +1148,14 @@ class MacroAssembler: public Assembler {
   void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
     mov(dst, Operand(src, ASR, kSmiTagSize), s);
   }
+
+  // Untag the source value into destination and jump if source is a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
+
+  // Untag the source value into destination and jump if source is not a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {

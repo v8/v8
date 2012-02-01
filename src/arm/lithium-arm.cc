@@ -581,11 +581,6 @@ void LChunkBuilder::Abort(const char* format, ...) {
 }
 
 
-LRegister* LChunkBuilder::ToOperand(Register reg) {
-  return LRegister::Create(Register::ToAllocationIndex(reg));
-}
-
-
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
   return new LUnallocated(LUnallocated::FIXED_REGISTER,
                           Register::ToAllocationIndex(reg));
@@ -687,12 +682,6 @@ LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr,
   allocator_->RecordDefinition(current_instruction_, result);
   instr->set_result(result);
   return instr;
-}
-
-
-template<int I, int T>
-LInstruction* LChunkBuilder::Define(LTemplateInstruction<1, I, T>* instr) {
-  return Define(instr, new LUnallocated(LUnallocated::NONE));
 }
 
 
@@ -1631,11 +1620,11 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineAsRegister(res));
     } else {
       ASSERT(to.IsInteger32());
-      LOperand* value = UseRegister(instr->value());
+      LOperand* value = UseRegisterAtStart(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       LInstruction* res = NULL;
       if (!needs_check) {
-        res = DefineSameAsFirst(new LSmiUntag(value, needs_check));
+        res = DefineAsRegister(new LSmiUntag(value, needs_check));
       } else {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
@@ -1671,12 +1660,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsInteger32()) {
     if (to.IsTagged()) {
       HValue* val = instr->value();
-      LOperand* value = UseRegister(val);
+      LOperand* value = UseRegisterAtStart(val);
       if (val->HasRange() && val->range()->IsInSmiRange()) {
-        return DefineSameAsFirst(new LSmiTag(value));
+        return DefineAsRegister(new LSmiTag(value));
       } else {
         LNumberTagI* result = new LNumberTagI(value);
-        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
       }
     } else {
       ASSERT(to.IsDouble());

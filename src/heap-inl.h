@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -700,9 +700,92 @@ MaybeObject* TranscendentalCache::SubCache::Get(double input) {
 }
 
 
-Heap* _inline_get_heap_() {
-  return HEAP;
+AlwaysAllocateScope::AlwaysAllocateScope() {
+  // We shouldn't hit any nested scopes, because that requires
+  // non-handle code to call handle code. The code still works but
+  // performance will degrade, so we want to catch this situation
+  // in debug mode.
+  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
+  HEAP->always_allocate_scope_depth_++;
 }
+
+
+AlwaysAllocateScope::~AlwaysAllocateScope() {
+  HEAP->always_allocate_scope_depth_--;
+  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
+}
+
+
+LinearAllocationScope::LinearAllocationScope() {
+  HEAP->linear_allocation_scope_depth_++;
+}
+
+
+LinearAllocationScope::~LinearAllocationScope() {
+  HEAP->linear_allocation_scope_depth_--;
+  ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
+}
+
+
+#ifdef DEBUG
+void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
+  for (Object** current = start; current < end; current++) {
+    if ((*current)->IsHeapObject()) {
+      HeapObject* object = HeapObject::cast(*current);
+      ASSERT(HEAP->Contains(object));
+      ASSERT(object->map()->IsMap());
+    }
+  }
+}
+#endif
+
+
+double GCTracer::SizeOfHeapObjects() {
+  return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
+}
+
+
+#ifdef DEBUG
+DisallowAllocationFailure::DisallowAllocationFailure() {
+  old_state_ = HEAP->disallow_allocation_failure_;
+  HEAP->disallow_allocation_failure_ = true;
+}
+
+
+DisallowAllocationFailure::~DisallowAllocationFailure() {
+  HEAP->disallow_allocation_failure_ = old_state_;
+}
+#endif
+
+
+#ifdef DEBUG
+AssertNoAllocation::AssertNoAllocation() {
+  old_state_ = HEAP->allow_allocation(false);
+}
+
+
+AssertNoAllocation::~AssertNoAllocation() {
+  HEAP->allow_allocation(old_state_);
+}
+
+
+DisableAssertNoAllocation::DisableAssertNoAllocation() {
+  old_state_ = HEAP->allow_allocation(true);
+}
+
+
+DisableAssertNoAllocation::~DisableAssertNoAllocation() {
+  HEAP->allow_allocation(old_state_);
+}
+
+#else
+
+AssertNoAllocation::AssertNoAllocation() { }
+AssertNoAllocation::~AssertNoAllocation() { }
+DisableAssertNoAllocation::DisableAssertNoAllocation() { }
+DisableAssertNoAllocation::~DisableAssertNoAllocation() { }
+
+#endif
 
 
 } }  // namespace v8::internal

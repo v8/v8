@@ -45,12 +45,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(isolates): remove HEAP here
-#define HEAP (_inline_get_heap_())
-class Heap;
-inline Heap* _inline_get_heap_();
-
-
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
@@ -432,6 +426,11 @@ class ExternalStringTable {
 };
 
 
+enum ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
@@ -532,6 +531,30 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return AllocateJSArrayAndStorage(elements_kind, 0, 0,
+                                     DONT_INITIALIZE_ARRAY_ELEMENTS,
+                                     pretenure);
+  }
+
+  // Allocate a JSArray with a specified length but elements that are left
+  // uninitialized.
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
+      FixedArrayBase* array_base,
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -776,6 +799,13 @@ class Heap {
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedDoubleArray(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates a fixed double array with hole values. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateFixedDoubleArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -1751,6 +1781,11 @@ class Heap {
                              Object* to_number,
                              byte kind);
 
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
@@ -1798,8 +1833,13 @@ class Heap {
   GCTracer* tracer_;
 
 
-  // Initializes the number to string cache based on the max semispace size.
-  MUST_USE_RESULT MaybeObject* InitializeNumberStringCache();
+  // Allocates a small number to string cache.
+  MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
+  // Creates and installs the full-sized number string cache.
+  void AllocateFullSizeNumberStringCache();
+  // Get the length of the number to string cache based on the max semispace
+  // size.
+  int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
@@ -1896,6 +1936,7 @@ class Heap {
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
+  static const int kInitialNumberStringCacheSize = 256;
 
   // Maximum GC pause.
   int max_gc_pause_;
@@ -1995,32 +2036,15 @@ class HeapStats {
 
 class AlwaysAllocateScope {
  public:
-  AlwaysAllocateScope() {
-    // We shouldn't hit any nested scopes, because that requires
-    // non-handle code to call handle code. The code still works but
-    // performance will degrade, so we want to catch this situation
-    // in debug mode.
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-    HEAP->always_allocate_scope_depth_++;
-  }
-
-  ~AlwaysAllocateScope() {
-    HEAP->always_allocate_scope_depth_--;
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-  }
+  inline AlwaysAllocateScope();
+  inline ~AlwaysAllocateScope();
 };
 
 
 class LinearAllocationScope {
  public:
-  LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_++;
-  }
-
-  ~LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_--;
-    ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
-  }
+  inline LinearAllocationScope();
+  inline ~LinearAllocationScope();
 };
 
 
@@ -2032,15 +2056,7 @@ class LinearAllocationScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor: public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        ASSERT(HEAP->Contains(object));
-        ASSERT(object->map()->IsMap());
-      }
-    }
-  }
+  inline void VisitPointers(Object** start, Object** end);
 };
 #endif
 
@@ -2266,6 +2282,18 @@ class DescriptorLookupCache {
 };
 
 
+#ifdef DEBUG
+class DisallowAllocationFailure {
+ public:
+  inline DisallowAllocationFailure();
+  inline ~DisallowAllocationFailure();
+
+ private:
+  bool old_state_;
+};
+#endif
+
+
 // A helper class to document/test C++ scopes where we do not
 // expect a GC. Usage:
 //
@@ -2273,65 +2301,28 @@ class DescriptorLookupCache {
 // { AssertNoAllocation nogc;
 //   ...
 // }
+class AssertNoAllocation {
+ public:
+  inline AssertNoAllocation();
+  inline ~AssertNoAllocation();
 
 #ifdef DEBUG
-
-class DisallowAllocationFailure {
- public:
-  DisallowAllocationFailure() {
-    old_state_ = HEAP->disallow_allocation_failure_;
-    HEAP->disallow_allocation_failure_ = true;
-  }
-  ~DisallowAllocationFailure() {
-    HEAP->disallow_allocation_failure_ = old_state_;
-  }
  private:
   bool old_state_;
-};
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(false);
-  }
-
-  ~AssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(true);
-  }
-
-  ~DisableAssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-#else  // ndef DEBUG
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() { }
-  ~AssertNoAllocation() { }
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() { }
-  ~DisableAssertNoAllocation() { }
-};
-
 #endif
+};
+
+
+class DisableAssertNoAllocation {
+ public:
+  inline DisableAssertNoAllocation();
+  inline ~DisableAssertNoAllocation();
+
+#ifdef DEBUG
+ private:
+  bool old_state_;
+#endif
+};
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -2394,9 +2385,7 @@ class GCTracer BASE_EMBEDDED {
   const char* CollectorString();
 
   // Returns size of object in heap (in MB).
-  double SizeOfHeapObjects() {
-    return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
-  }
+  inline double SizeOfHeapObjects();
 
   double start_time_;  // Timestamp set in the constructor.
   intptr_t start_size_;  // Size of objects in heap set in constructor.
@@ -2645,7 +2634,5 @@ class PathTracer : public ObjectVisitor {
 #endif  // DEBUG || LIVE_OBJECT_LIST
 
 } }  // namespace v8::internal
-
-#undef HEAP
 
 #endif  // V8_HEAP_H_
