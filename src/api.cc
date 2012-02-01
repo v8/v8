@@ -4313,6 +4313,20 @@ void Context::AllowCodeGenerationFromStrings(bool allow) {
 }
 
 
+bool Context::IsCodeGenerationFromStringsAllowed() {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate,
+                  "v8::Context::IsCodeGenerationFromStringsAllowed()")) {
+    return false;
+  }
+  ENTER_V8(isolate);
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  return !context->allow_code_gen_from_strings()->IsFalse();
+}
+
+
 void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
   i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
 }
