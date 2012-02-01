@@ -1,3 +1,10 @@
+2012-02-01: Version 3.9.0
+
+        Reduce memory use immediately after starting V8.
+
+        Stability fixes and performance improvements on all platforms.
+
+
 2012-01-26: Version 3.8.9
 
         Flush number string cache on GC (issue 1605).
