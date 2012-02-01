@@ -1672,7 +1672,7 @@ Representation HInferRepresentation::TryChange(HValue* value) {
     Representation rep = use->RequiredInputRepresentation(it.index());
     if (rep.IsNone()) continue;
     if (use->IsPhi()) HPhi::cast(use)->AddIndirectUsesTo(&use_count[0]);
-    ++use_count[rep.kind()];
+    use_count[rep.kind()] += use->LoopWeight();
   }
   int tagged_count = use_count[Representation::kTagged];
   int double_count = use_count[Representation::kDouble];

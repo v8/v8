@@ -166,6 +166,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
+DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
