@@ -2387,9 +2387,17 @@ class GCTracer BASE_EMBEDDED {
   // Returns size of object in heap (in MB).
   inline double SizeOfHeapObjects();
 
-  double start_time_;  // Timestamp set in the constructor.
-  intptr_t start_size_;  // Size of objects in heap set in constructor.
-  GarbageCollector collector_;  // Type of collector.
+  // Timestamp set in the constructor.
+  double start_time_;
+
+  // Size of objects in heap set in constructor.
+  intptr_t start_object_size_;
+
+  // Size of memory allocated from OS set in constructor.
+  intptr_t start_memory_size_;
+
+  // Type of collector.
+  GarbageCollector collector_;
 
   // A count (including this one, e.g. the first collection is 1) of the
   // number of garbage collections.
