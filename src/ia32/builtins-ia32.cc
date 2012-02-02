@@ -894,7 +894,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
   STATIC_ASSERT(initial_capacity >= 0);
 
-  __ LoadGlobalInitialConstructedArrayMap(array_function, scratch2, scratch1);
+  __ LoadInitialArrayMap(array_function, scratch2, scratch1);
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
@@ -997,9 +997,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   ASSERT(!fill_with_hole || array_size.is(ecx));  // rep stos count
   ASSERT(!fill_with_hole || !result.is(eax));  // result is never eax
 
-  __ LoadGlobalInitialConstructedArrayMap(array_function,
-                                          scratch,
-                                          elements_array);
+  __ LoadInitialArrayMap(array_function, scratch, elements_array);
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.

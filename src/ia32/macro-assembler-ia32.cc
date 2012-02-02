@@ -2168,27 +2168,41 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-void MacroAssembler::LoadGlobalInitialConstructedArrayMap(
+void MacroAssembler::LoadTransitionedArrayMapConditional(
+    ElementsKind expected_kind,
+    ElementsKind transitioned_kind,
+    Register map_in_out,
+    Register scratch,
+    Label* no_map_match) {
+  // Load the global or builtins object from the current context.
+  mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+  // Check that the function's map is the same as the expected cached map.
+  int expected_index =
+      Context::GetContextMapIndexFromElementsKind(expected_kind);
+  cmp(map_in_out, Operand(scratch, Context::SlotOffset(expected_index)));
+  j(not_equal, no_map_match);
+
+  // Use the transitioned cached map.
+  int trans_index =
+      Context::GetContextMapIndexFromElementsKind(transitioned_kind);
+  mov(map_in_out, Operand(scratch, Context::SlotOffset(trans_index)));
+}
+
+
+void MacroAssembler::LoadInitialArrayMap(
     Register function_in, Register scratch, Register map_out) {
   ASSERT(!function_in.is(map_out));
   Label done;
   mov(map_out, FieldOperand(function_in,
                             JSFunction::kPrototypeOrInitialMapOffset));
   if (!FLAG_smi_only_arrays) {
-    // Load the global or builtins object from the current context.
-    mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
-
-    // Check that the function's map is same as the cached map.
-    cmp(map_out,
-        Operand(scratch,
-                Context::SlotOffset(Context::SMI_JS_ARRAY_MAP_INDEX)));
-    j(not_equal, &done);
-
-    // Use the cached transitioned map.
-    mov(map_out,
-        Operand(scratch,
-                Context::SlotOffset(Context::OBJECT_JS_ARRAY_MAP_INDEX)));
+    LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                        FAST_ELEMENTS,
+                                        map_out,
+                                        scratch,
+                                        &done);
   }
   bind(&done);
 }

@@ -233,11 +233,26 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   restore_if_unset "MERGE_TO_BRANCH"
   restore_patch_commit_hashes_if_unset "PATCH_COMMIT_HASHES"
   echo "${PATCH_COMMIT_HASHES[@]}"
-  echo ">>> Step $CURRENT_STEP: Apply the revision patch and create commit message."
+  echo ">>> Step $CURRENT_STEP: Apply patches for selected revisions."
+  rm -f "$TOUCHED_FILES_FILE"
   for HASH in ${PATCH_COMMIT_HASHES[@]} ; do
     git log -1 -p $HASH | patch -p1 \
-      || die "Cannot apply the patch for $HASH to $MERGE_TO_BRANCH"
+      | tee >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
+    [[ $? -eq 0 ]] \
+      || die "Cannot apply the patch for $HASH to $MERGE_TO_BRANCH."
   done
+  # Stage added and modified files.
+  TOUCHED_FILES=$(cat "$TOUCHED_FILES_FILE")
+  for FILE in $TOUCHED_FILES ; do
+    git add "$FILE"
+  done
+  # Stage deleted files.
+  DELETED_FILES=$(git status -s -uno --porcelain | grep "^ D" \
+                                                 | awk '{print $NF}')
+  for FILE in $DELETED_FILES ; do
+    git rm "$FILE"
+  done
+  rm -f "$TOUCHED_FILES_FILE"
 fi
 
 let CURRENT_STEP+=1

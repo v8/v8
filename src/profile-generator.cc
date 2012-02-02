@@ -2720,6 +2720,13 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
         reinterpret_cast<List<HeapObject*>* >(p->value);
     delete objects;
   }
+  for (HashMap::Entry* p = native_groups_.Start();
+       p != NULL;
+       p = native_groups_.Next(p)) {
+    v8::RetainedObjectInfo* info =
+        reinterpret_cast<v8::RetainedObjectInfo*>(p->value);
+    info->Dispose();
+  }
 }
 
 
@@ -2824,6 +2831,7 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
   virtual void Dispose() {
     CHECK(!disposed_);
     disposed_ = true;
+    delete this;
   }
   virtual bool IsEquivalent(RetainedObjectInfo* other) {
     return hash_ == other->GetHash() && !strcmp(label_, other->GetLabel());

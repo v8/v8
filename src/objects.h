@@ -4364,8 +4364,8 @@ class Code: public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
   class TypeField: public BitField<PropertyType, 3, 4> {};
-  class KindField: public BitField<Kind, 7, 4> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 11, 1> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 7, 1> {};
+  class KindField: public BitField<Kind, 8, 4> {};
   class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
   class IsPregeneratedField: public BitField<bool, 14, 1> {};
 
@@ -4373,6 +4373,7 @@ class Code: public HeapObject {
   static const int kArgumentsCountShift = 15;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
+  // This constant should be encodable in an ARM instruction.
   static const int kFlagsNotUsedInLookup =
       TypeField::kMask | CacheHolderField::kMask;
 

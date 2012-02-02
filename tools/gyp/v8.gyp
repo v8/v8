@@ -32,6 +32,7 @@
       'targets': [
         {
           'target_name': 'v8',
+          'dependencies_traverse': 1,
           'conditions': [
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],

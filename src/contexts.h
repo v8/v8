@@ -369,6 +369,18 @@ class Context: public FixedArray {
   Object* OptimizedFunctionsListHead();
   void ClearOptimizedFunctions();
 
+  static int GetContextMapIndexFromElementsKind(
+      ElementsKind elements_kind) {
+    if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+      return Context::DOUBLE_JS_ARRAY_MAP_INDEX;
+    } else if (elements_kind == FAST_ELEMENTS) {
+      return Context::OBJECT_JS_ARRAY_MAP_INDEX;
+    } else {
+      ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+      return Context::SMI_JS_ARRAY_MAP_INDEX;
+    }
+  }
+
 #define GLOBAL_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \
     ASSERT(IsGlobalContext());                            \
