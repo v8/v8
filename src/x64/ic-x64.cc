@@ -765,6 +765,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
 
   // Transition the array appropriately depending on the value type.
+  __ movq(r9, FieldOperand(rax, HeapObject::kMapOffset));
   __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &non_double_value);
 
