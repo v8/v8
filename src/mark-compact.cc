@@ -543,7 +543,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     if (FLAG_trace_fragmentation) {
       PrintF("Estimated over reserved memory: %.1f MB (setting threshold %d)\n",
              static_cast<double>(over_reserved) / MB,
-             kFreenessThreshold);
+             static_cast<int>(kFreenessThreshold));
     }
   }
 
@@ -596,7 +596,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
         PrintF("%p [%s]: %d (%.2f%%) free %s\n",
                reinterpret_cast<void*>(p),
                AllocationSpaceName(space->identity()),
-               free_bytes,
+               static_cast<int>(free_bytes),
                static_cast<double>(free_bytes * 100) / Page::kObjectAreaSize,
                (fragmentation > 0) ? "[fragmented]" : "");
       }
