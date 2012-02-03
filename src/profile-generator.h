@@ -1042,6 +1042,7 @@ class NativeObjectsExplorer : public HeapEntriesAllocator {
 
  private:
   void FillRetainedObjects();
+  void FillImplicitReferences();
   List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
