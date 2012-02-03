@@ -625,25 +625,23 @@ HGraph::HGraph(CompilationInfo* info)
 
 Handle<Code> HGraph::Compile(CompilationInfo* info) {
   int values = GetMaximumValueID();
-  if (values > LAllocator::max_initial_value_ids()) {
+  if (values > LUnallocated::kMaxVirtualRegisters) {
     if (FLAG_trace_bailout) {
-      SmartArrayPointer<char> name(
-          info->shared_info()->DebugName()->ToCString());
-      PrintF("Function @\"%s\" is too big.\n", *name);
+      PrintF("Not enough virtual registers for (values).\n");
     }
     return Handle<Code>::null();
   }
-
   LAllocator allocator(values, this);
   LChunkBuilder builder(info, this, &allocator);
   LChunk* chunk = builder.Build();
   if (chunk == NULL) return Handle<Code>::null();
 
-  if (!FLAG_alloc_lithium) return Handle<Code>::null();
-
-  allocator.Allocate(chunk);
-
-  if (!FLAG_use_lithium) return Handle<Code>::null();
+  if (!allocator.Allocate(chunk)) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers (regalloc).\n");
+    }
+    return Handle<Code>::null();
+  }
 
   MacroAssembler assembler(info->isolate(), NULL, 0);
   LCodeGen generator(chunk, &assembler, info);
