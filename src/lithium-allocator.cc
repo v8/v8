@@ -855,7 +855,7 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
 
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         cur_input->set_virtual_register(GetVirtualRegister());
-        if(!AllocationOk()) return;
+        if (!AllocationOk()) return;
 
         if (RequiredRegisterKind(input_copy->virtual_register()) ==
             DOUBLE_REGISTERS) {

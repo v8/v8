@@ -797,7 +797,9 @@ LUnallocated* LChunkBuilder::TempRegister() {
   LUnallocated* operand =
       new(zone()) LUnallocated(LUnallocated::MUST_HAVE_REGISTER);
   operand->set_virtual_register(allocator_->GetVirtualRegister());
-  if (!allocator_->AllocationOk()) Abort("Not enough virtual registers (temps).");
+  if (!allocator_->AllocationOk()) {
+    Abort("Not enough virtual registers (temps).");
+  }
   return operand;
 }
 
