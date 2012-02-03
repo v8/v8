@@ -438,8 +438,10 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space) {
-  return CollectGarbage(space, SelectGarbageCollector(space));
+bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason) {
+  const char* collector_reason = NULL;
+  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
+  return CollectGarbage(space, collector, gc_reason, collector_reason);
 }
 
 
@@ -474,7 +476,7 @@ int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
         amount_of_external_allocated_memory_ -
         amount_of_external_allocated_memory_at_last_global_gc_;
     if (amount_since_last_global_gc > external_allocation_limit_) {
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kNoGCFlags, "external memory allocation limit reached");
     }
   } else {
     // Avoid underflow.
@@ -523,7 +525,8 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
-                                    allocation_space());                  \
+                                    allocation_space(),                   \
+                                    "allocation failure");                \
     __maybe_object__ = FUNCTION_CALL;                                     \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
     if (__maybe_object__->IsOutOfMemory()) {                              \
@@ -531,7 +534,7 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
-    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
+    ISOLATE->heap()->CollectAllAvailableGarbage("last resort gc");        \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __maybe_object__ = FUNCTION_CALL;                                   \

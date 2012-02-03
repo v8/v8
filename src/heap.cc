@@ -236,16 +236,19 @@ int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
 }
 
 
-GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
+GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
+                                              const char** reason) {
   // Is global GC requested?
   if (space != NEW_SPACE || FLAG_gc_global) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
+    *reason = "GC in old space requested";
     return MARK_COMPACTOR;
   }
 
   // Is enough data promoted to justify a global GC?
   if (OldGenerationPromotionLimitReached()) {
     isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
+    *reason = "promotion limit reached";
     return MARK_COMPACTOR;
   }
 
@@ -253,6 +256,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   if (old_gen_exhausted_) {
     isolate_->counters()->
         gc_compactor_caused_by_oldspace_exhaustion()->Increment();
+    *reason = "old generations exhausted";
     return MARK_COMPACTOR;
   }
 
@@ -268,10 +272,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   if (isolate_->memory_allocator()->MaxAvailable() <= new_space_.Size()) {
     isolate_->counters()->
         gc_compactor_caused_by_oldspace_exhaustion()->Increment();
+    *reason = "scavenge might not succeed";
     return MARK_COMPACTOR;
   }
 
   // Default
+  *reason = NULL;
   return SCAVENGER;
 }
 
@@ -431,17 +437,17 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(int flags) {
+void Heap::CollectAllGarbage(int flags, const char* gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   mark_compact_collector_.SetFlags(flags);
-  CollectGarbage(OLD_POINTER_SPACE);
+  CollectGarbage(OLD_POINTER_SPACE, gc_reason);
   mark_compact_collector_.SetFlags(kNoGCFlags);
 }
 
 
-void Heap::CollectAllAvailableGarbage() {
+void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
@@ -453,11 +459,12 @@ void Heap::CollectAllAvailableGarbage() {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
-  mark_compact_collector()->SetFlags(kMakeHeapIterableMask);
+  mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
+                                     kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
+    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL)) {
       break;
     }
   }
@@ -469,7 +476,10 @@ void Heap::CollectAllAvailableGarbage() {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
+bool Heap::CollectGarbage(AllocationSpace space,
+                          GarbageCollector collector,
+                          const char* gc_reason,
+                          const char* collector_reason) {
   // The VM is in the GC state until exiting this function.
   VMState state(isolate_, GC);
 
@@ -497,11 +507,12 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
       PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
     }
     collector = SCAVENGER;
+    collector_reason = "incremental marking delaying mark-sweep";
   }
 
   bool next_gc_likely_to_collect_more = false;
 
-  { GCTracer tracer(this);
+  { GCTracer tracer(this, gc_reason, collector_reason);
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
@@ -533,7 +544,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
 
 void Heap::PerformScavenge() {
-  GCTracer tracer(this);
+  GCTracer tracer(this, NULL, NULL);
   if (incremental_marking()->IsStopped()) {
     PerformGarbageCollection(SCAVENGER, &tracer);
   } else {
@@ -588,27 +599,33 @@ void Heap::ReserveSpace(
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
-      Heap::CollectGarbage(NEW_SPACE);
+      Heap::CollectGarbage(NEW_SPACE,
+                           "failed to reserve space in the new space");
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(OLD_POINTER_SPACE);
+      Heap::CollectGarbage(OLD_POINTER_SPACE,
+                           "failed to reserve space in the old pointer space");
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(OLD_DATA_SPACE);
+      Heap::CollectGarbage(OLD_DATA_SPACE,
+                           "failed to reserve space in the old data space");
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(CODE_SPACE);
+      Heap::CollectGarbage(CODE_SPACE,
+                           "failed to reserve space in the code space");
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(MAP_SPACE);
+      Heap::CollectGarbage(MAP_SPACE,
+                           "failed to reserve space in the map space");
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(CELL_SPACE);
+      Heap::CollectGarbage(CELL_SPACE,
+                           "failed to reserve space in the cell space");
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -620,7 +637,8 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(LO_SPACE);
+      Heap::CollectGarbage(LO_SPACE,
+                           "failed to reserve space in the large object space");
       gc_performed = true;
     }
   }
@@ -4742,7 +4760,7 @@ bool Heap::IsHeapIterable() {
 void Heap::EnsureHeapIsIterable() {
   ASSERT(IsAllocationAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask);
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::EnsureHeapIsIterable");
   }
   ASSERT(IsHeapIterable());
 }
@@ -4812,7 +4830,7 @@ bool Heap::IdleNotification(int hint) {
       isolate_->compilation_cache()->Clear();
       uncommit = true;
     }
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
     gc_count_at_last_idle_gc_ = gc_count_;
     if (uncommit) {
       new_space_.Shrink();
@@ -4853,9 +4871,10 @@ bool Heap::IdleGlobalGC() {
   if (number_idle_notifications_ == kIdlesBeforeScavenge) {
     if (contexts_disposed_ > 0) {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: contexts disposed");
     } else {
-      CollectGarbage(NEW_SPACE);
+      CollectGarbage(NEW_SPACE, "idle notification");
     }
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
@@ -4865,12 +4884,12 @@ bool Heap::IdleGlobalGC() {
     // generated code for cached functions.
     isolate_->compilation_cache()->Clear();
 
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
 
   } else if (number_idle_notifications_ == kIdlesBeforeMarkCompact) {
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
     number_idle_notifications_ = 0;
@@ -4880,7 +4899,8 @@ bool Heap::IdleGlobalGC() {
       contexts_disposed_ = 0;
     } else {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: contexts disposed");
       last_idle_notification_gc_count_ = gc_count_;
     }
     // If this is the first idle notification, we reset the
@@ -6511,7 +6531,9 @@ static intptr_t CountTotalHolesSize() {
 }
 
 
-GCTracer::GCTracer(Heap* heap)
+GCTracer::GCTracer(Heap* heap,
+                   const char* gc_reason,
+                   const char* collector_reason)
     : start_time_(0.0),
       start_object_size_(0),
       start_memory_size_(0),
@@ -6520,7 +6542,9 @@ GCTracer::GCTracer(Heap* heap)
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
       promoted_objects_size_(0),
-      heap_(heap) {
+      heap_(heap),
+      gc_reason_(gc_reason),
+      collector_reason_(collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
   start_object_size_ = heap_->SizeOfObjects();
@@ -6599,6 +6623,15 @@ GCTracer::~GCTracer() {
                longest_step_);
       }
     }
+
+    if (gc_reason_ != NULL) {
+      PrintF(" [%s]", gc_reason_);
+    }
+
+    if (collector_reason_ != NULL) {
+      PrintF(" [%s]", collector_reason_);
+    }
+
     PrintF(".\n");
   } else {
     PrintF("pause=%d ", time);
