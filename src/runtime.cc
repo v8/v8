@@ -165,7 +165,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
     }
   } else {
     { MaybeObject* maybe_result =
-          heap->AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
+          heap->AllocateFixedArray(copy->NumberOfLocalProperties());
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     FixedArray* names = FixedArray::cast(result);
@@ -5010,7 +5010,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
-    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    n = jsproto->NumberOfLocalProperties();
     local_property_count[i] = n;
     total_property_count += n;
     if (i < length - 1) {

@@ -4247,11 +4247,14 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
-int Map::NumberOfDescribedProperties() {
+int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->IsProperty(i)) result++;
+    PropertyDetails details(descs->GetDetails(i));
+    if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
+      result++;
+    }
   }
   return result;
 }
@@ -10355,24 +10358,9 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
-  if (HasFastProperties()) {
-    DescriptorArray* descs = map()->instance_descriptors();
-    int result = 0;
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details(descs->GetDetails(i));
-      if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
-        result++;
-      }
-    }
-    return result;
-  } else {
-    return property_dictionary()->NumberOfElementsFilterAttributes(filter);
-  }
-}
-
-
-int JSObject::NumberOfEnumProperties() {
-  return NumberOfLocalProperties(static_cast<PropertyAttributes>(DONT_ENUM));
+  return HasFastProperties() ?
+      map()->NumberOfDescribedProperties(filter) :
+      property_dictionary()->NumberOfElementsFilterAttributes(filter);
 }
 
 
@@ -10493,7 +10481,7 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
-  ASSERT(storage->length() >= (NumberOfLocalProperties(NONE) - index));
+  ASSERT(storage->length() >= (NumberOfLocalProperties() - index));
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
