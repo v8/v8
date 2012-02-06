@@ -1904,7 +1904,8 @@ void Debug::PrepareForBreakPoints() {
     {
       // We are going to iterate heap to find all functions without
       // debug break slots.
-      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                                          "preparing for breakpoints");
 
       // Ensure no GC in this scope as we are going to use gc_metadata
       // field in the Code object to mark active functions.
@@ -2230,8 +2231,9 @@ void Debug::CreateScriptCache() {
   // rid of all the cached script wrappers and the second gets rid of the
   // scripts which are no longer referenced.  The second also sweeps precisely,
   // which saves us doing yet another GC to make the heap iterable.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  heap->CollectAllGarbage(Heap::kNoGCFlags, "Debug::CreateScriptCache");
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "Debug::CreateScriptCache");
 
   ASSERT(script_cache_ == NULL);
   script_cache_ = new ScriptCache();
@@ -2281,7 +2283,8 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Perform GC to get unreferenced scripts evicted from the cache before
   // returning the content.
-  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                      "Debug::GetLoadedScripts");
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();

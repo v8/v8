@@ -1823,7 +1823,7 @@ MaybeObject* JSObject::ReplaceSlowProperty(String* name,
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
   if (old_index != -1) {
     // All calls to ReplaceSlowProperty have had all transitions removed.
-    ASSERT(!dictionary->DetailsAt(old_index).IsTransition());
+    ASSERT(!dictionary->ContainsTransition(old_index));
     new_enumeration_index = dictionary->DetailsAt(old_index).index();
   }
 
@@ -5729,7 +5729,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   // Conversely, we filter after replacing, so replacing a transition and
   // removing all other transitions is not supported.
   bool remove_transitions = transition_flag == REMOVE_TRANSITIONS;
-  ASSERT(remove_transitions == !descriptor->GetDetails().IsTransition());
+  ASSERT(remove_transitions == !descriptor->ContainsTransition());
   ASSERT(descriptor->GetDetails().type() != NULL_DESCRIPTOR);
 
   // Ensure the key is a symbol.
@@ -5738,29 +5738,18 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  int transitions = 0;
-  int null_descriptors = 0;
-  if (remove_transitions) {
-    for (int i = 0; i < number_of_descriptors(); i++) {
-      if (IsTransition(i)) transitions++;
-      if (IsNullDescriptor(i)) null_descriptors++;
-    }
-  } else {
-    for (int i = 0; i < number_of_descriptors(); i++) {
-      if (IsNullDescriptor(i)) null_descriptors++;
-    }
+  int new_size = 0;
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    if (IsNullDescriptor(i)) continue;
+    if (remove_transitions && IsTransitionOnly(i)) continue;
+    new_size++;
   }
-  int new_size = number_of_descriptors() - transitions - null_descriptors;
 
   // If key is in descriptor, we replace it in-place when filtering.
   // Count a null descriptor for key as inserted, not replaced.
   int index = Search(descriptor->GetKey());
-  const bool inserting = (index == kNotFound);
-  const bool replacing = !inserting;
+  const bool replacing = (index != kNotFound);
   bool keep_enumeration_index = false;
-  if (inserting) {
-    ++new_size;
-  }
   if (replacing) {
     // We are replacing an existing descriptor.  We keep the enumeration
     // index of a visible property.
@@ -5775,6 +5764,8 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
      // a transition that will be replaced.  Adjust count in this case.
       ++new_size;
     }
+  } else {
+    ++new_size;
   }
 
   DescriptorArray* new_descriptors;
@@ -5789,7 +5780,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   // Set the enumeration index in the descriptors and set the enumeration index
   // in the result.
   int enumeration_index = NextEnumerationIndex();
-  if (!descriptor->GetDetails().IsTransition()) {
+  if (!descriptor->ContainsTransition()) {
     if (keep_enumeration_index) {
       descriptor->SetEnumerationIndex(
           PropertyDetails(GetDetails(index)).index());
@@ -5812,7 +5803,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
       break;
     }
     if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransition(from_index)) continue;
+    if (remove_transitions && IsTransitionOnly(from_index)) continue;
     new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
 
@@ -5821,7 +5812,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   for (; from_index < number_of_descriptors(); from_index++) {
     if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransition(from_index)) continue;
+    if (remove_transitions && IsTransitionOnly(from_index)) continue;
     new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
 
@@ -11130,6 +11121,31 @@ int StringDictionary::FindEntry(String* key) {
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
+}
+
+
+bool StringDictionary::ContainsTransition(int entry) {
+  switch (DetailsAt(entry).type()) {
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
+      return true;
+    case CALLBACKS: {
+      Object* value = ValueAt(entry);
+      if (!value->IsAccessorPair()) return false;
+      AccessorPair* accessors = AccessorPair::cast(value);
+      return accessors->getter()->IsMap() || accessors->setter()->IsMap();
+    }
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case HANDLER:
+    case INTERCEPTOR:
+    case NULL_DESCRIPTOR:
+      return false;
+  }
+  UNREACHABLE();  // Keep the compiler happy.
+  return false;
 }
 
 

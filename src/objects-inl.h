@@ -1991,8 +1991,28 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 }
 
 
-bool DescriptorArray::IsTransition(int descriptor_number) {
-  return IsTransitionType(GetType(descriptor_number));
+bool DescriptorArray::IsTransitionOnly(int descriptor_number) {
+  switch (GetType(descriptor_number)) {
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
+      return true;
+    case CALLBACKS: {
+      Object* value = GetValue(descriptor_number);
+      if (!value->IsAccessorPair()) return false;
+      AccessorPair* accessors = AccessorPair::cast(value);
+      return accessors->getter()->IsMap() && accessors->setter()->IsMap();
+    }
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case HANDLER:
+    case INTERCEPTOR:
+    case NULL_DESCRIPTOR:
+      return false;
+  }
+  UNREACHABLE();  // Keep the compiler happy.
+  return false;
 }
 
 

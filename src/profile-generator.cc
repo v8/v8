@@ -1562,7 +1562,8 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 
 Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
   // First perform a full GC in order to avoid dead objects.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "HeapSnapshotsCollection::FindHeapObjectById");
   AssertNoAllocation no_allocation;
   HeapObject* object = NULL;
   HeapIterator iterator(HeapIterator::kFilterUnreachable);
@@ -2782,6 +2783,27 @@ void NativeObjectsExplorer::FillRetainedObjects() {
   embedder_queried_ = true;
 }
 
+void NativeObjectsExplorer::FillImplicitReferences() {
+  Isolate* isolate = Isolate::Current();
+  List<ImplicitRefGroup*>* groups =
+      isolate->global_handles()->implicit_ref_groups();
+  for (int i = 0; i < groups->length(); ++i) {
+    ImplicitRefGroup* group = groups->at(i);
+    HeapObject* parent = *group->parent_;
+    HeapEntry* parent_entry = filler_->FindOrAddEntry(parent, this);
+    ASSERT(parent_entry != NULL);
+    Object*** children = group->children_;
+    for (size_t j = 0; j < group->length_; ++j) {
+      Object* child = *children[j];
+      HeapEntry* child_entry = filler_->FindOrAddEntry(child, this);
+      filler_->SetNamedReference(
+          HeapGraphEdge::kInternal,
+          parent, parent_entry,
+          "native",
+          child, child_entry);
+    }
+  }
+}
 
 List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(
     v8::RetainedObjectInfo* info) {
@@ -2798,22 +2820,24 @@ List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(
 
 bool NativeObjectsExplorer::IterateAndExtractReferences(
     SnapshotFillerInterface* filler) {
-  if (EstimateObjectsCount() <= 0) return true;
   filler_ = filler;
   FillRetainedObjects();
-  for (HashMap::Entry* p = objects_by_info_.Start();
-       p != NULL;
-       p = objects_by_info_.Next(p)) {
-    v8::RetainedObjectInfo* info =
-        reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
-    SetNativeRootReference(info);
-    List<HeapObject*>* objects =
-        reinterpret_cast<List<HeapObject*>* >(p->value);
-    for (int i = 0; i < objects->length(); ++i) {
-      SetWrapperNativeReferences(objects->at(i), info);
+  FillImplicitReferences();
+  if (EstimateObjectsCount() > 0) {
+    for (HashMap::Entry* p = objects_by_info_.Start();
+         p != NULL;
+         p = objects_by_info_.Next(p)) {
+      v8::RetainedObjectInfo* info =
+          reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
+      SetNativeRootReference(info);
+      List<HeapObject*>* objects =
+          reinterpret_cast<List<HeapObject*>* >(p->value);
+      for (int i = 0; i < objects->length(); ++i) {
+        SetWrapperNativeReferences(objects->at(i), info);
+      }
     }
+    SetRootNativeRootsReference();
   }
-  SetRootNativeRootsReference();
   filler_ = NULL;
   return true;
 }
@@ -3056,8 +3080,12 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  Isolate::Current()->heap()->CollectAllGarbage(
+      Heap::kMakeHeapIterableMask,
+      "HeapSnapshotGenerator::GenerateSnapshot");
+  Isolate::Current()->heap()->CollectAllGarbage(
+      Heap::kMakeHeapIterableMask,
+      "HeapSnapshotGenerator::GenerateSnapshot");
 
 #ifdef DEBUG
   Heap* debug_heap = Isolate::Current()->heap();

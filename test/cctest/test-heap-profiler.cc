@@ -805,6 +805,75 @@ TEST(HeapSnapshotRetainedObjectInfo) {
 }
 
 
+class GraphWithImplicitRefs {
+ public:
+  static const int kObjectsCount = 4;
+  explicit GraphWithImplicitRefs(LocalContext* env) {
+    CHECK_EQ(NULL, instance_);
+    instance_ = this;
+    for (int i = 0; i < kObjectsCount; i++) {
+      objects_[i] = v8::Persistent<v8::Object>::New(v8::Object::New());
+    }
+    (*env)->Global()->Set(v8_str("root_object"), objects_[0]);
+  }
+  ~GraphWithImplicitRefs() {
+    instance_ = NULL;
+  }
+
+  static void gcPrologue() {
+    instance_->AddImplicitReferences();
+  }
+
+ private:
+  void AddImplicitReferences() {
+    // 0 -> 1
+    v8::V8::AddImplicitReferences(
+        v8::Persistent<v8::Object>::Cast(objects_[0]), &objects_[1], 1);
+    // Adding two more references(note length=2 in params): 1 -> 2, 1 -> 3
+    v8::V8::AddImplicitReferences(
+        v8::Persistent<v8::Object>::Cast(objects_[1]), &objects_[2], 2);
+  }
+
+  v8::Persistent<v8::Value> objects_[kObjectsCount];
+  static GraphWithImplicitRefs* instance_;
+};
+
+GraphWithImplicitRefs* GraphWithImplicitRefs::instance_ = NULL;
+
+
+TEST(HeapSnapshotImplicitReferences) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  GraphWithImplicitRefs graph(&env);
+  v8::V8::SetGlobalGCPrologueCallback(&GraphWithImplicitRefs::gcPrologue);
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("implicit_refs"));
+
+  const v8::HeapGraphNode* global_object = GetGlobalObject(snapshot);
+  // Use kShortcut type to skip intermediate JSGlobalPropertyCell
+  const v8::HeapGraphNode* obj0 = GetProperty(
+      global_object, v8::HeapGraphEdge::kShortcut, "root_object");
+  CHECK(obj0);
+  CHECK_EQ(v8::HeapGraphNode::kObject, obj0->GetType());
+  const v8::HeapGraphNode* obj1 = GetProperty(
+      obj0, v8::HeapGraphEdge::kInternal, "native");
+  CHECK(obj1);
+  int implicit_targets_count = 0;
+  for (int i = 0, count = obj1->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = obj1->GetChild(i);
+    v8::String::AsciiValue prop_name(prop->GetName());
+    if (prop->GetType() == v8::HeapGraphEdge::kInternal &&
+        strcmp("native", *prop_name) == 0) {
+      ++implicit_targets_count;
+    }
+  }
+  CHECK_EQ(2, implicit_targets_count);
+  v8::V8::SetGlobalGCPrologueCallback(NULL);
+}
+
+
 TEST(DeleteAllHeapSnapshots) {
   v8::HandleScope scope;
   LocalContext env;

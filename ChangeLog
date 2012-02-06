@@ -1,3 +1,13 @@
+2012-02-06: Version 3.9.2
+
+        Add timestamp to --trace-gc output. (issue 1932)
+
+        Heap profiler reports implicit references.
+
+        Optionally export metadata with libv8 to enable debuggers to inspect V8
+        state.
+
+
 2012-02-02: Version 3.9.1
 
         Fixed memory leak in NativeObjectsExplorer::FindOrAddGroupInfo
