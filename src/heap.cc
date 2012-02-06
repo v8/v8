@@ -6595,6 +6595,8 @@ GCTracer::~GCTracer() {
     }
   }
 
+  PrintF("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
   if (!FLAG_trace_gc_nvp) {
     int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
 
