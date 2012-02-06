@@ -10360,7 +10360,7 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
     int result = 0;
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PropertyDetails details(descs->GetDetails(i));
-      if (details.IsProperty() && (details.attributes() & filter) == 0) {
+      if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
         result++;
       }
     }
