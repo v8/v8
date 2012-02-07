@@ -809,6 +809,8 @@ class CodeFlusher {
       isolate_->heap()->mark_compact_collector()->
           RecordCodeEntrySlot(slot, target);
 
+      RecordSharedFunctionInfoCodeSlot(shared);
+
       candidate = next_candidate;
     }
 
@@ -831,10 +833,19 @@ class CodeFlusher {
         candidate->set_code(lazy_compile);
       }
 
+      RecordSharedFunctionInfoCodeSlot(candidate);
+
       candidate = next_candidate;
     }
 
     shared_function_info_candidates_head_ = NULL;
+  }
+
+  void RecordSharedFunctionInfoCodeSlot(SharedFunctionInfo* shared) {
+    Object** slot = HeapObject::RawField(shared,
+                                         SharedFunctionInfo::kCodeOffset);
+    isolate_->heap()->mark_compact_collector()->
+        RecordSlot(slot, slot, HeapObject::cast(*slot));
   }
 
   static JSFunction** GetNextCandidateField(JSFunction* candidate) {
