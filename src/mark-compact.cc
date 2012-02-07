@@ -242,14 +242,14 @@ static void TraceFragmentation(PagedSpace* space) {
 }
 
 
-bool MarkCompactCollector::StartCompaction() {
+bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   if (!compacting_) {
     ASSERT(evacuation_candidates_.length() == 0);
 
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
-    if (FLAG_compact_code_space) {
+    if (mode == NON_INCREMENTAL_COMPACTION) {
       CollectEvacuationCandidates(heap()->code_space());
     } else if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->code_space());
@@ -697,7 +697,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Don't start compaction if we are in the middle of incremental
   // marking cycle. We did not collect any slots.
   if (!FLAG_never_compact && !was_marked_incrementally_) {
-    StartCompaction();
+    StartCompaction(NON_INCREMENTAL_COMPACTION);
   }
 
   PagedSpaces spaces;
