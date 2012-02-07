@@ -165,7 +165,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
     }
   } else {
     { MaybeObject* maybe_result =
-          heap->AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
+          heap->AllocateFixedArray(copy->NumberOfLocalProperties());
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     FixedArray* names = FixedArray::cast(result);
@@ -5010,7 +5010,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
-    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    n = jsproto->NumberOfLocalProperties();
     local_property_count[i] = n;
     total_property_count += n;
     if (i < length - 1) {
@@ -13263,9 +13263,10 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame,
 // element segments each containing a receiver, function, code and
 // native code offset.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
-  ASSERT_EQ(args.length(), 2);
-  Handle<Object> caller = args.at<Object>(0);
-  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
+  ASSERT_EQ(args.length(), 3);
+  CONVERT_ARG_CHECKED(JSObject, error_object, 0);
+  Handle<Object> caller = args.at<Object>(1);
+  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[2]);
 
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
@@ -13315,6 +13316,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
     iter.Advance();
   }
   Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
+  // Capture and attach a more detailed stack trace if necessary.
+  isolate->CaptureAndSetCurrentStackTraceFor(error_object);
   result->set_length(Smi::FromInt(cursor));
   return *result;
 }

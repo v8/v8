@@ -3773,12 +3773,14 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
-        descriptors->IsProperty(0)) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      Object* hidden_store =
-          this->FastPropertyAt(descriptors->GetFieldIndex(0));
-      return StringDictionary::cast(hidden_store);
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
+      if (descriptors->GetType(0) == FIELD) {
+        Object* hidden_store =
+            this->FastPropertyAt(descriptors->GetFieldIndex(0));
+        return StringDictionary::cast(hidden_store);
+      } else {
+        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
+      }
     }
   } else {
     PropertyAttributes attributes;
@@ -3819,11 +3821,13 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
-        descriptors->IsProperty(0)) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
-      return this;
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
+      if (descriptors->GetType(0) == FIELD) {
+        this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
+        return this;
+      } else {
+        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
+      }
     }
   }
   MaybeObject* store_result =
@@ -4247,11 +4251,14 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
-int Map::NumberOfDescribedProperties() {
+int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->IsProperty(i)) result++;
+    PropertyDetails details(descs->GetDetails(i));
+    if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
+      result++;
+    }
   }
   return result;
 }
@@ -5829,14 +5836,14 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   // not be allocated.
 
   // Compute the size of the map transition entries to be removed.
-  int num_removed = 0;
+  int new_number_of_descriptors = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    if (!IsProperty(i)) num_removed++;
+    if (IsProperty(i)) new_number_of_descriptors++;
   }
 
   // Allocate the new descriptor array.
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_result = Allocate(number_of_descriptors() - num_removed);
+  { MaybeObject* maybe_result = Allocate(new_number_of_descriptors);
     if (!maybe_result->To<DescriptorArray>(&new_descriptors)) {
       return maybe_result;
     }
@@ -10355,24 +10362,9 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
-  if (HasFastProperties()) {
-    DescriptorArray* descs = map()->instance_descriptors();
-    int result = 0;
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details(descs->GetDetails(i));
-      if (details.IsProperty() && (details.attributes() & filter) == 0) {
-        result++;
-      }
-    }
-    return result;
-  } else {
-    return property_dictionary()->NumberOfElementsFilterAttributes(filter);
-  }
-}
-
-
-int JSObject::NumberOfEnumProperties() {
-  return NumberOfLocalProperties(static_cast<PropertyAttributes>(DONT_ENUM));
+  return HasFastProperties() ?
+      map()->NumberOfDescribedProperties(filter) :
+      property_dictionary()->NumberOfElementsFilterAttributes(filter);
 }
 
 
@@ -10493,7 +10485,7 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
-  ASSERT(storage->length() >= (NumberOfLocalProperties(NONE) - index));
+  ASSERT(storage->length() >= (NumberOfLocalProperties() - index));
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
