@@ -48,7 +48,7 @@ _v8_flag() {
     cat src/d8.cc \
     | grep "strcmp(argv\[i\]" \
     | sed -ne 's/^[^"]*"--\([^"]*\)".*/--\1/p')
-  COMPREPLY=($(compgen -W "$targets" -- "$cur"))
+  COMPREPLY=($(compgen -W "$targets" -- "$cur") $(compgen -f -- "$cur"))
   return 0
 }
 
