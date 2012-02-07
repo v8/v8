@@ -703,6 +703,8 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  void CaptureAndSetCurrentStackTraceFor(Handle<JSObject> error_object);
+
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
@@ -729,7 +731,7 @@ class Isolate {
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Failure* PromoteScheduledException();
-  void DoThrow(MaybeObject* exception, MessageLocation* location);
+  void DoThrow(Object* exception, MessageLocation* location);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
   bool ShouldReportException(bool* can_be_caught_externally,
@@ -1140,6 +1142,10 @@ class Isolate {
   void PropagatePendingExceptionToExternalTryCatch();
 
   void InitializeDebugger();
+
+  // Traverse prototype chain to find out whether the object is derived from
+  // the Error object.
+  bool IsErrorObject(Handle<Object> obj);
 
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;

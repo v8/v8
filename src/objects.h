@@ -1638,7 +1638,7 @@ class JSObject: public JSReceiver {
                                           Handle<String> key,
                                           Handle<Object> value);
   // Returns a failure if a GC is required.
-  MaybeObject* SetHiddenProperty(String* key, Object* value);
+  MUST_USE_RESULT MaybeObject* SetHiddenProperty(String* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns undefined
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
