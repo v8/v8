@@ -5058,10 +5058,41 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 }
 
 
-bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
-                                             HValue* receiver,
-                                             Handle<Map> receiver_map,
-                                             CheckType check_type) {
+bool HGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra) {
+  if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
+  BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
+  switch (id) {
+    case kMathRound:
+    case kMathFloor:
+    case kMathAbs:
+    case kMathSqrt:
+    case kMathLog:
+    case kMathSin:
+    case kMathCos:
+      if (expr->arguments()->length() == 1) {
+        HValue* argument = Pop();
+        HValue* context = environment()->LookupContext();
+        Drop(1);  // Receiver.
+        HUnaryMathOperation* op =
+            new(zone()) HUnaryMathOperation(context, argument, id);
+        op->set_position(expr->position());
+        if (drop_extra) Drop(1);  // Optionally drop the function.
+        ast_context()->ReturnInstruction(op, expr->id());
+        return true;
+      }
+      break;
+    default:
+      // Not supported for inlining yet.
+      break;
+  }
+  return false;
+}
+
+
+bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
+                                               HValue* receiver,
+                                               Handle<Map> receiver_map,
+                                               CheckType check_type) {
   ASSERT(check_type != RECEIVER_MAP_CHECK || !receiver_map.is_null());
   // Try to inline calls like Math.* as operations in the calling function.
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
@@ -5155,7 +5186,7 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
     case kMathRandom:
       if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
-        Drop(1);
+        Drop(1);  // Receiver.
         HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
         AddInstruction(global_object);
@@ -5323,10 +5354,15 @@ void HGraphBuilder::VisitCall(Call* expr) {
       Handle<Map> receiver_map = (types == NULL || types->is_empty())
           ? Handle<Map>::null()
           : types->first();
-      if (TryInlineBuiltinFunction(expr,
-                                   receiver,
-                                   receiver_map,
-                                   expr->check_type())) {
+      if (TryInlineBuiltinMethodCall(expr,
+                                     receiver,
+                                     receiver_map,
+                                     expr->check_type())) {
+        if (FLAG_trace_inlining) {
+          PrintF("Inlining builtin ");
+          expr->target()->ShortPrint();
+          PrintF("\n");
+        }
         return;
       }
 
@@ -5397,6 +5433,14 @@ void HGraphBuilder::VisitCall(Call* expr) {
                IsGlobalObject());
         environment()->SetExpressionStackAt(receiver_index, global_receiver);
 
+        if (TryInlineBuiltinFunctionCall(expr, false)) {  // Nothing to drop.
+          if (FLAG_trace_inlining) {
+            PrintF("Inlining builtin ");
+            expr->target()->ShortPrint();
+            PrintF("\n");
+          }
+          return;
+        }
         if (TryInline(expr)) return;
         call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
                                                            argument_count));
@@ -5423,6 +5467,16 @@ void HGraphBuilder::VisitCall(Call* expr) {
       PushAndAdd(receiver);
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
       AddInstruction(new(zone()) HCheckFunction(function, expr->target()));
+
+      if (TryInlineBuiltinFunctionCall(expr, true)) { // Drop the function.
+        if (FLAG_trace_inlining) {
+          PrintF("Inlining builtin ");
+          expr->target()->ShortPrint();
+          PrintF("\n");
+        }
+        return;
+      }
+
       if (TryInline(expr, true)) {   // Drop function from environment.
         return;
       } else {

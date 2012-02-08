@@ -918,10 +918,11 @@ class HGraphBuilder: public AstVisitor {
   bool TryCallApply(Call* expr);
 
   bool TryInline(Call* expr, bool drop_extra = false);
-  bool TryInlineBuiltinFunction(Call* expr,
+  bool TryInlineBuiltinMethodCall(Call* expr,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,
                                 CheckType check_type);
+  bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
