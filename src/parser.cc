@@ -2128,6 +2128,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
   if (!label.is_null() && ContainsLabel(labels, label)) {
+    ExpectSemicolon(CHECK_OK);
     return EmptyStatement();
   }
   BreakableStatement* target = NULL;
