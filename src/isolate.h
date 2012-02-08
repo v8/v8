@@ -362,7 +362,7 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* Serializer state. */                                                      \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
   /* AstNode state. */                                                         \
-  V(unsigned, ast_node_id, 0)                                                  \
+  V(int, ast_node_id, 0)                                                       \
   V(unsigned, ast_node_count, 0)                                               \
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \

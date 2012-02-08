@@ -3779,7 +3779,8 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
             this->FastPropertyAt(descriptors->GetFieldIndex(0));
         return StringDictionary::cast(hidden_store);
       } else {
-        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
+        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
+               descriptors->GetType(0) == MAP_TRANSITION);
       }
     }
   } else {
@@ -3826,7 +3827,8 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
         this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
         return this;
       } else {
-        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
+        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
+               descriptors->GetType(0) == MAP_TRANSITION);
       }
     }
   }
