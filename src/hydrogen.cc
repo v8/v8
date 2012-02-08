@@ -646,9 +646,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info) {
   MacroAssembler assembler(info->isolate(), NULL, 0);
   LCodeGen generator(chunk, &assembler, info);
 
-  if (FLAG_eliminate_empty_blocks) {
-    chunk->MarkEmptyBlocks();
-  }
+  chunk->MarkEmptyBlocks();
 
   if (generator.GenerateCode()) {
     if (FLAG_trace_codegen) {

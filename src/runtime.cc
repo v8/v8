@@ -273,45 +273,43 @@ static Handle<Map> ComputeObjectLiteralMap(
   Isolate* isolate = context->GetIsolate();
   int properties_length = constant_properties->length();
   int number_of_properties = properties_length / 2;
-  if (FLAG_canonicalize_object_literal_maps) {
-    // Check that there are only symbols and array indices among keys.
-    int number_of_symbol_keys = 0;
-    for (int p = 0; p != properties_length; p += 2) {
-      Object* key = constant_properties->get(p);
-      uint32_t element_index = 0;
-      if (key->IsSymbol()) {
-        number_of_symbol_keys++;
-      } else if (key->ToArrayIndex(&element_index)) {
-        // An index key does not require space in the property backing store.
-        number_of_properties--;
-      } else {
-        // Bail out as a non-symbol non-index key makes caching impossible.
-        // ASSERT to make sure that the if condition after the loop is false.
-        ASSERT(number_of_symbol_keys != number_of_properties);
-        break;
-      }
+  // Check that there are only symbols and array indices among keys.
+  int number_of_symbol_keys = 0;
+  for (int p = 0; p != properties_length; p += 2) {
+    Object* key = constant_properties->get(p);
+    uint32_t element_index = 0;
+    if (key->IsSymbol()) {
+      number_of_symbol_keys++;
+    } else if (key->ToArrayIndex(&element_index)) {
+      // An index key does not require space in the property backing store.
+      number_of_properties--;
+    } else {
+      // Bail out as a non-symbol non-index key makes caching impossible.
+      // ASSERT to make sure that the if condition after the loop is false.
+      ASSERT(number_of_symbol_keys != number_of_properties);
+      break;
     }
-    // If we only have symbols and array indices among keys then we can
-    // use the map cache in the global context.
-    const int kMaxKeys = 10;
-    if ((number_of_symbol_keys == number_of_properties) &&
-        (number_of_symbol_keys < kMaxKeys)) {
-      // Create the fixed array with the key.
-      Handle<FixedArray> keys =
-          isolate->factory()->NewFixedArray(number_of_symbol_keys);
-      if (number_of_symbol_keys > 0) {
-        int index = 0;
-        for (int p = 0; p < properties_length; p += 2) {
-          Object* key = constant_properties->get(p);
-          if (key->IsSymbol()) {
-            keys->set(index++, key);
-          }
+  }
+  // If we only have symbols and array indices among keys then we can
+  // use the map cache in the global context.
+  const int kMaxKeys = 10;
+  if ((number_of_symbol_keys == number_of_properties) &&
+      (number_of_symbol_keys < kMaxKeys)) {
+    // Create the fixed array with the key.
+    Handle<FixedArray> keys =
+        isolate->factory()->NewFixedArray(number_of_symbol_keys);
+    if (number_of_symbol_keys > 0) {
+      int index = 0;
+      for (int p = 0; p < properties_length; p += 2) {
+        Object* key = constant_properties->get(p);
+        if (key->IsSymbol()) {
+          keys->set(index++, key);
         }
-        ASSERT(index == number_of_symbol_keys);
       }
-      *is_result_from_cache = true;
-      return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
+      ASSERT(index == number_of_symbol_keys);
     }
+    *is_result_from_cache = true;
+    return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
   }
   *is_result_from_cache = false;
   return isolate->factory()->CopyMap(

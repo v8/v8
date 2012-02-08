@@ -5840,10 +5840,7 @@ bool Heap::SetUp(bool create_heap_objects) {
   if (!code_space_->SetUp()) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(this,
-                            max_old_generation_size_,
-                            FLAG_max_map_space_pages,
-                            MAP_SPACE);
+  map_space_ = new MapSpace(this, max_old_generation_size_, MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 
