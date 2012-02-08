@@ -380,7 +380,7 @@ void FullCodeGenerator::RecordJSReturnSite(Call* call) {
 void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
   // There's no need to prepare this code for bailouts from already optimized
   // code or code that can't be optimized.
-  if (!FLAG_deopt || !info_->HasDeoptimizationSupport()) return;
+  if (!info_->HasDeoptimizationSupport()) return;
   unsigned pc_and_state =
       StateField::encode(state) | PcField::encode(masm_->pc_offset());
   BailoutEntry entry = { id, pc_and_state };
