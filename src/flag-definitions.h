@@ -302,7 +302,7 @@ DEFINE_bool(lazy_sweeping, true,
             "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_bool(compact_code_space, false,
+DEFINE_bool(compact_code_space, true,
             "Compact code space on full non-incremental collections")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
