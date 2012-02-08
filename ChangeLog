@@ -1,3 +1,11 @@
+2012-02-08: Version 3.9.4
+
+        Properly initialize element-transitioning array literals on ARM.
+        (issue 1930)
+
+        Bug fixes on all platforms.
+
+
 2012-02-07: Version 3.9.3
 
         When rethrowing an exception, print the stack trace of its original
