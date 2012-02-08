@@ -5203,8 +5203,11 @@ class SharedFunctionInfo: public HeapObject {
 
   // A counter used to determine when to stress the deoptimizer with a
   // deopt.
-  inline Smi* deopt_counter();
-  inline void set_deopt_counter(Smi* counter);
+  inline int deopt_counter();
+  inline void set_deopt_counter(int counter);
+
+  inline int ast_node_count();
+  inline void set_ast_node_count(int count);
 
   // Add information on assignments of the form this.x = ...;
   void SetThisPropertyAssignmentsInfo(
@@ -5277,6 +5280,12 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that the function is anonymous (the name field can be set
   // through the API, which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous)
+
+  // Indicates that the function cannot be crankshafted.
+  DECL_BOOLEAN_ACCESSORS(dont_crankshaft)
+
+  // Indicates that the function cannot be inlined.
+  DECL_BOOLEAN_ACCESSORS(dont_inline)
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -5372,12 +5381,10 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
-  static const int kDeoptCounterOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kDeoptCounterOffset + kPointerSize;
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5395,8 +5402,11 @@ class SharedFunctionInfo: public HeapObject {
       kCompilerHintsOffset + kPointerSize;
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kPointerSize;
+  static const int kAstNodeCountOffset = kOptCountOffset + kPointerSize;
+  static const int kDeoptCounterOffset =
+      kAstNodeCountOffset + kPointerSize;
   // Total size.
-  static const int kSize = kOptCountOffset + kPointerSize;
+  static const int kSize = kDeoptCounterOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -5408,7 +5418,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kDeoptCounterOffset + kPointerSize;
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -5432,8 +5442,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kIntSize;
 
+  static const int kAstNodeCountOffset = kOptCountOffset + kIntSize;
+  static const int kDeoptCounterOffset = kAstNodeCountOffset + kIntSize;
+
   // Total size.
-  static const int kSize = kOptCountOffset + kIntSize;
+  static const int kSize = kDeoptCounterOffset + kIntSize;
 
 #endif
 
@@ -5480,6 +5493,8 @@ class SharedFunctionInfo: public HeapObject {
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
+    kDontCrankshaft,
+    kDontInline,
     kCompilerHintsCount  // Pseudo entry
   };
 

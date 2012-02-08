@@ -4796,8 +4796,8 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
-  if ((FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize)
-      || target->shared()->SourceSize() > kUnlimitedMaxSourceSize) {
+  if ((FLAG_limit_inlining && target_shared->SourceSize() > kMaxSourceSize)
+      || target_shared->SourceSize() > kUnlimitedMaxSourceSize) {
     TraceInline(target, caller, "target text too big");
     return false;
   }
@@ -4805,6 +4805,17 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   // Target must be inlineable.
   if (!target->IsInlineable()) {
     TraceInline(target, caller, "target not inlineable");
+    return false;
+  }
+  if (target_shared->dont_inline() || target_shared->dont_crankshaft()) {
+    TraceInline(target, caller, "target contains unsupported syntax [early]");
+    return false;
+  }
+
+  int nodes_added = target_shared->ast_node_count();
+  if ((FLAG_limit_inlining && nodes_added > kMaxInlinedSize) ||
+      nodes_added > kUnlimitedMaxInlinedSize) {
+    TraceInline(target, caller, "target AST is too large [early]");
     return false;
   }
 
@@ -4851,8 +4862,6 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     return false;
   }
 
-  int count_before = AstNode::Count();
-
   // Parse and allocate variables.
   CompilationInfo target_info(target);
   if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
@@ -4872,11 +4881,17 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   }
   FunctionLiteral* function = target_info.function();
 
-  // Count the number of AST nodes added by inlining this call.
-  int nodes_added = AstNode::Count() - count_before;
+  // The following conditions must be checked again after re-parsing, because
+  // earlier the information might not have been complete due to lazy parsing.
+  nodes_added = function->ast_node_count();
   if ((FLAG_limit_inlining && nodes_added > kMaxInlinedSize) ||
       nodes_added > kUnlimitedMaxInlinedSize) {
-    TraceInline(target, caller, "target AST is too large");
+    TraceInline(target, caller, "target AST is too large [late]");
+    return false;
+  }
+  AstProperties::Flags* flags(function->flags());
+  if (flags->Contains(kDontInline) || flags->Contains(kDontOptimize)) {
+    TraceInline(target, caller, "target contains unsupported syntax [late]");
     return false;
   }
 
@@ -4892,13 +4907,6 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   for (int i = 0; i < decl_count; ++i) {
     if (!decls->at(i)->IsInlineable()) {
       TraceInline(target, caller, "target has non-trivial declaration");
-      return false;
-    }
-  }
-  // All statements in the body must be inlineable.
-  for (int i = 0, count = function->body()->length(); i < count; ++i) {
-    if (!function->body()->at(i)->IsInlineable()) {
-      TraceInline(target, caller, "target contains unsupported syntax");
       return false;
     }
   }
