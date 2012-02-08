@@ -771,18 +771,18 @@ void MacroAssembler::li(Register rd, Operand j, bool gen2instr) {
     } else if (!(j.imm32_ & kHiMask)) {
       ori(rd, zero_reg, j.imm32_);
     } else if (!(j.imm32_ & kImm16Mask)) {
-      lui(rd, (j.imm32_ & kHiMask) >> kLuiShift);
+      lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
     } else {
-      lui(rd, (j.imm32_ & kHiMask) >> kLuiShift);
+      lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
       ori(rd, rd, (j.imm32_ & kImm16Mask));
     }
   } else if (MustUseReg(j.rmode_) || gen2instr) {
     if (MustUseReg(j.rmode_)) {
       RecordRelocInfo(j.rmode_, j.imm32_);
     }
-    // We need always the same number of instructions as we may need to patch
+    // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need 2 instructions to load.
-    lui(rd, (j.imm32_ & kHiMask) >> kLuiShift);
+    lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
     ori(rd, rd, (j.imm32_ & kImm16Mask));
   }
 }
