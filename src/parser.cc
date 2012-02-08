@@ -547,11 +547,15 @@ Parser::Parser(Handle<Script> script,
       fni_(NULL),
       allow_natives_syntax_((parser_flags & kAllowNativesSyntax) != 0),
       allow_lazy_((parser_flags & kAllowLazy) != 0),
+      allow_modules_((parser_flags & kAllowModules) != 0),
       stack_overflow_(false),
       parenthesized_function_(false) {
   AstNode::ResetIds();
   if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
     scanner().SetHarmonyScoping(true);
+  }
+  if ((parser_flags & kAllowModules) != 0) {
+    scanner().SetHarmonyModules(true);
   }
 }
 
@@ -4271,7 +4275,8 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
                                                    NULL,
                                                    stack_limit,
                                                    do_allow_lazy,
-                                                   allow_natives_syntax_);
+                                                   allow_natives_syntax_,
+                                                   allow_modules_);
   }
   preparser::PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
@@ -5578,6 +5583,9 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   if (!info->is_native() && FLAG_harmony_scoping) {
     // Harmony scoping is requested.
     parsing_flags |= EXTENDED_MODE;
+  }
+  if (!info->is_native() && FLAG_harmony_modules) {
+    parsing_flags |= kAllowModules;
   }
   if (FLAG_allow_natives_syntax || info->is_native()) {
     // We require %identifier(..) syntax.
