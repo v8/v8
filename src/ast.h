@@ -61,6 +61,13 @@ namespace internal {
 
 #define DECLARATION_NODE_LIST(V)                \
   V(VariableDeclaration)                        \
+  V(ModuleDeclaration)                          \
+
+#define MODULE_NODE_LIST(V)                     \
+  V(ModuleLiteral)                              \
+  V(ModuleVariable)                             \
+  V(ModulePath)                                 \
+  V(ModuleUrl)
 
 #define STATEMENT_NODE_LIST(V)                  \
   V(Block)                                      \
@@ -103,6 +110,7 @@ namespace internal {
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
+  MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
@@ -111,6 +119,7 @@ class AstConstructionVisitor;
 template<class> class AstNodeFactory;
 class AstVisitor;
 class Declaration;
+class Module;
 class BreakableStatement;
 class Expression;
 class IterationStatement;
@@ -301,10 +310,6 @@ class Expression: public AstNode {
     kTest
   };
 
-  explicit Expression(Isolate* isolate)
-      : id_(GetNextId(isolate)),
-        test_id_(GetNextId(isolate)) {}
-
   virtual int position() const {
     UNREACHABLE();
     return 0;
@@ -354,6 +359,11 @@ class Expression: public AstNode {
 
   unsigned id() const { return id_; }
   unsigned test_id() const { return test_id_; }
+
+ protected:
+  explicit Expression(Isolate* isolate)
+      : id_(GetNextId(isolate)),
+        test_id_(GetNextId(isolate)) {}
 
  private:
   int id_;
@@ -492,6 +502,108 @@ class VariableDeclaration: public Declaration {
 
  private:
   FunctionLiteral* fun_;
+};
+
+
+class ModuleDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ModuleDeclaration)
+
+  Module* module() const { return module_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModuleDeclaration(VariableProxy* proxy,
+                    Module* module,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope),
+        module_(module) {
+  }
+
+ private:
+  Module* module_;
+};
+
+
+class Module: public AstNode {
+  // TODO(rossberg): stuff to come...
+ protected:
+  Module() {}
+};
+
+
+class ModuleLiteral: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleLiteral)
+
+  Block* body() const { return body_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModuleLiteral(Block* body)
+      : body_(body) {
+  }
+
+ private:
+  Block* body_;
+};
+
+
+class ModuleVariable: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleVariable)
+
+  Variable* var() const { return var_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModuleVariable(Variable* var)
+      : var_(var) {
+  }
+
+ private:
+  Variable* var_;
+};
+
+
+class ModulePath: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModulePath)
+
+  Module* module() const { return module_; }
+  Handle<String> name() const { return name_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModulePath(Module* module, Handle<String> name)
+      : module_(module),
+        name_(name) {
+  }
+
+ private:
+  Module* module_;
+  Handle<String> name_;
+};
+
+
+class ModuleUrl: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleUrl)
+
+  Handle<String> url() const { return url_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModuleUrl(Handle<String> url) : url_(url) {
+  }
+
+ private:
+  Handle<String> url_;
 };
 
 
@@ -2398,6 +2510,34 @@ class AstNodeFactory BASE_EMBEDDED {
     VariableDeclaration* decl =
         new(zone_) VariableDeclaration(proxy, mode, fun, scope);
     VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
+  ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
+                                          Module* module,
+                                          Scope* scope) {
+    ModuleDeclaration* decl =
+        new(zone_) ModuleDeclaration(proxy, module, scope);
+    VISIT_AND_RETURN(ModuleDeclaration, decl)
+  }
+
+  ModuleLiteral* NewModuleLiteral(Block* body) {
+    ModuleLiteral* module = new(zone_) ModuleLiteral(body);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModuleVariable* NewModuleVariable(Variable* var) {
+    ModuleVariable* module = new(zone_) ModuleVariable(var);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModulePath* NewModulePath(Module* origin, Handle<String> name) {
+    ModulePath* module = new(zone_) ModulePath(origin, name);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModuleUrl* NewModuleUrl(Handle<String> url) {
+    ModuleUrl* module = new(zone_) ModuleUrl(url);
+    VISIT_AND_RETURN(ModuleLiteral, module)
   }
 
   Block* NewBlock(ZoneStringList* labels,

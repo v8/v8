@@ -6582,6 +6582,31 @@ void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
 }
 
 
+void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
+  // TODO(rossberg)
+}
+
+
+void HGraphBuilder::VisitModuleLiteral(ModuleLiteral* module) {
+  // TODO(rossberg)
+}
+
+
+void HGraphBuilder::VisitModuleVariable(ModuleVariable* module) {
+  // TODO(rossberg)
+}
+
+
+void HGraphBuilder::VisitModulePath(ModulePath* module) {
+  // TODO(rossberg)
+}
+
+
+void HGraphBuilder::VisitModuleUrl(ModuleUrl* module) {
+  // TODO(rossberg)
+}
+
+
 // Generators for inline runtime functions.
 // Support for types.
 void HGraphBuilder::GenerateIsSmi(CallRuntime* call) {

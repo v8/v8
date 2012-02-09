@@ -55,6 +55,23 @@ void BreakableStatementChecker::VisitVariableDeclaration(
     VariableDeclaration* decl) {
 }
 
+void BreakableStatementChecker::VisitModuleDeclaration(
+    ModuleDeclaration* decl) {
+}
+
+
+void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
+}
+
+void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
+}
+
+void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
+}
+
+void BreakableStatementChecker::VisitModuleUrl(ModuleUrl* module) {
+}
+
 
 void BreakableStatementChecker::VisitBlock(Block* stmt) {
 }
@@ -527,11 +544,6 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 }
 
 
-void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
-  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
-}
-
-
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int save_global_count = global_count_;
@@ -577,6 +589,36 @@ void FullCodeGenerator::VisitDeclarations(
   }
 
   global_count_ = save_global_count;
+}
+
+
+void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
+}
+
+
+void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* decl) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModulePath(ModulePath* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleUrl(ModuleUrl* decl) {
+  // TODO(rossberg)
 }
 
 
