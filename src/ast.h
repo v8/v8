@@ -542,7 +542,7 @@ class ModuleLiteral: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  ModuleLiteral(Block* body)
+  explicit ModuleLiteral(Block* body)
       : body_(body) {
   }
 
@@ -560,7 +560,7 @@ class ModuleVariable: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  ModuleVariable(Variable* var)
+  explicit ModuleVariable(Variable* var)
       : var_(var) {
   }
 
@@ -599,7 +599,7 @@ class ModuleUrl: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  ModuleUrl(Handle<String> url) : url_(url) {
+  explicit ModuleUrl(Handle<String> url) : url_(url) {
   }
 
  private:
