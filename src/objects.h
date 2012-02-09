@@ -5321,7 +5321,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [source code]: Source code for the function.
   bool HasSourceCode();
-  Object* GetSourceCode();
+  Handle<Object> GetSourceCode();
 
   inline int opt_count();
   inline void set_opt_count(int opt_count);

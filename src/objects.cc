@@ -7616,13 +7616,10 @@ bool SharedFunctionInfo::HasSourceCode() {
 }
 
 
-Object* SharedFunctionInfo::GetSourceCode() {
-  Isolate* isolate = GetIsolate();
-  if (!HasSourceCode()) return isolate->heap()->undefined_value();
-  HandleScope scope(isolate);
-  Object* source = Script::cast(script())->source();
-  return *SubString(Handle<String>(String::cast(source), isolate),
-                    start_position(), end_position());
+Handle<Object> SharedFunctionInfo::GetSourceCode() {
+  if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
+  Handle<String> source(String::cast(Script::cast(script())->source()));
+  return SubString(source, start_position(), end_position());
 }
 
 

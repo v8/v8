@@ -2001,11 +2001,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetScript) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetSourceCode) {
-  NoHandleAllocation ha;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
-  CONVERT_CHECKED(JSFunction, f, args[0]);
-  return f->shared()->GetSourceCode();
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  Handle<SharedFunctionInfo> shared(f->shared());
+  return *shared->GetSourceCode();
 }
 
 
