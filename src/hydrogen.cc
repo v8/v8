@@ -2443,7 +2443,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleDeclaration(scope->function(), CONST, NULL);
+      HandleVariableDeclaration(scope->function(), CONST, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -6540,14 +6540,14 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void HGraphBuilder::VisitDeclaration(Declaration* decl) {
-  HandleDeclaration(decl->proxy(), decl->mode(), decl->fun());
+void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
+  HandleVariableDeclaration(decl->proxy(), decl->mode(), decl->fun());
 }
 
 
-void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
-                                      VariableMode mode,
-                                      FunctionLiteral* function) {
+void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* function) {
   Variable* var = proxy->var();
   bool binding_needs_init =
       (mode == CONST || mode == CONST_HARMONY || mode == LET);

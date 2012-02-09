@@ -51,7 +51,8 @@ void BreakableStatementChecker::Check(Expression* expr) {
 }
 
 
-void BreakableStatementChecker::VisitDeclaration(Declaration* decl) {
+void BreakableStatementChecker::VisitVariableDeclaration(
+    VariableDeclaration* decl) {
 }
 
 
@@ -526,41 +527,47 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 }
 
 
+void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
+}
+
+
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  int length = declarations->length();
-  int global_count = 0;
-  for (int i = 0; i < length; i++) {
-    Declaration* decl = declarations->at(i);
-    EmitDeclaration(decl->proxy(), decl->mode(), decl->fun(), &global_count);
-  }
+  int save_global_count = global_count_;
+  global_count_ = 0;
+
+  AstVisitor::VisitDeclarations(declarations);
 
   // Batch declare global functions and variables.
-  if (global_count > 0) {
+  if (global_count_ > 0) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
+       isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
+    int length = declarations->length();
     for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
+      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
+      if (decl != NULL) {
+        Variable* var = decl->proxy()->var();
 
-      if (var->IsUnallocated()) {
-        array->set(j++, *(var->name()));
-        if (decl->fun() == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
-            array->set_the_hole(j++);
+        if (var->IsUnallocated()) {
+          array->set(j++, *(var->name()));
+          if (decl->fun() == NULL) {
+            if (var->binding_needs_init()) {
+              // In case this binding needs initialization use the hole.
+              array->set_the_hole(j++);
+            } else {
+              array->set_undefined(j++);
+            }
           } else {
-            array->set_undefined(j++);
+            Handle<SharedFunctionInfo> function =
+                Compiler::BuildFunctionInfo(decl->fun(), script());
+            // Check for stack-overflow exception.
+            if (function.is_null()) {
+              SetStackOverflow();
+              return;
+            }
+            array->set(j++, *function);
           }
-        } else {
-          Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(decl->fun(), script());
-          // Check for stack-overflow exception.
-          if (function.is_null()) {
-            SetStackOverflow();
-            return;
-          }
-          array->set(j++, *function);
         }
       }
     }
@@ -568,6 +575,8 @@ void FullCodeGenerator::VisitDeclarations(
     // declaration the global functions and variables.
     DeclareGlobals(array);
   }
+
+  global_count_ = save_global_count;
 }
 
 

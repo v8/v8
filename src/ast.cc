@@ -414,7 +414,11 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 // Inlining support
 
 bool Declaration::IsInlineable() const {
-  return proxy()->var()->IsStackAllocated() && fun() == NULL;
+  return proxy()->var()->IsStackAllocated();
+}
+
+bool VariableDeclaration::IsInlineable() const {
+  return Declaration::IsInlineable() && fun() == NULL;
 }
 
 
@@ -990,7 +994,7 @@ CaseClause::CaseClause(Isolate* isolate,
     increase_node_count(); \
   }
 
-INCREASE_NODE_COUNT(Declaration)
+INCREASE_NODE_COUNT(VariableDeclaration)
 INCREASE_NODE_COUNT(Block)
 INCREASE_NODE_COUNT(ExpressionStatement)
 INCREASE_NODE_COUNT(EmptyStatement)

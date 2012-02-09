@@ -1406,7 +1406,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   VariableProxy* proxy = declaration_scope->NewUnresolved(
       factory(), name, scanner().location().beg_pos);
   declaration_scope->AddDeclaration(
-      factory()->NewDeclaration(proxy, mode, fun, top_scope_));
+      factory()->NewVariableDeclaration(proxy, mode, fun, top_scope_));
 
   if ((mode == CONST || mode == CONST_HARMONY) &&
       declaration_scope->is_global_scope()) {
@@ -1627,8 +1627,8 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 
 
 // If the variable declaration declares exactly one non-const
-// variable, then *var is set to that variable. In all other cases,
-// *var is untouched; in particular, it is the caller's responsibility
+// variable, then *out is set to that variable. In all other cases,
+// *out is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is used for the parsing
 // of 'for-in' loops.
 Block* Parser::ParseVariableDeclarations(

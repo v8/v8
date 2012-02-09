@@ -58,7 +58,7 @@ void PrettyPrinter::VisitBlock(Block* node) {
 }
 
 
-void PrettyPrinter::VisitDeclaration(Declaration* node) {
+void PrettyPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
   Print("var ");
   PrintLiteral(node->proxy()->name(), false);
   if (node->fun() != NULL) {
@@ -711,7 +711,7 @@ void AstPrinter::VisitBlock(Block* node) {
 }
 
 
-void AstPrinter::VisitDeclaration(Declaration* node) {
+void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
   if (node->fun() == NULL) {
     // var or const declarations
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),

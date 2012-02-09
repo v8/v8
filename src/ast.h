@@ -59,6 +59,9 @@ namespace internal {
 // Nodes of the abstract syntax tree. Only concrete classes are
 // enumerated here.
 
+#define DECLARATION_NODE_LIST(V)                \
+  V(VariableDeclaration)                        \
+
 #define STATEMENT_NODE_LIST(V)                  \
   V(Block)                                      \
   V(ExpressionStatement)                        \
@@ -99,7 +102,7 @@ namespace internal {
   V(ThisFunction)
 
 #define AST_NODE_LIST(V)                        \
-  V(Declaration)                                \
+  DECLARATION_NODE_LIST(V)                      \
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
@@ -107,6 +110,7 @@ namespace internal {
 class AstConstructionVisitor;
 template<class> class AstNodeFactory;
 class AstVisitor;
+class Declaration;
 class BreakableStatement;
 class Expression;
 class IterationStatement;
@@ -202,6 +206,7 @@ class AstNode: public ZoneObject {
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
+  virtual Declaration* AsDeclaration() { return NULL; }
   virtual Statement* AsStatement() { return NULL; }
   virtual Expression* AsExpression() { return NULL; }
   virtual TargetCollector* AsTargetCollector() { return NULL; }
@@ -433,40 +438,60 @@ class Block: public BreakableStatement {
 
 class Declaration: public AstNode {
  public:
-  DECLARE_NODE_TYPE(Declaration)
-
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
-  FunctionLiteral* fun() const { return fun_; }  // may be NULL
-  bool IsInlineable() const;
   Scope* scope() const { return scope_; }
+  virtual bool IsInlineable() const;
+
+  virtual Declaration* AsDeclaration() { return this; }
+  virtual VariableDeclaration* AsVariableDeclaration() { return NULL; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Declaration(VariableProxy* proxy,
               VariableMode mode,
-              FunctionLiteral* fun,
               Scope* scope)
       : proxy_(proxy),
         mode_(mode),
-        fun_(fun),
         scope_(scope) {
     ASSERT(mode == VAR ||
            mode == CONST ||
            mode == CONST_HARMONY ||
            mode == LET);
-    // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == VAR || mode == LET);
   }
 
  private:
   VariableProxy* proxy_;
   VariableMode mode_;
-  FunctionLiteral* fun_;
 
   // Nested scope from which the declaration originated.
   Scope* scope_;
+};
+
+
+class VariableDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(VariableDeclaration)
+
+  virtual VariableDeclaration* AsVariableDeclaration() { return this; }
+
+  FunctionLiteral* fun() const { return fun_; }  // may be NULL
+  virtual bool IsInlineable() const;
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  VariableDeclaration(VariableProxy* proxy,
+                      VariableMode mode,
+                      FunctionLiteral* fun,
+                      Scope* scope)
+      : Declaration(proxy, mode, scope),
+        fun_(fun) {
+    // At the moment there are no "const functions"'s in JavaScript...
+    ASSERT(fun == NULL || mode == VAR || mode == LET);
+  }
+
+ private:
+  FunctionLiteral* fun_;
 };
 
 
@@ -2366,20 +2391,21 @@ class AstNodeFactory BASE_EMBEDDED {
   visitor_.Visit##NodeType((node)); \
   return node;
 
+  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* fun,
+                                              Scope* scope) {
+    VariableDeclaration* decl =
+        new(zone_) VariableDeclaration(proxy, mode, fun, scope);
+    VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
   Block* NewBlock(ZoneStringList* labels,
                   int capacity,
                   bool is_initializer_block) {
     Block* block = new(zone_) Block(
         isolate_, labels, capacity, is_initializer_block);
     VISIT_AND_RETURN(Block, block)
-  }
-
-  Declaration* NewDeclaration(VariableProxy* proxy,
-                              VariableMode mode,
-                              FunctionLiteral* fun,
-                              Scope* scope) {
-    Declaration* decl = new(zone_) Declaration(proxy, mode, fun, scope);
-    VISIT_AND_RETURN(Declaration, decl)
   }
 
 #define STATEMENT_WITH_LABELS(NodeType) \
