@@ -2576,8 +2576,7 @@ void MacroAssembler::DebugBreak() {
 // ---------------------------------------------------------------------------
 // Exception handling.
 
-void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type,
+void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
@@ -2589,30 +2588,23 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
   // For the JSEntry handler, we must preserve a0-a3 and s0.
   // t1-t3 are available. We will build up the handler from the bottom by
-  // pushing on the stack. First compute the state.
-  unsigned state = StackHandler::OffsetField::encode(handler_index);
-  if (try_location == IN_JAVASCRIPT) {
-    state |= (type == TRY_CATCH_HANDLER)
-        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
-        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
-  } else {
-    ASSERT(try_location == IN_JS_ENTRY);
-    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
-  }
-
+  // pushing on the stack.
   // Set up the code object (t1) and the state (t2) for pushing.
+  unsigned state =
+      StackHandler::IndexField::encode(handler_index) |
+      StackHandler::KindField::encode(kind);
   li(t1, Operand(CodeObject()));
   li(t2, Operand(state));
 
   // Push the frame pointer, context, state, and code object.
-  if (try_location == IN_JAVASCRIPT) {
-    MultiPush(t1.bit() | t2.bit() | cp.bit() | fp.bit());
-  } else {
+  if (kind == StackHandler::JS_ENTRY) {
     ASSERT_EQ(Smi::FromInt(0), 0);
     // The second zero_reg indicates no context.
     // The first zero_reg is the NULL frame pointer.
     // The operands are reversed to match the order of MultiPush/Pop.
     Push(zero_reg, zero_reg, t2, t1);
+  } else {
+    MultiPush(t1.bit() | t2.bit() | cp.bit() | fp.bit());
   }
 
   // Link the current handler as the next handler.
@@ -2727,7 +2719,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   lw(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
-  STATIC_ASSERT(StackHandler::ENTRY == 0);
+  STATIC_ASSERT(StackHandler::JS_ENTRY == 0);
   lw(a2, MemOperand(sp, StackHandlerConstants::kStateOffset));
   And(a2, a2, Operand(StackHandler::KindField::kMask));
   Branch(&fetch_next, ne, a2, Operand(zero_reg));
