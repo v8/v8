@@ -66,6 +66,13 @@ debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
 ##############################################################################
+[ $isolates ]
+
+# This test sets the umask on a per-process basis and hence cannot be
+# used in multi-threaded runs.
+d8-os: SKIP
+
+##############################################################################
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

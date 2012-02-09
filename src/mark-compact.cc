@@ -1325,6 +1325,16 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       re->SetDataAtUnchecked(JSRegExp::saved_code_index(is_ascii),
                              code,
                              heap);
+
+      // Saving a copy might create a pointer into compaction candidate
+      // that was not observed by marker.  This might happen if JSRegExp data
+      // was marked through the compilation cache before marker reached JSRegExp
+      // object.
+      FixedArray* data = FixedArray::cast(re->data());
+      Object** slot = data->data_start() + JSRegExp::saved_code_index(is_ascii);
+      heap->mark_compact_collector()->
+          RecordSlot(slot, slot, code);
+
       // Set a number in the 0-255 range to guarantee no smi overflow.
       re->SetDataAtUnchecked(JSRegExp::code_index(is_ascii),
                              Smi::FromInt(heap->sweep_generation() & 0xff),
@@ -2363,8 +2373,10 @@ void MarkCompactCollector::AfterMarking() {
     code_flusher_->ProcessCandidates();
   }
 
-  // Clean up dead objects from the runtime profiler.
-  heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
+  if (!FLAG_watch_ic_patching) {
+    // Clean up dead objects from the runtime profiler.
+    heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
+  }
 }
 
 
@@ -3371,9 +3383,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   heap_->UpdateReferencesInExternalStringTable(
       &UpdateReferenceInExternalStringTableEntry);
 
-  // Update JSFunction pointers from the runtime profiler.
-  heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
-      &updating_visitor);
+  if (!FLAG_watch_ic_patching) {
+    // Update JSFunction pointers from the runtime profiler.
+    heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
+        &updating_visitor);
+  }
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessWeakReferences(&evacuation_object_retainer);

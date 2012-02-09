@@ -4696,12 +4696,6 @@ class Map: public HeapObject {
   // The "shared" flags of both this map and |other| are ignored.
   bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
 
-  // Returns true if this map and |other| describe equivalent objects.
-  // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentTo(Map* other) {
-    return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
-  }
-
   // Returns the contents of this map's descriptor array for the given string.
   // May return NULL. |safe_to_add_transition| is set to false and NULL
   // is returned if adding transitions is not allowed.
@@ -5206,6 +5200,9 @@ class SharedFunctionInfo: public HeapObject {
   inline int deopt_counter();
   inline void set_deopt_counter(int counter);
 
+  inline int profiler_ticks();
+  inline void set_profiler_ticks(int ticks);
+
   inline int ast_node_count();
   inline void set_ast_node_count(int count);
 
@@ -5324,7 +5321,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [source code]: Source code for the function.
   bool HasSourceCode();
-  Object* GetSourceCode();
+  Handle<Object> GetSourceCode();
 
   inline int opt_count();
   inline void set_opt_count(int opt_count);
@@ -5381,10 +5378,12 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
+  static const int kProfilerTicksOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
+      kProfilerTicksOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5418,7 +5417,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
+      kProfilerTicksOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 

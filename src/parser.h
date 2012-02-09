@@ -807,6 +807,7 @@ class Parser {
   Mode mode_;
   bool allow_natives_syntax_;
   bool allow_lazy_;
+  bool allow_modules_;
   bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.

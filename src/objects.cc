@@ -5511,7 +5511,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     for (int i = 0; i < maps_->length(); ++i) {
       bool match_found = false;
       for (int j = 0; j < other_maps.length(); ++j) {
-        if (maps_->at(i)->EquivalentTo(*other_maps.at(j))) {
+        if (*(maps_->at(i)) == *(other_maps.at(j))) {
           match_found = true;
           break;
         }
@@ -5730,6 +5730,11 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
+static bool InsertionPointFound(String* key1, String* key2) {
+  return key1->Hash() > key2->Hash() || key1 == key2;
+}
+
+
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                          TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -5802,28 +5807,24 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   // Copy the descriptors, filtering out transitions and null descriptors,
   // and inserting or replacing a descriptor.
-  uint32_t descriptor_hash = descriptor->GetKey()->Hash();
-  int from_index = 0;
   int to_index = 0;
-
-  for (; from_index < number_of_descriptors(); from_index++) {
-    String* key = GetKey(from_index);
-    if (key->Hash() > descriptor_hash || key == descriptor->GetKey()) {
-      break;
+  int insertion_index = -1;
+  int from_index = 0;
+  while (from_index < number_of_descriptors()) {
+    if (insertion_index < 0 &&
+        InsertionPointFound(GetKey(from_index), descriptor->GetKey())) {
+      insertion_index = to_index++;
+      if (replacing) from_index++;
+    } else {
+      if (!(IsNullDescriptor(from_index) ||
+            (remove_transitions && IsTransitionOnly(from_index)))) {
+        new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+      }
+      from_index++;
     }
-    if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransitionOnly(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
-
-  new_descriptors->Set(to_index++, descriptor, witness);
-  if (replacing) from_index++;
-
-  for (; from_index < number_of_descriptors(); from_index++) {
-    if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransitionOnly(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
-  }
+  if (insertion_index < 0) insertion_index = to_index++;
+  new_descriptors->Set(insertion_index, descriptor, witness);
 
   ASSERT(to_index == new_descriptors->number_of_descriptors());
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
@@ -7615,13 +7616,10 @@ bool SharedFunctionInfo::HasSourceCode() {
 }
 
 
-Object* SharedFunctionInfo::GetSourceCode() {
-  Isolate* isolate = GetIsolate();
-  if (!HasSourceCode()) return isolate->heap()->undefined_value();
-  HandleScope scope(isolate);
-  Object* source = Script::cast(script())->source();
-  return *SubString(Handle<String>(String::cast(source), isolate),
-                    start_position(), end_position());
+Handle<Object> SharedFunctionInfo::GetSourceCode() {
+  if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
+  Handle<String> source(String::cast(Script::cast(script())->source()));
+  return SubString(source, start_position(), end_position());
 }
 
 

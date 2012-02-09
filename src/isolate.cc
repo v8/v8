@@ -1023,7 +1023,7 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
   // Find the top-most try-catch handler.
   StackHandler* handler =
       StackHandler::FromAddress(Isolate::handler(thread_local_top()));
-  while (handler != NULL && !handler->is_try_catch()) {
+  while (handler != NULL && !handler->is_catch()) {
     handler = handler->next();
   }
 
@@ -1193,8 +1193,8 @@ bool Isolate::IsExternallyCaught() {
   StackHandler* handler =
       StackHandler::FromAddress(Isolate::handler(thread_local_top()));
   while (handler != NULL && handler->address() < external_handler_address) {
-    ASSERT(!handler->is_try_catch());
-    if (handler->is_try_finally()) return false;
+    ASSERT(!handler->is_catch());
+    if (handler->is_finally()) return false;
 
     handler = handler->next();
   }

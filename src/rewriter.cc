@@ -209,7 +209,12 @@ void Processor::VisitWithStatement(WithStatement* node) {
 
 
 // Do nothing:
-void Processor::VisitDeclaration(Declaration* node) {}
+void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
+void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
+void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
+void Processor::VisitModuleVariable(ModuleVariable* node) {}
+void Processor::VisitModulePath(ModulePath* node) {}
+void Processor::VisitModuleUrl(ModuleUrl* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}

@@ -59,6 +59,16 @@ namespace internal {
 // Nodes of the abstract syntax tree. Only concrete classes are
 // enumerated here.
 
+#define DECLARATION_NODE_LIST(V)                \
+  V(VariableDeclaration)                        \
+  V(ModuleDeclaration)                          \
+
+#define MODULE_NODE_LIST(V)                     \
+  V(ModuleLiteral)                              \
+  V(ModuleVariable)                             \
+  V(ModulePath)                                 \
+  V(ModuleUrl)
+
 #define STATEMENT_NODE_LIST(V)                  \
   V(Block)                                      \
   V(ExpressionStatement)                        \
@@ -99,7 +109,8 @@ namespace internal {
   V(ThisFunction)
 
 #define AST_NODE_LIST(V)                        \
-  V(Declaration)                                \
+  DECLARATION_NODE_LIST(V)                      \
+  MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
@@ -107,6 +118,8 @@ namespace internal {
 class AstConstructionVisitor;
 template<class> class AstNodeFactory;
 class AstVisitor;
+class Declaration;
+class Module;
 class BreakableStatement;
 class Expression;
 class IterationStatement;
@@ -202,6 +215,7 @@ class AstNode: public ZoneObject {
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
+  virtual Declaration* AsDeclaration() { return NULL; }
   virtual Statement* AsStatement() { return NULL; }
   virtual Expression* AsExpression() { return NULL; }
   virtual TargetCollector* AsTargetCollector() { return NULL; }
@@ -296,10 +310,6 @@ class Expression: public AstNode {
     kTest
   };
 
-  explicit Expression(Isolate* isolate)
-      : id_(GetNextId(isolate)),
-        test_id_(GetNextId(isolate)) {}
-
   virtual int position() const {
     UNREACHABLE();
     return 0;
@@ -349,6 +359,11 @@ class Expression: public AstNode {
 
   unsigned id() const { return id_; }
   unsigned test_id() const { return test_id_; }
+
+ protected:
+  explicit Expression(Isolate* isolate)
+      : id_(GetNextId(isolate)),
+        test_id_(GetNextId(isolate)) {}
 
  private:
   int id_;
@@ -433,40 +448,162 @@ class Block: public BreakableStatement {
 
 class Declaration: public AstNode {
  public:
-  DECLARE_NODE_TYPE(Declaration)
-
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
-  FunctionLiteral* fun() const { return fun_; }  // may be NULL
-  bool IsInlineable() const;
   Scope* scope() const { return scope_; }
+  virtual bool IsInlineable() const;
+
+  virtual Declaration* AsDeclaration() { return this; }
+  virtual VariableDeclaration* AsVariableDeclaration() { return NULL; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Declaration(VariableProxy* proxy,
               VariableMode mode,
-              FunctionLiteral* fun,
               Scope* scope)
       : proxy_(proxy),
         mode_(mode),
-        fun_(fun),
         scope_(scope) {
     ASSERT(mode == VAR ||
            mode == CONST ||
            mode == CONST_HARMONY ||
            mode == LET);
-    // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == VAR || mode == LET);
   }
 
  private:
   VariableProxy* proxy_;
   VariableMode mode_;
-  FunctionLiteral* fun_;
 
   // Nested scope from which the declaration originated.
   Scope* scope_;
+};
+
+
+class VariableDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(VariableDeclaration)
+
+  virtual VariableDeclaration* AsVariableDeclaration() { return this; }
+
+  FunctionLiteral* fun() const { return fun_; }  // may be NULL
+  virtual bool IsInlineable() const;
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  VariableDeclaration(VariableProxy* proxy,
+                      VariableMode mode,
+                      FunctionLiteral* fun,
+                      Scope* scope)
+      : Declaration(proxy, mode, scope),
+        fun_(fun) {
+    // At the moment there are no "const functions"'s in JavaScript...
+    ASSERT(fun == NULL || mode == VAR || mode == LET);
+  }
+
+ private:
+  FunctionLiteral* fun_;
+};
+
+
+class ModuleDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ModuleDeclaration)
+
+  Module* module() const { return module_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModuleDeclaration(VariableProxy* proxy,
+                    Module* module,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope),
+        module_(module) {
+  }
+
+ private:
+  Module* module_;
+};
+
+
+class Module: public AstNode {
+  // TODO(rossberg): stuff to come...
+ protected:
+  Module() {}
+};
+
+
+class ModuleLiteral: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleLiteral)
+
+  Block* body() const { return body_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  explicit ModuleLiteral(Block* body)
+      : body_(body) {
+  }
+
+ private:
+  Block* body_;
+};
+
+
+class ModuleVariable: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleVariable)
+
+  Variable* var() const { return var_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  explicit ModuleVariable(Variable* var)
+      : var_(var) {
+  }
+
+ private:
+  Variable* var_;
+};
+
+
+class ModulePath: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModulePath)
+
+  Module* module() const { return module_; }
+  Handle<String> name() const { return name_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ModulePath(Module* module, Handle<String> name)
+      : module_(module),
+        name_(name) {
+  }
+
+ private:
+  Module* module_;
+  Handle<String> name_;
+};
+
+
+class ModuleUrl: public Module {
+ public:
+  DECLARE_NODE_TYPE(ModuleUrl)
+
+  Handle<String> url() const { return url_; }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  explicit ModuleUrl(Handle<String> url) : url_(url) {
+  }
+
+ private:
+  Handle<String> url_;
 };
 
 
@@ -1817,8 +1954,6 @@ class FunctionLiteral: public Expression {
     return HasDuplicateParameters::decode(bitfield_);
   }
 
-  bool ShouldSelfOptimize();
-
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -2368,20 +2503,49 @@ class AstNodeFactory BASE_EMBEDDED {
   visitor_.Visit##NodeType((node)); \
   return node;
 
+  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* fun,
+                                              Scope* scope) {
+    VariableDeclaration* decl =
+        new(zone_) VariableDeclaration(proxy, mode, fun, scope);
+    VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
+  ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
+                                          Module* module,
+                                          Scope* scope) {
+    ModuleDeclaration* decl =
+        new(zone_) ModuleDeclaration(proxy, module, scope);
+    VISIT_AND_RETURN(ModuleDeclaration, decl)
+  }
+
+  ModuleLiteral* NewModuleLiteral(Block* body) {
+    ModuleLiteral* module = new(zone_) ModuleLiteral(body);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModuleVariable* NewModuleVariable(Variable* var) {
+    ModuleVariable* module = new(zone_) ModuleVariable(var);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModulePath* NewModulePath(Module* origin, Handle<String> name) {
+    ModulePath* module = new(zone_) ModulePath(origin, name);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
+  ModuleUrl* NewModuleUrl(Handle<String> url) {
+    ModuleUrl* module = new(zone_) ModuleUrl(url);
+    VISIT_AND_RETURN(ModuleLiteral, module)
+  }
+
   Block* NewBlock(ZoneStringList* labels,
                   int capacity,
                   bool is_initializer_block) {
     Block* block = new(zone_) Block(
         isolate_, labels, capacity, is_initializer_block);
     VISIT_AND_RETURN(Block, block)
-  }
-
-  Declaration* NewDeclaration(VariableProxy* proxy,
-                              VariableMode mode,
-                              FunctionLiteral* fun,
-                              Scope* scope) {
-    Declaration* decl = new(zone_) Declaration(proxy, mode, fun, scope);
-    VISIT_AND_RETURN(Declaration, decl)
   }
 
 #define STATEMENT_WITH_LABELS(NodeType) \

@@ -547,11 +547,15 @@ Parser::Parser(Handle<Script> script,
       fni_(NULL),
       allow_natives_syntax_((parser_flags & kAllowNativesSyntax) != 0),
       allow_lazy_((parser_flags & kAllowLazy) != 0),
+      allow_modules_((parser_flags & kAllowModules) != 0),
       stack_overflow_(false),
       parenthesized_function_(false) {
   AstNode::ResetIds();
   if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
     scanner().SetHarmonyScoping(true);
+  }
+  if ((parser_flags & kAllowModules) != 0) {
+    scanner().SetHarmonyModules(true);
   }
 }
 
@@ -1402,7 +1406,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   VariableProxy* proxy = declaration_scope->NewUnresolved(
       factory(), name, scanner().location().beg_pos);
   declaration_scope->AddDeclaration(
-      factory()->NewDeclaration(proxy, mode, fun, top_scope_));
+      factory()->NewVariableDeclaration(proxy, mode, fun, top_scope_));
 
   if ((mode == CONST || mode == CONST_HARMONY) &&
       declaration_scope->is_global_scope()) {
@@ -1623,8 +1627,8 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 
 
 // If the variable declaration declares exactly one non-const
-// variable, then *var is set to that variable. In all other cases,
-// *var is untouched; in particular, it is the caller's responsibility
+// variable, then *out is set to that variable. In all other cases,
+// *out is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is used for the parsing
 // of 'for-in' loops.
 Block* Parser::ParseVariableDeclarations(
@@ -4271,7 +4275,8 @@ preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
                                                    NULL,
                                                    stack_limit,
                                                    do_allow_lazy,
-                                                   allow_natives_syntax_);
+                                                   allow_natives_syntax_,
+                                                   allow_modules_);
   }
   preparser::PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
@@ -5578,6 +5583,9 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   if (!info->is_native() && FLAG_harmony_scoping) {
     // Harmony scoping is requested.
     parsing_flags |= EXTENDED_MODE;
+  }
+  if (!info->is_native() && FLAG_harmony_modules) {
+    parsing_flags |= kAllowModules;
   }
   if (FLAG_allow_natives_syntax || info->is_native()) {
     // We require %identifier(..) syntax.
