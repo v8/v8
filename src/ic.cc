@@ -1120,6 +1120,17 @@ MaybeObject* KeyedLoadIC::Load(State state,
         } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           stub = ComputeStub(receiver, LOAD, kNonStrictMode, stub);
         }
+        // If the IC is being replaced by the generic stub, loads from
+        // FAST_DOUBLE_ELEMENTS arrays will cause unboxing in Crankshafted
+        // code. To prevent these expensive allocations, proactively promote
+        // arrays to FAST_ELEMENTS ElementKinds.
+        if (*stub == *generic_stub()) {
+          if (receiver->HasFastDoubleElements()) {
+            MaybeObject* maybe_object =
+                receiver->TransitionElementsKind(FAST_ELEMENTS);
+            if (maybe_object->IsFailure()) return maybe_object;
+          }
+        }
       }
     } else {
       TRACE_GENERIC_IC("KeyedLoadIC", "force generic");

@@ -4270,14 +4270,24 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
           // If value is the hole do the general lookup.
         }
       }
-    } else if (FLAG_smi_only_arrays && args.at<Object>(1)->IsSmi()) {
+    } else if (args.at<Object>(1)->IsSmi()) {
+      // Getting properties from FAST_DOUBLE_ELEMENTS arrays causes boxing. To
+      // proactively avoid excessive boxing, transition FAST_DOUBLE_ELEMENTS
+      // arrays to FAST_ELEMENTS if they are accessed via this function, which
+      // is called by the KeyedLoadIC::GenericStub.
+      Handle<JSObject> js_object(args.at<JSObject>(0));
+      if (js_object->HasFastDoubleElements()) {
+        MaybeObject* maybe_object =
+            js_object->TransitionElementsKind(FAST_ELEMENTS);
+        if (maybe_object->IsFailure()) return maybe_object;
+      }
+
       // JSObject without a string key. If the key is a Smi, check for a
       // definite out-of-bounds access to elements, which is a strong indicator
       // that subsequent accesses will also call the runtime. Proactively
       // transition elements to FAST_ELEMENTS to avoid excessive boxing of
       // doubles for those future calls in the case that the elements would
       // become FAST_DOUBLE_ELEMENTS.
-      Handle<JSObject> js_object(args.at<JSObject>(0));
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
           elements_kind == FAST_DOUBLE_ELEMENTS) {
