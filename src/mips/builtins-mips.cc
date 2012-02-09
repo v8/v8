@@ -923,22 +923,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // t4: JSObject
     __ bind(&allocated);
     __ push(t4);
-
-    // Push the function and the allocated receiver from the stack.
-    // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
-    // sp[2]: number of arguments (smi-tagged)
-    __ lw(a1, MemOperand(sp, kPointerSize));
-    __ MultiPushReversed(a1.bit() | t4.bit());
+    __ push(t4);
 
     // Reload the number of arguments from the stack.
-    // a1: constructor function
     // sp[0]: receiver
-    // sp[1]: constructor function
-    // sp[2]: receiver
-    // sp[3]: constructor function
-    // sp[4]: number of arguments (smi-tagged)
-    __ lw(a3, MemOperand(sp, 4 * kPointerSize));
+    // sp[1]: receiver
+    // sp[2]: constructor function
+    // sp[3]: number of arguments (smi-tagged)
+    __ lw(a1, MemOperand(sp, 2 * kPointerSize));
+    __ lw(a3, MemOperand(sp, 3 * kPointerSize));
 
     // Set up pointer to last argument.
     __ Addu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -952,10 +945,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // a2: address of last argument (caller sp)
     // a3: number of arguments (smi-tagged)
     // sp[0]: receiver
-    // sp[1]: constructor function
-    // sp[2]: receiver
-    // sp[3]: constructor function
-    // sp[4]: number of arguments (smi-tagged)
+    // sp[1]: receiver
+    // sp[2]: constructor function
+    // sp[3]: number of arguments (smi-tagged)
     Label loop, entry;
     __ jmp(&entry);
     __ bind(&loop);
@@ -982,14 +974,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ InvokeFunction(a1, actual, CALL_FUNCTION,
                         NullCallWrapper(), CALL_AS_METHOD);
     }
-
-    // Pop the function from the stack.
-    // v0: result
-    // sp[0]: constructor function
-    // sp[2]: receiver
-    // sp[3]: constructor function
-    // sp[4]: number of arguments (smi-tagged)
-    __ Pop();
 
     // Restore context from the frame.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
