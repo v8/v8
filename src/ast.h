@@ -1817,8 +1817,6 @@ class FunctionLiteral: public Expression {
     return HasDuplicateParameters::decode(bitfield_);
   }
 
-  bool ShouldSelfOptimize();
-
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {

@@ -168,11 +168,6 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-bool FunctionLiteral::ShouldSelfOptimize() {
-  return !flags()->Contains(kDontSelfOptimize);
-}
-
-
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;

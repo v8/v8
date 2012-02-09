@@ -165,6 +165,9 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
+// Count-based optimization decisions.
+DEFINE_bool(counting_profiler, false, "use experimental counter-based profiler")
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")

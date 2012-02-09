@@ -2373,8 +2373,10 @@ void MarkCompactCollector::AfterMarking() {
     code_flusher_->ProcessCandidates();
   }
 
-  // Clean up dead objects from the runtime profiler.
-  heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
+  if (!FLAG_counting_profiler) {
+    // Clean up dead objects from the runtime profiler.
+    heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
+  }
 }
 
 
@@ -3381,9 +3383,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   heap_->UpdateReferencesInExternalStringTable(
       &UpdateReferenceInExternalStringTableEntry);
 
-  // Update JSFunction pointers from the runtime profiler.
-  heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
-      &updating_visitor);
+  if (!FLAG_counting_profiler) {
+    // Update JSFunction pointers from the runtime profiler.
+    heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
+        &updating_visitor);
+  }
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessWeakReferences(&evacuation_object_retainer);

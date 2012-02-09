@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -128,6 +128,26 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ int3();
   }
 #endif
+
+  // We can optionally optimize based on counters rather than statistical
+  // sampling.
+  if (info->ShouldSelfOptimize()) {
+    if (FLAG_trace_opt) {
+      PrintF("[adding self-optimization header to %s]\n",
+             *info->function()->debug_name()->ToCString());
+    }
+    MaybeObject* maybe_cell = isolate()->heap()->AllocateJSGlobalPropertyCell(
+        Smi::FromInt(Compiler::kCallsUntilPrimitiveOpt));
+    JSGlobalPropertyCell* cell;
+    if (maybe_cell->To(&cell)) {
+      __ sub(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)),
+             Immediate(Smi::FromInt(1)));
+      Handle<Code> compile_stub(
+          isolate()->builtins()->builtin(Builtins::kLazyRecompile));
+      STATIC_ASSERT(kSmiTag == 0);
+      __ j(zero, compile_stub);
+    }
+  }
 
   // Strict mode functions and builtins need to replace the receiver
   // with undefined when called as functions (without an explicit

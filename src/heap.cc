@@ -1201,7 +1201,9 @@ void Heap::Scavenge() {
   promotion_queue_.Destroy();
 
   LiveObjectList::UpdateReferencesForScavengeGC();
-  isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
+  if (!FLAG_counting_profiler) {
+    isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
+  }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
@@ -2866,6 +2868,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_deopt_counter(FLAG_deopt_every_n_times);
+  share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
 
   // Set integer fields (smi or int, depending on the architecture).

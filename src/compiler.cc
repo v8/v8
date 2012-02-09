@@ -110,6 +110,18 @@ void CompilationInfo::DisableOptimization() {
 }
 
 
+// Primitive functions are unlikely to be picked up by the stack-walking
+// profiler, so they trigger their own optimization when they're called
+// for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
+bool CompilationInfo::ShouldSelfOptimize() {
+  return FLAG_counting_profiler &&
+      FLAG_crankshaft &&
+      !Serializer::enabled() &&
+      !function()->flags()->Contains(kDontSelfOptimize) &&
+      (shared_info().is_null() || !shared_info()->optimization_disabled());
+}
+
+
 void CompilationInfo::AbortOptimization() {
   Handle<Code> code(shared_info()->code());
   SetCode(code);
@@ -654,6 +666,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         shared->set_code_age(0);
         shared->set_dont_crankshaft(lit->flags()->Contains(kDontOptimize));
         shared->set_dont_inline(lit->flags()->Contains(kDontInline));
+        shared->set_ast_node_count(lit->ast_node_count());
 
         if (info->AllowOptimize() && !shared->optimization_disabled()) {
           // If we're asked to always optimize, we compile the optimized

@@ -3530,6 +3530,8 @@ ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
 
+SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
+
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)

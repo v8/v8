@@ -8427,6 +8427,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   ASSERT(args.length() == 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
+  function->shared()->set_profiler_ticks(0);
+
   // If the function is not compiled ignore the lazy
   // recompilation. This can happen if the debugger is activated and
   // the function is returned to the not compiled state.
