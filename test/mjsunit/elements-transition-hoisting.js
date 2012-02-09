@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
 
 // Ensure that ElementsKind transitions in various situations are hoisted (or
 // not hoisted) correctly, don't change the semantics programs and don't trigger
@@ -38,6 +38,11 @@ if (support_smi_only_arrays) {
 } else {
   print("Tests do NOT include smi-only arrays.");
 }
+
+// Force existing ICs from previous stress runs to be flushed, otherwise the
+// assumptions in this test about when deoptimizations get triggered are not
+// valid.
+gc();
 
 if (support_smi_only_arrays) {
   // Make sure that a simple elements array transitions inside a loop before
