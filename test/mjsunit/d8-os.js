@@ -96,7 +96,9 @@ if (this.os && os.system) {
     assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 I");
     os.rmdir(TEST_DIR + "/dir4");
     assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 II");
-    // Set umask.
+
+    // Set umask.  This changes the umask for the whole process and is
+    // the reason why the test cannot be run multi-threaded.
     var old_umask = os.umask(0777);
     // Create a dir we cannot read.
     os.mkdirp(TEST_DIR + "/dir5");
