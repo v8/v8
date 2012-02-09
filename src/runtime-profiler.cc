@@ -204,7 +204,7 @@ void RuntimeProfiler::OptimizeNow() {
     JavaScriptFrame* frame = it.frame();
     JSFunction* function = JSFunction::cast(frame->function());
 
-    if (!FLAG_counting_profiler) {
+    if (!FLAG_watch_ic_patching) {
       // Adjust threshold each time we have processed
       // a certain number of ticks.
       if (sampler_ticks_until_threshold_adjustment_ > 0) {
@@ -232,7 +232,7 @@ void RuntimeProfiler::OptimizeNow() {
     // Do not record non-optimizable functions.
     if (!function->IsOptimizable()) continue;
 
-    if (FLAG_counting_profiler) {
+    if (FLAG_watch_ic_patching) {
       int ticks = function->shared()->profiler_ticks();
 
       if (ticks >= kProfilerTicksBeforeOptimization) {
@@ -270,7 +270,7 @@ void RuntimeProfiler::OptimizeNow() {
       }
     }
   }
-  if (FLAG_counting_profiler) {
+  if (FLAG_watch_ic_patching) {
     any_ic_changed_ = false;
     code_generated_ = false;
   } else {  // !FLAG_counting_profiler
@@ -291,7 +291,7 @@ void RuntimeProfiler::NotifyTick() {
 
 void RuntimeProfiler::SetUp() {
   ASSERT(has_been_globally_set_up_);
-  if (!FLAG_counting_profiler) {
+  if (!FLAG_watch_ic_patching) {
     ClearSampleBuffer();
   }
   // If the ticker hasn't already started, make sure to do so to get
@@ -301,7 +301,7 @@ void RuntimeProfiler::SetUp() {
 
 
 void RuntimeProfiler::Reset() {
-  if (FLAG_counting_profiler) {
+  if (FLAG_watch_ic_patching) {
     total_code_generated_ = 0;
   } else {  // !FLAG_counting_profiler
     sampler_threshold_ = kSamplerThresholdInit;

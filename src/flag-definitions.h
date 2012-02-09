@@ -165,8 +165,14 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
-// Count-based optimization decisions.
-DEFINE_bool(counting_profiler, false, "use experimental counter-based profiler")
+// Experimental profiler changes.
+DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
+DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
+DEFINE_bool(self_optimization, false,
+            "primitive functions trigger their own optimization")
+
+DEFINE_implication(experimental_profiler, watch_ic_patching)
+DEFINE_implication(experimental_profiler, self_optimization)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,

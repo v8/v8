@@ -1201,7 +1201,7 @@ void Heap::Scavenge() {
   promotion_queue_.Destroy();
 
   LiveObjectList::UpdateReferencesForScavengeGC();
-  if (!FLAG_counting_profiler) {
+  if (!FLAG_watch_ic_patching) {
     isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
   }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();

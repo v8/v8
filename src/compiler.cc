@@ -114,7 +114,7 @@ void CompilationInfo::DisableOptimization() {
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_counting_profiler &&
+  return FLAG_self_optimization &&
       FLAG_crankshaft &&
       !Serializer::enabled() &&
       !function()->flags()->Contains(kDontSelfOptimize) &&

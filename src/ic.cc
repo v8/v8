@@ -293,7 +293,7 @@ Failure* IC::ReferenceError(const char* type, Handle<String> name) {
 
 
 void IC::PostPatching() {
-  if (FLAG_counting_profiler) {
+  if (FLAG_watch_ic_patching) {
     Isolate::Current()->runtime_profiler()->NotifyICChanged();
     // We do not want to optimize until the ICs have settled down,
     // so when they are patched, we postpone optimization for the

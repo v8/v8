@@ -64,7 +64,7 @@ class RuntimeProfiler {
   void NotifyICChanged() { any_ic_changed_ = true; }
 
   void NotifyCodeGenerated(int generated_code_size) {
-    if (FLAG_counting_profiler) {
+    if (FLAG_watch_ic_patching) {
       code_generated_ = true;
       total_code_generated_ += generated_code_size;
     }

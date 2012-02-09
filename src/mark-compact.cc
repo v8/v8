@@ -2373,7 +2373,7 @@ void MarkCompactCollector::AfterMarking() {
     code_flusher_->ProcessCandidates();
   }
 
-  if (!FLAG_counting_profiler) {
+  if (!FLAG_watch_ic_patching) {
     // Clean up dead objects from the runtime profiler.
     heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
   }
@@ -3383,7 +3383,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   heap_->UpdateReferencesInExternalStringTable(
       &UpdateReferenceInExternalStringTableEntry);
 
-  if (!FLAG_counting_profiler) {
+  if (!FLAG_watch_ic_patching) {
     // Update JSFunction pointers from the runtime profiler.
     heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
         &updating_visitor);
