@@ -70,7 +70,8 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       deleted_phis_(4),
       parent_loop_header_(NULL),
       is_inline_return_target_(false),
-      is_deoptimizing_(false) { }
+      is_deoptimizing_(false),
+      dominates_loop_successors_(false) { }
 
 
 void HBasicBlock::AttachLoopInformation() {
@@ -310,6 +311,62 @@ void HBasicBlock::AssignCommonDominator(HBasicBlock* other) {
       dominator_->dominated_blocks_.RemoveElement(this);
       dominator_ = first;
       first->AddDominatedBlock(this);
+    }
+  }
+}
+
+
+void HBasicBlock::AssignLoopSuccessorDominators() {
+  // Mark blocks that dominate all subsequent reachable blocks inside their
+  // loop. Exploit the fact that blocks are sorted in reverse post order. When
+  // the loop is visited in increasing block id order, if the number of
+  // non-loop-exiting successor edges at the dominator_candidate block doesn't
+  // exceed the number of previously encountered predecessor edges, there is no
+  // path from the loop header to any block with higher id that doesn't go
+  // through the dominator_candidate block. In this case, the
+  // dominator_candidate block is guaranteed to dominate all blocks reachable
+  // from it with higher ids.
+  HBasicBlock* last = loop_information()->GetLastBackEdge();
+  int outstanding_successors = 1;  // one edge from the pre-header
+  // Header always dominates everything.
+  MarkAsLoopSuccessorDominator();
+  for (int j = block_id(); j <= last->block_id(); ++j) {
+    HBasicBlock* dominator_candidate = graph_->blocks()->at(j);
+    for (HPredecessorIterator it(dominator_candidate); !it.Done();
+         it.Advance()) {
+      HBasicBlock* predecessor = it.Current();
+      // Don't count back edges.
+      if (predecessor->block_id() < dominator_candidate->block_id()) {
+        outstanding_successors--;
+      }
+    }
+
+    // If more successors than predecessors have been seen in the loop up to
+    // now, it's not possible to guarantee that the current block dominates
+    // all of the blocks with higher IDs. In this case, assume conservatively
+    // that those paths through loop that don't go through the current block
+    // contain all of the loop's dependencies. Also be careful to record
+    // dominator information about the current loop that's being processed,
+    // and not nested loops, which will be processed when
+    // AssignLoopSuccessorDominators gets called on their header.
+    ASSERT(outstanding_successors >= 0);
+    HBasicBlock* parent_loop_header = dominator_candidate->parent_loop_header();
+    if (outstanding_successors == 0 &&
+        (parent_loop_header == this && !dominator_candidate->IsLoopHeader())) {
+      dominator_candidate->MarkAsLoopSuccessorDominator();
+    }
+    HControlInstruction* end = dominator_candidate->end();
+    for (HSuccessorIterator it(end); !it.Done(); it.Advance()) {
+      HBasicBlock* successor = it.Current();
+      // Only count successors that remain inside the loop and don't loop back
+      // to a loop header.
+      if (successor->block_id() > dominator_candidate->block_id() &&
+          successor->block_id() <= last->block_id()) {
+        // Backwards edges must land on loop headers.
+        ASSERT(successor->block_id() > dominator_candidate->block_id() ||
+               successor->IsLoopHeader());
+        outstanding_successors++;
+      }
     }
   }
 }
@@ -750,10 +807,12 @@ void HGraph::Postorder(HBasicBlock* block,
 void HGraph::AssignDominators() {
   HPhase phase("Assign dominators", this);
   for (int i = 0; i < blocks_.length(); ++i) {
-    if (blocks_[i]->IsLoopHeader()) {
+    HBasicBlock* block = blocks_[i];
+    if (block->IsLoopHeader()) {
       // Only the first predecessor of a loop header is from outside the loop.
       // All others are back edges, and thus cannot dominate the loop header.
-      blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->first());
+      block->AssignCommonDominator(block->predecessors()->first());
+      block->AssignLoopSuccessorDominators();
     } else {
       for (int j = blocks_[i]->predecessors()->length() - 1; j >= 0; --j) {
         blocks_[i]->AssignCommonDominator(blocks_[i]->predecessors()->at(j));
@@ -1371,7 +1430,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
-                        GVNFlagSet loop_kills);
+                        GVNFlagSet loop_kills,
+                        GVNFlagSet* accumulated_first_time_depends);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
@@ -1396,6 +1456,7 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 
 
 bool HGlobalValueNumberer::Analyze() {
+  removed_side_effects_ = false;
   ComputeBlockSideEffects();
   if (FLAG_loop_invariant_code_motion) {
     LoopInvariantCodeMotion();
@@ -1407,6 +1468,12 @@ bool HGlobalValueNumberer::Analyze() {
 
 
 void HGlobalValueNumberer::ComputeBlockSideEffects() {
+  // The Analyze phase of GVN can be called multiple times. Clear loop side
+  // effects before computing them to erase the contents from previous Analyze
+  // passes.
+  for (int i = 0; i < loop_side_effects_.length(); ++i) {
+    loop_side_effects_[i].RemoveAll();
+  }
   for (int i = graph_->blocks()->length() - 1; i >= 0; --i) {
     // Compute side effects for the block.
     HBasicBlock* block = graph_->blocks()->at(i);
@@ -1444,18 +1511,22 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
                block->block_id(),
                side_effects.ToIntegral());
 
+      GVNFlagSet accumulated_first_time_depends;
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
-        ProcessLoopBlock(graph_->blocks()->at(j), block, side_effects);
+        ProcessLoopBlock(graph_->blocks()->at(j), block, side_effects,
+                         &accumulated_first_time_depends);
       }
     }
   }
 }
 
 
-void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
-                                            HBasicBlock* loop_header,
-                                            GVNFlagSet loop_kills) {
+void HGlobalValueNumberer::ProcessLoopBlock(
+    HBasicBlock* block,
+    HBasicBlock* loop_header,
+    GVNFlagSet loop_kills,
+    GVNFlagSet* accumulated_first_time_depends) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
@@ -1464,24 +1535,64 @@ void HGlobalValueNumberer::ProcessLoopBlock(HBasicBlock* block,
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
-    if (instr->CheckFlag(HValue::kUseGVN) &&
-        !instr->gvn_flags().ContainsAnyOf(depends_flags)) {
-      TraceGVN("Checking instruction %d (%s)\n",
+    bool hoisted = false;
+    if (instr->CheckFlag(HValue::kUseGVN)) {
+      TraceGVN("Checking instruction %d (%s) instruction GVN flags 0x%X, "
+               "loop kills 0x%X\n",
                instr->id(),
-               instr->Mnemonic());
-      bool inputs_loop_invariant = true;
-      for (int i = 0; i < instr->OperandCount(); ++i) {
-        if (instr->OperandAt(i)->IsDefinedAfter(pre_header)) {
-          inputs_loop_invariant = false;
-        }
+               instr->Mnemonic(),
+               instr->gvn_flags().ToIntegral(),
+               depends_flags.ToIntegral());
+      bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
+      if (!can_hoist && instr->IsTransitionElementsKind()) {
+        // It's only possible to hoist one time side effects if there are no
+        // dependencies on their changes from the loop header to the current
+        // instruction.
+        GVNFlagSet converted_changes =
+            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
+        TraceGVN("Checking dependencies on one-time instruction %d (%s) "
+                 "converted changes 0x%X, accumulated depends 0x%X\n",
+                 instr->id(),
+                 instr->Mnemonic(),
+                 converted_changes.ToIntegral(),
+                 accumulated_first_time_depends->ToIntegral());
+        // It's possible to hoist one-time side effects from the current loop
+        // loop only if they dominate all of the successor blocks in the same
+        // loop and there are not any instructions that have Changes/DependsOn
+        // that intervene between it and the beginning of the loop header.
+        bool in_nested_loop = block != loop_header &&
+            ((block->parent_loop_header() != loop_header) ||
+             block->IsLoopHeader());
+        can_hoist = !in_nested_loop &&
+            block->IsLoopSuccessorDominator() &&
+            !accumulated_first_time_depends->ContainsAnyOf(converted_changes);
       }
 
-      if (inputs_loop_invariant && ShouldMove(instr, loop_header)) {
-        TraceGVN("Found loop invariant instruction %d\n", instr->id());
-        // Move the instruction out of the loop.
-        instr->Unlink();
-        instr->InsertBefore(pre_header->end());
+      if (can_hoist) {
+        bool inputs_loop_invariant = true;
+        for (int i = 0; i < instr->OperandCount(); ++i) {
+          if (instr->OperandAt(i)->IsDefinedAfter(pre_header)) {
+            inputs_loop_invariant = false;
+          }
+        }
+
+        if (inputs_loop_invariant && ShouldMove(instr, loop_header)) {
+          TraceGVN("Hoisting loop invariant instruction %d\n", instr->id());
+          // Move the instruction out of the loop.
+          instr->Unlink();
+          instr->InsertBefore(pre_header->end());
+          if (instr->HasSideEffects()) removed_side_effects_ = true;
+          hoisted = true;
+        }
       }
+    }
+    if (!hoisted) {
+      // If an instruction is not hoisted, we have to account for its side
+      // effects when hoisting later HTransitionElementsKind instructions.
+      accumulated_first_time_depends->Add(instr->DependsOnFlags());
+      GVNFlagSet converted_changes =
+          HValue::ConvertChangesToDependsFlags(instr->SideEffectFlags());
+      accumulated_first_time_depends->Add(converted_changes);
     }
     instr = next;
   }
@@ -2390,7 +2501,8 @@ HGraph* HGraphBuilder::CreateGraph() {
     // could only be discovered by removing side-effect-generating instructions
     // during the first pass.
     if (FLAG_smi_only_arrays && removed_side_effects) {
-      gvn.Analyze();
+      removed_side_effects = gvn.Analyze();
+      ASSERT(!removed_side_effects);
     }
   }
 
@@ -7260,7 +7372,10 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
     }
 
     PrintEmptyProperty("xhandlers");
-    PrintEmptyProperty("flags");
+    const char* flags = current->IsLoopSuccessorDominator()
+        ? "dom-loop-succ"
+        : "";
+    PrintStringProperty("flags", flags);
 
     if (current->dominator() != NULL) {
       PrintBlockProperty("dominator", current->dominator()->block_id());

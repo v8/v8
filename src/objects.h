@@ -4696,12 +4696,6 @@ class Map: public HeapObject {
   // The "shared" flags of both this map and |other| are ignored.
   bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
 
-  // Returns true if this map and |other| describe equivalent objects.
-  // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentTo(Map* other) {
-    return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
-  }
-
   // Returns the contents of this map's descriptor array for the given string.
   // May return NULL. |safe_to_add_transition| is set to false and NULL
   // is returned if adding transitions is not allowed.

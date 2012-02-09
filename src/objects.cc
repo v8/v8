@@ -5511,7 +5511,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     for (int i = 0; i < maps_->length(); ++i) {
       bool match_found = false;
       for (int j = 0; j < other_maps.length(); ++j) {
-        if (maps_->at(i)->EquivalentTo(*other_maps.at(j))) {
+        if (*(maps_->at(i)) == *(other_maps.at(j))) {
           match_found = true;
           break;
         }
