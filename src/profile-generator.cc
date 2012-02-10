@@ -1208,11 +1208,13 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 36;
+  static const int kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 48;
+  static const int kMaxSerializableSnapshotRawSize = 768 * MB;
 };
 
 }  // namespace
@@ -3436,15 +3438,13 @@ class OutputStreamWriter {
   bool aborted_;
 };
 
-const int HeapSnapshotJSONSerializer::kMaxSerializableSnapshotRawSize =
-    256 * MB;
-
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
 
   HeapSnapshot* original_snapshot = NULL;
-  if (snapshot_->raw_entries_size() >= kMaxSerializableSnapshotRawSize) {
+  if (snapshot_->raw_entries_size() >=
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize) {
     // The snapshot is too big. Serialize a fake snapshot.
     original_snapshot = snapshot_;
     snapshot_ = CreateFakeSnapshot();
@@ -3471,8 +3471,14 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
                                           snapshot_->uid());
   result->AllocateEntries(2, 1, 0);
   HeapEntry* root = result->AddRootEntry(1);
+  const char* text = snapshot_->collection()->names()->GetFormatted(
+      "The snapshot is too big. "
+      "Maximum snapshot size is %d MB. "
+      "Actual snapshot size is %d MB.",
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
+      (snapshot_->raw_entries_size() + MB - 1) / MB);
   HeapEntry* message = result->AddEntry(
-      HeapEntry::kString, "The snapshot is too big", 0, 4, 0, 0);
+      HeapEntry::kString, text, 0, 4, 0, 0);
   root->SetUnidirElementReference(0, 1, message);
   result->SetDominatorsToSelf();
   return result;
