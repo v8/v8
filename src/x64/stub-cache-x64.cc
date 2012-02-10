@@ -1384,18 +1384,18 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ CheckFastSmiOnlyElements(rbx, &call_builtin);
         // rdx: receiver
         // rbx: map
+        __ movq(r9, rdi);  // Backup rdi as it is going to be trashed.
         __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                                FAST_ELEMENTS,
                                                rbx,
-                                               r10,
+                                               rdi,
                                                &call_builtin);
         ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
+        __ movq(rdi, r9);
         __ bind(&fast_object);
       } else {
         __ CheckFastObjectElements(rbx, &call_builtin);
       }
-
-      __ CheckFastObjectElements(rbx, &call_builtin);
 
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
