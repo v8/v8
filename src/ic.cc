@@ -81,9 +81,13 @@ void IC::TraceIC(const char* type,
       }
     }
     JavaScriptFrame::PrintTop(stdout, false, true);
-    PrintF(" (%c->%c)",
+    bool new_can_grow =
+        Code::GetKeyedAccessGrowMode(new_target->extra_ic_state()) ==
+        ALLOW_JSARRAY_GROWTH;
+    PrintF(" (%c->%c%s)",
            TransitionMarkFromState(old_state),
-           TransitionMarkFromState(new_state));
+           TransitionMarkFromState(new_state),
+           new_can_grow ? ".GROW" : "");
     name->Print();
     PrintF("]\n");
   }
@@ -375,7 +379,7 @@ void LoadIC::Clear(Address address, Code* target) {
 void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
-      (target->extra_ic_state() == kStrictMode)
+      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
         ? initialize_stub_strict()
         : initialize_stub());
 }
@@ -384,7 +388,7 @@ void StoreIC::Clear(Address address, Code* target) {
 void KeyedStoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
-      (target->extra_ic_state() == kStrictMode)
+      (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
         ? initialize_stub_strict()
         : initialize_stub());
 }
@@ -996,19 +1000,22 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 Handle<Code> KeyedLoadIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    ElementsKind elements_kind) {
+    ElementsKind elements_kind,
+    KeyedAccessGrowMode grow_mode) {
+  ASSERT(grow_mode == DO_NOT_ALLOW_JSARRAY_GROWTH);
   return KeyedLoadElementStub(elements_kind).GetCode();
 }
 
 
 Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
     MapHandleList* receiver_maps,
-    StrictModeFlag strict_mode) {
+    StrictModeFlag strict_mode,
+    KeyedAccessGrowMode growth_mode) {
   CodeHandleList handler_ics(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
     Handle<Code> cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-        receiver_map, strict_mode);
+        receiver_map, strict_mode, growth_mode);
     handler_ics.Add(cached_stub);
   }
   KeyedLoadStubCompiler compiler(isolate());
@@ -1493,6 +1500,9 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
                                   StrictModeFlag strict_mode,
                                   Handle<Code> generic_stub) {
   State ic_state = target()->ic_state();
+  KeyedAccessGrowMode grow_mode = IsGrowStubKind(stub_kind)
+      ? ALLOW_JSARRAY_GROWTH
+      : DO_NOT_ALLOW_JSARRAY_GROWTH;
   if ((ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) &&
       !IsTransitionStubKind(stub_kind)) {
     return ComputeMonomorphicStub(
@@ -1537,14 +1547,21 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
     return generic_stub;
   }
 
+  if ((Code::GetKeyedAccessGrowMode(target()->extra_ic_state()) ==
+       ALLOW_JSARRAY_GROWTH)) {
+    grow_mode = ALLOW_JSARRAY_GROWTH;
+  }
+
   Handle<PolymorphicCodeCache> cache =
       isolate()->factory()->polymorphic_code_cache();
-  Code::Flags flags = Code::ComputeFlags(kind(), MEGAMORPHIC, strict_mode);
+  Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
+                                                             strict_mode);
+  Code::Flags flags = Code::ComputeFlags(kind(), MEGAMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(&target_receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   Handle<Code> stub =
-      ComputePolymorphicStub(&target_receiver_maps, strict_mode);
+      ComputePolymorphicStub(&target_receiver_maps, strict_mode, grow_mode);
   PolymorphicCodeCache::Update(cache, &target_receiver_maps, flags, stub);
   return stub;
 }
@@ -1552,7 +1569,8 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
 
 Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     Handle<Map> receiver_map,
-    StrictModeFlag strict_mode) {
+    StrictModeFlag strict_mode,
+    KeyedAccessGrowMode grow_mode) {
   if ((receiver_map->instance_type() & kNotStringTag) == 0) {
     ASSERT(!string_stub().is_null());
     return string_stub();
@@ -1564,7 +1582,8 @@ Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
            receiver_map->has_external_array_elements());
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     return GetElementStubWithoutMapCheck(is_js_array,
-                                         receiver_map->elements_kind());
+                                         receiver_map->elements_kind(),
+                                         grow_mode);
   }
 }
 
@@ -1591,9 +1610,12 @@ Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
   switch (stub_kind) {
     case KeyedIC::STORE_TRANSITION_SMI_TO_OBJECT:
     case KeyedIC::STORE_TRANSITION_DOUBLE_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
       return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
       break;
     case KeyedIC::STORE_TRANSITION_SMI_TO_DOUBLE:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
       break;
     default:
@@ -1605,13 +1627,16 @@ Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
 
 Handle<Code> KeyedStoreIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    ElementsKind elements_kind) {
-  return KeyedStoreElementStub(is_js_array, elements_kind).GetCode();
+    ElementsKind elements_kind,
+    KeyedAccessGrowMode grow_mode) {
+  return KeyedStoreElementStub(is_js_array, elements_kind, grow_mode).GetCode();
 }
 
 
-Handle<Code> KeyedStoreIC::ComputePolymorphicStub(MapHandleList* receiver_maps,
-                                                  StrictModeFlag strict_mode) {
+Handle<Code> KeyedStoreIC::ComputePolymorphicStub(
+    MapHandleList* receiver_maps,
+    StrictModeFlag strict_mode,
+    KeyedAccessGrowMode grow_mode) {
   // Collect MONOMORPHIC stubs for all target_receiver_maps.
   CodeHandleList handler_ics(receiver_maps->length());
   MapHandleList transitioned_maps(receiver_maps->length());
@@ -1625,22 +1650,65 @@ Handle<Code> KeyedStoreIC::ComputePolymorphicStub(MapHandleList* receiver_maps,
           receiver_map->elements_kind(),  // original elements_kind
           transitioned_map->elements_kind(),
           receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
-          strict_mode).GetCode();
+          strict_mode, grow_mode).GetCode();
     } else {
       cached_stub = ComputeMonomorphicStubWithoutMapCheck(receiver_map,
-                                                          strict_mode);
+                                                          strict_mode,
+                                                          grow_mode);
     }
     ASSERT(!cached_stub.is_null());
     handler_ics.Add(cached_stub);
     transitioned_maps.Add(transitioned_map);
   }
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode);
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode, grow_mode);
   Handle<Code> code = compiler.CompileStorePolymorphic(
       receiver_maps, &handler_ics, &transitioned_maps);
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(),
           CodeCreateEvent(Logger::KEYED_STORE_MEGAMORPHIC_IC_TAG, *code, 0));
   return code;
+}
+
+
+KeyedIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
+                                            Handle<Object> key,
+                                            Handle<Object> value) {
+  ASSERT(key->IsSmi());
+  int index = Smi::cast(*key)->value();
+  bool allow_growth = receiver->IsJSArray() &&
+      JSArray::cast(*receiver)->length()->IsSmi() &&
+      index >= Smi::cast(JSArray::cast(*receiver)->length())->value();
+
+  if (allow_growth) {
+    // Handle growing array in stub if necessary.
+    if (receiver->HasFastSmiOnlyElements()) {
+      if (value->IsHeapNumber()) {
+        return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
+      }
+      if (value->IsHeapObject()) {
+        return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
+      }
+    } else if (receiver->HasFastDoubleElements()) {
+      if (!value->IsSmi() && !value->IsHeapNumber()) {
+        return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
+      }
+    }
+    return STORE_AND_GROW_NO_TRANSITION;
+  } else {
+    // Handle only in-bounds elements accesses.
+    if (receiver->HasFastSmiOnlyElements()) {
+      if (value->IsHeapNumber()) {
+        return STORE_TRANSITION_SMI_TO_DOUBLE;
+      } else if (value->IsHeapObject()) {
+        return STORE_TRANSITION_SMI_TO_OBJECT;
+      }
+    } else if (receiver->HasFastDoubleElements()) {
+      if (!value->IsSmi() && !value->IsHeapNumber()) {
+        return STORE_TRANSITION_DOUBLE_TO_OBJECT;
+      }
+    }
+    return STORE_NO_TRANSITION;
+  }
 }
 
 
@@ -1706,18 +1774,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
         stub = non_strict_arguments_stub();
       } else if (!force_generic) {
         if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
-          StubKind stub_kind = STORE_NO_TRANSITION;
-          if (receiver->GetElementsKind() == FAST_SMI_ONLY_ELEMENTS) {
-            if (value->IsHeapNumber()) {
-              stub_kind = STORE_TRANSITION_SMI_TO_DOUBLE;
-            } else if (value->IsHeapObject()) {
-              stub_kind = STORE_TRANSITION_SMI_TO_OBJECT;
-            }
-          } else if (receiver->GetElementsKind() == FAST_DOUBLE_ELEMENTS) {
-            if (!value->IsSmi() && !value->IsHeapNumber()) {
-              stub_kind = STORE_TRANSITION_DOUBLE_TO_OBJECT;
-            }
-          }
+          StubKind stub_kind = GetStubKind(receiver, key, value);
           stub = ComputeStub(receiver, stub_kind, strict_mode, stub);
         }
       } else {
@@ -1900,7 +1957,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
-                  static_cast<StrictModeFlag>(extra_ic_state & kStrictMode),
+                  Code::GetStrictMode(extra_ic_state),
                   args.at<Object>(0),
                   args.at<String>(1),
                   args.at<Object>(2));
@@ -1976,7 +2033,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
-                  static_cast<StrictModeFlag>(extra_ic_state & kStrictMode),
+                  Code::GetStrictMode(extra_ic_state),
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),
@@ -1992,8 +2049,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  StrictModeFlag strict_mode =
-      static_cast<StrictModeFlag>(extra_ic_state & kStrictMode);
+  StrictModeFlag strict_mode = Code::GetStrictMode(extra_ic_state);
   return Runtime::SetObjectProperty(isolate,
                                     object,
                                     key,
@@ -2010,7 +2066,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
   return ic.Store(state,
-                  static_cast<StrictModeFlag>(extra_ic_state & kStrictMode),
+                  Code::GetStrictMode(extra_ic_state),
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),

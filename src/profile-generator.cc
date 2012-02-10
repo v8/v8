@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2617,7 +2617,6 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
       !obj->IsOddball() &&
       obj != heap_->raw_unchecked_empty_byte_array() &&
       obj != heap_->raw_unchecked_empty_fixed_array() &&
-      obj != heap_->raw_unchecked_empty_fixed_double_array() &&
       obj != heap_->raw_unchecked_empty_descriptor_array()) {
     objects_tags_.SetTag(obj, tag);
   }
