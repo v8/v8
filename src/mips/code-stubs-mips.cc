@@ -3832,17 +3832,6 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  __ Throw(v0);
-}
-
-
-void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
-                                          UncatchableExceptionType type) {
-  __ ThrowUncatchable(type, v0);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -4033,13 +4022,27 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+  // Set external caught exception to false.
+  Isolate* isolate = masm->isolate();
+  ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                    isolate);
+  __ li(a0, Operand(false, RelocInfo::NONE));
+  __ li(a2, Operand(external_caught));
+  __ sw(a0, MemOperand(a2));
+
+  // Set pending exception and v0 to out of memory exception.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ li(v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                      isolate)));
+  __ sw(v0, MemOperand(a2));
+  // Fall through to the next label.
 
   __ bind(&throw_termination_exception);
-  GenerateThrowUncatchable(masm, TERMINATION);
+  __ ThrowUncatchable(v0);
 
   __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
+  __ Throw(v0);
 }
 
 
@@ -5133,10 +5136,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label termination_exception;
   __ Branch(&termination_exception, eq, v0, Operand(a0));
 
-  __ Throw(v0);  // Expects thrown value in v0.
+  __ Throw(v0);
 
   __ bind(&termination_exception);
-  __ ThrowUncatchable(TERMINATION, v0);  // Expects thrown value in v0.
+  __ ThrowUncatchable(v0);
 
   __ bind(&failure);
   // For failure and exception return null.

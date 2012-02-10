@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -632,9 +632,6 @@ class CEntryStub : public CodeStub {
                     Label* throw_out_of_memory_exception,
                     bool do_gc,
                     bool always_allocate_scope);
-  void GenerateThrowTOS(MacroAssembler* masm);
-  void GenerateThrowUncatchable(MacroAssembler* masm,
-                                UncatchableExceptionType type);
 
   // Number of pointers/values returned.
   const int result_size_;

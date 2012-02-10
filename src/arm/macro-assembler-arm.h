@@ -588,12 +588,12 @@ class MacroAssembler: public Assembler {
   // Must preserve the result register.
   void PopTryHandler();
 
-  // Passes thrown value (in r0) to the handler of top of the try handler chain.
+  // Passes thrown value to the handler of top of the try handler chain.
   void Throw(Register value);
 
   // Propagates an uncatchable exception to the top of the current JS stack's
   // handler chain.
-  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+  void ThrowUncatchable(Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support

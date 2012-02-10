@@ -1281,8 +1281,7 @@ void MacroAssembler::Throw(Register value) {
 }
 
 
-void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
-                                      Register value) {
+void MacroAssembler::ThrowUncatchable(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
@@ -1292,24 +1291,9 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // The exception is expected in r0.
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
-                                      isolate());
-    mov(r0, Operand(false, RelocInfo::NONE));
-    mov(r2, Operand(external_caught));
-    str(r0, MemOperand(r2));
-
-    // Set pending exception and r0 to out of memory exception.
-    Failure* out_of_memory = Failure::OutOfMemoryException();
-    mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      isolate())));
-    str(r0, MemOperand(r2));
-  } else if (!value.is(r0)) {
+  if (!value.is(r0)) {
     mov(r0, value);
   }
-
   // Drop the stack pointer to the top of the top stack handler.
   mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));

@@ -971,7 +971,7 @@ class MacroAssembler: public Assembler {
   void Throw(Register value);
 
   // Propagate an uncatchable exception out of the current JS stack.
-  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+  void ThrowUncatchable(Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
