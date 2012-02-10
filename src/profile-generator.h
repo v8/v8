@@ -964,6 +964,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                            HeapEntry* parent,
                            String* reference_name,
                            Object* child);
+  void SetNativeBindReference(HeapObject* parent_obj,
+                              HeapEntry* parent,
+                              const char* reference_name,
+                              Object* child);
   void SetElementReference(HeapObject* parent_obj,
                            HeapEntry* parent,
                            int index,

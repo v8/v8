@@ -1775,9 +1775,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
+    const char* name = shared->bound() ? "native_bind" :
+        collection_->names()->GetName(String::cast(shared->name()));
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->names()->GetName(String::cast(shared->name())),
+                    name,
                     children_count,
                     retainers_count);
   } else if (object->IsJSRegExp()) {
@@ -2011,19 +2013,22 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
               heap_->prototype_symbol(), js_fun->prototype());
         }
       }
+      SharedFunctionInfo* shared_info = js_fun->shared();
+      // JSFunction has either bindings or literals and never both.
+      bool bound = shared_info->bound();
+      TagObject(js_fun->literals_or_bindings(),
+                bound ? "(function bindings)" : "(function literals)");
       SetInternalReference(js_fun, entry,
-                           "shared", js_fun->shared(),
+                           bound ? "bindings" : "literals",
+                           js_fun->literals_or_bindings(),
+                           JSFunction::kLiteralsOffset);
+      SetInternalReference(js_fun, entry,
+                           "shared", shared_info,
                            JSFunction::kSharedFunctionInfoOffset);
       TagObject(js_fun->unchecked_context(), "(context)");
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
-      TagObject(js_fun->literals_or_bindings(),
-                "(function literals_or_bindings)");
-      SetInternalReference(js_fun, entry,
-                           "literals_or_bindings",
-                           js_fun->literals_or_bindings(),
-                           JSFunction::kLiteralsOffset);
       for (int i = JSFunction::kNonWeakFieldsEndOffset;
            i < JSFunction::kSize;
            i += kPointerSize) {
@@ -2126,17 +2131,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "line_ends", script->line_ends(),
                          Script::kLineEndsOffset);
-  } else if (obj->IsDescriptorArray()) {
-    DescriptorArray* desc_array = DescriptorArray::cast(obj);
-    if (desc_array->length() > DescriptorArray::kContentArrayIndex) {
-      Object* content_array =
-          desc_array->get(DescriptorArray::kContentArrayIndex);
-      TagObject(content_array, "(map descriptor content)");
-      SetInternalReference(obj, entry,
-                           "content", content_array,
-                           FixedArray::OffsetOfElementAt(
-                               DescriptorArray::kContentArrayIndex));
-    }
   } else if (obj->IsCodeCache()) {
     CodeCache* code_cache = CodeCache::cast(obj);
     TagObject(code_cache->default_cache(), "(default code cache)");
@@ -2162,11 +2156,27 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
 void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
-  if (js_obj->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(js_obj);
-    Context* context = func->context();
-    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+  if (!js_obj->IsJSFunction()) return;
 
+  JSFunction* func = JSFunction::cast(js_obj);
+  Context* context = func->context();
+  ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+
+  if (func->shared()->bound()) {
+    FixedArray* bindings = func->function_bindings();
+    SetNativeBindReference(js_obj, entry, "bound_this",
+                           bindings->get(JSFunction::kBoundThisIndex));
+    SetNativeBindReference(js_obj, entry, "bound_function",
+                           bindings->get(JSFunction::kBoundFunctionIndex));
+    for (int i = JSFunction::kBoundArgumentsStartIndex;
+         i < bindings->length(); i++) {
+      const char* reference_name = collection_->names()->GetFormatted(
+          "bound_argument_%d",
+          i - JSFunction::kBoundArgumentsStartIndex);
+      SetNativeBindReference(js_obj, entry, reference_name,
+                             bindings->get(i));
+    }
+  } else {
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
@@ -2438,6 +2448,22 @@ void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
                                parent_obj,
                                parent_entry,
                                collection_->names()->GetName(reference_name),
+                               child_obj,
+                               child_entry);
+  }
+}
+
+
+void V8HeapExplorer::SetNativeBindReference(HeapObject* parent_obj,
+                                            HeapEntry* parent_entry,
+                                            const char* reference_name,
+                                            Object* child_obj) {
+  HeapEntry* child_entry = GetEntry(child_obj);
+  if (child_entry != NULL) {
+    filler_->SetNamedReference(HeapGraphEdge::kShortcut,
+                               parent_obj,
+                               parent_entry,
+                               reference_name,
                                child_obj,
                                child_entry);
   }
