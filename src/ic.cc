@@ -1504,6 +1504,14 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
       ? ALLOW_JSARRAY_GROWTH
       : DO_NOT_ALLOW_JSARRAY_GROWTH;
 
+  // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
+  // via megamorphic stubs, since they don't have a map in their relocation info
+  // and so the stubs can't be harvested for the object needed for a map check.
+  if (target()->type() != NORMAL) {
+    TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
+    return generic_stub;
+  }
+
   bool monomorphic = false;
   MapHandleList target_receiver_maps;
   if (ic_state != UNINITIALIZED && ic_state != PREMONOMORPHIC) {
@@ -1533,14 +1541,6 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
         receiver, stub_kind, strict_mode, generic_stub);
   }
   ASSERT(target() != *generic_stub);
-
-  // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
-  // via megamorphic stubs, since they don't have a map in their relocation info
-  // and so the stubs can't be harvested for the object needed for a map check.
-  if (target()->type() != NORMAL) {
-    TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
-    return generic_stub;
-  }
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
