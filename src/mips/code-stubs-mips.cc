@@ -6061,25 +6061,23 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Utilize delay slots. SmiUntag doesn't emit a jump, everything else is
   // safe in this case.
-  __ UntagAndJumpIfSmi(a2, a2, &runtime);
-  __ UntagAndJumpIfSmi(a3, a3, &runtime);
-
+  __ UntagAndJumpIfNotSmi(a2, a2, &runtime);
+  __ UntagAndJumpIfNotSmi(a3, a3, &runtime);
   // Both a2 and a3 are untagged integers.
 
   __ Branch(&runtime, lt, a3, Operand(zero_reg));  // From < 0.
 
-  __ subu(a2, t5, a3);
-  __ Branch(&runtime, gt, a3, Operand(t5));  // Fail if from > to.
+  __ Branch(&runtime, gt, a3, Operand(a2));  // Fail if from > to.
+  __ Subu(a2, a2, a3);
 
   // Make sure first argument is a string.
   __ lw(v0, MemOperand(sp, kStringOffset));
-  __ Branch(&runtime, eq, v0, Operand(kSmiTagMask));
-
+  __ JumpIfSmi(v0, &runtime);
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-  __ And(t4, v0, Operand(kIsNotStringMask));
+  __ And(t0, a1, Operand(kIsNotStringMask));
 
-  __ Branch(&runtime, ne, t4, Operand(zero_reg));
+  __ Branch(&runtime, ne, t0, Operand(zero_reg));
 
   // Short-cut for the case of trivial substring.
   Label return_v0;
