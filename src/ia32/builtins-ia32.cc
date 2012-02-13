@@ -1238,7 +1238,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ add(edx, Immediate(kPointerSize));
   __ bind(&entry);
   __ dec(ecx);
-  __ j(greater_equal, &loop, Label::kNear);
+  __ j(greater_equal, &loop);
 
   // Remove caller arguments from the stack and return.
   // ebx: argc
@@ -1268,7 +1268,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ jmp(&prepare_generic_code_call);
 
   __ bind(&not_double);
-  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS
+  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS.
   __ mov(ebx, Operand(esp, 0));
   __ mov(edi, FieldOperand(ebx, HeapObject::kMapOffset));
   __ LoadTransitionedArrayMapConditional(
@@ -1291,7 +1291,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ mov(Operand(edx, 0), eax);
   __ add(edx, Immediate(kPointerSize));
   __ dec(ecx);
-  __ j(greater_equal, &loop2, Label::kNear);
+  __ j(greater_equal, &loop2);
   __ jmp(&finish);
 
   // Restore argc and constructor before running the generic code.
