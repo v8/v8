@@ -5735,6 +5735,33 @@ static bool InsertionPointFound(String* key1, String* key2) {
 }
 
 
+void DescriptorArray::CopyFrom(Handle<DescriptorArray> dst,
+                               int dst_index,
+                               Handle<DescriptorArray> src,
+                               int src_index,
+                               const WhitenessWitness& witness) {
+  CALL_HEAP_FUNCTION_VOID(dst->GetIsolate(),
+                          dst->CopyFrom(dst_index, *src, src_index, witness));
+}
+
+
+MaybeObject* DescriptorArray::CopyFrom(int dst_index,
+                                       DescriptorArray* src,
+                                       int src_index,
+                                       const WhitenessWitness& witness) {
+  Object* value = src->GetValue(src_index);
+  PropertyDetails details(src->GetDetails(src_index));
+  if (details.type() == CALLBACKS && value->IsAccessorPair()) {
+    MaybeObject* maybe_copy =
+        AccessorPair::cast(value)->CopyWithoutTransitions();
+    if (!maybe_copy->To(&value)) return maybe_copy;
+  }
+  Descriptor desc(src->GetKey(src_index), value, details);
+  Set(dst_index, &desc, witness);
+  return this;
+}
+
+
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                          TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -5818,7 +5845,9 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
     } else {
       if (!(IsNullDescriptor(from_index) ||
             (remove_transitions && IsTransitionOnly(from_index)))) {
-        new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+        MaybeObject* copy_result =
+            new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+        if (copy_result->IsFailure()) return copy_result;
       }
       from_index++;
     }
@@ -5858,7 +5887,9 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   int next_descriptor = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     if (IsProperty(i)) {
-      new_descriptors->CopyFrom(next_descriptor++, this, i, witness);
+      MaybeObject* copy_result =
+          new_descriptors->CopyFrom(next_descriptor++, this, i, witness);
+      if (copy_result->IsFailure()) return copy_result;
     }
   }
   ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
@@ -5968,6 +5999,18 @@ int DescriptorArray::LinearSearch(String* name, int len) {
     }
   }
   return kNotFound;
+}
+
+
+MaybeObject* AccessorPair::CopyWithoutTransitions() {
+  Heap* heap = GetHeap();
+  AccessorPair* copy;
+  { MaybeObject* maybe_copy = heap->AllocateAccessorPair();
+    if (!maybe_copy->To(&copy)) return maybe_copy;
+  }
+  copy->set_getter(getter()->IsMap() ? heap->the_hole_value() : getter());
+  copy->set_setter(setter()->IsMap() ? heap->the_hole_value() : setter());
+  return copy;
 }
 
 

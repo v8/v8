@@ -2434,12 +2434,20 @@ class DescriptorArray: public FixedArray {
                   Descriptor* desc,
                   const WhitenessWitness&);
 
-  // Transfer complete descriptor from another descriptor array to
-  // this one.
-  inline void CopyFrom(int index,
-                       DescriptorArray* src,
+  // Transfer a complete descriptor from the src descriptor array to the dst
+  // one, dropping map transitions in CALLBACKS.
+  static void CopyFrom(Handle<DescriptorArray> dst,
+                       int dst_index,
+                       Handle<DescriptorArray> src,
                        int src_index,
-                       const WhitenessWitness&);
+                       const WhitenessWitness& witness);
+
+  // Transfer a complete descriptor from the src descriptor array to this
+  // descriptor array, dropping map transitions in CALLBACKS.
+  MUST_USE_RESULT MaybeObject* CopyFrom(int dst_index,
+                                        DescriptorArray* src,
+                                        int src_index,
+                                        const WhitenessWitness&);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -7781,6 +7789,8 @@ class AccessorPair: public Struct {
   DECL_ACCESSORS(setter, Object)
 
   static inline AccessorPair* cast(Object* obj);
+
+  MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
 #ifdef OBJECT_PRINT
   void AccessorPairPrint(FILE* out = stdout);

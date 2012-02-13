@@ -1743,7 +1743,9 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> array_descriptors(
         array_function->initial_map()->instance_descriptors());
     int index = array_descriptors->SearchWithCache(heap()->length_symbol());
-    reresult_descriptors->CopyFrom(0, *array_descriptors, index, witness);
+    MaybeObject* copy_result =
+        reresult_descriptors->CopyFrom(0, *array_descriptors, index, witness);
+    if (copy_result->IsFailure()) return false;
 
     int enum_index = 0;
     {

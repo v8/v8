@@ -2053,16 +2053,6 @@ void DescriptorArray::Set(int descriptor_number,
 }
 
 
-void DescriptorArray::CopyFrom(int index,
-                               DescriptorArray* src,
-                               int src_index,
-                               const WhitenessWitness& witness) {
-  Descriptor desc;
-  src->Get(src_index, &desc);
-  Set(index, &desc, witness);
-}
-
-
 void DescriptorArray::NoIncrementalWriteBarrierSwapDescriptors(
     int first, int second) {
   NoIncrementalWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
