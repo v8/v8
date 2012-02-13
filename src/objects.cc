@@ -3379,12 +3379,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   } else {
     property_count += 2;  // Make space for two more properties.
   }
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        StringDictionary::Allocate(property_count);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  StringDictionary* dictionary;
+  { MaybeObject* maybe_dictionary = StringDictionary::Allocate(property_count);
+    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
   }
-  StringDictionary* dictionary = StringDictionary::cast(obj);
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
@@ -3394,36 +3392,31 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = descs->GetConstantFunction(i);
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, d);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(descs->GetFieldIndex(i));
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, d);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case CALLBACKS: {
-        PropertyDetails d =
-            PropertyDetails(details.attributes(), CALLBACKS, details.index());
+        if (!descs->IsProperty(i)) break;
         Object* value = descs->GetCallbacksObject(i);
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
+        if (value->IsAccessorPair()) {
+          MaybeObject* maybe_copy =
+              AccessorPair::cast(value)->CopyWithoutTransitions();
+          if (!maybe_copy->To(&value)) return maybe_copy;
         }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, details);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case MAP_TRANSITION:
@@ -3445,12 +3438,12 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   int index = map_of_this->instance_descriptors()->NextEnumerationIndex();
   dictionary->SetNextEnumerationIndex(index);
 
-  { MaybeObject* maybe_obj =
+  Map* new_map;
+  { MaybeObject* maybe_map =
         current_heap->isolate()->context()->global_context()->
         normalized_map_cache()->Get(this, mode);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    if (!maybe_map->To(&new_map)) return maybe_map;
   }
-  Map* new_map = Map::cast(obj);
 
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
