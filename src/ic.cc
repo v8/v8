@@ -1503,8 +1503,32 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   KeyedAccessGrowMode grow_mode = IsGrowStubKind(stub_kind)
       ? ALLOW_JSARRAY_GROWTH
       : DO_NOT_ALLOW_JSARRAY_GROWTH;
-  if ((ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) &&
-      !IsTransitionStubKind(stub_kind)) {
+
+  bool monomorphic = false;
+  MapHandleList target_receiver_maps;
+  if (ic_state != UNINITIALIZED && ic_state != PREMONOMORPHIC) {
+    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  }
+  if (!IsTransitionStubKind(stub_kind)) {
+    if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+      monomorphic = true;
+    } else {
+      if (ic_state == MONOMORPHIC) {
+        // The first time a receiver is seen that is a transitioned version of
+        // the previous monomorphic receiver type, assume the new ElementsKind
+        // is the monomorphic type. This benefits global arrays that only
+        // transition once, and all call sites accessing them are faster if they
+        // remain monomorphic. If this optimistic assumption is not true, the IC
+        // will miss again and it will become polymorphic and support both the
+        // untransitioned and transitioned maps.
+        monomorphic = IsMoreGeneralElementsKindTransition(
+            target_receiver_maps.at(0)->elements_kind(),
+            receiver->GetElementsKind());
+      }
+    }
+  }
+
+  if (monomorphic) {
     return ComputeMonomorphicStub(
         receiver, stub_kind, strict_mode, generic_stub);
   }
@@ -1520,13 +1544,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
-  MapHandleList target_receiver_maps;
   Handle<Map> receiver_map(receiver->map());
-  if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
-    target_receiver_maps.Add(receiver_map);
-  } else {
-    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
-  }
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
   if (IsTransitionStubKind(stub_kind)) {
