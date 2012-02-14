@@ -3439,6 +3439,11 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void InterruptStub::Generate(MacroAssembler* masm) {
+  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
 void MathPowStub::Generate(MacroAssembler* masm) {
   CpuFeatures::Scope vfp3_scope(VFP3);
   const Register base = r1;

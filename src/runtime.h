@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -319,6 +319,7 @@ namespace internal {
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
   F(StackGuard, 0, 1) \
+  F(Interrupt, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \

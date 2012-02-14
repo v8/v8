@@ -147,9 +147,16 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
 
   // Get the stack check stub code object to match against.  We aren't
   // prepared to generate it, but we don't expect to have to.
-  StackCheckStub check_stub;
+  bool found_code = false;
   Code* stack_check_code = NULL;
-  if (check_stub.FindCodeInCache(&stack_check_code)) {
+  if (FLAG_count_based_interrupts) {
+    InterruptStub interrupt_stub;
+    found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
+  } else {
+    StackCheckStub check_stub;
+    found_code = check_stub.FindCodeInCache(&stack_check_code);
+  }
+  if (found_code) {
     Code* replacement_code =
         isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
     Code* unoptimized_code = shared->code();
@@ -255,7 +262,7 @@ void RuntimeProfiler::OptimizeNow() {
       } else {
         function->shared()->set_profiler_ticks(ticks + 1);
       }
-    } else {  // !FLAG_counting_profiler
+    } else {  // !FLAG_watch_ic_patching
       samples[sample_count++] = function;
 
       int function_size = function->shared()->SourceSize();
@@ -273,7 +280,7 @@ void RuntimeProfiler::OptimizeNow() {
   if (FLAG_watch_ic_patching) {
     any_ic_changed_ = false;
     code_generated_ = false;
-  } else {  // !FLAG_counting_profiler
+  } else {  // !FLAG_watch_ic_patching
     // Add the collected functions as samples. It's important not to do
     // this as part of collecting them because this will interfere with
     // the sample lookup in case of recursive functions.
@@ -285,6 +292,7 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
+  if (FLAG_count_based_interrupts) return;
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
 }
 
@@ -303,7 +311,7 @@ void RuntimeProfiler::SetUp() {
 void RuntimeProfiler::Reset() {
   if (FLAG_watch_ic_patching) {
     total_code_generated_ = 0;
-  } else {  // !FLAG_counting_profiler
+  } else {  // !FLAG_watch_ic_patching
     sampler_threshold_ = kSamplerThresholdInit;
     sampler_threshold_size_factor_ = kSamplerThresholdSizeFactorInit;
     sampler_ticks_until_threshold_adjustment_ =

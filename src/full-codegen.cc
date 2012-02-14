@@ -1073,7 +1073,7 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // Check stack before looping.
   PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
   __ bind(&stack_check);
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &body);
   __ jmp(&body);
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
@@ -1102,7 +1102,7 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &body);
 
   __ bind(&test);
   VisitForControl(stmt->cond(),
@@ -1145,7 +1145,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &body);
 
   __ bind(&test);
   if (stmt->cond() != NULL) {

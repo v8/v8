@@ -331,7 +331,8 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
-void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
+void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
+                                       Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
@@ -1106,7 +1107,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ add(r0, r0, Operand(Smi::FromInt(1)));
   __ push(r0);
 
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &loop);
   __ b(&loop);
 
   // Remove the pointers stored on the stack.

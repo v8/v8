@@ -424,7 +424,10 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for checking the stack limit at the back edge of
   // a loop.
-  void EmitStackCheck(IterationStatement* stmt);
+  // This is meant to be called at loop back edges, |back_edge_target| is
+  // the jump target of the back edge and is used to approximate the amount
+  // of code inside the loop.
+  void EmitStackCheck(IterationStatement* stmt, Label* back_edge_target);
   // Record the OSR AST id corresponding to a stack check in the code.
   void RecordStackCheck(unsigned osr_ast_id);
   // Emit a table of stack check ids and pcs into the code stream.  Return
@@ -774,6 +777,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> stack_checks_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   Handle<FixedArray> handler_table_;
+  Handle<JSGlobalPropertyCell> profiling_counter_;
 
   friend class NestedStatement;
 

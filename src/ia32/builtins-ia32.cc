@@ -1694,8 +1694,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
-  // If we decide not to perform on-stack replacement we perform a
-  // stack guard check to enable interrupts.
+  // Insert a stack guard check so that if we decide not to perform
+  // on-stack replacement right away, the function calling this stub can
+  // still be interrupted.
   __ bind(&stack_check);
   Label ok;
   ExternalReference stack_limit =

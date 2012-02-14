@@ -336,7 +336,8 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
-void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
+void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
+                                       Label* back_edge_target) {
   // The generated code is used in Deoptimizer::PatchStackCheckCodeAt so we need
   // to make sure it is constant. Branch may emit a skip-or-jump sequence
   // instead of the normal Branch. It seems that the "skip" part of that
@@ -1119,7 +1120,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Addu(a0, a0, Operand(Smi::FromInt(1)));
   __ push(a0);
 
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &loop);
   __ Branch(&loop);
 
   // Remove the pointers stored on the stack.

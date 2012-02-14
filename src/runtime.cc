@@ -8711,8 +8711,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     function->PrintName();
     PrintF("]\n");
   }
-  StackCheckStub check_stub;
-  Handle<Code> check_code = check_stub.GetCode();
+  Handle<Code> check_code;
+  if (FLAG_count_based_interrupts) {
+    InterruptStub interrupt_stub;
+    check_code = interrupt_stub.GetCode();
+  } else {
+    StackCheckStub check_stub;
+    check_code = check_stub.GetCode();
+  }
   Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
   Deoptimizer::RevertStackCheckCode(*unoptimized,
                                     *check_code,
@@ -9262,6 +9268,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
     return isolate->StackOverflow();
   }
 
+  return Execution::HandleStackGuardInterrupt();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Interrupt) {
+  ASSERT(args.length() == 0);
   return Execution::HandleStackGuardInterrupt();
 }
 

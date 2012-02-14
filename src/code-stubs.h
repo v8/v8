@@ -55,6 +55,7 @@ namespace internal {
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
+  V(Interrupt)                           \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastNewBlockContext)                 \
@@ -293,6 +294,18 @@ class StackCheckStub : public CodeStub {
 
  private:
   Major MajorKey() { return StackCheck; }
+  int MinorKey() { return 0; }
+};
+
+
+class InterruptStub : public CodeStub {
+ public:
+  InterruptStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return Interrupt; }
   int MinorKey() { return 0; }
 };
 

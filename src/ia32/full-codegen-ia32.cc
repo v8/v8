@@ -119,6 +119,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   scope_ = info->scope();
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
+  profiling_counter_ = isolate()->factory()->NewJSGlobalPropertyCell(
+      Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget)));
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -323,15 +325,34 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
-void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
+void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
+                                       Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
-  ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
-  __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, Label::kNear);
-  StackCheckStub stub;
-  __ CallStub(&stub);
+
+  if (FLAG_count_based_interrupts) {
+    int weight = 1;
+    if (FLAG_weighted_back_edges) {
+      ASSERT(back_edge_target->is_bound());
+      int distance = masm_->pc_offset() - back_edge_target->pos();
+      weight = Min(127, Max(1, distance / 100));
+    }
+    __ sub(Operand::Cell(profiling_counter_), Immediate(Smi::FromInt(weight)));
+    __ j(positive, &ok, Label::kNear);
+    InterruptStub stub;
+    __ CallStub(&stub);
+  } else {
+    // Count based interrupts happen often enough when they are enabled
+    // that the additional stack checks are not necessary (they would
+    // only check for interrupts).
+    ExternalReference stack_limit =
+        ExternalReference::address_of_stack_limit(isolate());
+    __ cmp(esp, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok, Label::kNear);
+    StackCheckStub stub;
+    __ CallStub(&stub);
+  }
+
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
@@ -343,6 +364,12 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   // builtin.
   ASSERT(loop_depth() > 0);
   __ test(eax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
+
+  if (FLAG_count_based_interrupts) {
+    // Reset the countdown.
+    __ mov(Operand::Cell(profiling_counter_),
+           Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+  }
 
   __ bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
@@ -1061,7 +1088,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(loop_statement.continue_label());
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
 
-  EmitStackCheck(stmt);
+  EmitStackCheck(stmt, &loop);
   __ jmp(&loop);
 
   // Remove the pointers stored on the stack.

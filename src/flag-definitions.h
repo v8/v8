@@ -170,9 +170,16 @@ DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
 DEFINE_bool(self_optimization, false,
             "primitive functions trigger their own optimization")
+DEFINE_bool(count_based_interrupts, false,
+            "trigger profiler ticks based on counting instead of timing")
+DEFINE_bool(weighted_back_edges, false,
+            "weight back edges by jump distance for interrupt triggering")
+DEFINE_int(interrupt_budget, 100,
+           "execution budget before interrupt is triggered")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
+DEFINE_implication(experimental_profiler, count_based_interrupts)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
