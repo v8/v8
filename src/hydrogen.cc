@@ -5173,7 +5173,6 @@ bool HGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra) {
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
   switch (id) {
     case kMathRound:
-    case kMathFloor:
     case kMathAbs:
     case kMathSqrt:
     case kMathLog:
