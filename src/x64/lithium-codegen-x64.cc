@@ -4028,12 +4028,12 @@ void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
 
 
 void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
+  Handle<FixedArray> literals(instr->environment()->closure()->literals());
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
   // Set up the parameters to the stub/runtime call.
-  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ push(FieldOperand(rax, JSFunction::kLiteralsOffset));
+  __ PushHeapObject(literals);
   __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
   __ Push(constant_properties);
   int flags = instr->hydrogen()->fast_elements()
@@ -4044,7 +4044,7 @@ void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
       : ObjectLiteral::kNoFlags;
   __ Push(Smi::FromInt(flags));
 
-  // Pick the right runtime function to call.
+  // Pick the right runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);

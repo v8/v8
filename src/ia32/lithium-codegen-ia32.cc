@@ -4312,12 +4312,12 @@ void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
 
 void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
+  Handle<FixedArray> literals(instr->environment()->closure()->literals());
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
   // Set up the parameters to the stub/runtime call.
-  __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
+  __ PushHeapObject(literals);
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
   __ push(Immediate(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
