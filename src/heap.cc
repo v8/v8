@@ -4562,7 +4562,7 @@ MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
 MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     int length,
     PretenureFlag pretenure) {
-  if (length == 0) return empty_fixed_double_array();
+  if (length == 0) return empty_fixed_array();
 
   Object* elements_object;
   MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
@@ -4579,7 +4579,7 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
 MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
     int length,
     PretenureFlag pretenure) {
-  if (length == 0) return empty_fixed_double_array();
+  if (length == 0) return empty_fixed_array();
 
   Object* elements_object;
   MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);

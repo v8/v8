@@ -4334,12 +4334,12 @@ void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
 
 void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-
+  Handle<FixedArray> literals(instr->environment()->closure()->literals());
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
-  __ lw(t0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ lw(t0, FieldMemOperand(t0, JSFunction::kLiteralsOffset));
+  // Set up the parameters to the stub/runtime call.
+  __ LoadHeapObject(t0, literals);
   __ li(a3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
   __ li(a2, Operand(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
@@ -4348,7 +4348,7 @@ void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   __ li(a1, Operand(Smi::FromInt(flags)));
   __ Push(t0, a3, a2, a1);
 
-  // Pick the right runtime function to call.
+  // Pick the right runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);

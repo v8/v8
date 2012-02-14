@@ -865,7 +865,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
     if (!array->IsNullDescriptor(i)) {
-      result->CopyFrom(descriptor_count++, *array, i, witness);
+      DescriptorArray::CopyFrom(result, descriptor_count++, array, i, witness);
     }
   }
 
@@ -899,7 +899,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(number_of_descriptors);
     for (int i = 0; i < number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i, witness);
+      DescriptorArray::CopyFrom(new_result, i, result, i, witness);
     }
     result = new_result;
   }

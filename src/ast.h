@@ -154,7 +154,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 #define DECLARE_NODE_TYPE(type)                                         \
   virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
+  virtual AstNode::Type node_type() const { return AstNode::k##type; }
 
 
 enum AstPropertiesFlag {
@@ -243,11 +243,6 @@ class AstNode: public ZoneObject {
 
   friend class CaseClause;  // Generates AST IDs.
 };
-
-
-#define DECLARE_NODE_TYPE(type)                                         \
-  virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
 
 
 class Statement: public AstNode {
@@ -2049,6 +2044,8 @@ class ThisFunction: public Expression {
 
   explicit ThisFunction(Isolate* isolate): Expression(isolate) {}
 };
+
+#undef DECLARE_NODE_TYPE
 
 
 // ----------------------------------------------------------------------------

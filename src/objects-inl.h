@@ -1339,11 +1339,12 @@ void JSObject::set_map_and_elements(Map* new_map,
     }
   }
   ASSERT((map()->has_fast_elements() ||
-          map()->has_fast_smi_only_elements()) ==
+          map()->has_fast_smi_only_elements() ||
+          (value == GetHeap()->empty_fixed_array())) ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
-  ASSERT(map()->has_fast_double_elements() ==
-         value->IsFixedDoubleArray());
+  ASSERT((value == GetHeap()->empty_fixed_array()) ||
+         (map()->has_fast_double_elements() == value->IsFixedDoubleArray()));
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
 }
@@ -2049,16 +2050,6 @@ void DescriptorArray::Set(int descriptor_number,
   NoIncrementalWriteBarrierSet(content_array,
                                ToDetailsIndex(descriptor_number),
                                desc->GetDetails().AsSmi());
-}
-
-
-void DescriptorArray::CopyFrom(int index,
-                               DescriptorArray* src,
-                               int src_index,
-                               const WhitenessWitness& witness) {
-  Descriptor desc;
-  src->Get(src_index, &desc);
-  Set(index, &desc, witness);
 }
 
 

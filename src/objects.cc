@@ -3379,12 +3379,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   } else {
     property_count += 2;  // Make space for two more properties.
   }
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        StringDictionary::Allocate(property_count);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  StringDictionary* dictionary;
+  { MaybeObject* maybe_dictionary = StringDictionary::Allocate(property_count);
+    if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
   }
-  StringDictionary* dictionary = StringDictionary::cast(obj);
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
@@ -3394,36 +3392,31 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = descs->GetConstantFunction(i);
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, d);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(descs->GetFieldIndex(i));
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, d);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case CALLBACKS: {
-        PropertyDetails d =
-            PropertyDetails(details.attributes(), CALLBACKS, details.index());
+        if (!descs->IsProperty(i)) break;
         Object* value = descs->GetCallbacksObject(i);
-        Object* result;
-        { MaybeObject* maybe_result =
-              dictionary->Add(descs->GetKey(i), value, d);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
+        if (value->IsAccessorPair()) {
+          MaybeObject* maybe_copy =
+              AccessorPair::cast(value)->CopyWithoutTransitions();
+          if (!maybe_copy->To(&value)) return maybe_copy;
         }
-        dictionary = StringDictionary::cast(result);
+        MaybeObject* maybe_dictionary =
+            dictionary->Add(descs->GetKey(i), value, details);
+        if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
         break;
       }
       case MAP_TRANSITION:
@@ -3445,12 +3438,12 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   int index = map_of_this->instance_descriptors()->NextEnumerationIndex();
   dictionary->SetNextEnumerationIndex(index);
 
-  { MaybeObject* maybe_obj =
+  Map* new_map;
+  { MaybeObject* maybe_map =
         current_heap->isolate()->context()->global_context()->
         normalized_map_cache()->Get(this, mode);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    if (!maybe_map->To(&new_map)) return maybe_map;
   }
-  Map* new_map = Map::cast(obj);
 
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
@@ -5735,6 +5728,33 @@ static bool InsertionPointFound(String* key1, String* key2) {
 }
 
 
+void DescriptorArray::CopyFrom(Handle<DescriptorArray> dst,
+                               int dst_index,
+                               Handle<DescriptorArray> src,
+                               int src_index,
+                               const WhitenessWitness& witness) {
+  CALL_HEAP_FUNCTION_VOID(dst->GetIsolate(),
+                          dst->CopyFrom(dst_index, *src, src_index, witness));
+}
+
+
+MaybeObject* DescriptorArray::CopyFrom(int dst_index,
+                                       DescriptorArray* src,
+                                       int src_index,
+                                       const WhitenessWitness& witness) {
+  Object* value = src->GetValue(src_index);
+  PropertyDetails details(src->GetDetails(src_index));
+  if (details.type() == CALLBACKS && value->IsAccessorPair()) {
+    MaybeObject* maybe_copy =
+        AccessorPair::cast(value)->CopyWithoutTransitions();
+    if (!maybe_copy->To(&value)) return maybe_copy;
+  }
+  Descriptor desc(src->GetKey(src_index), value, details);
+  Set(dst_index, &desc, witness);
+  return this;
+}
+
+
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                          TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -5818,7 +5838,9 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
     } else {
       if (!(IsNullDescriptor(from_index) ||
             (remove_transitions && IsTransitionOnly(from_index)))) {
-        new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+        MaybeObject* copy_result =
+            new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+        if (copy_result->IsFailure()) return copy_result;
       }
       from_index++;
     }
@@ -5858,7 +5880,9 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   int next_descriptor = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     if (IsProperty(i)) {
-      new_descriptors->CopyFrom(next_descriptor++, this, i, witness);
+      MaybeObject* copy_result =
+          new_descriptors->CopyFrom(next_descriptor++, this, i, witness);
+      if (copy_result->IsFailure()) return copy_result;
     }
   }
   ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
@@ -5968,6 +5992,18 @@ int DescriptorArray::LinearSearch(String* name, int len) {
     }
   }
   return kNotFound;
+}
+
+
+MaybeObject* AccessorPair::CopyWithoutTransitions() {
+  Heap* heap = GetHeap();
+  AccessorPair* copy;
+  { MaybeObject* maybe_copy = heap->AllocateAccessorPair();
+    if (!maybe_copy->To(&copy)) return maybe_copy;
+  }
+  copy->set_getter(getter()->IsMap() ? heap->the_hole_value() : getter());
+  copy->set_setter(setter()->IsMap() ? heap->the_hole_value() : setter());
+  return copy;
 }
 
 
@@ -11277,6 +11313,9 @@ template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
 
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     AtPut(uint32_t, Object*);
+
+template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    SlowReverseLookup(Object* value);
 
 template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);

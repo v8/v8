@@ -1009,6 +1009,7 @@ INCREASE_NODE_COUNT(BreakStatement)
 INCREASE_NODE_COUNT(ReturnStatement)
 INCREASE_NODE_COUNT(Conditional)
 INCREASE_NODE_COUNT(Literal)
+INCREASE_NODE_COUNT(ObjectLiteral)
 INCREASE_NODE_COUNT(Assignment)
 INCREASE_NODE_COUNT(Throw)
 INCREASE_NODE_COUNT(Property)
@@ -1107,12 +1108,6 @@ void AstConstructionVisitor::VisitVariableProxy(VariableProxy* node) {
 
 
 void AstConstructionVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
-  increase_node_count();
-  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
-}
-
-
-void AstConstructionVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   increase_node_count();
   add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
 }

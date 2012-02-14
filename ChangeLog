@@ -1,3 +1,17 @@
+2012-02-14: Version 3.9.6
+
+        Fix template-related linker error. (issue 1936)
+
+        Allow inlining of functions containing object literals.  (issue 1322)
+
+        Add --call-graph-size option to tickprocessor.  (issue 1937)
+
+        Heap Snapshot maximum size limit is too low for really big apps. At the
+        moment the limit is 256MB.  (Chromium issue 113015)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-09: Version 3.9.5
 
         Removed unused command line flags.

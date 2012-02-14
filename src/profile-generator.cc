@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1208,11 +1208,13 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 36;
+  static const int kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 48;
+  static const int kMaxSerializableSnapshotRawSize = 768 * MB;
 };
 
 }  // namespace
@@ -1775,9 +1777,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
+    const char* name = shared->bound() ? "native_bind" :
+        collection_->names()->GetName(String::cast(shared->name()));
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->names()->GetName(String::cast(shared->name())),
+                    name,
                     children_count,
                     retainers_count);
   } else if (object->IsJSRegExp()) {
@@ -2011,19 +2015,22 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
               heap_->prototype_symbol(), js_fun->prototype());
         }
       }
+      SharedFunctionInfo* shared_info = js_fun->shared();
+      // JSFunction has either bindings or literals and never both.
+      bool bound = shared_info->bound();
+      TagObject(js_fun->literals_or_bindings(),
+                bound ? "(function bindings)" : "(function literals)");
       SetInternalReference(js_fun, entry,
-                           "shared", js_fun->shared(),
+                           bound ? "bindings" : "literals",
+                           js_fun->literals_or_bindings(),
+                           JSFunction::kLiteralsOffset);
+      SetInternalReference(js_fun, entry,
+                           "shared", shared_info,
                            JSFunction::kSharedFunctionInfoOffset);
       TagObject(js_fun->unchecked_context(), "(context)");
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
-      TagObject(js_fun->literals_or_bindings(),
-                "(function literals_or_bindings)");
-      SetInternalReference(js_fun, entry,
-                           "literals_or_bindings",
-                           js_fun->literals_or_bindings(),
-                           JSFunction::kLiteralsOffset);
       for (int i = JSFunction::kNonWeakFieldsEndOffset;
            i < JSFunction::kSize;
            i += kPointerSize) {
@@ -2126,17 +2133,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "line_ends", script->line_ends(),
                          Script::kLineEndsOffset);
-  } else if (obj->IsDescriptorArray()) {
-    DescriptorArray* desc_array = DescriptorArray::cast(obj);
-    if (desc_array->length() > DescriptorArray::kContentArrayIndex) {
-      Object* content_array =
-          desc_array->get(DescriptorArray::kContentArrayIndex);
-      TagObject(content_array, "(map descriptor content)");
-      SetInternalReference(obj, entry,
-                           "content", content_array,
-                           FixedArray::OffsetOfElementAt(
-                               DescriptorArray::kContentArrayIndex));
-    }
   } else if (obj->IsCodeCache()) {
     CodeCache* code_cache = CodeCache::cast(obj);
     TagObject(code_cache->default_cache(), "(default code cache)");
@@ -2162,11 +2158,27 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
 void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
-  if (js_obj->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(js_obj);
-    Context* context = func->context();
-    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+  if (!js_obj->IsJSFunction()) return;
 
+  JSFunction* func = JSFunction::cast(js_obj);
+  Context* context = func->context();
+  ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+
+  if (func->shared()->bound()) {
+    FixedArray* bindings = func->function_bindings();
+    SetNativeBindReference(js_obj, entry, "bound_this",
+                           bindings->get(JSFunction::kBoundThisIndex));
+    SetNativeBindReference(js_obj, entry, "bound_function",
+                           bindings->get(JSFunction::kBoundFunctionIndex));
+    for (int i = JSFunction::kBoundArgumentsStartIndex;
+         i < bindings->length(); i++) {
+      const char* reference_name = collection_->names()->GetFormatted(
+          "bound_argument_%d",
+          i - JSFunction::kBoundArgumentsStartIndex);
+      SetNativeBindReference(js_obj, entry, reference_name,
+                             bindings->get(i));
+    }
+  } else {
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
@@ -2444,6 +2456,22 @@ void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
 }
 
 
+void V8HeapExplorer::SetNativeBindReference(HeapObject* parent_obj,
+                                            HeapEntry* parent_entry,
+                                            const char* reference_name,
+                                            Object* child_obj) {
+  HeapEntry* child_entry = GetEntry(child_obj);
+  if (child_entry != NULL) {
+    filler_->SetNamedReference(HeapGraphEdge::kShortcut,
+                               parent_obj,
+                               parent_entry,
+                               reference_name,
+                               child_obj,
+                               child_entry);
+  }
+}
+
+
 void V8HeapExplorer::SetElementReference(HeapObject* parent_obj,
                                          HeapEntry* parent_entry,
                                          int index,
@@ -2617,7 +2645,6 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
       !obj->IsOddball() &&
       obj != heap_->raw_unchecked_empty_byte_array() &&
       obj != heap_->raw_unchecked_empty_fixed_array() &&
-      obj != heap_->raw_unchecked_empty_fixed_double_array() &&
       obj != heap_->raw_unchecked_empty_descriptor_array()) {
     objects_tags_.SetTag(obj, tag);
   }
@@ -3411,15 +3438,13 @@ class OutputStreamWriter {
   bool aborted_;
 };
 
-const int HeapSnapshotJSONSerializer::kMaxSerializableSnapshotRawSize =
-    256 * MB;
-
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
 
   HeapSnapshot* original_snapshot = NULL;
-  if (snapshot_->raw_entries_size() >= kMaxSerializableSnapshotRawSize) {
+  if (snapshot_->raw_entries_size() >=
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize) {
     // The snapshot is too big. Serialize a fake snapshot.
     original_snapshot = snapshot_;
     snapshot_ = CreateFakeSnapshot();
@@ -3446,8 +3471,14 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
                                           snapshot_->uid());
   result->AllocateEntries(2, 1, 0);
   HeapEntry* root = result->AddRootEntry(1);
+  const char* text = snapshot_->collection()->names()->GetFormatted(
+      "The snapshot is too big. "
+      "Maximum snapshot size is %d MB. "
+      "Actual snapshot size is %d MB.",
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
+      (snapshot_->raw_entries_size() + MB - 1) / MB);
   HeapEntry* message = result->AddEntry(
-      HeapEntry::kString, "The snapshot is too big", 0, 4, 0, 0);
+      HeapEntry::kString, text, 0, 4, 0, 0);
   root->SetUnidirElementReference(0, 1, message);
   result->SetDominatorsToSelf();
   return result;

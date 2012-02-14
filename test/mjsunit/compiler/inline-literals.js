@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-// Tick Processor's code flow.
+// Test that we can inline functions containing materialized literals.
 
-function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
-  }
+function o2(b, c) {
+  return { 'b':b, 'c':c, 'y':b + c };
 }
 
-var entriesProviders = {
-  'unix': UnixCppEntriesProvider,
-  'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
-};
-
-var params = processArguments(arguments);
-var snapshotLogProcessor;
-if (params.snapshotLogFileName) {
-  snapshotLogProcessor = new SnapshotLogProcessor();
-  snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
+function o1(a, b, c) {
+  return { 'a':a, 'x':o2(b, c) };
 }
-var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm),
-  params.separateIc,
-  params.callGraphSize,
-  params.ignoreUnknown,
-  params.stateFilter,
-  snapshotLogProcessor);
-tickProcessor.processLogFile(params.logFileName);
-tickProcessor.printStatistics();
+
+function TestObjectLiteral(a, b, c) {
+  var expected = { 'a':a, 'x':{ 'b':b, 'c':c, 'y':b + c } };
+  var result = o1(a, b, c);
+  assertEquals(expected, result, "TestObjectLiteral");
+}
+
+TestObjectLiteral(1, 2, 3);
+TestObjectLiteral(1, 2, 3);
+%OptimizeFunctionOnNextCall(TestObjectLiteral);
+TestObjectLiteral(1, 2, 3);
+TestObjectLiteral('a', 'b', 'c');

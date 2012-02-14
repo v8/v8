@@ -168,6 +168,11 @@ enum CompareMapMode {
   ALLOW_ELEMENT_TRANSITION_MAPS
 };
 
+enum KeyedAccessGrowMode {
+  DO_NOT_ALLOW_JSARRAY_GROWTH,
+  ALLOW_JSARRAY_GROWTH
+};
+
 const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
 void PrintElementsKind(FILE* out, ElementsKind kind);
@@ -2429,12 +2434,20 @@ class DescriptorArray: public FixedArray {
                   Descriptor* desc,
                   const WhitenessWitness&);
 
-  // Transfer complete descriptor from another descriptor array to
-  // this one.
-  inline void CopyFrom(int index,
-                       DescriptorArray* src,
+  // Transfer a complete descriptor from the src descriptor array to the dst
+  // one, dropping map transitions in CALLBACKS.
+  static void CopyFrom(Handle<DescriptorArray> dst,
+                       int dst_index,
+                       Handle<DescriptorArray> src,
                        int src_index,
-                       const WhitenessWitness&);
+                       const WhitenessWitness& witness);
+
+  // Transfer a complete descriptor from the src descriptor array to this
+  // descriptor array, dropping map transitions in CALLBACKS.
+  MUST_USE_RESULT MaybeObject* CopyFrom(int dst_index,
+                                        DescriptorArray* src,
+                                        int src_index,
+                                        const WhitenessWitness&);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -4215,6 +4228,28 @@ class Code: public HeapObject {
 
   // Find the first map in an IC stub.
   Map* FindFirstMap();
+
+  class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
+  class ExtraICStateKeyedAccessGrowMode:
+      public BitField<KeyedAccessGrowMode, 1, 1> {};  // NOLINT
+
+  static const int kExtraICStateGrowModeShift = 1;
+
+  static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
+    return ExtraICStateStrictMode::decode(extra_ic_state);
+  }
+
+  static inline KeyedAccessGrowMode GetKeyedAccessGrowMode(
+      ExtraICState extra_ic_state) {
+    return ExtraICStateKeyedAccessGrowMode::decode(extra_ic_state);
+  }
+
+  static inline ExtraICState ComputeExtraICState(
+      KeyedAccessGrowMode grow_mode,
+      StrictModeFlag strict_mode) {
+    return ExtraICStateKeyedAccessGrowMode::encode(grow_mode) |
+        ExtraICStateStrictMode::encode(strict_mode);
+  }
 
   // Flags operations.
   static inline Flags ComputeFlags(
@@ -7754,6 +7789,8 @@ class AccessorPair: public Struct {
   DECL_ACCESSORS(setter, Object)
 
   static inline AccessorPair* cast(Object* obj);
+
+  MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
 #ifdef OBJECT_PRINT
   void AccessorPairPrint(FILE* out = stdout);

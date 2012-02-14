@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -110,7 +110,11 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
+    bool allow_growth =
+        Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
+        ALLOW_JSARRAY_GROWTH;
     return code->is_keyed_store_stub() &&
+        !allow_growth &&
         code->ic_state() == MONOMORPHIC &&
         Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
         code->FindFirstMap() != NULL &&
@@ -125,7 +129,11 @@ bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Builtins* builtins = isolate_->builtins();
+    bool allow_growth =
+        Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
+        ALLOW_JSARRAY_GROWTH;
     return code->is_keyed_store_stub() &&
+        !allow_growth &&
         *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic) &&
         *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic_Strict) &&
         code->ic_state() == MEGAMORPHIC;

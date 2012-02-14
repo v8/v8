@@ -74,7 +74,6 @@ namespace internal {
   V(Map, hash_table_map, HashTableMap)                                         \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
-  V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
   V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Smi, stack_limit, StackLimit)                                              \
@@ -205,12 +204,10 @@ namespace internal {
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_symbol,                                  \
     "KeyedLoadElementMonomorphic")                                       \
-  V(KeyedLoadElementPolymorphic_symbol,                                  \
-    "KeyedLoadElementPolymorphic")                                       \
   V(KeyedStoreElementMonomorphic_symbol,                                 \
     "KeyedStoreElementMonomorphic")                                      \
-  V(KeyedStoreElementPolymorphic_symbol,                                 \
-    "KeyedStoreElementPolymorphic")                                      \
+  V(KeyedStoreAndGrowElementMonomorphic_symbol,                          \
+    "KeyedStoreAndGrowElementMonomorphic")                               \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
