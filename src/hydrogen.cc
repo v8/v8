@@ -2443,7 +2443,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleVariableDeclaration(scope->function(), CONST, NULL);
+      HandleVariableDeclaration(scope->function(), CONST, NULL, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -4917,7 +4917,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     TraceInline(target, caller, "target not inlineable");
     return false;
   }
-  if (target_shared->dont_inline() || target_shared->dont_crankshaft()) {
+  if (target_shared->dont_inline() || target_shared->dont_optimize()) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
     return false;
   }
@@ -4979,7 +4979,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
-      target_shared->DisableOptimization(*target);
+      target_shared->DisableOptimization();
     }
     TraceInline(target, caller, "parse failure");
     return false;
@@ -5092,7 +5092,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
     TraceInline(target, caller, "inline graph construction failed");
-    target_shared->DisableOptimization(*target);
+    target_shared->DisableOptimization();
     inline_bailout_ = true;
     delete target_state;
     return true;
@@ -6541,26 +6541,81 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
-  HandleVariableDeclaration(decl->proxy(), decl->mode(), decl->fun());
+  UNREACHABLE();
+}
+
+void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
+  int length = declarations->length();
+  int global_count = 0;
+  for (int i = 0; i < declarations->length(); i++) {
+    VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
+    if (decl == NULL) continue;
+    HandleVariableDeclaration(decl->proxy(),
+                              decl->mode(),
+                              decl->fun(),
+                              &global_count);
+  }
+
+  // Batch declare global functions and variables.
+  if (global_count > 0) {
+    Handle<FixedArray> array =
+        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
+    for (int j = 0, i = 0; i < length; i++) {
+      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
+      if (decl == NULL) continue;
+      Variable* var = decl->proxy()->var();
+
+      if (var->IsUnallocated()) {
+        array->set(j++, *(var->name()));
+        if (decl->fun() == NULL) {
+          if (var->binding_needs_init()) {
+            // In case this binding needs initialization use the hole.
+            array->set_the_hole(j++);
+          } else {
+            array->set_undefined(j++);
+          }
+        } else {
+          Handle<SharedFunctionInfo> function =
+              Compiler::BuildFunctionInfo(decl->fun(), info()->script());
+          // Check for stack-overflow exception.
+          if (function.is_null()) {
+            SetStackOverflow();
+            return;
+          }
+          array->set(j++, *function);
+        }
+      }
+    }
+    int flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
+                DeclareGlobalsNativeFlag::encode(info()->is_native()) |
+                DeclareGlobalsLanguageMode::encode(info()->language_mode());
+    HInstruction* result =
+        new(zone()) HDeclareGlobals(environment()->LookupContext(),
+                                    array,
+                                    flags);
+    AddInstruction(result);
+  }
 }
 
 
 void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode,
-                                              FunctionLiteral* function) {
+                                              FunctionLiteral* function,
+                                              int* global_count) {
   Variable* var = proxy->var();
   bool binding_needs_init =
       (mode == CONST || mode == CONST_HARMONY || mode == LET);
   switch (var->location()) {
     case Variable::UNALLOCATED:
-      return Bailout("unsupported global declaration");
+      ++(*global_count);
+      return;
     case Variable::PARAMETER:
     case Variable::LOCAL:
     case Variable::CONTEXT:
       if (binding_needs_init || function != NULL) {
         HValue* value = NULL;
         if (function != NULL) {
-          VisitForValue(function);
+          CHECK_ALIVE(VisitForValue(function));
           value = Pop();
         } else {
           value = graph()->GetConstantHole();

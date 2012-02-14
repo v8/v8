@@ -291,8 +291,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
 
-  FullCodeGenerator cgen(&masm);
-  cgen.Generate(info);
+  FullCodeGenerator cgen(&masm, info);
+  cgen.Generate();
   if (cgen.HasStackOverflow()) {
     ASSERT(!isolate->has_pending_exception());
     return false;
@@ -404,6 +404,7 @@ void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
   if (!info_->HasDeoptimizationSupport()) return;
   unsigned pc_and_state =
       StateField::encode(state) | PcField::encode(masm_->pc_offset());
+  ASSERT(Smi::IsValid(pc_and_state));
   BailoutEntry entry = { id, pc_and_state };
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {

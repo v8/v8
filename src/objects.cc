@@ -7852,7 +7852,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
-void SharedFunctionInfo::DisableOptimization(JSFunction* function) {
+void SharedFunctionInfo::DisableOptimization() {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
   // is there because we flush non-optimized code thereby loosing the
@@ -7869,16 +7869,13 @@ void SharedFunctionInfo::DisableOptimization(JSFunction* function) {
   }
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for: ");
-    function->PrintName();
-    PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+    DebugName()->ShortPrint();
+    PrintF("]\n");
   }
 }
 
 
 bool SharedFunctionInfo::VerifyBailoutId(int id) {
-  // TODO(srdjan): debugging ARM crashes in hydrogen. OK to disable while
-  // we are always bailing out on ARM.
-
   ASSERT(id != AstNode::kNoNumber);
   Code* unoptimized = code();
   DeoptimizationOutputData* data =

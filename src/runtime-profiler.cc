@@ -239,6 +239,16 @@ void RuntimeProfiler::OptimizeNow() {
     // Do not record non-optimizable functions.
     if (!function->IsOptimizable()) continue;
 
+    // Only record top-level code on top of the execution stack and
+    // avoid optimizing excessively large scripts since top-level code
+    // will be executed only once.
+    const int kMaxToplevelSourceSize = 10 * 1024;
+    if (function->shared()->is_toplevel()
+        && (frame_count > 1
+            || function->shared()->SourceSize() > kMaxToplevelSourceSize)) {
+      continue;
+    }
+
     if (FLAG_watch_ic_patching) {
       int ticks = function->shared()->profiler_ticks();
 

@@ -223,8 +223,6 @@ class AstNode: public ZoneObject {
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
 
-  static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
-
  protected:
   static int GetNextId(Isolate* isolate) {
     return ReserveIdRange(isolate, 1);
@@ -1905,6 +1903,16 @@ class FunctionLiteral: public Expression {
     DECLARATION
   };
 
+  enum ParameterFlag {
+    kNoDuplicateParameters = 0,
+    kHasDuplicateParameters = 1
+  };
+
+  enum IsFunctionFlag {
+    kGlobalOrEval,
+    kIsFunction
+  };
+
   DECLARE_NODE_TYPE(FunctionLiteral)
 
   Handle<String> name() const { return name_; }
@@ -1914,6 +1922,7 @@ class FunctionLiteral: public Expression {
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
   int end_position() const;
+  int SourceSize() const { return end_position() - start_position(); }
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
@@ -1949,6 +1958,8 @@ class FunctionLiteral: public Expression {
     return HasDuplicateParameters::decode(bitfield_);
   }
 
+  bool is_function() { return IsFunction::decode(bitfield_) == kIsFunction; }
+
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -1969,7 +1980,8 @@ class FunctionLiteral: public Expression {
                   Handle<FixedArray> this_property_assignments,
                   int parameter_count,
                   Type type,
-                  bool has_duplicate_parameters)
+                  ParameterFlag has_duplicate_parameters,
+                  IsFunctionFlag is_function)
       : Expression(isolate),
         name_(name),
         scope_(scope),
@@ -1987,7 +1999,8 @@ class FunctionLiteral: public Expression {
         IsExpression::encode(type != DECLARATION) |
         IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
         Pretenure::encode(false) |
-        HasDuplicateParameters::encode(has_duplicate_parameters);
+        HasDuplicateParameters::encode(has_duplicate_parameters) |
+        IsFunction::encode(is_function);
   }
 
  private:
@@ -2009,7 +2022,8 @@ class FunctionLiteral: public Expression {
   class IsExpression: public BitField<bool, 1, 1> {};
   class IsAnonymous: public BitField<bool, 2, 1> {};
   class Pretenure: public BitField<bool, 3, 1> {};
-  class HasDuplicateParameters: public BitField<bool, 4, 1> {};
+  class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
+  class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
 };
 
 
@@ -2778,15 +2792,16 @@ class AstNodeFactory BASE_EMBEDDED {
       bool has_only_simple_this_property_assignments,
       Handle<FixedArray> this_property_assignments,
       int parameter_count,
-      bool has_duplicate_parameters,
+      FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
-      bool visit_with_visitor) {
+      FunctionLiteral::IsFunctionFlag is_function) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         has_only_simple_this_property_assignments, this_property_assignments,
-        parameter_count, type, has_duplicate_parameters);
-    if (visit_with_visitor) {
+        parameter_count, type, has_duplicate_parameters, is_function);
+    // Top-level literal doesn't count for the AST's properties.
+    if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);
     }
     return lit;

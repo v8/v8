@@ -97,6 +97,7 @@ class LChunkBuilder;
   V(CompareConstantEqAndBranch)                \
   V(Constant)                                  \
   V(Context)                                   \
+  V(DeclareGlobals)                            \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
@@ -1483,6 +1484,33 @@ class HOuterContext: public HUnaryOperation {
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HDeclareGlobals: public HUnaryOperation {
+ public:
+  HDeclareGlobals(HValue* context,
+                  Handle<FixedArray> pairs,
+                  int flags)
+      : HUnaryOperation(context),
+        pairs_(pairs),
+        flags_(flags) {
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* context() { return OperandAt(0); }
+  Handle<FixedArray> pairs() const { return pairs_; }
+  int flags() const { return flags_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals)
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+ private:
+  Handle<FixedArray> pairs_;
+  int flags_;
 };
 
 

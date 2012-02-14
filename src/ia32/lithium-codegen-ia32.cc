@@ -2690,6 +2690,15 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
 }
 
 
+void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
+  ASSERT(ToRegister(instr->InputAt(0)).is(esi));
+  __ push(esi);  // The context is the first argument.
+  __ push(Immediate(instr->hydrogen()->pairs()));
+  __ push(Immediate(Smi::FromInt(instr->hydrogen()->flags())));
+  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());

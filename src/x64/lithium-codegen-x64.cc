@@ -2605,6 +2605,14 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
 }
 
 
+void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
+  __ push(rsi);  // The context is the first argument.
+  __ PushHeapObject(instr->hydrogen()->pairs());
+  __ Push(Smi::FromInt(instr->hydrogen()->flags()));
+  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
   __ movq(result, GlobalObjectOperand());

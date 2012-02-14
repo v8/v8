@@ -81,6 +81,7 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DeclareGlobals)                             \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
@@ -1382,6 +1383,17 @@ class LOuterContext: public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
 
   LOperand* context() { return InputAt(0); }
+};
+
+
+class LDeclareGlobals: public LTemplateInstruction<0, 1, 0> {
+ public:
+  explicit LDeclareGlobals(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
+  DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
 };
 
 

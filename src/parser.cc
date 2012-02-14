@@ -503,7 +503,9 @@ Parser::FunctionState::FunctionState(Parser* parser,
 Parser::FunctionState::~FunctionState() {
   parser_->top_scope_ = outer_scope_;
   parser_->current_function_state_ = outer_function_state_;
-  parser_->isolate()->set_ast_node_id(saved_ast_node_id_);
+  if (outer_function_state_ != NULL) {
+    parser_->isolate()->set_ast_node_id(saved_ast_node_id_);
+  }
 }
 
 
@@ -550,7 +552,7 @@ Parser::Parser(Handle<Script> script,
       allow_modules_((parser_flags & kAllowModules) != 0),
       stack_overflow_(false),
       parenthesized_function_(false) {
-  AstNode::ResetIds();
+  isolate_->set_ast_node_id(0);
   if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
     scanner().SetHarmonyScoping(true);
   }
@@ -602,7 +604,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
-    if (!info->is_global()) {
+    if (!info->is_global() &&
+        (info->shared_info().is_null() || info->shared_info()->is_function())) {
       scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
       scope = NewScope(scope, EVAL_SCOPE);
     }
@@ -633,9 +636,9 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           function_state.only_simple_this_property_assignments(),
           function_state.this_property_assignments(),
           0,
-          false,  // Does not have duplicate parameters.
+          FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION,
-          false);  // Top-level literal doesn't count for the AST's properties.
+          FunctionLiteral::kGlobalOrEval);
       result->set_ast_properties(factory()->visitor()->ast_properties());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
@@ -4015,7 +4018,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   int handler_count = 0;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
-  bool has_duplicate_parameters = false;
+  FunctionLiteral::ParameterFlag duplicate_parameters =
+      FunctionLiteral::kNoDuplicateParameters;
   AstProperties ast_properties;
   // Parse function body.
   { FunctionState function_state(this, scope, isolate());
@@ -4041,7 +4045,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         name_loc = scanner().location();
       }
       if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
-        has_duplicate_parameters = true;
+        duplicate_parameters = FunctionLiteral::kHasDuplicateParameters;
         dupe_loc = scanner().location();
       }
       if (!reserved_loc.IsValid() && is_strict_reserved) {
@@ -4252,9 +4256,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                     only_simple_this_property_assignments,
                                     this_property_assignments,
                                     num_parameters,
-                                    has_duplicate_parameters,
+                                    duplicate_parameters,
                                     type,
-                                    true);
+                                    FunctionLiteral::kIsFunction);
   function_literal->set_function_token_position(function_token_position);
   function_literal->set_ast_properties(&ast_properties);
 
@@ -5594,7 +5598,11 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
     Parser parser(script, parsing_flags, NULL, NULL);
-    result = parser.ParseLazy(info);
+    if (info->shared_info()->is_function()) {
+      result = parser.ParseLazy(info);
+    } else {
+      result = parser.ParseProgram(info);
+    }
   } else {
     ScriptDataImpl* pre_data = info->pre_parse_data();
     Parser parser(script, parsing_flags, info->extension(), pre_data);

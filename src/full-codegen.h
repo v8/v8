@@ -77,29 +77,32 @@ class FullCodeGenerator: public AstVisitor {
     TOS_REG
   };
 
-  explicit FullCodeGenerator(MacroAssembler* masm)
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
-        info_(NULL),
-        scope_(NULL),
+        info_(info),
+        scope_(info->scope()),
         nesting_stack_(NULL),
         loop_depth_(0),
         global_count_(0),
         context_(NULL),
-        bailout_entries_(0),
+        bailout_entries_(info->HasDeoptimizationSupport()
+                         ? info->function()->ast_node_count() : 0),
         stack_checks_(2),  // There's always at least one.
-        type_feedback_cells_(0) {
-  }
+        type_feedback_cells_(info->HasDeoptimizationSupport()
+                             ? info->function()->ast_node_count() : 0) { }
 
   static bool MakeCode(CompilationInfo* info);
 
-  void Generate(CompilationInfo* info);
+  void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
-  class StateField : public BitField<State, 0, 8> { };
-  class PcField    : public BitField<unsigned, 8, 32-8> { };
+  // Encode state and pc-offset as a BitField<type, start, size>.
+  // Only use 30 bits because we encode the result as a smi.
+  class StateField : public BitField<State, 0, 1> { };
+  class PcField    : public BitField<unsigned, 1, 30-1> { };
 
   static const char* State2String(State state) {
     switch (state) {
