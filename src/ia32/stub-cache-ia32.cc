@@ -3905,6 +3905,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   } else {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // smis.
+    __ j(above_equal, &miss_force_generic);
   }
 
   __ bind(&finish_store);
@@ -3970,6 +3971,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // Increment the length of the array.
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
     __ jmp(&finish_store);
 
     __ bind(&check_capacity);

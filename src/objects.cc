@@ -8680,23 +8680,25 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   FixedArrayBase* old_elements = elements();
   ElementsKind elements_kind(GetElementsKind());
   AssertNoAllocation no_gc;
-  switch (elements_kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
-      elems->Initialize(FixedArray::cast(old_elements));
-      break;
+  if (old_elements->length() != 0) {
+    switch (elements_kind) {
+      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_ELEMENTS: {
+        elems->Initialize(FixedArray::cast(old_elements));
+        break;
+      }
+      case FAST_DOUBLE_ELEMENTS: {
+        elems->Initialize(FixedDoubleArray::cast(old_elements));
+        break;
+      }
+      case DICTIONARY_ELEMENTS: {
+        elems->Initialize(SeededNumberDictionary::cast(old_elements));
+        break;
+      }
+      default:
+        UNREACHABLE();
+        break;
     }
-    case FAST_DOUBLE_ELEMENTS: {
-      elems->Initialize(FixedDoubleArray::cast(old_elements));
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      elems->Initialize(SeededNumberDictionary::cast(old_elements));
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
   }
 
   if (FLAG_trace_elements_transitions) {
@@ -9640,13 +9642,14 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
     bool check_prototype) {
   ASSERT(HasFastDoubleElements());
 
-  FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
-  uint32_t elms_length = static_cast<uint32_t>(elms->length());
+  FixedArrayBase* base_elms = FixedArrayBase::cast(elements());
+  uint32_t elms_length = static_cast<uint32_t>(base_elms->length());
 
   // If storing to an element that isn't in the array, pass the store request
   // up the prototype chain before storing in the receiver's elements.
   if (check_prototype &&
-      (index >= elms_length || elms->is_the_hole(index))) {
+      (index >= elms_length ||
+       FixedDoubleArray::cast(base_elms)->is_the_hole(index))) {
     bool found;
     MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
                                                                    value,
@@ -9681,6 +9684,7 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
 
   // Check whether there is extra space in the fixed array.
   if (index < elms_length) {
+    FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
     elms->set(index, double_value);
     if (IsJSArray()) {
       // Update the length of the array if needed.
