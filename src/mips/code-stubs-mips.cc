@@ -7327,11 +7327,13 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { a2, a1, a3, EMIT_REMEMBERED_SET },
   { a3, a1, a2, EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { t0, a2, a3, EMIT_REMEMBERED_SET },
+  { a3, a2, t0, EMIT_REMEMBERED_SET },
+  { a2, a3, t0, EMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { a2, a3, t5, EMIT_REMEMBERED_SET },
+  { a2, a3, t5, OMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { t2, a2, a0, EMIT_REMEMBERED_SET },
   { a2, t2, t5, EMIT_REMEMBERED_SET },
