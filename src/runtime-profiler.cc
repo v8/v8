@@ -149,10 +149,13 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // prepared to generate it, but we don't expect to have to.
   bool found_code = false;
   Code* stack_check_code = NULL;
+#ifdef V8_TARGET_ARCH_IA32
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
-  } else {
+  } else  // NOLINT
+#endif
+  {  // NOLINT
     StackCheckStub check_stub;
     found_code = check_stub.FindCodeInCache(&stack_check_code);
   }
@@ -304,7 +307,9 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
+#ifdef V8_TARGET_ARCH_IA32
   if (FLAG_count_based_interrupts) return;
+#endif
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
 }
 

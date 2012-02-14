@@ -8712,10 +8712,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF("]\n");
   }
   Handle<Code> check_code;
+#ifdef V8_TARGET_ARCH_IA32
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     check_code = interrupt_stub.GetCode();
-  } else {
+  } else  // NOLINT
+#endif
+  {  // NOLINT
     StackCheckStub check_stub;
     check_code = check_stub.GetCode();
   }
