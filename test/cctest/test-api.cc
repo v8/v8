@@ -13711,58 +13711,65 @@ TEST(SourceURLInStackTrace) {
 THREADED_TEST(IdleNotification) {
   v8::HandleScope scope;
   LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
-  bool rv = false;
-  for (int i = 0; i < 100; i++) {
-    rv = v8::V8::IdleNotification();
-    if (rv)
-      break;
+  {
+    // Create garbage in old-space to generate work for idle notification.
+    i::AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
   }
-  CHECK(rv == true);
+  bool finshed_idle_work = false;
+  for (int i = 0; i < 100 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification();
+  }
+  CHECK(finshed_idle_work);
 }
 
 // Test that idle notification can be handled and eventually returns true.
 // This just checks the contract of the IdleNotification() function,
 // and does not verify that it does reasonable work.
-TEST(IdleNotificationWithHint) {
+TEST(IdleNotificationWithSmallHint) {
   v8::HandleScope scope;
   LocalContext env;
   {
+    // Create garbage in old-space to generate work for idle notification.
     i::AlwaysAllocateScope always_allocate;
-    CompileRun("function binom(n, m) {"
-               "  var C = [[1]];"
-               "  for (var i = 1; i <= n; ++i) {"
-               "    C[i] = [1];"
-               "    for (var j = 1; j < i; ++j) {"
-               "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-               "    }"
-               "    C[i][i] = 1;"
-               "  }"
-               "  return C[n][m];"
-               "};"
-               "binom(1000, 500)");
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
   }
-  bool rv = false;
   intptr_t old_size = HEAP->SizeOfObjects();
+  bool finshed_idle_work = false;
   bool no_idle_work = v8::V8::IdleNotification(10);
-  for (int i = 0; i < 200; i++) {
-    rv = v8::V8::IdleNotification(10);
-    if (rv)
-      break;
+  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification(10);
   }
-  CHECK(rv == true);
   intptr_t new_size = HEAP->SizeOfObjects();
+  CHECK(finshed_idle_work);
+  CHECK(no_idle_work || new_size < old_size);
+}
+
+
+// This just checks the contract of the IdleNotification() function,
+// and does not verify that it does reasonable work.
+TEST(IdleNotificationWithLargeHint) {
+  v8::HandleScope scope;
+  LocalContext env;
+  {
+    // Create garbage in old-space to generate work for idle notification.
+    i::AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
+  }
+  intptr_t old_size = HEAP->SizeOfObjects();
+  bool finshed_idle_work = false;
+  bool no_idle_work = v8::V8::IdleNotification(900);
+  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification(900);
+  }
+  intptr_t new_size = HEAP->SizeOfObjects();
+  CHECK(finshed_idle_work);
   CHECK(no_idle_work || new_size < old_size);
 }
 
