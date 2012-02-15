@@ -206,8 +206,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     }
   } else {
     // Allocate the JS Array
-    MaybeObject* maybe_obj =
-        heap->AllocateEmptyJSArray(FAST_SMI_ONLY_ELEMENTS);
+    MaybeObject* maybe_obj = heap->AllocateJSObject(constructor);
     if (!maybe_obj->To(&array)) return maybe_obj;
   }
 
