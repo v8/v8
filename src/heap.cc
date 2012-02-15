@@ -4361,10 +4361,10 @@ MaybeObject* Heap::AllocateJSArray(
   Context* global_context = isolate()->context()->global_context();
   JSFunction* array_function = global_context->array_function();
   Map* map = array_function->initial_map();
-  if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
-    map = Map::cast(global_context->object_js_array_map());
-  } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
     map = Map::cast(global_context->double_js_array_map());
+  } else if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
+    map = Map::cast(global_context->object_js_array_map());
   } else {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
     ASSERT(map == global_context->smi_js_array_map());
