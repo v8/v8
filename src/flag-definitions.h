@@ -120,7 +120,7 @@ DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 
 // Flags for experimental implementation features.
-DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
+DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
