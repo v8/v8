@@ -1868,11 +1868,10 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // Faster code path to avoid two compares: subtract lower bound from the
     // actual type and do a signed compare with the width of the type range.
     __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
-    __ mov(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ movzx_b(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
     __ sub(Operand(temp2), Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ cmpb(Operand(temp2),
-            static_cast<int8_t>(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
-                                FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ cmp(Operand(temp2), Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
+                                     FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ j(above, is_false);
   }
 
@@ -4079,7 +4078,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
     } else {
       __ movzx_b(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
       __ and_(temp, mask);
-      __ cmpb(Operand(temp), tag);
+      __ cmp(temp, tag);
       DeoptimizeIf(not_equal, instr->environment());
     }
   }
