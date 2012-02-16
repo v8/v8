@@ -1,3 +1,14 @@
+2012-02-16: Version 3.9.7
+
+        Fixed V8 issues 1322, 1878, 1942, 1945 and Chromium issue 113924.
+
+        Fixed GCC-4.7 warnings.
+
+        Added Navier-Stokes benchmark.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-14: Version 3.9.6
 
         Fix template-related linker error. (issue 1936)
