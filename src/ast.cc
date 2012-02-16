@@ -1010,7 +1010,6 @@ INCREASE_NODE_COUNT(ReturnStatement)
 INCREASE_NODE_COUNT(Conditional)
 INCREASE_NODE_COUNT(Literal)
 INCREASE_NODE_COUNT(ObjectLiteral)
-INCREASE_NODE_COUNT(FunctionLiteral)
 INCREASE_NODE_COUNT(Assignment)
 INCREASE_NODE_COUNT(Throw)
 INCREASE_NODE_COUNT(Property)
@@ -1080,6 +1079,12 @@ void AstConstructionVisitor::VisitTryFinallyStatement(
 void AstConstructionVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
   increase_node_count();
   add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
+  increase_node_count();
   add_flag(kDontInline);
 }
 
