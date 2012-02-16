@@ -12902,8 +12902,15 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(
-      0, static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  if (array_type == kExternalDoubleArray ||
+      array_type == kExternalFloatArray) {
+    CHECK_EQ(
+        static_cast<int>(0x80000000),
+        static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  } else {
+    CHECK_EQ(0, static_cast<int>(
+        jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  }
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[6] = '2.3';"

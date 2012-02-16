@@ -11757,7 +11757,7 @@ MaybeObject* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
 
 
 MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
-  float cast_value = 0;
+  float cast_value = OS::nan_value();
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {
@@ -11767,7 +11767,7 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
       double double_value = HeapNumber::cast(value)->value();
       cast_value = static_cast<float>(double_value);
     } else {
-      // Clamp undefined to zero (default). All other types have been
+      // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
@@ -11778,7 +11778,7 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
 
 
 MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
-  double double_value = 0;
+  double double_value = OS::nan_value();
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {
@@ -11787,7 +11787,7 @@ MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
     } else if (value->IsHeapNumber()) {
       double_value = HeapNumber::cast(value)->value();
     } else {
-      // Clamp undefined to zero (default). All other types have been
+      // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
