@@ -3580,6 +3580,11 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void InterruptStub::Generate(MacroAssembler* masm) {
+  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
 void MathPowStub::Generate(MacroAssembler* masm) {
   CpuFeatures::Scope fpu_scope(FPU);
   const Register base = a1;
