@@ -168,11 +168,20 @@ DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
+DEFINE_int(frame_count, 2, "number of stack frames inspected by the profiler")
 DEFINE_bool(self_optimization, false,
             "primitive functions trigger their own optimization")
+DEFINE_bool(count_based_interrupts, false,
+            "trigger profiler ticks based on counting instead of timing")
+DEFINE_bool(weighted_back_edges, false,
+            "weight back edges by jump distance for interrupt triggering")
+DEFINE_int(interrupt_budget, 10000,
+           "execution budget before interrupt is triggered")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
+DEFINE_implication(experimental_profiler, count_based_interrupts)
+DEFINE_implication(experimental_profiler, weighted_back_edges)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,

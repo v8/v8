@@ -1121,6 +1121,11 @@ LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDeclareGlobals(HDeclareGlobals* instr) {
+  return MarkAsCall(new LDeclareGlobals, instr);
+}
+
+
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
   return DefineAsRegister(new LGlobalObject);
 }

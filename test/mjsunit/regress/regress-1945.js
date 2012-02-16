@@ -27,44 +27,8 @@
 
 // Flags: --allow-natives-syntax
 
-// Test that we can inline functions containing materialized literals.
-
-function o2(b, c) {
-  return { 'b':b, 'c':c, 'y':b + c };
-}
-
-function o1(a, b, c) {
-  return { 'a':a, 'x':o2(b, c) };
-}
-
-function TestObjectLiteral(a, b, c) {
-  var expected = { 'a':a, 'x':{ 'b':b, 'c':c, 'y':b + c } };
-  var result = o1(a, b, c);
-  assertEquals(expected, result, "TestObjectLiteral");
-}
-
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral(1, 2, 3);
-%OptimizeFunctionOnNextCall(o1);
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral('a', 'b', 'c');
-
-function f2() {
-  return function(b, c) { return b + c; };
-}
-
-function f1(a, b, c) {
-  return a + f2()(b, c);
-}
-
-function TestFunctionLiteral(a, b, c) {
-  var expected = a + b + c;
-  var result = f1(a, b, c);
-  assertEquals(expected, result, "TestFunctionLiteral");
-}
-
-TestFunctionLiteral(1, 2, 3);
-TestFunctionLiteral(1, 2, 3);
-%OptimizeFunctionOnNextCall(f1);
-TestFunctionLiteral(1, 2, 3);
-TestFunctionLiteral('a', 'b', 'c');
+var _d = new Date();
+_d.setHours(0,0,0,0);
+_d.setHours(0,0,0,0);
+%OptimizeFunctionOnNextCall(_d.setHours);
+_d.setHours(0,0,0,0);

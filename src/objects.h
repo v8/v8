@@ -5313,8 +5313,11 @@ class SharedFunctionInfo: public HeapObject {
   // through the API, which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous)
 
-  // Indicates that the function cannot be crankshafted.
-  DECL_BOOLEAN_ACCESSORS(dont_crankshaft)
+  // Is this a function or top-level/eval code.
+  DECL_BOOLEAN_ACCESSORS(is_function)
+
+  // Indicates that the function cannot be optimized.
+  DECL_BOOLEAN_ACCESSORS(dont_optimize)
 
   // Indicates that the function cannot be inlined.
   DECL_BOOLEAN_ACCESSORS(dont_inline)
@@ -5327,9 +5330,8 @@ class SharedFunctionInfo: public HeapObject {
   void EnableDeoptimizationSupport(Code* recompiled);
 
   // Disable (further) attempted optimization of all functions sharing this
-  // shared function info.  The function is the one we actually tried to
-  // optimize.
-  void DisableOptimization(JSFunction* function);
+  // shared function info.
+  void DisableOptimization();
 
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -5527,7 +5529,8 @@ class SharedFunctionInfo: public HeapObject {
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
-    kDontCrankshaft,
+    kIsFunction,
+    kDontOptimize,
     kDontInline,
     kCompilerHintsCount  // Pseudo entry
   };

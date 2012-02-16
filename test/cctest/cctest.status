@@ -52,6 +52,9 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
+# BUG(1952): Temporarily disabled until issue is fixed.
+test-api/TurnOnAccessCheckAndRecompile: PASS || FAIL
+
 ##############################################################################
 [ $arch == arm ]
 

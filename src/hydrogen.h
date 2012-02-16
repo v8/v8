@@ -780,6 +780,8 @@ class HGraphBuilder: public AstVisitor {
 
   FunctionState* function_state() const { return function_state_; }
 
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
@@ -841,7 +843,8 @@ class HGraphBuilder: public AstVisitor {
 
   void HandleVariableDeclaration(VariableProxy* proxy,
                                  VariableMode mode,
-                                 FunctionLiteral* function);
+                                 FunctionLiteral* function,
+                                 int* global_count);
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
