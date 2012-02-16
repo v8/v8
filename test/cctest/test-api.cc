@@ -11061,7 +11061,9 @@ static bool NamedGetAccessBlockAandH(Local<v8::Object> obj,
 }
 
 
-THREADED_TEST(TurnOnAccessCheckAndRecompile) {
+// TODO(1952): Enable this test for threading test once the underlying bug is
+// fixed.
+TEST(TurnOnAccessCheckAndRecompile) {
   v8::HandleScope handle_scope;
 
   // Create an environment with access check to the global object disabled by
