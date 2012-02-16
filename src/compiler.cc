@@ -215,7 +215,6 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
       FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
     info->AbortOptimization();
-    Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization();
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
@@ -236,7 +235,6 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
       (info->osr_ast_id() != AstNode::kNoNumber &&
        scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     info->AbortOptimization();
-    Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization();
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
@@ -315,7 +313,6 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   if (!builder.inline_bailout()) {
     // Mark the shared code as unoptimizable unless it was an inlined
     // function that bailed out.
-    Handle<JSFunction> closure = info->closure();
     info->shared_info()->DisableOptimization();
   }
   // True indicates the compilation pipeline is still going, not necessarily
