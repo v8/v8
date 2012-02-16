@@ -12902,8 +12902,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  if (array_type == kExternalDoubleArray ||
-      array_type == kExternalFloatArray) {
+  if (array_type == v8::kExternalDoubleArray ||
+      array_type == v8::kExternalFloatArray) {
     CHECK_EQ(
         static_cast<int>(0x80000000),
         static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
