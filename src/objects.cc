@@ -11757,7 +11757,7 @@ MaybeObject* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
 
 
 MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
-  float cast_value = OS::nan_value();
+  float cast_value = static_cast<float>(OS::nan_value());
   Heap* heap = GetHeap();
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {
