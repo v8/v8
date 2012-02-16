@@ -4191,17 +4191,8 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kChangesElementsKind);
-    if (original_map->has_fast_double_elements()) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kDependsOnElementsPointer);
-      SetGVNFlag(kDependsOnDoubleArrayElements);
-    } else if (transitioned_map->has_fast_double_elements()) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kDependsOnElementsPointer);
-      SetGVNFlag(kDependsOnArrayElements);
-    }
+    SetGVNFlag(kChangesElementsPointer);
     set_representation(Representation::Tagged());
   }
 

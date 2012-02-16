@@ -1431,7 +1431,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
                         GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends);
+                        GVNFlagSet* accumulated_first_time_depends,
+                        GVNFlagSet* accumulated_first_time_changes);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
@@ -1512,10 +1513,12 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
                side_effects.ToIntegral());
 
       GVNFlagSet accumulated_first_time_depends;
+      GVNFlagSet accumulated_first_time_changes;
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
         ProcessLoopBlock(graph_->blocks()->at(j), block, side_effects,
-                         &accumulated_first_time_depends);
+                         &accumulated_first_time_depends,
+                         &accumulated_first_time_changes);
       }
     }
   }
@@ -1526,7 +1529,8 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     HBasicBlock* block,
     HBasicBlock* loop_header,
     GVNFlagSet loop_kills,
-    GVNFlagSet* accumulated_first_time_depends) {
+    GVNFlagSet* first_time_depends,
+    GVNFlagSet* first_time_changes) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
@@ -1544,28 +1548,47 @@ void HGlobalValueNumberer::ProcessLoopBlock(
                instr->gvn_flags().ToIntegral(),
                depends_flags.ToIntegral());
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
-      if (!can_hoist && instr->IsTransitionElementsKind()) {
-        // It's only possible to hoist one time side effects if there are no
-        // dependencies on their changes from the loop header to the current
-        // instruction.
-        GVNFlagSet converted_changes =
-            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
-        TraceGVN("Checking dependencies on one-time instruction %d (%s) "
-                 "converted changes 0x%X, accumulated depends 0x%X\n",
+      if (instr->IsTransitionElementsKind()) {
+        // It's possible to hoist transitions out of a loop as long as the
+        // hoisting wouldn't move the transition past a DependsOn of one of it's
+        // changes or any instructions that might change an objects map or
+        // elements contents.
+        GVNFlagSet changes = instr->ChangesFlags();
+        GVNFlagSet hoist_depends_blockers =
+            HValue::ConvertChangesToDependsFlags(changes);
+        // In addition to not hoisting transitions above other instructions that
+        // change dependencies that the transition changes, it must not be
+        // hoisted above map changes and stores to an elements backing store
+        // that the transition might change.
+        GVNFlagSet hoist_change_blockers = changes;
+        hoist_change_blockers.Add(kChangesMaps);
+        HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
+        if (trans->original_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesDoubleArrayElements);
+        }
+        if (trans->transitioned_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesArrayElements);
+        }
+        TraceGVN("Checking dependencies on HTransitionElementsKind %d (%s) "
+                 "hoist depends blockers 0x%X, hoist change blockers 0x%X, "
+                 "accumulated depends 0x%X, accumulated changes 0x%X\n",
                  instr->id(),
                  instr->Mnemonic(),
-                 converted_changes.ToIntegral(),
-                 accumulated_first_time_depends->ToIntegral());
-        // It's possible to hoist one-time side effects from the current loop
-        // loop only if they dominate all of the successor blocks in the same
-        // loop and there are not any instructions that have Changes/DependsOn
-        // that intervene between it and the beginning of the loop header.
+                 hoist_depends_blockers.ToIntegral(),
+                 hoist_change_blockers.ToIntegral(),
+                 first_time_depends->ToIntegral(),
+                 first_time_changes->ToIntegral());
+        // It's possible to hoist transition from the current loop loop only if
+        // they dominate all of the successor blocks in the same loop and there
+        // are not any instructions that have Changes/DependsOn that intervene
+        // between it and the beginning of the loop header.
         bool in_nested_loop = block != loop_header &&
             ((block->parent_loop_header() != loop_header) ||
              block->IsLoopHeader());
         can_hoist = !in_nested_loop &&
             block->IsLoopSuccessorDominator() &&
-            !accumulated_first_time_depends->ContainsAnyOf(converted_changes);
+            !first_time_depends->ContainsAnyOf(hoist_depends_blockers) &&
+            !first_time_changes->ContainsAnyOf(hoist_change_blockers);
       }
 
       if (can_hoist) {
@@ -1589,10 +1612,8 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     if (!hoisted) {
       // If an instruction is not hoisted, we have to account for its side
       // effects when hoisting later HTransitionElementsKind instructions.
-      accumulated_first_time_depends->Add(instr->DependsOnFlags());
-      GVNFlagSet converted_changes =
-          HValue::ConvertChangesToDependsFlags(instr->SideEffectFlags());
-      accumulated_first_time_depends->Add(converted_changes);
+      first_time_depends->Add(instr->DependsOnFlags());
+      first_time_changes->Add(instr->ChangesFlags());
     }
     instr = next;
   }
@@ -4454,7 +4475,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
     if (!transition_target.at(i).is_null()) {
-      object = AddInstruction(new(zone()) HTransitionElementsKind(
+      AddInstruction(new(zone()) HTransitionElementsKind(
           object, map, transition_target.at(i)));
     } else {
       type_todo[map->elements_kind()] = true;
