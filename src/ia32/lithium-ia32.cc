@@ -2212,6 +2212,13 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
+  return MarkAsCall(
+      DefineFixed(new(zone()) LFastLiteral(context), eax), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   return MarkAsCall(
@@ -2219,18 +2226,10 @@ LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoObjectLiteralFast(HObjectLiteralFast* instr) {
+LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   return MarkAsCall(
-      DefineFixed(new(zone()) LObjectLiteralFast(context), eax), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoObjectLiteralGeneric(
-    HObjectLiteralGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LObjectLiteralGeneric(context), eax), instr);
+      DefineFixed(new(zone()) LObjectLiteral(context), eax), instr);
 }
 
 

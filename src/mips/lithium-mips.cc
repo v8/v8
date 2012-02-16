@@ -2093,19 +2093,18 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
+  return MarkAsCall(DefineFixed(new LFastLiteral, v0), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   return MarkAsCall(DefineFixed(new LArrayLiteral, v0), instr);
 }
 
 
-LInstruction* LChunkBuilder::DoObjectLiteralFast(HObjectLiteralFast* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteralFast, v0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoObjectLiteralGeneric(
-    HObjectLiteralGeneric* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteralGeneric, v0), instr);
+LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteral, v0), instr);
 }
 
 
