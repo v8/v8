@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -772,7 +772,7 @@ void Assembler::immediate_arithmetic_op_8(byte subcode,
                                           Register dst,
                                           Immediate src) {
   EnsureSpace ensure_space(this);
-  if (dst.code() > 3) {
+  if (!dst.is_byte_register()) {
     // Use 64-bit mode byte registers.
     emit_rex_64(dst);
   }
@@ -1056,7 +1056,7 @@ void Assembler::decl(const Operand& dst) {
 
 void Assembler::decb(Register dst) {
   EnsureSpace ensure_space(this);
-  if (dst.code() > 3) {
+  if (!dst.is_byte_register()) {
     // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(dst);
   }
@@ -1384,7 +1384,7 @@ void Assembler::leave() {
 
 void Assembler::movb(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
-  if (dst.code() > 3) {
+  if (!dst.is_byte_register()) {
     // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(dst, src);
   } else {
@@ -1397,7 +1397,7 @@ void Assembler::movb(Register dst, const Operand& src) {
 
 void Assembler::movb(Register dst, Immediate imm) {
   EnsureSpace ensure_space(this);
-  if (dst.code() > 3) {
+  if (!dst.is_byte_register()) {
     emit_rex_32(dst);
   }
   emit(0xB0 + dst.low_bits());
@@ -1407,7 +1407,7 @@ void Assembler::movb(Register dst, Immediate imm) {
 
 void Assembler::movb(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
-  if (src.code() > 3) {
+  if (!src.is_byte_register()) {
     emit_rex_32(src, dst);
   } else {
     emit_optional_rex_32(src, dst);
@@ -1937,7 +1937,7 @@ void Assembler::setcc(Condition cc, Register reg) {
   }
   EnsureSpace ensure_space(this);
   ASSERT(is_uint4(cc));
-  if (reg.code() > 3) {  // Use x64 byte registers, where different.
+  if (!reg.is_byte_register()) {  // Use x64 byte registers, where different.
     emit_rex_32(reg);
   }
   emit(0x0F);
@@ -2002,7 +2002,7 @@ void Assembler::testb(Register dst, Register src) {
     emit(0x84);
     emit_modrm(src, dst);
   } else {
-    if (dst.code() > 3 || src.code() > 3) {
+    if (!dst.is_byte_register() || !src.is_byte_register()) {
       // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
       emit_rex_32(dst, src);
     }
@@ -2019,7 +2019,7 @@ void Assembler::testb(Register reg, Immediate mask) {
     emit(0xA8);
     emit(mask.value_);  // Low byte emitted.
   } else {
-    if (reg.code() > 3) {
+    if (!reg.is_byte_register()) {
       // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
       emit_rex_32(reg);
     }
@@ -2042,7 +2042,7 @@ void Assembler::testb(const Operand& op, Immediate mask) {
 
 void Assembler::testb(const Operand& op, Register reg) {
   EnsureSpace ensure_space(this);
-  if (reg.code() > 3) {
+  if (!reg.is_byte_register()) {
     // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(reg, op);
   } else {

@@ -1777,11 +1777,10 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // Faster code path to avoid two compares: subtract lower bound from the
     // actual type and do a signed compare with the width of the type range.
     __ movq(temp, FieldOperand(input, HeapObject::kMapOffset));
-    __ movq(scratch, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ subb(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ cmpb(scratch,
-            Immediate(static_cast<int8_t>(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
-                                          FIRST_NONCALLABLE_SPEC_OBJECT_TYPE)));
+    __ movzxbl(scratch, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ sub(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ cmpq(scratch, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
+                               FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ j(above, is_false);
   }
 
