@@ -2910,22 +2910,12 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return this->get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
+    return this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
-  // Returns false if the put wasn't performed due to property being read only.
-  // Returns true on successful put.
-  bool ValueAtPut(int entry, Object* value) {
-    // Check that this value can actually be written.
-    PropertyDetails details = DetailsAt(entry);
-    // If a value has not been initilized we allow writing to it even if
-    // it is read only (a declared const that has not been initialized).
-    if (details.IsReadOnly() && !ValueAt(entry)->IsTheHole()) {
-      return false;
-    }
+  void ValueAtPut(int entry, Object* value) {
     this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 1, value);
-    return true;
   }
 
   // Returns the property details for the property at entry.
