@@ -59,9 +59,6 @@ S10.4.2.1_A1: FAIL
 15.2.3.7-6-a-284: FAIL
 15.2.3.7-6-a-285: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1790
-15.4.4.22-9-9: FAIL
-
 # Invalid test cases (recent change adding var changes semantics)
 S8.3_A1_T1: FAIL
 S15.3_A3_T1: FAIL

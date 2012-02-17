@@ -1024,10 +1024,10 @@ function ArrayFilter(f, receiver) {
   var accumulator = new InternalArray();
   var accumulator_length = 0;
   for (var i = 0; i < length; i++) {
-    var current = array[i];
-    if (!IS_UNDEFINED(current) || i in array) {
-      if (%_CallFunction(receiver, current, i, array, f)) {
-        accumulator[accumulator_length++] = current;
+    if (i in array) {
+      var element = array[i];
+      if (%_CallFunction(receiver, element, i, array, f)) {
+        accumulator[accumulator_length++] = element;
       }
     }
   }
@@ -1057,9 +1057,9 @@ function ArrayForEach(f, receiver) {
   }
 
   for (var i = 0; i < length; i++) {
-    var current = array[i];
-    if (!IS_UNDEFINED(current) || i in array) {
-      %_CallFunction(receiver, current, i, array, f);
+    if (i in array) {
+      var element = array[i];
+      %_CallFunction(receiver, element, i, array, f);
     }
   }
 }
@@ -1088,9 +1088,9 @@ function ArraySome(f, receiver) {
   }
 
   for (var i = 0; i < length; i++) {
-    var current = array[i];
-    if (!IS_UNDEFINED(current) || i in array) {
-      if (%_CallFunction(receiver, current, i, array, f)) return true;
+    if (i in array) {
+      var element = array[i];
+      if (%_CallFunction(receiver, element, i, array, f)) return true;
     }
   }
   return false;
@@ -1118,9 +1118,9 @@ function ArrayEvery(f, receiver) {
   }
 
   for (var i = 0; i < length; i++) {
-    var current = array[i];
-    if (!IS_UNDEFINED(current) || i in array) {
-      if (!%_CallFunction(receiver, current, i, array, f)) return false;
+    if (i in array) {
+      var element = array[i];
+      if (!%_CallFunction(receiver, element, i, array, f)) return false;
     }
   }
   return true;
@@ -1149,9 +1149,9 @@ function ArrayMap(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray(length);
   for (var i = 0; i < length; i++) {
-    var current = array[i];
-    if (!IS_UNDEFINED(current) || i in array) {
-      accumulator[i] = %_CallFunction(receiver, current, i, array, f);
+    if (i in array) {
+      var element = array[i];
+      accumulator[i] = %_CallFunction(receiver, element, i, array, f);
     }
   }
   %MoveArrayContents(accumulator, result);
@@ -1308,8 +1308,8 @@ function ArrayReduce(callback, current) {
 
   var receiver = %GetDefaultReceiver(callback);
   for (; i < length; i++) {
-    var element = array[i];
-    if (!IS_UNDEFINED(element) || i in array) {
+    if (i in array) {
+      var element = array[i];
       current = %_CallFunction(receiver, current, element, i, array, callback);
     }
   }
@@ -1345,8 +1345,8 @@ function ArrayReduceRight(callback, current) {
 
   var receiver = %GetDefaultReceiver(callback);
   for (; i >= 0; i--) {
-    var element = array[i];
-    if (!IS_UNDEFINED(element) || i in array) {
+    if (i in array) {
+      var element = array[i];
       current = %_CallFunction(receiver, current, element, i, array, callback);
     }
   }
