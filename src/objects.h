@@ -4736,8 +4736,8 @@ class Map: public HeapObject {
 
   // Adds an entry to this map's descriptor array for a transition to
   // |transitioned_map| when its elements_kind is changed to |elements_kind|.
-  MaybeObject* AddElementsTransition(ElementsKind elements_kind,
-                                     Map* transitioned_map);
+  MUST_USE_RESULT MaybeObject* AddElementsTransition(
+      ElementsKind elements_kind, Map* transitioned_map);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or null handle if no match is

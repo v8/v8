@@ -3938,13 +3938,17 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
     Map* new_double_map = NULL;
     if (!maybe_map->To<Map>(&new_double_map)) return maybe_map;
     new_double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
-    initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS, new_double_map);
+    maybe_map = initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS,
+                                                   new_double_map);
+    if (maybe_map->IsFailure()) return maybe_map;
 
     maybe_map = new_double_map->CopyDropTransitions();
     Map* new_object_map = NULL;
     if (!maybe_map->To<Map>(&new_object_map)) return maybe_map;
     new_object_map->set_elements_kind(FAST_ELEMENTS);
-    new_double_map->AddElementsTransition(FAST_ELEMENTS, new_object_map);
+    maybe_map = new_double_map->AddElementsTransition(FAST_ELEMENTS,
+                                                      new_object_map);
+    if (maybe_map->IsFailure()) return maybe_map;
 
     global_context->set_smi_js_array_map(initial_map);
     global_context->set_double_js_array_map(new_double_map);
