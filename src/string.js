@@ -588,11 +588,8 @@ function StringSplit(separator, limit) {
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
 
   // ECMA-262 says that if separator is undefined, the result should
-  // be an array of size 1 containing the entire string.  SpiderMonkey
-  // and KJS have this behavior only when no separator is given.  If
-  // undefined is explicitly given, they convert it to a string and
-  // use that.  We do as SpiderMonkey and KJS.
-  if (%_ArgumentsLength() === 0) {
+  // be an array of size 1 containing the entire string.
+  if (IS_UNDEFINED(separator)) {
     return [subject];
   }
 
