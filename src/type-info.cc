@@ -573,7 +573,11 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   DisableAssertNoAllocation allocation_allowed;
-  int length = infos->length() + code->type_feedback_cells()->CellCount();
+  int cell_count = code->type_feedback_info()->IsTypeFeedbackInfo()
+      ? TypeFeedbackInfo::cast(code->type_feedback_info())->
+          type_feedback_cells()->CellCount()
+      : 0;
+  int length = infos->length() + cell_count;
   byte* old_start = code->instruction_start();
   dictionary_ = FACTORY->NewUnseededNumberDictionary(length);
   byte* new_start = code->instruction_start();
@@ -643,7 +647,10 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
 
 void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
-  Handle<TypeFeedbackCells> cache(code->type_feedback_cells());
+  Object* raw_info = code->type_feedback_info();
+  if (!raw_info->IsTypeFeedbackInfo()) return;
+  Handle<TypeFeedbackCells> cache(
+      TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
   for (int i = 0; i < cache->CellCount(); i++) {
     unsigned ast_id = cache->AstId(i)->value();
     Object* value = cache->Cell(i)->value();

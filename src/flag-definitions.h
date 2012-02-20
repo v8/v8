@@ -177,11 +177,16 @@ DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
 DEFINE_int(interrupt_budget, 10000,
            "execution budget before interrupt is triggered")
+DEFINE_int(type_info_threshold, 0,
+           "percentage of ICs that must have type info to allow optimization")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
 DEFINE_implication(experimental_profiler, count_based_interrupts)
 DEFINE_implication(experimental_profiler, weighted_back_edges)
+
+DEFINE_bool(trace_opt_verbose, false, "extra verbose compilation tracing")
+DEFINE_implication(trace_opt_verbose, trace_opt)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,

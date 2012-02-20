@@ -4123,8 +4123,7 @@ INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-ACCESSORS(Code, type_feedback_cells, TypeFeedbackCells,
-          kTypeFeedbackCellsOffset)
+ACCESSORS(Code, type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 
 
@@ -4798,6 +4797,13 @@ Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
 Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
   return heap->raw_unchecked_the_hole_value();
 }
+
+
+SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
+SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
+              kIcWithTypeinfoCountOffset)
+ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
+          kTypeFeedbackCellsOffset)
 
 
 Relocatable::Relocatable(Isolate* isolate) {

@@ -439,7 +439,8 @@ const int kVariableSizeSentinel = 0;
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
-  V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)
+  V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
+  V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -594,6 +595,7 @@ enum InstanceType {
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
   POLYMORPHIC_CODE_CACHE_TYPE,
+  TYPE_FEEDBACK_INFO_TYPE,
   // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
   // is defined. However as include/v8.h contain some of the instance type
   // constants always having them avoids them getting different numbers
@@ -4032,6 +4034,7 @@ class TypeFeedbackCells: public FixedArray {
 
 // Forward declaration.
 class SafepointEntry;
+class TypeFeedbackInfo;
 
 // Code describes objects with on-the-fly generated machine code.
 class Code: public HeapObject {
@@ -4103,8 +4106,9 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_cells]: Array containing cache cells used for type feedback.
-  DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
+  // [type_feedback_info]: Struct containing type feedback information.
+  // Will contain either a TypeFeedbackInfo object, or undefined.
+  DECL_ACCESSORS(type_feedback_info, Object)
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -4355,9 +4359,9 @@ class Code: public HeapObject {
   static const int kHandlerTableOffset = kRelocationInfoOffset + kPointerSize;
   static const int kDeoptimizationDataOffset =
       kHandlerTableOffset + kPointerSize;
-  static const int kTypeFeedbackCellsOffset =
+  static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kGCMetadataOffset = kTypeFeedbackCellsOffset + kPointerSize;
+  static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kFlagsOffset = kGCMetadataOffset + kPointerSize;
 
   static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
@@ -6362,6 +6366,40 @@ class PolymorphicCodeCacheHashTable
   static const int kInitialSize = 64;
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PolymorphicCodeCacheHashTable);
+};
+
+
+class TypeFeedbackInfo: public Struct {
+ public:
+  inline int ic_total_count();
+  inline void set_ic_total_count(int count);
+
+  inline int ic_with_typeinfo_count();
+  inline void set_ic_with_typeinfo_count(int count);
+
+  DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
+
+  static inline TypeFeedbackInfo* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void TypeFeedbackInfoPrint() {
+    TypeFeedbackInfoPrint(stdout);
+  }
+  void TypeFeedbackInfoPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void TypeFeedbackInfoVerify();
+#endif
+
+  static const int kIcTotalCountOffset = HeapObject::kHeaderSize;
+  static const int kIcWithTypeinfoCountOffset =
+      kIcTotalCountOffset + kPointerSize;
+  static const int kTypeFeedbackCellsOffset =
+      kIcWithTypeinfoCountOffset + kPointerSize;
+  static const int kSize = kTypeFeedbackCellsOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
 };
 
 

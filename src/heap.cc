@@ -1938,6 +1938,19 @@ MaybeObject* Heap::AllocateAccessorPair() {
 }
 
 
+MaybeObject* Heap::AllocateTypeFeedbackInfo() {
+  TypeFeedbackInfo* info;
+  { MaybeObject* maybe_result = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
+    if (!maybe_result->To(&info)) return maybe_result;
+  }
+  info->set_ic_total_count(0);
+  info->set_ic_with_typeinfo_count(0);
+  info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
+                                SKIP_WRITE_BARRIER);
+  return info;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -3361,8 +3374,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
-                                SKIP_WRITE_BARRIER);
+  code->set_type_feedback_info(undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   // Allow self references to created code object by patching the handle to

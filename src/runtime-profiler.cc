@@ -102,6 +102,25 @@ void RuntimeProfiler::GlobalSetup() {
 }
 
 
+static void GetICCounts(JSFunction* function,
+                        int* ic_with_typeinfo_count,
+                        int* ic_total_count,
+                        int* percentage) {
+  *ic_total_count = 0;
+  *ic_with_typeinfo_count = 0;
+  Object* raw_info =
+      function->shared()->code()->type_feedback_info();
+  if (raw_info->IsTypeFeedbackInfo()) {
+    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
+    *ic_with_typeinfo_count = info->ic_with_typeinfo_count();
+    *ic_total_count = info->ic_total_count();
+  }
+  *percentage = *ic_total_count > 0
+      ? 100 * *ic_with_typeinfo_count / *ic_total_count
+      : 100;
+}
+
+
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   ASSERT(function->IsOptimizable());
   if (FLAG_trace_opt) {
@@ -109,6 +128,11 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     function->PrintName();
     PrintF(" 0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(function->address()));
     PrintF(" for recompilation, reason: %s", reason);
+    if (FLAG_type_info_threshold > 0) {
+      int typeinfo, total, percentage;
+      GetICCounts(function, &typeinfo, &total, &percentage);
+      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total, percentage);
+    }
     PrintF("]\n");
   }
 
@@ -258,9 +282,20 @@ void RuntimeProfiler::OptimizeNow() {
       int ticks = function->shared()->profiler_ticks();
 
       if (ticks >= kProfilerTicksBeforeOptimization) {
-        // If this particular function hasn't had any ICs patched for enough
-        // ticks, optimize it now.
-        Optimize(function, "hot and stable");
+        int typeinfo, total, percentage;
+        GetICCounts(function, &typeinfo, &total, &percentage);
+        if (percentage >= FLAG_type_info_threshold) {
+          // If this particular function hasn't had any ICs patched for enough
+          // ticks, optimize it now.
+          Optimize(function, "hot and stable");
+        } else {
+          if (FLAG_trace_opt_verbose) {
+            PrintF("[not yet optimizing ");
+            function->PrintName();
+            PrintF(", not enough type info: %d/%d (%d%%)]\n",
+                   typeinfo, total, percentage);
+          }
+        }
       } else if (!any_ic_changed_ &&
           function->shared()->code()->instruction_size() < kMaxSizeEarlyOpt) {
         // If no IC was patched since the last tick and this function is very

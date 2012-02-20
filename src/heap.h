@@ -640,6 +640,9 @@ class Heap {
   // Allocates a pre-tenured empty AccessorPair.
   MUST_USE_RESULT MaybeObject* AllocateAccessorPair();
 
+  // Allocates an empty TypeFeedbackInfo.
+  MUST_USE_RESULT MaybeObject* AllocateTypeFeedbackInfo();
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
