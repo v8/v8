@@ -194,7 +194,6 @@ S15.3.4.3_A6_T4: FAIL_OK
 S15.4.4.2_A2_T1: FAIL_OK
 S15.4.4.3_A2_T1: FAIL_OK
 
-
 ##################### SKIPPED TESTS #####################
 
 # These tests take a looong time to run in debug mode.
