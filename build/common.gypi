@@ -261,7 +261,7 @@
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                        '-Wnon-virtual-dtor' ],
+                        '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
         ],
       },
