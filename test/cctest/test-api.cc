@@ -11050,27 +11050,27 @@ THREADED_TEST(TurnOnAccessCheck) {
 }
 
 
-v8::Handle<v8::String> a;
-v8::Handle<v8::String> h;
+static const char* kPropertyA = "a";
+static const char* kPropertyH = "h";
 
 static bool NamedGetAccessBlockAandH(Local<v8::Object> obj,
                                        Local<Value> name,
                                        v8::AccessType type,
                                        Local<Value> data) {
-  return !(name->Equals(a) || name->Equals(h));
+  if (!name->IsString()) return false;
+  i::Handle<i::String> name_handle =
+      v8::Utils::OpenHandle(String::Cast(*name));
+  return !name_handle->IsEqualTo(i::CStrVector(kPropertyA))
+      && !name_handle->IsEqualTo(i::CStrVector(kPropertyH));
 }
 
 
-// TODO(1952): Enable this test for threading test once the underlying bug is
-// fixed.
-TEST(TurnOnAccessCheckAndRecompile) {
+THREADED_TEST(TurnOnAccessCheckAndRecompile) {
   v8::HandleScope handle_scope;
 
   // Create an environment with access check to the global object disabled by
   // default. When the registered access checker will block access to properties
-  // a and h
-  a = v8_str("a");
-  h = v8_str("h");
+  // a and h.
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->SetAccessCheckCallbacks(NamedGetAccessBlockAandH,
                                            IndexedGetAccessBlocker,
