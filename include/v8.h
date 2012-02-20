@@ -1198,7 +1198,7 @@ class String : public Primitive {
    * passed in as parameters.
    */
   V8EXPORT static Local<String> Concat(Handle<String> left,
-                                       Handle<String>right);
+                                       Handle<String> right);
 
   /**
    * Creates a new external string using the data defined in the given

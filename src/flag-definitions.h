@@ -106,7 +106,9 @@ private:
 //
 #define FLAG FLAG_FULL
 
-// Flags for experimental language features.
+// Flags for language modes and experimental language features.
+DEFINE_bool(use_strict, false, "enforce strict mode")
+
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_modules, false, "enable harmony modules")

@@ -27,7 +27,7 @@
 
 // This file relies on the fact that the following declarations have been made
 // in runtime.js:
-// const $Array = global.Array;
+// var $Array = global.Array;
 
 // -------------------------------------------------------------------
 
@@ -757,7 +757,7 @@ function ArraySort(comparefn) {
   }
   var receiver = %GetDefaultReceiver(comparefn);
 
-  function InsertionSort(a, from, to) {
+  var InsertionSort = function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
@@ -771,9 +771,9 @@ function ArraySort(comparefn) {
       }
       a[j + 1] = element;
     }
-  }
+  };
 
-  function QuickSort(a, from, to) {
+  var QuickSort = function QuickSort(a, from, to) {
     // Insertion sort is faster for short arrays.
     if (to - from <= 10) {
       InsertionSort(a, from, to);
@@ -841,12 +841,12 @@ function ArraySort(comparefn) {
     }
     QuickSort(a, from, low_end);
     QuickSort(a, high_start, to);
-  }
+  };
 
   // Copy elements in the range 0..length from obj's prototype chain
   // to obj itself, if obj has holes. Return one more than the maximal index
   // of a prototype property.
-  function CopyFromPrototype(obj, length) {
+  var CopyFromPrototype = function CopyFromPrototype(obj, length) {
     var max = 0;
     for (var proto = obj.__proto__; proto; proto = proto.__proto__) {
       var indices = %GetArrayKeys(proto, length);
@@ -873,12 +873,12 @@ function ArraySort(comparefn) {
       }
     }
     return max;
-  }
+  };
 
   // Set a value of "undefined" on all indices in the range from..to
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
-  function ShadowPrototypeElements(obj, from, to) {
+  var ShadowPrototypeElements = function(obj, from, to) {
     for (var proto = obj.__proto__; proto; proto = proto.__proto__) {
       var indices = %GetArrayKeys(proto, to);
       if (indices.length > 0) {
@@ -901,9 +901,9 @@ function ArraySort(comparefn) {
         }
       }
     }
-  }
+  };
 
-  function SafeRemoveArrayHoles(obj) {
+  var SafeRemoveArrayHoles = function SafeRemoveArrayHoles(obj) {
     // Copy defined elements from the end to fill in all holes and undefineds
     // in the beginning of the array.  Write undefineds and holes at the end
     // after loop is finished.
@@ -958,7 +958,7 @@ function ArraySort(comparefn) {
 
     // Return the number of defined elements.
     return first_undefined;
-  }
+  };
 
   var length = TO_UINT32(this.length);
   if (length < 2) return this;
@@ -1373,7 +1373,7 @@ function SetUpArray() {
 
   var specialFunctions = %SpecialArrayFunctions({});
 
-  function getFunction(name, jsBuiltin, len) {
+  var getFunction = function(name, jsBuiltin, len) {
     var f = jsBuiltin;
     if (specialFunctions.hasOwnProperty(name)) {
       f = specialFunctions[name];
@@ -1382,7 +1382,7 @@ function SetUpArray() {
       %FunctionSetLength(f, len);
     }
     return f;
-  }
+  };
 
   // Set up non-enumerable functions of the Array.prototype object and
   // set their names.

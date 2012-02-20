@@ -28,8 +28,8 @@
 
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
-// const $String = global.String;
-// const $NaN = 0/0;
+// var $String = global.String;
+// var $NaN = 0/0;
 
 
 // Set the String function and constructor.
