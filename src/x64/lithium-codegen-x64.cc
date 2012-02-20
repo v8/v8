@@ -1778,7 +1778,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // actual type and do a signed compare with the width of the type range.
     __ movq(temp, FieldOperand(input, HeapObject::kMapOffset));
     __ movzxbl(scratch, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ sub(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ subq(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ cmpq(scratch, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
                                FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ j(above, is_false);
