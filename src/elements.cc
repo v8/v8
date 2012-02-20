@@ -911,7 +911,9 @@ MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass, BackingStoreClass>::
   MaybeObject* maybe_obj = array->GetHeap()->AllocateFixedArray(1);
   if (!maybe_obj->To(&new_backing_store)) return maybe_obj;
   new_backing_store->set(0, length);
-  array->SetContent(new_backing_store);
+  { MaybeObject* result = array->SetContent(new_backing_store);
+    if (result->IsFailure()) return result;
+  }
   return array;
 }
 

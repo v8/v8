@@ -928,10 +928,11 @@ class Object : public MaybeObject {
                                                             JSReceiver* getter);
 
   static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
-  inline MaybeObject* GetElement(uint32_t index);
+  MUST_USE_RESULT inline MaybeObject* GetElement(uint32_t index);
   // For use when we know that no exception can be thrown.
   inline Object* GetElementNoExceptionThrown(uint32_t index);
-  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
+  MUST_USE_RESULT MaybeObject* GetElementWithReceiver(Object* receiver,
+                                                      uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype();
@@ -1603,22 +1604,23 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
   // Used from Object::GetProperty().
-  MaybeObject* GetPropertyWithFailedAccessCheck(
+  MUST_USE_RESULT MaybeObject* GetPropertyWithFailedAccessCheck(
       Object* receiver,
       LookupResult* result,
       String* name,
       PropertyAttributes* attributes);
-  MaybeObject* GetPropertyWithInterceptor(
+  MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
       JSReceiver* receiver,
       String* name,
       PropertyAttributes* attributes);
-  MaybeObject* GetPropertyPostInterceptor(
+  MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
       JSReceiver* receiver,
       String* name,
       PropertyAttributes* attributes);
-  MaybeObject* GetLocalPropertyPostInterceptor(JSReceiver* receiver,
-                                               String* name,
-                                               PropertyAttributes* attributes);
+  MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
+      JSReceiver* receiver,
+      String* name,
+      PropertyAttributes* attributes);
 
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
@@ -1668,18 +1670,21 @@ class JSObject: public JSReceiver {
   inline void ValidateSmiOnlyElements();
 
   // Makes sure that this object can contain HeapObject as elements.
-  inline MaybeObject* EnsureCanContainHeapObjectElements();
+  MUST_USE_RESULT inline MaybeObject* EnsureCanContainHeapObjectElements();
 
   // Makes sure that this object can contain the specified elements.
-  inline MaybeObject* EnsureCanContainElements(Object** elements,
-                                               uint32_t count,
-                                               EnsureElementsMode mode);
-  inline MaybeObject* EnsureCanContainElements(FixedArrayBase* elements,
-                                               EnsureElementsMode mode);
-  MaybeObject* EnsureCanContainElements(Arguments* arguments,
-                                        uint32_t first_arg,
-                                        uint32_t arg_count,
-                                        EnsureElementsMode mode);
+  MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
+      Object** elements,
+      uint32_t count,
+      EnsureElementsMode mode);
+  MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
+      FixedArrayBase* elements,
+      EnsureElementsMode mode);
+  MUST_USE_RESULT MaybeObject* EnsureCanContainElements(
+      Arguments* arguments,
+      uint32_t first_arg,
+      uint32_t arg_count,
+      EnsureElementsMode mode);
 
   // Do we want to keep the elements in fast case when increasing the
   // capacity?
@@ -1762,7 +1767,8 @@ class JSObject: public JSReceiver {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
+  MUST_USE_RESULT MaybeObject* GetElementWithInterceptor(Object* receiver,
+                                                         uint32_t index);
 
   enum SetFastElementsCapacityMode {
     kAllowSmiOnlyElements,
@@ -2069,11 +2075,12 @@ class JSObject: public JSReceiver {
                                                       Object* structure,
                                                       uint32_t index,
                                                       Object* holder);
-  MaybeObject* SetElementWithCallback(Object* structure,
-                                      uint32_t index,
-                                      Object* value,
-                                      JSObject* holder,
-                                      StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetElementWithCallback(
+      Object* structure,
+      uint32_t index,
+      Object* value,
+      JSObject* holder,
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
       uint32_t index,
       Object* value,
@@ -2140,9 +2147,11 @@ class JSObject: public JSReceiver {
   // If no hidden properties object has been put on this object,
   // return undefined, unless create_if_absent is true, in which case
   // a new dictionary is created, added to this object, and returned.
-  MaybeObject* GetHiddenPropertiesDictionary(bool create_if_absent);
+  MUST_USE_RESULT MaybeObject* GetHiddenPropertiesDictionary(
+      bool create_if_absent);
   // Updates the existing hidden properties dictionary.
-  MaybeObject* SetHiddenPropertiesDictionary(StringDictionary* dictionary);
+  MUST_USE_RESULT MaybeObject* SetHiddenPropertiesDictionary(
+      StringDictionary* dictionary);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -2289,7 +2298,7 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Setter and getter for elements.
   inline double get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -3614,7 +3623,7 @@ class ExternalPixelArray: public ExternalArray {
 
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint8_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber and
@@ -3643,12 +3652,12 @@ class ExternalByteArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int8_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int8_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalByteArray* cast(Object* obj);
@@ -3672,12 +3681,12 @@ class ExternalUnsignedByteArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint8_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedByteArray* cast(Object* obj);
@@ -3701,12 +3710,12 @@ class ExternalShortArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int16_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int16_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalShortArray* cast(Object* obj);
@@ -3730,12 +3739,12 @@ class ExternalUnsignedShortArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint16_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint16_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedShortArray* cast(Object* obj);
@@ -3759,12 +3768,12 @@ class ExternalIntArray: public ExternalArray {
  public:
   // Setter and getter.
   inline int32_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, int32_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalIntArray* cast(Object* obj);
@@ -3788,12 +3797,12 @@ class ExternalUnsignedIntArray: public ExternalArray {
  public:
   // Setter and getter.
   inline uint32_t get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, uint32_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUnsignedIntArray* cast(Object* obj);
@@ -3817,12 +3826,12 @@ class ExternalFloatArray: public ExternalArray {
  public:
   // Setter and getter.
   inline float get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, float value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloatArray* cast(Object* obj);
@@ -3846,12 +3855,12 @@ class ExternalDoubleArray: public ExternalArray {
  public:
   // Setter and getter.
   inline double get_scalar(int index);
-  inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MaybeObject* SetValue(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalDoubleArray* cast(Object* obj);
@@ -4769,7 +4778,8 @@ class Map: public HeapObject {
 
   Object* GetPrototypeTransition(Object* prototype);
 
-  MaybeObject* PutPrototypeTransition(Object* prototype, Map* map);
+  MUST_USE_RESULT MaybeObject* PutPrototypeTransition(Object* prototype,
+                                                      Map* map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -5661,7 +5671,8 @@ class JSFunction: public JSObject {
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
-  inline MaybeObject* set_initial_map_and_cache_transitions(Map* value);
+  MUST_USE_RESULT inline MaybeObject* set_initial_map_and_cache_transitions(
+      Map* value);
   inline bool has_initial_map();
 
   // Get and set the prototype property on a JSFunction. If the
@@ -5672,7 +5683,7 @@ class JSFunction: public JSObject {
   inline bool has_instance_prototype();
   inline Object* prototype();
   inline Object* instance_prototype();
-  MaybeObject* SetInstancePrototype(Object* value);
+  MUST_USE_RESULT MaybeObject* SetInstancePrototype(Object* value);
   MUST_USE_RESULT MaybeObject* SetPrototype(Object* value);
 
   // After prototype is removed, it will not be created when accessed, and
@@ -6185,12 +6196,14 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
                      LanguageMode language_mode,
                      int scope_position);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
-  MaybeObject* Put(String* src, Object* value);
-  MaybeObject* PutEval(String* src,
-                       Context* context,
-                       SharedFunctionInfo* value,
-                       int scope_position);
-  MaybeObject* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
+  MUST_USE_RESULT MaybeObject* Put(String* src, Object* value);
+  MUST_USE_RESULT MaybeObject* PutEval(String* src,
+                                       Context* context,
+                                       SharedFunctionInfo* value,
+                                       int scope_position);
+  MUST_USE_RESULT MaybeObject* PutRegExp(String* src,
+                                         JSRegExp::Flags flags,
+                                         FixedArray* value);
 
   // Remove given value from cache.
   void Remove(Object* value);
@@ -7655,7 +7668,7 @@ class JSArray: public JSObject {
   MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Set the content of the array to the content of storage.
-  inline MaybeObject* SetContent(FixedArrayBase* storage);
+  MUST_USE_RESULT inline MaybeObject* SetContent(FixedArrayBase* storage);
 
   // Casting.
   static inline JSArray* cast(Object* obj);
