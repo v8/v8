@@ -11283,6 +11283,29 @@ static Handle<JSObject> MaterializeBlockScope(
 }
 
 
+// Create a plain JSObject which materializes the module scope for the specified
+// module context.
+static Handle<JSObject> MaterializeModuleScope(
+    Isolate* isolate,
+    Handle<Context> context) {
+  ASSERT(context->IsModuleContext());
+  Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
+
+  // Allocate and initialize a JSObject with all the members of the debugged
+  // module.
+  Handle<JSObject> module_scope =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  // Fill all context locals.
+  if (!CopyContextLocalsToScopeObject(
+          isolate, scope_info, context, module_scope)) {
+    return Handle<JSObject>();
+  }
+
+  return module_scope;
+}
+
+
 // Iterate over the actual scopes visible from a stack frame. The iteration
 // proceeds from the innermost visible nested scope outwards. All scopes are
 // backed by an actual context except the local scope, which is inserted
@@ -11295,7 +11318,8 @@ class ScopeIterator {
     ScopeTypeWith,
     ScopeTypeClosure,
     ScopeTypeCatch,
-    ScopeTypeBlock
+    ScopeTypeBlock,
+    ScopeTypeModule
   };
 
   ScopeIterator(Isolate* isolate,
@@ -11418,6 +11442,9 @@ class ScopeIterator {
           ASSERT(context_->IsFunctionContext() ||
                  !scope_info->HasContext());
           return ScopeTypeLocal;
+        case MODULE_SCOPE:
+          ASSERT(context_->IsModuleContext());
+          return ScopeTypeModule;
         case GLOBAL_SCOPE:
           ASSERT(context_->IsGlobalContext());
           return ScopeTypeGlobal;
@@ -11448,6 +11475,9 @@ class ScopeIterator {
     if (context_->IsBlockContext()) {
       return ScopeTypeBlock;
     }
+    if (context_->IsModuleContext()) {
+      return ScopeTypeModule;
+    }
     ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
@@ -11471,6 +11501,8 @@ class ScopeIterator {
         return MaterializeClosure(isolate_, CurrentContext());
       case ScopeIterator::ScopeTypeBlock:
         return MaterializeBlockScope(isolate_, CurrentContext());
+      case ScopeIterator::ScopeTypeModule:
+        return MaterializeModuleScope(isolate_, CurrentContext());
     }
     UNREACHABLE();
     return Handle<JSObject>();

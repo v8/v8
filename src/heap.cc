@@ -2234,6 +2234,12 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
+  set_module_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
   Map* global_context_map = Map::cast(obj);
   global_context_map->set_visitor_id(StaticVisitorBase::kVisitGlobalContext);
   set_global_context_map(global_context_map);

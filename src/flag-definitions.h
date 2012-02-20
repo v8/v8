@@ -111,7 +111,8 @@ DEFINE_bool(use_strict, false, "enforce strict mode")
 
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
-DEFINE_bool(harmony_modules, false, "enable harmony modules")
+DEFINE_bool(harmony_modules, false,
+            "enable harmony modules (implies block scoping)")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
@@ -120,6 +121,7 @@ DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
+DEFINE_implication(harmony_modules, harmony_scoping)
 
 // Flags for experimental implementation features.
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
