@@ -56,10 +56,6 @@ S10.4.2.1_A1: FAIL
 15.2.3.7-6-a-284: FAIL
 15.2.3.7-6-a-285: FAIL
 
-# Unanalyzed failures:
-S15.10.2.12_A1_T1: FAIL
-S15.10.2.12_A2_T1: FAIL
-
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # We deliberately treat arguments to parseInt() with a leading zero as
