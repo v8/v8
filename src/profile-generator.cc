@@ -1083,7 +1083,7 @@ void HeapEntry::Print(
   for (int i = 0; i < ch.length(); ++i) {
     HeapGraphEdge& edge = ch[i];
     const char* edge_prefix = "";
-    ScopedVector<char> index(64);
+    EmbeddedVector<char, 64> index;
     const char* edge_name = index.start();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
@@ -1164,6 +1164,7 @@ class RetainedSizeCalculator {
   int retained_size_;
 };
 
+
 void HeapEntry::CalculateExactRetainedSize() {
   // To calculate retained size, first we paint all reachable nodes in
   // one color, then we paint (or re-paint) all nodes reachable from
@@ -1243,6 +1244,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
   }
 }
 
+
 HeapSnapshot::~HeapSnapshot() {
   DeleteArray(raw_entries_);
 }
@@ -1267,6 +1269,7 @@ void HeapSnapshot::AllocateEntries(int entries_count,
 static void HeapEntryClearPaint(HeapEntry** entry_ptr) {
   (*entry_ptr)->clear_paint();
 }
+
 
 void HeapSnapshot::ClearPaint() {
   entries_.Iterate(HeapEntryClearPaint);
@@ -1372,6 +1375,7 @@ static int SortByIds(const T* entry1_ptr,
   if ((*entry1_ptr)->id() == (*entry2_ptr)->id()) return 0;
   return (*entry1_ptr)->id() < (*entry2_ptr)->id() ? -1 : 1;
 }
+
 
 List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
   if (!entries_sorted_) {
@@ -3363,6 +3367,17 @@ bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
 }
 
 
+template<int bytes> struct MaxDecimalDigitsIn;
+template<> struct MaxDecimalDigitsIn<4> {
+  static const int kSigned = 11;
+  static const int kUnsigned = 10;
+};
+template<> struct MaxDecimalDigitsIn<8> {
+  static const int kSigned = 20;
+  static const int kUnsigned = 20;
+};
+
+
 class OutputStreamWriter {
  public:
   explicit OutputStreamWriter(v8::OutputStream* stream)
@@ -3412,23 +3427,34 @@ class OutputStreamWriter {
  private:
   template<typename T>
   void AddNumberImpl(T n, const char* format) {
-    ScopedVector<char> buffer(32);
-    int result = OS::SNPrintF(buffer, format, n);
-    USE(result);
-    ASSERT(result != -1);
-    AddString(buffer.start());
+    // Buffer for the longest value plus trailing \0
+    static const int kMaxNumberSize =
+        MaxDecimalDigitsIn<sizeof(T)>::kUnsigned + 1;
+    if (chunk_size_ - chunk_pos_ >= kMaxNumberSize) {
+      int result = OS::SNPrintF(
+          chunk_.SubVector(chunk_pos_, chunk_size_), format, n);
+      ASSERT(result != -1);
+      chunk_pos_ += result;
+      MaybeWriteChunk();
+    } else {
+      EmbeddedVector<char, kMaxNumberSize> buffer;
+      int result = OS::SNPrintF(buffer, format, n);
+      USE(result);
+      ASSERT(result != -1);
+      AddString(buffer.start());
+    }
   }
   void MaybeWriteChunk() {
     ASSERT(chunk_pos_ <= chunk_size_);
     if (chunk_pos_ == chunk_size_) {
       WriteChunk();
-      chunk_pos_ = 0;
     }
   }
   void WriteChunk() {
     if (aborted_) return;
     if (stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_) ==
         v8::OutputStream::kAbort) aborted_ = true;
+    chunk_pos_ = 0;
   }
 
   v8::OutputStream* stream_;
@@ -3437,6 +3463,7 @@ class OutputStreamWriter {
   int chunk_pos_;
   bool aborted_;
 };
+
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
@@ -3543,38 +3570,39 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 
 
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
-  writer_->AddCharacter(',');
-  writer_->AddNumber(edge->type());
-  writer_->AddCharacter(',');
-  if (edge->type() == HeapGraphEdge::kElement
+  // The buffer needs space for 3 ints, 3 commas and \0
+  static const int kBufferSize =
+      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 3 + 3 + 1;  // NOLINT
+  EmbeddedVector<char, kBufferSize> buffer;
+  int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
-      || edge->type() == HeapGraphEdge::kWeak) {
-    writer_->AddNumber(edge->index());
-  } else {
-    writer_->AddNumber(GetStringId(edge->name()));
-  }
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetNodeId(edge->to()));
+      || edge->type() == HeapGraphEdge::kWeak
+      ? edge->index() : GetStringId(edge->name());
+  int result = OS::SNPrintF(buffer, ",%d,%d,%d",
+      edge->type(), edge_name_or_index, GetNodeId(edge->to()));
+  USE(result);
+  ASSERT(result != -1);
+  writer_->AddString(buffer.start());
 }
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  writer_->AddCharacter('\n');
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->type());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetStringId(entry->name()));
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->id());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->self_size());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->RetainedSize(false));
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetNodeId(entry->dominator()));
+  // The buffer needs space for 7 ints, 7 commas, \n and \0
+  static const int kBufferSize =
+      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 7 + 7 + 1 + 1;  // NOLINT
+  EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
-  writer_->AddCharacter(',');
-  writer_->AddNumber(children.length());
+  int result = OS::SNPrintF(buffer, "\n,%d,%d,%d,%d,%d,%d,%d",
+      entry->type(),
+      GetStringId(entry->name()),
+      entry->id(),
+      entry->self_size(),
+      entry->RetainedSize(false),
+      GetNodeId(entry->dominator()),
+      children.length());
+  USE(result);
+  ASSERT(result != -1);
+  writer_->AddString(buffer.start());
   for (int i = 0; i < children.length(); ++i) {
     SerializeEdge(&children[i]);
     if (writer_->aborted()) return;
