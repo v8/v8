@@ -547,11 +547,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
                     context->global_context());
     }
     result->set_literals(*literals);
-  } else {
-    result->set_function_bindings(isolate()->heap()->empty_fixed_array());
   }
-  result->set_next_function_link(isolate()->heap()->undefined_value());
-
   if (V8::UseCrankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
