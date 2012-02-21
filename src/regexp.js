@@ -28,7 +28,7 @@
 // Expect $Object = global.Object;
 // Expect $Array = global.Array;
 
-const $RegExp = global.RegExp;
+var $RegExp = global.RegExp;
 
 // A recursive descent parser for Patterns according to the grammar of
 // ECMA-262 15.10.1, with deviations noted below.
@@ -413,13 +413,13 @@ function SetUpRegExp() {
   // The properties input, $input, and $_ are aliases for each other.  When this
   // value is set the value it is set to is coerced to a string.
   // Getter and setter for the input.
-  function RegExpGetInput() {
+  var RegExpGetInput = function() {
     var regExpInput = LAST_INPUT(lastMatchInfo);
     return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
-  }
-  function RegExpSetInput(string) {
+  };
+  var RegExpSetInput = function(string) {
     LAST_INPUT(lastMatchInfo) = ToString(string);
-  }
+  };
 
   %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
   %DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE);
@@ -441,8 +441,8 @@ function SetUpRegExp() {
 
   // Getter and setter for multiline.
   var multiline = false;
-  function RegExpGetMultiline() { return multiline; }
-  function RegExpSetMultiline(flag) { multiline = flag ? true : false; }
+  var RegExpGetMultiline = function() { return multiline; };
+  var RegExpSetMultiline = function(flag) { multiline = flag ? true : false; };
 
   %DefineAccessor($RegExp, 'multiline', GETTER, RegExpGetMultiline,
                   DONT_DELETE);
@@ -454,7 +454,7 @@ function SetUpRegExp() {
                   DONT_ENUM | DONT_DELETE);
 
 
-  function NoOpSetter(ignored) {}
+  var NoOpSetter = function(ignored) {};
 
 
   // Static properties set by a successful match.

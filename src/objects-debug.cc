@@ -326,6 +326,13 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 }
 
 
+void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
+  VerifyObjectField(kIcTotalCountOffset);
+  VerifyObjectField(kIcWithTypeinfoCountOffset);
+  VerifyHeapPointer(type_feedback_cells());
+}
+
+
 void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);

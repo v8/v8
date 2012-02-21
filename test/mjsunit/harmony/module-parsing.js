@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,26 +25,56 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --harmony-modules
 
-// Test that we can inline functions containing materialized literals.
+// Test basic module syntax, with and without ASI.
 
-function o2(b, c) {
-  return { 'b':b, 'c':c, 'y':b + c };
+module A {}
+
+module A1 = A
+module A2 = A;
+module A3 = A2
+
+module B {
+  var x
+  var x, y;
+  var x = 0, y
+  let x, y
+  let z = 1
+  const c = 9
+  function f() {}
+  module C {
+    let x
+    module D {}
+    let y
+  }
+  let zz = ""
 }
 
-function o1(a, b, c) {
-  return { 'a':a, 'x':o2(b, c) };
+module C1 = B.C;
+module D1 = B.C.D
+module D2 = C1.D
+module D3 = D2
+
+module E1 at "http://where"
+module E2 at "http://where";
+module E3 = E1.F
+
+
+// Check that ASI does not interfere.
+
+module
+X
+{
+let x
 }
 
-function TestObjectLiteral(a, b, c) {
-  var expected = { 'a':a, 'x':{ 'b':b, 'c':c, 'y':b + c } };
-  var result = o1(a, b, c);
-  assertEquals(expected, result, "TestObjectLiteral");
-}
+module
+Y
+=
+X
 
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral(1, 2, 3);
-%OptimizeFunctionOnNextCall(TestObjectLiteral);
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral('a', 'b', 'c');
+module
+Z
+at
+"file://local"

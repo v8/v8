@@ -1640,6 +1640,8 @@ void Assembler::movsxlq(Register dst, const Operand& src) {
 
 void Assembler::movzxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
+  // 32 bit operations zero the top 32 bits of 64 bit registers.  Therefore
+  // there is no need to make this a 64 bit operation.
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xB6);

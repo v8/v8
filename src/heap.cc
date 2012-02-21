@@ -1938,6 +1938,19 @@ MaybeObject* Heap::AllocateAccessorPair() {
 }
 
 
+MaybeObject* Heap::AllocateTypeFeedbackInfo() {
+  TypeFeedbackInfo* info;
+  { MaybeObject* maybe_result = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
+    if (!maybe_result->To(&info)) return maybe_result;
+  }
+  info->set_ic_total_count(0);
+  info->set_ic_with_typeinfo_count(0);
+  info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
+                                SKIP_WRITE_BARRIER);
+  return info;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -2216,6 +2229,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_block_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_module_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -3361,8 +3380,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
-                                SKIP_WRITE_BARRIER);
+  code->set_type_feedback_info(undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   // Allow self references to created code object by patching the handle to
@@ -5062,8 +5080,39 @@ void Heap::Verify() {
   cell_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
+
+  // TODO(svenpanne) We should enable this when our fast->slow->fast-mode dance
+  // for setting accessor properties is fixed.
+  // VerifyNoAccessorPairSharing();
 }
 
+
+void Heap::VerifyNoAccessorPairSharing() {
+  // Verification is done in 2 phases: First we mark all AccessorPairs, checking
+  // that we mark only unmarked pairs, then we clear all marks, restoring the
+  // initial state. We use the Smi tag of the AccessorPair's getter as the
+  // marking bit, because we can never see a Smi as the getter.
+  for (int phase = 0; phase < 2; phase++) {
+    HeapObjectIterator iter(map_space());
+    for (HeapObject* obj = iter.Next(); obj != NULL; obj = iter.Next()) {
+      if (obj->IsMap()) {
+        DescriptorArray* descs = Map::cast(obj)->instance_descriptors();
+        for (int i = 0; i < descs->number_of_descriptors(); i++) {
+          if (descs->GetType(i) == CALLBACKS &&
+              descs->GetValue(i)->IsAccessorPair()) {
+            AccessorPair* accessors = AccessorPair::cast(descs->GetValue(i));
+            uintptr_t before = reinterpret_cast<intptr_t>(accessors->getter());
+            uintptr_t after = (phase == 0) ?
+                ((before & ~kSmiTagMask) | kSmiTag) :
+                ((before & ~kHeapObjectTag) | kHeapObjectTag);
+            CHECK(before != after);
+            accessors->set_getter(reinterpret_cast<Object*>(after));
+          }
+        }
+      }
+    }
+  }
+}
 #endif  // DEBUG
 
 

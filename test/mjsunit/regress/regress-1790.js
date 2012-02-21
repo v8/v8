@@ -25,26 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Regression test checking that the sequence of element access in built-in
+// array functions is specification conform (i.e. [[HasProperty]] might return
+// bogus result after [[Get]] has been called).
 
-// Test that we can inline functions containing materialized literals.
+function CheckSequence(builtin, callback) {
+  var array = [1,2,3];
+  var callback_count = 0;
+  var callback_wrapper = function() {
+    callback_count++;
+    return callback()
+  }
 
-function o2(b, c) {
-  return { 'b':b, 'c':c, 'y':b + c };
+  // Define getter that will delete itself upon first invocation.
+  Object.defineProperty(array, '1', {
+    get: function () { delete array[1]; },
+    configurable: true
+  });
+
+  assertTrue(array.hasOwnProperty('1'));
+  builtin.apply(array, [callback_wrapper, 'argument']);
+  assertFalse(array.hasOwnProperty('1'));
+  assertEquals(3, callback_count);
 }
 
-function o1(a, b, c) {
-  return { 'a':a, 'x':o2(b, c) };
-}
-
-function TestObjectLiteral(a, b, c) {
-  var expected = { 'a':a, 'x':{ 'b':b, 'c':c, 'y':b + c } };
-  var result = o1(a, b, c);
-  assertEquals(expected, result, "TestObjectLiteral");
-}
-
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral(1, 2, 3);
-%OptimizeFunctionOnNextCall(TestObjectLiteral);
-TestObjectLiteral(1, 2, 3);
-TestObjectLiteral('a', 'b', 'c');
+CheckSequence(Array.prototype.every,       function() { return true; });
+CheckSequence(Array.prototype.filter,      function() { return true; });
+CheckSequence(Array.prototype.forEach,     function() { return 0; });
+CheckSequence(Array.prototype.map,         function() { return 0; });
+CheckSequence(Array.prototype.reduce,      function() { return 0; });
+CheckSequence(Array.prototype.reduceRight, function() { return 0; });
+CheckSequence(Array.prototype.some,        function() { return false; });

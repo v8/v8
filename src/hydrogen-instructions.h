@@ -103,6 +103,7 @@ class LChunkBuilder;
   V(Div)                                       \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
+  V(FastLiteral)                               \
   V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
@@ -140,8 +141,7 @@ class LChunkBuilder;
   V(LoadNamedGeneric)                          \
   V(Mod)                                       \
   V(Mul)                                       \
-  V(ObjectLiteralFast)                         \
-  V(ObjectLiteralGeneric)                      \
+  V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
@@ -4191,17 +4191,8 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kChangesElementsKind);
-    if (original_map->has_fast_double_elements()) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kDependsOnElementsPointer);
-      SetGVNFlag(kDependsOnDoubleArrayElements);
-    } else if (transitioned_map->has_fast_double_elements()) {
-      SetGVNFlag(kChangesElementsPointer);
-      SetGVNFlag(kDependsOnElementsPointer);
-      SetGVNFlag(kDependsOnArrayElements);
-    }
+    SetGVNFlag(kChangesElementsPointer);
     set_representation(Representation::Tagged());
   }
 
@@ -4357,6 +4348,41 @@ class HMaterializedLiteral: public HTemplateInstruction<V> {
 };
 
 
+class HFastLiteral: public HMaterializedLiteral<1> {
+ public:
+  HFastLiteral(HValue* context,
+               Handle<JSObject> boilerplate,
+               int total_size,
+               int literal_index,
+               int depth)
+      : HMaterializedLiteral<1>(literal_index, depth),
+        boilerplate_(boilerplate),
+        total_size_(total_size) {
+    SetOperandAt(0, context);
+  }
+
+  // Maximum depth and total number of elements and properties for literal
+  // graphs to be considered for fast deep-copying.
+  static const int kMaxLiteralDepth = 3;
+  static const int kMaxLiteralProperties = 8;
+
+  HValue* context() { return OperandAt(0); }
+  Handle<JSObject> boilerplate() const { return boilerplate_; }
+  int total_size() const { return total_size_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual HType CalculateInferredType();
+
+  DECLARE_CONCRETE_INSTRUCTION(FastLiteral)
+
+ private:
+  Handle<JSObject> boilerplate_;
+  int total_size_;
+};
+
+
 class HArrayLiteral: public HMaterializedLiteral<1> {
  public:
   HArrayLiteral(HValue* context,
@@ -4395,49 +4421,14 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
 };
 
 
-class HObjectLiteralFast: public HMaterializedLiteral<1> {
+class HObjectLiteral: public HMaterializedLiteral<1> {
  public:
-  HObjectLiteralFast(HValue* context,
-                     Handle<JSObject> boilerplate,
-                     int total_size,
-                     int literal_index,
-                     int depth)
-      : HMaterializedLiteral<1>(literal_index, depth),
-        boilerplate_(boilerplate),
-        total_size_(total_size) {
-    SetOperandAt(0, context);
-  }
-
-  // Maximum depth and total number of properties for object literal
-  // graphs to be considered for fast deep-copying.
-  static const int kMaxObjectLiteralDepth = 3;
-  static const int kMaxObjectLiteralProperties = 8;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSObject> boilerplate() const { return boilerplate_; }
-  int total_size() const { return total_size_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast)
-
- private:
-  Handle<JSObject> boilerplate_;
-  int total_size_;
-};
-
-
-class HObjectLiteralGeneric: public HMaterializedLiteral<1> {
- public:
-  HObjectLiteralGeneric(HValue* context,
-                        Handle<FixedArray> constant_properties,
-                        bool fast_elements,
-                        int literal_index,
-                        int depth,
-                        bool has_function)
+  HObjectLiteral(HValue* context,
+                 Handle<FixedArray> constant_properties,
+                 bool fast_elements,
+                 int literal_index,
+                 int depth,
+                 bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
         fast_elements_(fast_elements),
@@ -4457,7 +4448,7 @@ class HObjectLiteralGeneric: public HMaterializedLiteral<1> {
   }
   virtual HType CalculateInferredType();
 
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral)
 
  private:
   Handle<FixedArray> constant_properties_;
@@ -4552,7 +4543,7 @@ class HToFastProperties: public HUnaryOperation {
     // This instruction is not marked as having side effects, but
     // changes the map of the input operand. Use it only when creating
     // object literals.
-    ASSERT(value->IsObjectLiteralGeneric() || value->IsObjectLiteralFast());
+    ASSERT(value->IsObjectLiteral() || value->IsFastLiteral());
     set_representation(Representation::Tagged());
   }
 

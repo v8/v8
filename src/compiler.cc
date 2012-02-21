@@ -497,13 +497,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // for small sources, odds are that there aren't many functions
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
-    int flags = kNoParsingFlags;
-    if ((natives == NATIVES_CODE) || FLAG_allow_natives_syntax) {
-      flags |= kAllowNativesSyntax;
-    }
-    if (natives != NATIVES_CODE && FLAG_harmony_scoping) {
-      flags |= EXTENDED_MODE;
-    }
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = FACTORY->NewScript(source);
@@ -524,6 +517,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
+    if (FLAG_use_strict) info.SetLanguageMode(STRICT_MODE);
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);

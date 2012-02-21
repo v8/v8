@@ -133,10 +133,8 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-mips.h for its layout.
-void FullCodeGenerator::Generate(CompilationInfo* info) {
-  ASSERT(info_ == NULL);
-  info_ = info;
-  scope_ = info->scope();
+void FullCodeGenerator::Generate() {
+  CompilationInfo* info = info_;
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
   SetFunctionPosition(function());

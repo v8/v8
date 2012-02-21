@@ -949,6 +949,10 @@ class MacroAssembler: public Assembler {
   void AbortIfNotSmi(Register object);
   void AbortIfNotSmi(const Operand& object);
 
+  // Abort execution if a 64 bit register containing a 32 bit payload does not
+  // have zeros in the top 32 bits.
+  void AbortIfNotZeroExtended(Register reg);
+
   // Abort execution if argument is a string. Used in debug code.
   void AbortIfNotString(Register object);
 

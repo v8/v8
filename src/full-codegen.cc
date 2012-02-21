@@ -303,6 +303,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
+  cgen.PopulateTypeFeedbackInfo(code);
   cgen.PopulateTypeFeedbackCells(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
@@ -361,6 +362,13 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 }
 
 
+void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
+  Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
+  info->set_ic_total_count(ic_total_count_);
+  code->set_type_feedback_info(*info);
+}
+
+
 void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
   if (type_feedback_cells_.is_empty()) return;
   int length = type_feedback_cells_.length();
@@ -371,7 +379,8 @@ void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
     cache->SetAstId(i, Smi::FromInt(type_feedback_cells_[i].ast_id));
     cache->SetCell(i, *type_feedback_cells_[i].cell);
   }
-  code->set_type_feedback_cells(*cache);
+  TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
+      *cache);
 }
 
 

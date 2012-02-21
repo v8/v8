@@ -106,10 +106,13 @@ private:
 //
 #define FLAG FLAG_FULL
 
-// Flags for experimental language features.
+// Flags for language modes and experimental language features.
+DEFINE_bool(use_strict, false, "enforce strict mode")
+
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
-DEFINE_bool(harmony_modules, false, "enable harmony modules")
+DEFINE_bool(harmony_modules, false,
+            "enable harmony modules (implies block scoping)")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
@@ -118,9 +121,10 @@ DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
+DEFINE_implication(harmony_modules, harmony_scoping)
 
 // Flags for experimental implementation features.
-DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
+DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
@@ -177,11 +181,16 @@ DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
 DEFINE_int(interrupt_budget, 10000,
            "execution budget before interrupt is triggered")
+DEFINE_int(type_info_threshold, 0,
+           "percentage of ICs that must have type info to allow optimization")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
 DEFINE_implication(experimental_profiler, count_based_interrupts)
 DEFINE_implication(experimental_profiler, weighted_back_edges)
+
+DEFINE_bool(trace_opt_verbose, false, "extra verbose compilation tracing")
+DEFINE_implication(trace_opt_verbose, trace_opt)
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,

@@ -89,15 +89,10 @@ class FullCodeGenerator: public AstVisitor {
                          ? info->function()->ast_node_count() : 0),
         stack_checks_(2),  // There's always at least one.
         type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0) { }
+                             ? info->function()->ast_node_count() : 0),
+        ic_total_count_(0) { }
 
   static bool MakeCode(CompilationInfo* info);
-
-  void Generate();
-  void PopulateDeoptimizationData(Handle<Code> code);
-  void PopulateTypeFeedbackCells(Handle<Code> code);
-
-  Handle<FixedArray> handler_table() { return handler_table_; }
 
   // Encode state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
@@ -516,6 +511,10 @@ class FullCodeGenerator: public AstVisitor {
   // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
+  void CallIC(Handle<Code> code,
+              RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+              unsigned ast_id = kNoASTId);
+
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
@@ -580,6 +579,13 @@ class FullCodeGenerator: public AstVisitor {
   void VisitArithmeticExpression(BinaryOperation* expr);
 
   void VisitForTypeofValue(Expression* expr);
+
+  void Generate();
+  void PopulateDeoptimizationData(Handle<Code> code);
+  void PopulateTypeFeedbackInfo(Handle<Code> code);
+  void PopulateTypeFeedbackCells(Handle<Code> code);
+
+  Handle<FixedArray> handler_table() { return handler_table_; }
 
   struct BailoutEntry {
     unsigned id;
@@ -779,6 +785,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
+  int ic_total_count_;
   Handle<FixedArray> handler_table_;
   Handle<JSGlobalPropertyCell> profiling_counter_;
 

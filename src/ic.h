@@ -165,7 +165,7 @@ class IC {
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address);
   static inline void SetTargetAtAddress(Address address, Code* target);
-  static void PostPatching();
+  static void PostPatching(Address address, Code* target, Code* old_target);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.

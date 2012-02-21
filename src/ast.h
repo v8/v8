@@ -548,17 +548,17 @@ class ModuleVariable: public Module {
  public:
   DECLARE_NODE_TYPE(ModuleVariable)
 
-  Variable* var() const { return var_; }
+  VariableProxy* proxy() const { return proxy_; }
 
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleVariable(Variable* var)
-      : var_(var) {
+  explicit ModuleVariable(VariableProxy* proxy)
+      : proxy_(proxy) {
   }
 
  private:
-  Variable* var_;
+  VariableProxy* proxy_;
 };
 
 
@@ -2536,19 +2536,19 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ModuleLiteral, module)
   }
 
-  ModuleVariable* NewModuleVariable(Variable* var) {
-    ModuleVariable* module = new(zone_) ModuleVariable(var);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+  ModuleVariable* NewModuleVariable(VariableProxy* proxy) {
+    ModuleVariable* module = new(zone_) ModuleVariable(proxy);
+    VISIT_AND_RETURN(ModuleVariable, module)
   }
 
   ModulePath* NewModulePath(Module* origin, Handle<String> name) {
     ModulePath* module = new(zone_) ModulePath(origin, name);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+    VISIT_AND_RETURN(ModulePath, module)
   }
 
   ModuleUrl* NewModuleUrl(Handle<String> url) {
     ModuleUrl* module = new(zone_) ModuleUrl(url);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+    VISIT_AND_RETURN(ModuleUrl, module)
   }
 
   Block* NewBlock(ZoneStringList* labels,

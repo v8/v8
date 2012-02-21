@@ -296,7 +296,32 @@ Failure* IC::ReferenceError(const char* type, Handle<String> name) {
 }
 
 
-void IC::PostPatching() {
+void IC::PostPatching(Address address, Code* target, Code* old_target) {
+  if (FLAG_type_info_threshold > 0) {
+    if (old_target->is_inline_cache_stub() &&
+        target->is_inline_cache_stub()) {
+      State old_state = old_target->ic_state();
+      State new_state = target->ic_state();
+      bool was_uninitialized =
+          old_state == UNINITIALIZED || old_state == PREMONOMORPHIC;
+      bool is_uninitialized =
+          new_state == UNINITIALIZED || new_state == PREMONOMORPHIC;
+      int delta = 0;
+      if (was_uninitialized && !is_uninitialized) {
+        delta = 1;
+      } else if (!was_uninitialized && is_uninitialized) {
+        delta = -1;
+      }
+      if (delta != 0) {
+        Code* host = target->GetHeap()->isolate()->
+            inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
+        TypeFeedbackInfo* info =
+            TypeFeedbackInfo::cast(host->type_feedback_info());
+        info->set_ic_with_typeinfo_count(
+            info->ic_with_typeinfo_count() + delta);
+      }
+    }
+  }
   if (FLAG_watch_ic_patching) {
     Isolate::Current()->runtime_profiler()->NotifyICChanged();
     // We do not want to optimize until the ICs have settled down,
@@ -313,7 +338,9 @@ void IC::PostPatching() {
       if (raw_frame->is_java_script()) {
         JSFunction* function =
             JSFunction::cast(JavaScriptFrame::cast(raw_frame)->function());
-        function->shared()->set_profiler_ticks(0);
+        if (function->IsOptimized()) continue;
+        SharedFunctionInfo* shared = function->shared();
+        shared->set_profiler_ticks(0);
       }
       it.Advance();
     }

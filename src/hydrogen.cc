@@ -1431,7 +1431,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   void ProcessLoopBlock(HBasicBlock* block,
                         HBasicBlock* before_loop,
                         GVNFlagSet loop_kills,
-                        GVNFlagSet* accumulated_first_time_depends);
+                        GVNFlagSet* accumulated_first_time_depends,
+                        GVNFlagSet* accumulated_first_time_changes);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
 
@@ -1512,10 +1513,12 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
                side_effects.ToIntegral());
 
       GVNFlagSet accumulated_first_time_depends;
+      GVNFlagSet accumulated_first_time_changes;
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
         ProcessLoopBlock(graph_->blocks()->at(j), block, side_effects,
-                         &accumulated_first_time_depends);
+                         &accumulated_first_time_depends,
+                         &accumulated_first_time_changes);
       }
     }
   }
@@ -1526,7 +1529,8 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     HBasicBlock* block,
     HBasicBlock* loop_header,
     GVNFlagSet loop_kills,
-    GVNFlagSet* accumulated_first_time_depends) {
+    GVNFlagSet* first_time_depends,
+    GVNFlagSet* first_time_changes) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
   TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
@@ -1544,28 +1548,47 @@ void HGlobalValueNumberer::ProcessLoopBlock(
                instr->gvn_flags().ToIntegral(),
                depends_flags.ToIntegral());
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
-      if (!can_hoist && instr->IsTransitionElementsKind()) {
-        // It's only possible to hoist one time side effects if there are no
-        // dependencies on their changes from the loop header to the current
-        // instruction.
-        GVNFlagSet converted_changes =
-            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
-        TraceGVN("Checking dependencies on one-time instruction %d (%s) "
-                 "converted changes 0x%X, accumulated depends 0x%X\n",
+      if (instr->IsTransitionElementsKind()) {
+        // It's possible to hoist transitions out of a loop as long as the
+        // hoisting wouldn't move the transition past a DependsOn of one of it's
+        // changes or any instructions that might change an objects map or
+        // elements contents.
+        GVNFlagSet changes = instr->ChangesFlags();
+        GVNFlagSet hoist_depends_blockers =
+            HValue::ConvertChangesToDependsFlags(changes);
+        // In addition to not hoisting transitions above other instructions that
+        // change dependencies that the transition changes, it must not be
+        // hoisted above map changes and stores to an elements backing store
+        // that the transition might change.
+        GVNFlagSet hoist_change_blockers = changes;
+        hoist_change_blockers.Add(kChangesMaps);
+        HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
+        if (trans->original_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesDoubleArrayElements);
+        }
+        if (trans->transitioned_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesArrayElements);
+        }
+        TraceGVN("Checking dependencies on HTransitionElementsKind %d (%s) "
+                 "hoist depends blockers 0x%X, hoist change blockers 0x%X, "
+                 "accumulated depends 0x%X, accumulated changes 0x%X\n",
                  instr->id(),
                  instr->Mnemonic(),
-                 converted_changes.ToIntegral(),
-                 accumulated_first_time_depends->ToIntegral());
-        // It's possible to hoist one-time side effects from the current loop
-        // loop only if they dominate all of the successor blocks in the same
-        // loop and there are not any instructions that have Changes/DependsOn
-        // that intervene between it and the beginning of the loop header.
+                 hoist_depends_blockers.ToIntegral(),
+                 hoist_change_blockers.ToIntegral(),
+                 first_time_depends->ToIntegral(),
+                 first_time_changes->ToIntegral());
+        // It's possible to hoist transition from the current loop loop only if
+        // they dominate all of the successor blocks in the same loop and there
+        // are not any instructions that have Changes/DependsOn that intervene
+        // between it and the beginning of the loop header.
         bool in_nested_loop = block != loop_header &&
             ((block->parent_loop_header() != loop_header) ||
              block->IsLoopHeader());
         can_hoist = !in_nested_loop &&
             block->IsLoopSuccessorDominator() &&
-            !accumulated_first_time_depends->ContainsAnyOf(converted_changes);
+            !first_time_depends->ContainsAnyOf(hoist_depends_blockers) &&
+            !first_time_changes->ContainsAnyOf(hoist_change_blockers);
       }
 
       if (can_hoist) {
@@ -1589,10 +1612,8 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     if (!hoisted) {
       // If an instruction is not hoisted, we have to account for its side
       // effects when hoisting later HTransitionElementsKind instructions.
-      accumulated_first_time_depends->Add(instr->DependsOnFlags());
-      GVNFlagSet converted_changes =
-          HValue::ConvertChangesToDependsFlags(instr->SideEffectFlags());
-      accumulated_first_time_depends->Add(converted_changes);
+      first_time_depends->Add(instr->DependsOnFlags());
+      first_time_changes->Add(instr->ChangesFlags());
     }
     instr = next;
   }
@@ -3437,19 +3458,35 @@ void HGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
-// Determines whether the given object literal boilerplate satisfies all
-// limits to be considered for fast deep-copying and computes the total
+// Determines whether the given array or object literal boilerplate satisfies
+// all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
-static bool IsFastObjectLiteral(Handle<JSObject> boilerplate,
-                                int max_depth,
-                                int* max_properties,
-                                int* total_size) {
-  if (max_depth <= 0) return false;
+static bool IsFastLiteral(Handle<JSObject> boilerplate,
+                          int max_depth,
+                          int* max_properties,
+                          int* total_size) {
+  ASSERT(max_depth >= 0 && *max_properties >= 0);
+  if (max_depth == 0) return false;
 
   Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
-      elements->map() != HEAP->fixed_cow_array_map()) {
-    return false;
+      elements->map() != boilerplate->GetHeap()->fixed_cow_array_map()) {
+    if (!boilerplate->HasFastElements()) return false;
+    int length = elements->length();
+    for (int i = 0; i < length; i++) {
+      if ((*max_properties)-- == 0) return false;
+      Handle<Object> value = JSObject::GetElement(boilerplate, i);
+      if (value->IsJSObject()) {
+        Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+        if (!IsFastLiteral(value_object,
+                           max_depth - 1,
+                           max_properties,
+                           total_size)) {
+          return false;
+        }
+      }
+    }
+    *total_size += FixedArray::SizeFor(length);
   }
 
   Handle<FixedArray> properties(boilerplate->properties());
@@ -3458,14 +3495,14 @@ static bool IsFastObjectLiteral(Handle<JSObject> boilerplate,
   } else {
     int nof = boilerplate->map()->inobject_properties();
     for (int i = 0; i < nof; i++) {
-      if ((*max_properties)-- <= 0) return false;
+      if ((*max_properties)-- == 0) return false;
       Handle<Object> value(boilerplate->InObjectPropertyAt(i));
       if (value->IsJSObject()) {
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-        if (!IsFastObjectLiteral(value_object,
-                                 max_depth - 1,
-                                 max_properties,
-                                 total_size)) {
+        if (!IsFastLiteral(value_object,
+                           max_depth - 1,
+                           max_properties,
+                           total_size)) {
           return false;
         }
       }
@@ -3487,26 +3524,26 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int total_size = 0;
-  int max_properties = HObjectLiteralFast::kMaxObjectLiteralProperties;
+  int max_properties = HFastLiteral::kMaxLiteralProperties;
   Handle<Object> boilerplate(closure->literals()->get(expr->literal_index()));
   if (boilerplate->IsJSObject() &&
-      IsFastObjectLiteral(Handle<JSObject>::cast(boilerplate),
-                          HObjectLiteralFast::kMaxObjectLiteralDepth,
-                          &max_properties,
-                          &total_size)) {
+      IsFastLiteral(Handle<JSObject>::cast(boilerplate),
+                    HFastLiteral::kMaxLiteralDepth,
+                    &max_properties,
+                    &total_size)) {
     Handle<JSObject> boilerplate_object = Handle<JSObject>::cast(boilerplate);
-    literal = new(zone()) HObjectLiteralFast(context,
-                                             boilerplate_object,
-                                             total_size,
-                                             expr->literal_index(),
-                                             expr->depth());
+    literal = new(zone()) HFastLiteral(context,
+                                       boilerplate_object,
+                                       total_size,
+                                       expr->literal_index(),
+                                       expr->depth());
   } else {
-    literal = new(zone()) HObjectLiteralGeneric(context,
-                                                expr->constant_properties(),
-                                                expr->fast_elements(),
-                                                expr->literal_index(),
-                                                expr->depth(),
-                                                expr->has_function());
+    literal = new(zone()) HObjectLiteral(context,
+                                         expr->constant_properties(),
+                                         expr->fast_elements(),
+                                         expr->literal_index(),
+                                         expr->depth(),
+                                         expr->has_function());
   }
 
   // The object is expected in the bailout environment during computation
@@ -3577,6 +3614,7 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   HValue* context = environment()->LookupContext();
+  HInstruction* literal;
 
   Handle<FixedArray> literals(environment()->closure()->literals());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
@@ -3598,12 +3636,25 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   ElementsKind boilerplate_elements_kind =
         Handle<JSObject>::cast(boilerplate)->GetElementsKind();
 
-  HArrayLiteral* literal = new(zone()) HArrayLiteral(
-      context,
-      boilerplate,
-      length,
-      expr->literal_index(),
-      expr->depth());
+  // Check whether to use fast or slow deep-copying for boilerplate.
+  int total_size = 0;
+  int max_properties = HFastLiteral::kMaxLiteralProperties;
+  if (IsFastLiteral(boilerplate,
+                    HFastLiteral::kMaxLiteralDepth,
+                    &max_properties,
+                    &total_size)) {
+    literal = new(zone()) HFastLiteral(context,
+                                       boilerplate,
+                                       total_size,
+                                       expr->literal_index(),
+                                       expr->depth());
+  } else {
+    literal = new(zone()) HArrayLiteral(context,
+                                        boilerplate,
+                                        length,
+                                        expr->literal_index(),
+                                        expr->depth());
+  }
 
   // The array is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
@@ -4454,7 +4505,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
     if (!transition_target.at(i).is_null()) {
-      object = AddInstruction(new(zone()) HTransitionElementsKind(
+      AddInstruction(new(zone()) HTransitionElementsKind(
           object, map, transition_target.at(i)));
     } else {
       type_todo[map->elements_kind()] = true;
@@ -5310,32 +5361,43 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
-        // Do not inline if the return representation is not certain.
-        if (!left->representation().Equals(right->representation())) {
-          Push(left);
-          Push(right);
-          return false;
-        }
-
         Pop();  // Pop receiver.
-        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
-        HCompareIDAndBranch* compare = NULL;
 
-        if (left->representation().IsTagged()) {
-          HChange* left_cvt =
-              new(zone()) HChange(left, Representation::Double(), false, true);
-          left_cvt->SetFlag(HValue::kBailoutOnMinusZero);
-          AddInstruction(left_cvt);
-          HChange* right_cvt =
-              new(zone()) HChange(right, Representation::Double(), false, true);
-          right_cvt->SetFlag(HValue::kBailoutOnMinusZero);
-          AddInstruction(right_cvt);
-          compare = new(zone()) HCompareIDAndBranch(left_cvt, right_cvt, op);
-          compare->SetInputRepresentation(Representation::Double());
-        } else {
-          compare = new(zone()) HCompareIDAndBranch(left, right, op);
-          compare->SetInputRepresentation(left->representation());
+        HValue* left_operand = left;
+        HValue* right_operand = right;
+
+        // If we do not have two integers, we convert to double for comparison.
+        if (!left->representation().IsInteger32() ||
+            !right->representation().IsInteger32()) {
+          if (!left->representation().IsDouble()) {
+            HChange* left_convert = new(zone()) HChange(
+                left,
+                Representation::Double(),
+                false,  // Do not truncate when converting to double.
+                true);  // Deoptimize for undefined.
+            left_convert->SetFlag(HValue::kBailoutOnMinusZero);
+            left_operand = AddInstruction(left_convert);
+          }
+          if (!right->representation().IsDouble()) {
+            HChange* right_convert = new(zone()) HChange(
+                right,
+                Representation::Double(),
+                false,  // Do not truncate when converting to double.
+                true);  // Deoptimize for undefined.
+            right_convert->SetFlag(HValue::kBailoutOnMinusZero);
+            right_operand = AddInstruction(right_convert);
+          }
         }
+
+        ASSERT(left_operand->representation().Equals(
+               right_operand->representation()));
+        ASSERT(!left_operand->representation().IsTagged());
+
+        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
+
+        HCompareIDAndBranch* compare =
+            new(zone()) HCompareIDAndBranch(left_operand, right_operand, op);
+        compare->SetInputRepresentation(left_operand->representation());
 
         HBasicBlock* return_left = graph()->CreateBasicBlock();
         HBasicBlock* return_right = graph()->CreateBasicBlock();

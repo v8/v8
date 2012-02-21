@@ -9546,8 +9546,12 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       return SetElementWithCallback(element, index, value, this, strict_mode);
     } else {
       dictionary->UpdateMaxNumberKey(index);
-      // If put fails in strict mode, throw an exception.
-      if (!dictionary->ValueAtPut(entry, value) && strict_mode == kStrictMode) {
+      // If a value has not been initialized we allow writing to it even if it
+      // is read-only (a declared const that has not been initialized).
+      if (!dictionary->DetailsAt(entry).IsReadOnly() ||
+          dictionary->ValueAt(entry)->IsTheHole()) {
+        dictionary->ValueAtPut(entry, value);
+      } else if (strict_mode == kStrictMode) {
         Handle<Object> holder(this);
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<Object> args[2] = { number, holder };

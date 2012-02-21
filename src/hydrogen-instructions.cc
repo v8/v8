@@ -1841,17 +1841,18 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
+HType HFastLiteral::CalculateInferredType() {
+  // TODO(mstarzinger): Be smarter, could also be JSArray here.
+  return HType::JSObject();
+}
+
+
 HType HArrayLiteral::CalculateInferredType() {
   return HType::JSArray();
 }
 
 
-HType HObjectLiteralFast::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
-HType HObjectLiteralGeneric::CalculateInferredType() {
+HType HObjectLiteral::CalculateInferredType() {
   return HType::JSObject();
 }
 

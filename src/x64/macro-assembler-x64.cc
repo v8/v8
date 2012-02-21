@@ -2852,6 +2852,14 @@ void MacroAssembler::AbortIfNotSmi(const Operand& object) {
 }
 
 
+void MacroAssembler::AbortIfNotZeroExtended(Register int32_register) {
+  ASSERT(!int32_register.is(kScratchRegister));
+  movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
+  cmpq(kScratchRegister, int32_register);
+  Assert(above_equal, "32 bit value in register is not zero-extended");
+}
+
+
 void MacroAssembler::AbortIfNotString(Register object) {
   testb(object, Immediate(kSmiTagMask));
   Assert(not_equal, "Operand is not a string");
