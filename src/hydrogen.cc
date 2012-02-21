@@ -7617,7 +7617,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
     PrintIndent();
     trace_.Add("%d %s", range->id(), type);
     if (range->HasRegisterAssigned()) {
-      LOperand* op = range->CreateAssignedOperand();
+      LOperand* op = range->CreateAssignedOperand(ZONE);
       int assigned_reg = op->index();
       if (op->IsDoubleRegister()) {
         trace_.Add(" \"%s\"",
