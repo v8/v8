@@ -1756,7 +1756,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   Heap* heap = GetHeap();
   if (!map_of_this->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
-      return heap->undefined_value();
+      return value;
     } else {
       Handle<Object> args[1] = {Handle<String>(name)};
       return heap->isolate()->Throw(
