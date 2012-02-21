@@ -1,3 +1,16 @@
+2012-02-21: Version 3.9.8
+
+        Fixed memory leak and missing #include in StartupDataDecompressor
+        (issue 1960).
+
+        Renamed static methods to avoid shadowing virtual methods and fix Clang
+        C++11 compile error.
+
+        Fixed sequence of element access in array builtins (issue 1790).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-16: Version 3.9.7
 
         Fixed V8 issues 1322, 1878, 1942, 1945 and Chromium issue 113924.
