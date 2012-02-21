@@ -10359,30 +10359,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
 }
 
 
-// DefineAccessor takes an optional final argument which is the
-// property attributes (e.g. DONT_ENUM, DONT_DELETE).  IMPORTANT: due
-// to the way accessors are implemented, it is set for both the getter
-// and setter on the first call to DefineAccessor and ignored on
-// subsequent calls.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineAccessor) {
-  RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
-  // Compute attributes.
-  PropertyAttributes attributes = NONE;
-  if (args.length() == 5) {
-    CONVERT_SMI_ARG_CHECKED(value, 4);
-    // Only attribute bits should be set.
-    ASSERT((value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(value);
-  }
-
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag, 2);
-  CONVERT_ARG_CHECKED(JSFunction, fun, 3);
-  return obj->DefineAccessor(name, flag == 0, fun, attributes);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);

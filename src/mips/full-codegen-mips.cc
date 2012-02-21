@@ -1532,7 +1532,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                            Smi::FromInt(0)));
         __ push(a1);
         VisitForStackValue(value);
-        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        __ li(a0, Operand(Smi::FromInt(NONE)));
+        __ push(a0);
+        __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
         break;
     }
   }

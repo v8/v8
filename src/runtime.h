@@ -274,7 +274,6 @@ namespace internal {
   F(SwapElements, 3, 1) \
   \
   /* Getters and Setters */ \
-  F(DefineAccessor, -1 /* 4 or 5 */, 1) \
   F(LookupAccessor, 3, 1) \
   \
   /* Literals */ \
