@@ -3239,17 +3239,25 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  if (instr->index()->IsConstantOperand()) {
-    if (instr->length()->IsRegister()) {
-      __ cmpq(ToRegister(instr->length()),
+  if (instr->length()->IsRegister()) {
+    Register reg = ToRegister(instr->length());
+    if (FLAG_debug_code) {
+      __ AbortIfNotZeroExtended(reg);
+    }
+    if (instr->index()->IsConstantOperand()) {
+      __ cmpq(reg,
               Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
     } else {
-      __ cmpq(ToOperand(instr->length()),
-              Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
+      Register reg2 = ToRegister(instr->index());
+      if (FLAG_debug_code) {
+        __ AbortIfNotZeroExtended(reg2);
+      }
+      __ cmpq(reg, reg2);
     }
   } else {
-    if (instr->length()->IsRegister()) {
-      __ cmpq(ToRegister(instr->length()), ToRegister(instr->index()));
+    if (instr->index()->IsConstantOperand()) {
+      __ cmpq(ToOperand(instr->length()),
+              Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
     } else {
       __ cmpq(ToOperand(instr->length()), ToRegister(instr->index()));
     }
