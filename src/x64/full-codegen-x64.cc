@@ -130,7 +130,7 @@ void FullCodeGenerator::Generate() {
   // We can optionally optimize based on counters rather than statistical
   // sampling.
   if (info->ShouldSelfOptimize()) {
-    if (FLAG_trace_opt) {
+    if (FLAG_trace_opt_verbose) {
       PrintF("[adding self-optimization header to %s]\n",
              *info->function()->debug_name()->ToCString());
     }
