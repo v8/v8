@@ -8590,10 +8590,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
   if (!function->IsOptimizable()) return isolate->heap()->undefined_value();
   function->MarkForLazyRecompilation();
+
+  Code* unoptimized = function->shared()->code();
+  if (args.length() == 2 &&
+      unoptimized->kind() == Code::FUNCTION) {
+    CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+    CHECK(type->IsEqualTo(CStrVector("osr")));
+    isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+    unoptimized->set_allow_osr_at_loop_nesting_level(
+        Code::kMaxLoopNestingMarker);
+  }
+
   return isolate->heap()->undefined_value();
 }
 

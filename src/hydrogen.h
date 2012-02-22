@@ -399,6 +399,10 @@ class HEnvironment: public ZoneObject {
     return i >= parameter_count() && i < parameter_count() + specials_count();
   }
 
+  int first_expression_index() const {
+    return parameter_count() + specials_count() + local_count();
+  }
+
   void Bind(Variable* variable, HValue* value) {
     Bind(IndexFor(variable), value);
   }

@@ -3058,14 +3058,23 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
 
   set_current_block(osr_entry);
   int osr_entry_id = statement->OsrEntryId();
-  // We want the correct environment at the OsrEntry instruction.  Build
-  // it explicitly.  The expression stack should be empty.
-  ASSERT(environment()->ExpressionStackIsEmpty());
-  for (int i = 0; i < environment()->length(); ++i) {
+  int first_expression_index = environment()->first_expression_index();
+  int length = environment()->length();
+  for (int i = 0; i < first_expression_index; ++i) {
     HUnknownOSRValue* osr_value = new(zone()) HUnknownOSRValue;
     AddInstruction(osr_value);
     environment()->Bind(i, osr_value);
   }
+
+  if (first_expression_index != length) {
+    environment()->Drop(length - first_expression_index);
+    for (int i = first_expression_index; i < length; ++i) {
+      HUnknownOSRValue* osr_value = new(zone()) HUnknownOSRValue;
+      AddInstruction(osr_value);
+      environment()->Push(osr_value);
+    }
+  }
+
 
   AddSimulate(osr_entry_id);
   AddInstruction(new(zone()) HOsrEntry(osr_entry_id));
@@ -3274,15 +3283,17 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HForInCacheArray::cast(array)->set_index_cache(
       HForInCacheArray::cast(index_cache));
 
+  PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
   current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
 
-  HValue* index = Top();
+  HValue* index = environment()->ExpressionStackAt(0);
+  HValue* limit = environment()->ExpressionStackAt(1);
 
   // Check that we still have more keys.
   HCompareIDAndBranch* compare_index =
-      new(zone()) HCompareIDAndBranch(index, array_length, Token::LT);
+      new(zone()) HCompareIDAndBranch(index, limit, Token::LT);
   compare_index->SetInputRepresentation(Representation::Integer32());
 
   HBasicBlock* loop_body = graph()->CreateBasicBlock();
@@ -3299,11 +3310,15 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
   HValue* key = AddInstruction(
       new(zone()) HLoadKeyedFastElement(
-          array, index, HLoadKeyedFastElement::OMIT_HOLE_CHECK));
+          environment()->ExpressionStackAt(2),  // Enum cache.
+          environment()->ExpressionStackAt(0),  // Iteration index.
+          HLoadKeyedFastElement::OMIT_HOLE_CHECK));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
-  AddInstruction(new(zone()) HCheckMapValue(enumerable, map));
+  AddInstruction(new(zone()) HCheckMapValue(
+      environment()->ExpressionStackAt(4),
+      environment()->ExpressionStackAt(3)));
 
   Bind(each_var, key);
 
@@ -7440,9 +7455,8 @@ bool HEnvironment::HasExpressionAt(int index) const {
 
 
 bool HEnvironment::ExpressionStackIsEmpty() const {
-  int first_expression = parameter_count() + specials_count() + local_count();
-  ASSERT(length() >= first_expression);
-  return length() == first_expression;
+  ASSERT(length() >= first_expression_index());
+  return length() == first_expression_index();
 }
 
 

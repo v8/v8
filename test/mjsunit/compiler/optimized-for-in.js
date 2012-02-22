@@ -242,3 +242,57 @@ tryFunction("a1b2c3d4e5f6", function () {
   for (var i in t) r.push(i + t[i]);
   return r.join('');
 });
+
+// Test OSR inside for-in.
+function osr_inner(t, limit) {
+  var r = 1;
+  for (var x in t) {
+    for (var i = 0; i < t[x].length; i++) {
+      r += t[x][i];
+      if (i === limit) {
+        %OptimizeFunctionOnNextCall(osr_inner, "osr");
+      }
+    }
+    r += x;
+  }
+  return r;
+}
+
+function osr_outer(t, osr_after) {
+  var r = 1;
+  for (var x in t) {
+    for (var i = 0; i < t[x].length; i++) {
+      r += t[x][i];
+    }
+    if (x === osr_after) {
+      %OptimizeFunctionOnNextCall(osr_outer, "osr");
+    }
+    r += x;
+  }
+  return r;
+}
+
+function osr_outer_and_deopt(t, osr_after) {
+  var r = 1;
+  for (var x in t) {
+    r += x;
+    if (x == osr_after) {
+      %OptimizeFunctionOnNextCall(osr_outer_and_deopt, "osr");
+    }
+  }
+  return r;
+}
+
+function test_osr() {
+  with ({}) {}  // Disable optimizations of this function.
+  var arr = new Array(20);
+  for (var i = 0; i < arr.length; i++) {
+    arr[i] = i + 1;
+  }
+  arr.push(":");  // Force deopt at the end of the loop.
+  assertEquals("211:x", osr_inner({x: arr}, (arr.length / 2) | 0));
+  assertEquals("7x456y", osr_outer({x: [1,2,3], y: [4,5,6]}, "x"));
+  assertEquals("101234567", osr_outer_and_deopt([1,2,3,4,5,6,7,8], "5"));
+}
+
+test_osr();
