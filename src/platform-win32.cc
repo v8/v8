@@ -836,9 +836,7 @@ size_t OS::AllocateAlignment() {
 }
 
 
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
+static void* GetRandomAddr() {
   // The address range used to randomize RWX allocations in OS::Allocate
   // Try not to map pages into the default range that windows loads DLLs
   // Use a multiple of 64k to prevent committing unused memory.
@@ -851,28 +849,43 @@ void* OS::Allocate(const size_t requested,
   static const intptr_t kAllocationRandomAddressMin = 0x04000000;
   static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
+  uintptr_t address = (V8::RandomPrivate(Isolate::Current()) << kPageSizeBits)
+      | kAllocationRandomAddressMin;
+  address &= kAllocationRandomAddressMax;
+  return reinterpret_cast<void *>(address);
+}
 
+
+static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
+  LPVOID base = NULL;
+
+  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
+    // For exectutable pages try and randomize the allocation address
+    for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
+      base = VirtualAlloc(GetRandomAddr(), size, action, protection);
+    }
+  }
+
+  // After three attempts give up and let the OS find an address to use.
+  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
+
+  return base;
+}
+
+
+void* OS::Allocate(const size_t requested,
+                   size_t* allocated,
+                   bool is_executable) {
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
-  intptr_t address = 0;
+  void* address = 0;
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
 
-  // For exectutable pages try and randomize the allocation address
-  if (prot == PAGE_EXECUTE_READWRITE &&
-      msize >= static_cast<size_t>(Page::kPageSize)) {
-    address = (V8::RandomPrivate(Isolate::Current()) << kPageSizeBits)
-      | kAllocationRandomAddressMin;
-    address &= kAllocationRandomAddressMax;
-  }
-
-  LPVOID mbase = VirtualAlloc(reinterpret_cast<void *>(address),
-                              msize,
-                              MEM_COMMIT | MEM_RESERVE,
-                              prot);
-  if (mbase == NULL && address != 0)
-    mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
+  LPVOID mbase = RandomizedVirtualAlloc(msize,
+                                        MEM_COMMIT | MEM_RESERVE,
+                                        prot);
 
   if (mbase == NULL) {
     LOG(ISOLATE, StringEvent("OS::Allocate", "VirtualAlloc failed"));
@@ -1476,7 +1489,7 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 
 void* VirtualMemory::ReserveRegion(size_t size) {
-  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS);
 }
 
 
@@ -1499,7 +1512,6 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return VirtualFree(base, 0, MEM_RELEASE) != 0;
 }
-
 
 
 // ----------------------------------------------------------------------------
