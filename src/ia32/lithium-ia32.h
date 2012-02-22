@@ -167,7 +167,11 @@ class LCodeGen;
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
-  V(ValueOf)
+  V(ValueOf)                                    \
+  V(ForInPrepareMap)                            \
+  V(ForInCacheArray)                            \
+  V(CheckMapValue)                              \
+  V(LoadFieldByIndex)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -2165,6 +2169,64 @@ class LIn: public LTemplateInstruction<1, 3, 0> {
   LOperand* object() { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(In, "in")
+};
+
+
+class LForInPrepareMap: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LForInPrepareMap(LOperand* context, LOperand* object) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInPrepareMap, "for-in-prepare-map")
+};
+
+
+class LForInCacheArray: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LForInCacheArray(LOperand* map) {
+    inputs_[0] = map;
+  }
+
+  LOperand* map() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInCacheArray, "for-in-cache-array")
+
+  int idx() {
+    return HForInCacheArray::cast(this->hydrogen_value())->idx();
+  }
+};
+
+
+class LCheckMapValue: public LTemplateInstruction<0, 2, 0> {
+ public:
+  LCheckMapValue(LOperand* value, LOperand* map) {
+    inputs_[0] = value;
+    inputs_[1] = map;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* map() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckMapValue, "check-map-value")
+};
+
+
+class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadFieldByIndex(LOperand* object, LOperand* index) {
+    inputs_[0] = object;
+    inputs_[1] = index;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFieldByIndex, "load-field-by-index")
 };
 
 

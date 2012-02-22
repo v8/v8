@@ -2421,7 +2421,9 @@ class DescriptorArray: public FixedArray {
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
-  void SetEnumCache(FixedArray* bridge_storage, FixedArray* new_cache);
+  void SetEnumCache(FixedArray* bridge_storage,
+                    FixedArray* new_cache,
+                    Object* new_index_cache);
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
@@ -2525,9 +2527,10 @@ class DescriptorArray: public FixedArray {
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
-  static const int kEnumCacheBridgeLength = 2;
+  static const int kEnumCacheBridgeLength = 3;
   static const int kEnumCacheBridgeEnumIndex = 0;
   static const int kEnumCacheBridgeCacheIndex = 1;
+  static const int kEnumCacheBridgeIndicesCacheIndex = 2;
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;

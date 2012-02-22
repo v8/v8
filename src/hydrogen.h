@@ -705,8 +705,12 @@ class HGraphBuilder: public AstVisitor {
   // can have a separate lifetime.
   class BreakAndContinueInfo BASE_EMBEDDED {
    public:
-    explicit BreakAndContinueInfo(BreakableStatement* target)
-      : target_(target), break_block_(NULL), continue_block_(NULL) {
+    explicit BreakAndContinueInfo(BreakableStatement* target,
+                                  int drop_extra = 0)
+        : target_(target),
+          break_block_(NULL),
+          continue_block_(NULL),
+          drop_extra_(drop_extra) {
     }
 
     BreakableStatement* target() { return target_; }
@@ -714,11 +718,13 @@ class HGraphBuilder: public AstVisitor {
     void set_break_block(HBasicBlock* block) { break_block_ = block; }
     HBasicBlock* continue_block() { return continue_block_; }
     void set_continue_block(HBasicBlock* block) { continue_block_ = block; }
+    int drop_extra() { return drop_extra_; }
 
    private:
     BreakableStatement* target_;
     HBasicBlock* break_block_;
     HBasicBlock* continue_block_;
+    int drop_extra_;
   };
 
   // A helper class to maintain a stack of current BreakAndContinueInfo
@@ -737,7 +743,7 @@ class HGraphBuilder: public AstVisitor {
     BreakAndContinueScope* next() { return next_; }
 
     // Search the break stack for a break or continue target.
-    HBasicBlock* Get(BreakableStatement* stmt, BreakType type);
+    HBasicBlock* Get(BreakableStatement* stmt, BreakType type, int* drop_extra);
 
    private:
     BreakAndContinueInfo* info_;

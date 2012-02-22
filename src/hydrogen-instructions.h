@@ -180,7 +180,11 @@ class LChunkBuilder;
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
   V(UseConst)                                  \
-  V(ValueOf)
+  V(ValueOf)                                   \
+  V(ForInPrepareMap)                           \
+  V(ForInCacheArray)                           \
+  V(CheckMapValue)                             \
+  V(LoadFieldByIndex)
 
 #define GVN_FLAG_LIST(V)                       \
   V(Calls)                                     \
@@ -2011,7 +2015,8 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 
 class HCheckMap: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value, Handle<Map> map,
+  HCheckMap(HValue* value,
+            Handle<Map> map,
             HValue* typecheck = NULL,
             CompareMapMode mode = REQUIRE_EXACT_MAP)
       : map_(map),
@@ -3814,7 +3819,12 @@ class HLoadFunctionPrototype: public HUnaryOperation {
 
 class HLoadKeyedFastElement: public HTemplateInstruction<2> {
  public:
-  HLoadKeyedFastElement(HValue* obj, HValue* key) {
+  enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+
+  HLoadKeyedFastElement(HValue* obj,
+                        HValue* key,
+                        HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
+      : hole_check_mode_(hole_check_mode) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     set_representation(Representation::Tagged());
@@ -3839,7 +3849,14 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    if (!other->IsLoadKeyedFastElement()) return false;
+    HLoadKeyedFastElement* other_load = HLoadKeyedFastElement::cast(other);
+    return hole_check_mode_ == other_load->hole_check_mode_;
+  }
+
+ private:
+  HoleCheckMode hole_check_mode_;
 };
 
 
@@ -3942,6 +3959,8 @@ class HLoadKeyedGeneric: public HTemplateInstruction<3> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+
+  virtual HValue* Canonicalize();
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric)
 };
@@ -4616,6 +4635,134 @@ class HIn: public HTemplateInstruction<3> {
 
   DECLARE_CONCRETE_INSTRUCTION(In)
 };
+
+
+class HCheckMapValue: public HTemplateInstruction<2> {
+ public:
+  HCheckMapValue(HValue* value,
+                 HValue* map) {
+    SetOperandAt(0, value);
+    SetOperandAt(1, map);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnElementsKind);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual HType CalculateInferredType() {
+    return HType::Tagged();
+  }
+
+  HValue* value() { return OperandAt(0); }
+  HValue* map() { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckMapValue)
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return true;
+  }
+};
+
+
+class HForInPrepareMap : public HTemplateInstruction<2> {
+ public:
+  HForInPrepareMap(HValue* context,
+                   HValue* object) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, object);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* enumerable() { return OperandAt(1); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual HType CalculateInferredType() {
+    return HType::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInPrepareMap);
+};
+
+
+class HForInCacheArray : public HTemplateInstruction<2> {
+ public:
+  HForInCacheArray(HValue* enumerable,
+                   HValue* keys,
+                   int idx) : idx_(idx) {
+    SetOperandAt(0, enumerable);
+    SetOperandAt(1, keys);
+    set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* enumerable() { return OperandAt(0); }
+  HValue* map() { return OperandAt(1); }
+  int idx() { return idx_; }
+
+  HForInCacheArray* index_cache() {
+    return index_cache_;
+  }
+
+  void set_index_cache(HForInCacheArray* index_cache) {
+    index_cache_ = index_cache;
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual HType CalculateInferredType() {
+    return HType::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInCacheArray);
+
+ private:
+  int idx_;
+  HForInCacheArray* index_cache_;
+};
+
+
+class HLoadFieldByIndex : public HTemplateInstruction<2> {
+ public:
+  HLoadFieldByIndex(HValue* object,
+                    HValue* index) {
+    SetOperandAt(0, object);
+    SetOperandAt(1, index);
+    set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* object() { return OperandAt(0); }
+  HValue* index() { return OperandAt(1); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual HType CalculateInferredType() {
+    return HType::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFieldByIndex);
+};
+
 
 #undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION

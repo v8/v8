@@ -4372,6 +4372,52 @@ void MacroAssembler::EnsureNotWhite(
   bind(&done);
 }
 
+
+void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+  Label next;
+  Register empty_fixed_array_value = r8;
+  LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Register empty_descriptor_array_value = r9;
+  LoadRoot(empty_descriptor_array_value,
+              Heap::kEmptyDescriptorArrayRootIndex);
+  movq(rcx, rax);
+  bind(&next);
+
+  // Check that there are no elements.  Register rcx contains the
+  // current JS object we've reached through the prototype chain.
+  cmpq(empty_fixed_array_value,
+       FieldOperand(rcx, JSObject::kElementsOffset));
+  j(not_equal, call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in rbx for the subsequent
+  // prototype load.
+  movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBitField3Offset));
+  JumpIfSmi(rdx, call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (rdx).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
+  JumpIfSmi(rdx, call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  cmpq(rcx, rax);
+  j(equal, &check_prototype, Label::kNear);
+  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  cmpq(rdx, empty_fixed_array_value);
+  j(not_equal, call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  bind(&check_prototype);
+  movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  cmpq(rcx, null_value);
+  j(not_equal, &next);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

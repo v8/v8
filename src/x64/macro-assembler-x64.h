@@ -1299,6 +1299,11 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
+  // Expects object in rax and returns map with validated enum cache
+  // in rax.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Register null_value,
+                      Label* call_runtime);
+
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.

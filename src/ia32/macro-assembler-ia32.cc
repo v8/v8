@@ -2776,6 +2776,46 @@ void MacroAssembler::EnsureNotWhite(
   bind(&done);
 }
 
+
+void MacroAssembler::CheckEnumCache(Label* call_runtime) {
+  Label next;
+  mov(ecx, eax);
+  bind(&next);
+
+  // Check that there are no elements.  Register ecx contains the
+  // current JS object we've reached through the prototype chain.
+  cmp(FieldOperand(ecx, JSObject::kElementsOffset),
+      isolate()->factory()->empty_fixed_array());
+  j(not_equal, call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in ebx for the subsequent
+  // prototype load.
+  mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
+  mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOrBitField3Offset));
+  JumpIfSmi(edx, call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (edx).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
+  JumpIfSmi(edx, call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  cmp(ecx, eax);
+  j(equal, &check_prototype, Label::kNear);
+  mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  cmp(edx, isolate()->factory()->empty_fixed_array());
+  j(not_equal, call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  bind(&check_prototype);
+  mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
+  cmp(ecx, isolate()->factory()->null_value());
+  j(not_equal, &next);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

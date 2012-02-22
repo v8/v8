@@ -4850,6 +4850,88 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 }
 
 
+void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
+  DeoptimizeIf(eq, instr->environment());
+
+  Register null_value = r5;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
+  __ cmp(r0, null_value);
+  DeoptimizeIf(eq, instr->environment());
+
+  __ tst(r0, Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
+
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE);
+  DeoptimizeIf(le, instr->environment());
+
+  Label use_cache, call_runtime;
+  __ CheckEnumCache(null_value, &call_runtime);
+
+  __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ b(&use_cache);
+
+  // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
+  __ push(r0);
+  CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
+
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kMetaMapRootIndex);
+  __ cmp(r1, ip);
+  DeoptimizeIf(ne, instr->environment());
+  __ bind(&use_cache);
+}
+
+
+void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
+  Register map = ToRegister(instr->map());
+  Register result = ToRegister(instr->result());
+  __ LoadInstanceDescriptors(map, result);
+  __ ldr(result,
+         FieldMemOperand(result, DescriptorArray::kEnumerationIndexOffset));
+  __ ldr(result,
+         FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
+  __ cmp(result, Operand(0));
+  DeoptimizeIf(eq, instr->environment());
+}
+
+
+void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
+  Register object = ToRegister(instr->value());
+  Register map = ToRegister(instr->map());
+  __ ldr(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ cmp(map, scratch0());
+  DeoptimizeIf(ne, instr->environment());
+}
+
+
+void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  Register object = ToRegister(instr->object());
+  Register index = ToRegister(instr->index());
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  Label out_of_object, done;
+  __ cmp(index, Operand(0));
+  __ b(lt, &out_of_object);
+
+  STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);
+  __ add(scratch, object, Operand(index, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(result, FieldMemOperand(scratch, JSObject::kHeaderSize));
+
+  __ b(&done);
+
+  __ bind(&out_of_object);
+  __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+  // Index is equal to negated out of object property index plus 1.
+  __ sub(scratch, result, Operand(index, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(result, FieldMemOperand(scratch,
+                                 FixedArray::kHeaderSize - kPointerSize));
+  __ bind(&done);
+}
 
 
 #undef __

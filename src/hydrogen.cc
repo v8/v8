@@ -2744,12 +2744,20 @@ void HGraphBuilder::VisitIfStatement(IfStatement* stmt) {
 
 HBasicBlock* HGraphBuilder::BreakAndContinueScope::Get(
     BreakableStatement* stmt,
-    BreakType type) {
+    BreakType type,
+    int* drop_extra) {
+  *drop_extra = 0;
   BreakAndContinueScope* current = this;
   while (current != NULL && current->info()->target() != stmt) {
+    *drop_extra += current->info()->drop_extra();
     current = current->next();
   }
   ASSERT(current != NULL);  // Always found (unless stack is malformed).
+
+  if (type == BREAK) {
+    *drop_extra += current->info()->drop_extra();
+  }
+
   HBasicBlock* block = NULL;
   switch (type) {
     case BREAK:
@@ -2777,7 +2785,11 @@ void HGraphBuilder::VisitContinueStatement(ContinueStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HBasicBlock* continue_block = break_scope()->Get(stmt->target(), CONTINUE);
+  int drop_extra = 0;
+  HBasicBlock* continue_block = break_scope()->Get(stmt->target(),
+                                                   CONTINUE,
+                                                   &drop_extra);
+  Drop(drop_extra);
   current_block()->Goto(continue_block);
   set_current_block(NULL);
 }
@@ -2787,7 +2799,11 @@ void HGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HBasicBlock* break_block = break_scope()->Get(stmt->target(), BREAK);
+  int drop_extra = 0;
+  HBasicBlock* break_block = break_scope()->Get(stmt->target(),
+                                                BREAK,
+                                                &drop_extra);
+  Drop(drop_extra);
   current_block()->Goto(break_block);
   set_current_block(NULL);
 }
@@ -3148,7 +3164,6 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
 
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
-    BreakAndContinueScope push(&break_info, this);
     CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
@@ -3193,7 +3208,6 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
 
   BreakAndContinueInfo break_info(stmt);
   if (current_block() != NULL) {
-    BreakAndContinueScope push(&break_info, this);
     CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
   }
   HBasicBlock* body_exit =
@@ -3218,7 +3232,104 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("ForInStatement");
+
+  if (!stmt->each()->IsVariableProxy() ||
+      !stmt->each()->AsVariableProxy()->var()->IsStackLocal()) {
+    return Bailout("ForInStatement with non-local each variable");
+  }
+
+  Variable* each_var = stmt->each()->AsVariableProxy()->var();
+
+  CHECK_ALIVE(VisitForValue(stmt->enumerable()));
+  HValue* enumerable = Top();  // Leave enumerable at the top.
+
+  HValue* context = environment()->LookupContext();
+
+  HInstruction* map = AddInstruction(new(zone()) HForInPrepareMap(
+      context, enumerable));
+  AddSimulate(stmt->PrepareId());
+
+  HInstruction* array = AddInstruction(
+      new(zone()) HForInCacheArray(
+          enumerable,
+          map,
+          DescriptorArray::kEnumCacheBridgeCacheIndex));
+
+  HInstruction* array_length = AddInstruction(
+      new(zone()) HFixedArrayBaseLength(array));
+
+  HInstruction* start_index = AddInstruction(new(zone()) HConstant(
+      Handle<Object>(Smi::FromInt(0)), Representation::Integer32()));
+
+  Push(map);
+  Push(array);
+  Push(array_length);
+  Push(start_index);
+
+  HInstruction* index_cache = AddInstruction(
+      new(zone()) HForInCacheArray(
+          enumerable,
+          map,
+          DescriptorArray::kEnumCacheBridgeIndicesCacheIndex));
+  HForInCacheArray::cast(array)->set_index_cache(
+      HForInCacheArray::cast(index_cache));
+
+  HBasicBlock* loop_entry = CreateLoopHeaderBlock();
+  current_block()->Goto(loop_entry);
+  set_current_block(loop_entry);
+
+  HValue* index = Top();
+
+  // Check that we still have more keys.
+  HCompareIDAndBranch* compare_index =
+      new(zone()) HCompareIDAndBranch(index, array_length, Token::LT);
+  compare_index->SetInputRepresentation(Representation::Integer32());
+
+  HBasicBlock* loop_body = graph()->CreateBasicBlock();
+  HBasicBlock* loop_successor = graph()->CreateBasicBlock();
+
+  compare_index->SetSuccessorAt(0, loop_body);
+  compare_index->SetSuccessorAt(1, loop_successor);
+  current_block()->Finish(compare_index);
+
+  set_current_block(loop_successor);
+  Drop(5);
+
+  set_current_block(loop_body);
+
+  HValue* key = AddInstruction(
+      new(zone()) HLoadKeyedFastElement(
+          array, index, HLoadKeyedFastElement::OMIT_HOLE_CHECK));
+
+  // Check if the expected map still matches that of the enumerable.
+  // If not just deoptimize.
+  AddInstruction(new(zone()) HCheckMapValue(enumerable, map));
+
+  Bind(each_var, key);
+
+  BreakAndContinueInfo break_info(stmt, 5);
+  CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
+
+  HBasicBlock* body_exit =
+      JoinContinue(stmt, current_block(), break_info.continue_block());
+
+  if (body_exit != NULL) {
+    set_current_block(body_exit);
+
+    HValue* current_index = Pop();
+    PushAndAdd(
+        new(zone()) HAdd(context, current_index, graph()->GetConstant1()));
+
+    body_exit = current_block();
+  }
+
+  HBasicBlock* loop_exit = CreateLoop(stmt,
+                                      loop_entry,
+                                      body_exit,
+                                      loop_successor,
+                                      break_info.break_block());
+
+  set_current_block(loop_exit);
 }
 
 

@@ -5705,15 +5705,21 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
 
 
 void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
-                                   FixedArray* new_cache) {
+                                   FixedArray* new_cache,
+                                   Object* new_index_cache) {
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
+  ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   if (HasEnumCache()) {
     FixedArray::cast(get(kEnumerationIndexIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
+    FixedArray::cast(get(kEnumerationIndexIndex))->
+      set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
   } else {
     if (IsEmpty()) return;  // Do nothing for empty descriptor array.
     FixedArray::cast(bridge_storage)->
       set(kEnumCacheBridgeCacheIndex, new_cache);
+    FixedArray::cast(bridge_storage)->
+      set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
     NoWriteBarrierSet(FixedArray::cast(bridge_storage),
                       kEnumCacheBridgeEnumIndex,
                       get(kEnumerationIndexIndex));

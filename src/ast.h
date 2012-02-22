@@ -786,10 +786,10 @@ class ForInStatement: public IterationStatement {
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
 
-  // Bailout support.
-  int AssignmentId() const { return assignment_id_; }
   virtual int ContinueId() const { return EntryId(); }
-  virtual int StackCheckId() const { return EntryId(); }
+  virtual int StackCheckId() const { return body_id_; }
+  int BodyId() const { return body_id_; }
+  int PrepareId() const { return prepare_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -798,13 +798,15 @@ class ForInStatement: public IterationStatement {
       : IterationStatement(isolate, labels),
         each_(NULL),
         enumerable_(NULL),
-        assignment_id_(GetNextId(isolate)) {
+        body_id_(GetNextId(isolate)),
+        prepare_id_(GetNextId(isolate)) {
   }
 
  private:
   Expression* each_;
   Expression* enumerable_;
-  int assignment_id_;
+  int body_id_;
+  int prepare_id_;
 };
 
 
