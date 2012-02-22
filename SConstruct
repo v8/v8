@@ -296,6 +296,7 @@ V8_EXTRA_FLAGS = {
                        '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
+                       '-Woverloaded-virtual',
                        '-Wnon-virtual-dtor']
     },
     'os:win32': {
