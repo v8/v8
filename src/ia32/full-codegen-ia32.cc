@@ -332,7 +332,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
     int weight = 1;
     if (FLAG_weighted_back_edges) {
       ASSERT(back_edge_target->is_bound());
-      int distance = masm_->pc_offset() - back_edge_target->pos();
+      int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(127, Max(1, distance / 100));
     }
     __ sub(Operand::Cell(profiling_counter_), Immediate(Smi::FromInt(weight)));
@@ -388,6 +388,26 @@ void FullCodeGenerator::EmitReturnSequence() {
     if (FLAG_trace) {
       __ push(eax);
       __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+    if (FLAG_interrupt_at_exit) {
+      // Pretend that the exit is a backwards jump to the entry.
+      int weight = 1;
+      if (FLAG_weighted_back_edges) {
+        int distance = masm_->pc_offset();
+        weight = Min(127, Max(1, distance / 100));
+      }
+      __ sub(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(weight)));
+      Label ok;
+      __ j(positive, &ok, Label::kNear);
+      __ push(eax);
+      InterruptStub stub;
+      __ CallStub(&stub);
+      __ pop(eax);
+      // Reset the countdown.
+      __ mov(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      __ bind(&ok);
     }
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.

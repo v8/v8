@@ -177,6 +177,8 @@ DEFINE_bool(self_optimization, false,
             "primitive functions trigger their own optimization")
 DEFINE_bool(count_based_interrupts, false,
             "trigger profiler ticks based on counting instead of timing")
+DEFINE_bool(interrupt_at_exit, false,
+            "insert an interrupt check at function exit")
 DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
 DEFINE_int(interrupt_budget, 10000,
@@ -187,6 +189,7 @@ DEFINE_int(type_info_threshold, 0,
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
 DEFINE_implication(experimental_profiler, count_based_interrupts)
+DEFINE_implication(experimental_profiler, interrupt_at_exit)
 DEFINE_implication(experimental_profiler, weighted_back_edges)
 
 DEFINE_bool(trace_opt_verbose, false, "extra verbose compilation tracing")
