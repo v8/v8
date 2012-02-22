@@ -2139,10 +2139,16 @@ class JSObject: public JSReceiver {
       String* name,
       Object* structure,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* DefineGetterSetter(
-      String* name,
+  MUST_USE_RESULT MaybeObject* DefineElementAccessor(
+      uint32_t index,
+      bool is_getter,
+      Object* fun,
       PropertyAttributes attributes);
-
+  MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
+      String* name,
+      bool is_getter,
+      Object* fun,
+      PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
 
   // Returns the hidden properties backing store object, currently
@@ -7836,6 +7842,15 @@ class AccessorPair: public Struct {
   static inline AccessorPair* cast(Object* obj);
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
+
+  // TODO(svenpanne) Evil temporary helper, will vanish soon...
+  void set(bool modify_getter, Object* value) {
+    if (modify_getter) {
+      set_getter(value);
+    } else {
+      set_setter(value);
+    }
+  }
 
 #ifdef OBJECT_PRINT
   void AccessorPairPrint(FILE* out = stdout);
