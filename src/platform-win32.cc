@@ -58,20 +58,25 @@ int localtime_s(tm* out_tm, const time_t* time) {
 }
 
 
-// Not sure this the correct interpretation of _mkgmtime
-time_t _mkgmtime(tm* timeptr) {
-  return mktime(timeptr);
-}
-
-
 int fopen_s(FILE** pFile, const char* filename, const char* mode) {
   *pFile = fopen(filename, mode);
   return *pFile != NULL ? 0 : 1;
 }
 
 
+#ifndef __MINGW64_VERSION_MAJOR
+
+// Not sure this the correct interpretation of _mkgmtime
+time_t _mkgmtime(tm* timeptr) {
+  return mktime(timeptr);
+}
+
+
 #define _TRUNCATE 0
 #define STRUNCATE 80
+
+#endif  // __MINGW64_VERSION_MAJOR
+
 
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
