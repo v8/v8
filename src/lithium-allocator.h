@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -424,7 +424,7 @@ class GrowableBitVector BASE_EMBEDDED {
     if (InBitsRange(value)) return;
     int new_length = bits_ == NULL ? kInitialLength : bits_->length();
     while (new_length <= value) new_length *= 2;
-    BitVector* new_bits = new(zone) BitVector(new_length);
+    BitVector* new_bits = new(zone) BitVector(new_length, zone);
     if (bits_ != NULL) new_bits->CopyFrom(*bits_);
     bits_ = new_bits;
   }

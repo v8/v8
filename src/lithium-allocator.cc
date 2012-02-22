@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -584,7 +584,7 @@ void LAllocator::InitializeLivenessAnalysis() {
 BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
   // Compute live out for the given block, except not including backward
   // successor edges.
-  BitVector* live_out = new(zone_) BitVector(next_virtual_register_);
+  BitVector* live_out = new(zone_) BitVector(next_virtual_register_, zone_);
 
   // Process all successor blocks.
   for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {

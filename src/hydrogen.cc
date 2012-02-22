@@ -446,7 +446,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
                        HBasicBlock* dont_visit)
       : visited_count_(0),
         stack_(16),
-        reachable_(block_count),
+        reachable_(block_count, ZONE),
         dont_visit_(dont_visit) {
     PushBlock(entry_block);
     Analyze();
@@ -744,7 +744,7 @@ void HGraph::Canonicalize() {
 
 void HGraph::OrderBlocks() {
   HPhase phase("Block ordering");
-  BitVector visited(blocks_.length());
+  BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8);
   HBasicBlock* start = blocks_[0];
@@ -955,7 +955,7 @@ void HGraph::CollectPhis() {
 
 
 void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
-  BitVector in_worklist(GetMaximumValueID());
+  BitVector in_worklist(GetMaximumValueID(), zone());
   for (int i = 0; i < worklist->length(); ++i) {
     ASSERT(!in_worklist.Contains(worklist->at(i)->id()));
     in_worklist.Add(worklist->at(i)->id());
@@ -1719,7 +1719,9 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
 class HInferRepresentation BASE_EMBEDDED {
  public:
   explicit HInferRepresentation(HGraph* graph)
-      : graph_(graph), worklist_(8), in_worklist_(graph->GetMaximumValueID()) {}
+      : graph_(graph),
+        worklist_(8),
+        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
 
   void Analyze();
 
@@ -1836,7 +1838,7 @@ void HInferRepresentation::Analyze() {
   ZoneList<BitVector*> connected_phis(phi_count);
   for (int i = 0; i < phi_count; ++i) {
     phi_list->at(i)->InitRealUses(i);
-    BitVector* connected_set = new(zone()) BitVector(phi_count);
+    BitVector* connected_set = new(zone()) BitVector(phi_count, graph_->zone());
     connected_set->Add(i);
     connected_phis.Add(connected_set);
   }
@@ -2126,7 +2128,7 @@ void HGraph::MarkDeoptimizeOnUndefined() {
 
 
 void HGraph::ComputeMinusZeroChecks() {
-  BitVector visited(GetMaximumValueID());
+  BitVector visited(GetMaximumValueID(), zone());
   for (int i = 0; i < blocks_.length(); ++i) {
     for (HInstruction* current = blocks_[i]->first();
          current != NULL;
