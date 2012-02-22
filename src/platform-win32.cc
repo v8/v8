@@ -837,22 +837,29 @@ size_t OS::AllocateAlignment() {
 
 
 static void* GetRandomAddr() {
-  // The address range used to randomize RWX allocations in OS::Allocate
-  // Try not to map pages into the default range that windows loads DLLs
-  // Use a multiple of 64k to prevent committing unused memory.
-  // Note: This does not guarantee RWX regions will be within the
-  // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  // Note that the current isolate isn't set up in a call path via
+  // CpuFeatures::Probe. We don't care about randomization in this case because
+  // the code page is immediately freed.
+  if (isolate != NULL) {
+    // The address range used to randomize RWX allocations in OS::Allocate
+    // Try not to map pages into the default range that windows loads DLLs
+    // Use a multiple of 64k to prevent committing unused memory.
+    // Note: This does not guarantee RWX regions will be within the
+    // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
 #ifdef V8_HOST_ARCH_64_BIT
-  static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
+    static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
+    static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
 #else
-  static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
+    static const intptr_t kAllocationRandomAddressMin = 0x04000000;
+    static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-  uintptr_t address = (V8::RandomPrivate(Isolate::Current()) << kPageSizeBits)
-      | kAllocationRandomAddressMin;
-  address &= kAllocationRandomAddressMax;
-  return reinterpret_cast<void *>(address);
+    uintptr_t address = (V8::RandomPrivate(isolate) << kPageSizeBits)
+        | kAllocationRandomAddressMin;
+    address &= kAllocationRandomAddressMax;
+    return reinterpret_cast<void *>(address);
+  }
+  return NULL;
 }
 
 
