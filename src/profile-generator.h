@@ -1101,7 +1101,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  private:
   bool ApproximateRetainedSizes();
   bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
-                          Vector<HeapEntry*>* dominators);
+                          Vector<int>* dominators);
   bool CountEntriesAndReferences();
   bool FillReferences();
   void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);

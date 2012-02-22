@@ -3271,57 +3271,77 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
 }
 
 
-static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
+static int Intersect(int i1, int i2, const Vector<int>& dominators) {
   int finger1 = i1, finger2 = i2;
   while (finger1 != finger2) {
-    while (finger1 < finger2) finger1 = dominators[finger1]->ordered_index();
-    while (finger2 < finger1) finger2 = dominators[finger2]->ordered_index();
+    while (finger1 < finger2) finger1 = dominators[finger1];
+    while (finger2 < finger1) finger2 = dominators[finger2];
   }
   return finger1;
 }
+
 
 // The algorithm is based on the article:
 // K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
 // Softw. Pract. Exper. 4 (2001), pp. 1-10.
 bool HeapSnapshotGenerator::BuildDominatorTree(
     const Vector<HeapEntry*>& entries,
-    Vector<HeapEntry*>* dominators) {
+    Vector<int>* dominators) {
   if (entries.length() == 0) return true;
   const int entries_length = entries.length(), root_index = entries_length - 1;
-  for (int i = 0; i < root_index; ++i) (*dominators)[i] = NULL;
-  (*dominators)[root_index] = entries[root_index];
+  static const int kNoDominator = -1;
+  for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
+  (*dominators)[root_index] = root_index;
+
+  // We use time_stamps array to stamp entries with the iteration number
+  // when the dominance for the entry has been updated.
+  ScopedVector<int> time_stamps(entries_length);
+  for (int i = 0; i < entries_length; ++i) time_stamps[i] = -1;
+  Vector<HeapGraphEdge> children = entries[root_index]->children();
+  for (int i = 0; i < children.length(); ++i) {
+    // Mark the root direct children as affected on iteration zero.
+    time_stamps[children[i].to()->ordered_index()] = 0;
+  }
+
   int changed = 1;
+  int iteration = 0;
   const int base_progress_counter = progress_counter_;
   while (changed != 0) {
+    ++iteration;
     changed = 0;
     for (int i = root_index - 1; i >= 0; --i) {
-      HeapEntry* new_idom = NULL;
+      // If dominator of the entry has already been set to root,
+      // then it can't propagate any further.
+      if ((*dominators)[i] == root_index) continue;
+      // If no retainers of the entry had been updated on current
+      // or previous iteration, then this entry is not affected.
+      if (time_stamps[i] < iteration - 1) continue;
+      int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
-      int j = 0;
-      for (; j < rets.length(); ++j) {
+      for (int j = 0; j < rets.length(); ++j) {
         if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = ret;
-          break;
+        int ret_index = rets[j]->From()->ordered_index();
+        if (dominators->at(ret_index) != kNoDominator) {
+          new_idom_index = new_idom_index == kNoDominator
+              ? ret_index
+              : Intersect(ret_index, new_idom_index, *dominators);
+          // If idom has already reached the root, it doesn't make sense
+          // to check other retainers.
+          if (new_idom_index == root_index) break;
         }
       }
-      for (++j; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = entries[Intersect(ret->ordered_index(),
-                                       new_idom->ordered_index(),
-                                       *dominators)];
-        }
-      }
-      if (new_idom != NULL && dominators->at(i) != new_idom) {
-        (*dominators)[i] = new_idom;
+      if (new_idom_index != kNoDominator
+          && dominators->at(i) != new_idom_index) {
+        (*dominators)[i] = new_idom_index;
         ++changed;
+        Vector<HeapGraphEdge> children = entries[i]->children();
+        for (int j = 0; j < children.length(); ++j) {
+          time_stamps[children[j].to()->ordered_index()] = iteration;
+        }
       }
     }
     int remaining = entries_length - changed;
-    if (remaining < 0) remaining = 0;
+    ASSERT(remaining >= 0);
     progress_counter_ = base_progress_counter + remaining;
     if (!ProgressReport(true)) return false;
   }
@@ -3333,11 +3353,11 @@ bool HeapSnapshotGenerator::SetEntriesDominators() {
   // This array is used for maintaining reverse postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
   FillReversePostorderIndexes(&ordered_entries);
-  ScopedVector<HeapEntry*> dominators(ordered_entries.length());
+  ScopedVector<int> dominators(ordered_entries.length());
   if (!BuildDominatorTree(ordered_entries, &dominators)) return false;
   for (int i = 0; i < ordered_entries.length(); ++i) {
-    ASSERT(dominators[i] != NULL);
-    ordered_entries[i]->set_dominator(dominators[i]);
+    ASSERT(dominators[i] >= 0);
+    ordered_entries[i]->set_dominator(ordered_entries[dominators[i]]);
   }
   return true;
 }
