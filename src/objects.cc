@@ -4471,9 +4471,14 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
       Object* obj = result.GetCallbackObject();
       // Need to preserve old getters/setters.
       if (obj->IsAccessorPair()) {
-        AccessorPair::cast(obj)->set(is_getter, fun);
+        AccessorPair* copy;
+        { MaybeObject* maybe_copy =
+              AccessorPair::cast(obj)->CopyWithoutTransitions();
+          if (!maybe_copy->To(&copy)) return maybe_copy;
+        }
+        copy->set(is_getter, fun);
         // Use set to update attributes.
-        { MaybeObject* maybe_ok = SetPropertyCallback(name, obj, attributes);
+        { MaybeObject* maybe_ok = SetPropertyCallback(name, copy, attributes);
           if (maybe_ok->IsFailure()) return maybe_ok;
         }
         return GetHeap()->undefined_value();
