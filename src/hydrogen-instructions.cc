@@ -384,9 +384,18 @@ void HValue::DeleteAndReplaceWith(HValue* other) {
   if (other != NULL) ReplaceAllUsesWith(other);
   ASSERT(HasNoUses());
   // Clearing the operands includes going through the use list of each operand
-  // to remove this HValue, which can be expensive.  Instead, we simply mark it
-  // as dead and remove it lazily from the operands' use lists.
+  // to remove this HValue, which can be expensive.  Instead, we mark this as
+  // dead and only check the first item in the use list of each operand.
+  // For the following items in the use lists we rely on the tail() method to
+  // skip dead dead items and remove them lazily.
   SetFlag(kIsDead);
+  for (int i = 0; i < OperandCount(); ++i) {
+    HValue* operand = OperandAt(i);
+    HUseListNode* first = operand->use_list_;
+    if (first != NULL && first->index() == i && first->value() == this) {
+      operand->use_list_ = first->tail();
+    }
+  }
   DeleteFromGraph();
 }
 
