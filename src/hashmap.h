@@ -116,7 +116,7 @@ TemplateHashMap<P>::~TemplateHashMap() {
 
 
 template<class P>
-struct TemplateHashMap<P>::Entry* TemplateHashMap<P>::Lookup(
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Lookup(
     void* key, uint32_t hash, bool insert) {
   // Find a matching entry.
   Entry* p = Probe(key, hash);
@@ -217,13 +217,13 @@ void TemplateHashMap<P>::Clear() {
 
 
 template<class P>
-struct TemplateHashMap<P>::Entry* TemplateHashMap<P>::Start() const {
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Start() const {
   return Next(map_ - 1);
 }
 
 
 template<class P>
-struct TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
   const Entry* end = map_end();
   ASSERT(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
@@ -236,7 +236,7 @@ struct TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
 
 
 template<class P>
-struct TemplateHashMap<P>::Entry* TemplateHashMap<P>::Probe(void* key,
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Probe(void* key,
                                                             uint32_t hash) {
   ASSERT(key != NULL);
 
