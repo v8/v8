@@ -94,7 +94,7 @@ TEST(Promotion) {
 
   // Allocate a fixed array in the new space.
   int array_size =
-      (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
+      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
       (kPointerSize * 4);
   Object* obj = HEAP->AllocateFixedArray(array_size)->ToObjectChecked();
 
@@ -125,7 +125,7 @@ TEST(NoPromotion) {
 
   // Allocate a big Fixed array in the new space.
   int max_size =
-      Min(HEAP->MaxObjectSizeInPagedSpace(), HEAP->MaxObjectSizeInNewSpace());
+      Min(Page::kMaxNonCodeHeapObjectSize, HEAP->MaxObjectSizeInNewSpace());
 
   int length = (max_size - FixedArray::kHeaderSize) / (2*kPointerSize);
   Object* obj = i::Isolate::Current()->heap()->AllocateFixedArray(length)->

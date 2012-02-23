@@ -820,7 +820,7 @@ TEST(Iteration) {
       FACTORY->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
 
   // Allocate a large string (for large object space).
-  int large_size = HEAP->MaxObjectSizeInPagedSpace() + 1;
+  int large_size = Page::kMaxNonCodeHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
