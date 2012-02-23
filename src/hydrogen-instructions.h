@@ -448,7 +448,7 @@ class HUseListNode: public ZoneObject {
       : tail_(tail), value_(value), index_(index) {
   }
 
-  HUseListNode* tail() const { return tail_; }
+  HUseListNode* tail();
   HValue* value() const { return value_; }
   int index() const { return index_; }
 
@@ -530,7 +530,8 @@ class HValue: public ZoneObject {
     kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
-    kLastFlag = kTruncatingToInt32
+    kIsDead,
+    kLastFlag = kIsDead
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);

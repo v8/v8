@@ -276,6 +276,15 @@ bool HValue::IsDefinedAfter(HBasicBlock* other) const {
 }
 
 
+HUseListNode* HUseListNode::tail() {
+  // Skip and remove dead items in the use list.
+  while (tail_ != NULL && tail_->value()->CheckFlag(HValue::kIsDead)) {
+    tail_ = tail_->tail_;
+  }
+  return tail_;
+}
+
+
 HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
   Advance();
 }
@@ -374,7 +383,10 @@ void HValue::DeleteAndReplaceWith(HValue* other) {
   // We replace all uses first, so Delete can assert that there are none.
   if (other != NULL) ReplaceAllUsesWith(other);
   ASSERT(HasNoUses());
-  ClearOperands();
+  // Clearing the operands includes going through the use list of each operand
+  // to remove this HValue, which can be expensive.  Instead, we simply mark it
+  // as dead and remove it lazily from the operands' use lists.
+  SetFlag(kIsDead);
   DeleteFromGraph();
 }
 
