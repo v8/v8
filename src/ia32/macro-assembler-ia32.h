@@ -829,6 +829,10 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
+  // Expects object in eax and returns map with validated enum cache
+  // in eax.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Label* call_runtime);
+
  private:
   bool generating_stub_;
   bool allow_stub_calls_;

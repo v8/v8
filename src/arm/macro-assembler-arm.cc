@@ -3664,6 +3664,52 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 }
 
 
+void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+  Label next;
+  // Preload a couple of values used in the loop.
+  Register  empty_fixed_array_value = r6;
+  LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Register empty_descriptor_array_value = r7;
+  LoadRoot(empty_descriptor_array_value,
+           Heap::kEmptyDescriptorArrayRootIndex);
+  mov(r1, r0);
+  bind(&next);
+
+  // Check that there are no elements.  Register r1 contains the
+  // current JS object we've reached through the prototype chain.
+  ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  cmp(r2, empty_fixed_array_value);
+  b(ne, call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in r2 for the subsequent
+  // prototype load.
+  ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBitField3Offset));
+  JumpIfSmi(r3, call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (r3).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumerationIndexOffset));
+  JumpIfSmi(r3, call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  cmp(r1, r0);
+  b(eq, &check_prototype);
+  ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  cmp(r3, empty_fixed_array_value);
+  b(ne, call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  bind(&check_prototype);
+  ldr(r1, FieldMemOperand(r2, Map::kPrototypeOffset));
+  cmp(r1, null_value);
+  b(ne, &next);
+}
+
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
   if (r1.is(r2)) return true;
   if (r1.is(r3)) return true;

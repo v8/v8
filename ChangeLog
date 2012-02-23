@@ -1,3 +1,20 @@
+2012-02-23: Version 3.9.9
+
+        Supported fast case for-in in Crankshaft.
+
+        Sped up heap snapshot serialization and dominators construction.
+
+        Randomized allocation addresses on windows. (Chromium issue 115151)
+
+        Fixed compilation with MinGW-w64. (issue 1943)
+
+        Fixed incorrect value of assignments to non-extensible properties.
+
+        Fixed a crash bug in generated code on ia32.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-21: Version 3.9.8
 
         Fixed memory leak and missing #include in StartupDataDecompressor

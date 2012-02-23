@@ -2139,10 +2139,16 @@ class JSObject: public JSReceiver {
       String* name,
       Object* structure,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* DefineGetterSetter(
-      String* name,
+  MUST_USE_RESULT MaybeObject* DefineElementAccessor(
+      uint32_t index,
+      bool is_getter,
+      Object* fun,
       PropertyAttributes attributes);
-
+  MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
+      String* name,
+      bool is_getter,
+      Object* fun,
+      PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
 
   // Returns the hidden properties backing store object, currently
@@ -2415,7 +2421,9 @@ class DescriptorArray: public FixedArray {
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
-  void SetEnumCache(FixedArray* bridge_storage, FixedArray* new_cache);
+  void SetEnumCache(FixedArray* bridge_storage,
+                    FixedArray* new_cache,
+                    Object* new_index_cache);
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
@@ -2519,9 +2527,10 @@ class DescriptorArray: public FixedArray {
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
-  static const int kEnumCacheBridgeLength = 2;
+  static const int kEnumCacheBridgeLength = 3;
   static const int kEnumCacheBridgeEnumIndex = 0;
   static const int kEnumCacheBridgeCacheIndex = 1;
+  static const int kEnumCacheBridgeIndicesCacheIndex = 2;
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
@@ -7836,6 +7845,15 @@ class AccessorPair: public Struct {
   static inline AccessorPair* cast(Object* obj);
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
+
+  // TODO(svenpanne) Evil temporary helper, will vanish soon...
+  void set(bool modify_getter, Object* value) {
+    if (modify_getter) {
+      set_getter(value);
+    } else {
+      set_setter(value);
+    }
+  }
 
 #ifdef OBJECT_PRINT
   void AccessorPairPrint(FILE* out = stdout);

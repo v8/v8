@@ -132,7 +132,7 @@ void FullCodeGenerator::Generate() {
   // We can optionally optimize based on counters rather than statistical
   // sampling.
   if (info->ShouldSelfOptimize()) {
-    if (FLAG_trace_opt) {
+    if (FLAG_trace_opt_verbose) {
       PrintF("[adding self-optimization header to %s]\n",
              *info->function()->debug_name()->ToCString());
     }
@@ -332,7 +332,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
     int weight = 1;
     if (FLAG_weighted_back_edges) {
       ASSERT(back_edge_target->is_bound());
-      int distance = masm_->pc_offset() - back_edge_target->pos();
+      int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(127, Max(1, distance / 100));
     }
     __ sub(Operand::Cell(profiling_counter_), Immediate(Smi::FromInt(weight)));
@@ -388,6 +388,26 @@ void FullCodeGenerator::EmitReturnSequence() {
     if (FLAG_trace) {
       __ push(eax);
       __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+    if (FLAG_interrupt_at_exit) {
+      // Pretend that the exit is a backwards jump to the entry.
+      int weight = 1;
+      if (FLAG_weighted_back_edges) {
+        int distance = masm_->pc_offset();
+        weight = Min(127, Max(1, distance / 100));
+      }
+      __ sub(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(weight)));
+      Label ok;
+      __ j(positive, &ok, Label::kNear);
+      __ push(eax);
+      InterruptStub stub;
+      __ CallStub(&stub);
+      __ pop(eax);
+      // Reset the countdown.
+      __ mov(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      __ bind(&ok);
     }
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.
@@ -925,6 +945,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(eax, isolate()->factory()->null_value());
   __ j(equal, &exit);
 
+  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
+
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(eax, &convert, Label::kNear);
@@ -937,7 +959,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);
 
   // Check for proxies.
-  Label call_runtime;
+  Label call_runtime, use_cache, fixed_array;
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
   __ j(below_equal, &call_runtime);
@@ -946,61 +968,19 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next;
-  __ mov(ecx, eax);
-  __ bind(&next);
+  __ CheckEnumCache(&call_runtime);
 
-  // Check that there are no elements.  Register ecx contains the
-  // current JS object we've reached through the prototype chain.
-  __ cmp(FieldOperand(ecx, JSObject::kElementsOffset),
-         isolate()->factory()->empty_fixed_array());
-  __ j(not_equal, &call_runtime);
-
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in ebx for the subsequent
-  // prototype load.
-  __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOrBitField3Offset));
-  __ JumpIfSmi(edx, &call_runtime);
-
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (edx).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
-  __ JumpIfSmi(edx, &call_runtime);
-
-  // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  __ cmp(ecx, eax);
-  __ j(equal, &check_prototype, Label::kNear);
-  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  __ cmp(edx, isolate()->factory()->empty_fixed_array());
-  __ j(not_equal, &call_runtime);
-
-  // Load the prototype from the map and loop if non-null.
-  __ bind(&check_prototype);
-  __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
-  __ cmp(ecx, isolate()->factory()->null_value());
-  __ j(not_equal, &next);
-
-  // The enum cache is valid.  Load the map of the object being
-  // iterated over and use the cache for the iteration.
-  Label use_cache;
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
   __ jmp(&use_cache, Label::kNear);
 
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
-  __ push(eax);  // Duplicate the enumerable object on the stack.
+  __ push(eax);
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
-
-  // If we got a map from the runtime call, we can do a fast
-  // modification check. Otherwise, we got a fixed array, and we have
-  // to do a slow check.
-  Label fixed_array;
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
          isolate()->factory()->meta_map());
-  __ j(not_equal, &fixed_array, Label::kNear);
+  __ j(not_equal, &fixed_array);
+
 
   // We got a map in register eax. Get the enumeration cache from it.
   __ bind(&use_cache);
@@ -1033,6 +1013,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
   // Generate code for doing the condition check.
+  PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&loop);
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // Get the current index.
   __ cmp(eax, Operand(esp, 1 * kPointerSize));  // Compare to the array length.
@@ -1075,7 +1056,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(result_register(), ebx);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
-    EmitAssignment(stmt->each(), stmt->AssignmentId());
+    EmitAssignment(stmt->each());
   }
 
   // Generate code for the body of the loop.
@@ -1094,6 +1075,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ add(esp, Immediate(5 * kPointerSize));
 
   // Exit and decrement the loop depth.
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(&exit);
   decrement_loop_depth();
 }
@@ -1497,7 +1479,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                           Smi::FromInt(1) :
                           Smi::FromInt(0)));
         VisitForStackValue(value);
-        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        __ push(Immediate(Smi::FromInt(NONE)));
+        __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
         break;
       default: UNREACHABLE();
     }
@@ -1853,7 +1836,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
+void FullCodeGenerator::EmitAssignment(Expression* expr) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
@@ -1905,7 +1888,6 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       break;
     }
   }
-  PrepareForBailoutForId(bailout_ast_id, TOS_REG);
   context()->Plug(eax);
 }
 

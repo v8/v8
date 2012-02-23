@@ -1018,6 +1018,8 @@ INCREASE_NODE_COUNT(CountOperation)
 INCREASE_NODE_COUNT(BinaryOperation)
 INCREASE_NODE_COUNT(CompareOperation)
 INCREASE_NODE_COUNT(ThisFunction)
+INCREASE_NODE_COUNT(Call)
+INCREASE_NODE_COUNT(CallNew)
 
 #undef INCREASE_NODE_COUNT
 
@@ -1119,21 +1121,8 @@ void AstConstructionVisitor::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-void AstConstructionVisitor::VisitCall(Call* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitCallNew(CallNew* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
-  add_flag(kDontSelfOptimize);
   if (node->is_jsruntime()) {
     // Don't try to inline JS runtime calls because we don't (currently) even
     // optimize them.

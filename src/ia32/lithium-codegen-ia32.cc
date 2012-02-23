@@ -4461,7 +4461,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
     __ push(Immediate(shared_info));
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else {
-    __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ push(esi);
     __ push(Immediate(shared_info));
     __ push(Immediate(pretenure
                       ? factory()->true_value()
@@ -4726,6 +4726,84 @@ void LCodeGen::DoIn(LIn* instr) {
   SafepointGenerator safepoint_generator(
       this, pointers, Safepoint::kLazyDeopt);
   __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, safepoint_generator);
+}
+
+
+void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
+  __ cmp(eax, isolate()->factory()->undefined_value());
+  DeoptimizeIf(equal, instr->environment());
+
+  __ cmp(eax, isolate()->factory()->null_value());
+  DeoptimizeIf(equal, instr->environment());
+
+  __ test(eax, Immediate(kSmiTagMask));
+  DeoptimizeIf(zero, instr->environment());
+
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
+  DeoptimizeIf(below_equal, instr->environment());
+
+  Label use_cache, call_runtime;
+  __ CheckEnumCache(&call_runtime);
+
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
+  __ jmp(&use_cache, Label::kNear);
+
+  // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
+  __ push(eax);
+  CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
+
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+         isolate()->factory()->meta_map());
+  DeoptimizeIf(not_equal, instr->environment());
+  __ bind(&use_cache);
+}
+
+
+void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
+  Register map = ToRegister(instr->map());
+  Register result = ToRegister(instr->result());
+  __ LoadInstanceDescriptors(map, result);
+  __ mov(result,
+         FieldOperand(result, DescriptorArray::kEnumerationIndexOffset));
+  __ mov(result,
+         FieldOperand(result, FixedArray::SizeFor(instr->idx())));
+  __ test(result, result);
+  DeoptimizeIf(equal, instr->environment());
+}
+
+
+void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
+  Register object = ToRegister(instr->value());
+  __ cmp(ToRegister(instr->map()),
+         FieldOperand(object, HeapObject::kMapOffset));
+  DeoptimizeIf(not_equal, instr->environment());
+}
+
+
+void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  Register object = ToRegister(instr->object());
+  Register index = ToRegister(instr->index());
+
+  Label out_of_object, done;
+  __ cmp(index, Immediate(0));
+  __ j(less, &out_of_object);
+  __ mov(object, FieldOperand(object,
+                              index,
+                              times_half_pointer_size,
+                              JSObject::kHeaderSize));
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&out_of_object);
+  __ mov(object, FieldOperand(object, JSObject::kPropertiesOffset));
+  __ neg(index);
+  // Index is now equal to out of object property index plus 1.
+  __ mov(object, FieldOperand(object,
+                              index,
+                              times_half_pointer_size,
+                              FixedArray::kHeaderSize - kPointerSize));
+  __ bind(&done);
 }
 
 

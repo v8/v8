@@ -8590,10 +8590,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
   if (!function->IsOptimizable()) return isolate->heap()->undefined_value();
   function->MarkForLazyRecompilation();
+
+  Code* unoptimized = function->shared()->code();
+  if (args.length() == 2 &&
+      unoptimized->kind() == Code::FUNCTION) {
+    CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+    CHECK(type->IsEqualTo(CStrVector("osr")));
+    isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+    unoptimized->set_allow_osr_at_loop_nesting_level(
+        Code::kMaxLoopNestingMarker);
+  }
+
   return isolate->heap()->undefined_value();
 }
 
@@ -10356,30 +10368,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     single_interval->set(1, *length_object);
     return *isolate->factory()->NewJSArrayWithElements(single_interval);
   }
-}
-
-
-// DefineAccessor takes an optional final argument which is the
-// property attributes (e.g. DONT_ENUM, DONT_DELETE).  IMPORTANT: due
-// to the way accessors are implemented, it is set for both the getter
-// and setter on the first call to DefineAccessor and ignored on
-// subsequent calls.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineAccessor) {
-  RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
-  // Compute attributes.
-  PropertyAttributes attributes = NONE;
-  if (args.length() == 5) {
-    CONVERT_SMI_ARG_CHECKED(value, 4);
-    // Only attribute bits should be set.
-    ASSERT((value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(value);
-  }
-
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag, 2);
-  CONVERT_ARG_CHECKED(JSFunction, fun, 3);
-  return obj->DefineAccessor(name, flag == 0, fun, attributes);
 }
 
 

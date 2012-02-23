@@ -4461,6 +4461,88 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   osr_pc_offset_ = masm()->pc_offset();
 }
 
+
+void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  DeoptimizeIf(equal, instr->environment());
+
+  Register null_value = rdi;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
+  __ cmpq(rax, null_value);
+  DeoptimizeIf(equal, instr->environment());
+
+  Condition cc = masm()->CheckSmi(rax);
+  DeoptimizeIf(cc, instr->environment());
+
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ CmpObjectType(rax, LAST_JS_PROXY_TYPE, rcx);
+  DeoptimizeIf(below_equal, instr->environment());
+
+  Label use_cache, call_runtime;
+  __ CheckEnumCache(null_value, &call_runtime);
+
+  __ movq(rax, FieldOperand(rax, HeapObject::kMapOffset));
+  __ jmp(&use_cache, Label::kNear);
+
+  // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
+  __ push(rax);
+  CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
+
+  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                 Heap::kMetaMapRootIndex);
+  DeoptimizeIf(not_equal, instr->environment());
+  __ bind(&use_cache);
+}
+
+
+void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
+  Register map = ToRegister(instr->map());
+  Register result = ToRegister(instr->result());
+  __ LoadInstanceDescriptors(map, result);
+  __ movq(result,
+          FieldOperand(result, DescriptorArray::kEnumerationIndexOffset));
+  __ movq(result,
+          FieldOperand(result, FixedArray::SizeFor(instr->idx())));
+  Condition cc = masm()->CheckSmi(result);
+  DeoptimizeIf(NegateCondition(cc), instr->environment());
+}
+
+
+void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
+  Register object = ToRegister(instr->value());
+  __ cmpq(ToRegister(instr->map()),
+          FieldOperand(object, HeapObject::kMapOffset));
+  DeoptimizeIf(not_equal, instr->environment());
+}
+
+
+void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  Register object = ToRegister(instr->object());
+  Register index = ToRegister(instr->index());
+
+  Label out_of_object, done;
+  __ SmiToInteger32(index, index);
+  __ cmpl(index, Immediate(0));
+  __ j(less, &out_of_object);
+  __ movq(object, FieldOperand(object,
+                               index,
+                               times_pointer_size,
+                               JSObject::kHeaderSize));
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&out_of_object);
+  __ movq(object, FieldOperand(object, JSObject::kPropertiesOffset));
+  __ negl(index);
+  // Index is now equal to out of object property index plus 1.
+  __ movq(object, FieldOperand(object,
+                               index,
+                               times_pointer_size,
+                               FixedArray::kHeaderSize - kPointerSize));
+  __ bind(&done);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

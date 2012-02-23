@@ -5081,9 +5081,7 @@ void Heap::Verify() {
 
   lo_space_->Verify();
 
-  // TODO(svenpanne) We should enable this when our fast->slow->fast-mode dance
-  // for setting accessor properties is fixed.
-  // VerifyNoAccessorPairSharing();
+  VerifyNoAccessorPairSharing();
 }
 
 

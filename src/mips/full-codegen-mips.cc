@@ -150,7 +150,7 @@ void FullCodeGenerator::Generate() {
   // We can optionally optimize based on counters rather than statistical
   // sampling.
   if (info->ShouldSelfOptimize()) {
-    if (FLAG_trace_opt) {
+    if (FLAG_trace_opt_verbose) {
       PrintF("[adding self-optimization header to %s]\n",
              *info->function()->debug_name()->ToCString());
     }
@@ -1532,7 +1532,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                            Smi::FromInt(0)));
         __ push(a1);
         VisitForStackValue(value);
-        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        __ li(a0, Operand(Smi::FromInt(NONE)));
+        __ push(a0);
+        __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
         break;
     }
   }
