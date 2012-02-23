@@ -1348,6 +1348,16 @@ enum EnsureElementsMode {
 };
 
 
+// Indicates whether a property should be set or (re)defined.  Setting of a
+// property causes attributes to remain unchanged, writability to be checked
+// and callbacks to be called.  Defining of a property causes attributes to
+// be updated and callbacks to be overridden.
+enum SetPropertyMode {
+  SET_PROPERTY,
+  DEFINE_PROPERTY
+};
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1386,6 +1396,7 @@ class JSReceiver: public HeapObject {
   // Can cause GC, or return failure if GC is required.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
+                                          PropertyAttributes attributes,
                                           StrictModeFlag strict_mode,
                                           bool check_prototype);
 
@@ -1739,10 +1750,13 @@ class JSObject: public JSReceiver {
                                               StrictModeFlag strict_mode,
                                               bool check_prototype);
 
-  MUST_USE_RESULT MaybeObject* SetDictionaryElement(uint32_t index,
-                                                    Object* value,
-                                                    StrictModeFlag strict_mode,
-                                                    bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetDictionaryElement(
+      uint32_t index,
+      Object* value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      bool check_prototype,
+      SetPropertyMode set_mode = SET_PROPERTY);
 
   MUST_USE_RESULT MaybeObject* SetFastDoubleElement(
       uint32_t index,
@@ -1750,23 +1764,28 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool check_prototype = true);
 
-
   static Handle<Object> SetOwnElement(Handle<JSObject> object,
                                       uint32_t index,
                                       Handle<Object> value,
                                       StrictModeFlag strict_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
-  static MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
-                                                   uint32_t index,
-                                                   Handle<Object> value,
-                                                   StrictModeFlag strict_mode);
+  static MUST_USE_RESULT Handle<Object> SetElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      Handle<Object> value,
+      PropertyAttributes attr,
+      StrictModeFlag strict_mode,
+      SetPropertyMode set_mode = SET_PROPERTY);
 
   // A Failure object is returned if GC is needed.
-  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
-                                          Object* value,
-                                          StrictModeFlag strict_mode,
-                                          bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetElement(
+      uint32_t index,
+      Object* value,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode,
+      bool check_prototype = true,
+      SetPropertyMode set_mode = SET_PROPERTY);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
@@ -2087,13 +2106,17 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
       uint32_t index,
       Object* value,
+      PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      bool check_prototype);
+      bool check_prototype,
+      SetPropertyMode set_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(
       uint32_t index,
       Object* value,
+      PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      bool check_prototype);
+      bool check_prototype,
+      SetPropertyMode set_mode);
 
   // Searches the prototype chain for a callback setter and sets the property
   // with the setter if it finds one. The '*found' flag indicates whether

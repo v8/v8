@@ -1329,7 +1329,7 @@ MaybeObject* StoreIC::Store(State state,
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     Handle<Object> result =
-        JSObject::SetElement(receiver, index, value, strict_mode);
+        JSObject::SetElement(receiver, index, value, NONE, strict_mode);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
     return *value;
   }
@@ -1786,7 +1786,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
       Handle<Object> result =
-          JSObject::SetElement(receiver, index, value, strict_mode);
+          JSObject::SetElement(receiver, index, value, NONE, strict_mode);
       RETURN_IF_EMPTY_HANDLE(isolate(), result);
       return *value;
     }
