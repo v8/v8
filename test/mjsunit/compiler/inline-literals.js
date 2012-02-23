@@ -45,6 +45,26 @@ function TestObjectLiteral(a, b, c) {
 
 TestObjectLiteral(1, 2, 3);
 TestObjectLiteral(1, 2, 3);
-%OptimizeFunctionOnNextCall(TestObjectLiteral);
+%OptimizeFunctionOnNextCall(o1);
 TestObjectLiteral(1, 2, 3);
 TestObjectLiteral('a', 'b', 'c');
+
+function f2() {
+  return function(b, c) { return b + c; };
+}
+
+function f1(a, b, c) {
+  return a + f2()(b, c);
+}
+
+function TestFunctionLiteral(a, b, c) {
+  var expected = a + b + c;
+  var result = f1(a, b, c);
+  assertEquals(expected, result, "TestFunctionLiteral");
+}
+
+TestFunctionLiteral(1, 2, 3);
+TestFunctionLiteral(1, 2, 3);
+%OptimizeFunctionOnNextCall(f1);
+TestFunctionLiteral(1, 2, 3);
+TestFunctionLiteral('a', 'b', 'c');
