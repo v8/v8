@@ -3331,7 +3331,7 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 DescriptorArray* Map::instance_descriptors() {
   Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
   if (object->IsSmi()) {
-    return HEAP->empty_descriptor_array();
+    return GetHeap()->empty_descriptor_array();
   } else {
     return DescriptorArray::cast(object);
   }
@@ -3645,7 +3645,7 @@ BOOL_ACCESSORS(SharedFunctionInfo,
 
 
 bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
-  return initial_map() != HEAP->undefined_value();
+  return initial_map() != GetHeap()->undefined_value();
 }
 
 
