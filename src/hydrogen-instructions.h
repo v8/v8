@@ -631,7 +631,9 @@ class HValue: public ZoneObject {
     return use_list_ != NULL && use_list_->tail() != NULL;
   }
   int UseCount() const;
-  void ClearOperands();
+
+  // Mark this HValue as dead and to be removed from other HValues' use lists.
+  void Kill();
 
   int flags() const { return flags_; }
   void SetFlag(Flag f) { flags_ |= (1 << f); }

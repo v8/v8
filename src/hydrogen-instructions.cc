@@ -383,19 +383,7 @@ void HValue::DeleteAndReplaceWith(HValue* other) {
   // We replace all uses first, so Delete can assert that there are none.
   if (other != NULL) ReplaceAllUsesWith(other);
   ASSERT(HasNoUses());
-  // Clearing the operands includes going through the use list of each operand
-  // to remove this HValue, which can be expensive.  Instead, we mark this as
-  // dead and only check the first item in the use list of each operand.
-  // For the following items in the use lists we rely on the tail() method to
-  // skip dead dead items and remove them lazily.
-  SetFlag(kIsDead);
-  for (int i = 0; i < OperandCount(); ++i) {
-    HValue* operand = OperandAt(i);
-    HUseListNode* first = operand->use_list_;
-    if (first != NULL && first->index() == i && first->value() == this) {
-      operand->use_list_ = first->tail();
-    }
-  }
+  Kill();
   DeleteFromGraph();
 }
 
@@ -413,9 +401,17 @@ void HValue::ReplaceAllUsesWith(HValue* other) {
 }
 
 
-void HValue::ClearOperands() {
+void HValue::Kill() {
+  // Instead of going through the entire use list of each operand, we only
+  // check the first item in each use list and rely on the tail() method to
+  // skip dead items, removing them lazily next time we traverse the list.
+  SetFlag(kIsDead);
   for (int i = 0; i < OperandCount(); ++i) {
-    SetOperandAt(i, NULL);
+    HValue* operand = OperandAt(i);
+    HUseListNode* first = operand->use_list_;
+    if (first != NULL && first->value() == this && first->index() == i) {
+      operand->use_list_ = first->tail();
+    }
   }
 }
 
