@@ -4450,10 +4450,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
   }
   accessors->set(is_getter, fun);
 
-  { MaybeObject* maybe_ok = SetElementCallback(index, accessors, attributes);
-    if (maybe_ok->IsFailure()) return maybe_ok;
-  }
-  return GetHeap()->undefined_value();
+  return SetElementCallback(index, accessors, attributes);
 }
 
 
@@ -4478,10 +4475,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
         }
         copy->set(is_getter, fun);
         // Use set to update attributes.
-        { MaybeObject* maybe_ok = SetPropertyCallback(name, copy, attributes);
-          if (maybe_ok->IsFailure()) return maybe_ok;
-        }
-        return GetHeap()->undefined_value();
+        return SetPropertyCallback(name, copy, attributes);
       }
     }
   }
@@ -4492,10 +4486,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
   }
   accessors->set(is_getter, fun);
 
-  { MaybeObject* maybe_ok = SetPropertyCallback(name, accessors, attributes);
-    if (maybe_ok->IsFailure()) return maybe_ok;
-  }
-  return GetHeap()->undefined_value();
+  return SetPropertyCallback(name, accessors, attributes);
 }
 
 
