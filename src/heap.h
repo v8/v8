@@ -177,6 +177,7 @@ namespace internal {
   V(eval_symbol, "eval")                                                 \
   V(function_symbol, "function")                                         \
   V(length_symbol, "length")                                             \
+  V(module_symbol, "module")                                             \
   V(name_symbol, "name")                                                 \
   V(native_symbol, "native")                                             \
   V(null_symbol, "null")                                                 \
