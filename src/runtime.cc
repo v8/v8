@@ -1039,7 +1039,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
         elms->set(VALUE_INDEX, *substr);
         elms->set(WRITABLE_INDEX, heap->false_value());
-        elms->set(ENUMERABLE_INDEX,  heap->false_value());
+        elms->set(ENUMERABLE_INDEX,  heap->true_value());
         elms->set(CONFIGURABLE_INDEX, heap->false_value());
         return *desc;
       }
