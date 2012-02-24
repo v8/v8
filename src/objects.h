@@ -440,7 +440,8 @@ const int kVariableSizeSentinel = 0;
   V(SCRIPT, Script, script)                                                    \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
-  V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)
+  V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                  \
+  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -596,6 +597,7 @@ enum InstanceType {
   CODE_CACHE_TYPE,
   POLYMORPHIC_CODE_CACHE_TYPE,
   TYPE_FEEDBACK_INFO_TYPE,
+  ALIASED_ARGUMENTS_ENTRY_TYPE,
   // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
   // is defined. However as include/v8.h contain some of the instance type
   // constants always having them avoids them getting different numbers
@@ -6432,6 +6434,39 @@ class TypeFeedbackInfo: public Struct {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
+};
+
+
+// Representation of a slow alias as part of a non-strict arguments objects.
+// For fast aliases (if HasNonStrictArgumentsElements()):
+// - the parameter map contains an index into the context
+// - all attributes of the element have default values
+// For slow aliases (if HasDictionaryArgumentsElements()):
+// - the parameter map contains no fast alias mapping (i.e. the hole)
+// - this struct (in the slow backing store) contains an index into the context
+// - all attributes are available as part if the property details
+class AliasedArgumentsEntry: public Struct {
+ public:
+  inline int aliased_context_slot();
+  inline void set_aliased_context_slot(int count);
+
+  static inline AliasedArgumentsEntry* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void AliasedArgumentsEntryPrint() {
+    AliasedArgumentsEntryPrint(stdout);
+  }
+  void AliasedArgumentsEntryPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void AliasedArgumentsEntryVerify();
+#endif
+
+  static const int kAliasedContextSlot = HeapObject::kHeaderSize;
+  static const int kSize = kAliasedContextSlot + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AliasedArgumentsEntry);
 };
 
 

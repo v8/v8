@@ -1951,6 +1951,16 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
 }
 
 
+MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
+  AliasedArgumentsEntry* entry;
+  { MaybeObject* maybe_result = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
+    if (!maybe_result->To(&entry)) return maybe_result;
+  }
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},

@@ -42,19 +42,6 @@ S10.4.2.1_A1: FAIL
 15.2.3.6-4-415: FAIL
 15.2.3.6-4-420: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
-15.2.3.6-4-292-1: FAIL
-15.2.3.6-4-293-2: FAIL
-15.2.3.6-4-293-3: FAIL
-15.2.3.6-4-294-1: FAIL
-15.2.3.6-4-295-1: FAIL
-15.2.3.6-4-296-1: FAIL
-15.2.3.7-6-a-281: FAIL
-15.2.3.7-6-a-282: FAIL
-15.2.3.7-6-a-283: FAIL
-15.2.3.7-6-a-284: FAIL
-15.2.3.7-6-a-285: FAIL
-
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # We deliberately treat arguments to parseInt() with a leading zero as

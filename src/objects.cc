@@ -9559,19 +9559,31 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       // value is being defined we skip attribute checks completely.
       if (set_mode == DEFINE_PROPERTY) {
         details = PropertyDetails(attributes, NORMAL, details.index());
-        dictionary->ValueAtPut(entry, value);
         dictionary->DetailsAtPut(entry, details);
-      } else if (!details.IsReadOnly() || element->IsTheHole()) {
-        dictionary->ValueAtPut(entry, value);
-      } else if (strict_mode == kStrictMode) {
-        Handle<Object> holder(this);
-        Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-        Handle<Object> args[2] = { number, holder };
-        Handle<Object> error =
-            isolate->factory()->NewTypeError("strict_read_only_property",
-                                             HandleVector(args, 2));
-        return isolate->Throw(*error);
+      } else if (details.IsReadOnly() && !element->IsTheHole()) {
+        if (strict_mode == kNonStrictMode) {
+          return isolate->heap()->undefined_value();
+        } else {
+          Handle<Object> holder(this);
+          Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
+          Handle<Object> args[2] = { number, holder };
+          Handle<Object> error =
+              isolate->factory()->NewTypeError("strict_read_only_property",
+                                               HandleVector(args, 2));
+          return isolate->Throw(*error);
+        }
       }
+      // Elements of the arguments object in slow mode might be slow aliases.
+      if (is_arguments && element->IsAliasedArgumentsEntry()) {
+        AliasedArgumentsEntry* entry = AliasedArgumentsEntry::cast(element);
+        Context* context = Context::cast(elements->get(0));
+        int context_index = entry->aliased_context_slot();
+        ASSERT(!context->get(context_index)->IsTheHole());
+        context->set(context_index, value);
+        // For elements that are still writable we keep slow aliasing.
+        if (!details.IsReadOnly()) value = element;
+      }
+      dictionary->ValueAtPut(entry, value);
     }
   } else {
     // Index not already used. Look for an accessor in the prototype chain.
@@ -9927,16 +9939,22 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         int context_index = Smi::cast(probe)->value();
         ASSERT(!context->get(context_index)->IsTheHole());
         context->set(context_index, value);
-        return value;
-      } else {
-        // Object is not mapped, defer to the arguments.
-        FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-        if (arguments->IsDictionary()) {
-          return SetDictionaryElement(index, value, attr, strict_mode,
-                                      check_prototype, set_mode);
-        } else {
-          return SetFastElement(index, value, strict_mode, check_prototype);
+        // Redefining attributes of an aliased element destroys fast aliasing.
+        if (set_mode == SET_PROPERTY || attr == NONE) return value;
+        parameter_map->set_the_hole(index + 2);
+        // For elements that are still writable we re-establish slow aliasing.
+        if ((attr & READ_ONLY) == 0) {
+          MaybeObject* maybe_entry =
+              isolate->heap()->AllocateAliasedArgumentsEntry(context_index);
+          if (!maybe_entry->ToObject(&value)) return maybe_entry;
         }
+      }
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        return SetDictionaryElement(index, value, attr, strict_mode,
+                                    check_prototype, set_mode);
+      } else {
+        return SetFastElement(index, value, strict_mode, check_prototype);
       }
     }
   }

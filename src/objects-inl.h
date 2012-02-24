@@ -4806,6 +4806,9 @@ ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)
 
 
+SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
+
+
 Relocatable::Relocatable(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
   isolate_ = isolate;

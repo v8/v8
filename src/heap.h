@@ -641,6 +641,9 @@ class Heap {
   // Allocates an empty TypeFeedbackInfo.
   MUST_USE_RESULT MaybeObject* AllocateTypeFeedbackInfo();
 
+  // Allocates an AliasedArgumentsEntry.
+  MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
