@@ -97,7 +97,7 @@ void HBasicBlock::RemovePhi(HPhi* phi) {
   ASSERT(phi->block() == this);
   ASSERT(phis_.Contains(phi));
   ASSERT(phi->HasNoUses() || !phi->is_live());
-  phi->ClearOperands();
+  phi->Kill();
   phis_.RemoveElement(phi);
   phi->SetBlock(NULL);
 }

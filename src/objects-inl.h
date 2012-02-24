@@ -3331,7 +3331,7 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 DescriptorArray* Map::instance_descriptors() {
   Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
   if (object->IsSmi()) {
-    return HEAP->empty_descriptor_array();
+    return GetHeap()->empty_descriptor_array();
   } else {
     return DescriptorArray::cast(object);
   }
@@ -3645,7 +3645,7 @@ BOOL_ACCESSORS(SharedFunctionInfo,
 
 
 bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
-  return initial_map() != HEAP->undefined_value();
+  return initial_map() != GetHeap()->undefined_value();
 }
 
 
@@ -4804,6 +4804,9 @@ SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
               kIcWithTypeinfoCountOffset)
 ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)
+
+
+SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
 
 Relocatable::Relocatable(Isolate* isolate) {

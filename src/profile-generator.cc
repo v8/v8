@@ -3293,29 +3293,26 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
   (*dominators)[root_index] = root_index;
 
-  // We use time_stamps array to stamp entries with the iteration number
-  // when the dominance for the entry has been updated.
-  ScopedVector<int> time_stamps(entries_length);
-  for (int i = 0; i < entries_length; ++i) time_stamps[i] = -1;
+  // The affected array is used to mark those entries that may
+  // be affected because of dominators change among their retainers.
+  ScopedVector<bool> affected(entries_length);
+  for (int i = 0; i < entries_length; ++i) affected[i] = false;
   Vector<HeapGraphEdge> children = entries[root_index]->children();
   for (int i = 0; i < children.length(); ++i) {
-    // Mark the root direct children as affected on iteration zero.
-    time_stamps[children[i].to()->ordered_index()] = 0;
+    // Mark the root direct children as affected.
+    affected[children[i].to()->ordered_index()] = true;
   }
 
   int changed = 1;
-  int iteration = 0;
   const int base_progress_counter = progress_counter_;
   while (changed != 0) {
-    ++iteration;
     changed = 0;
     for (int i = root_index - 1; i >= 0; --i) {
       // If dominator of the entry has already been set to root,
       // then it can't propagate any further.
       if ((*dominators)[i] == root_index) continue;
-      // If no retainers of the entry had been updated on current
-      // or previous iteration, then this entry is not affected.
-      if (time_stamps[i] < iteration - 1) continue;
+      if (!affected[i]) continue;
+      affected[i] = false;
       int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
       for (int j = 0; j < rets.length(); ++j) {
@@ -3336,7 +3333,7 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
         ++changed;
         Vector<HeapGraphEdge> children = entries[i]->children();
         for (int j = 0; j < children.length(); ++j) {
-          time_stamps[children[j].to()->ordered_index()] = iteration;
+          affected[children[j].to()->ordered_index()] = true;
         }
       }
     }
