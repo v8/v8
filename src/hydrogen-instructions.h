@@ -2457,7 +2457,12 @@ class HConstant: public HTemplateInstruction<0> {
 
   virtual intptr_t Hashcode() {
     ASSERT(!HEAP->allow_allocation(false));
-    return reinterpret_cast<intptr_t>(*handle());
+    intptr_t hash = reinterpret_cast<intptr_t>(*handle());
+    // Prevent smis from having fewer hash values when truncated to
+    // the least significant bits.
+    const int kShiftSize = kSmiShiftSize + kSmiTagSize;
+    STATIC_ASSERT(kShiftSize != 0);
+    return hash ^ (hash >> kShiftSize);
   }
 
 #ifdef DEBUG

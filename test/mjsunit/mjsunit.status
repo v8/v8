@@ -66,7 +66,7 @@ debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
-regress/regress-1969: PASS, SKIP if ($mode == debug || $arch == x64)
+regress/regress-1969: PASS, SKIP if $mode == debug
 
 ##############################################################################
 [ $isolates ]
