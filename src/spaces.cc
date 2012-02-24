@@ -699,7 +699,7 @@ int MemoryAllocator::CodePageGuardStartOffset() {
 
 
 int MemoryAllocator::CodePageGuardSize() {
-  return OS::CommitPageSize();
+  return static_cast<int>(OS::CommitPageSize());
 }
 
 
@@ -713,7 +713,7 @@ int MemoryAllocator::CodePageAreaStartOffset() {
 int MemoryAllocator::CodePageAreaEndOffset() {
   // We are guarding code pages: the last OS page will be protected as
   // non-writable.
-  return Page::kPageSize - OS::CommitPageSize();
+  return Page::kPageSize - static_cast<int>(OS::CommitPageSize());
 }
 
 
