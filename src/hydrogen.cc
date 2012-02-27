@@ -3242,6 +3242,10 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
 
+  if (!FLAG_optimize_for_in) {
+    return Bailout("ForInStatement optimization is disabled");
+  }
+
   if (!stmt->each()->IsVariableProxy() ||
       !stmt->each()->AsVariableProxy()->var()->IsStackLocal()) {
     return Bailout("ForInStatement with non-local each variable");
