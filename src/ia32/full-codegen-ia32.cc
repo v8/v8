@@ -342,7 +342,15 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(127, Max(1, distance / 100));
     }
-    __ sub(Operand::Cell(profiling_counter_), Immediate(Smi::FromInt(weight)));
+    if (Serializer::enabled()) {
+      __ mov(ebx, Immediate(profiling_counter_));
+      __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+             Immediate(Smi::FromInt(weight)));
+    } else {
+      // This version is slightly faster, but not snapshot safe.
+      __ sub(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(weight)));
+    }
     __ j(positive, &ok, Label::kNear);
     InterruptStub stub;
     __ CallStub(&stub);
@@ -372,8 +380,14 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
 
   if (FLAG_count_based_interrupts) {
     // Reset the countdown.
-    __ mov(Operand::Cell(profiling_counter_),
-           Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    if (Serializer::enabled()) {
+      __ mov(ebx, Immediate(profiling_counter_));
+      __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    } else {
+      __ mov(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    }
   }
 
   __ bind(&ok);
@@ -403,8 +417,15 @@ void FullCodeGenerator::EmitReturnSequence() {
         int distance = masm_->pc_offset();
         weight = Min(127, Max(1, distance / 100));
       }
-      __ sub(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(weight)));
+      if (Serializer::enabled()) {
+        __ mov(ebx, Immediate(profiling_counter_));
+        __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+               Immediate(Smi::FromInt(weight)));
+      } else {
+        // This version is slightly faster, but not snapshot safe.
+        __ sub(Operand::Cell(profiling_counter_),
+               Immediate(Smi::FromInt(weight)));
+      }
       Label ok;
       __ j(positive, &ok, Label::kNear);
       __ push(eax);
@@ -412,8 +433,14 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ CallStub(&stub);
       __ pop(eax);
       // Reset the countdown.
-      __ mov(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      if (Serializer::enabled()) {
+        __ mov(ebx, Immediate(profiling_counter_));
+        __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      } else {
+        __ mov(Operand::Cell(profiling_counter_),
+               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      }
       __ bind(&ok);
     }
 #ifdef DEBUG
