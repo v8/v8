@@ -971,7 +971,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
                      int retainers_count) {
   snapshot_ = snapshot;
   type_ = type;
-  painted_ = kUnpainted;
+  painted_ = false;
   name_ = name;
   self_size_ = self_size;
   retained_size_ = 0;
@@ -1013,56 +1013,15 @@ void HeapEntry::SetUnidirElementReference(
 }
 
 
-int HeapEntry::RetainedSize(bool exact) {
-  if (exact && (retained_size_ & kExactRetainedSizeTag) == 0) {
-    CalculateExactRetainedSize();
-  }
-  return retained_size_ & (~kExactRetainedSizeTag);
-}
-
-
 Handle<HeapObject> HeapEntry::GetHeapObject() {
   return snapshot_->collection()->FindHeapObjectById(id());
-}
-
-
-template<class Visitor>
-void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
-  List<HeapEntry*> list(10);
-  list.Add(this);
-  this->paint_reachable();
-  visitor->Apply(this);
-  while (!list.is_empty()) {
-    HeapEntry* entry = list.RemoveLast();
-    Vector<HeapGraphEdge> children = entry->children();
-    for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
-      HeapEntry* child = children[i].to();
-      if (!child->painted_reachable()) {
-        list.Add(child);
-        child->paint_reachable();
-        visitor->Apply(child);
-      }
-    }
-  }
-}
-
-
-class NullClass {
- public:
-  void Apply(HeapEntry* entry) { }
-};
-
-void HeapEntry::PaintAllReachable() {
-  NullClass null;
-  ApplyAndPaintAllReachable(&null);
 }
 
 
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   OS::Print("%6d %7d @%6llu %*c %s%s: ",
-            self_size(), RetainedSize(false), id(),
+            self_size(), retained_size(), id(),
             indent, ' ', prefix, edge_name);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -1143,60 +1102,6 @@ int HeapEntry::EntriesSize(int entries_count,
   return sizeof(HeapEntry) * entries_count         // NOLINT
       + sizeof(HeapGraphEdge) * children_count     // NOLINT
       + sizeof(HeapGraphEdge*) * retainers_count;  // NOLINT
-}
-
-
-class RetainedSizeCalculator {
- public:
-  RetainedSizeCalculator()
-      : retained_size_(0) {
-  }
-
-  int retained_size() const { return retained_size_; }
-
-  void Apply(HeapEntry** entry_ptr) {
-    if ((*entry_ptr)->painted_reachable()) {
-      retained_size_ += (*entry_ptr)->self_size();
-    }
-  }
-
- private:
-  int retained_size_;
-};
-
-
-void HeapEntry::CalculateExactRetainedSize() {
-  // To calculate retained size, first we paint all reachable nodes in
-  // one color, then we paint (or re-paint) all nodes reachable from
-  // other nodes with a different color. Then we sum up self sizes of
-  // nodes painted with the first color.
-  snapshot()->ClearPaint();
-  PaintAllReachable();
-
-  List<HeapEntry*> list(10);
-  HeapEntry* root = snapshot()->root();
-  if (this != root) {
-    list.Add(root);
-    root->paint_reachable_from_others();
-  }
-  while (!list.is_empty()) {
-    HeapEntry* curr = list.RemoveLast();
-    Vector<HeapGraphEdge> children = curr->children();
-    for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
-      HeapEntry* child = children[i].to();
-      if (child != this && child->not_painted_reachable_from_others()) {
-        list.Add(child);
-        child->paint_reachable_from_others();
-      }
-    }
-  }
-
-  RetainedSizeCalculator ret_size_calc;
-  snapshot()->IterateEntries(&ret_size_calc);
-  retained_size_ = ret_size_calc.retained_size();
-  ASSERT((retained_size_ & kExactRetainedSizeTag) == 0);
-  retained_size_ |= kExactRetainedSizeTag;
 }
 
 
@@ -3189,7 +3094,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   if (!FillReferences()) return false;
 
   if (!SetEntriesDominators()) return false;
-  if (!ApproximateRetainedSizes()) return false;
+  if (!CalculateRetainedSizes()) return false;
 
   progress_counter_ = progress_total_;
   if (!ProgressReport(true)) return false;
@@ -3247,7 +3152,7 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
   int current_entry = 0;
   List<HeapEntry*> nodes_to_visit;
   nodes_to_visit.Add(snapshot_->root());
-  snapshot_->root()->paint_reachable();
+  snapshot_->root()->paint();
   while (!nodes_to_visit.is_empty()) {
     HeapEntry* entry = nodes_to_visit.last();
     Vector<HeapGraphEdge> children = entry->children();
@@ -3255,9 +3160,9 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
     for (int i = 0; i < children.length(); ++i) {
       if (children[i].type() == HeapGraphEdge::kShortcut) continue;
       HeapEntry* child = children[i].to();
-      if (!child->painted_reachable()) {
+      if (!child->painted()) {
         nodes_to_visit.Add(child);
-        child->paint_reachable();
+        child->paint();
         has_new_edges = true;
       }
     }
@@ -3293,15 +3198,13 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
   (*dominators)[root_index] = root_index;
 
-  // The affected array is used to mark those entries that may
-  // be affected because of dominators change among their retainers.
-  ScopedVector<bool> affected(entries_length);
-  for (int i = 0; i < entries_length; ++i) affected[i] = false;
+  // The painted flag is used to mark entries that need to be recalculated
+  // because of dominators change among their retainers.
+  for (int i = 0; i < entries_length; ++i) entries[i]->clear_paint();
+
+  // Mark the root direct children as affected.
   Vector<HeapGraphEdge> children = entries[root_index]->children();
-  for (int i = 0; i < children.length(); ++i) {
-    // Mark the root direct children as affected.
-    affected[children[i].to()->ordered_index()] = true;
-  }
+  for (int i = 0; i < children.length(); ++i) children[i].to()->paint();
 
   bool changed = true;
   while (changed) {
@@ -3310,10 +3213,11 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
       // If dominator of the entry has already been set to root,
       // then it can't propagate any further.
       if ((*dominators)[i] == root_index) continue;
-      if (!affected[i]) continue;
-      affected[i] = false;
+      HeapEntry* entry = entries[i];
+      if (!entry->painted()) continue;
+      entry->clear_paint();
       int new_idom_index = kNoDominator;
-      Vector<HeapGraphEdge*> rets = entries[i]->retainers();
+      Vector<HeapGraphEdge*> rets = entry->retainers();
       for (int j = 0; j < rets.length(); ++j) {
         if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
         int ret_index = rets[j]->From()->ordered_index();
@@ -3331,9 +3235,7 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
         (*dominators)[i] = new_idom_index;
         changed = true;
         Vector<HeapGraphEdge> children = entries[i]->children();
-        for (int j = 0; j < children.length(); ++j) {
-          affected[children[j].to()->ordered_index()] = true;
-        }
+        for (int j = 0; j < children.length(); ++j) children[j].to()->paint();
       }
     }
   }
@@ -3355,7 +3257,7 @@ bool HeapSnapshotGenerator::SetEntriesDominators() {
 }
 
 
-bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
+bool HeapSnapshotGenerator::CalculateRetainedSizes() {
   // As for the dominators tree we only know parent nodes, not
   // children, to sum up total sizes we "bubble" node's self size
   // adding it to all of its parents.
@@ -3607,7 +3509,7 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
       GetStringId(entry->name()),
       entry->id(),
       entry->self_size(),
-      entry->RetainedSize(false),
+      entry->retained_size(),
       GetNodeId(entry->dominator()),
       children.length());
   USE(result);

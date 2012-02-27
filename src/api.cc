@@ -5873,10 +5873,10 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetRetainedSize(bool exact) const {
+int HeapGraphNode::GetRetainedSize() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize(exact);
+  return ToInternal(this)->retained_size();
 }
 
 
