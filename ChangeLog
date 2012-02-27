@@ -1,3 +1,8 @@
+2012-02-27: Version 3.9.11
+
+        Make 'module' a context-sensitive keyword (V8 issue 1957).
+
+
 2012-02-24: Version 3.9.10
 
         Fixed V8 issues 1322, 1772 and 1969.
