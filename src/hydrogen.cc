@@ -3075,7 +3075,6 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
     }
   }
 
-
   AddSimulate(osr_entry_id);
   AddInstruction(new(zone()) HOsrEntry(osr_entry_id));
   HContext* context = new(zone()) HContext;
@@ -3256,10 +3255,8 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   CHECK_ALIVE(VisitForValue(stmt->enumerable()));
   HValue* enumerable = Top();  // Leave enumerable at the top.
 
-  HValue* context = environment()->LookupContext();
-
   HInstruction* map = AddInstruction(new(zone()) HForInPrepareMap(
-      context, enumerable));
+      environment()->LookupContext(), enumerable));
   AddSimulate(stmt->PrepareId());
 
   HInstruction* array = AddInstruction(
@@ -3336,9 +3333,11 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     set_current_block(body_exit);
 
     HValue* current_index = Pop();
-    PushAndAdd(
-        new(zone()) HAdd(context, current_index, graph()->GetConstant1()));
-
+    HInstruction* new_index = new(zone()) HAdd(environment()->LookupContext(),
+                                               current_index,
+                                               graph()->GetConstant1());
+    new_index->AssumeRepresentation(Representation::Integer32());
+    PushAndAdd(new_index);
     body_exit = current_block();
   }
 

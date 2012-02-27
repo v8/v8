@@ -169,7 +169,7 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
-DEFINE_bool(optimize_for_in, false,
+DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 
 // Experimental profiler changes.
