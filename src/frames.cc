@@ -41,6 +41,22 @@
 namespace v8 {
 namespace internal {
 
+
+static ReturnAddressLocationResolver return_address_location_resolver = NULL;
+
+
+// Resolves pc_address through the resolution address function if one is set.
+static inline Address* ResolveReturnAddressLocation(Address* pc_address) {
+  if (return_address_location_resolver == NULL) {
+    return pc_address;
+  } else {
+    return reinterpret_cast<Address*>(
+        return_address_location_resolver(
+            reinterpret_cast<uintptr_t>(pc_address)));
+  }
+}
+
+
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {
@@ -155,8 +171,8 @@ void StackFrameIterator::Reset() {
     ASSERT(fp_ != NULL);
     state.fp = fp_;
     state.sp = sp_;
-    state.pc_address =
-        reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_));
+    state.pc_address = ResolveReturnAddressLocation(
+        reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_)));
     type = StackFrame::ComputeType(isolate(), &state);
   }
   if (SingletonFor(type) == NULL) return;
@@ -414,6 +430,13 @@ void StackFrame::IteratePc(ObjectVisitor* v,
 }
 
 
+void StackFrame::SetReturnAddressLocationResolver(
+    ReturnAddressLocationResolver resolver) {
+  ASSERT(return_address_location_resolver == NULL);
+  return_address_location_resolver = resolver;
+}
+
+
 StackFrame::Type StackFrame::ComputeType(Isolate* isolate, State* state) {
   ASSERT(state->fp != NULL);
   if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
@@ -488,8 +511,8 @@ void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
   state->sp = caller_sp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
-  state->pc_address
-      = reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset);
+  state->pc_address = ResolveReturnAddressLocation(
+      reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
 }
 
 
@@ -523,7 +546,8 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->sp = sp;
   state->fp = fp;
-  state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
+  state->pc_address = ResolveReturnAddressLocation(
+      reinterpret_cast<Address*>(sp - 1 * kPointerSize));
 }
 
 
@@ -558,7 +582,8 @@ int StandardFrame::ComputeExpressionsCount() const {
 void StandardFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
-  state->pc_address = reinterpret_cast<Address*>(ComputePCAddress(fp()));
+  state->pc_address = ResolveReturnAddressLocation(
+      reinterpret_cast<Address*>(ComputePCAddress(fp())));
 }
 
 
