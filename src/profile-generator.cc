@@ -3166,7 +3166,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   debug_heap->Verify();
 #endif
 
-  SetProgressTotal(4);  // 2 passes + dominators + sizes.
+  SetProgressTotal(2);  // 2 passes.
 
 #ifdef DEBUG
   debug_heap->Verify();
@@ -3303,10 +3303,9 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
     affected[children[i].to()->ordered_index()] = true;
   }
 
-  int changed = 1;
-  const int base_progress_counter = progress_counter_;
-  while (changed != 0) {
-    changed = 0;
+  bool changed = true;
+  while (changed) {
+    changed = false;
     for (int i = root_index - 1; i >= 0; --i) {
       // If dominator of the entry has already been set to root,
       // then it can't propagate any further.
@@ -3330,17 +3329,13 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
       if (new_idom_index != kNoDominator
           && dominators->at(i) != new_idom_index) {
         (*dominators)[i] = new_idom_index;
-        ++changed;
+        changed = true;
         Vector<HeapGraphEdge> children = entries[i]->children();
         for (int j = 0; j < children.length(); ++j) {
           affected[children[j].to()->ordered_index()] = true;
         }
       }
     }
-    int remaining = entries_length - changed;
-    ASSERT(remaining >= 0);
-    progress_counter_ = base_progress_counter + remaining;
-    if (!ProgressReport(true)) return false;
   }
   return true;
 }
@@ -3364,21 +3359,19 @@ bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
   // As for the dominators tree we only know parent nodes, not
   // children, to sum up total sizes we "bubble" node's self size
   // adding it to all of its parents.
-  for (int i = 0; i < snapshot_->entries()->length(); ++i) {
-    HeapEntry* entry = snapshot_->entries()->at(i);
+  List<HeapEntry*>& entries = *snapshot_->entries();
+  for (int i = 0; i < entries.length(); ++i) {
+    HeapEntry* entry = entries[i];
     entry->set_retained_size(entry->self_size());
   }
-  for (int i = 0;
-       i < snapshot_->entries()->length();
-       ++i, ProgressStep()) {
-    HeapEntry* entry = snapshot_->entries()->at(i);
+  for (int i = 0; i < entries.length(); ++i) {
+    HeapEntry* entry = entries[i];
     int entry_size = entry->self_size();
     for (HeapEntry* dominator = entry->dominator();
          dominator != entry;
          entry = dominator, dominator = entry->dominator()) {
       dominator->add_retained_size(entry_size);
     }
-    if (!ProgressReport()) return false;
   }
   return true;
 }

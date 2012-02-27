@@ -315,10 +315,13 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
       if (delta != 0) {
         Code* host = target->GetHeap()->isolate()->
             inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
-        TypeFeedbackInfo* info =
-            TypeFeedbackInfo::cast(host->type_feedback_info());
-        info->set_ic_with_typeinfo_count(
-            info->ic_with_typeinfo_count() + delta);
+        // Not all Code objects have TypeFeedbackInfo.
+        if (host->type_feedback_info()->IsTypeFeedbackInfo()) {
+          TypeFeedbackInfo* info =
+              TypeFeedbackInfo::cast(host->type_feedback_info());
+          info->set_ic_with_typeinfo_count(
+              info->ic_with_typeinfo_count() + delta);
+        }
       }
     }
   }
