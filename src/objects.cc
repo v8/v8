@@ -8257,9 +8257,15 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::ARGUMENTS_ADAPTOR_FRAME: {
+        case Translation::ARGUMENTS_ADAPTOR_FRAME:
+        case Translation::CONSTRUCT_STUB_FRAME: {
+          int function_id = iterator.Next();
+          JSFunction* function =
+              JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
-          PrintF(out, "{arguments adaptor, height=%d}", height);
+          PrintF(out, "{function=");
+          function->PrintName(out);
+          PrintF(out, ", height=%u}", height);
           break;
         }
 

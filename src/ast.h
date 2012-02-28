@@ -1528,6 +1528,13 @@ class CallNew: public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
   virtual int position() const { return pos_; }
 
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual bool IsMonomorphic() { return is_monomorphic_; }
+  Handle<JSFunction> target() { return target_; }
+
+  // Bailout support.
+  int ReturnId() const { return return_id_; }
+
  protected:
   template<class> friend class AstNodeFactory;
 
@@ -1538,12 +1545,19 @@ class CallNew: public Expression {
       : Expression(isolate),
         expression_(expression),
         arguments_(arguments),
-        pos_(pos) { }
+        pos_(pos),
+        is_monomorphic_(false),
+        return_id_(GetNextId(isolate)) { }
 
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   int pos_;
+
+  bool is_monomorphic_;
+  Handle<JSFunction> target_;
+
+  int return_id_;
 };
 
 

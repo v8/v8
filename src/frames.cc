@@ -843,14 +843,11 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
   // We create the summary in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
+  bool is_constructor = IsConstructor();
   int i = jsframe_count;
   while (i > 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::JS_FRAME) {
-      // We don't inline constructor calls, so only the first, outermost
-      // frame can be a constructor frame in case of inlining.
-      bool is_constructor = (i == jsframe_count) && IsConstructor();
-
       i--;
       int ast_id = it.Next();
       int function_id = it.Next();
@@ -900,11 +897,18 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
       FrameSummary summary(receiver, function, code, pc_offset, is_constructor);
       frames->Add(summary);
+      is_constructor = false;
+    } else if (opcode == Translation::CONSTRUCT_STUB_FRAME) {
+      // The next encountered JS_FRAME will be marked as a constructor call.
+      it.Skip(Translation::NumberOfOperandsFor(opcode));
+      ASSERT(!is_constructor);
+      is_constructor = true;
     } else {
       // Skip over operands to advance to the next opcode.
       it.Skip(Translation::NumberOfOperandsFor(opcode));
     }
   }
+  ASSERT(!is_constructor);
 }
 
 

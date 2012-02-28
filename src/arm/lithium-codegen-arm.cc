@@ -479,10 +479,18 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 
   WriteTranslation(environment->outer(), translation);
   int closure_id = DefineDeoptimizationLiteral(environment->closure());
-  if (environment->is_arguments_adaptor()) {
-    translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
-  } else {
-    translation->BeginJSFrame(environment->ast_id(), closure_id, height);
+  switch (environment->frame_type()) {
+    case JS_FUNCTION:
+      translation->BeginJSFrame(environment->ast_id(), closure_id, height);
+      break;
+    case JS_CONSTRUCT:
+      translation->BeginConstructStubFrame(closure_id, translation_size);
+      break;
+    case ARGUMENTS_ADAPTOR:
+      translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
+      break;
+    default:
+      UNREACHABLE();
   }
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
@@ -619,7 +627,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
     int jsframe_count = 0;
     for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
       ++frame_count;
-      if (!e->is_arguments_adaptor()) {
+      if (e->frame_type() == JS_FUNCTION) {
         ++jsframe_count;
       }
     }
@@ -4319,6 +4327,44 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
                    Handle<Map>(current_prototype->map()),
                    ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
   DeoptimizeIf(ne, instr->environment());
+}
+
+
+void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
+  class DeferredAllocateObject: public LDeferredCode {
+   public:
+    DeferredAllocateObject(LCodeGen* codegen, LAllocateObject* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredAllocateObject(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LAllocateObject* instr_;
+  };
+
+  DeferredAllocateObject* deferred = new DeferredAllocateObject(this, instr);
+
+  // TODO(mstarzinger): Implement inlined version instead of jumping to
+  // deferred runtime call.
+  __ jmp(deferred->entry());
+
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
+  Register result = ToRegister(instr->result());
+  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, Operand(0));
+
+  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  __ LoadHeapObject(r0, constructor);
+  __ push(r0);
+  CallRuntimeFromDeferred(Runtime::kNewObject, 1, instr);
+  __ StoreToSafepointRegisterSlot(r0, result);
 }
 
 

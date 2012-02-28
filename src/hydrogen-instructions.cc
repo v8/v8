@@ -1923,6 +1923,11 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
+HType HAllocateObject::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
 HType HFastLiteral::CalculateInferredType() {
   // TODO(mstarzinger): Be smarter, could also be JSArray here.
   return HType::JSObject();

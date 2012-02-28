@@ -267,6 +267,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
   Handle<JSFunction> GetCallTarget(Call* expr);
+  Handle<JSFunction> GetCallNewTarget(CallNew* expr);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 

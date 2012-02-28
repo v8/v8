@@ -329,6 +329,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                         NullCallWrapper(), CALL_AS_METHOD);
     }
 
+    // Store offset of return address for deoptimizer.
+    // TODO(849): Once Generate_StringConstructCode doesn't reuse this
+    // generator, we can drop the third condition below!
+    if (!is_api_function && !count_constructions &&
+        masm->isolate()->heap()->construct_stub_deopt_pc_offset() == 0) {
+      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+    }
+
     // Restore context from the frame.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
@@ -1538,7 +1546,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&invoke);
   __ call(rdx);
 
+  // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
+
   // Leave frame and return.
   LeaveArgumentsAdaptorFrame(masm);
   __ ret(0);

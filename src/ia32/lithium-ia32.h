@@ -43,6 +43,7 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
+  V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -1992,6 +1993,19 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi, "check-non-smi")
+};
+
+
+class LAllocateObject: public LTemplateInstruction<1, 1, 0> {
+ public:
+  LAllocateObject(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
+  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
+
+  LOperand* context() { return inputs_[0]; }
 };
 
 

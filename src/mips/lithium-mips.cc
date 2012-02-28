@@ -2098,6 +2098,12 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
+  LAllocateObject* result = new LAllocateObject();
+  return AssignPointerMap(DefineAsRegister(result));
+}
+
+
 LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
   return MarkAsCall(DefineFixed(new LFastLiteral, v0), instr);
 }
