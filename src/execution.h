@@ -45,6 +45,10 @@ enum InterruptFlag {
   GC_REQUEST = 1 << 6
 };
 
+
+class Isolate;
+
+
 class Execution : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
@@ -141,7 +145,8 @@ class Execution : public AllStatic {
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
-  MUST_USE_RESULT static MaybeObject* HandleStackGuardInterrupt();
+  MUST_USE_RESULT static MaybeObject* HandleStackGuardInterrupt(
+      Isolate* isolate);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
@@ -158,7 +163,6 @@ class Execution : public AllStatic {
 
 
 class ExecutionAccess;
-class Isolate;
 
 
 // StackGuard contains the handling of the limits that are used to limit the

@@ -3763,7 +3763,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers);
+  OffsetsVector registers(required_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
   bool first = true;
@@ -3836,7 +3836,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers);
+  OffsetsVector registers(required_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
 
   RegExpImpl::IrregexpResult result =
@@ -3855,7 +3855,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   if (result == RegExpImpl::RE_SUCCESS) {
     // Need to keep a copy of the previous match for creating last_match_info
     // at the end, so we have two vectors that we swap between.
-    OffsetsVector registers2(required_registers);
+    OffsetsVector registers2(required_registers, isolate);
     Vector<int> prev_register_vector(registers2.vector(), registers2.length());
     bool first = true;
     do {
@@ -9200,13 +9200,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
     return isolate->StackOverflow();
   }
 
-  return Execution::HandleStackGuardInterrupt();
+  return Execution::HandleStackGuardInterrupt(isolate);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Interrupt) {
   ASSERT(args.length() == 0);
-  return Execution::HandleStackGuardInterrupt();
+  return Execution::HandleStackGuardInterrupt(isolate);
 }
 
 

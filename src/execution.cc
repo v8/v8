@@ -872,8 +872,7 @@ void Execution::ProcessDebugMessages(bool debug_command_only) {
 
 #endif
 
-MaybeObject* Execution::HandleStackGuardInterrupt() {
-  Isolate* isolate = Isolate::Current();
+MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
 
   if (stack_guard->IsGCRequest()) {
