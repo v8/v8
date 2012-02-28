@@ -979,7 +979,8 @@ void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
 
 class HRangeAnalysis BASE_EMBEDDED {
  public:
-  explicit HRangeAnalysis(HGraph* graph) : graph_(graph), changed_ranges_(16) {}
+  explicit HRangeAnalysis(HGraph* graph) :
+      graph_(graph), zone_(graph->isolate()->zone()), changed_ranges_(16) { }
 
   void Analyze();
 
@@ -993,6 +994,7 @@ class HRangeAnalysis BASE_EMBEDDED {
   void AddRange(HValue* value, Range* range);
 
   HGraph* graph_;
+  Zone* zone_;
   ZoneList<HValue*> changed_ranges_;
 };
 
@@ -1079,14 +1081,14 @@ void HRangeAnalysis::UpdateControlFlowRange(Token::Value op,
 
   if (op == Token::EQ || op == Token::EQ_STRICT) {
     // The same range has to apply for value.
-    new_range = range->Copy();
+    new_range = range->Copy(zone_);
   } else if (op == Token::LT || op == Token::LTE) {
-    new_range = range->CopyClearLower();
+    new_range = range->CopyClearLower(zone_);
     if (op == Token::LT) {
       new_range->AddConstant(-1);
     }
   } else if (op == Token::GT || op == Token::GTE) {
-    new_range = range->CopyClearUpper();
+    new_range = range->CopyClearUpper(zone_);
     if (op == Token::GT) {
       new_range->AddConstant(1);
     }
@@ -1101,7 +1103,7 @@ void HRangeAnalysis::UpdateControlFlowRange(Token::Value op,
 void HRangeAnalysis::InferRange(HValue* value) {
   ASSERT(!value->HasRange());
   if (!value->representation().IsNone()) {
-    value->ComputeInitialRange();
+    value->ComputeInitialRange(zone_);
     Range* range = value->range();
     TraceRange("Initial inferred range of %d (%s) set to [%d,%d]\n",
                value->id(),
@@ -1122,7 +1124,7 @@ void HRangeAnalysis::RollBackTo(int index) {
 
 void HRangeAnalysis::AddRange(HValue* value, Range* range) {
   Range* original_range = value->range();
-  value->AddNewRange(range);
+  value->AddNewRange(range, zone_);
   changed_ranges_.Add(value);
   Range* new_range = value->range();
   TraceRange("Updated range of %d set to [%d,%d]\n",
