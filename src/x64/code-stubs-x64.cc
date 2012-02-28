@@ -5753,7 +5753,7 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
   // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
+  // (their names are the hole value).
   for (int i = 0; i < kInlinedProbes; i++) {
     // r0 points to properties hash.
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -5782,11 +5782,18 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Cmp(entity_name, Handle<String>(name));
     __ j(equal, miss);
 
+    Label the_hole;
+    // Check for the hole and skip.
+    __ CompareRoot(entity_name, Heap::kTheHoleValueRootIndex);
+    __ j(equal, &the_hole, Label::kNear);
+
     // Check if the entry name is not a symbol.
     __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
              Immediate(kIsSymbolMask));
     __ j(zero, miss);
+
+    __ bind(&the_hole);
   }
 
   StringDictionaryLookupStub stub(properties,

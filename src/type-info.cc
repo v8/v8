@@ -256,6 +256,11 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 }
 
 
+Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
+  return Handle<JSFunction>::cast(GetInfo(expr->id()));
+}
+
+
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
   return *GetInfo(expr->id()) ==
       isolate_->builtins()->builtin(id);

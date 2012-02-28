@@ -62,6 +62,7 @@ class LChunkBuilder;
   V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
+  V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
@@ -1376,11 +1377,13 @@ class HEnterInlined: public HTemplateInstruction<0> {
   HEnterInlined(Handle<JSFunction> closure,
                 int arguments_count,
                 FunctionLiteral* function,
-                CallKind call_kind)
+                CallKind call_kind,
+                bool is_construct)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
-        call_kind_(call_kind) {
+        call_kind_(call_kind),
+        is_construct_(is_construct) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1389,6 +1392,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count() const { return arguments_count_; }
   FunctionLiteral* function() const { return function_; }
   CallKind call_kind() const { return call_kind_; }
+  bool is_construct() const { return is_construct_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1401,6 +1405,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count_;
   FunctionLiteral* function_;
   CallKind call_kind_;
+  bool is_construct_;
 };
 
 
@@ -4355,6 +4360,29 @@ class HStringLength: public HUnaryOperation {
   virtual Range* InferRange() {
     return new Range(0, String::kMaxLength);
   }
+};
+
+
+class HAllocateObject: public HTemplateInstruction<1> {
+ public:
+  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
+      : constructor_(constructor) {
+    SetOperandAt(0, context);
+    set_representation(Representation::Tagged());
+  }
+
+  HValue* context() { return OperandAt(0); }
+  Handle<JSFunction> constructor() { return constructor_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual HType CalculateInferredType();
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
+
+ private:
+  Handle<JSFunction> constructor_;
 };
 
 

@@ -558,22 +558,9 @@ class HeapEntry BASE_EMBEDDED {
     ASSERT(entry != NULL);
     dominator_ = entry;
   }
-
-  void clear_paint() { painted_ = kUnpainted; }
-  bool painted_reachable() { return painted_ == kPainted; }
-  void paint_reachable() {
-    ASSERT(painted_ == kUnpainted);
-    painted_ = kPainted;
-  }
-  bool not_painted_reachable_from_others() {
-    return painted_ != kPaintedReachableFromOthers;
-  }
-  void paint_reachable_from_others() {
-    painted_ = kPaintedReachableFromOthers;
-  }
-  template<class Visitor>
-  void ApplyAndPaintAllReachable(Visitor* visitor);
-  void PaintAllReachable();
+  void clear_paint() { painted_ = false; }
+  bool painted() { return painted_; }
+  void paint() { painted_ = true; }
 
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
@@ -588,7 +575,6 @@ class HeapEntry BASE_EMBEDDED {
   void SetUnidirElementReference(int child_index, int index, HeapEntry* entry);
 
   int EntrySize() { return EntriesSize(1, children_count_, retainers_count_); }
-  int RetainedSize(bool exact);
 
   void Print(
       const char* prefix, const char* edge_name, int max_depth, int indent);
@@ -606,12 +592,11 @@ class HeapEntry BASE_EMBEDDED {
   HeapGraphEdge** retainers_arr() {
     return reinterpret_cast<HeapGraphEdge**>(children_arr() + children_count_);
   }
-  void CalculateExactRetainedSize();
   const char* TypeAsString();
 
-  unsigned painted_: 2;
+  unsigned painted_: 1;
   unsigned type_: 4;
-  int children_count_: 26;
+  int children_count_: 27;
   int retainers_count_;
   int self_size_;
   union {
@@ -625,13 +610,6 @@ class HeapEntry BASE_EMBEDDED {
     uint32_t id2_;
   } id_;  // This is to avoid extra padding of 64-bit value.
   const char* name_;
-
-  // Paints used for exact retained sizes calculation.
-  static const unsigned kUnpainted = 0;
-  static const unsigned kPainted = 1;
-  static const unsigned kPaintedReachableFromOthers = 2;
-
-  static const int kExactRetainedSizeTag = 1;
 
   DISALLOW_COPY_AND_ASSIGN(HeapEntry);
 };
@@ -1099,9 +1077,9 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool GenerateSnapshot();
 
  private:
-  bool ApproximateRetainedSizes();
   bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
                           Vector<int>* dominators);
+  bool CalculateRetainedSizes();
   bool CountEntriesAndReferences();
   bool FillReferences();
   void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);

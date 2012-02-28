@@ -596,6 +596,14 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
 }
 
 
+void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
+  if (is_monomorphic_) {
+    target_ = oracle->GetCallNewTarget(this);
+  }
+}
+
+
 void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   TypeInfo info = oracle->CompareType(this);
   if (info.IsSmi()) {

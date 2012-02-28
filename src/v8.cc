@@ -146,6 +146,12 @@ void V8::SetEntropySource(EntropySource source) {
 }
 
 
+void V8::SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver resolver) {
+  StackFrame::SetReturnAddressLocationResolver(resolver);
+}
+
+
 // Used by JavaScript APIs
 uint32_t V8::Random(Context* context) {
   ASSERT(context->IsGlobalContext());

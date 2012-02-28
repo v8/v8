@@ -882,14 +882,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  return isolate->heap()->ToBoolean(it.frame()->IsConstructor());
-}
-
-
 // Recursively traverses hidden prototypes if property is not found
 static void GetOwnPropertyImplementation(JSObject* obj,
                                          String* name,
@@ -10640,6 +10632,7 @@ class FrameInspector {
           frame, inlined_jsframe_index, isolate);
     }
     has_adapted_arguments_ = frame_->has_adapted_arguments();
+    is_bottommost_ = inlined_jsframe_index == 0;
     is_optimized_ = frame_->is_optimized();
   }
 
@@ -10677,6 +10670,11 @@ class FrameInspector {
         ? deoptimized_frame_->GetSourcePosition()
         : frame_->LookupCode()->SourcePosition(frame_->pc());
   }
+  bool IsConstructor() {
+    return is_optimized_ && !is_bottommost_
+        ? deoptimized_frame_->HasConstructStub()
+        : frame_->IsConstructor();
+  }
 
   // To inspect all the provided arguments the frame might need to be
   // replaced with the arguments frame.
@@ -10692,6 +10690,7 @@ class FrameInspector {
   DeoptimizedFrameInfo* deoptimized_frame_;
   Isolate* isolate_;
   bool is_optimized_;
+  bool is_bottommost_;
   bool has_adapted_arguments_;
 
   DISALLOW_COPY_AND_ASSIGN(FrameInspector);
@@ -10718,6 +10717,16 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
   }
   ASSERT(save != NULL);
   return save;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  FrameInspector frame_inspector(frame, frame->GetInlineCount() - 1, isolate);
+  return isolate->heap()->ToBoolean(frame_inspector.IsConstructor());
 }
 
 
@@ -10785,9 +10794,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Find source position in unoptimized code.
   int position = frame_inspector.GetSourcePosition();
 
-  // Check for constructor frame. Inlined frames cannot be construct calls.
-  bool inlined_frame = is_optimized && inlined_jsframe_index != 0;
-  bool constructor = !inlined_frame && it.frame()->IsConstructor();
+  // Check for constructor frame.
+  bool constructor = frame_inspector.IsConstructor();
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));

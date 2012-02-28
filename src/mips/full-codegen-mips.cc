@@ -120,7 +120,7 @@ class JumpPatchSite BASE_EMBEDDED {
 
 
 int FullCodeGenerator::self_optimization_header_size() {
-  return 0;  // TODO(jkummerow): determine correct value.
+  return 11 * Instruction::kInstrSize;
 }
 
 
@@ -164,7 +164,7 @@ void FullCodeGenerator::Generate() {
       Handle<Code> compile_stub(
           isolate()->builtins()->builtin(Builtins::kLazyRecompile));
       __ Jump(compile_stub, RelocInfo::CODE_TARGET, eq, a3, Operand(zero_reg));
-      ASSERT(masm_->pc_offset() == self_optimization_header_size());
+      ASSERT_EQ(masm_->pc_offset(), self_optimization_header_size());
     }
   }
 
@@ -2444,6 +2444,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   CallConstructStub stub(flags);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(v0);
 }
 

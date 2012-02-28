@@ -4026,6 +4026,12 @@ void v8::V8::SetEntropySource(EntropySource source) {
 }
 
 
+void v8::V8::SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver return_address_resolver) {
+  i::V8::SetReturnAddressLocationResolver(return_address_resolver);
+}
+
+
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
@@ -5867,10 +5873,10 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetRetainedSize(bool exact) const {
+int HeapGraphNode::GetRetainedSize() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize(exact);
+  return ToInternal(this)->retained_size();
 }
 
 

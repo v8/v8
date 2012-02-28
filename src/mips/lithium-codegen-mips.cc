@@ -4222,6 +4222,44 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 }
 
 
+void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
+  class DeferredAllocateObject: public LDeferredCode {
+   public:
+    DeferredAllocateObject(LCodeGen* codegen, LAllocateObject* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredAllocateObject(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LAllocateObject* instr_;
+  };
+
+  DeferredAllocateObject* deferred = new DeferredAllocateObject(this, instr);
+
+  // TODO(mstarzinger): Implement inlined version instead of jumping to
+  // deferred runtime call.
+  __ jmp(deferred->entry());
+
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
+  Register result = ToRegister(instr->result());
+  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, zero_reg);
+
+  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  __ LoadHeapObject(a0, constructor);
+  __ push(a0);
+  CallRuntimeFromDeferred(Runtime::kNewObject, 1, instr);
+  __ StoreToSafepointRegisterSlot(v0, result);
+}
+
+
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
   Heap* heap = isolate()->heap();
   ElementsKind boilerplate_elements_kind =
