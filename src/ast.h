@@ -61,6 +61,7 @@ namespace internal {
 
 #define DECLARATION_NODE_LIST(V)                \
   V(VariableDeclaration)                        \
+  V(FunctionDeclaration)                        \
   V(ModuleDeclaration)                          \
 
 #define MODULE_NODE_LIST(V)                     \
@@ -444,10 +445,10 @@ class Declaration: public AstNode {
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
+  virtual InitializationFlag initialization() const = 0;
   virtual bool IsInlineable() const;
 
   virtual Declaration* AsDeclaration() { return this; }
-  virtual VariableDeclaration* AsVariableDeclaration() { return NULL; }
 
  protected:
   Declaration(VariableProxy* proxy,
@@ -475,22 +476,43 @@ class VariableDeclaration: public Declaration {
  public:
   DECLARE_NODE_TYPE(VariableDeclaration)
 
-  virtual VariableDeclaration* AsVariableDeclaration() { return this; }
-
-  FunctionLiteral* fun() const { return fun_; }  // may be NULL
-  virtual bool IsInlineable() const;
+  virtual InitializationFlag initialization() const {
+    return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
 
   VariableDeclaration(VariableProxy* proxy,
                       VariableMode mode,
+                      Scope* scope)
+      : Declaration(proxy, mode, scope) {
+  }
+};
+
+
+class FunctionDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(FunctionDeclaration)
+
+  FunctionLiteral* fun() const { return fun_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+  virtual bool IsInlineable() const;
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  FunctionDeclaration(VariableProxy* proxy,
+                      VariableMode mode,
                       FunctionLiteral* fun,
                       Scope* scope)
       : Declaration(proxy, mode, scope),
         fun_(fun) {
-    // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == VAR || mode == LET);
+    // At the moment there are no "const functions" in JavaScript...
+    ASSERT(mode == VAR || mode == LET);
+    ASSERT(fun != NULL);
   }
 
  private:
@@ -503,6 +525,9 @@ class ModuleDeclaration: public Declaration {
   DECLARE_NODE_TYPE(ModuleDeclaration)
 
   Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -2532,11 +2557,19 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode,
-                                              FunctionLiteral* fun,
                                               Scope* scope) {
     VariableDeclaration* decl =
-        new(zone_) VariableDeclaration(proxy, mode, fun, scope);
+        new(zone_) VariableDeclaration(proxy, mode, scope);
     VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
+  FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* fun,
+                                              Scope* scope) {
+    FunctionDeclaration* decl =
+        new(zone_) FunctionDeclaration(proxy, mode, fun, scope);
+    VISIT_AND_RETURN(FunctionDeclaration, decl)
   }
 
   ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,

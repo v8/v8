@@ -417,8 +417,8 @@ bool Declaration::IsInlineable() const {
   return proxy()->var()->IsStackAllocated();
 }
 
-bool VariableDeclaration::IsInlineable() const {
-  return Declaration::IsInlineable() && fun() == NULL;
+bool FunctionDeclaration::IsInlineable() const {
+  return false;
 }
 
 
@@ -1003,6 +1003,7 @@ CaseClause::CaseClause(Isolate* isolate,
   }
 
 INCREASE_NODE_COUNT(VariableDeclaration)
+INCREASE_NODE_COUNT(FunctionDeclaration)
 INCREASE_NODE_COUNT(ModuleDeclaration)
 INCREASE_NODE_COUNT(ModuleLiteral)
 INCREASE_NODE_COUNT(ModuleVariable)

@@ -566,6 +566,10 @@ class Parser {
     ASSERT(top_scope_ != NULL);
     return top_scope_->is_extended_mode();
   }
+  Scope* DeclarationScope(VariableMode mode) {
+    return (mode == LET || mode == CONST_HARMONY)
+        ? top_scope_ : top_scope_->DeclarationScope();
+  }
 
   // Check if the given string is 'eval' or 'arguments'.
   bool IsEvalOrArguments(Handle<String> string);
@@ -756,10 +760,8 @@ class Parser {
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
   // Parser support
-  VariableProxy* Declare(Handle<String> name, VariableMode mode,
-                         FunctionLiteral* fun,
-                         bool resolve,
-                         bool* ok);
+  VariableProxy* NewUnresolved(Handle<String> name, VariableMode mode);
+  void Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(Handle<String> label);
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);

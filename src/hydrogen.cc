@@ -2466,7 +2466,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleVariableDeclaration(scope->function(), CONST, NULL, NULL);
+      HandleDeclaration(scope->function(), CONST, NULL, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -6826,20 +6826,16 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
-  UNREACHABLE();
-}
-
 void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int global_count = 0;
   for (int i = 0; i < declarations->length(); i++) {
-    VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
-    if (decl == NULL) continue;
-    HandleVariableDeclaration(decl->proxy(),
-                              decl->mode(),
-                              decl->fun(),
-                              &global_count);
+    Declaration* decl = declarations->at(i);
+    FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
+    HandleDeclaration(decl->proxy(),
+                      decl->mode(),
+                      fun_decl != NULL ? fun_decl->fun() : NULL,
+                      &global_count);
   }
 
   // Batch declare global functions and variables.
@@ -6847,13 +6843,13 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
     Handle<FixedArray> array =
         isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
-      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
-      if (decl == NULL) continue;
+      Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
 
       if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
-        if (decl->fun() == NULL) {
+        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
+        if (fun_decl == NULL) {
           if (var->binding_needs_init()) {
             // In case this binding needs initialization use the hole.
             array->set_the_hole(j++);
@@ -6862,7 +6858,7 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
           }
         } else {
           Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(decl->fun(), info()->script());
+              Compiler::BuildFunctionInfo(fun_decl->fun(), info()->script());
           // Check for stack-overflow exception.
           if (function.is_null()) {
             SetStackOverflow();
@@ -6884,10 +6880,10 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
-void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
-                                              VariableMode mode,
-                                              FunctionLiteral* function,
-                                              int* global_count) {
+void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
+                                      VariableMode mode,
+                                      FunctionLiteral* function,
+                                      int* global_count) {
   Variable* var = proxy->var();
   bool binding_needs_init =
       (mode == CONST || mode == CONST_HARMONY || mode == LET);
@@ -6920,6 +6916,16 @@ void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
     case Variable::LOOKUP:
       return Bailout("unsupported lookup slot in declaration");
   }
+}
+
+
+void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
+  UNREACHABLE();
 }
 
 
