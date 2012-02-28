@@ -1998,7 +1998,7 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 
 class LAllocateObject: public LTemplateInstruction<1, 1, 0> {
  public:
-  LAllocateObject(LOperand* context) {
+  explicit LAllocateObject(LOperand* context) {
     inputs_[0] = context;
   }
 

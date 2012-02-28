@@ -669,7 +669,6 @@ enum ReturnHandlingFlag {
 
 class FunctionState {
  public:
-
   FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,
                 TypeFeedbackOracle* oracle,
