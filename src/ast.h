@@ -1257,7 +1257,7 @@ class ObjectLiteral: public MaterializedLiteral {
       PROTOTYPE              // Property is __proto__.
     };
 
-    Property(Literal* key, Expression* value);
+    Property(Literal* key, Expression* value, Isolate* isolate);
 
     Literal* key() { return key_; }
     Expression* value() { return value_; }

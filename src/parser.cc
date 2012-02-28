@@ -3991,7 +3991,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     Expression* value = ParseAssignmentExpression(true, CHECK_OK);
 
     ObjectLiteral::Property* property =
-        new(zone()) ObjectLiteral::Property(key, value);
+        new(zone()) ObjectLiteral::Property(key, value, isolate());
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
