@@ -71,7 +71,7 @@ class StubCache {
     Code* value;
   };
 
-  void Initialize(bool create_heap_objects);
+  void Initialize();
 
 
   // Computes the right stub matching. Inserts the result in the

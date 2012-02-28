@@ -45,26 +45,13 @@ namespace internal {
 
 StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
-  memset(primary_, 0, sizeof(primary_[0]) * StubCache::kPrimaryTableSize);
-  memset(secondary_, 0, sizeof(secondary_[0]) * StubCache::kSecondaryTableSize);
 }
 
 
-void StubCache::Initialize(bool create_heap_objects) {
+void StubCache::Initialize() {
   ASSERT(IsPowerOf2(kPrimaryTableSize));
   ASSERT(IsPowerOf2(kSecondaryTableSize));
-  if (create_heap_objects) {
-    HandleScope scope;
-    Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
-    for (int i = 0; i < kPrimaryTableSize; i++) {
-      primary_[i].key = heap()->empty_string();
-      primary_[i].value = empty;
-    }
-    for (int j = 0; j < kSecondaryTableSize; j++) {
-      secondary_[j].key = heap()->empty_string();
-      secondary_[j].value = empty;
-    }
-  }
+  Clear();
 }
 
 

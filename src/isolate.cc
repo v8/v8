@@ -1836,13 +1836,12 @@ bool Isolate::Init(Deserializer* des) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_->SetUp(create_heap_objects);
 #endif
-  stub_cache_->Initialize(create_heap_objects);
 
   // If we are deserializing, read the state into the now-empty heap.
   if (des != NULL) {
     des->Deserialize();
-    stub_cache_->Initialize(true);
   }
+  stub_cache_->Initialize();
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
