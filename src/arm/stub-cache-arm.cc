@@ -237,7 +237,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ mov(scratch, Operand(scratch, LSR, kHeapObjectTagSize));
   // Mask down the eor argument to the minimum to keep the immediate
   // ARM-encodable.
-  __ eor(scratch, scratch, Operand(flags & mask));
+  __ eor(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask));
   // Prefer and_ to ubfx here because ubfx takes 2 cycles.
   __ and_(scratch, scratch, Operand(mask));
 
@@ -255,7 +255,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Primary miss: Compute hash for secondary probe.
   __ sub(scratch, scratch, Operand(name, LSR, kHeapObjectTagSize));
-  uint32_t mask2 = (kSecondaryTableSize - 1);
+  uint32_t mask2 = kSecondaryTableSize - 1;
   __ add(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask2));
   __ and_(scratch, scratch, Operand(mask2));
 
