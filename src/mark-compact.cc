@@ -107,14 +107,14 @@ static void VerifyMarking(NewSpace* space) {
   Address end = space->top();
   NewSpacePageIterator it(space->bottom(), end);
   // The bottom position is at the start of its page. Allows us to use
-  // page->body() as start of range on all pages.
+  // page->area_start() as start of range on all pages.
   ASSERT_EQ(space->bottom(),
-            NewSpacePage::FromAddress(space->bottom())->body());
+            NewSpacePage::FromAddress(space->bottom())->area_start());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
-    Address limit = it.has_next() ? page->body_limit() : end;
+    Address limit = it.has_next() ? page->area_end() : end;
     ASSERT(limit == end || !page->Contains(end));
-    VerifyMarking(page->body(), limit);
+    VerifyMarking(page->area_start(), limit);
   }
 }
 
@@ -124,7 +124,7 @@ static void VerifyMarking(PagedSpace* space) {
 
   while (it.has_next()) {
     Page* p = it.next();
-    VerifyMarking(p->ObjectAreaStart(), p->ObjectAreaEnd());
+    VerifyMarking(p->area_start(), p->area_end());
   }
 }
 
@@ -187,8 +187,8 @@ static void VerifyEvacuation(NewSpace* space) {
 
   while (it.has_next()) {
     NewSpacePage* page = it.next();
-    Address current = page->body();
-    Address limit = it.has_next() ? page->body_limit() : space->top();
+    Address current = page->area_start();
+    Address limit = it.has_next() ? page->area_end() : space->top();
     ASSERT(limit == space->top() || !page->Contains(space->top()));
     while (current < limit) {
       HeapObject* object = HeapObject::FromAddress(current);
@@ -205,7 +205,7 @@ static void VerifyEvacuation(PagedSpace* space) {
   while (it.has_next()) {
     Page* p = it.next();
     if (p->IsEvacuationCandidate()) continue;
-    VerifyEvacuation(p->ObjectAreaStart(), p->ObjectAreaEnd());
+    VerifyEvacuation(p->area_start(), p->area_end());
   }
 }
 
@@ -1806,12 +1806,15 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
   int last_cell_index =
       Bitmap::IndexToCell(
           Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+              p->AddressToMarkbitIndex(p->area_end())));
 
-  int cell_index = Page::kFirstUsedCell;
-  Address cell_base = p->ObjectAreaStart();
+  Address cell_base = p->area_start();
+  int cell_index = Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(cell_base)));
 
-  for (cell_index = Page::kFirstUsedCell;
+
+  for (;
        cell_index < last_cell_index;
        cell_index++, cell_base += 32 * kPointerSize) {
     ASSERT((unsigned)cell_index ==
@@ -2613,7 +2616,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                                             int object_size) {
   Object* result;
 
-  if (object_size > heap()->MaxObjectSizeInPagedSpace()) {
+  if (object_size > Page::kMaxNonCodeHeapObjectSize) {
     MaybeObject* maybe_result =
         heap()->lo_space()->AllocateRaw(object_size, NOT_EXECUTABLE);
     if (maybe_result->ToObject(&result)) {
@@ -2731,13 +2734,16 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   int last_cell_index =
       Bitmap::IndexToCell(
           Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+              p->AddressToMarkbitIndex(p->area_end())));
 
-  int cell_index = Page::kFirstUsedCell;
-  Address cell_base = p->ObjectAreaStart();
+  Address cell_base = p->area_start();
+  int cell_index = Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(cell_base)));
+
   int offsets[16];
 
-  for (cell_index = Page::kFirstUsedCell;
+  for (;
        cell_index < last_cell_index;
        cell_index++, cell_base += 32 * kPointerSize) {
     ASSERT((unsigned)cell_index ==
@@ -2892,12 +2898,16 @@ static void SweepPrecisely(PagedSpace* space,
   int last_cell_index =
       Bitmap::IndexToCell(
           Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+              p->AddressToMarkbitIndex(p->area_end())));
 
-  int cell_index = Page::kFirstUsedCell;
-  Address free_start = p->ObjectAreaStart();
+  Address free_start = p->area_start();
+  int cell_index =
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(free_start)));
+
   ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  Address object_address = p->ObjectAreaStart();
+  Address object_address = free_start;
   int offsets[16];
 
   SkipList* skip_list = p->skip_list();
@@ -2906,7 +2916,7 @@ static void SweepPrecisely(PagedSpace* space,
     skip_list->Clear();
   }
 
-  for (cell_index = Page::kFirstUsedCell;
+  for (;
        cell_index < last_cell_index;
        cell_index++, object_address += 32 * kPointerSize) {
     ASSERT((unsigned)cell_index ==
@@ -2943,8 +2953,8 @@ static void SweepPrecisely(PagedSpace* space,
     // Clear marking bits for current cell.
     cells[cell_index] = 0;
   }
-  if (free_start != p->ObjectAreaEnd()) {
-    space->Free(free_start, static_cast<int>(p->ObjectAreaEnd() - free_start));
+  if (free_start != p->area_end()) {
+    space->Free(free_start, static_cast<int>(p->area_end() - free_start));
   }
   p->ResetLiveBytes();
 }
@@ -3237,7 +3247,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     Page* p = evacuation_candidates_[i];
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    space->Free(p->ObjectAreaStart(), Page::kObjectAreaSize);
+    space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ClearEvacuationCandidate();
@@ -3538,23 +3548,27 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   int last_cell_index =
       Bitmap::IndexToCell(
           Bitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+              p->AddressToMarkbitIndex(p->area_end())));
 
-  int cell_index = Page::kFirstUsedCell;
+  int cell_index =
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(p->area_start())));
+
   intptr_t freed_bytes = 0;
 
   // This is the start of the 32 word block that we are currently looking at.
-  Address block_address = p->ObjectAreaStart();
+  Address block_address = p->area_start();
 
   // Skip over all the dead objects at the start of the page and mark them free.
-  for (cell_index = Page::kFirstUsedCell;
+  for (;
        cell_index < last_cell_index;
        cell_index++, block_address += 32 * kPointerSize) {
     if (cells[cell_index] != 0) break;
   }
-  size_t size = block_address - p->ObjectAreaStart();
+  size_t size = block_address - p->area_start();
   if (cell_index == last_cell_index) {
-    freed_bytes += static_cast<int>(space->Free(p->ObjectAreaStart(),
+    freed_bytes += static_cast<int>(space->Free(p->area_start(),
                                                 static_cast<int>(size)));
     ASSERT_EQ(0, p->LiveBytes());
     return freed_bytes;
@@ -3563,8 +3577,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   // first live object.
   Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
   // Free the first free space.
-  size = free_end - p->ObjectAreaStart();
-  freed_bytes += space->Free(p->ObjectAreaStart(),
+  size = free_end - p->area_start();
+  freed_bytes += space->Free(p->area_start(),
                              static_cast<int>(size));
   // The start of the current free area is represented in undigested form by
   // the address of the last 32-word section that contained a live object and
