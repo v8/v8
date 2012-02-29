@@ -285,6 +285,14 @@ HUseListNode* HUseListNode::tail() {
 }
 
 
+bool HValue::CheckUsesForFlag(Flag f) {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (!it.value()->CheckFlag(f)) return false;
+  }
+  return true;
+}
+
+
 HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
   Advance();
 }
@@ -831,12 +839,12 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 
 
 HValue* HConstant::Canonicalize() {
-  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+  return HasNoUses() ? NULL : this;
 }
 
 
 HValue* HTypeof::Canonicalize() {
-  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+  return HasNoUses() ? NULL : this;
 }
 
 
@@ -854,6 +862,20 @@ HValue* HBitwise::Canonicalize() {
       HConstant::cast(right())->Integer32Value() == nop_constant) {
     return left();
   }
+  return this;
+}
+
+
+HValue* HAdd::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
+  return this;
+}
+
+
+HValue* HSub::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
   return this;
 }
 

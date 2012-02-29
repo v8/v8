@@ -2067,13 +2067,9 @@ void HGraph::InsertRepresentationChanges() {
     for (int i = 0; i < phi_list()->length(); i++) {
       HPhi* phi = phi_list()->at(i);
       if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        HValue* use = it.value();
-        if (!use->CheckFlag(HValue::kTruncatingToInt32)) {
-          phi->ClearFlag(HValue::kTruncatingToInt32);
-          change = true;
-          break;
-        }
+      if (!phi->CheckUsesForFlag(HValue::kTruncatingToInt32)) {
+        phi->ClearFlag(HValue::kTruncatingToInt32);
+        change = true;
       }
     }
   }

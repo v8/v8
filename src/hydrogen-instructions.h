@@ -645,6 +645,9 @@ class HValue: public ZoneObject {
   void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
 
+  // Returns true if the flag specified is set for all uses, false otherwise.
+  bool CheckUsesForFlag(Flag f);
+
   GVNFlagSet gvn_flags() const { return gvn_flags_; }
   void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
   void ClearGVNFlag(GVNFlag f) { gvn_flags_.Remove(f); }
@@ -823,6 +826,8 @@ class HInstruction: public HValue {
   int position() const { return position_; }
   bool has_position() const { return position_ != RelocInfo::kNoPosition; }
   void set_position(int position) { position_ = position; }
+
+  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual LInstruction* CompileToLithium(LChunkBuilder* builder) = 0;
 
@@ -1121,10 +1126,6 @@ class HUnaryOperation: public HTemplateInstruction<1> {
     return reinterpret_cast<HUnaryOperation*>(value);
   }
 
-  virtual bool CanTruncateToInt32() const {
-    return CheckFlag(kTruncatingToInt32);
-  }
-
   HValue* value() { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1248,14 +1249,11 @@ class HToInt32: public HUnaryOperation {
       : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
+    SetFlag(kTruncatingToInt32);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
-  }
-
-  virtual bool CanTruncateToInt32() const {
-    return true;
   }
 
   virtual HValue* Canonicalize() {
@@ -3154,6 +3152,8 @@ class HAdd: public HArithmeticBinaryOperation {
 
   virtual HType CalculateInferredType();
 
+  virtual HValue* Canonicalize();
+
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
  protected:
@@ -3171,6 +3171,8 @@ class HSub: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual HValue* Canonicalize();
 
   static HInstruction* NewHSub(Zone* zone,
                               HValue* context,
@@ -3256,7 +3258,6 @@ class HDiv: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-
 
   static HInstruction* NewHDiv(Zone* zone,
                                HValue* context,
