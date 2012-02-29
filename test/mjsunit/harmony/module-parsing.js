@@ -36,19 +36,39 @@ module A2 = A;
 module A3 = A2
 
 module B {
-  var x
-  var x, y;
-  var x = 0, y
-  let x, y
-  let z = 1
+  export x
+  export y, z, c, f
+
+  var vx
+  var vx, vy;
+  var vx = 0, vy
+  let lx, ly
+  let lz = 1
   const c = 9
   function f() {}
+
   module C {
     let x
     module D {}
     let y
   }
+
   let zz = ""
+
+  export var x0
+  export var x1, x2 = 6, x3
+  export let y0
+  export let y1 = 0, y2
+  export const z0 = 0
+  export const z1 = 2, z2 = 3
+  export function f0() {}
+  export module M1 {}
+  export module M2 = C.D
+  export module M3 at "http://where"
+
+  import i0 from I
+  import i1, i2, i3 from I
+  import i4, i5 from "http://where"
 }
 
 module C1 = B.C;
@@ -75,6 +95,45 @@ X
 module Z
 at
 "file://local"
+
+import
+x
+,
+y
+from
+"file://local"
+
+module Wrap {
+export
+x
+,
+y
+
+export
+var
+v1 = 1
+
+export
+let
+v2 = 2
+
+export
+const
+v3 = 3
+
+export
+function
+f
+(
+)
+{
+}
+
+export
+module V
+{
+}
+}
 
 
 // Check that 'module' still works as an identifier.

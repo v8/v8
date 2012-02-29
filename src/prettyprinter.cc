@@ -83,6 +83,22 @@ void PrettyPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
 }
 
 
+void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
+  Print("import ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(" from ");
+  Visit(node->module());
+  Print(";");
+}
+
+
+void PrettyPrinter::VisitExportDeclaration(ExportDeclaration* node) {
+  Print("export ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(";");
+}
+
+
 void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
   VisitBlock(node->body());
 }
@@ -768,6 +784,19 @@ void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
   IndentedScope indent(this, "MODULE");
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
   Visit(node->module());
+}
+
+
+void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
+  IndentedScope indent(this, "IMPORT");
+  PrintLiteralIndented("NAME", node->proxy()->name(), true);
+  Visit(node->module());
+}
+
+
+void AstPrinter::VisitExportDeclaration(ExportDeclaration* node) {
+  IndentedScope indent(this, "EXPORT ");
+  PrintLiteral(node->proxy()->name(), true);
 }
 
 

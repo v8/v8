@@ -1008,6 +1008,8 @@ CaseClause::CaseClause(Isolate* isolate,
 INCREASE_NODE_COUNT(VariableDeclaration)
 INCREASE_NODE_COUNT(FunctionDeclaration)
 INCREASE_NODE_COUNT(ModuleDeclaration)
+INCREASE_NODE_COUNT(ImportDeclaration)
+INCREASE_NODE_COUNT(ExportDeclaration)
 INCREASE_NODE_COUNT(ModuleLiteral)
 INCREASE_NODE_COUNT(ModuleVariable)
 INCREASE_NODE_COUNT(ModulePath)

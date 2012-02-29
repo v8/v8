@@ -63,6 +63,14 @@ void BreakableStatementChecker::VisitModuleDeclaration(
     ModuleDeclaration* decl) {
 }
 
+void BreakableStatementChecker::VisitImportDeclaration(
+    ImportDeclaration* decl) {
+}
+
+void BreakableStatementChecker::VisitExportDeclaration(
+    ExportDeclaration* decl) {
+}
+
 
 void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
 }
@@ -619,6 +627,16 @@ void FullCodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* decl) {
   EmitDeclaration(decl->proxy(), decl->mode(), NULL);
+}
+
+
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
+}
+
+
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* decl) {
+  // TODO(rossberg)
 }
 
 

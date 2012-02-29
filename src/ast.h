@@ -63,6 +63,8 @@ namespace internal {
   V(VariableDeclaration)                        \
   V(FunctionDeclaration)                        \
   V(ModuleDeclaration)                          \
+  V(ImportDeclaration)                          \
+  V(ExportDeclaration)                          \
 
 #define MODULE_NODE_LIST(V)                     \
   V(ModuleLiteral)                              \
@@ -541,6 +543,48 @@ class ModuleDeclaration: public Declaration {
 
  private:
   Module* module_;
+};
+
+
+class ImportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ImportDeclaration)
+
+  Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ImportDeclaration(VariableProxy* proxy,
+                    Module* module,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope),
+        module_(module) {
+  }
+
+ private:
+  Module* module_;
+};
+
+
+class ExportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ExportDeclaration)
+
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ExportDeclaration(VariableProxy* proxy,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope) {
+  }
 };
 
 
@@ -2578,6 +2622,21 @@ class AstNodeFactory BASE_EMBEDDED {
     ModuleDeclaration* decl =
         new(zone_) ModuleDeclaration(proxy, module, scope);
     VISIT_AND_RETURN(ModuleDeclaration, decl)
+  }
+
+  ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
+                                          Module* module,
+                                          Scope* scope) {
+    ImportDeclaration* decl =
+        new(zone_) ImportDeclaration(proxy, module, scope);
+    VISIT_AND_RETURN(ImportDeclaration, decl)
+  }
+
+  ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
+                                          Scope* scope) {
+    ExportDeclaration* decl =
+        new(zone_) ExportDeclaration(proxy, scope);
+    VISIT_AND_RETURN(ExportDeclaration, decl)
   }
 
   ModuleLiteral* NewModuleLiteral(Block* body) {

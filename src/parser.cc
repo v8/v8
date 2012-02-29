@@ -1184,10 +1184,10 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
 
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     case Token::LET:
     case Token::CONST:
-      return ParseVariableStatement(kModuleElement, ok);
+      return ParseVariableStatement(kModuleElement, NULL, ok);
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
@@ -1205,7 +1205,7 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
             estmt->expression()->AsVariableProxy()->name()->Equals(
                 isolate()->heap()->module_symbol()) &&
             !scanner().literal_contains_escapes()) {
-          return ParseModuleDeclaration(ok);
+          return ParseModuleDeclaration(NULL, ok);
         }
       }
       return stmt;
@@ -1214,7 +1214,7 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
 }
 
 
-Block* Parser::ParseModuleDeclaration(bool* ok) {
+Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   // ModuleDeclaration:
   //    'module' Identifier Module
 
@@ -1229,6 +1229,7 @@ Block* Parser::ParseModuleDeclaration(bool* ok) {
 
   // TODO(rossberg): Add initialization statement to block.
 
+  if (names) names->Add(name);
   return block;
 }
 
@@ -1236,19 +1237,26 @@ Block* Parser::ParseModuleDeclaration(bool* ok) {
 Module* Parser::ParseModule(bool* ok) {
   // Module:
   //    '{' ModuleElement '}'
-  //    '=' ModulePath
-  //    'at' String
+  //    '=' ModulePath ';'
+  //    'at' String ';'
 
   switch (peek()) {
     case Token::LBRACE:
       return ParseModuleLiteral(ok);
 
-    case Token::ASSIGN:
+    case Token::ASSIGN: {
       Expect(Token::ASSIGN, CHECK_OK);
-      return ParseModulePath(ok);
+      Module* result = ParseModulePath(CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      return result;
+    }
 
-    default:
-      return ParseModuleUrl(ok);
+    default: {
+      ExpectContextualKeyword("at", CHECK_OK);
+      Module* result = ParseModuleUrl(CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      return result;
+    }
   }
 }
 
@@ -1317,31 +1325,122 @@ Module* Parser::ParseModuleVariable(bool* ok) {
 
 Module* Parser::ParseModuleUrl(bool* ok) {
   // Module:
-  //    'at' String
+  //    String
 
-  Expect(Token::IDENTIFIER, CHECK_OK);
-  Handle<String> symbol = GetSymbol(CHECK_OK);
-  if (!symbol->IsEqualTo(CStrVector("at"))) {
-    *ok = false;
-    ReportUnexpectedToken(scanner().current_token());
-    return NULL;
-  }
   Expect(Token::STRING, CHECK_OK);
-  symbol = GetSymbol(CHECK_OK);
+  Handle<String> symbol = GetSymbol(CHECK_OK);
 
   return factory()->NewModuleUrl(symbol);
 }
 
 
-Block* Parser::ParseImportDeclaration(bool* ok) {
-  // TODO(rossberg)
-  return NULL;
+Module* Parser::ParseModuleSpecifier(bool* ok) {
+  // ModuleSpecifier:
+  //    String
+  //    ModulePath
+
+  if (peek() == Token::STRING) {
+    return ParseModuleUrl(ok);
+  } else {
+    return ParseModulePath(ok);
+  }
 }
 
 
-Block* Parser::ParseExportDeclaration(bool* ok) {
-  // TODO(rossberg)
-  return NULL;
+Block* Parser::ParseImportDeclaration(bool* ok) {
+  // ImportDeclaration:
+  //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleSpecifier ';'
+  //
+  // TODO(ES6): implement destructuring ImportSpecifiers
+
+  Expect(Token::IMPORT, CHECK_OK);
+  ZoneStringList names(1);
+
+  Handle<String> name = ParseIdentifierName(CHECK_OK);
+  while (peek() == Token::COMMA) {
+    Consume(Token::COMMA);
+    name = ParseIdentifierName(CHECK_OK);
+    names.Add(name);
+  }
+
+  ExpectContextualKeyword("from", CHECK_OK);
+  Module* module = ParseModuleSpecifier(CHECK_OK);
+  ExpectSemicolon(CHECK_OK);
+
+  // Generate a separate declaration for each identifier.
+  // TODO(ES6): once we implement destructuring, make that one declaration.
+  Block* block = factory()->NewBlock(NULL, 1, true);
+  for (int i = 0; i < names.length(); ++i) {
+    VariableProxy* proxy = NewUnresolved(names[i], LET);
+    Declaration* declaration =
+        factory()->NewImportDeclaration(proxy, module, top_scope_);
+    Declare(declaration, true, CHECK_OK);
+    // TODO(rossberg): Add initialization statement to block.
+  }
+
+
+  return block;
+}
+
+
+Statement* Parser::ParseExportDeclaration(bool* ok) {
+  // ExportDeclaration:
+  //    'export' Identifier (',' Identifier)* ';'
+  //    'export' VariableDeclaration
+  //    'export' FunctionDeclaration
+  //    'export' ModuleDeclaration
+  //
+  // TODO(ES6): implement structuring ExportSpecifiers
+
+  Expect(Token::EXPORT, CHECK_OK);
+
+  Statement* result = NULL;
+  ZoneStringList names(1);
+  switch (peek()) {
+    case Token::IDENTIFIER: {
+      Handle<String> name = ParseIdentifier(CHECK_OK);
+      // Handle 'module' as a context-sensitive keyword.
+      if (!name->IsEqualTo(CStrVector("module"))) {
+        names.Add(name);
+        while (peek() == Token::COMMA) {
+          Consume(Token::COMMA);
+          name = ParseIdentifier(CHECK_OK);
+          names.Add(name);
+        }
+        ExpectSemicolon(CHECK_OK);
+        result = factory()->NewEmptyStatement();
+      } else {
+        result = ParseModuleDeclaration(&names, CHECK_OK);
+      }
+      break;
+    }
+
+    case Token::FUNCTION:
+      result = ParseFunctionDeclaration(&names, CHECK_OK);
+      break;
+
+    case Token::VAR:
+    case Token::LET:
+    case Token::CONST:
+      result = ParseVariableStatement(kModuleElement, &names, CHECK_OK);
+      break;
+
+    default:
+      *ok = false;
+      ReportUnexpectedToken(scanner().current_token());
+      return NULL;
+  }
+
+  // Extract declared names into export declarations.
+  for (int i = 0; i < names.length(); ++i) {
+    VariableProxy* proxy = NewUnresolved(names[i], LET);
+    Declaration* declaration =
+        factory()->NewExportDeclaration(proxy, top_scope_);
+    top_scope_->AddDeclaration(declaration);
+  }
+
+  ASSERT(result != NULL);
+  return result;
 }
 
 
@@ -1359,10 +1458,10 @@ Statement* Parser::ParseBlockElement(ZoneStringList* labels,
 
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     case Token::LET:
     case Token::CONST:
-      return ParseVariableStatement(kModuleElement, ok);
+      return ParseVariableStatement(kModuleElement, NULL, ok);
     default:
       return ParseStatement(labels, ok);
   }
@@ -1404,7 +1503,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     case Token::CONST:  // fall through
     case Token::LET:
     case Token::VAR:
-      stmt = ParseVariableStatement(kStatement, ok);
+      stmt = ParseVariableStatement(kStatement, NULL, ok);
       break;
 
     case Token::SEMICOLON:
@@ -1481,7 +1580,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
         *ok = false;
         return NULL;
       }
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     }
 
     case Token::DEBUGGER:
@@ -1708,7 +1807,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 }
 
 
-Statement* Parser::ParseFunctionDeclaration(bool* ok) {
+Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
@@ -1729,6 +1828,7 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, top_scope_);
   Declare(declaration, true, CHECK_OK);
+  if (names) names->Add(name);
   return factory()->NewEmptyStatement();
 }
 
@@ -1795,13 +1895,14 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
+                                      ZoneStringList* names,
                                       bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
   Handle<String> ignore;
   Block* result =
-      ParseVariableDeclarations(var_context, NULL, &ignore, CHECK_OK);
+      ParseVariableDeclarations(var_context, NULL, names, &ignore, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -1821,6 +1922,7 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 Block* Parser::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
     VariableDeclarationProperties* decl_props,
+    ZoneStringList* names,
     Handle<String>* out,
     bool* ok) {
   // VariableDeclarations ::
@@ -1965,6 +2067,7 @@ Block* Parser::ParseVariableDeclarations(
       *ok = false;
       return NULL;
     }
+    if (names) names->Add(name);
 
     // Parse initialization expression if present and/or needed. A
     // declaration of the form:
@@ -2617,7 +2720,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       Handle<String> name;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, NULL, &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, NULL, NULL, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
         VariableProxy* each = top_scope_->NewUnresolved(factory(), name);
@@ -2646,7 +2749,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       Handle<String> name;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
-         ParseVariableDeclarations(kForStatement, &decl_props, &name, CHECK_OK);
+         ParseVariableDeclarations(kForStatement, &decl_props, NULL, &name,
+                                   CHECK_OK);
       bool accept_IN = !name.is_null() && decl_props != kHasInitializers;
       if (peek() == Token::IN && accept_IN) {
         // Rewrite a for-in statement of the form
@@ -4573,6 +4677,18 @@ void Parser::ExpectSemicolon(bool* ok) {
     return;
   }
   Expect(Token::SEMICOLON, ok);
+}
+
+
+void Parser::ExpectContextualKeyword(const char* keyword, bool* ok) {
+  Expect(Token::IDENTIFIER, ok);
+  if (!*ok) return;
+  Handle<String> symbol = GetSymbol(ok);
+  if (!*ok) return;
+  if (!symbol->IsEqualTo(CStrVector(keyword))) {
+    *ok = false;
+    ReportUnexpectedToken(scanner().current_token());
+  }
 }
 
 

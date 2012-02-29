@@ -581,23 +581,26 @@ class Parser {
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool* ok);
   Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
-  Block* ParseModuleDeclaration(bool* ok);
+  Block* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
   Module* ParseModule(bool* ok);
   Module* ParseModuleLiteral(bool* ok);
   Module* ParseModulePath(bool* ok);
   Module* ParseModuleVariable(bool* ok);
   Module* ParseModuleUrl(bool* ok);
+  Module* ParseModuleSpecifier(bool* ok);
   Block* ParseImportDeclaration(bool* ok);
-  Block* ParseExportDeclaration(bool* ok);
+  Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseBlockElement(ZoneStringList* labels, bool* ok);
   Statement* ParseStatement(ZoneStringList* labels, bool* ok);
-  Statement* ParseFunctionDeclaration(bool* ok);
+  Statement* ParseFunctionDeclaration(ZoneStringList* names, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
+                                ZoneStringList* names,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    VariableDeclarationProperties* decl_props,
+                                   ZoneStringList* names,
                                    Handle<String>* out,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
@@ -700,6 +703,7 @@ class Parser {
   void Expect(Token::Value token, bool* ok);
   bool Check(Token::Value token);
   void ExpectSemicolon(bool* ok);
+  void ExpectContextualKeyword(const char* keyword, bool* ok);
 
   Handle<String> LiteralString(PretenureFlag tenured) {
     if (scanner().is_literal_ascii()) {

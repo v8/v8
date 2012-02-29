@@ -6932,7 +6932,17 @@ void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 
 
 void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  // TODO(rossberg)
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
+  UNREACHABLE();
 }
 
 
