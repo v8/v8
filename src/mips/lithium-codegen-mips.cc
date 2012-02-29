@@ -447,10 +447,18 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 
   WriteTranslation(environment->outer(), translation);
   int closure_id = DefineDeoptimizationLiteral(environment->closure());
-  if (environment->is_arguments_adaptor()) {
-    translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
-  } else {
-    translation->BeginJSFrame(environment->ast_id(), closure_id, height);
+  switch (environment->frame_type()) {
+    case JS_FUNCTION:
+      translation->BeginJSFrame(environment->ast_id(), closure_id, height);
+      break;
+    case JS_CONSTRUCT:
+      translation->BeginConstructStubFrame(closure_id, translation_size);
+      break;
+    case ARGUMENTS_ADAPTOR:
+      translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
+      break;
+    default:
+      UNREACHABLE();
   }
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
@@ -580,7 +588,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
     int jsframe_count = 0;
     for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
       ++frame_count;
-      if (!e->is_arguments_adaptor()) {
+      if (e->frame_type() == JS_FUNCTION) {
         ++jsframe_count;
       }
     }
