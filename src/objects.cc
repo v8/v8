@@ -6862,10 +6862,21 @@ void String::WriteToFlat(String* src,
           // Left hand side is longer.  Recurse over right.
           if (to > boundary) {
             String* second = cons_string->second();
-            WriteToFlat(second,
-                        sink + boundary - from,
-                        0,
+            // When repeatedly appending to a string, we get a cons string that
+            // is unbalanced to the left, a list, essentially.  We inline the
+            // common case of sequential ascii right child.
+            if (to - boundary == 1) {
+              sink[boundary - from] = static_cast<sinkchar>(second->Get(0));
+            } else if (second->IsSeqAsciiString()) {
+              CopyChars(sink + boundary - from,
+                        SeqAsciiString::cast(second)->GetChars(),
                         to - boundary);
+            } else {
+              WriteToFlat(second,
+                          sink + boundary - from,
+                          0,
+                          to - boundary);
+            }
             to = boundary;
           }
           source = first;
