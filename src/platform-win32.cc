@@ -831,6 +831,11 @@ size_t OS::AllocateAlignment() {
 }
 
 
+intptr_t OS::CommitPageSize() {
+  return 4096;
+}
+
+
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool is_executable) {
@@ -1477,6 +1482,17 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   }
 
   UpdateAllocatedSpaceLimits(base, static_cast<int>(size));
+  return true;
+}
+
+
+bool VirtualMemory::Guard(void* address) {
+  if (NULL == VirtualAlloc(address,
+                           OS::CommitPageSize(),
+                           MEM_COMMIT,
+                           PAGE_READONLY | PAGE_GUARD)) {
+    return false;
+  }
   return true;
 }
 

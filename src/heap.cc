@@ -1060,7 +1060,7 @@ void PromotionQueue::RelocateQueueHead() {
   Page* p = Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
   intptr_t* head_start = rear_;
   intptr_t* head_end =
-      Min(front_, reinterpret_cast<intptr_t*>(p->body_limit()));
+      Min(front_, reinterpret_cast<intptr_t*>(p->area_end()));
 
   int entries_count =
       static_cast<int>(head_end - head_start) / kEntrySizeInWords;
@@ -1378,7 +1378,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
           NewSpaceScavenger::IterateBody(object->map(), object);
       } else {
         new_space_front =
-            NewSpacePage::FromLimit(new_space_front)->next_page()->body();
+            NewSpacePage::FromLimit(new_space_front)->next_page()->area_start();
       }
     }
 
@@ -1540,7 +1540,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                     HeapObject* object,
                                     int object_size) {
     SLOW_ASSERT((size_restriction != SMALL) ||
-                (object_size <= Page::kMaxHeapObjectSize));
+                (object_size <= Page::kMaxNonCodeHeapObjectSize));
     SLOW_ASSERT(object->Size() == object_size);
 
     Heap* heap = map->GetHeap();
@@ -1548,7 +1548,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       MaybeObject* maybe_result;
 
       if ((size_restriction != SMALL) &&
-          (object_size > Page::kMaxHeapObjectSize)) {
+          (object_size > Page::kMaxNonCodeHeapObjectSize)) {
         maybe_result = heap->lo_space()->AllocateRaw(object_size,
                                                      NOT_EXECUTABLE);
       } else {
@@ -2175,7 +2175,7 @@ bool Heap::CreateInitialMaps() {
 MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
+  STATIC_ASSERT(HeapNumber::kSize <= Page::kNonCodeObjectAreaSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
 
   Object* result;
@@ -2196,7 +2196,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value) {
 
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
-  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
+  STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxNonCodeHeapObjectSize);
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   Object* result;
   { MaybeObject* maybe_result = new_space_.AllocateRaw(HeapNumber::kSize);
@@ -2728,7 +2728,7 @@ MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  STATIC_ASSERT(Foreign::kSize <= Page::kMaxHeapObjectSize);
+  STATIC_ASSERT(Foreign::kSize <= Page::kMaxNonCodeHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Foreign* result;
   MaybeObject* maybe_result = Allocate(foreign_map(), space);
@@ -3144,7 +3144,7 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   }
   int size = ByteArray::SizeFor(length);
   Object* result;
-  { MaybeObject* maybe_result = (size <= MaxObjectSizeInPagedSpace())
+  { MaybeObject* maybe_result = (size <= Page::kMaxNonCodeHeapObjectSize)
                    ? old_data_space_->AllocateRaw(size)
                    : lo_space_->AllocateRaw(size, NOT_EXECUTABLE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3162,7 +3162,7 @@ MaybeObject* Heap::AllocateByteArray(int length) {
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
-      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : NEW_SPACE;
+      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : NEW_SPACE;
   Object* result;
   { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3227,7 +3227,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   MaybeObject* maybe_result;
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
-  if (obj_size > MaxObjectSizeInPagedSpace() || immovable) {
+  if (obj_size > code_space()->AreaSize() || immovable) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
@@ -3275,7 +3275,7 @@ MaybeObject* Heap::CopyCode(Code* code) {
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
   MaybeObject* maybe_result;
-  if (obj_size > MaxObjectSizeInPagedSpace()) {
+  if (obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
@@ -3318,7 +3318,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
       static_cast<size_t>(code->instruction_end() - old_addr);
 
   MaybeObject* maybe_result;
-  if (new_obj_size > MaxObjectSizeInPagedSpace()) {
+  if (new_obj_size > code_space()->AreaSize()) {
     maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(new_obj_size);
@@ -3639,7 +3639,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // Allocate the JSObject.
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  if (map->instance_size() > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
+  if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
   Object* obj;
   { MaybeObject* maybe_obj = Allocate(map, space);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -4089,7 +4089,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
   // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = (size > MaxObjectSizeInPagedSpace())
+  { MaybeObject* maybe_result = (size > Page::kMaxNonCodeHeapObjectSize)
                    ? lo_space_->AllocateRaw(size, NOT_EXECUTABLE)
                    : old_data_space_->AllocateRaw(size);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4126,11 +4126,12 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
     if (size > kMaxObjectSizeInNewSpace) {
       // Allocate in large object space, retry space will be ignored.
       space = LO_SPACE;
-    } else if (size > MaxObjectSizeInPagedSpace()) {
+    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
       // Allocate in new space, retry in large object space.
       retry_space = LO_SPACE;
     }
-  } else if (space == OLD_DATA_SPACE && size > MaxObjectSizeInPagedSpace()) {
+  } else if (space == OLD_DATA_SPACE &&
+             size > Page::kMaxNonCodeHeapObjectSize) {
     space = LO_SPACE;
   }
   Object* result;
@@ -4161,11 +4162,12 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
     if (size > kMaxObjectSizeInNewSpace) {
       // Allocate in large object space, retry space will be ignored.
       space = LO_SPACE;
-    } else if (size > MaxObjectSizeInPagedSpace()) {
+    } else if (size > Page::kMaxNonCodeHeapObjectSize) {
       // Allocate in new space, retry in large object space.
       retry_space = LO_SPACE;
     }
-  } else if (space == OLD_DATA_SPACE && size > MaxObjectSizeInPagedSpace()) {
+  } else if (space == OLD_DATA_SPACE &&
+             size > Page::kMaxNonCodeHeapObjectSize) {
     space = LO_SPACE;
   }
   Object* result;
@@ -4284,13 +4286,13 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
     // Too big for new space.
     space = LO_SPACE;
   } else if (space == OLD_POINTER_SPACE &&
-             size > MaxObjectSizeInPagedSpace()) {
+             size > Page::kMaxNonCodeHeapObjectSize) {
     // Too big for old pointer space.
     space = LO_SPACE;
   }
 
   AllocationSpace retry_space =
-      (size <= MaxObjectSizeInPagedSpace()) ? OLD_POINTER_SPACE : LO_SPACE;
+      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_POINTER_SPACE : LO_SPACE;
 
   return AllocateRaw(size, space, retry_space);
 }
@@ -4395,13 +4397,13 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
     // Too big for new space.
     space = LO_SPACE;
   } else if (space == OLD_DATA_SPACE &&
-             size > MaxObjectSizeInPagedSpace()) {
+             size > Page::kMaxNonCodeHeapObjectSize) {
     // Too big for old data space.
     space = LO_SPACE;
   }
 
   AllocationSpace retry_space =
-      (size <= MaxObjectSizeInPagedSpace()) ? OLD_DATA_SPACE : LO_SPACE;
+      (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_DATA_SPACE : LO_SPACE;
 
   return AllocateRaw(size, space, retry_space);
 }
@@ -4526,7 +4528,7 @@ STRUCT_LIST(MAKE_CASE)
   }
   int size = map->instance_size();
   AllocationSpace space =
-      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : OLD_POINTER_SPACE;
+      (size > Page::kMaxNonCodeHeapObjectSize) ? LO_SPACE : OLD_POINTER_SPACE;
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4867,7 +4869,7 @@ void Heap::ZapFromSpace() {
                           new_space_.FromSpaceEnd());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
-    for (Address cursor = page->body(), limit = page->body_limit();
+    for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit;
          cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;
@@ -5006,9 +5008,9 @@ void Heap::OldPointerSpaceCheckStoreBuffer() {
 
   while (pages.has_next()) {
     Page* page = pages.next();
-    Object** current = reinterpret_cast<Object**>(page->ObjectAreaStart());
+    Object** current = reinterpret_cast<Object**>(page->area_start());
 
-    Address end = page->ObjectAreaEnd();
+    Address end = page->area_end();
 
     Object*** store_buffer_position = store_buffer()->Start();
     Object*** store_buffer_top = store_buffer()->Top();
@@ -5034,9 +5036,9 @@ void Heap::MapSpaceCheckStoreBuffer() {
 
   while (pages.has_next()) {
     Page* page = pages.next();
-    Object** current = reinterpret_cast<Object**>(page->ObjectAreaStart());
+    Object** current = reinterpret_cast<Object**>(page->area_start());
 
-    Address end = page->ObjectAreaEnd();
+    Address end = page->area_end();
 
     Object*** store_buffer_position = store_buffer()->Start();
     Object*** store_buffer_top = store_buffer()->Top();

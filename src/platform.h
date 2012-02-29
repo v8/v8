@@ -184,6 +184,8 @@ class OS {
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 
+  static intptr_t CommitPageSize();
+
   // Returns an indication of whether a pointer is in a space that
   // has been allocated by Allocate().  This method may conservatively
   // always return false, but giving more accurate information may
@@ -351,6 +353,9 @@ class VirtualMemory {
 
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);
+
+  // Creates a single guard page at the given address.
+  bool Guard(void* address);
 
   void Release() {
     ASSERT(IsReserved());
