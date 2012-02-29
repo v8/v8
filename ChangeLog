@@ -1,3 +1,14 @@
+2012-02-29: Version 3.9.13
+
+        Add code kind check before preparing for OSR. (issue 1900, 115073)
+
+        Pass zone explicitly to zone-allocation on x64 and ARM. (issue 1802)
+
+        Port string construct stub to x64. (issue 849)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-28: Version 3.9.12
 
         Fix the negative lookup stub to handle deleted entries in a dictionary.

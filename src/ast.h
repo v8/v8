@@ -61,7 +61,10 @@ namespace internal {
 
 #define DECLARATION_NODE_LIST(V)                \
   V(VariableDeclaration)                        \
+  V(FunctionDeclaration)                        \
   V(ModuleDeclaration)                          \
+  V(ImportDeclaration)                          \
+  V(ExportDeclaration)                          \
 
 #define MODULE_NODE_LIST(V)                     \
   V(ModuleLiteral)                              \
@@ -444,10 +447,10 @@ class Declaration: public AstNode {
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
+  virtual InitializationFlag initialization() const = 0;
   virtual bool IsInlineable() const;
 
   virtual Declaration* AsDeclaration() { return this; }
-  virtual VariableDeclaration* AsVariableDeclaration() { return NULL; }
 
  protected:
   Declaration(VariableProxy* proxy,
@@ -475,22 +478,43 @@ class VariableDeclaration: public Declaration {
  public:
   DECLARE_NODE_TYPE(VariableDeclaration)
 
-  virtual VariableDeclaration* AsVariableDeclaration() { return this; }
-
-  FunctionLiteral* fun() const { return fun_; }  // may be NULL
-  virtual bool IsInlineable() const;
+  virtual InitializationFlag initialization() const {
+    return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
 
   VariableDeclaration(VariableProxy* proxy,
                       VariableMode mode,
+                      Scope* scope)
+      : Declaration(proxy, mode, scope) {
+  }
+};
+
+
+class FunctionDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(FunctionDeclaration)
+
+  FunctionLiteral* fun() const { return fun_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+  virtual bool IsInlineable() const;
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  FunctionDeclaration(VariableProxy* proxy,
+                      VariableMode mode,
                       FunctionLiteral* fun,
                       Scope* scope)
       : Declaration(proxy, mode, scope),
         fun_(fun) {
-    // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == VAR || mode == LET);
+    // At the moment there are no "const functions" in JavaScript...
+    ASSERT(mode == VAR || mode == LET);
+    ASSERT(fun != NULL);
   }
 
  private:
@@ -503,6 +527,9 @@ class ModuleDeclaration: public Declaration {
   DECLARE_NODE_TYPE(ModuleDeclaration)
 
   Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -516,6 +543,48 @@ class ModuleDeclaration: public Declaration {
 
  private:
   Module* module_;
+};
+
+
+class ImportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ImportDeclaration)
+
+  Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ImportDeclaration(VariableProxy* proxy,
+                    Module* module,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope),
+        module_(module) {
+  }
+
+ private:
+  Module* module_;
+};
+
+
+class ExportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ExportDeclaration)
+
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ExportDeclaration(VariableProxy* proxy,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope) {
+  }
 };
 
 
@@ -1232,7 +1301,7 @@ class ObjectLiteral: public MaterializedLiteral {
       PROTOTYPE              // Property is __proto__.
     };
 
-    Property(Literal* key, Expression* value);
+    Property(Literal* key, Expression* value, Isolate* isolate);
 
     Literal* key() { return key_; }
     Expression* value() { return value_; }
@@ -2532,11 +2601,19 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode,
-                                              FunctionLiteral* fun,
                                               Scope* scope) {
     VariableDeclaration* decl =
-        new(zone_) VariableDeclaration(proxy, mode, fun, scope);
+        new(zone_) VariableDeclaration(proxy, mode, scope);
     VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
+  FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* fun,
+                                              Scope* scope) {
+    FunctionDeclaration* decl =
+        new(zone_) FunctionDeclaration(proxy, mode, fun, scope);
+    VISIT_AND_RETURN(FunctionDeclaration, decl)
   }
 
   ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
@@ -2545,6 +2622,21 @@ class AstNodeFactory BASE_EMBEDDED {
     ModuleDeclaration* decl =
         new(zone_) ModuleDeclaration(proxy, module, scope);
     VISIT_AND_RETURN(ModuleDeclaration, decl)
+  }
+
+  ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
+                                          Module* module,
+                                          Scope* scope) {
+    ImportDeclaration* decl =
+        new(zone_) ImportDeclaration(proxy, module, scope);
+    VISIT_AND_RETURN(ImportDeclaration, decl)
+  }
+
+  ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
+                                          Scope* scope) {
+    ExportDeclaration* decl =
+        new(zone_) ExportDeclaration(proxy, scope);
+    VISIT_AND_RETURN(ExportDeclaration, decl)
   }
 
   ModuleLiteral* NewModuleLiteral(Block* body) {

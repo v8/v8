@@ -979,7 +979,8 @@ void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
 
 class HRangeAnalysis BASE_EMBEDDED {
  public:
-  explicit HRangeAnalysis(HGraph* graph) : graph_(graph), changed_ranges_(16) {}
+  explicit HRangeAnalysis(HGraph* graph) :
+      graph_(graph), zone_(graph->isolate()->zone()), changed_ranges_(16) { }
 
   void Analyze();
 
@@ -993,6 +994,7 @@ class HRangeAnalysis BASE_EMBEDDED {
   void AddRange(HValue* value, Range* range);
 
   HGraph* graph_;
+  Zone* zone_;
   ZoneList<HValue*> changed_ranges_;
 };
 
@@ -1079,14 +1081,14 @@ void HRangeAnalysis::UpdateControlFlowRange(Token::Value op,
 
   if (op == Token::EQ || op == Token::EQ_STRICT) {
     // The same range has to apply for value.
-    new_range = range->Copy();
+    new_range = range->Copy(zone_);
   } else if (op == Token::LT || op == Token::LTE) {
-    new_range = range->CopyClearLower();
+    new_range = range->CopyClearLower(zone_);
     if (op == Token::LT) {
       new_range->AddConstant(-1);
     }
   } else if (op == Token::GT || op == Token::GTE) {
-    new_range = range->CopyClearUpper();
+    new_range = range->CopyClearUpper(zone_);
     if (op == Token::GT) {
       new_range->AddConstant(1);
     }
@@ -1101,7 +1103,7 @@ void HRangeAnalysis::UpdateControlFlowRange(Token::Value op,
 void HRangeAnalysis::InferRange(HValue* value) {
   ASSERT(!value->HasRange());
   if (!value->representation().IsNone()) {
-    value->ComputeInitialRange();
+    value->ComputeInitialRange(zone_);
     Range* range = value->range();
     TraceRange("Initial inferred range of %d (%s) set to [%d,%d]\n",
                value->id(),
@@ -1122,7 +1124,7 @@ void HRangeAnalysis::RollBackTo(int index) {
 
 void HRangeAnalysis::AddRange(HValue* value, Range* range) {
   Range* original_range = value->range();
-  value->AddNewRange(range);
+  value->AddNewRange(range, zone_);
   changed_ranges_.Add(value);
   Range* new_range = value->range();
   TraceRange("Updated range of %d set to [%d,%d]\n",
@@ -2065,13 +2067,9 @@ void HGraph::InsertRepresentationChanges() {
     for (int i = 0; i < phi_list()->length(); i++) {
       HPhi* phi = phi_list()->at(i);
       if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        HValue* use = it.value();
-        if (!use->CheckFlag(HValue::kTruncatingToInt32)) {
-          phi->ClearFlag(HValue::kTruncatingToInt32);
-          change = true;
-          break;
-        }
+      if (!phi->CheckUsesForFlag(HValue::kTruncatingToInt32)) {
+        phi->ClearFlag(HValue::kTruncatingToInt32);
+        change = true;
       }
     }
   }
@@ -2466,7 +2464,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleVariableDeclaration(scope->function(), CONST, NULL, NULL);
+      HandleDeclaration(scope->function(), CONST, NULL, NULL);
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -6826,20 +6824,16 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
-  UNREACHABLE();
-}
-
 void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int global_count = 0;
   for (int i = 0; i < declarations->length(); i++) {
-    VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
-    if (decl == NULL) continue;
-    HandleVariableDeclaration(decl->proxy(),
-                              decl->mode(),
-                              decl->fun(),
-                              &global_count);
+    Declaration* decl = declarations->at(i);
+    FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
+    HandleDeclaration(decl->proxy(),
+                      decl->mode(),
+                      fun_decl != NULL ? fun_decl->fun() : NULL,
+                      &global_count);
   }
 
   // Batch declare global functions and variables.
@@ -6847,13 +6841,13 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
     Handle<FixedArray> array =
         isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
-      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
-      if (decl == NULL) continue;
+      Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
 
       if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
-        if (decl->fun() == NULL) {
+        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
+        if (fun_decl == NULL) {
           if (var->binding_needs_init()) {
             // In case this binding needs initialization use the hole.
             array->set_the_hole(j++);
@@ -6862,7 +6856,7 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
           }
         } else {
           Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(decl->fun(), info()->script());
+              Compiler::BuildFunctionInfo(fun_decl->fun(), info()->script());
           // Check for stack-overflow exception.
           if (function.is_null()) {
             SetStackOverflow();
@@ -6884,10 +6878,10 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
-void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
-                                              VariableMode mode,
-                                              FunctionLiteral* function,
-                                              int* global_count) {
+void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
+                                      VariableMode mode,
+                                      FunctionLiteral* function,
+                                      int* global_count) {
   Variable* var = proxy->var();
   bool binding_needs_init =
       (mode == CONST || mode == CONST_HARMONY || mode == LET);
@@ -6923,8 +6917,28 @@ void HGraphBuilder::HandleVariableDeclaration(VariableProxy* proxy,
 }
 
 
+void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
+  UNREACHABLE();
+}
+
+
 void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  // TODO(rossberg)
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
+  UNREACHABLE();
+}
+
+
+void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
+  UNREACHABLE();
 }
 
 

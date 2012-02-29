@@ -273,14 +273,22 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       STUB_CACHE_TABLE,
       2,
       "StubCache::primary_->value");
-  Add(stub_cache->key_reference(StubCache::kSecondary).address(),
+  Add(stub_cache->map_reference(StubCache::kPrimary).address(),
       STUB_CACHE_TABLE,
       3,
+      "StubCache::primary_->map");
+  Add(stub_cache->key_reference(StubCache::kSecondary).address(),
+      STUB_CACHE_TABLE,
+      4,
       "StubCache::secondary_->key");
   Add(stub_cache->value_reference(StubCache::kSecondary).address(),
       STUB_CACHE_TABLE,
-      4,
+      5,
       "StubCache::secondary_->value");
+  Add(stub_cache->map_reference(StubCache::kSecondary).address(),
+      STUB_CACHE_TABLE,
+      6,
+      "StubCache::secondary_->map");
 
   // Runtime entries
   Add(ExternalReference::perform_gc_function(isolate).address(),

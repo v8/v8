@@ -173,7 +173,11 @@ class LCodeGen;
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
-  V(ValueOf)
+  V(ValueOf)                                    \
+  V(ForInPrepareMap)                            \
+  V(ForInCacheArray)                            \
+  V(CheckMapValue)                              \
+  V(LoadFieldByIndex)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -2072,6 +2076,62 @@ class LIn: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LForInPrepareMap: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LForInPrepareMap(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInPrepareMap, "for-in-prepare-map")
+};
+
+
+class LForInCacheArray: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LForInCacheArray(LOperand* map) {
+    inputs_[0] = map;
+  }
+
+  LOperand* map() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForInCacheArray, "for-in-cache-array")
+
+  int idx() {
+    return HForInCacheArray::cast(this->hydrogen_value())->idx();
+  }
+};
+
+
+class LCheckMapValue: public LTemplateInstruction<0, 2, 0> {
+ public:
+  LCheckMapValue(LOperand* value, LOperand* map) {
+    inputs_[0] = value;
+    inputs_[1] = map;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* map() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckMapValue, "check-map-value")
+};
+
+
+class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadFieldByIndex(LOperand* object, LOperand* index) {
+    inputs_[0] = object;
+    inputs_[1] = index;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadFieldByIndex, "load-field-by-index")
+};
+
+
 class LChunkBuilder;
 class LChunk: public ZoneObject {
  public:
@@ -2139,6 +2199,7 @@ class LChunkBuilder BASE_EMBEDDED {
       : chunk_(NULL),
         info_(info),
         graph_(graph),
+        zone_(graph->isolate()->zone()),
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),
@@ -2168,6 +2229,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
+  Zone* zone() const { return zone_; }
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_building() const { return status_ == BUILDING; }
@@ -2273,6 +2335,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
+  Zone* zone_;
   Status status_;
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;
