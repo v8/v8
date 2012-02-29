@@ -563,6 +563,13 @@ DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
 
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")
+DEFINE_bool(test_secondary_stub_cache,
+            false,
+            "test secondary stub cache by disabling the primary one")
+
+DEFINE_bool(test_primary_stub_cache,
+            false,
+            "test primary stub cache by disabling the secondary one")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")

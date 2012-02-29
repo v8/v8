@@ -77,14 +77,15 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, flags, map);
   Entry* primary = entry(primary_, primary_offset);
-  Code* hit = primary->value;
+  Code* old_code = primary->value;
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (hit != isolate_->builtins()->builtin(Builtins::kIllegal)) {
-    Code::Flags primary_flags = Code::RemoveTypeFromFlags(hit->flags());
-    int secondary_offset =
-        SecondaryOffset(primary->key, primary_flags, primary_offset);
+  if (old_code != isolate_->builtins()->builtin(Builtins::kIllegal)) {
+    Map* old_map = primary->map;
+    Code::Flags old_flags = Code::RemoveTypeFromFlags(old_code->flags());
+    int seed = PrimaryOffset(primary->key, old_flags, old_map);
+    int secondary_offset = SecondaryOffset(primary->key, old_flags, seed);
     Entry* secondary = entry(secondary_, secondary_offset);
     *secondary = *primary;
   }
@@ -92,6 +93,8 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
   // Update primary cache.
   primary->key = name;
   primary->value = code;
+  primary->map = map;
+  isolate()->counters()->megamorphic_stub_cache_updates()->Increment();
   return code;
 }
 
