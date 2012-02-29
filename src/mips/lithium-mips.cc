@@ -2308,4 +2308,32 @@ LInstruction* LChunkBuilder::DoIn(HIn* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoForInPrepareMap(HForInPrepareMap* instr) {
+  LOperand* object = UseFixed(instr->enumerable(), a0);
+  LForInPrepareMap* result = new LForInPrepareMap(object);
+  return MarkAsCall(DefineFixed(result, v0), instr, CAN_DEOPTIMIZE_EAGERLY);
+}
+
+
+LInstruction* LChunkBuilder::DoForInCacheArray(HForInCacheArray* instr) {
+  LOperand* map = UseRegister(instr->map());
+  return AssignEnvironment(DefineAsRegister(
+      new LForInCacheArray(map)));
+}
+
+
+LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* map = UseRegisterAtStart(instr->map());
+  return AssignEnvironment(new LCheckMapValue(value, map));
+}
+
+
+LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
+  LOperand* object = UseRegister(instr->object());
+  LOperand* index = UseRegister(instr->index());
+  return DefineAsRegister(new LLoadFieldByIndex(object, index));
+}
+
+
 } }  // namespace v8::internal

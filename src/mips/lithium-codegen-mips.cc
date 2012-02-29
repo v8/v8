@@ -4836,6 +4836,89 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 }
 
 
+void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
+  Register result = ToRegister(instr->result());
+  Register object = ToRegister(instr->object());
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+  DeoptimizeIf(eq, instr->environment(), object, Operand(at));
+
+  Register null_value = t1;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
+  DeoptimizeIf(eq, instr->environment(), object, Operand(null_value));
+
+  __ And(at, object, kSmiTagMask);
+  DeoptimizeIf(eq, instr->environment(), at, Operand(zero_reg));
+
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  __ GetObjectType(object, a1, a1);
+  DeoptimizeIf(le, instr->environment(), a1, Operand(LAST_JS_PROXY_TYPE));
+
+  Label use_cache, call_runtime;
+  ASSERT(object.is(a0));
+  __ CheckEnumCache(null_value, &call_runtime);
+
+  __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ Branch(&use_cache);
+
+  // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
+  __ push(object);
+  CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
+
+  __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
+  ASSERT(result.is(v0));
+  __ LoadRoot(at, Heap::kMetaMapRootIndex);
+  DeoptimizeIf(ne, instr->environment(), a1, Operand(at));
+  __ bind(&use_cache);
+}
+
+
+void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
+  Register map = ToRegister(instr->map());
+  Register result = ToRegister(instr->result());
+  __ LoadInstanceDescriptors(map, result);
+  __ lw(result,
+        FieldMemOperand(result, DescriptorArray::kEnumerationIndexOffset));
+  __ lw(result,
+        FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
+  DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
+}
+
+
+void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
+  Register object = ToRegister(instr->value());
+  Register map = ToRegister(instr->map());
+  __ lw(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  DeoptimizeIf(ne, instr->environment(), map, Operand(scratch0()));
+}
+
+
+void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
+  Register object = ToRegister(instr->object());
+  Register index = ToRegister(instr->index());
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  Label out_of_object, done;
+  __ Branch(USE_DELAY_SLOT, &out_of_object, lt, index, Operand(zero_reg));
+  __ sll(scratch, index, kPointerSizeLog2 - kSmiTagSize);  // In delay slot.
+
+  STATIC_ASSERT(kPointerSizeLog2 > kSmiTagSize);
+  __ Addu(scratch, object, scratch);
+  __ lw(result, FieldMemOperand(scratch, JSObject::kHeaderSize));
+
+  __ Branch(&done);
+
+  __ bind(&out_of_object);
+  __ lw(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+  // Index is equal to negated out of object property index plus 1.
+  __ Subu(scratch, result, scratch);
+  __ lw(result, FieldMemOperand(scratch,
+                                FixedArray::kHeaderSize - kPointerSize));
+  __ bind(&done);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
