@@ -174,7 +174,6 @@ class LChunkBuilder;
   V(ThisFunction)                              \
   V(Throw)                                     \
   V(ToFastProperties)                          \
-  V(ToInt32)                                   \
   V(TransitionElementsKind)                    \
   V(Typeof)                                    \
   V(TypeofIsAndBranch)                         \
@@ -1237,34 +1236,6 @@ class HClampToUint8: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampToUint8)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HToInt32: public HUnaryOperation {
- public:
-  explicit HToInt32(HValue* value)
-      : HUnaryOperation(value) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-    SetFlag(kTruncatingToInt32);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::None();
-  }
-
-  virtual HValue* Canonicalize() {
-    if (value()->representation().IsInteger32()) {
-      return value();
-    } else {
-      return this;
-    }
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ToInt32)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

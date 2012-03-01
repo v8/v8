@@ -4514,9 +4514,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
     ASSERT(val != NULL);
     switch (elements_kind) {
       case EXTERNAL_PIXEL_ELEMENTS: {
-        HClampToUint8* clamp = new(zone()) HClampToUint8(val);
-        AddInstruction(clamp);
-        val = clamp;
+        val = AddInstruction(new(zone()) HClampToUint8(val));
         break;
       }
       case EXTERNAL_BYTE_ELEMENTS:
@@ -4525,9 +4523,13 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        HToInt32* floor_val = new(zone()) HToInt32(val);
-        AddInstruction(floor_val);
-        val = floor_val;
+        if (!val->representation().IsInteger32()) {
+          val = AddInstruction(new(zone()) HChange(
+              val,
+              Representation::Integer32(),
+              true,  // Truncate to int32.
+              false));  // Don't deoptimize undefined (irrelevant here).
+        }
         break;
       }
       case EXTERNAL_FLOAT_ELEMENTS:
@@ -4544,6 +4546,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
     return new(zone()) HStoreKeyedSpecializedArrayElement(
         external_elements, checked_key, val, elements_kind);
   } else {
+    ASSERT(val == NULL);
     return new(zone()) HLoadKeyedSpecializedArrayElement(
         external_elements, checked_key, elements_kind);
   }

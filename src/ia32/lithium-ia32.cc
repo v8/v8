@@ -1816,34 +1816,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
-  HValue* value = instr->value();
-  Representation input_rep = value->representation();
-
-  LInstruction* result;
-  if (input_rep.IsDouble()) {
-    LOperand* reg = UseRegister(value);
-    LOperand* temp_reg =
-        CpuFeatures::IsSupported(SSE3) ? NULL : TempRegister();
-    result = DefineAsRegister(new(zone()) LDoubleToI(reg, temp_reg));
-  } else if (input_rep.IsInteger32()) {
-    // Canonicalization should already have removed the hydrogen instruction in
-    // this case, since it is a noop.
-    UNREACHABLE();
-    return NULL;
-  } else {
-    ASSERT(input_rep.IsTagged());
-    LOperand* reg = UseRegister(value);
-    // Register allocator doesn't (yet) support allocation of double
-    // temps. Reserve xmm1 explicitly.
-    LOperand* xmm_temp =
-        CpuFeatures::IsSupported(SSE3) ? NULL : FixedTemp(xmm1);
-    result = DefineSameAsFirst(new(zone()) LTaggedToI(reg, xmm_temp));
-  }
-  return AssignEnvironment(result);
-}
-
-
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   return new(zone()) LReturn(UseFixed(instr->value(), eax));
 }
