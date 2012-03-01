@@ -5886,7 +5886,8 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
     HValue* function = Top();
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
     Handle<JSFunction> constructor = expr->target();
-    AddInstruction(new(zone()) HCheckFunction(function, constructor));
+    HValue* check = AddInstruction(
+        new(zone()) HCheckFunction(function, constructor));
 
     // Force completion of inobject slack tracking before generating
     // allocation code to finalize instance size.
@@ -5909,6 +5910,7 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
     // actually should do is emit HInvokeFunction on the constructor instead
     // of using HCallNew as a fallback.
     receiver->DeleteAndReplaceWith(NULL);
+    check->DeleteAndReplaceWith(NULL);
     environment()->SetExpressionStackAt(receiver_index, function);
     HInstruction* call = PreProcessCall(
         new(zone()) HCallNew(context, function, argument_count));
