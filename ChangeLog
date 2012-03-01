@@ -1,34 +1,40 @@
+2012-03-01: Version 3.9.14
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-29: Version 3.9.13
 
-        Add code kind check before preparing for OSR. (issue 1900, 115073)
+        Added code kind check before preparing for OSR. (issue 1900, 115073)
 
-        Pass zone explicitly to zone-allocation on x64 and ARM. (issue 1802)
+        Fixed issue 1802: Pass zone explicitly to zone-allocation on x64 and
+        ARM.
 
-        Port string construct stub to x64. (issue 849)
+        Ported string construct stub to x64. (issue 849)
 
         Performance and stability improvements on all platforms.
 
 
 2012-02-28: Version 3.9.12
 
-        Fix the negative lookup stub to handle deleted entries in a dictionary.
-        (issue 1964)
+        Fixed the negative lookup stub to handle deleted entries in a
+        dictionary. (issue 1964)
 
-        Add a new API where the host can supply a callback function. The
+        Added a new API where the host can supply a callback function. The
         callback function can resolve the location of a return address on stack
         to the location where a return-address rewriting profiler stashed the
         original return address.
 
-        When compiling for-in pass correct context value to the increment
-        instruction. (Chromium issue http://crbug.com/115646)
+        Fixed Chromium issue http://crbug.com/115646: When compiling for-in
+        pass correct context value to the increment instruction.
 
-        Update breakpoints set with partial file name after compile.
-        (issue 1853)
+        Fixed issue 1853: Update breakpoints set with partial file name after
+        compile.
 
 
 2012-02-27: Version 3.9.11
 
-        Make 'module' a context-sensitive keyword (V8 issue 1957).
+        Made 'module' a context-sensitive keyword (V8 issue 1957).
 
 
 2012-02-24: Version 3.9.10
@@ -83,11 +89,11 @@
 
 2012-02-14: Version 3.9.6
 
-        Fix template-related linker error. (issue 1936)
+        Fixed template-related linker error. (issue 1936)
 
-        Allow inlining of functions containing object literals.  (issue 1322)
+        Allowed inlining of functions containing object literals.  (issue 1322)
 
-        Add --call-graph-size option to tickprocessor.  (issue 1937)
+        Added --call-graph-size option to tickprocessor.  (issue 1937)
 
         Heap Snapshot maximum size limit is too low for really big apps. At the
         moment the limit is 256MB.  (Chromium issue 113015)
@@ -121,7 +127,7 @@
 
 2012-02-06: Version 3.9.2
 
-        Add timestamp to --trace-gc output. (issue 1932)
+        Added timestamp to --trace-gc output. (issue 1932)
 
         Heap profiler reports implicit references.
 
@@ -143,7 +149,7 @@
 
 2012-02-01: Version 3.9.0
 
-        Reduce memory use immediately after starting V8.
+        Reduced memory use immediately after starting V8.
 
         Stability fixes and performance improvements on all platforms.
 
