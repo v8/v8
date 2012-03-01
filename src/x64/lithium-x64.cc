@@ -2121,7 +2121,7 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  LAllocateObject* result = new LAllocateObject();
+  LAllocateObject* result = new LAllocateObject(TempRegister());
   return AssignPointerMap(DefineAsRegister(result));
 }
 

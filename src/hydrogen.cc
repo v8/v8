@@ -5888,6 +5888,12 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
     Handle<JSFunction> constructor = expr->target();
     AddInstruction(new(zone()) HCheckFunction(function, constructor));
 
+    // Force completion of inobject slack tracking before generating
+    // allocation code to finalize instance size.
+    if (constructor->shared()->IsInobjectSlackTrackingInProgress()) {
+      constructor->shared()->CompleteInobjectSlackTracking();
+    }
+
     // Replace the constructor function with a newly allocated receiver.
     HInstruction* receiver = new(zone()) HAllocateObject(context, constructor);
     // Index of the receiver from the top of the expression stack.

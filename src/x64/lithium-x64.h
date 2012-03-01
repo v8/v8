@@ -1911,8 +1911,12 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 0, 0> {
+class LAllocateObject: public LTemplateInstruction<1, 0, 1> {
  public:
+  explicit LAllocateObject(LOperand* temp) {
+    temps_[0] = temp;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
   DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
 };
