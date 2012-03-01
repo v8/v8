@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -850,6 +850,9 @@ class Operation(Expression):
     elif self.op == '==':
       inter = self.left.GetOutcomes(env, defs).Intersect(self.right.GetOutcomes(env, defs))
       return not inter.IsEmpty()
+    elif self.op == '!=':
+      inter = self.left.GetOutcomes(env, defs).Intersect(self.right.GetOutcomes(env, defs))
+      return inter.IsEmpty()
     else:
       assert self.op == '&&'
       return self.left.Evaluate(env, defs) and self.right.Evaluate(env, defs)
@@ -932,6 +935,9 @@ class Tokenizer(object):
       elif self.Current(2) == '==':
         self.AddToken('==')
         self.Advance(2)
+      elif self.Current(2) == '!=':
+        self.AddToken('!=')
+        self.Advance(2)
       else:
         return None
     return self.tokens
@@ -984,7 +990,7 @@ def ParseAtomicExpression(scan):
     return None
 
 
-BINARIES = ['==']
+BINARIES = ['==', '!=']
 def ParseOperatorExpression(scan):
   left = ParseAtomicExpression(scan)
   if not left: return None
@@ -1006,7 +1012,7 @@ def ParseConditionalExpression(scan):
     right = ParseOperatorExpression(scan)
     if not right:
       return None
-    left=  Operation(left, 'if', right)
+    left = Operation(left, 'if', right)
   return left
 
 

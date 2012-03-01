@@ -67,7 +67,7 @@ class SafepointGenerator : public CallWrapper {
 #define __ masm()->
 
 bool LCodeGen::GenerateCode() {
-  HPhase phase("Code generation", chunk());
+  HPhase phase("Z Code generation", chunk());
   ASSERT(is_unused());
   status_ = GENERATING;
   CpuFeatures::Scope scope(SSE2);
@@ -4215,9 +4215,60 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
 
   DeferredAllocateObject* deferred = new DeferredAllocateObject(this, instr);
 
-  // TODO(mstarzinger): Implement inlined version instead of jumping to
-  // deferred runtime call.
-  __ jmp(deferred->entry());
+  Register result = ToRegister(instr->result());
+  Register scratch = ToRegister(instr->TempAt(0));
+  Handle<JSFunction> constructor = instr->hydrogen()->constructor();
+  Handle<Map> initial_map(constructor->initial_map());
+  int instance_size = initial_map->instance_size();
+  ASSERT(initial_map->pre_allocated_property_fields() +
+         initial_map->unused_property_fields() -
+         initial_map->inobject_properties() == 0);
+
+  // Allocate memory for the object.  The initial map might change when
+  // the constructor's prototype changes, but instance size and property
+  // counts remain unchanged (if slack tracking finished).
+  ASSERT(!constructor->shared()->IsInobjectSlackTrackingInProgress());
+  __ AllocateInNewSpace(instance_size,
+                        result,
+                        no_reg,
+                        scratch,
+                        deferred->entry(),
+                        TAG_OBJECT);
+
+  // Load the initial map.
+  Register map = scratch;
+  __ LoadHeapObject(scratch, constructor);
+  __ mov(map, FieldOperand(scratch, JSFunction::kPrototypeOrInitialMapOffset));
+
+  if (FLAG_debug_code) {
+    __ AbortIfSmi(map);
+    __ cmpb(FieldOperand(map, Map::kInstanceSizeOffset),
+            instance_size >> kPointerSizeLog2);
+    __ Assert(equal, "Unexpected instance size");
+    __ cmpb(FieldOperand(map, Map::kPreAllocatedPropertyFieldsOffset),
+            initial_map->pre_allocated_property_fields());
+    __ Assert(equal, "Unexpected pre-allocated property fields count");
+    __ cmpb(FieldOperand(map, Map::kUnusedPropertyFieldsOffset),
+            initial_map->unused_property_fields());
+    __ Assert(equal, "Unexpected unused property fields count");
+    __ cmpb(FieldOperand(map, Map::kInObjectPropertiesOffset),
+            initial_map->inobject_properties());
+    __ Assert(equal, "Unexpected in-object property fields count");
+  }
+
+  // Initialize map and fields of the newly allocated object.
+  ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
+  __ mov(FieldOperand(result, JSObject::kMapOffset), map);
+  __ mov(scratch, factory()->empty_fixed_array());
+  __ mov(FieldOperand(result, JSObject::kElementsOffset), scratch);
+  __ mov(FieldOperand(result, JSObject::kPropertiesOffset), scratch);
+  if (initial_map->inobject_properties() != 0) {
+    __ mov(scratch, factory()->undefined_value());
+    for (int i = 0; i < initial_map->inobject_properties(); i++) {
+      int property_offset = JSObject::kHeaderSize + i * kPointerSize;
+      __ mov(FieldOperand(result, property_offset), scratch);
+    }
+  }
 
   __ bind(deferred->exit());
 }

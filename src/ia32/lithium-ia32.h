@@ -1996,10 +1996,11 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 1, 0> {
+class LAllocateObject: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LAllocateObject(LOperand* context) {
+  LAllocateObject(LOperand* context, LOperand* temp) {
     inputs_[0] = context;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")

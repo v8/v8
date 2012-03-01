@@ -1922,8 +1922,13 @@ class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 0, 0> {
+class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
  public:
+  LAllocateObject(LOperand* temp1, LOperand* temp2) {
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
   DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
 };

@@ -70,8 +70,8 @@ S7.8.4_A7.2_T6: FAIL_OK
 
 # Linux and Mac defaults to extended 80 bit floating point format in the FPU.
 # We follow the other major JS engines by keeping this default.
-S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
-S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
+S8.5_A2.2: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
+S8.5_A2.1: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
 
 ############################ SKIPPED TESTS #############################
 

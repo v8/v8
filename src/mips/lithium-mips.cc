@@ -440,7 +440,7 @@ LOperand* LChunk::GetNextSpillSlot(bool is_double)  {
 
 
 void LChunk::MarkEmptyBlocks() {
-  HPhase phase("Mark empty blocks", this);
+  HPhase phase("L Mark empty blocks", this);
   for (int i = 0; i < graph()->blocks()->length(); ++i) {
     HBasicBlock* block = graph()->blocks()->at(i);
     int first = block->first_instruction_index();
@@ -552,7 +552,7 @@ Representation LChunk::LookupLiteralRepresentation(
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone()) LChunk(info(), graph());
-  HPhase phase("Building chunk", chunk_);
+  HPhase phase("L Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -1766,31 +1766,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
-  HValue* value = instr->value();
-  Representation input_rep = value->representation();
-  LOperand* reg = UseRegister(value);
-  if (input_rep.IsDouble()) {
-    LOperand* temp1 = TempRegister();
-    LOperand* temp2 = TempRegister();
-    LDoubleToI* res = new(zone()) LDoubleToI(reg, temp1, temp2);
-    return AssignEnvironment(DefineAsRegister(res));
-  } else if (input_rep.IsInteger32()) {
-    // Canonicalization should already have removed the hydrogen instruction in
-    // this case, since it is a noop.
-    UNREACHABLE();
-    return NULL;
-  } else {
-    ASSERT(input_rep.IsTagged());
-    LOperand* temp1 = TempRegister();
-    LOperand* temp2 = TempRegister();
-    LOperand* temp3 = FixedTemp(f22);
-    LTaggedToI* res = new(zone()) LTaggedToI(reg, temp1, temp2, temp3);
-    return AssignEnvironment(DefineSameAsFirst(res));
-  }
-}
-
-
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   return new(zone()) LReturn(UseFixed(instr->value(), v0));
 }
@@ -2126,7 +2101,8 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  LAllocateObject* result = new(zone()) LAllocateObject();
+  LAllocateObject* result = new(zone()) LAllocateObject(
+      TempRegister(), TempRegister());
   return AssignPointerMap(DefineAsRegister(result));
 }
 
@@ -2310,7 +2286,7 @@ LInstruction* LChunkBuilder::DoIn(HIn* instr) {
 
 LInstruction* LChunkBuilder::DoForInPrepareMap(HForInPrepareMap* instr) {
   LOperand* object = UseFixed(instr->enumerable(), a0);
-  LForInPrepareMap* result = new LForInPrepareMap(object);
+  LForInPrepareMap* result = new(zone()) LForInPrepareMap(object);
   return MarkAsCall(DefineFixed(result, v0), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 
@@ -2318,21 +2294,21 @@ LInstruction* LChunkBuilder::DoForInPrepareMap(HForInPrepareMap* instr) {
 LInstruction* LChunkBuilder::DoForInCacheArray(HForInCacheArray* instr) {
   LOperand* map = UseRegister(instr->map());
   return AssignEnvironment(DefineAsRegister(
-      new LForInCacheArray(map)));
+      new(zone()) LForInCacheArray(map)));
 }
 
 
 LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   LOperand* map = UseRegisterAtStart(instr->map());
-  return AssignEnvironment(new LCheckMapValue(value, map));
+  return AssignEnvironment(new(zone()) LCheckMapValue(value, map));
 }
 
 
 LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   LOperand* object = UseRegister(instr->object());
   LOperand* index = UseRegister(instr->index());
-  return DefineAsRegister(new LLoadFieldByIndex(object, index));
+  return DefineAsRegister(new(zone()) LLoadFieldByIndex(object, index));
 }
 
 
