@@ -1163,7 +1163,7 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   BuiltinFunctionId op = instr->op();
-  if (op == kMathLog || op == kMathSin || op == kMathCos) {
+  if (op == kMathLog || op == kMathSin || op == kMathCos || op == kMathTan) {
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);

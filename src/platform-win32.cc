@@ -32,6 +32,7 @@
 
 #include "v8.h"
 
+#include "codegen.h"
 #include "platform.h"
 #include "vm-state-inl.h"
 
@@ -200,6 +201,30 @@ double modulo(double x, double y) {
 }
 
 #endif  // _WIN64
+
+
+static Mutex* transcendental_function_mutex = OS::CreateMutex();
+
+#define TRANSCENDENTAL_FUNCTION(name, type)                   \
+static TranscendentalFunction fast_##name##_function = NULL;  \
+double fast_##name(double x) {                                \
+  if (fast_##name##_function == NULL) {                       \
+    ScopedLock lock(transcendental_function_mutex);           \
+    TranscendentalFunction temp =                             \
+        CreateTranscendentalFunction(type);                   \
+    MemoryBarrier();                                          \
+    fast_##name##_function = temp;                            \
+  }                                                           \
+  return (*fast_##name##_function)(x);                        \
+}
+
+TRANSCENDENTAL_FUNCTION(sin, TranscendentalCache::SIN)
+TRANSCENDENTAL_FUNCTION(cos, TranscendentalCache::COS)
+TRANSCENDENTAL_FUNCTION(tan, TranscendentalCache::TAN)
+TRANSCENDENTAL_FUNCTION(log, TranscendentalCache::LOG)
+
+#undef TRANSCENDENTAL_FUNCTION
+
 
 // ----------------------------------------------------------------------------
 // The Time class represents time on win32. A timestamp is represented as
