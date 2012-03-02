@@ -730,7 +730,7 @@ HBasicBlock* HGraph::CreateBasicBlock() {
 
 void HGraph::Canonicalize() {
   if (!FLAG_use_canonicalizing) return;
-  HPhase phase("H Canonicalize", this);
+  HPhase phase("H_Canonicalize", this);
   for (int i = 0; i < blocks()->length(); ++i) {
     HInstruction* instr = blocks()->at(i)->first();
     while (instr != NULL) {
@@ -743,7 +743,7 @@ void HGraph::Canonicalize() {
 
 
 void HGraph::OrderBlocks() {
-  HPhase phase("H Block ordering");
+  HPhase phase("H_Block ordering");
   BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8);
@@ -805,7 +805,7 @@ void HGraph::Postorder(HBasicBlock* block,
 
 
 void HGraph::AssignDominators() {
-  HPhase phase("H Assign dominators", this);
+  HPhase phase("H_Assign dominators", this);
   for (int i = 0; i < blocks_.length(); ++i) {
     HBasicBlock* block = blocks_[i];
     if (block->IsLoopHeader()) {
@@ -824,7 +824,7 @@ void HGraph::AssignDominators() {
 // Mark all blocks that are dominated by an unconditional soft deoptimize to
 // prevent code motion across those blocks.
 void HGraph::PropagateDeoptimizingMark() {
-  HPhase phase("H Propagate deoptimizing mark", this);
+  HPhase phase("H_Propagate deoptimizing mark", this);
   MarkAsDeoptimizingRecursively(entry_block());
 }
 
@@ -837,7 +837,7 @@ void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
 }
 
 void HGraph::EliminateRedundantPhis() {
-  HPhase phase("H Redundant phi elimination", this);
+  HPhase phase("H_Redundant phi elimination", this);
 
   // Worklist of phis that can potentially be eliminated. Initialized with
   // all phi nodes. When elimination of a phi node modifies another phi node
@@ -871,7 +871,7 @@ void HGraph::EliminateRedundantPhis() {
 
 
 void HGraph::EliminateUnreachablePhis() {
-  HPhase phase("H Unreachable phi elimination", this);
+  HPhase phase("H_Unreachable phi elimination", this);
 
   // Initialize worklist.
   ZoneList<HPhi*> phi_list(blocks_.length());
@@ -1010,7 +1010,7 @@ void HRangeAnalysis::TraceRange(const char* msg, ...) {
 
 
 void HRangeAnalysis::Analyze() {
-  HPhase phase("H Range analysis", graph_);
+  HPhase phase("H_Range analysis", graph_);
   Analyze(graph_->entry_block());
 }
 
@@ -1831,7 +1831,7 @@ Representation HInferRepresentation::TryChange(HValue* value) {
 
 
 void HInferRepresentation::Analyze() {
-  HPhase phase("H Infer representations", graph_);
+  HPhase phase("H_Infer representations", graph_);
 
   // (1) Initialize bit vectors and count real uses. Each phi gets a
   // bit-vector of length <number of phis>.
@@ -1910,7 +1910,7 @@ void HInferRepresentation::Analyze() {
 
 
 void HGraph::InitializeInferredTypes() {
-  HPhase phase("H Inferring types", this);
+  HPhase phase("H_Inferring types", this);
   InitializeInferredTypes(0, this->blocks_.length() - 1);
 }
 
@@ -2047,7 +2047,7 @@ void HGraph::InsertRepresentationChangesForValue(HValue* value) {
 
 
 void HGraph::InsertRepresentationChanges() {
-  HPhase phase("H Insert representation changes", this);
+  HPhase phase("H_Insert representation changes", this);
 
 
   // Compute truncation flag for phis: Initially assume that all
@@ -2104,7 +2104,7 @@ void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
 
 
 void HGraph::MarkDeoptimizeOnUndefined() {
-  HPhase phase("H MarkDeoptimizeOnUndefined", this);
+  HPhase phase("H_MarkDeoptimizeOnUndefined", this);
   // Compute DeoptimizeOnUndefined flag for phis.
   // Any phi that can reach a use with DeoptimizeOnUndefined set must
   // have DeoptimizeOnUndefined set.  Currently only HCompareIDAndBranch, with
@@ -2430,7 +2430,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info());
 
   {
-    HPhase phase("H Block building");
+    HPhase phase("H_Block building");
     current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
@@ -2515,7 +2515,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
-    HPhase phase("H Global value numbering", graph());
+    HPhase phase("H_Global value numbering", graph());
     HGlobalValueNumberer gvn(graph(), info());
     bool removed_side_effects = gvn.Analyze();
     // Trigger a second analysis pass to further eliminate duplicate values that
@@ -2548,7 +2548,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
 
 void HGraph::ReplaceCheckedValues() {
-  HPhase phase("H Replace checked values", this);
+  HPhase phase("H_Replace checked values", this);
   for (int i = 0; i < blocks()->length(); ++i) {
     HInstruction* instr = blocks()->at(i)->first();
     while (instr != NULL) {
