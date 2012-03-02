@@ -3274,6 +3274,10 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     return Bailout("ForInStatement optimization is disabled");
   }
 
+  if (!oracle()->IsForInFastCase(stmt)) {
+    return Bailout("ForInStatement is not fast case");
+  }
+
   if (!stmt->each()->IsVariableProxy() ||
       !stmt->each()->AsVariableProxy()->var()->IsStackLocal()) {
     return Bailout("ForInStatement with non-local each variable");

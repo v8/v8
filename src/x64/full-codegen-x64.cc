@@ -969,6 +969,16 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register rax. Iterate through that.
   Label non_proxy;
   __ bind(&fixed_array);
+
+  Handle<JSGlobalPropertyCell> cell =
+      isolate()->factory()->NewJSGlobalPropertyCell(
+          Handle<Object>(
+              Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker)));
+  RecordTypeFeedbackCell(stmt->PrepareId(), cell);
+  __ LoadHeapObject(rbx, cell);
+  __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+          Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker));
+
   __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
   __ movq(rcx, Operand(rsp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);

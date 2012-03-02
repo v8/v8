@@ -154,6 +154,13 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
 }
 
 
+bool TypeFeedbackOracle::IsForInFastCase(ForInStatement* stmt) {
+  Handle<Object> value = GetInfo(stmt->PrepareId());
+  return value->IsSmi() &&
+      Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker;
+}
+
+
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphicNormal(expr));
   Handle<Object> map_or_code = GetInfo(expr->id());
@@ -659,9 +666,10 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
   for (int i = 0; i < cache->CellCount(); i++) {
     unsigned ast_id = cache->AstId(i)->value();
     Object* value = cache->Cell(i)->value();
-    if (value->IsJSFunction() &&
-        !CanRetainOtherContext(JSFunction::cast(value),
-                               *global_context_)) {
+    if (value->IsSmi() ||
+        (value->IsJSFunction() &&
+         !CanRetainOtherContext(JSFunction::cast(value),
+                                *global_context_))) {
       SetInfo(ast_id, value);
     }
   }

@@ -4063,6 +4063,9 @@ class TypeFeedbackCells: public FixedArray {
 
   // Casting.
   static inline TypeFeedbackCells* cast(Object* obj);
+
+  static const int kForInFastCaseMarker = 0;
+  static const int kForInSlowCaseMarker = 1;
 };
 
 
