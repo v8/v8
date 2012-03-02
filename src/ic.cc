@@ -2482,6 +2482,14 @@ CompareIC::State CompareIC::TargetState(State state,
     case UNINITIALIZED:
       if (x->IsSmi() && y->IsSmi()) return SMIS;
       if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
+      if (Token::IsOrderedRelationalCompareOp(op_)) {
+        // Ordered comparisons treat undefined as NaN, so the
+        // HEAP_NUMBER stub will do the right thing.
+        if ((x->IsNumber() && y->IsUndefined()) ||
+            (y->IsNumber() && x->IsUndefined())) {
+          return HEAP_NUMBERS;
+        }
+      }
       if (!Token::IsEqualityOp(op_)) return GENERIC;
       if (x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
       if (x->IsString() && y->IsString()) return STRINGS;

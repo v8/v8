@@ -5522,15 +5522,15 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
   Label generic_stub;
-  Label unordered;
+  Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
   Condition either_smi = masm->CheckEitherSmi(rax, rdx);
   __ j(either_smi, &generic_stub, Label::kNear);
 
   __ CmpObjectType(rax, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined1, Label::kNear);
   __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined2, Label::kNear);
 
   // Load left and right operand
   __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
@@ -5551,10 +5551,24 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&unordered);
-
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
   __ bind(&generic_stub);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ Cmp(rax, masm->isolate()->factory()->undefined_value());
+    __ j(not_equal, &miss);
+    __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
+    __ j(not_equal, &maybe_undefined2, Label::kNear);
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ Cmp(rdx, masm->isolate()->factory()->undefined_value());
+    __ j(equal, &unordered);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);

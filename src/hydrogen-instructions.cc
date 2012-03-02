@@ -1479,7 +1479,22 @@ void HGoto::PrintDataTo(StringStream* stream) {
 void HCompareIDAndBranch::SetInputRepresentation(Representation r) {
   input_representation_ = r;
   if (r.IsDouble()) {
-    SetFlag(kDeoptimizeOnUndefined);
+    // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
+    // and !=) have special handling of undefined, e.g. undefined == undefined
+    // is 'true'. Relational comparisons have a different semantic, first
+    // calling ToPrimitive() on their arguments.  The standard Crankshaft
+    // tagged-to-double conversion to ensure the HCompareIDAndBranch's inputs
+    // are doubles caused 'undefined' to be converted to NaN. That's compatible
+    // out-of-the box with ordered relational comparisons (<, >, <=,
+    // >=). However, for equality comparisons (and for 'in' and 'instanceof'),
+    // it is not consistent with the spec. For example, it would cause undefined
+    // == undefined (should be true) to be evaluated as NaN == NaN
+    // (false). Therefore, any comparisons other than ordered relational
+    // comparisons must cause a deopt when one of their arguments is undefined.
+    // See also v8:1434
+    if (!Token::IsOrderedRelationalCompareOp(token_)) {
+      SetFlag(kDeoptimizeOnUndefined);
+    }
   } else {
     ASSERT(r.IsInteger32());
   }
