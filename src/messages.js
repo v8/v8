@@ -533,6 +533,13 @@ function ScriptNameOrSourceURL() {
   if (this.name) {
     return this.name;
   }
+
+  // The result is cached as on long scripts it takes noticable time to search
+  // for the sourceURL.
+  if (this.hasCachedNameOrSourceURL)
+      return this.cachedNameOrSourceURL;
+  this.hasCachedNameOrSourceURL = true;
+
   // TODO(608): the spaces in a regexp below had to be escaped as \040
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
@@ -541,6 +548,7 @@ function ScriptNameOrSourceURL() {
   // the scanner/parser.
   var source = ToString(this.source);
   var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  this.cachedNameOrSourceURL = this.name;
   if (sourceUrlPos > 4) {
     var sourceUrlPattern =
         /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
@@ -551,15 +559,17 @@ function ScriptNameOrSourceURL() {
     var match =
         %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
     if (match) {
-      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+      this.cachedNameOrSourceURL =
+          SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
     }
   }
-  return this.name;
+  return this.cachedNameOrSourceURL;
 }
 
 
 SetUpLockedPrototype(Script,
-  $Array("source", "name", "line_ends", "line_offset", "column_offset"),
+  $Array("source", "name", "line_ends", "line_offset", "column_offset",
+         "cachedNameOrSourceURL", "hasCachedNameOrSourceURL" ),
   $Array(
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
