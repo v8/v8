@@ -32,7 +32,6 @@
 #include "isolate.h"
 #include "list-inl.h"
 #include "objects.h"
-#include "platform.h"
 #include "v8-counters.h"
 #include "store-buffer.h"
 #include "store-buffer-inl.h"
@@ -659,15 +658,15 @@ double TranscendentalCache::SubCache::Calculate(double input) {
     case ATAN:
       return atan(input);
     case COS:
-      return fast_cos(input);
+      return cos(input);
     case EXP:
       return exp(input);
     case LOG:
-      return fast_log(input);
+      return log(input);
     case SIN:
-      return fast_sin(input);
+      return sin(input);
     case TAN:
-      return fast_tan(input);
+      return tan(input);
     default:
       return 0.0;  // Never happens.
   }

@@ -1886,7 +1886,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
       case kMathLog:
       case kMathSin:
       case kMathCos:
-      case kMathTan:
         set_representation(Representation::Double());
         break;
       default:
@@ -1917,7 +1916,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
         case kMathLog:
         case kMathSin:
         case kMathCos:
-        case kMathTan:
           return Representation::Double();
         case kMathAbs:
           return representation();

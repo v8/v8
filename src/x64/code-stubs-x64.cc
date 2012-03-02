@@ -1628,7 +1628,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
     __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
   }
-  GenerateOperation(masm, type_);
+  GenerateOperation(masm);
   __ movq(Operand(rcx, 0), rbx);
   __ movq(Operand(rcx, 2 * kIntSize), rax);
   __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
@@ -1643,7 +1643,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ subq(rsp, Immediate(kDoubleSize));
     __ movsd(Operand(rsp, 0), xmm1);
     __ fld_d(Operand(rsp, 0));
-    GenerateOperation(masm, type_);
+    GenerateOperation(masm);
     __ fstp_d(Operand(rsp, 0));
     __ movsd(xmm1, Operand(rsp, 0));
     __ addq(rsp, Immediate(kDoubleSize));
@@ -1695,17 +1695,16 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void TranscendentalCacheStub::GenerateOperation(
-    MacroAssembler* masm, TranscendentalCache::Type type) {
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   // Registers:
   // rax: Newly allocated HeapNumber, which must be preserved.
   // rbx: Bits of input double. Must be preserved.
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
   Label done;
-  if (type == TranscendentalCache::SIN ||
-      type == TranscendentalCache::COS ||
-      type == TranscendentalCache::TAN) {
+  if (type_ == TranscendentalCache::SIN ||
+      type_ == TranscendentalCache::COS ||
+      type_ == TranscendentalCache::TAN) {
     // Both fsin and fcos require arguments in the range +/-2^63 and
     // return NaN for infinities and NaN. They can share all code except
     // the actual fsin/fcos operation.
@@ -1768,7 +1767,7 @@ void TranscendentalCacheStub::GenerateOperation(
     // FPU Stack: input % 2*pi
     __ movq(rax, rdi);  // Restore rax, pointer to the new HeapNumber.
     __ bind(&in_range);
-    switch (type) {
+    switch (type_) {
       case TranscendentalCache::SIN:
         __ fsin();
         break;
@@ -1786,7 +1785,7 @@ void TranscendentalCacheStub::GenerateOperation(
     }
     __ bind(&done);
   } else {
-    ASSERT(type == TranscendentalCache::LOG);
+    ASSERT(type_ == TranscendentalCache::LOG);
     __ fldln2();
     __ fxch();
     __ fyl2x();

@@ -5420,7 +5420,6 @@ bool HGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra) {
     case kMathLog:
     case kMathSin:
     case kMathCos:
-    case kMathTan:
       if (expr->arguments()->length() == 1) {
         HValue* argument = Pop();
         HValue* context = environment()->LookupContext();
@@ -5481,7 +5480,6 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
     case kMathLog:
     case kMathSin:
     case kMathCos:
-    case kMathTan:
       if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
         HValue* argument = Pop();
