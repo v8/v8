@@ -3490,6 +3490,9 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
       || edge->type() == HeapGraphEdge::kHidden
       || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
+  STATIC_CHECK(sizeof(int) == sizeof(edge->type()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(edge_name_or_index));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(edge->to())));  // NOLINT
   int result = OS::SNPrintF(buffer, ",%d,%d,%d",
       edge->type(), edge_name_or_index, GetNodeId(edge->to()));
   USE(result);
@@ -3499,12 +3502,21 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  // The buffer needs space for 7 ints, 7 commas, \n and \0
+  // The buffer needs space for 6 ints, 1 uint64_t, 7 commas, \n and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 7 + 7 + 1 + 1;  // NOLINT
+      6 * MaxDecimalDigitsIn<sizeof(int)>::kSigned  // NOLINT
+      + MaxDecimalDigitsIn<sizeof(uint64_t)>::kUnsigned  // NOLINT
+      + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
-  int result = OS::SNPrintF(buffer, "\n,%d,%d,%d,%d,%d,%d,%d",
+  STATIC_CHECK(sizeof(int) == sizeof(entry->type()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetStringId(entry->name())));  // NOLINT
+  STATIC_CHECK(sizeof(uint64_t) == sizeof(entry->id()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(entry->self_size()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(entry->retained_size()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(entry->dominator())));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(children.length()));  // NOLINT
+  int result = OS::SNPrintF(buffer, "\n,%d,%d,%llu,%d,%d,%d,%d",
       entry->type(),
       GetStringId(entry->name()),
       entry->id(),
