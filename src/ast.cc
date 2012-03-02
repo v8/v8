@@ -524,7 +524,8 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
       switch (lookup.type()) {
         case CONSTANT_FUNCTION:
           // We surely know the target for a constant function.
-          target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
+          target_ =
+              Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
           return true;
         case NORMAL:
         case FIELD:
