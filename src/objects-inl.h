@@ -1988,7 +1988,8 @@ AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
 
 
 bool DescriptorArray::IsProperty(int descriptor_number) {
-  return IsRealProperty(GetType(descriptor_number));
+  Entry entry(this, descriptor_number);
+  return IsPropertyDescriptor(&entry);
 }
 
 

@@ -520,13 +520,26 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   LookupResult lookup(type->GetIsolate());
   while (true) {
     type->LookupInDescriptors(NULL, *name, &lookup);
-    // For properties we know the target iff we have a constant function.
-    if (lookup.IsFound() && lookup.IsProperty()) {
-      if (lookup.type() == CONSTANT_FUNCTION) {
-        target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-        return true;
+    if (lookup.IsFound()) {
+      switch (lookup.type()) {
+        case CONSTANT_FUNCTION:
+          // We surely know the target for a constant function.
+          target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
+          return true;
+        case NORMAL:
+        case FIELD:
+        case CALLBACKS:
+        case HANDLER:
+        case INTERCEPTOR:
+          // We don't know the target.
+          return false;
+        case MAP_TRANSITION:
+        case ELEMENTS_TRANSITION:
+        case CONSTANT_TRANSITION:
+        case NULL_DESCRIPTOR:
+          // Perhaps something interesting is up in the prototype chain...
+          break;
       }
-      return false;
     }
     // If we reach the end of the prototype chain, we don't know the target.
     if (!type->prototype()->IsJSObject()) return false;

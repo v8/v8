@@ -7880,9 +7880,7 @@ void SharedFunctionInfo::DisableOptimization() {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for: ");
-    DebugName()->ShortPrint();
-    PrintF("]\n");
+    PrintF("[disabled optimization for %s]\n", *DebugName()->ToCString());
   }
 }
 
