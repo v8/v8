@@ -112,10 +112,15 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 }
 
 
+#ifndef __MINGW64_VERSION_MAJOR
+
 inline void MemoryBarrier() {
   int barrier = 0;
   __asm__ __volatile__("xchgl %%eax,%0 ":"=r" (barrier));
 }
+
+#endif  // __MINGW64_VERSION_MAJOR
+
 
 #endif  // __MINGW32__
 
