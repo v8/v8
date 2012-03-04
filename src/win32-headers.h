@@ -63,6 +63,7 @@
 // header files to expose getaddrinfo.
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x501
+#include <float.h>  // For _controlfp().
 #endif  // __MINGW32__
 #if !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
 #include <dbghelp.h>  // For SymLoadModule64 and al.
@@ -78,7 +79,7 @@
 #ifndef __MINGW32__
 #include <wspiapi.h>
 #endif  // __MINGW32__
-#include <process.h>  // for _beginthreadex()
+#include <process.h>  // For _beginthreadex().
 #include <stdlib.h>
 #endif  // V8_WIN32_HEADERS_FULL
 
