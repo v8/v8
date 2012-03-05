@@ -539,10 +539,6 @@ char* Time::LocalTimezone() {
 
 
 void OS::SetUp() {
-#ifdef __MINGW32__
-  // Set x87 FPU precision to 64-bit to be consistent with MSVC.
-  _controlfp(_PC_53, _MCW_PC);
-#endif
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
   // to an unsigned. Going directly can cause an overflow and the seed to be
