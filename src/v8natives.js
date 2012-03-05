@@ -332,7 +332,7 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["keys"]);
+    throw MakeTypeError("called_on_non_object", ["Object.keys"]);
   }
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
@@ -943,7 +943,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 // ES5 section 15.2.3.2.
 function ObjectGetPrototypeOf(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["getPrototypeOf"]);
+    throw MakeTypeError("called_on_non_object", ["Object.getPrototypeOf"]);
   }
   return %GetPrototype(obj);
 }
@@ -952,8 +952,8 @@ function ObjectGetPrototypeOf(obj) {
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object",
-                        ["getOwnPropertyDescriptor"]);
+    throw MakeTypeError("called_on_non_object",
+                        ["Object.getOwnPropertyDescriptor"]);
   }
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
@@ -983,8 +983,7 @@ function ToStringArray(obj, trap) {
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object",
-                        ["getOwnPropertyNames"]);
+    throw MakeTypeError("called_on_non_object", ["Object.getOwnPropertyNames"]);
   }
   // Special handling for proxies.
   if (%IsJSProxy(obj)) {
@@ -1057,7 +1056,7 @@ function ObjectCreate(proto, properties) {
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
+    throw MakeTypeError("called_on_non_object", ["Object.defineProperty"]);
   }
   var name = ToString(p);
   if (%IsJSProxy(obj)) {
@@ -1109,7 +1108,7 @@ function GetOwnEnumerablePropertyNames(properties) {
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
+    throw MakeTypeError("called_on_non_object", ["Object.defineProperties"]);
   }
   var props = ToObject(properties);
   var names = GetOwnEnumerablePropertyNames(props);
@@ -1156,7 +1155,7 @@ function ProxyFix(obj) {
 // ES5 section 15.2.3.8.
 function ObjectSeal(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
+    throw MakeTypeError("called_on_non_object", ["Object.seal"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1178,7 +1177,7 @@ function ObjectSeal(obj) {
 // ES5 section 15.2.3.9.
 function ObjectFreeze(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
+    throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1201,7 +1200,7 @@ function ObjectFreeze(obj) {
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+    throw MakeTypeError("called_on_non_object", ["Object.preventExtension"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1214,7 +1213,7 @@ function ObjectPreventExtension(obj) {
 // ES5 section 15.2.3.11
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isSealed"]);
   }
   if (%IsJSProxy(obj)) {
     return false;
@@ -1235,7 +1234,7 @@ function ObjectIsSealed(obj) {
 // ES5 section 15.2.3.12
 function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isFrozen"]);
   }
   if (%IsJSProxy(obj)) {
     return false;
@@ -1257,7 +1256,7 @@ function ObjectIsFrozen(obj) {
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isExtensible"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isExtensible"]);
   }
   if (%IsJSProxy(obj)) {
     return true;
