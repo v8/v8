@@ -4318,7 +4318,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag_setter, 2);
+  CONVERT_SMI_ARG_CHECKED(flag, 2);
   Object* fun = args[3];
   CONVERT_SMI_ARG_CHECKED(unchecked, 4);
 
@@ -4327,7 +4327,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
 
   RUNTIME_ASSERT(!obj->IsNull());
   RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
-  return obj->DefineAccessor(name, flag_setter == 0, fun, attr);
+  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
+  return obj->DefineAccessor(name, component, fun, attr);
 }
 
 // Implements part of 8.12.9 DefineOwnProperty.
@@ -10292,7 +10293,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   CONVERT_SMI_ARG_CHECKED(flag, 2);
-  return obj->LookupAccessor(name, flag == 0);
+  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
+  return obj->LookupAccessor(name, component);
 }
 
 

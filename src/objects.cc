@@ -4367,7 +4367,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 static bool UpdateGetterSetterInDictionary(
     SeededNumberDictionary* dictionary,
     uint32_t index,
-    bool is_getter,
+    AccessorComponent component,
     Object* fun,
     PropertyAttributes attributes) {
   int entry = dictionary->FindEntry(index);
@@ -4381,7 +4381,7 @@ static bool UpdateGetterSetterInDictionary(
         dictionary->DetailsAtPut(entry,
                                  PropertyDetails(attributes, CALLBACKS, index));
       }
-      AccessorPair::cast(result)->set(is_getter, fun);
+      AccessorPair::cast(result)->set(component, fun);
       return true;
     }
   }
@@ -4390,7 +4390,7 @@ static bool UpdateGetterSetterInDictionary(
 
 
 MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
-                                             bool is_getter,
+                                             AccessorComponent component,
                                              Object* fun,
                                              PropertyAttributes attributes) {
   switch (GetElementsKind()) {
@@ -4412,7 +4412,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
     case DICTIONARY_ELEMENTS:
       if (UpdateGetterSetterInDictionary(element_dictionary(),
                                          index,
-                                         is_getter,
+                                         component,
                                          fun,
                                          attributes)) {
         return GetHeap()->undefined_value();
@@ -4433,7 +4433,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
               SeededNumberDictionary::cast(arguments);
           if (UpdateGetterSetterInDictionary(dictionary,
                                              index,
-                                             is_getter,
+                                             component,
                                              fun,
                                              attributes)) {
             return GetHeap()->undefined_value();
@@ -4448,14 +4448,14 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(is_getter, fun);
+  accessors->set(component, fun);
 
   return SetElementCallback(index, accessors, attributes);
 }
 
 
 MaybeObject* JSObject::DefinePropertyAccessor(String* name,
-                                              bool is_getter,
+                                              AccessorComponent component,
                                               Object* fun,
                                               PropertyAttributes attributes) {
   // Lookup the name.
@@ -4473,7 +4473,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
               AccessorPair::cast(obj)->CopyWithoutTransitions();
           if (!maybe_copy->To(&copy)) return maybe_copy;
         }
-        copy->set(is_getter, fun);
+        copy->set(component, fun);
         // Use set to update attributes.
         return SetPropertyCallback(name, copy, attributes);
       }
@@ -4484,7 +4484,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(is_getter, fun);
+  accessors->set(component, fun);
 
   return SetPropertyCallback(name, accessors, attributes);
 }
@@ -4593,7 +4593,7 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
 }
 
 MaybeObject* JSObject::DefineAccessor(String* name,
-                                      bool is_getter,
+                                      AccessorComponent component,
                                       Object* fun,
                                       PropertyAttributes attributes) {
   ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
@@ -4609,7 +4609,7 @@ MaybeObject* JSObject::DefineAccessor(String* name,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(name, is_getter,
+    return JSObject::cast(proto)->DefineAccessor(name, component,
                                                  fun, attributes);
   }
 
@@ -4624,8 +4624,8 @@ MaybeObject* JSObject::DefineAccessor(String* name,
 
   uint32_t index = 0;
   return name->AsArrayIndex(&index) ?
-      DefineElementAccessor(index, is_getter, fun, attributes) :
-      DefinePropertyAccessor(name, is_getter, fun, attributes);
+      DefineElementAccessor(index, component, fun, attributes) :
+      DefinePropertyAccessor(name, component, fun, attributes);
 }
 
 
@@ -4711,7 +4711,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 }
 
 
-Object* JSObject::LookupAccessor(String* name, bool is_getter) {
+Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
   Heap* heap = GetHeap();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4737,12 +4737,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
-          PropertyDetails details = dictionary->DetailsAt(entry);
-          if (details.type() == CALLBACKS) {
-            if (element->IsAccessorPair()) {
-              AccessorPair* accessors = AccessorPair::cast(element);
-              return is_getter ? accessors->getter() : accessors->setter();
-            }
+          if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
+              element->IsAccessorPair()) {
+            return AccessorPair::cast(element)->get(component);
           }
         }
       }
@@ -4758,8 +4755,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(obj);
-            return is_getter ? accessors->getter() : accessors->setter();
+            return AccessorPair::cast(obj)->get(component);
           }
         }
       }
