@@ -2047,8 +2047,7 @@ void HGraph::InsertRepresentationChangesForValue(HValue* value) {
 
 
 void HGraph::InsertRepresentationChanges() {
-  HPhase phase("H_Insert representation changes", this);
-
+  HPhase phase("H_Representation changes", this);
 
   // Compute truncation flag for phis: Initially assume that all
   // int32-phis allow truncation and iteratively remove the ones that
