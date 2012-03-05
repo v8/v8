@@ -992,8 +992,8 @@ void HeapEntry::SetNamedReference(HeapGraphEdge::Type type,
                                   const char* name,
                                   HeapEntry* entry,
                                   int retainer_index) {
-  children_arr()[child_index].Init(child_index, type, name, entry);
-  entry->retainers_arr()[retainer_index] = children_arr() + child_index;
+  children()[child_index].Init(child_index, type, name, entry);
+  entry->retainers()[retainer_index] = children_arr() + child_index;
 }
 
 
@@ -1002,14 +1002,14 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
                                     int index,
                                     HeapEntry* entry,
                                     int retainer_index) {
-  children_arr()[child_index].Init(child_index, type, index, entry);
-  entry->retainers_arr()[retainer_index] = children_arr() + child_index;
+  children()[child_index].Init(child_index, type, index, entry);
+  entry->retainers()[retainer_index] = children_arr() + child_index;
 }
 
 
 void HeapEntry::SetUnidirElementReference(
     int child_index, int index, HeapEntry* entry) {
-  children_arr()[child_index].Init(child_index, index, entry);
+  children()[child_index].Init(child_index, index, entry);
 }
 
 
@@ -1671,18 +1671,6 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
         GetGcSubrootOrder(object),
         children_count,
         retainers_count);
-  } else if (object->IsJSGlobalObject()) {
-    const char* tag = objects_tags_.GetTag(object);
-    const char* name = collection_->names()->GetName(
-        GetConstructorName(JSObject::cast(object)));
-    if (tag != NULL) {
-      name = collection_->names()->GetFormatted("%s / %s", name, tag);
-    }
-    return AddEntry(object,
-                    HeapEntry::kObject,
-                    name,
-                    children_count,
-                    retainers_count);
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -1703,8 +1691,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   } else if (object->IsJSObject()) {
     return AddEntry(object,
                     HeapEntry::kObject,
-                    collection_->names()->GetName(
-                        GetConstructorName(JSObject::cast(object))),
+                    "",
                     children_count,
                     retainers_count);
   } else if (object->IsString()) {
@@ -2349,6 +2336,32 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 }
 
 
+bool V8HeapExplorer::IterateAndSetObjectNames(SnapshotFillerInterface* filler) {
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  filler_ = filler;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    SetObjectName(obj);
+  }
+  return true;
+}
+
+
+void V8HeapExplorer::SetObjectName(HeapObject* object) {
+  if (!object->IsJSObject() || object->IsJSRegExp() || object->IsJSFunction()) {
+    return;
+  }
+  const char* name = collection_->names()->GetName(
+      GetConstructorName(JSObject::cast(object)));
+  if (object->IsJSGlobalObject()) {
+    const char* tag = objects_tags_.GetTag(object);
+    if (tag != NULL) {
+      name = collection_->names()->GetFormatted("%s / %s", name, tag);
+    }
+  }
+  GetEntry(object)->set_name(name);
+}
+
+
 void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
                                          HeapEntry* parent_entry,
                                          String* reference_name,
@@ -2907,15 +2920,6 @@ void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
 }
 
 
-HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                                             v8::ActivityControl* control)
-    : snapshot_(snapshot),
-      control_(control),
-      v8_heap_explorer_(snapshot_, this),
-      dom_explorer_(snapshot_, this) {
-}
-
-
 class SnapshotCounter : public SnapshotFillerInterface {
  public:
   explicit SnapshotCounter(HeapEntriesMap* entries) : entries_(entries) { }
@@ -3040,6 +3044,15 @@ class SnapshotFiller : public SnapshotFillerInterface {
 };
 
 
+HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
+                                             v8::ActivityControl* control)
+    : snapshot_(snapshot),
+      control_(control),
+      v8_heap_explorer_(snapshot_, this),
+      dom_explorer_(snapshot_, this) {
+}
+
+
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();
 
@@ -3084,10 +3097,12 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   debug_heap->Verify();
 #endif
 
-  // Allocate and fill entries in the snapshot, allocate references.
+  // Allocate memory for entries and references.
   snapshot_->AllocateEntries(entries_.entries_count(),
                              entries_.total_children_count(),
                              entries_.total_retainers_count());
+
+  // Allocate heap objects to entries hash map.
   entries_.AllocateEntries();
 
   // Pass 2. Fill references.
@@ -3132,17 +3147,22 @@ void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
 bool HeapSnapshotGenerator::CountEntriesAndReferences() {
   SnapshotCounter counter(&entries_);
   v8_heap_explorer_.AddRootEntries(&counter);
-  return
-      v8_heap_explorer_.IterateAndExtractReferences(&counter) &&
-      dom_explorer_.IterateAndExtractReferences(&counter);
+  return v8_heap_explorer_.IterateAndExtractReferences(&counter)
+      && dom_explorer_.IterateAndExtractReferences(&counter);
 }
 
 
 bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
-  return
-      v8_heap_explorer_.IterateAndExtractReferences(&filler) &&
-      dom_explorer_.IterateAndExtractReferences(&filler);
+  // IterateAndExtractReferences cannot set object names because
+  // it makes call to JSObject::LocalLookupRealNamedProperty which
+  // in turn may relocate objects in property maps thus changing the heap
+  // layout and affecting retainer counts. This is not acceptable because
+  // number of retainers must not change between count and fill passes.
+  // To avoid this there's a separate postpass that set object names.
+  return v8_heap_explorer_.IterateAndExtractReferences(&filler)
+      && dom_explorer_.IterateAndExtractReferences(&filler)
+      && v8_heap_explorer_.IterateAndSetObjectNames(&filler);
 }
 
 
@@ -3198,26 +3218,28 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
   (*dominators)[root_index] = root_index;
 
-  // The painted flag is used to mark entries that need to be recalculated
-  // because of dominators change among their retainers.
-  for (int i = 0; i < entries_length; ++i) entries[i]->clear_paint();
-
+  // The affected array is used to mark entries which dominators
+  // have to be racalculated because of changes in their retainers.
+  ScopedVector<bool> affected(entries_length);
+  for (int i = 0; i < affected.length(); ++i) affected[i] = false;
   // Mark the root direct children as affected.
   Vector<HeapGraphEdge> children = entries[root_index]->children();
-  for (int i = 0; i < children.length(); ++i) children[i].to()->paint();
+  for (int i = 0; i < children.length(); ++i) {
+    affected[children[i].to()->ordered_index()] = true;
+  }
 
   bool changed = true;
   while (changed) {
     changed = false;
+    if (!ProgressReport(true)) return false;
     for (int i = root_index - 1; i >= 0; --i) {
+      if (!affected[i]) continue;
+      affected[i] = false;
       // If dominator of the entry has already been set to root,
       // then it can't propagate any further.
       if ((*dominators)[i] == root_index) continue;
-      HeapEntry* entry = entries[i];
-      if (!entry->painted()) continue;
-      entry->clear_paint();
       int new_idom_index = kNoDominator;
-      Vector<HeapGraphEdge*> rets = entry->retainers();
+      Vector<HeapGraphEdge*> rets = entries[i]->retainers();
       for (int j = 0; j < rets.length(); ++j) {
         if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
         int ret_index = rets[j]->From()->ordered_index();
@@ -3235,7 +3257,9 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
         (*dominators)[i] = new_idom_index;
         changed = true;
         Vector<HeapGraphEdge> children = entries[i]->children();
-        for (int j = 0; j < children.length(); ++j) children[j].to()->paint();
+        for (int j = 0; j < children.length(); ++j) {
+          affected[children[j].to()->ordered_index()] = true;
+        }
       }
     }
   }
