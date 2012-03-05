@@ -967,12 +967,8 @@ void OS::Sleep(int milliseconds) {
 
 void OS::Abort() {
   if (!IsDebuggerPresent()) {
-#ifdef _MSC_VER
     // Make the MSVCRT do a silent abort.
-    _set_abort_behavior(0, _WRITE_ABORT_MSG);
-    _set_abort_behavior(0, _CALL_REPORTFAULT);
-#endif  // _MSC_VER
-    abort();
+    raise(SIGABRT);
   } else {
     DebugBreak();
   }
