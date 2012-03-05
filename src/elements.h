@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -66,6 +66,11 @@ class ElementsAccessor {
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
+  virtual bool HasElement(FixedArrayBase* backing_store,
+                          uint32_t key,
+                          JSObject* holder,
+                          Object* receiver) = 0;
+
   virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
                                                FixedArray* to,
                                                JSObject* holder,
@@ -86,19 +91,14 @@ class ElementsAccessor {
 
   virtual uint32_t GetCapacity(FixedArrayBase* backing_store) = 0;
 
-  virtual bool HasElementAtIndex(FixedArrayBase* backing_store,
-                                 uint32_t index,
-                                 JSObject* holder,
-                                 Object* receiver) = 0;
-
-  // Element handlers distinguish between indexes and keys when the manipulate
+  // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the
-  // underlying storage's backing store representation, and are between 0
+  // underlying storage's backing store representation, and are between 0 and
   // GetCapacity.  Keys refer to elements in terms of the value that would be
-  // specific in JavaScript to access the element. In most implementations, keys
-  // are equivalent to indexes, and GetKeyForIndex returns the same value it is
-  // passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps the
-  // index to a key using the KeyAt method on the NumberDictionary.
+  // specified in JavaScript to access the element. In most implementations,
+  // keys are equivalent to indexes, and GetKeyForIndex returns the same value
+  // it is passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps
+  // the index to a key using the KeyAt method on the NumberDictionary.
   virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
                                   uint32_t index) = 0;
 
