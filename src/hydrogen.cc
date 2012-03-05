@@ -7693,7 +7693,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   // builtin function, pass undefined as the receiver for function
   // calls (instead of the global receiver).
   if ((target->shared()->native() || !function->is_classic_mode()) &&
-      call_kind == CALL_AS_FUNCTION) {
+      call_kind == CALL_AS_FUNCTION && !is_construct) {
     inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, LookupContext());
