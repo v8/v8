@@ -1909,11 +1909,10 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 
 
 MaybeObject* Heap::AllocateCodeCache() {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateStruct(CODE_CACHE_TYPE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  CodeCache* code_cache;
+  { MaybeObject* maybe_code_cache = AllocateStruct(CODE_CACHE_TYPE);
+    if (!maybe_code_cache->To(&code_cache)) return maybe_code_cache;
   }
-  CodeCache* code_cache = CodeCache::cast(result);
   code_cache->set_default_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code_cache->set_normal_type_cache(undefined_value(), SKIP_WRITE_BARRIER);
   return code_cache;
@@ -1926,22 +1925,20 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 
 
 MaybeObject* Heap::AllocateAccessorPair() {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateStruct(ACCESSOR_PAIR_TYPE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  AccessorPair* accessors;
+  { MaybeObject* maybe_accessors = AllocateStruct(ACCESSOR_PAIR_TYPE);
+    if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  AccessorPair* accessors = AccessorPair::cast(result);
-  // Later we will have to distinguish between undefined and the hole...
-  // accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
-  // accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
   return accessors;
 }
 
 
 MaybeObject* Heap::AllocateTypeFeedbackInfo() {
   TypeFeedbackInfo* info;
-  { MaybeObject* maybe_result = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
-    if (!maybe_result->To(&info)) return maybe_result;
+  { MaybeObject* maybe_info = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
+    if (!maybe_info->To(&info)) return maybe_info;
   }
   info->set_ic_total_count(0);
   info->set_ic_with_typeinfo_count(0);
@@ -1953,8 +1950,8 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
 
 MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
   AliasedArgumentsEntry* entry;
-  { MaybeObject* maybe_result = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
-    if (!maybe_result->To(&entry)) return maybe_result;
+  { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
+    if (!maybe_entry->To(&entry)) return maybe_entry;
   }
   entry->set_aliased_context_slot(aliased_context_slot);
   return entry;
