@@ -3081,25 +3081,27 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // If state[0] == 0, call runtime to initialize seeds.
   __ test(ecx, ecx);
   __ j(zero, deferred->entry());
+  // Load state[1].
+  __ mov(eax, FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize));
+  // ecx: state[0]
+  // eax: state[1]
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
   __ movzx_w(edx, ecx);
   __ imul(edx, edx, 18273);
   __ shr(ecx, 16);
   __ add(ecx, edx);
+  // Save state[0].
   __ mov(FieldOperand(ebx, ByteArray::kHeaderSize), ecx);
 
-  // Load state[1].
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
-  __ mov(eax, FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize));
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
   __ movzx_w(edx, eax);
   __ imul(edx, edx, 36969);
   __ shr(eax, 16);
   __ add(eax, edx);
+  // Save state[1].
   __ mov(FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize), eax);
 
-  // ecx: state[0]
-  // eax: state[1]
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
   __ shl(ecx, 14);
   __ and_(eax, Immediate(0x3FFFF));
