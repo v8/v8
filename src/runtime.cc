@@ -12443,7 +12443,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                                     "%DebugReferencedBy");
   // The heap iterator reserves the right to do a GC to make the heap iterable.
   // Due to the GC above we know it won't need to do that, but it seems cleaner
   // to get the heap iterator constructed before we start having unprotected
@@ -12534,7 +12535,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  isolate->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                                     "%DebugConstructedBy");
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
@@ -12932,7 +12934,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
 // Performs a GC.
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
-  isolate->heap()->CollectAllGarbage(true);
+  isolate->heap()->CollectAllGarbage(true, "%CollectGarbage");
   return isolate->heap()->undefined_value();
 }
 
@@ -13643,12 +13645,14 @@ void Runtime::PerformGC(Object* result) {
     }
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
-    isolate->heap()->CollectGarbage(failure->allocation_space());
+    isolate->heap()->CollectGarbage(failure->allocation_space(),
+                                    "Runtime::PerformGC");
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
     isolate->counters()->gc_last_resort_from_js()->Increment();
-    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
+    isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                       "Runtime::PerformGC");
   }
 }
 

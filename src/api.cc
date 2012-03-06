@@ -4077,7 +4077,7 @@ bool v8::V8::IdleNotification(int hint) {
 void v8::V8::LowMemoryNotification() {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate == NULL || !isolate->IsInitialized()) return;
-  isolate->heap()->CollectAllAvailableGarbage();
+  isolate->heap()->CollectAllAvailableGarbage("low memory notification");
 }
 
 

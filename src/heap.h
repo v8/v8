@@ -992,23 +992,28 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  bool CollectGarbage(AllocationSpace space, GarbageCollector collector);
+  bool CollectGarbage(AllocationSpace space,
+                      GarbageCollector collector,
+                      const char* gc_reason,
+                      const char* collector_reason);
 
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  inline bool CollectGarbage(AllocationSpace space);
+  inline bool CollectGarbage(AllocationSpace space,
+                             const char* gc_reason = NULL);
 
   static const int kNoGCFlags = 0;
   static const int kMakeHeapIterableMask = 1;
+  static const int kReduceMemoryFootprintMask = 2;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
-  void CollectAllGarbage(int flags);
+  void CollectAllGarbage(int flags, const char* gc_reason = NULL);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage();
+  void CollectAllAvailableGarbage(const char* gc_reason = NULL);
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
@@ -1708,7 +1713,8 @@ class Heap {
   }
 
   // Checks whether a global GC is necessary
-  GarbageCollector SelectGarbageCollector(AllocationSpace space);
+  GarbageCollector SelectGarbageCollector(AllocationSpace space,
+                                          const char** reason);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could
@@ -2370,7 +2376,9 @@ class GCTracer BASE_EMBEDDED {
     double start_time_;
   };
 
-  explicit GCTracer(Heap* heap);
+  explicit GCTracer(Heap* heap,
+                    const char* gc_reason,
+                    const char* collector_reason);
   ~GCTracer();
 
   // Sets the collector.
@@ -2432,6 +2440,9 @@ class GCTracer BASE_EMBEDDED {
   double steps_took_since_last_gc_;
 
   Heap* heap_;
+
+  const char* gc_reason_;
+  const char* collector_reason_;
 };
 
 

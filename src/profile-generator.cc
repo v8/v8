@@ -1577,7 +1577,8 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 
 Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
   // First perform a full GC in order to avoid dead objects.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "HeapSnapshotsCollection::FindHeapObjectById");
   AssertNoAllocation no_allocation;
   HeapObject* object = NULL;
   HeapIterator iterator(HeapIterator::kFilterUnreachable);
@@ -3026,8 +3027,12 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  Isolate::Current()->heap()->CollectAllGarbage(
+      Heap::kMakeHeapIterableMask,
+      "HeapSnapshotGenerator::GenerateSnapshot");
+  Isolate::Current()->heap()->CollectAllGarbage(
+      Heap::kMakeHeapIterableMask,
+      "HeapSnapshotGenerator::GenerateSnapshot");
 
 #ifdef DEBUG
   Heap* debug_heap = Isolate::Current()->heap();
