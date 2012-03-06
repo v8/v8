@@ -56,50 +56,8 @@ namespace v8 {
 namespace internal {
 
 void PrintElementsKind(FILE* out, ElementsKind kind) {
-  switch (kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-      PrintF(out, "FAST_SMI_ONLY_ELEMENTS");
-      break;
-    case FAST_ELEMENTS:
-      PrintF(out, "FAST_ELEMENTS");
-      break;
-    case FAST_DOUBLE_ELEMENTS:
-      PrintF(out, "FAST_DOUBLE_ELEMENTS");
-      break;
-    case DICTIONARY_ELEMENTS:
-      PrintF(out, "DICTIONARY_ELEMENTS");
-      break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      PrintF(out, "NON_STRICT_ARGUMENTS_ELEMENTS");
-      break;
-    case EXTERNAL_BYTE_ELEMENTS:
-      PrintF(out, "EXTERNAL_BYTE_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_BYTE_ELEMENTS");
-      break;
-    case EXTERNAL_SHORT_ELEMENTS:
-      PrintF(out, "EXTERNAL_SHORT_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_SHORT_ELEMENTS");
-      break;
-    case EXTERNAL_INT_ELEMENTS:
-      PrintF(out, "EXTERNAL_INT_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_INT_ELEMENTS");
-      break;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      PrintF(out, "EXTERNAL_FLOAT_ELEMENTS");
-      break;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      PrintF(out, "EXTERNAL_DOUBLE_ELEMENTS");
-      break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      PrintF(out, "EXTERNAL_DOUBLE_ELEMENTS");
-      break;
-  }
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+  PrintF(out, "%s", accessor->name());
 }
 
 

@@ -104,7 +104,7 @@ static Failure* ThrowArrayLengthRangeError(Heap* heap) {
 template <typename ElementsAccessorSubclass, typename BackingStoreClass>
 class ElementsAccessorBase : public ElementsAccessor {
  protected:
-  ElementsAccessorBase() { }
+  explicit ElementsAccessorBase(const char* name) : ElementsAccessor(name) { }
   virtual MaybeObject* Get(FixedArrayBase* backing_store,
                            uint32_t key,
                            JSObject* obj,
@@ -280,6 +280,10 @@ template<typename FastElementsAccessorSubclass,
          int ElementSize>
 class FastElementsAccessor
     : public ElementsAccessorBase<FastElementsAccessorSubclass, BackingStore> {
+ public:
+  explicit FastElementsAccessor(const char* name)
+      : ElementsAccessorBase<FastElementsAccessorSubclass,
+                             BackingStore>(name) {}
  protected:
   friend class ElementsAccessorBase<FastElementsAccessorSubclass, BackingStore>;
 
@@ -339,6 +343,11 @@ class FastObjectElementsAccessor
                                   FixedArray,
                                   kPointerSize> {
  public:
+  explicit FastObjectElementsAccessor(const char* name)
+      : FastElementsAccessor<FastObjectElementsAccessor,
+                             FixedArray,
+                             kPointerSize>(name) {}
+
   static MaybeObject* DeleteCommon(JSObject* obj,
                                    uint32_t key) {
     ASSERT(obj->HasFastElements() ||
@@ -414,6 +423,12 @@ class FastDoubleElementsAccessor
     : public FastElementsAccessor<FastDoubleElementsAccessor,
                                   FixedDoubleArray,
                                   kDoubleSize> {
+ public:
+  explicit FastDoubleElementsAccessor(const char* name)
+      : FastElementsAccessor<FastDoubleElementsAccessor,
+                             FixedDoubleArray,
+                             kDoubleSize>(name) {}
+
   static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
                                                        uint32_t capacity,
                                                        uint32_t length) {
@@ -454,6 +469,11 @@ template<typename ExternalElementsAccessorSubclass,
 class ExternalElementsAccessor
     : public ElementsAccessorBase<ExternalElementsAccessorSubclass,
                                   ExternalArray> {
+ public:
+  explicit ExternalElementsAccessor(const char* name)
+      : ElementsAccessorBase<ExternalElementsAccessorSubclass,
+                             ExternalArray>(name) {}
+
  protected:
   friend class ElementsAccessorBase<ExternalElementsAccessorSubclass,
                                     ExternalArray>;
@@ -497,54 +517,90 @@ class ExternalElementsAccessor
 class ExternalByteElementsAccessor
     : public ExternalElementsAccessor<ExternalByteElementsAccessor,
                                       ExternalByteArray> {
+ public:
+  explicit ExternalByteElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalByteElementsAccessor,
+                                 ExternalByteArray>(name) {}
 };
 
 
 class ExternalUnsignedByteElementsAccessor
     : public ExternalElementsAccessor<ExternalUnsignedByteElementsAccessor,
                                       ExternalUnsignedByteArray> {
+ public:
+  explicit ExternalUnsignedByteElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalUnsignedByteElementsAccessor,
+                                 ExternalUnsignedByteArray>(name) {}
 };
 
 
 class ExternalShortElementsAccessor
     : public ExternalElementsAccessor<ExternalShortElementsAccessor,
                                       ExternalShortArray> {
+ public:
+  explicit ExternalShortElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalShortElementsAccessor,
+                                 ExternalShortArray>(name) {}
 };
 
 
 class ExternalUnsignedShortElementsAccessor
     : public ExternalElementsAccessor<ExternalUnsignedShortElementsAccessor,
                                       ExternalUnsignedShortArray> {
+ public:
+  explicit ExternalUnsignedShortElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalUnsignedShortElementsAccessor,
+                                        ExternalUnsignedShortArray>(name) {}
 };
 
 
 class ExternalIntElementsAccessor
     : public ExternalElementsAccessor<ExternalIntElementsAccessor,
                                       ExternalIntArray> {
+ public:
+  explicit ExternalIntElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalIntElementsAccessor,
+                                 ExternalIntArray>(name) {}
 };
 
 
 class ExternalUnsignedIntElementsAccessor
     : public ExternalElementsAccessor<ExternalUnsignedIntElementsAccessor,
                                       ExternalUnsignedIntArray> {
+ public:
+  explicit ExternalUnsignedIntElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalUnsignedIntElementsAccessor,
+                                 ExternalUnsignedIntArray>(name) {}
 };
 
 
 class ExternalFloatElementsAccessor
     : public ExternalElementsAccessor<ExternalFloatElementsAccessor,
                                       ExternalFloatArray> {
+ public:
+  explicit ExternalFloatElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalFloatElementsAccessor,
+                                 ExternalFloatArray>(name) {}
 };
 
 
 class ExternalDoubleElementsAccessor
     : public ExternalElementsAccessor<ExternalDoubleElementsAccessor,
                                       ExternalDoubleArray> {
+ public:
+  explicit ExternalDoubleElementsAccessor(const char* name)
+      : ExternalElementsAccessor<ExternalDoubleElementsAccessor,
+                                 ExternalDoubleArray>(name) {}
 };
 
 
 class PixelElementsAccessor
     : public ExternalElementsAccessor<PixelElementsAccessor,
                                       ExternalPixelArray> {
+ public:
+  explicit PixelElementsAccessor(const char* name)
+      : ExternalElementsAccessor<PixelElementsAccessor,
+                                 ExternalPixelArray>(name) {}
 };
 
 
@@ -552,6 +608,10 @@ class DictionaryElementsAccessor
     : public ElementsAccessorBase<DictionaryElementsAccessor,
                                   SeededNumberDictionary> {
  public:
+  explicit DictionaryElementsAccessor(const char* name)
+      : ElementsAccessorBase<DictionaryElementsAccessor,
+                             SeededNumberDictionary>(name) {}
+
   // Adjusts the length of the dictionary backing store and returns the new
   // length according to ES5 section 15.4.5.2 behavior.
   static MaybeObject* SetLengthWithoutNormalize(SeededNumberDictionary* dict,
@@ -703,6 +763,10 @@ class DictionaryElementsAccessor
 class NonStrictArgumentsElementsAccessor
     : public ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
                                   FixedArray> {
+ public:
+  explicit NonStrictArgumentsElementsAccessor(const char* name)
+      : ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
+                             FixedArray>(name) {}
  protected:
   friend class ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
                                     FixedArray>;
@@ -866,7 +930,7 @@ void ElementsAccessor::InitializeOncePerProcess() {
     ELEMENTS_LIST(ACCESSOR_STRUCT)
 #undef ACCESSOR_STRUCT
   } element_accessors = {
-#define ACCESSOR_INIT(Class, Name) new Class(),
+#define ACCESSOR_INIT(Class, Name) new Class(#Name),
     ELEMENTS_LIST(ACCESSOR_INIT)
 #undef ACCESSOR_INIT
   };

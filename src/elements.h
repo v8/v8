@@ -37,8 +37,11 @@ namespace internal {
 // ElementsKinds.
 class ElementsAccessor {
  public:
-  ElementsAccessor() { }
+  explicit ElementsAccessor(const char* name) : name_(name) { }
   virtual ~ElementsAccessor() { }
+
+  virtual const char* name() const { return name_; }
+
   virtual MaybeObject* Get(FixedArrayBase* backing_store,
                            uint32_t key,
                            JSObject* holder,
@@ -104,6 +107,7 @@ class ElementsAccessor {
 
  private:
   static ElementsAccessor** elements_accessors_;
+  const char* name_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
