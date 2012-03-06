@@ -1485,6 +1485,11 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
     GVNFlagSet side_effects;
     while (instr != NULL) {
       side_effects.Add(instr->ChangesFlags());
+      if (instr->IsSoftDeoptimize()) {
+        block_side_effects_[id].RemoveAll();
+        side_effects.RemoveAll();
+        break;
+      }
       instr = instr->next();
     }
     block_side_effects_[id].Add(side_effects);
