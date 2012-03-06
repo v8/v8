@@ -4367,7 +4367,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 static bool UpdateGetterSetterInDictionary(
     SeededNumberDictionary* dictionary,
     uint32_t index,
-    bool is_getter,
+    AccessorComponent component,
     Object* fun,
     PropertyAttributes attributes) {
   int entry = dictionary->FindEntry(index);
@@ -4381,7 +4381,7 @@ static bool UpdateGetterSetterInDictionary(
         dictionary->DetailsAtPut(entry,
                                  PropertyDetails(attributes, CALLBACKS, index));
       }
-      AccessorPair::cast(result)->set(is_getter, fun);
+      AccessorPair::cast(result)->set(component, fun);
       return true;
     }
   }
@@ -4390,7 +4390,7 @@ static bool UpdateGetterSetterInDictionary(
 
 
 MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
-                                             bool is_getter,
+                                             AccessorComponent component,
                                              Object* fun,
                                              PropertyAttributes attributes) {
   switch (GetElementsKind()) {
@@ -4412,7 +4412,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
     case DICTIONARY_ELEMENTS:
       if (UpdateGetterSetterInDictionary(element_dictionary(),
                                          index,
-                                         is_getter,
+                                         component,
                                          fun,
                                          attributes)) {
         return GetHeap()->undefined_value();
@@ -4433,7 +4433,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
               SeededNumberDictionary::cast(arguments);
           if (UpdateGetterSetterInDictionary(dictionary,
                                              index,
-                                             is_getter,
+                                             component,
                                              fun,
                                              attributes)) {
             return GetHeap()->undefined_value();
@@ -4448,14 +4448,14 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(is_getter, fun);
+  accessors->set(component, fun);
 
   return SetElementCallback(index, accessors, attributes);
 }
 
 
 MaybeObject* JSObject::DefinePropertyAccessor(String* name,
-                                              bool is_getter,
+                                              AccessorComponent component,
                                               Object* fun,
                                               PropertyAttributes attributes) {
   // Lookup the name.
@@ -4473,7 +4473,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
               AccessorPair::cast(obj)->CopyWithoutTransitions();
           if (!maybe_copy->To(&copy)) return maybe_copy;
         }
-        copy->set(is_getter, fun);
+        copy->set(component, fun);
         // Use set to update attributes.
         return SetPropertyCallback(name, copy, attributes);
       }
@@ -4484,7 +4484,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(is_getter, fun);
+  accessors->set(component, fun);
 
   return SetPropertyCallback(name, accessors, attributes);
 }
@@ -4593,7 +4593,7 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
 }
 
 MaybeObject* JSObject::DefineAccessor(String* name,
-                                      bool is_getter,
+                                      AccessorComponent component,
                                       Object* fun,
                                       PropertyAttributes attributes) {
   ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
@@ -4609,7 +4609,7 @@ MaybeObject* JSObject::DefineAccessor(String* name,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(name, is_getter,
+    return JSObject::cast(proto)->DefineAccessor(name, component,
                                                  fun, attributes);
   }
 
@@ -4624,8 +4624,8 @@ MaybeObject* JSObject::DefineAccessor(String* name,
 
   uint32_t index = 0;
   return name->AsArrayIndex(&index) ?
-      DefineElementAccessor(index, is_getter, fun, attributes) :
-      DefinePropertyAccessor(name, is_getter, fun, attributes);
+      DefineElementAccessor(index, component, fun, attributes) :
+      DefinePropertyAccessor(name, component, fun, attributes);
 }
 
 
@@ -4711,7 +4711,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 }
 
 
-Object* JSObject::LookupAccessor(String* name, bool is_getter) {
+Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
   Heap* heap = GetHeap();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4737,12 +4737,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
-          PropertyDetails details = dictionary->DetailsAt(entry);
-          if (details.type() == CALLBACKS) {
-            if (element->IsAccessorPair()) {
-              AccessorPair* accessors = AccessorPair::cast(element);
-              return is_getter ? accessors->getter() : accessors->setter();
-            }
+          if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
+              element->IsAccessorPair()) {
+            return AccessorPair::cast(element)->get(component);
           }
         }
       }
@@ -4758,8 +4755,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(obj);
-            return is_getter ? accessors->getter() : accessors->setter();
+            return AccessorPair::cast(obj)->get(component);
           }
         }
       }
@@ -7880,9 +7876,7 @@ void SharedFunctionInfo::DisableOptimization() {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for: ");
-    DebugName()->ShortPrint();
-    PrintF("]\n");
+    PrintF("[disabled optimization for %s]\n", *DebugName()->ToCString());
   }
 }
 
@@ -8923,78 +8917,6 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
-  switch (GetElementsKind()) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole()) {
-        return true;
-      }
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedDoubleArray::cast(elements())->is_the_hole(index)) {
-        return true;
-      }
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      if (index < static_cast<uint32_t>(pixels->length())) {
-        return true;
-      }
-      break;
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalArray* array = ExternalArray::cast(elements());
-      if (index < static_cast<uint32_t>(array->length())) {
-        return true;
-      }
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      if (element_dictionary()->FindEntry(index)
-          != SeededNumberDictionary::kNotFound) {
-        return true;
-      }
-      break;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
-
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
-
-  Object* pt = GetPrototype();
-  if (pt->IsNull()) return false;
-  if (pt->IsJSProxy()) {
-    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
-        receiver, index) != ABSENT;
-  }
-  return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
-}
-
-
 bool JSObject::HasElementWithInterceptor(JSReceiver* receiver, uint32_t index) {
   Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
@@ -9034,7 +8956,21 @@ bool JSObject::HasElementWithInterceptor(JSReceiver* receiver, uint32_t index) {
     }
     if (!result.IsEmpty()) return true;
   }
-  return holder_handle->HasElementPostInterceptor(*receiver_handle, index);
+
+  if (holder_handle->GetElementsAccessor()->HasElement(
+          holder_handle->elements(), index, *holder_handle, *receiver_handle)) {
+    return true;
+  }
+
+  if (holder_handle->IsStringObjectWithCharacterAt(index)) return true;
+  Object* pt = holder_handle->GetPrototype();
+  if (pt->IsJSProxy()) {
+    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
+    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
+        receiver, index) != ABSENT;
+  }
+  if (pt->IsNull()) return false;
+  return JSObject::cast(pt)->HasElementWithReceiver(*receiver_handle, index);
 }
 
 
@@ -9144,28 +9080,6 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
 }
 
 
-bool JSObject::HasElementInElements(FixedArray* elements,
-                                    ElementsKind kind,
-                                    uint32_t index) {
-  ASSERT(kind == FAST_ELEMENTS || kind == DICTIONARY_ELEMENTS);
-  if (kind == FAST_ELEMENTS) {
-    int length = IsJSArray()
-        ? Smi::cast(JSArray::cast(this)->length())->value()
-        : elements->length();
-    if (index < static_cast<uint32_t>(length) &&
-        !elements->get(index)->IsTheHole()) {
-      return true;
-    }
-  } else {
-    if (SeededNumberDictionary::cast(elements)->FindEntry(index) !=
-        SeededNumberDictionary::kNotFound) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
@@ -9181,68 +9095,9 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
     return HasElementWithInterceptor(receiver, index);
   }
 
-  ElementsKind kind = GetElementsKind();
-  switch (kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedDoubleArray::cast(elements())->is_the_hole(index)) return true;
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      if (index < static_cast<uint32_t>(pixels->length())) {
-        return true;
-      }
-      break;
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalArray* array = ExternalArray::cast(elements());
-      if (index < static_cast<uint32_t>(array->length())) {
-        return true;
-      }
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      if (element_dictionary()->FindEntry(index)
-          != SeededNumberDictionary::kNotFound) {
-        return true;
-      }
-      break;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      FixedArray* parameter_map = FixedArray::cast(elements());
-      uint32_t length = parameter_map->length();
-      Object* probe =
-          (index < length - 2) ? parameter_map->get(index + 2) : NULL;
-      if (probe != NULL && !probe->IsTheHole()) return true;
-
-      // Not a mapped parameter, check the arguments.
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : FAST_ELEMENTS;
-      if (HasElementInElements(arguments, kind, index)) return true;
-      break;
-    }
+  ElementsAccessor* accessor = GetElementsAccessor();
+  if (accessor->HasElement(elements(), index, this, receiver)) {
+    return true;
   }
 
   // Handle [] on String objects.

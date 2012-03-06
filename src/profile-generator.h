@@ -541,6 +541,7 @@ class HeapEntry BASE_EMBEDDED {
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
+  void set_name(const char* name) { name_ = name; }
   inline uint64_t id();
   int self_size() { return self_size_; }
   int retained_size() { return retained_size_; }
@@ -918,6 +919,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
+  bool IterateAndSetObjectNames(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
 
   static String* GetConstructorName(JSObject* object);
@@ -984,6 +986,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
   void SetGcSubrootReference(
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
+  void SetObjectName(HeapObject* object);
   void TagObject(Object* obj, const char* tag);
 
   HeapEntry* GetEntry(Object* obj);

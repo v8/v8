@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --inline-construct
+// Flags: --allow-natives-syntax --expose-gc --inline-construct
 
 // Test inlining of constructor calls.
 
@@ -47,29 +47,37 @@ function TestInlinedConstructor(closure) {
   assertEquals(4, counter.value);
 }
 
+function TestInAllContexts(constructor) {
+  function value_context(a, b, counter) {
+    var obj = new constructor(a, b, counter);
+    return obj.x;
+  }
+  function test_context(a, b, counter) {
+    if (!new constructor(a, b, counter)) {
+      assertUnreachable("should not happen");
+    }
+    return a + b;
+  }
+  function effect_context(a, b, counter) {
+    new constructor(a, b, counter);
+    return a + b;
+  }
+  TestInlinedConstructor(value_context);
+  TestInlinedConstructor(test_context);
+  TestInlinedConstructor(effect_context);
+  %DeoptimizeFunction(value_context);
+  %DeoptimizeFunction(test_context);
+  %DeoptimizeFunction(effect_context);
+  gc();  // Makes V8 forget about type information for *_context.
+}
+
 
 // Test constructor returning nothing in all contexts.
 function c1(a, b, counter) {
   this.x = a + b;
   counter.value++;
 }
-function c1_value_context(a, b, counter) {
-  var obj = new c1(a, b, counter);
-  return obj.x;
-}
-function c1_test_context(a, b, counter) {
-  if (!new c1(a, b, counter)) {
-    assertUnreachable("should not happen");
-  }
-  return a + b;
-}
-function c1_effect_context(a, b, counter) {
-  new c1(a, b, counter);
-  return a + b;
-}
-TestInlinedConstructor(c1_value_context);
-TestInlinedConstructor(c1_test_context);
-TestInlinedConstructor(c1_effect_context);
+TestInAllContexts(c1);
 
 
 // Test constructor returning an object in all contexts.
@@ -79,23 +87,7 @@ function c2(a, b, counter) {
   counter.value++;
   return obj;
 }
-function c2_value_context(a, b, counter) {
-  var obj = new c2(a, b, counter);
-  return obj.x;
-}
-function c2_test_context(a, b, counter) {
-  if (!new c2(a, b, counter)) {
-    assertUnreachable("should not happen");
-  }
-  return a + b;
-}
-function c2_effect_context(a, b, counter) {
-  new c2(a, b, counter);
-  return a + b;
-}
-TestInlinedConstructor(c2_value_context);
-TestInlinedConstructor(c2_test_context);
-TestInlinedConstructor(c2_effect_context);
+TestInAllContexts(c2);
 
 
 // Test constructor returning a primitive value in all contexts.
@@ -104,23 +96,7 @@ function c3(a, b, counter) {
   counter.value++;
   return "not an object";
 }
-function c3_value_context(a, b, counter) {
-  var obj = new c3(a, b, counter);
-  return obj.x;
-}
-function c3_test_context(a, b, counter) {
-  if (!new c3(a, b, counter)) {
-    assertUnreachable("should not happen");
-  }
-  return a + b;
-}
-function c3_effect_context(a, b, counter) {
-  new c3(a, b, counter);
-  return a + b;
-}
-TestInlinedConstructor(c3_value_context);
-TestInlinedConstructor(c3_test_context);
-TestInlinedConstructor(c3_effect_context);
+TestInAllContexts(c3);
 
 
 // Test constructor called with too many arguments.
@@ -163,8 +139,14 @@ function c_unsupported_syntax(a, b, counter) {
     throw new Error();
   }
 }
-function f_unsupported_syntax(a, b, counter) {
-  var obj = new c_unsupported_syntax(a, b, counter);
-  return obj.x;
+TestInAllContexts(c_unsupported_syntax);
+
+
+// Regression test: Inlined constructors called as functions do not get their
+// implicit receiver object set to undefined, even in strict mode.
+function c_strict(a, b, counter) {
+  "use strict";
+  this.x = a + b;
+  counter.value++;
 }
-TestInlinedConstructor(f_unsupported_syntax);
+TestInAllContexts(c_strict);

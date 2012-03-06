@@ -1571,7 +1571,10 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
   // Check that the array has fast properties, otherwise the length
   // property might have been redefined.
-  // TODO(mstarzinger): Port this check to MIPS.
+  __ lw(scratch, FieldMemOperand(receiver, JSArray::kPropertiesOffset));
+  __ lw(scratch, FieldMemOperand(scratch, FixedArray::kMapOffset));
+  __ LoadRoot(at, Heap::kHashTableMapRootIndex);
+  __ Branch(&miss, eq, scratch, Operand(at));
 
   // Check that value is a smi.
   __ JumpIfNotSmi(value, &miss);

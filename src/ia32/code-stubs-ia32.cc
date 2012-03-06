@@ -2510,7 +2510,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ fld_d(Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
   }
-  GenerateOperation(masm);
+  GenerateOperation(masm, type_);
   __ mov(Operand(ecx, 0), ebx);
   __ mov(Operand(ecx, kIntSize), edx);
   __ mov(Operand(ecx, 2 * kIntSize), eax);
@@ -2526,7 +2526,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ sub(esp, Immediate(kDoubleSize));
     __ movdbl(Operand(esp, 0), xmm1);
     __ fld_d(Operand(esp, 0));
-    GenerateOperation(masm);
+    GenerateOperation(masm, type_);
     __ fstp_d(Operand(esp, 0));
     __ movdbl(xmm1, Operand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));
@@ -2578,14 +2578,15 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
+void TranscendentalCacheStub::GenerateOperation(
+    MacroAssembler* masm, TranscendentalCache::Type type) {
   // Only free register is edi.
   // Input value is on FP stack, and also in ebx/edx.
   // Input value is possibly in xmm1.
   // Address of result (a newly allocated HeapNumber) may be in eax.
-  if (type_ == TranscendentalCache::SIN ||
-      type_ == TranscendentalCache::COS ||
-      type_ == TranscendentalCache::TAN) {
+  if (type == TranscendentalCache::SIN ||
+      type == TranscendentalCache::COS ||
+      type == TranscendentalCache::TAN) {
     // Both fsin and fcos require arguments in the range +/-2^63 and
     // return NaN for infinities and NaN. They can share all code except
     // the actual fsin/fcos operation.
@@ -2649,7 +2650,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 
     // FPU Stack: input % 2*pi
     __ bind(&in_range);
-    switch (type_) {
+    switch (type) {
       case TranscendentalCache::SIN:
         __ fsin();
         break;
@@ -2667,7 +2668,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     }
     __ bind(&done);
   } else {
-    ASSERT(type_ == TranscendentalCache::LOG);
+    ASSERT(type == TranscendentalCache::LOG);
     __ fldln2();
     __ fxch();
     __ fyl2x();
@@ -6572,16 +6573,16 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
   Label generic_stub;
-  Label unordered;
+  Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
   __ mov(ecx, edx);
   __ and_(ecx, eax);
   __ JumpIfSmi(ecx, &generic_stub, Label::kNear);
 
   __ CmpObjectType(eax, HEAP_NUMBER_TYPE, ecx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined1, Label::kNear);
   __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined2, Label::kNear);
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SS2 or CMOV is unsupported.
@@ -6607,13 +6608,27 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ mov(ecx, Immediate(Smi::FromInt(-1)));
     __ cmov(below, eax, ecx);
     __ ret(0);
-
-    __ bind(&unordered);
   }
 
+  __ bind(&unordered);
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
   __ bind(&generic_stub);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ cmp(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ j(not_equal, &miss);
+    __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
+    __ j(not_equal, &maybe_undefined2, Label::kNear);
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ cmp(edx, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ j(equal, &unordered);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);

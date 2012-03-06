@@ -6560,15 +6560,15 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
   Label generic_stub;
-  Label unordered;
+  Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
   __ and_(r2, r1, Operand(r0));
   __ JumpIfSmi(r2, &generic_stub);
 
   __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE);
-  __ b(ne, &miss);
+  __ b(ne, &maybe_undefined1);
   __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
-  __ b(ne, &miss);
+  __ b(ne, &maybe_undefined2);
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or VFP3 is unsupported.
@@ -6592,13 +6592,27 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ mov(r0, Operand(LESS), LeaveCC, lt);
     __ mov(r0, Operand(GREATER), LeaveCC, gt);
     __ Ret();
-
-    __ bind(&unordered);
   }
 
+  __ bind(&unordered);
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
   __ bind(&generic_stub);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
+    __ b(ne, &miss);
+    __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
+    __ b(ne, &maybe_undefined2);
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
+    __ b(eq, &unordered);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);

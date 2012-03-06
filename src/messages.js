@@ -210,7 +210,7 @@ function FormatMessage(message) {
       "no_input_to_regexp",           ["No input to ", "%0"],
       "invalid_json",                 ["String '", "%0", "' is not valid JSON"],
       "circular_structure",           ["Converting circular structure to JSON"],
-      "obj_ctor_property_non_object", ["Object.", "%0", " called on non-object"],
+      "called_on_non_object",         ["%0", " called on non-object"],
       "called_on_null_or_undefined",  ["%0", " called on null or undefined"],
       "array_indexof_not_defined",    ["Array.getIndexOf: Argument undefined"],
       "object_not_extensible",        ["Can't add property ", "%0", ", object is not extensible"],
@@ -533,6 +533,13 @@ function ScriptNameOrSourceURL() {
   if (this.name) {
     return this.name;
   }
+
+  // The result is cached as on long scripts it takes noticable time to search
+  // for the sourceURL.
+  if (this.hasCachedNameOrSourceURL)
+      return this.cachedNameOrSourceURL;
+  this.hasCachedNameOrSourceURL = true;
+
   // TODO(608): the spaces in a regexp below had to be escaped as \040
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
@@ -541,6 +548,7 @@ function ScriptNameOrSourceURL() {
   // the scanner/parser.
   var source = ToString(this.source);
   var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  this.cachedNameOrSourceURL = this.name;
   if (sourceUrlPos > 4) {
     var sourceUrlPattern =
         /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
@@ -551,15 +559,17 @@ function ScriptNameOrSourceURL() {
     var match =
         %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
     if (match) {
-      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+      this.cachedNameOrSourceURL =
+          SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
     }
   }
-  return this.name;
+  return this.cachedNameOrSourceURL;
 }
 
 
 SetUpLockedPrototype(Script,
-  $Array("source", "name", "line_ends", "line_offset", "column_offset"),
+  $Array("source", "name", "line_ends", "line_offset", "column_offset",
+         "cachedNameOrSourceURL", "hasCachedNameOrSourceURL" ),
   $Array(
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
@@ -1190,9 +1200,8 @@ function ErrorToStringDetectCycle(error) {
 }
 
 function ErrorToString() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Error.prototype.toString"]);
+  if (!IS_SPEC_OBJECT(this)) {
+    throw MakeTypeError("called_on_non_object", ["Error.prototype.toString"]);
   }
 
   try {

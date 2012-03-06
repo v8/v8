@@ -1360,6 +1360,13 @@ enum SetPropertyMode {
 };
 
 
+// Indicator for one component of an AccessorPair.
+enum AccessorComponent {
+  ACCESSOR_GETTER,
+  ACCESSOR_SETTER
+};
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1612,10 +1619,10 @@ class JSObject: public JSReceiver {
       bool continue_search);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
-                                              bool is_getter,
+                                              AccessorComponent component,
                                               Object* fun,
                                               PropertyAttributes attributes);
-  Object* LookupAccessor(String* name, bool is_getter);
+  Object* LookupAccessor(String* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
@@ -1745,7 +1752,6 @@ class JSObject: public JSReceiver {
   LocalElementType HasLocalElement(uint32_t index);
 
   bool HasElementWithInterceptor(JSReceiver* receiver, uint32_t index);
-  bool HasElementPostInterceptor(JSReceiver* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -2145,9 +2151,6 @@ class JSObject: public JSReceiver {
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
-  bool HasElementInElements(FixedArray* elements,
-                            ElementsKind kind,
-                            uint32_t index);
 
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
@@ -2166,12 +2169,12 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineElementAccessor(
       uint32_t index,
-      bool is_getter,
+      AccessorComponent component,
       Object* fun,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
-      bool is_getter,
+      AccessorComponent component,
       Object* fun,
       PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
@@ -2589,6 +2592,20 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
+  // An entry in a DescriptorArray, represented as an (array, index) pair.
+  class Entry {
+   public:
+    inline explicit Entry(DescriptorArray* descs, int index) :
+        descs_(descs), index_(index) { }
+
+    inline PropertyType type() { return descs_->GetType(index_); }
+    inline Object* GetCallbackObject() { return descs_->GetValue(index_); }
+
+   private:
+    DescriptorArray* descs_;
+    int index_;
+  };
+
   // Conversion from descriptor number to array indices.
   static int ToKeyIndex(int descriptor_number) {
     return descriptor_number+kFirstIndex;
@@ -4063,6 +4080,9 @@ class TypeFeedbackCells: public FixedArray {
 
   // Casting.
   static inline TypeFeedbackCells* cast(Object* obj);
+
+  static const int kForInFastCaseMarker = 0;
+  static const int kForInSlowCaseMarker = 1;
 };
 
 
@@ -7910,13 +7930,22 @@ class AccessorPair: public Struct {
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
-  // TODO(svenpanne) Evil temporary helper, will vanish soon...
-  void set(bool modify_getter, Object* value) {
-    if (modify_getter) {
+  Object* get(AccessorComponent component) {
+    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
+    return (component == ACCESSOR_GETTER) ? getter() : setter();
+  }
+
+  void set(AccessorComponent component, Object* value) {
+    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
+    if (component == ACCESSOR_GETTER) {
       set_getter(value);
     } else {
       set_setter(value);
     }
+  }
+
+  bool ContainsAccessor() {
+    return IsJSAccessor(getter()) || IsJSAccessor(setter());
   }
 
 #ifdef OBJECT_PRINT
@@ -7931,6 +7960,15 @@ class AccessorPair: public Struct {
   static const int kSize = kSetterOffset + kPointerSize;
 
  private:
+  // Strangely enough, in addition to functions and harmony proxies, the spec
+  // requires us to consider undefined as a kind of accessor, too:
+  //    var obj = {};
+  //    Object.defineProperty(obj, "foo", {get: undefined});
+  //    assertTrue("foo" in obj);
+  bool IsJSAccessor(Object* obj) {
+    return obj->IsSpecFunction() || obj->IsUndefined();
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 

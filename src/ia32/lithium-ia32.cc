@@ -388,7 +388,7 @@ LOperand* LChunk::GetNextSpillSlot(bool is_double) {
 
 
 void LChunk::MarkEmptyBlocks() {
-  HPhase phase("L Mark empty blocks", this);
+  HPhase phase("L_Mark empty blocks", this);
   for (int i = 0; i < graph()->blocks()->length(); ++i) {
     HBasicBlock* block = graph()->blocks()->at(i);
     int first = block->first_instruction_index();
@@ -551,7 +551,7 @@ Representation LChunk::LookupLiteralRepresentation(
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone()) LChunk(info(), graph());
-  HPhase phase("L Building chunk", chunk_);
+  HPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -1195,7 +1195,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
     return DefineSameAsFirst(result);
-  } else if (op == kMathSin || op == kMathCos) {
+  } else if (op == kMathSin || op == kMathCos || op == kMathTan) {
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
