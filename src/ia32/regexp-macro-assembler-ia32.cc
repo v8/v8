@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -287,7 +287,7 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
 void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
   Label fallthrough;
   __ cmp(edi, Operand(backtrack_stackpointer(), 0));
-  __ j(not_equal, &fallthrough, Label::kNear);
+  __ j(not_equal, &fallthrough);
   __ add(backtrack_stackpointer(), Immediate(kPointerSize));  // Pop.
   BranchOrBacktrack(no_condition, on_equal);
   __ bind(&fallthrough);
@@ -328,19 +328,19 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ bind(&loop);
     __ movzx_b(eax, Operand(edi, 0));
     __ cmpb_al(Operand(edx, 0));
-    __ j(equal, &loop_increment, Label::kNear);
+    __ j(equal, &loop_increment);
 
     // Mismatch, try case-insensitive match (converting letters to lower-case).
     __ or_(eax, 0x20);  // Convert match character to lower-case.
     __ lea(ecx, Operand(eax, -'a'));
     __ cmp(ecx, static_cast<int32_t>('z' - 'a'));  // Is eax a lowercase letter?
-    __ j(above, &fail, Label::kNear);
+    __ j(above, &fail);
     // Also convert capture character.
     __ movzx_b(ecx, Operand(edx, 0));
     __ or_(ecx, 0x20);
 
     __ cmp(eax, ecx);
-    __ j(not_equal, &fail, Label::kNear);
+    __ j(not_equal, &fail);
 
     __ bind(&loop_increment);
     // Increment pointers into match and capture strings.
@@ -349,7 +349,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Compare to end of match, and loop if not done.
     __ cmp(edi, ebx);
     __ j(below, &loop);
-    __ jmp(&success, Label::kNear);
+    __ jmp(&success);
 
     __ bind(&fail);
     // Restore original values before failing.
@@ -457,14 +457,14 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
     __ movzx_w(eax, Operand(edx, 0));
     __ cmpw_ax(Operand(ebx, 0));
   }
-  __ j(not_equal, &fail, Label::kNear);
+  __ j(not_equal, &fail);
   // Increment pointers into capture and match string.
   __ add(edx, Immediate(char_size()));
   __ add(ebx, Immediate(char_size()));
   // Check if we have reached end of match area.
   __ cmp(ebx, ecx);
   __ j(below, &loop);
-  __ jmp(&success, Label::kNear);
+  __ jmp(&success);
 
   __ bind(&fail);
   // Restore backtrack stackpointer.
@@ -542,7 +542,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
       // ASCII space characters are '\t'..'\r' and ' '.
       Label success;
       __ cmp(current_character(), ' ');
-      __ j(equal, &success, Label::kNear);
+      __ j(equal, &success);
       // Check range 0x09..0x0d
       __ lea(eax, Operand(current_character(), -'\t'));
       __ cmp(eax, '\r' - '\t');
@@ -611,7 +611,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     if (mode_ != ASCII) {
       // Table is 128 entries, so all ASCII characters can be tested.
       __ cmp(current_character(), Immediate('z'));
-      __ j(above, &done, Label::kNear);
+      __ j(above, &done);
     }
     ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     ExternalReference word_map = ExternalReference::re_word_character_map();
@@ -695,11 +695,11 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(ecx, esp);
   __ sub(ecx, Operand::StaticVariable(stack_limit));
   // Handle it if the stack pointer is already below the stack limit.
-  __ j(below_equal, &stack_limit_hit, Label::kNear);
+  __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
   __ cmp(ecx, num_registers_ * kPointerSize);
-  __ j(above_equal, &stack_ok, Label::kNear);
+  __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
   __ mov(eax, EXCEPTION);
@@ -764,7 +764,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Load previous char as initial value of current-character.
   Label at_start;
   __ cmp(Operand(ebp, kStartIndex), Immediate(0));
-  __ j(equal, &at_start, Label::kNear);
+  __ j(equal, &at_start);
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
@@ -1235,7 +1235,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(masm_->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above, &no_preempt, Label::kNear);
+  __ j(above, &no_preempt);
 
   SafeCall(&check_preempt_label_);
 
@@ -1248,7 +1248,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
   __ cmp(backtrack_stackpointer(), Operand::StaticVariable(stack_limit));
-  __ j(above, &no_stack_overflow, Label::kNear);
+  __ j(above, &no_stack_overflow);
 
   SafeCall(&stack_overflow_label_);
 

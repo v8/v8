@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -318,7 +318,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
 void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   Label fallthrough;
   __ cmpl(rdi, Operand(backtrack_stackpointer(), 0));
-  __ j(not_equal, &fallthrough, Label::kNear);
+  __ j(not_equal, &fallthrough);
   Drop();
   BranchOrBacktrack(no_condition, on_equal);
   __ bind(&fallthrough);
@@ -368,7 +368,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // al - input character
     // dl - capture character
     __ cmpb(rax, rdx);
-    __ j(equal, &loop_increment, Label::kNear);
+    __ j(equal, &loop_increment);
 
     // Mismatch, try case-insensitive match (converting letters to lower-case).
     // I.e., if or-ing with 0x20 makes values equal and in range 'a'-'z', it's
@@ -585,7 +585,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
       // ASCII space characters are '\t'..'\r' and ' '.
       Label success;
       __ cmpl(current_character(), Immediate(' '));
-      __ j(equal, &success, Label::kNear);
+      __ j(equal, &success);
       // Check range 0x09..0x0d
       __ lea(rax, Operand(current_character(), -'\t'));
       __ cmpl(rax, Immediate('\r' - '\t'));
@@ -676,7 +676,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
     if (mode_ != ASCII) {
       // Table is 128 entries, so all ASCII characters can be tested.
       __ cmpl(current_character(), Immediate('z'));
-      __ j(above, &done, Label::kNear);
+      __ j(above, &done);
     }
     __ movq(rbx, ExternalReference::re_word_character_map());
     ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
@@ -763,11 +763,11 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(kScratchRegister, stack_limit);
   __ subq(rcx, Operand(kScratchRegister, 0));
   // Handle it if the stack pointer is already below the stack limit.
-  __ j(below_equal, &stack_limit_hit, Label::kNear);
+  __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
   __ cmpq(rcx, Immediate(num_registers_ * kPointerSize));
-  __ j(above_equal, &stack_ok, Label::kNear);
+  __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
   __ Set(rax, EXCEPTION);
@@ -833,7 +833,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load previous char as initial value of current-character.
   Label at_start;
   __ cmpb(Operand(rbp, kStartIndex), Immediate(0));
-  __ j(equal, &at_start, Label::kNear);
+  __ j(equal, &at_start);
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
@@ -1370,7 +1370,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
       ExternalReference::address_of_stack_limit(masm_.isolate());
   __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
-  __ j(above, &no_preempt, Label::kNear);
+  __ j(above, &no_preempt);
 
   SafeCall(&check_preempt_label_);
 
@@ -1384,7 +1384,7 @@ void RegExpMacroAssemblerX64::CheckStackLimit() {
       ExternalReference::address_of_regexp_stack_limit(masm_.isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
-  __ j(above, &no_stack_overflow, Label::kNear);
+  __ j(above, &no_stack_overflow);
 
   SafeCall(&stack_overflow_label_);
 
