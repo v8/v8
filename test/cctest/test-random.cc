@@ -70,9 +70,9 @@ void TestSeeds(Handle<JSFunction> fun,
 
 
 TEST(CrankshaftRandom) {
-  if (!FLAG_crankshaft) return;
-
   if (env.IsEmpty()) env = v8::Context::New();
+  // Skip test if crankshaft is disabled.
+  if (!V8::UseCrankshaft()) return;
   v8::HandleScope scope;
   env->Enter();
 
