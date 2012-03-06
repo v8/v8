@@ -49,11 +49,8 @@ class Descriptor BASE_EMBEDDED {
 
   MUST_USE_RESULT MaybeObject* KeyToSymbol() {
     if (!StringShape(key_).IsSymbol()) {
-      Object* result;
-      { MaybeObject* maybe_result = HEAP->LookupSymbol(key_);
-        if (!maybe_result->ToObject(&result)) return maybe_result;
-      }
-      key_ = String::cast(result);
+      MaybeObject* maybe_result = HEAP->LookupSymbol(key_);
+      if (!maybe_result->To(&key_)) return maybe_result;
     }
     return key_;
   }
