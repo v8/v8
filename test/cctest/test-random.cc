@@ -91,7 +91,7 @@ TEST(CrankshaftRandom) {
   // Optimize function.
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
-  fun->MarkForLazyRecompilation();
+  if (!fun->IsOptimized()) fun->MarkForLazyRecompilation();
 
   // Test with some random values.
   TestSeeds(fun, context, 0xC0C0AFFE, 0x31415926);
