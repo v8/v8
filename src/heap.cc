@@ -6503,14 +6503,18 @@ void Heap::FreeQueuedChunks() {
       // pieces and initialize size, owner and flags field of every piece.
       // If FromAnyPointerAddress encounters a slot that belongs to one of
       // these smaller pieces it will treat it as a slot on a normal Page.
+      Address chunk_end = chunk->address() + chunk->size();
       MemoryChunk* inner = MemoryChunk::FromAddress(
           chunk->address() + Page::kPageSize);
-      MemoryChunk* inner_last = MemoryChunk::FromAddress(
-          chunk->address() + chunk->size() - 1);
+      MemoryChunk* inner_last = MemoryChunk::FromAddress(chunk_end - 1);
       while (inner <= inner_last) {
         // Size of a large chunk is always a multiple of
         // OS::AllocateAlignment() so there is always
         // enough space for a fake MemoryChunk header.
+        Address area_end = Min(inner->address() + Page::kPageSize, chunk_end);
+        // Guard against overflow.
+        if (area_end < inner->address()) area_end = chunk_end;
+        inner->SetArea(inner->address(), area_end);
         inner->set_size(Page::kPageSize);
         inner->set_owner(lo_space());
         inner->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
