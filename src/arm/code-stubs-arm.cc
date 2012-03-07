@@ -5930,8 +5930,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&sliced_string);
   // Sliced string.  Fetch parent and correct start index by offset.
-  __ ldr(r4, FieldMemOperand(r0, SlicedString::kOffsetOffset));
   __ ldr(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
+  __ ldr(r4, FieldMemOperand(r0, SlicedString::kOffsetOffset));
   __ add(r3, r3, Operand(r4, ASR, 1));  // Add offset to index.
   // Update instance type.
   __ ldr(r1, FieldMemOperand(r5, HeapObject::kMapOffset));
@@ -5969,8 +5969,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ AllocateTwoByteSlicedString(r0, r2, r6, r7, &runtime);
     __ bind(&set_slice_header);
     __ mov(r3, Operand(r3, LSL, 1));
-    __ str(r3, FieldMemOperand(r0, SlicedString::kOffsetOffset));
     __ str(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
+    __ str(r3, FieldMemOperand(r0, SlicedString::kOffsetOffset));
     __ jmp(&return_r0);
 
     __ bind(&copy_routine);
