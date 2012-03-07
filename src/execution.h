@@ -226,6 +226,7 @@ class StackGuard {
   Address address_of_real_jslimit() {
     return reinterpret_cast<Address>(&thread_local_.real_jslimit_);
   }
+  bool ShouldPostponeInterrupts();
 
  private:
   StackGuard();
