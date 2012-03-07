@@ -10722,16 +10722,6 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  FrameInspector frame_inspector(frame, frame->GetInlineCount() - 1, isolate);
-  return isolate->heap()->ToBoolean(frame_inspector.IsConstructor());
-}
-
-
 // Return an array with frame details
 // args[0]: number: break id
 // args[1]: number: frame index

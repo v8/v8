@@ -126,39 +126,21 @@ invoke(h3, [8, 6, 4]);
 // Check that %_IsConstructCall returns correct value when inlined
 var NON_CONSTRUCT_MARKER = {};
 var CONSTRUCT_MARKER = {};
-function baz1(x) {
+function baz(x) {
   return (!%_IsConstructCall()) ? NON_CONSTRUCT_MARKER : CONSTRUCT_MARKER;
 }
 
-function bar1(x, y, z) {
-  var non_construct = baz1(0); /* baz should be inlined */
+function bar(x, y, z) {
+  var non_construct = baz(0); /* baz should be inlined */
   assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var non_construct = baz1(); /* baz should be inlined */
+  var non_construct = baz(); /* baz should be inlined */
   assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var non_construct = baz1(0, 0); /* baz should be inlined */
+  var non_construct = baz(0, 0); /* baz should be inlined */
   assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var construct = new baz1(0);
+  var construct = new baz(0);
   assertSame(construct, CONSTRUCT_MARKER);
-  var construct = new baz1(0, 0);
-  assertSame(construct, CONSTRUCT_MARKER);
-}
-
-function baz2(x) {
-  return (!%IsConstructCall()) ? NON_CONSTRUCT_MARKER : CONSTRUCT_MARKER;
-}
-
-function bar2(x, y, z) {
-  var non_construct = baz2(0); /* baz should be inlined */
-  assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var non_construct = baz2(); /* baz should be inlined */
-  assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var non_construct = baz2(0, 0); /* baz should be inlined */
-  assertSame(non_construct, NON_CONSTRUCT_MARKER);
-  var construct = new baz2(0);
-  assertSame(construct, CONSTRUCT_MARKER);
-  var construct = new baz2(0, 0);
+  var construct = new baz(0, 0);
   assertSame(construct, CONSTRUCT_MARKER);
 }
 
-invoke(bar1, [1, 2, 3]);
-invoke(bar2, [1, 2, 3]);
+invoke(bar, [1, 2, 3]);
