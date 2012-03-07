@@ -10493,9 +10493,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       details->set(0, *value);
       details->set(1, property_details);
       if (hasJavaScriptAccessors) {
+        AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
         details->set(2, isolate->heap()->ToBoolean(caught_exception));
-        details->set(3, AccessorPair::cast(*result_callback_obj)->getter());
-        details->set(4, AccessorPair::cast(*result_callback_obj)->setter());
+        details->set(3, accessors->SafeGet(ACCESSOR_GETTER));
+        details->set(4, accessors->SafeGet(ACCESSOR_SETTER));
       }
 
       return *isolate->factory()->NewJSArrayWithElements(details);
