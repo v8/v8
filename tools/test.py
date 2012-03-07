@@ -631,9 +631,15 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
+  def DownloadData(self, context):
+    config = self.GetConfiguration(context)
+    if 'DownloadData' in dir(config):
+      config.DownloadData()
+
   def AddTestsToList(self, result, current_path, path, context, mode):
-    for v in self.GetConfiguration(context).VariantFlags():
-      tests = self.GetConfiguration(context).ListTests(current_path, path, mode, v)
+    config = self.GetConfiguration(context)
+    for v in config.VariantFlags():
+      tests = config.ListTests(current_path, path, mode, v)
       for t in tests: t.variant_flags = v
       result += tests
 
@@ -654,6 +660,12 @@ class LiteralTestSuite(TestSuite):
       if not name or name.match(test.GetName()):
         result += test.GetBuildRequirements(rest, context)
     return result
+
+  def DownloadData(self, path, context):
+    (name, rest) = CarCdr(path)
+    for test in self.tests:
+      if not name or name.match(test.GetName()):
+        test.DownloadData(context)
 
   def ListTests(self, current_path, path, context, mode, variant_flags):
     (name, rest) = CarCdr(path)
@@ -1192,6 +1204,8 @@ def BuildOptions():
       default='scons')
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
+  result.add_option("--download-data", help="Download missing test suite data",
+      default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
@@ -1461,6 +1475,11 @@ def Main():
   defs = { }
   root.GetTestStatus(context, sections, defs)
   config = Configuration(sections, defs)
+
+  # Download missing test suite data if requested.
+  if options.download_data:
+    for path in paths:
+      root.DownloadData(path, context)
 
   # List the tests
   all_cases = [ ]
