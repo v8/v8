@@ -7944,6 +7944,9 @@ class AccessorPair: public Struct {
     }
   }
 
+  // Same as get, but returns undefined instead of the hole.
+  Object* SafeGet(AccessorComponent component);
+
   bool ContainsAccessor() {
     return IsJSAccessor(getter()) || IsJSAccessor(setter());
   }

@@ -4694,7 +4694,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
           Object* element = dictionary->ValueAt(entry);
           if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
               element->IsAccessorPair()) {
-            return AccessorPair::cast(element)->get(component);
+            return AccessorPair::cast(element)->SafeGet(component);
           }
         }
       }
@@ -4710,7 +4710,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            return AccessorPair::cast(obj)->get(component);
+            return AccessorPair::cast(obj)->SafeGet(component);
           }
         }
       }
@@ -5944,6 +5944,12 @@ MaybeObject* AccessorPair::CopyWithoutTransitions() {
   copy->set_getter(getter()->IsMap() ? heap->the_hole_value() : getter());
   copy->set_setter(setter()->IsMap() ? heap->the_hole_value() : setter());
   return copy;
+}
+
+
+Object* AccessorPair::SafeGet(AccessorComponent component) {
+    Object* accessor = get(component);
+    return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
 }
 
 

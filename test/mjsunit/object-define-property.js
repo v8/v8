@@ -1075,3 +1075,13 @@ assertEquals(999, o[999]);
   assertEquals(2, arg0);
   assertEquals(3, arguments[0]);
 })(0);
+
+
+// Regression test: We should never observe the hole value.
+var objectWithGetter = {};
+objectWithGetter.__defineGetter__('foo', function() {});
+assertEquals(undefined, objectWithGetter.__lookupSetter__('foo'));
+
+var objectWithSetter = {};
+objectWithSetter.__defineSetter__('foo', function(x) {});
+assertEquals(undefined, objectWithSetter.__lookupGetter__('foo'));

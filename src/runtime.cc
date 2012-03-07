@@ -1073,10 +1073,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
                 AccessorPair::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->getter());
+              elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
             }
             if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->setter());
+              elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
             }
             break;
           }
@@ -1123,10 +1123,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->getter());
+      elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
     }
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->setter());
+      elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());
