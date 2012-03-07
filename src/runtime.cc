@@ -995,23 +995,14 @@ enum PropertyDescriptorIndices {
   DESCRIPTOR_SIZE
 };
 
-// Returns an array with the property description:
-//  if args[1] is not a property on args[0]
-//          returns undefined
-//  if args[1] is a data property on args[0]
-//         [false, value, Writeable, Enumerable, Configurable]
-//  if args[1] is an accessor on args[0]
-//         [true, GetFunction, SetFunction, Enumerable, Configurable]
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
-  ASSERT(args.length() == 2);
+
+static MaybeObject* GetOwnProperty(Isolate* isolate,
+                                   Handle<JSObject> obj,
+                                   Handle<String> name) {
   Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
   LookupResult result(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
@@ -1142,6 +1133,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
   }
 
   return *desc;
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
+  ASSERT(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  return GetOwnProperty(isolate, obj, name);
 }
 
 
@@ -4307,6 +4314,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
                                     args.at<Object>(1));
 }
 
+
+static bool IsValidAccessor(Handle<Object> obj) {
+  return obj->IsUndefined() || obj->IsSpecFunction() || obj->IsNull();
+}
+
+
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
 // Step 4b - define a new accessor property.
@@ -4317,18 +4330,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   ASSERT(args.length() == 5);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag, 2);
-  Object* fun = args[3];
+  RUNTIME_ASSERT(!obj->IsNull());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
+  RUNTIME_ASSERT(IsValidAccessor(getter));
+  CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
+  RUNTIME_ASSERT(IsValidAccessor(setter));
   CONVERT_SMI_ARG_CHECKED(unchecked, 4);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  RUNTIME_ASSERT(!obj->IsNull());
-  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
-  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
-  return obj->DefineAccessor(name, component, fun, attr);
+  // TODO(svenpanne) Define getter/setter/attributes in a single step.
+  if (getter->IsNull() && setter->IsNull()) {
+    JSArray* array;
+    { MaybeObject* maybe_array = GetOwnProperty(isolate, obj, name);
+      if (!maybe_array->To(&array)) return maybe_array;
+    }
+    Object* current = FixedArray::cast(array->elements())->get(GETTER_INDEX);
+    getter = Handle<Object>(current, isolate);
+  }
+  if (!getter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_GETTER, *getter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+  if (!setter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_SETTER, *setter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+
+  return isolate->heap()->undefined_value();
 }
 
 // Implements part of 8.12.9 DefineOwnProperty.
@@ -4342,9 +4374,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-  Handle<Object> obj_value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj_value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked, 3);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 

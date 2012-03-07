@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -769,8 +769,7 @@ function DefineOneShotAccessor(obj, name, fun) {
     hasBeenSet = true;
     value = v;
   };
-  %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
-  %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
+  %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);
 }
 
 function CallSite(receiver, fun, pos) {

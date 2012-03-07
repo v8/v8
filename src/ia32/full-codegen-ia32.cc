@@ -1519,10 +1519,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:
         __ push(Operand(esp, 0));  // Duplicate receiver.
         VisitForStackValue(key);
-        __ push(Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
-                          Smi::FromInt(1) :
-                          Smi::FromInt(0)));
-        VisitForStackValue(value);
+        if (property->kind() == ObjectLiteral::Property::GETTER) {
+          VisitForStackValue(value);
+          __ push(Immediate(isolate()->factory()->null_value()));
+        } else {
+          __ push(Immediate(isolate()->factory()->null_value()));
+          VisitForStackValue(value);
+        }
         __ push(Immediate(Smi::FromInt(NONE)));
         __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
         break;

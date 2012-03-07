@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -834,10 +834,6 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     }
 
     %DefineOrRedefineDataProperty(obj, p, value, flag);
-  } else if (IsGenericDescriptor(desc)) {
-    // Step 12 - updating an existing accessor property with generic
-    //           descriptor. Changing flags only.
-    %DefineOrRedefineAccessorProperty(obj, p, GETTER, current.getGet(), flag);
   } else {
     // There are 3 cases that lead here:
     // Step 4b - defining a new accessor property.
@@ -845,12 +841,9 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     //                 property.
     // Step 12 - updating an existing accessor property with an accessor
     //           descriptor.
-    if (desc.hasGetter()) {
-      %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
-    }
-    if (desc.hasSetter()) {
-      %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
-    }
+    var getter = desc.hasGetter() ? desc.getGet() : null;
+    var setter = desc.hasSetter() ? desc.getSet() : null;
+    %DefineOrRedefineAccessorProperty(obj, p, getter, setter, flag);
   }
   return true;
 }

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -503,7 +503,7 @@ try {
 // Defining properties null should fail even when we have
 // other allowed values
 try {
-  %DefineOrRedefineAccessorProperty(null, 'foo', 0, func, 0);
+  %DefineOrRedefineAccessorProperty(null, 'foo', func, null, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
