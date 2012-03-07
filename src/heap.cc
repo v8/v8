@@ -499,7 +499,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->PreciseSweepingRequired() &&
+      !mark_compact_collector()->abort_incremental_marking_ &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
@@ -582,7 +582,7 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
     Heap* heap,
     AllocationSpace space,
     const char* gc_reason = NULL) {
-  heap->mark_compact_collector()->SetFlags(Heap::kMakeHeapIterableMask);
+  heap->mark_compact_collector()->SetFlags(Heap::kAbortIncrementalMarkingMask);
   bool result = heap->CollectGarbage(space, gc_reason);
   heap->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
   return result;

@@ -12925,7 +12925,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
 // Performs a GC.
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
-  isolate->heap()->CollectAllGarbage(true, "%CollectGarbage");
+  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "%CollectGarbage");
   return isolate->heap()->undefined_value();
 }
 

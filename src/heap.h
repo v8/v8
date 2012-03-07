@@ -1041,8 +1041,14 @@ class Heap {
                              const char* gc_reason = NULL);
 
   static const int kNoGCFlags = 0;
-  static const int kMakeHeapIterableMask = 1;
+  static const int kSweepPreciselyMask = 1;
   static const int kReduceMemoryFootprintMask = 2;
+  static const int kAbortIncrementalMarkingMask = 4;
+
+  // Making the heap iterable requires us to sweep precisely and abort any
+  // incremental marking as well.
+  static const int kMakeHeapIterableMask =
+      kSweepPreciselyMask | kAbortIncrementalMarkingMask;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
