@@ -1342,6 +1342,10 @@ class Heap {
     return old_gen_allocation_limit_ - PromotedTotalSize();
   }
 
+  inline intptr_t OldGenerationCapacityAvailable() {
+    return max_old_generation_size_ - PromotedTotalSize();
+  }
+
   static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
   static const intptr_t kMinimumAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
