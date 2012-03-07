@@ -6071,6 +6071,11 @@ void HeapProfiler::DefineWrapperClass(uint16_t class_id,
 }
 
 
+int HeapProfiler::GetPersistentHandleCount() {
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->global_handles()->NumberOfGlobalHandles();
+}
+
 
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;

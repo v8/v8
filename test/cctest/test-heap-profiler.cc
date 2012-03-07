@@ -1279,3 +1279,37 @@ TEST(SfiAndJsFunctionWeakRefs) {
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
   CHECK(HasWeakEdge(shared));
 }
+
+
+TEST(PersistentHandleCount) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  // V8 also uses global handles internally, so we can't test for an absolute
+  // number.
+  int global_handle_count = v8::HeapProfiler::GetPersistentHandleCount();
+
+  // Create some persistent handles.
+  v8::Persistent<v8::String> p_AAA =
+      v8::Persistent<v8::String>::New(v8_str("AAA"));
+  CHECK_EQ(global_handle_count + 1,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  v8::Persistent<v8::String> p_BBB =
+      v8::Persistent<v8::String>::New(v8_str("BBB"));
+  CHECK_EQ(global_handle_count + 2,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  v8::Persistent<v8::String> p_CCC =
+      v8::Persistent<v8::String>::New(v8_str("CCC"));
+  CHECK_EQ(global_handle_count + 3,
+           v8::HeapProfiler::GetPersistentHandleCount());
+
+  // Dipose the persistent handles in a different order.
+  p_AAA.Dispose();
+  CHECK_EQ(global_handle_count + 2,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  p_CCC.Dispose();
+  CHECK_EQ(global_handle_count + 1,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  p_BBB.Dispose();
+  CHECK_EQ(global_handle_count, v8::HeapProfiler::GetPersistentHandleCount());
+}

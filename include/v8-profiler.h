@@ -430,6 +430,9 @@ class V8EXPORT HeapProfiler {
    * handle.
    */
   static const uint16_t kPersistentHandleNoClassId = 0;
+
+  /** Returns the number of currently existing persistent handles. */
+  static int GetPersistentHandleCount();
 };
 
 
