@@ -5300,10 +5300,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   AddInstruction(context);
   inner_env->BindContext(context);
 #endif
-  HBasicBlock* body_entry = CreateBasicBlock(inner_env);
-  current_block()->Goto(body_entry);
-  body_entry->SetJoinId(return_id);
-  set_current_block(body_entry);
+  AddSimulate(return_id);
+  current_block()->UpdateEnvironment(inner_env);
   AddInstruction(new(zone()) HEnterInlined(target,
                                            arguments->length(),
                                            function,
