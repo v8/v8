@@ -1261,7 +1261,7 @@ function ObjectIsExtensible(obj) {
 // Harmony egal.
 function ObjectIs(obj1, obj2) {
   if (obj1 === obj2) {
-    return (obj1 !== 0) || ((1 / obj1) === (1 / obj2));
+    return (obj1 !== 0) || (1 / obj1 === 1 / obj2);
   } else {
     return (obj1 !== obj1) && (obj2 !== obj2);
   }
