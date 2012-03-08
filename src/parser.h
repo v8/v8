@@ -557,6 +557,7 @@ class Parser {
   void ReportUnexpectedToken(Token::Value token);
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
+  void ReportMessage(const char* message, Vector<Handle<String> > args);
 
   bool inside_with() const { return top_scope_->inside_with(); }
   Scanner& scanner()  { return scanner_; }
@@ -764,7 +765,9 @@ class Parser {
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
   // Parser support
-  VariableProxy* NewUnresolved(Handle<String> name, VariableMode mode);
+  VariableProxy* NewUnresolved(Handle<String> name,
+                               VariableMode mode,
+                               Interface* interface = Interface::NewValue());
   void Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(Handle<String> label);

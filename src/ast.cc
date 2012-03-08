@@ -76,7 +76,8 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
       is_this_(var->is_this()),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(RelocInfo::kNoPosition) {
+      position_(RelocInfo::kNoPosition),
+      interface_(var->interface()) {
   BindTo(var);
 }
 
@@ -84,14 +85,16 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
 VariableProxy::VariableProxy(Isolate* isolate,
                              Handle<String> name,
                              bool is_this,
-                             int position)
+                             int position,
+                             Interface* interface)
     : Expression(isolate),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(position) {
+      position_(position),
+      interface_(interface) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
 }

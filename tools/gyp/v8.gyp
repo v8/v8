@@ -342,6 +342,8 @@
             '../../src/incremental-marking.h',
             '../../src/inspector.cc',
             '../../src/inspector.h',
+            '../../src/interface.cc',
+            '../../src/interface.h',
             '../../src/interpreter-irregexp.cc',
             '../../src/interpreter-irregexp.h',
             '../../src/json-parser.h',

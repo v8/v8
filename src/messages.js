@@ -246,6 +246,8 @@ function FormatMessage(message) {
       "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
       "harmony_const_assign",         ["Assignment to constant variable."],
+      "invalid_module_path",          ["Module does not export '", "%0", "', or export is not itself a module"],
+      "module_type_error",            ["Module '", "%0", "' used improperly"],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {

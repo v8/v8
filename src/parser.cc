@@ -757,6 +757,12 @@ void Parser::ReportMessage(const char* type, Vector<const char*> args) {
 }
 
 
+void Parser::ReportMessage(const char* type, Vector<Handle<String> > args) {
+  Scanner::Location source_location = scanner().location();
+  ReportMessageAt(source_location, type, args);
+}
+
+
 void Parser::ReportMessageAt(Scanner::Location source_location,
                              const char* type,
                              Vector<const char*> args) {
@@ -1163,6 +1169,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           this_property_assignment_finder.GetThisPropertyAssignments());
     }
   }
+
   return 0;
 }
 
@@ -1221,11 +1228,27 @@ Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   // Create new block with one expected declaration.
   Block* block = factory()->NewBlock(NULL, 1, true);
   Handle<String> name = ParseIdentifier(CHECK_OK);
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module %s...\n", name->ToAsciiArray());
+#endif
+
   Module* module = ParseModule(CHECK_OK);
-  VariableProxy* proxy = NewUnresolved(name, LET);
+  VariableProxy* proxy = NewUnresolved(name, LET, module->interface());
   Declaration* declaration =
       factory()->NewModuleDeclaration(proxy, module, top_scope_);
   Declare(declaration, true, CHECK_OK);
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module %s.\n", name->ToAsciiArray());
+
+  if (FLAG_print_interfaces) {
+    PrintF("module %s : ", name->ToAsciiArray());
+    module->interface()->Print();
+  }
+#endif
 
   // TODO(rossberg): Add initialization statement to block.
 
@@ -1267,6 +1290,9 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 
   // Construct block expecting 16 statements.
   Block* body = factory()->NewBlock(NULL, 16, false);
+#ifdef DEBUG
+  if (FLAG_print_interface_details) PrintF("# Literal ");
+#endif
   Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -1292,7 +1318,10 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
   scope->set_end_position(scanner().location().end_pos);
   body->set_block_scope(scope);
-  return factory()->NewModuleLiteral(body);
+
+  scope->interface()->Freeze(ok);
+  ASSERT(ok);
+  return factory()->NewModuleLiteral(body, scope->interface());
 }
 
 
@@ -1302,10 +1331,28 @@ Module* Parser::ParseModulePath(bool* ok) {
   //    ModulePath '.' Identifier
 
   Module* result = ParseModuleVariable(CHECK_OK);
-
   while (Check(Token::PERIOD)) {
     Handle<String> name = ParseIdentifierName(CHECK_OK);
-    result = factory()->NewModulePath(result, name);
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Path .%s ", name->ToAsciiArray());
+#endif
+    Module* member = factory()->NewModulePath(result, name);
+    result->interface()->Add(name, member->interface(), ok);
+    if (!*ok) {
+#ifdef DEBUG
+      if (FLAG_print_interfaces) {
+        PrintF("PATH TYPE ERROR at '%s'\n", name->ToAsciiArray());
+        PrintF("result: ");
+        result->interface()->Print();
+        PrintF("member: ");
+        member->interface()->Print();
+      }
+#endif
+      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      return NULL;
+    }
+    result = member;
   }
 
   return result;
@@ -1317,8 +1364,13 @@ Module* Parser::ParseModuleVariable(bool* ok) {
   //    Identifier
 
   Handle<String> name = ParseIdentifier(CHECK_OK);
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module variable %s ", name->ToAsciiArray());
+#endif
   VariableProxy* proxy = top_scope_->NewUnresolved(
-      factory(), name, scanner().location().beg_pos);
+      factory(), name, scanner().location().beg_pos, Interface::NewModule());
+
   return factory()->NewModuleVariable(proxy);
 }
 
@@ -1330,6 +1382,11 @@ Module* Parser::ParseModuleUrl(bool* ok) {
   Expect(Token::STRING, CHECK_OK);
   Handle<String> symbol = GetSymbol(CHECK_OK);
 
+  // TODO(ES6): Request JS resource from environment...
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details) PrintF("# Url ");
+#endif
   return factory()->NewModuleUrl(symbol);
 }
 
@@ -1357,6 +1414,7 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
   ZoneStringList names(1);
 
   Handle<String> name = ParseIdentifierName(CHECK_OK);
+  names.Add(name);
   while (peek() == Token::COMMA) {
     Consume(Token::COMMA);
     name = ParseIdentifierName(CHECK_OK);
@@ -1371,13 +1429,29 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
   // TODO(ES6): once we implement destructuring, make that one declaration.
   Block* block = factory()->NewBlock(NULL, 1, true);
   for (int i = 0; i < names.length(); ++i) {
-    VariableProxy* proxy = NewUnresolved(names[i], LET);
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Import %s ", names[i]->ToAsciiArray());
+#endif
+    Interface* interface = Interface::NewUnknown();
+    module->interface()->Add(names[i], interface, ok);
+    if (!*ok) {
+#ifdef DEBUG
+      if (FLAG_print_interfaces) {
+        PrintF("IMPORT TYPE ERROR at '%s'\n", names[i]->ToAsciiArray());
+        PrintF("module: ");
+        module->interface()->Print();
+      }
+#endif
+      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      return NULL;
+    }
+    VariableProxy* proxy = NewUnresolved(names[i], LET, interface);
     Declaration* declaration =
         factory()->NewImportDeclaration(proxy, module, top_scope_);
     Declare(declaration, true, CHECK_OK);
     // TODO(rossberg): Add initialization statement to block.
   }
-
 
   return block;
 }
@@ -1431,12 +1505,22 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       return NULL;
   }
 
-  // Extract declared names into export declarations.
+  // Extract declared names into export declarations and interface.
+  Interface* interface = top_scope_->interface();
   for (int i = 0; i < names.length(); ++i) {
-    VariableProxy* proxy = NewUnresolved(names[i], LET);
-    Declaration* declaration =
-        factory()->NewExportDeclaration(proxy, top_scope_);
-    top_scope_->AddDeclaration(declaration);
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Export %s ", names[i]->ToAsciiArray());
+#endif
+    Interface* inner = Interface::NewUnknown();
+    interface->Add(names[i], inner, CHECK_OK);
+    VariableProxy* proxy = NewUnresolved(names[i], LET, inner);
+    USE(proxy);
+    // TODO(rossberg): Rethink whether we actually need to store export
+    // declarations (for compilation?).
+    // ExportDeclaration* declaration =
+    //     factory()->NewExportDeclaration(proxy, top_scope_);
+    // top_scope_->AddDeclaration(declaration);
   }
 
   ASSERT(result != NULL);
@@ -1597,19 +1681,21 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-VariableProxy* Parser::NewUnresolved(Handle<String> name, VariableMode mode) {
+VariableProxy* Parser::NewUnresolved(
+    Handle<String> name, VariableMode mode, Interface* interface) {
   // If we are inside a function, a declaration of a var/const variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
   return DeclarationScope(mode)->NewUnresolved(
-      factory(), name, scanner().location().beg_pos);
+      factory(), name, scanner().location().beg_pos, interface);
 }
 
 
 void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
-  Handle<String> name = declaration->proxy()->name();
+  VariableProxy* proxy = declaration->proxy();
+  Handle<String> name = proxy->name();
   VariableMode mode = declaration->mode();
   Scope* declaration_scope = DeclarationScope(mode);
   Variable* var = NULL;
@@ -1627,13 +1713,14 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   if (declaration_scope->is_function_scope() ||
       declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope() ||
-      declaration_scope->is_module_scope()) {
+      declaration_scope->is_module_scope() ||
+      declaration->AsModuleDeclaration() != NULL) {
     // Declare the variable in the function scope.
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(
-          name, mode, declaration->initialization());
+          name, mode, declaration->initialization(), proxy->interface());
     } else {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
@@ -1743,7 +1830,30 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // initialization code. Thus, inside the 'with' statement, we need
   // both access to the static and the dynamic context chain; the
   // runtime needs to provide both.
-  if (resolve && var != NULL) declaration->proxy()->BindTo(var);
+  if (resolve && var != NULL) {
+    proxy->BindTo(var);
+
+    if (FLAG_harmony_modules) {
+      bool ok;
+#ifdef DEBUG
+      if (FLAG_print_interface_details)
+        PrintF("# Declare %s\n", var->name()->ToAsciiArray());
+#endif
+      proxy->interface()->Unify(var->interface(), &ok);
+      if (!ok) {
+#ifdef DEBUG
+        if (FLAG_print_interfaces) {
+          PrintF("DECLARE TYPE ERROR\n");
+          PrintF("proxy: ");
+          proxy->interface()->Print();
+          PrintF("var: ");
+          var->interface()->Print();
+        }
+#endif
+        ReportMessage("module_type_error", Vector<Handle<String> >(&name, 1));
+      }
+    }
+  }
 }
 
 
@@ -3498,8 +3608,14 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
+      // The name may refer to a module instance object, so its type is unknown.
+#ifdef DEBUG
+      if (FLAG_print_interface_details)
+        PrintF("# Variable %s ", name->ToAsciiArray());
+#endif
+      Interface* interface = Interface::NewUnknown();
       result = top_scope_->NewUnresolved(
-          factory(), name, scanner().location().beg_pos);
+          factory(), name, scanner().location().beg_pos, interface);
       break;
     }
 

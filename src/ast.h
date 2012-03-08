@@ -41,6 +41,7 @@
 #include "token.h"
 #include "utils.h"
 #include "variables.h"
+#include "interface.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -589,9 +590,15 @@ class ExportDeclaration: public Declaration {
 
 
 class Module: public AstNode {
-  // TODO(rossberg): stuff to come...
+ public:
+  Interface* interface() const { return interface_; }
+
  protected:
-  Module() {}
+  Module() : interface_(Interface::NewModule()) {}
+  explicit Module(Interface* interface) : interface_(interface) {}
+
+ private:
+  Interface* interface_;
 };
 
 
@@ -604,8 +611,9 @@ class ModuleLiteral: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleLiteral(Block* body)
-      : body_(body) {
+  ModuleLiteral(Block* body, Interface* interface)
+      : Module(interface),
+        body_(body) {
   }
 
  private:
@@ -622,9 +630,7 @@ class ModuleVariable: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleVariable(VariableProxy* proxy)
-      : proxy_(proxy) {
-  }
+  inline explicit ModuleVariable(VariableProxy* proxy);
 
  private:
   VariableProxy* proxy_;
@@ -1451,6 +1457,8 @@ class VariableProxy: public Expression {
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   int position() const { return position_; }
+  Interface* interface() const { return interface_; }
+
 
   void MarkAsTrivial() { is_trivial_ = true; }
   void MarkAsLValue() { is_lvalue_ = true; }
@@ -1466,7 +1474,8 @@ class VariableProxy: public Expression {
   VariableProxy(Isolate* isolate,
                 Handle<String> name,
                 bool is_this,
-                int position);
+                int position,
+                Interface* interface);
 
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
@@ -1476,6 +1485,7 @@ class VariableProxy: public Expression {
   // or with a increment/decrement operator.
   bool is_lvalue_;
   int position_;
+  Interface* interface_;
 };
 
 
@@ -2506,6 +2516,15 @@ class RegExpEmpty: public RegExpTree {
 
 
 // ----------------------------------------------------------------------------
+// Out-of-line inline constructors (to side-step cyclic dependencies).
+
+inline ModuleVariable::ModuleVariable(VariableProxy* proxy)
+    : Module(proxy->interface()),
+      proxy_(proxy) {
+}
+
+
+// ----------------------------------------------------------------------------
 // Basic visitor
 // - leaf node visitors are abstract.
 
@@ -2639,8 +2658,8 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ExportDeclaration, decl)
   }
 
-  ModuleLiteral* NewModuleLiteral(Block* body) {
-    ModuleLiteral* module = new(zone_) ModuleLiteral(body);
+  ModuleLiteral* NewModuleLiteral(Block* body, Interface* interface) {
+    ModuleLiteral* module = new(zone_) ModuleLiteral(body, interface);
     VISIT_AND_RETURN(ModuleLiteral, module)
   }
 
@@ -2796,9 +2815,11 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableProxy* NewVariableProxy(Handle<String> name,
                                   bool is_this,
-                                  int position = RelocInfo::kNoPosition) {
+                                  int position = RelocInfo::kNoPosition,
+                                  Interface* interface =
+                                      Interface::NewValue()) {
     VariableProxy* proxy =
-        new(zone_) VariableProxy(isolate_, name, is_this, position);
+        new(zone_) VariableProxy(isolate_, name, is_this, position, interface);
     VISIT_AND_RETURN(VariableProxy, proxy)
   }
 
