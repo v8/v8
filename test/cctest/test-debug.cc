@@ -7208,10 +7208,10 @@ static void TestDebugBreakInLoop(const char* loop_head,
   // Receive 100 breaks for each test and then terminate JavaScript execution.
   static const int kBreaksPerTest = 100;
 
-  for (int i = 0; i < 1 && loop_bodies[i] != NULL; i++) {
+  for (int i = 0; loop_bodies[i] != NULL; i++) {
     // Perform a lazy deoptimization after various numbers of breaks
     // have been hit.
-    for (int j = 0; j < 10; j++) {
+    for (int j = 0; j < 11; j++) {
       break_point_hit_count_deoptimize = j;
       if (j == 10) {
         break_point_hit_count_deoptimize = kBreaksPerTest;
