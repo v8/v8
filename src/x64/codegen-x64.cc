@@ -228,7 +228,7 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   //  -- rsp[0] : return address
   // -----------------------------------
   // The fail label is not actually used since we do not allocate.
-  Label allocated, cow_array, only_change_map, done;
+  Label allocated, new_backing_store, only_change_map, done;
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
@@ -236,16 +236,20 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  // Check backing store for COW-ness.  If the negative case, we do not have to
-  // allocate a new array, since FixedArray and FixedDoubleArray do not differ
-  // in size.
+  // Check backing store for COW-ness.  For COW arrays we have to
+  // allocate a new backing store.
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
                  Heap::kFixedCOWArrayMapRootIndex);
-  __ j(equal, &cow_array);
+  __ j(equal, &new_backing_store);
+  // Check if the backing store is in new-space. If not, we need to allocate
+  // a new one since the old one is in pointer-space.
+  // If in new space, we can reuse the old backing store because it is
+  // the same size.
+  __ JumpIfNotInNewSpace(r8, rdi, &new_backing_store);
+
   __ movq(r14, r8);  // Destination array equals source array.
 
-  __ bind(&allocated);
   // r8 : source FixedArray
   // r9 : elements array length
   // r14: destination FixedDoubleArray
@@ -253,6 +257,7 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
 
+  __ bind(&allocated);
   // Set transitioned map.
   __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
@@ -273,10 +278,13 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   // r15: the-hole NaN
   __ jmp(&entry);
 
-  // Allocate new array if the source array is a COW array.
-  __ bind(&cow_array);
+  // Allocate new backing store.
+  __ bind(&new_backing_store);
   __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
   __ AllocateInNewSpace(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  // Set backing store's map
+  __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
+  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
   // Set receiver's backing store.
   __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r14);
   __ movq(r11, r14);
