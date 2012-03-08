@@ -1258,6 +1258,16 @@ function ObjectIsExtensible(obj) {
 }
 
 
+// Harmony egal.
+function ObjectIs(obj1, obj2) {
+  if (obj1 === obj2) {
+    return (obj1 !== 0) || (1 / obj1 === 1 / obj2);
+  } else {
+    return (obj1 !== obj1) && (obj2 !== obj2);
+  }
+}
+
+
 %SetCode($Object, function(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -1297,6 +1307,7 @@ function SetUpObject() {
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
+    "is", ObjectIs,
     "isExtensible", ObjectIsExtensible,
     "isFrozen", ObjectIsFrozen,
     "isSealed", ObjectIsSealed,
@@ -1461,6 +1472,18 @@ function NumberToPrecision(precision) {
 }
 
 
+// Harmony isFinite.
+function NumberIsFinite(number) {
+  return IS_NUMBER(number) && NUMBER_IS_FINITE(number);
+}
+
+
+// Harmony isNaN.
+function NumberIsNaN(number) {
+  return IS_NUMBER(number) && NUMBER_IS_NAN(number);
+}
+
+
 // ----------------------------------------------------------------------------
 
 function SetUpNumber() {
@@ -1504,6 +1527,10 @@ function SetUpNumber() {
     "toFixed", NumberToFixed,
     "toExponential", NumberToExponential,
     "toPrecision", NumberToPrecision
+  ));
+  InstallFunctions($Number, DONT_ENUM, $Array(
+    "isFinite", NumberIsFinite,
+    "isNaN", NumberIsNaN
   ));
 }
 
