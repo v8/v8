@@ -1288,44 +1288,38 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
 
 
 void LCodeGen::DoDateField(LDateField* instr) {
-  Register input = ToRegister(instr->InputAt(0));
+  Register object = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->TempAt(0));
-  ASSERT(input.is(result));
+  Register scratch = ToRegister(instr->TempAt(0));
+  Smi* index = instr->index();
+  Label runtime, done;
+  ASSERT(object.is(result));
+  ASSERT(object.is(eax));
 
 #ifdef DEBUG
-  __ AbortIfSmi(input);
-  __ CmpObjectType(input, JS_DATE_TYPE, map);
+  __ AbortIfSmi(object);
+  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
   __ Assert(equal, "Trying to get date field from non-date.");
 #endif
 
-  __ mov(result, FieldOperand(input,
-                     JSDate::kValueOffset + kPointerSize * instr->index()));
-}
-
-
-void LCodeGen::DoSetDateField(LSetDateField* instr) {
-  Register date = ToRegister(instr->InputAt(0));
-  Register value = ToRegister(instr->InputAt(1));
-  Register result = ToRegister(instr->result());
-  Register temp = ToRegister(instr->TempAt(0));
-  int index = instr->index();
-
-#ifdef DEBUG
-  __ AbortIfSmi(date);
-  __ CmpObjectType(date, JS_DATE_TYPE, temp);
-  __ Assert(equal, "Trying to get date field from non-date.");
-#endif
-
-  __ mov(FieldOperand(date, JSDate::kValueOffset + kPointerSize * index),
-         value);
-  // Caches can only be smi or NaN, so we can skip the write barrier for them.
-  if (index < JSDate::kFirstBarrierFree) {
-    // Update the write barrier.  Save the value as it will be
-    // overwritten by the write barrier code and is needed afterward.
-    __ mov(result, value);
-    __ RecordWriteField(date, JSDate::kValueOffset + kPointerSize * index,
-                        value, temp, kDontSaveFPRegs);
+  if (index->value() == 0) {
+    __ mov(result, FieldOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ mov(scratch, Operand::StaticVariable(stamp));
+      __ cmp(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
+      __ j(not_equal, &runtime, Label::kNear);
+      __ mov(result, FieldOperand(object, JSDate::kValueOffset +
+                                          kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch);
+    __ mov(Operand(esp, 0), object);
+    __ mov(Operand(esp, 1 * kPointerSize), Immediate(index));
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
   }
 }
 

@@ -4747,6 +4747,8 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
   LOG_API(isolate, "Date::DateTimeConfigurationChangeNotification");
   ENTER_V8(isolate);
 
+  isolate->date_cache()->ResetDateCache();
+
   i::HandleScope scope(isolate);
   // Get the function ResetDateCache (defined in date.js).
   i::Handle<i::String> func_name_str =

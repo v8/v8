@@ -378,18 +378,18 @@ void JSDate::JSDateVerify() {
   if (value()->IsHeapObject()) {
     VerifyHeapPointer(value());
   }
-  if (local()->IsHeapObject()) {
-    VerifyHeapPointer(local());
-  }
   CHECK(value()->IsUndefined() || value()->IsSmi() || value()->IsHeapNumber());
-  CHECK(local()->IsUndefined() || local()->IsSmi() || local()->IsHeapNumber());
   CHECK(year()->IsUndefined() || year()->IsSmi() || year()->IsNaN());
   CHECK(month()->IsUndefined() || month()->IsSmi() || month()->IsNaN());
   CHECK(day()->IsUndefined() || day()->IsSmi() || day()->IsNaN());
+  CHECK(weekday()->IsUndefined() || weekday()->IsSmi() || weekday()->IsNaN());
   CHECK(hour()->IsUndefined() || hour()->IsSmi() || hour()->IsNaN());
   CHECK(min()->IsUndefined() || min()->IsSmi() || min()->IsNaN());
   CHECK(sec()->IsUndefined() || sec()->IsSmi() || sec()->IsNaN());
-  CHECK(weekday()->IsUndefined() || weekday()->IsSmi() || weekday()->IsNaN());
+  CHECK(cache_stamp()->IsUndefined() ||
+        cache_stamp()->IsSmi() ||
+        cache_stamp()->IsNaN());
+
   if (month()->IsSmi()) {
     int month = Smi::cast(this->month())->value();
     CHECK(0 <= month && month <= 11);
@@ -413,6 +413,10 @@ void JSDate::JSDateVerify() {
   if (weekday()->IsSmi()) {
     int weekday = Smi::cast(this->weekday())->value();
     CHECK(0 <= weekday && weekday <= 6);
+  }
+  if (cache_stamp()->IsSmi()) {
+    CHECK(Smi::cast(cache_stamp())->value() <=
+          Smi::cast(Isolate::Current()->date_cache()->stamp())->value());
   }
 }
 

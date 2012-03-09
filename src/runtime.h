@@ -244,10 +244,9 @@ namespace internal {
   F(DateCurrentTime, 0, 1) \
   F(DateParseString, 2, 1) \
   F(DateLocalTimezone, 1, 1) \
-  F(DateLocalTimeOffset, 0, 1) \
-  F(DateDaylightSavingsOffset, 1, 1) \
+  F(DateToUTC, 1, 1) \
   F(DateMakeDay, 2, 1) \
-  F(DateYMDFromTime, 2, 1) \
+  F(DateSetValue, 3, 1) \
   \
   /* Numbers */ \
   \
@@ -491,8 +490,7 @@ namespace internal {
   F(Arguments, 1, 1)                                                         \
   F(ValueOf, 1, 1)                                                           \
   F(SetValueOf, 2, 1)                                                        \
-  F(DateField, 2, 1)                                                         \
-  F(SetDateField, 3, 1)                                                      \
+  F(DateField, 2 /* date object, field index */, 1)                \
   F(StringCharFromCode, 1, 1)                                                \
   F(StringCharAt, 2, 1)                                                      \
   F(ObjectEquals, 2, 1)                                                      \

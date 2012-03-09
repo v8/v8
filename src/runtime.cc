@@ -40,6 +40,7 @@
 #include "dateparser-inl.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "date.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "isolate-inl.h"
@@ -7542,51 +7543,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 }
 
 
-static int MakeDay(int year, int month) {
-  static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
-                                       181, 212, 243, 273, 304, 334};
-  static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
-                                            182, 213, 244, 274, 305, 335};
-
-  year += month / 12;
-  month %= 12;
-  if (month < 0) {
-    year--;
-    month += 12;
-  }
-
-  ASSERT(month >= 0);
-  ASSERT(month < 12);
-
-  // year_delta is an arbitrary number such that:
-  // a) year_delta = -1 (mod 400)
-  // b) year + year_delta > 0 for years in the range defined by
-  //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
-  //    Jan 1 1970. This is required so that we don't run into integer
-  //    division of negative numbers.
-  // c) there shouldn't be an overflow for 32-bit integers in the following
-  //    operations.
-  static const int year_delta = 399999;
-  static const int base_day = 365 * (1970 + year_delta) +
-                              (1970 + year_delta) / 4 -
-                              (1970 + year_delta) / 100 +
-                              (1970 + year_delta) / 400;
-
-  int year1 = year + year_delta;
-  int day_from_year = 365 * year1 +
-                      year1 / 4 -
-                      year1 / 100 +
-                      year1 / 400 -
-                      base_day;
-
-  if ((year % 4 != 0) || (year % 100 == 0 && year % 400 != 0)) {
-    return day_from_year + day_from_month[month];
-  }
-
-  return day_from_year + day_from_month_leap[month];
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7594,319 +7550,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   CONVERT_SMI_ARG_CHECKED(year, 0);
   CONVERT_SMI_ARG_CHECKED(month, 1);
 
-  return Smi::FromInt(MakeDay(year, month));
+  return Smi::FromInt(isolate->date_cache()->DaysFromYearMonth(year, month));
 }
 
 
-static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
-static const int kDaysIn4Years = 4 * 365 + 1;
-static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
-static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
-static const int kDays1970to2000 = 30 * 365 + 7;
-static const int kDaysOffset = 1000 * kDaysIn400Years + 5 * kDaysIn400Years -
-                               kDays1970to2000;
-static const int kYearsOffset = 400000;
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
 
-static const char kDayInYear[] = {
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(time, 1);
+  CONVERT_SMI_ARG_CHECKED(is_utc, 2);
 
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  DateCache* date_cache = isolate->date_cache();
 
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-
-static const char kMonthInYear[] = {
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11};
-
-
-// This function works for dates from 1970 to 2099.
-static inline void DateYMDFromTimeAfter1970(int date,
-                                            int& year, int& month, int& day) {
-#ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
-#endif
-
-  year = 1970 + (4 * date + 2) / kDaysIn4Years;
-  date %= kDaysIn4Years;
-
-  month = kMonthInYear[date];
-  day = kDayInYear[date];
-
-  ASSERT(MakeDay(year, month) + day - 1 == save_date);
-}
-
-
-static inline void DateYMDFromTimeSlow(int date,
-                                       int& year, int& month, int& day) {
-#ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
-#endif
-
-  date += kDaysOffset;
-  year = 400 * (date / kDaysIn400Years) - kYearsOffset;
-  date %= kDaysIn400Years;
-
-  ASSERT(MakeDay(year, 0) + date == save_date);
-
-  date--;
-  int yd1 = date / kDaysIn100Years;
-  date %= kDaysIn100Years;
-  year += 100 * yd1;
-
-  date++;
-  int yd2 = date / kDaysIn4Years;
-  date %= kDaysIn4Years;
-  year += 4 * yd2;
-
-  date--;
-  int yd3 = date / 365;
-  date %= 365;
-  year += yd3;
-
-  bool is_leap = (!yd1 || yd2) && !yd3;
-
-  ASSERT(date >= -1);
-  ASSERT(is_leap || (date >= 0));
-  ASSERT((date < 365) || (is_leap && (date < 366)));
-  ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
-  ASSERT(is_leap || ((MakeDay(year, 0) + date) == save_date));
-  ASSERT(!is_leap || ((MakeDay(year, 0) + date + 1) == save_date));
-
-  if (is_leap) {
-    day = kDayInYear[2*365 + 1 + date];
-    month = kMonthInYear[2*365 + 1 + date];
+  Object* value = NULL;
+  bool is_value_nan = false;
+  if (isnan(time)) {
+    value = isolate->heap()->nan_value();
+    is_value_nan = true;
   } else {
-    day = kDayInYear[date];
-    month = kMonthInYear[date];
+    time = is_utc ? time : date_cache->ToUTC(time);
+    if (time < -DateCache::kMaxTimeInMs ||
+        time > DateCache::kMaxTimeInMs) {
+      value = isolate->heap()->nan_value();
+      is_value_nan = true;
+    } else  {
+      MaybeObject* maybe_result =
+          isolate->heap()->AllocateHeapNumber(DoubleToInteger(time));
+      if (!maybe_result->ToObject(&value)) return maybe_result;
+    }
   }
-
-  ASSERT(MakeDay(year, month) + day - 1 == save_date);
-}
-
-
-static inline void DateYMDFromTime(int date,
-                                   int& year, int& month, int& day) {
-  if (date >= 0 && date < 32 * kDaysIn4Years) {
-    DateYMDFromTimeAfter1970(date, year, month, day);
-  } else {
-    DateYMDFromTimeSlow(date, year, month, day);
-  }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(t, 0);
-  CONVERT_ARG_CHECKED(JSArray, res_array, 1);
-
-  int year, month, day;
-  DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
-
-  FixedArrayBase* elms_base = FixedArrayBase::cast(res_array->elements());
-  RUNTIME_ASSERT(elms_base->length() == 3);
-  RUNTIME_ASSERT(res_array->HasFastTypeElements());
-
-  MaybeObject* maybe = res_array->EnsureWritableFastElements();
-  if (maybe->IsFailure()) return maybe;
-  FixedArray* elms = FixedArray::cast(res_array->elements());
-  elms->set(0, Smi::FromInt(year));
-  elms->set(1, Smi::FromInt(month));
-  elms->set(2, Smi::FromInt(day));
-
-  return isolate->heap()->undefined_value();
+  date->SetValue(value, is_value_nan);
+  return *date;
 }
 
 
@@ -9382,25 +9058,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  const char* zone = OS::LocalTimezone(x);
+  int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
+  const char* zone = OS::LocalTimezone(time);
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimeOffset) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return isolate->heap()->NumberFromDouble(OS::LocalTimeOffset());
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateDaylightSavingsOffset) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DateToUTC) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(OS::DaylightSavingsOffset(x));
+  int64_t time = isolate->date_cache()->ToUTC(static_cast<int64_t>(x));
+
+  return isolate->heap()->NumberFromDouble(time);
 }
 
 

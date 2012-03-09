@@ -282,6 +282,8 @@
             '../../src/cpu-profiler.h',
             '../../src/data-flow.cc',
             '../../src/data-flow.h',
+            '../../src/date.cc',
+            '../../src/date.h',
             '../../src/dateparser.cc',
             '../../src/dateparser.h',
             '../../src/dateparser-inl.h',

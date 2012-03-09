@@ -2951,17 +2951,42 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
+  Label runtime, done;
+  Register object = r0;
+  Register result = r0;
+  Register scratch0 = r9;
+  Register scratch1 = r1;
+
 #ifdef DEBUG
-  __ AbortIfSmi(r0);
-  __ CompareObjectType(r0, r1, r1, JS_DATE_TYPE);
+  __ AbortIfSmi(object);
+  __ CompareObjectType(object, scratch1, scratch1, JS_DATE_TYPE);
   __ Assert(eq, "Trying to get date field from non-date.");
 #endif
 
-  __ ldr(r0, FieldMemOperand(r0, JSDate::kValueOffset + kPointerSize * index));
+  if (index->value() == 0) {
+    __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ mov(scratch1, Operand(stamp));
+      __ ldr(scratch1, MemOperand(scratch1));
+      __ ldr(scratch0, FieldMemOperand(object, JSDate::kCacheStampOffset));
+      __ cmp(scratch1, scratch0);
+      __ b(ne, &runtime);
+      __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset +
+                                             kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch1);
+    __ mov(r1, Operand(index));
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
+  }
   context()->Plug(r0);
 }
 
@@ -3006,37 +3031,6 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
       r1, JSValue::kValueOffset, r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
 
   __ bind(&done);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitSetDateField(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 3);
-  ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
-
-  VisitForStackValue(args->at(0));  // Load the object.
-  VisitForAccumulatorValue(args->at(2));  // Load the value.
-  __ pop(r1);  // r0 = value. r1 = object.
-
-#ifdef DEBUG
-  __ AbortIfSmi(r1);
-  __ CompareObjectType(r1, r2, r2, JS_DATE_TYPE);
-  __ Assert(eq, "Trying to get date field from non-date.");
-#endif
-
-  // Store the value.
-  __ str(r0, FieldMemOperand(r1, JSDate::kValueOffset + kPointerSize * index));
-  // Caches can only be smi or NaN, so we can skip the write barrier for them.
-  if (index < JSDate::kFirstBarrierFree) {
-    // Update the write barrier.  Save the value as it will be
-    // overwritten by the write barrier code and is needed afterward.
-    __ mov(r2, r0);
-    __ RecordWriteField(
-        r1, JSDate::kValueOffset + kPointerSize * index,
-        r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
-  }
   context()->Plug(r0);
 }
 

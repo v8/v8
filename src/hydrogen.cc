@@ -7125,8 +7125,7 @@ void HGraphBuilder::GenerateValueOf(CallRuntime* call) {
 void HGraphBuilder::GenerateDateField(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 2);
   ASSERT_NE(NULL, call->arguments()->at(1)->AsLiteral());
-  int index =
-      Smi::cast(*(call->arguments()->at(1)->AsLiteral()->handle()))->value();
+  Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->handle()));
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* date = Pop();
   HDateField* result = new(zone()) HDateField(date, index);
@@ -7173,22 +7172,6 @@ void HGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
   join->SetJoinId(call->id());
   set_current_block(join);
   return ast_context()->ReturnValue(value);
-}
-
-
-void HGraphBuilder::GenerateSetDateField(CallRuntime* call) {
-  ASSERT(call->arguments()->length() == 3);
-  ASSERT_NE(NULL, call->arguments()->at(1)->AsLiteral());
-  int index =
-      Smi::cast(*(call->arguments()->at(1)->AsLiteral()->handle()))->value();
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
-  HValue* value = Pop();
-  HValue* date = Pop();
-  HValue* context = environment()->LookupContext();
-  HSetDateField* result =
-      new(zone()) HSetDateField(context, date, value, index);
-  return ast_context()->ReturnInstruction(result, call->id());
 }
 
 

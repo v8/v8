@@ -502,6 +502,14 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       45,
       "the_hole_nan");
+  Add(ExternalReference::get_date_field_function(isolate).address(),
+      UNCLASSIFIED,
+      46,
+      "JSDate::GetField");
+  Add(ExternalReference::date_cache_stamp(isolate).address(),
+      UNCLASSIFIED,
+      47,
+      "date_cache_stamp");
 }
 
 

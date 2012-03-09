@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "date.h"
 #include "elements.h"
 #include "execution.h"
 #include "full-codegen.h"
@@ -12969,5 +12970,134 @@ int BreakPointInfo::GetBreakPointCount() {
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
+
+MaybeObject* JSDate::GetField(Object* object, Smi* index) {
+  return JSDate::cast(object)->DoGetField(
+      static_cast<FieldIndex>(index->value()));
+}
+
+
+Object* JSDate::DoGetField(FieldIndex index) {
+  ASSERT(index != kDateValue);
+
+  DateCache* date_cache = GetIsolate()->date_cache();
+
+  if (index < kFirstUncachedField) {
+    Object* stamp = cache_stamp();
+    if (stamp != date_cache->stamp() && stamp->IsSmi()) {
+      // Since the stamp is not NaN, the value is also not NaN.
+      int64_t local_time_ms =
+          static_cast<int64_t>(date_cache->ToLocal(value()->Number()));
+      SetLocalFields(local_time_ms, date_cache);
+    }
+    switch (index) {
+      case kYear: return year();
+      case kMonth: return month();
+      case kDay: return day();
+      case kWeekday: return weekday();
+      case kHour: return hour();
+      case kMinute: return min();
+      case kSecond: return sec();
+      default: UNREACHABLE();
+    }
+  }
+
+  if (index >= kFirstUTCField) {
+    return GetUTCField(index, value()->Number(), date_cache);
+  }
+
+  double time = value()->Number();
+  if (isnan(time)) return GetIsolate()->heap()->nan_value();
+
+  int64_t local_time_ms = static_cast<int64_t>(date_cache->ToLocal(time));
+  int days = DateCache::DaysFromTime(local_time_ms);
+
+  if (index == kDays) return Smi::FromInt(days);
+
+  int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);
+  if (index == kMillisecond) return Smi::FromInt(time_in_day_ms % 1000);
+  ASSERT(index == kTimeInDay);
+  return Smi::FromInt(time_in_day_ms);
+}
+
+
+Object* JSDate::GetUTCField(FieldIndex index,
+                            double value,
+                            DateCache* date_cache) {
+  ASSERT(index >= kFirstUTCField);
+
+  if (isnan(value)) return GetIsolate()->heap()->nan_value();
+
+  int64_t time_ms = static_cast<int64_t>(value);
+
+  if (index == kTimezoneOffset) {
+    return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
+  }
+
+  int days = DateCache::DaysFromTime(time_ms);
+
+  if (index == kWeekdayUTC) return Smi::FromInt(date_cache->Weekday(days));
+
+  if (index <= kDayUTC) {
+    int year, month, day;
+    date_cache->YearMonthDayFromDays(days, &year, &month, &day);
+    if (index == kYearUTC) return Smi::FromInt(year);
+    if (index == kMonthUTC) return Smi::FromInt(month);
+    ASSERT(index == kDayUTC);
+    return Smi::FromInt(day);
+  }
+
+  int time_in_day_ms = DateCache::TimeInDay(time_ms, days);
+  switch (index) {
+    case kHourUTC: return Smi::FromInt(time_in_day_ms / (60 * 60 * 1000));
+    case kMinuteUTC: return Smi::FromInt((time_in_day_ms / (60 * 1000)) % 60);
+    case kSecondUTC: return Smi::FromInt((time_in_day_ms / 1000) % 60);
+    case kMillisecondUTC: return Smi::FromInt(time_in_day_ms % 1000);
+    case kDaysUTC: return Smi::FromInt(days);
+    case kTimeInDayUTC: return Smi::FromInt(time_in_day_ms);
+    default: UNREACHABLE();
+  }
+
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void JSDate::SetValue(Object* value, bool is_value_nan) {
+  set_value(value);
+  if (is_value_nan) {
+    HeapNumber* nan = GetIsolate()->heap()->nan_value();
+    set_cache_stamp(nan, SKIP_WRITE_BARRIER);
+    set_year(nan, SKIP_WRITE_BARRIER);
+    set_month(nan, SKIP_WRITE_BARRIER);
+    set_day(nan, SKIP_WRITE_BARRIER);
+    set_hour(nan, SKIP_WRITE_BARRIER);
+    set_min(nan, SKIP_WRITE_BARRIER);
+    set_sec(nan, SKIP_WRITE_BARRIER);
+    set_weekday(nan, SKIP_WRITE_BARRIER);
+  } else {
+    set_cache_stamp(Smi::FromInt(DateCache::kInvalidStamp), SKIP_WRITE_BARRIER);
+  }
+}
+
+
+void JSDate::SetLocalFields(int64_t local_time_ms, DateCache* date_cache) {
+  int days = DateCache::DaysFromTime(local_time_ms);
+  int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);
+  int year, month, day;
+  date_cache->YearMonthDayFromDays(days, &year, &month, &day);
+  int weekday = date_cache->Weekday(days);
+  int hour = time_in_day_ms / (60 * 60 * 1000);
+  int min = (time_in_day_ms / (60 * 1000)) % 60;
+  int sec = (time_in_day_ms / 1000) % 60;
+  set_cache_stamp(date_cache->stamp());
+  set_year(Smi::FromInt(year), SKIP_WRITE_BARRIER);
+  set_month(Smi::FromInt(month), SKIP_WRITE_BARRIER);
+  set_day(Smi::FromInt(day), SKIP_WRITE_BARRIER);
+  set_weekday(Smi::FromInt(weekday), SKIP_WRITE_BARRIER);
+  set_hour(Smi::FromInt(hour), SKIP_WRITE_BARRIER);
+  set_min(Smi::FromInt(min), SKIP_WRITE_BARRIER);
+  set_sec(Smi::FromInt(sec), SKIP_WRITE_BARRIER);
+}
 
 } }  // namespace v8::internal

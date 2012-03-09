@@ -2838,17 +2838,46 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
 
   VisitForAccumulatorValue(args->at(0));  // Load the object.
 
+  Label runtime, done;
+  Register object = rax;
+  Register result = rax;
+  Register scratch = rcx;
+
 #ifdef DEBUG
-  __ AbortIfSmi(rax);
-  __ CmpObjectType(rax, JS_DATE_TYPE, rbx);
+  __ AbortIfSmi(object);
+  __ CmpObjectType(object, JS_DATE_TYPE, scratch);
   __ Assert(equal, "Trying to get date field from non-date.");
 #endif
 
-  __ movq(rax, FieldOperand(rax, JSDate::kValueOffset + kPointerSize * index));
+  if (index->value() == 0) {
+    __ movq(result, FieldOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ movq(scratch, stamp);
+      __ cmpq(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
+      __ j(not_equal, &runtime, Label::kNear);
+      __ movq(result, FieldOperand(object, JSDate::kValueOffset +
+                                           kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2);
+#ifdef _WIN64
+  __ movq(rcx, object);
+  __ movq(rdx, index, RelocInfo::NONE);
+#else
+  __ movq(rdi, object);
+  __ movq(rsi, index, RelocInfo::NONE);
+#endif
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ bind(&done);
+  }
   context()->Plug(rax);
 }
 
@@ -2889,36 +2918,6 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
   __ RecordWriteField(rbx, JSValue::kValueOffset, rdx, rcx, kDontSaveFPRegs);
 
   __ bind(&done);
-  context()->Plug(rax);
-}
-
-
-void FullCodeGenerator::EmitSetDateField(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 3);
-  ASSERT_NE(NULL, args->at(1)->AsLiteral());
-  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
-
-  VisitForStackValue(args->at(0));  // Load the object.
-  VisitForAccumulatorValue(args->at(2));  // Load the value.
-  __ pop(rbx);  // rax = value. rbx = object.
-
-#ifdef DEBUG
-  __ AbortIfSmi(rbx);
-  __ CmpObjectType(rbx, JS_DATE_TYPE, rcx);
-  __ Assert(equal, "Trying to set date field on non-date.");
-#endif
-
-  // Store the value.
-  __ movq(FieldOperand(rbx, JSDate::kValueOffset + kPointerSize * index), rax);
-  // Caches can only be smi or NaN, so we can skip the write barrier for them.
-  if (index < JSDate::kFirstBarrierFree) {
-    // Update the write barrier.  Save the value as it will be
-    // overwritten by the write barrier code and is needed afterward.
-    __ movq(rdx, rax);
-    __ RecordWriteField(rbx, JSDate::kValueOffset + kPointerSize * index,
-                        rdx, rcx, kDontSaveFPRegs);
-  }
   context()->Plug(rax);
 }
 

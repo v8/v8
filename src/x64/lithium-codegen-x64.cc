@@ -1225,42 +1225,44 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
 
 
 void LCodeGen::DoDateField(LDateField* instr) {
-  Register input = ToRegister(instr->InputAt(0));
+  Register object = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  ASSERT(input.is(result));
+  Smi* index = instr->index();
+  Label runtime, done;
+  ASSERT(object.is(result));
+  ASSERT(object.is(rax));
 
 #ifdef DEBUG
-  __ AbortIfSmi(input);
-  __ CmpObjectType(input, JS_DATE_TYPE, kScratchRegister);
+  __ AbortIfSmi(object);
+  __ CmpObjectType(object, JS_DATE_TYPE, kScratchRegister);
   __ Assert(equal, "Trying to get date field from non-date.");
 #endif
 
-  __ movq(result, FieldOperand(input,
-                      JSDate::kValueOffset + kPointerSize * instr->index()));
-}
-
-
-void LCodeGen::DoSetDateField(LSetDateField* instr) {
-  Register date = ToRegister(instr->InputAt(0));
-  Register value = ToRegister(instr->InputAt(1));
-  Register result = ToRegister(instr->result());
-  int index = instr->index();
-
-#ifdef DEBUG
-  __ AbortIfSmi(date);
-  __ CmpObjectType(date, JS_DATE_TYPE, kScratchRegister);
-  __ Assert(equal, "Trying to get date field from non-date.");
+  if (index->value() == 0) {
+    __ movq(result, FieldOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ movq(kScratchRegister, stamp);
+      __ cmpq(kScratchRegister, FieldOperand(object,
+                                             JSDate::kCacheStampOffset));
+      __ j(not_equal, &runtime, Label::kNear);
+      __ movq(result, FieldOperand(object, JSDate::kValueOffset +
+                                           kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2);
+#ifdef _WIN64
+  __ movq(rcx, object);
+  __ movq(rdx, index, RelocInfo::NONE);
+#else
+  __ movq(rdi, object);
+  __ movq(rsi, index, RelocInfo::NONE);
 #endif
-
-  __ movq(FieldOperand(date, JSDate::kValueOffset + kPointerSize * index),
-          value);
-  // Caches can only be smi or NaN, so we can skip the write barrier for them.
-  if (index < JSDate::kFirstBarrierFree) {
-    // Update the write barrier.  Save the value as it will be
-    // overwritten by the write barrier code and is needed afterward.
-    __ movq(result, value);
-    __ RecordWriteField(date, JSDate::kValueOffset + kPointerSize * index,
-                        value, kScratchRegister, kDontSaveFPRegs);
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ bind(&done);
   }
 }
 
