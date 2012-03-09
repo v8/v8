@@ -1006,7 +1006,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       Isolate* isolate = Isolate::Current();
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
-      array->SetElement(array, 0, var->name(), NONE, kStrictMode);
+      USE(JSObject::SetElement(array, 0, var->name(), NONE, kStrictMode));
       Handle<Object> result =
           factory->NewSyntaxError("module_type_error", array);
       isolate->Throw(*result, &location);
