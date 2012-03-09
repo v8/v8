@@ -98,7 +98,7 @@ template<ElementsKind Kind> class ElementsKindTraits {
 
 #define ELEMENTS_TRAITS(Class, KindParam, Store)               \
 template<> class ElementsKindTraits<KindParam> {               \
- public:                                                       \
+  public:                                                      \
   static const ElementsKind Kind = KindParam;                  \
   typedef Store BackingStore;                                  \
 };
