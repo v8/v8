@@ -138,6 +138,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
       break;
+    case JS_DATE_TYPE:
+      JSDate::cast(this)->JSDateVerify();
+      break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
       break;
@@ -368,6 +371,45 @@ void JSValue::JSValueVerify() {
   if (v->IsHeapObject()) {
     VerifyHeapPointer(v);
   }
+}
+
+
+void JSDate::JSDateVerify() {
+  if (value()->IsHeapObject()) {
+    VerifyHeapPointer(value());
+  }
+  CHECK(value()->IsUndefined() || value()->IsSmi() || value()->IsHeapNumber());
+/* Don't check yet, will still be undefined...
+  if (value()->IsHeapNumber() && isnan(HeapNumber::cast(value())->value())) {
+    CHECK(year()->IsHeapNumber() && isnan(HeapNumber::cast(year())->value()));
+    CHECK(month()->IsHeapNumber() && isnan(HeapNumber::cast(month())->value()));
+    CHECK(day()->IsHeapNumber() && isnan(HeapNumber::cast(day())->value()));
+    CHECK(hour()->IsHeapNumber() && isnan(HeapNumber::cast(hour())->value()));
+    CHECK(min()->IsHeapNumber() && isnan(HeapNumber::cast(min())->value()));
+    CHECK(sec()->IsHeapNumber() && isnan(HeapNumber::cast(sec())->value()));
+    CHECK(ms()->IsHeapNumber() && isnan(HeapNumber::cast(ms())->value()));
+    return;
+  }
+  CHECK(year()->IsSmi());
+  CHECK(month()->IsSmi());
+  CHECK(day()->IsSmi());
+  CHECK(hour()->IsSmi());
+  CHECK(min()->IsSmi());
+  CHECK(sec()->IsSmi());
+  CHECK(ms()->IsSmi());
+  int month = Smi::cast(this->month())->value();
+  int day = Smi::cast(this->day())->value();
+  int hour = Smi::cast(this->hour())->value();
+  int min = Smi::cast(this->min())->value();
+  int sec = Smi::cast(this->sec())->value();
+  int ms = Smi::cast(this->ms())->value();
+  CHECK(1 <= month && month <= 12);
+  CHECK(1 <= day && day <= 31);
+  CHECK(0 <= hour && hour <= 23);
+  CHECK(0 <= min && min <= 59);
+  CHECK(0 <= sec && sec <= 59);
+  CHECK(0 <= ms && ms <= 999);
+*/
 }
 
 

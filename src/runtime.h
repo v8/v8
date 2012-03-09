@@ -491,6 +491,8 @@ namespace internal {
   F(Arguments, 1, 1)                                                         \
   F(ValueOf, 1, 1)                                                           \
   F(SetValueOf, 2, 1)                                                        \
+  F(DateField, 2, 1)                                                         \
+  F(SetDateField, 3, 1)                                                      \
   F(StringCharFromCode, 1, 1)                                                \
   F(StringCharAt, 2, 1)                                                      \
   F(ObjectEquals, 2, 1)                                                      \

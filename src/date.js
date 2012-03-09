@@ -451,7 +451,7 @@ var Date_cache = {
     var time = MakeTime(hours, minutes, seconds, ms);
     value = TimeClip(UTC(MakeDate(day, time)));
   }
-  %_SetValueOf(this, value);
+  SET_DATE_VALUE(this, value);
 });
 
 
@@ -564,7 +564,7 @@ function DateUTC(year, month, date, hours, minutes, seconds, ms) {
           TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
   var day = MakeDay(year, month, date);
   var time = MakeTime(hours, minutes, seconds, ms);
-  return %_SetValueOf(this, TimeClip(MakeDate(day, time)));
+  return TimeClip(MakeDate(day, time));
 }
 
 
@@ -773,7 +773,7 @@ function DateGetTimezoneOffset() {
 // ECMA 262 - 15.9.5.27
 function DateSetTime(ms) {
   if (!IS_DATE(this)) ThrowDateTypeError();
-  return %_SetValueOf(this, TimeClip(ToNumber(ms)));
+  return SET_DATE_VALUE(this, TimeClip(ToNumber(ms)));
 }
 
 
@@ -785,7 +785,7 @@ function DateSetMilliseconds(ms) {
                       MIN_FROM_TIME(t),
                       SEC_FROM_TIME(t),
                       ms);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
 
 
@@ -797,7 +797,7 @@ function DateSetUTCMilliseconds(ms) {
                       MIN_FROM_TIME(t),
                       SEC_FROM_TIME(t),
                       ms);
-  return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(DAY(t), time)));
 }
 
 
@@ -807,7 +807,7 @@ function DateSetSeconds(sec, ms) {
   sec = ToNumber(sec);
   ms = %_ArgumentsLength() < 2 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), sec, ms);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
 
 
@@ -817,7 +817,7 @@ function DateSetUTCSeconds(sec, ms) {
   sec = ToNumber(sec);
   ms = %_ArgumentsLength() < 2 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), MIN_FROM_TIME(t), sec, ms);
-  return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(DAY(t), time)));
 }
 
 
@@ -829,7 +829,7 @@ function DateSetMinutes(min, sec, ms) {
   sec = argc < 2 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
   ms = argc < 3 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), min, sec, ms);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
 
 
@@ -841,7 +841,7 @@ function DateSetUTCMinutes(min, sec, ms) {
   sec = argc < 2 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
   ms = argc < 3 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(HOUR_FROM_TIME(t), min, sec, ms);
-  return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(DAY(t), time)));
 }
 
 
@@ -854,7 +854,7 @@ function DateSetHours(hour, min, sec, ms) {
   sec = argc < 3 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
   ms = argc < 4 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(hour, min, sec, ms);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(DAY(t), time))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(DAY(t), time))));
 }
 
 
@@ -867,7 +867,7 @@ function DateSetUTCHours(hour, min, sec, ms) {
   sec = argc < 3 ? NAN_OR_SEC_FROM_TIME(t) : ToNumber(sec);
   ms = argc < 4 ? NAN_OR_MS_FROM_TIME(t) : ToNumber(ms);
   var time = MakeTime(hour, min, sec, ms);
-  return %_SetValueOf(this, TimeClip(MakeDate(DAY(t), time)));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(DAY(t), time)));
 }
 
 
@@ -876,7 +876,7 @@ function DateSetDate(date) {
   var t = LocalTime(DATE_VALUE(this));
   date = ToNumber(date);
   var day = MakeDay(YearFromTime(t), MonthFromTime(t), date);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
 
 
@@ -885,7 +885,7 @@ function DateSetUTCDate(date) {
   var t = DATE_VALUE(this);
   date = ToNumber(date);
   var day = MakeDay(YearFromTime(t), MonthFromTime(t), date);
-  return %_SetValueOf(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
 }
 
 
@@ -895,7 +895,7 @@ function DateSetMonth(month, date) {
   month = ToNumber(month);
   date = %_ArgumentsLength() < 2 ? NAN_OR_DATE_FROM_TIME(t) : ToNumber(date);
   var day = MakeDay(YearFromTime(t), month, date);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
 
 
@@ -905,7 +905,7 @@ function DateSetUTCMonth(month, date) {
   month = ToNumber(month);
   date = %_ArgumentsLength() < 2 ? NAN_OR_DATE_FROM_TIME(t) : ToNumber(date);
   var day = MakeDay(YearFromTime(t), month, date);
-  return %_SetValueOf(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
 }
 
 
@@ -918,7 +918,7 @@ function DateSetFullYear(year, month, date) {
   month = argc < 2 ? MonthFromTime(t) : ToNumber(month);
   date = argc < 3 ? DateFromTime(t) : ToNumber(date);
   var day = MakeDay(year, month, date);
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
 
 
@@ -931,7 +931,7 @@ function DateSetUTCFullYear(year, month, date) {
   month = argc < 2 ? MonthFromTime(t) : ToNumber(month);
   date = argc < 3 ? DateFromTime(t) : ToNumber(date);
   var day = MakeDay(year, month, date);
-  return %_SetValueOf(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
+  return SET_DATE_VALUE(this, TimeClip(MakeDate(day, TimeWithinDay(t))));
 }
 
 
@@ -961,11 +961,11 @@ function DateSetYear(year) {
   var t = LocalTime(DATE_VALUE(this));
   if (NUMBER_IS_NAN(t)) t = 0;
   year = ToNumber(year);
-  if (NUMBER_IS_NAN(year)) return %_SetValueOf(this, $NaN);
+  if (NUMBER_IS_NAN(year)) return SET_DATE_VALUE(this, $NaN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;
   var day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
-  return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
+  return SET_DATE_VALUE(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
 
 

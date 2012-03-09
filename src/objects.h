@@ -64,6 +64,7 @@
 //             - JSBuiltinsObject
 //           - JSGlobalProxy
 //           - JSValue
+//             - JSDate
 //           - JSMessageObject
 //         - JSProxy
 //           - JSFunctionProxy
@@ -300,6 +301,7 @@ const int kVariableSizeSentinel = 0;
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
+  V(JS_DATE_TYPE)                                                              \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -619,6 +621,7 @@ enum InstanceType {
   JS_PROXY_TYPE,  // LAST_JS_PROXY_TYPE
 
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
@@ -813,6 +816,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
   V(JSValue)                                   \
+  V(JSDate)                                    \
   V(JSMessageObject)                           \
   V(StringWrapper)                             \
   V(Foreign)                                   \
@@ -5994,7 +5998,7 @@ class JSBuiltinsObject: public GlobalObject {
 };
 
 
-// Representation for JS Wrapper objects, String, Number, Boolean, Date, etc.
+// Representation for JS Wrapper objects, String, Number, Boolean, etc.
 class JSValue: public JSObject {
  public:
   // [value]: the object being wrapped.
@@ -6020,6 +6024,60 @@ class JSValue: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
+};
+
+
+// Representation for JS date objects.
+class JSDate: public JSObject {
+ public:
+  // If one component is NaN, all of them are, indicating a NaN time value.
+  // [value]: the time value.
+  DECL_ACCESSORS(value, Object)
+  // [year]: caches year. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(year, Object)
+  // [month]: caches month. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(month, Object)
+  // [day]: caches day. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(day, Object)
+  // [hour]: caches hours. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(hour, Object)
+  // [min]: caches minutes. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(min, Object)
+  // [sec]: caches seconds. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(sec, Object)
+  // [ms]: caches milliseconds. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(ms, Object)
+
+  // Casting.
+  static inline JSDate* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSDatePrint() {
+    JSDatePrint(stdout);
+  }
+  void JSDatePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSDateVerify();
+#endif
+
+  // Layout description.
+  static const int kValueOffset = JSObject::kHeaderSize;
+  static const int kYearOffset = kValueOffset + kPointerSize;
+  static const int kMonthOffset = kYearOffset + kPointerSize;
+  static const int kDayOffset = kMonthOffset + kPointerSize;
+  static const int kHourOffset = kDayOffset + kPointerSize;
+  static const int kMinOffset = kHourOffset + kPointerSize;
+  static const int kSecOffset = kMinOffset + kPointerSize;
+  static const int kMsOffset = kSecOffset + kPointerSize;
+  static const int kSize = kMsOffset + kPointerSize;
+
+  // Index of first field not requiring a write barrier.
+  static const int kFirstBarrierFree = 1;  // year
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
 };
 
 

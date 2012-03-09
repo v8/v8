@@ -1067,7 +1067,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
       double length = JSArray::cast(this)->length()->Number();
-      accumulator->Add("<JS array[%u]>", static_cast<uint32_t>(length));
+      accumulator->Add("<JS Array[%u]>", static_cast<uint32_t>(length));
       break;
     }
     case JS_WEAK_MAP_TYPE: {
@@ -1338,6 +1338,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_VALUE_TYPE:
+    case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:

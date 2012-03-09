@@ -2947,6 +2947,25 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 2);
+  ASSERT_NE(NULL, args->at(1)->AsLiteral());
+  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+#ifdef DEBUG
+  __ AbortIfSmi(r0);
+  __ CompareObjectType(r0, r1, r1, JS_DATE_TYPE);
+  __ Assert(eq, "Trying to get date field from non-date.");
+#endif
+
+  __ ldr(r0, FieldMemOperand(r0, JSDate::kValueOffset + kPointerSize * index));
+  context()->Plug(r0);
+}
+
+
 void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   // Load the arguments on the stack and call the runtime function.
   ZoneList<Expression*>* args = expr->arguments();
@@ -2987,6 +3006,37 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
       r1, JSValue::kValueOffset, r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
 
   __ bind(&done);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitSetDateField(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 3);
+  ASSERT_NE(NULL, args->at(1)->AsLiteral());
+  int index = Smi::cast(*(args->at(1)->AsLiteral()->handle()))->value();
+
+  VisitForStackValue(args->at(0));  // Load the object.
+  VisitForAccumulatorValue(args->at(2));  // Load the value.
+  __ pop(r1);  // r0 = value. r1 = object.
+
+#ifdef DEBUG
+  __ AbortIfSmi(r1);
+  __ CompareObjectType(r1, r2, r2, JS_DATE_TYPE);
+  __ Assert(eq, "Trying to get date field from non-date.");
+#endif
+
+  // Store the value.
+  __ str(r0, FieldMemOperand(r1, JSDate::kValueOffset + kPointerSize * index));
+  // Caches can only be smi or NaN, so we can skip the write barrier for them.
+  if (index < JSDate::kFirstBarrierFree) {
+    // Update the write barrier.  Save the value as it will be
+    // overwritten by the write barrier code and is needed afterward.
+    __ mov(r2, r0);
+    __ RecordWriteField(
+        r1, JSDate::kValueOffset + kPointerSize * index,
+        r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
+  }
   context()->Plug(r0);
 }
 

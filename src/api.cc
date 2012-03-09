@@ -4735,8 +4735,8 @@ double v8::Date::NumberValue() const {
   if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
   LOG_API(isolate, "Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  return jsvalue->value()->Number();
+  i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
+  return jsdate->value()->Number();
 }
 
 

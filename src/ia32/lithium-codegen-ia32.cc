@@ -1273,6 +1273,7 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   Register result = ToRegister(instr->result());
   Register map = ToRegister(instr->TempAt(0));
   ASSERT(input.is(result));
+
   Label done;
   // If the object is a smi return the object.
   __ JumpIfSmi(input, &done, Label::kNear);
@@ -1283,6 +1284,49 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   __ mov(result, FieldOperand(input, JSValue::kValueOffset));
 
   __ bind(&done);
+}
+
+
+void LCodeGen::DoDateField(LDateField* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register map = ToRegister(instr->TempAt(0));
+  ASSERT(input.is(result));
+
+#ifdef DEBUG
+  __ AbortIfSmi(input);
+  __ CmpObjectType(input, JS_DATE_TYPE, map);
+  __ Assert(equal, "Trying to get date field from non-date.");
+#endif
+
+  __ mov(result, FieldOperand(input,
+                     JSDate::kValueOffset + kPointerSize * instr->index()));
+}
+
+
+void LCodeGen::DoSetDateField(LSetDateField* instr) {
+  Register date = ToRegister(instr->InputAt(0));
+  Register value = ToRegister(instr->InputAt(1));
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->TempAt(0));
+  int index = instr->index();
+
+#ifdef DEBUG
+  __ AbortIfSmi(date);
+  __ CmpObjectType(date, JS_DATE_TYPE, temp);
+  __ Assert(equal, "Trying to get date field from non-date.");
+#endif
+
+  __ mov(FieldOperand(date, JSDate::kValueOffset + kPointerSize * index),
+         value);
+  // Caches can only be smi or NaN, so we can skip the write barrier for them.
+  if (index < JSDate::kFirstBarrierFree) {
+    // Update the write barrier.  Save the value as it will be
+    // overwritten by the write barrier code and is needed afterward.
+    __ mov(result, value);
+    __ RecordWriteField(date, JSDate::kValueOffset + kPointerSize * index,
+                        value, temp, kDontSaveFPRegs);
+  }
 }
 
 

@@ -1602,6 +1602,22 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
+  LOperand* object = UseRegister(instr->value());
+  LDateField* result = new LDateField(object, TempRegister(), instr->index());
+  return DefineAsRegister(result);
+}
+
+
+LInstruction* LChunkBuilder::DoSetDateField(HSetDateField* instr) {
+  LOperand* date = UseRegister(instr->OperandAt(1));
+  LOperand* value = UseRegister(instr->OperandAt(2));
+  LSetDateField* result =
+      new LSetDateField(date, value, TempRegister(), instr->index());
+  return DefineAsRegister(result);
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   LOperand* value = UseRegisterAtStart(instr->index());
   LOperand* length = UseRegister(instr->length());

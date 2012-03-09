@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       PrintF(out, "Value wrapper around:");
       JSValue::cast(this)->value()->Print(out);
       break;
+    case JS_DATE_TYPE:
+      JSDate::cast(this)->value()->Print(out);
+      break;
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
       break;
@@ -657,6 +660,26 @@ char* String::ToAsciiArray() {
   WriteToFlat(this, buffer, 0, length());
   buffer[length()] = 0;
   return buffer;
+}
+
+
+void JSDate::JSDatePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSDate");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - value = ");
+  value()->Print(out);
+  if (!year()->IsSmi()) {
+    PrintF(out, " - time = NaN\n");
+  } else {
+    PrintF(out, " - time = %04d/%02d/%02d %02d:%02d:%02d.%03d\n",
+           Smi::cast(year())->value(),
+           Smi::cast(month())->value(),
+           Smi::cast(day())->value(),
+           Smi::cast(hour())->value(),
+           Smi::cast(min())->value(),
+           Smi::cast(sec())->value(),
+           Smi::cast(ms())->value());
+  }
 }
 
 

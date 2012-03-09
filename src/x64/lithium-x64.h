@@ -177,7 +177,9 @@ class LCodeGen;
   V(ForInPrepareMap)                            \
   V(ForInCacheArray)                            \
   V(CheckMapValue)                              \
-  V(LoadFieldByIndex)
+  V(LoadFieldByIndex)                           \
+  V(DateField)                                  \
+  V(SetDateField)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -984,6 +986,39 @@ class LValueOf: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
   DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+};
+
+
+class LDateField: public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDateField(LOperand* date, int index) : index_(index) {
+    inputs_[0] = date;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "date-field")
+  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
+};
+
+
+class LSetDateField: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LSetDateField(LOperand* date, LOperand* value, int index) : index_(index) {
+    inputs_[0] = date;
+    inputs_[1] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-set-field")
+  DECLARE_HYDROGEN_ACCESSOR(DateField)
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
 };
 
 

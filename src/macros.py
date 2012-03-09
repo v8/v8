@@ -164,7 +164,22 @@ const MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
+macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 0) : ThrowDateTypeError());
+macro DATE_YEAR(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 1) : ThrowDateTypeError());
+macro DATE_MONTH(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 2) : ThrowDateTypeError());
+macro DATE_DAY(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 3) : ThrowDateTypeError());
+macro DATE_HOUR(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 4) : ThrowDateTypeError());
+macro DATE_MIN(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 5) : ThrowDateTypeError());
+macro DATE_SEC(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 6) : ThrowDateTypeError());
+macro DATE_MS(arg) = (%_ClassOf(arg) === 'Date' ? %_DateField(arg, 7) : ThrowDateTypeError());
+macro SET_DATE_VALUE(arg, value) = (%_SetDateField(arg, 0, value));
+macro SET_DATE_YEAR(arg, value) = (%_SetDateField(arg, 1, value));
+macro SET_DATE_MONTH(arg, value) = (%_SetDateField(arg, 2, value));
+macro SET_DATE_DAY(arg, value) = (%_SetDateField(arg, 3, value));
+macro SET_DATE_HOUR(arg, value) = (%_SetDateField(arg, 4, value));
+macro SET_DATE_MIN(arg, value) = (%_SetDateField(arg, 5, value));
+macro SET_DATE_SEC(arg, value) = (%_SetDateField(arg, 6, value));
+macro SET_DATE_MS(arg, value) = (%_SetDateField(arg, 7, value));
 macro DAY(time) = ($floor(time / 86400000));
 macro NAN_OR_DATE_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : DateFromTime(time));
 macro HOUR_FROM_TIME(time) = (Modulo($floor(time / 3600000), 24));
