@@ -4748,7 +4748,7 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
   ENTER_V8(isolate);
 
   i::HandleScope scope(isolate);
-  // Get the function ResetDateCache (defined in date-delay.js).
+  // Get the function ResetDateCache (defined in date.js).
   i::Handle<i::String> func_name_str =
       isolate->factory()->LookupAsciiSymbol("ResetDateCache");
   i::MaybeObject* result =

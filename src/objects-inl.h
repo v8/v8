@@ -801,6 +801,11 @@ double Object::Number() {
 }
 
 
+bool Object::IsNaN() {
+  return this->IsHeapNumber() && isnan(HeapNumber::cast(this)->value());
+}
+
+
 MaybeObject* Object::ToSmi() {
   if (IsSmi()) return this;
   if (IsHeapNumber()) {
@@ -4123,13 +4128,14 @@ JSValue* JSValue::cast(Object* obj) {
 
 
 ACCESSORS(JSDate, value, Object, kValueOffset)
+ACCESSORS(JSDate, local, Object, kLocalOffset)
 ACCESSORS(JSDate, year, Object, kYearOffset)
 ACCESSORS(JSDate, month, Object, kMonthOffset)
 ACCESSORS(JSDate, day, Object, kDayOffset)
 ACCESSORS(JSDate, hour, Object, kHourOffset)
 ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
-ACCESSORS(JSDate, ms, Object, kMsOffset)
+ACCESSORS(JSDate, weekday, Object, kWeekdayOffset)
 
 
 JSDate* JSDate::cast(Object* obj) {

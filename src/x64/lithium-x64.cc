@@ -1609,8 +1609,8 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 
 
 LInstruction* LChunkBuilder::DoSetDateField(HSetDateField* instr) {
-  LOperand* date = UseRegister(instr->OperandAt(1));
-  LOperand* value = UseRegister(instr->OperandAt(2));
+  LOperand* date = UseTempRegister(instr->OperandAt(1));
+  LOperand* value = UseTempRegister(instr->OperandAt(2));
   LSetDateField* result = new LSetDateField(date, value, instr->index());
   return DefineAsRegister(result);
 }

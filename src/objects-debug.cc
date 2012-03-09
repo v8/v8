@@ -378,38 +378,42 @@ void JSDate::JSDateVerify() {
   if (value()->IsHeapObject()) {
     VerifyHeapPointer(value());
   }
-  CHECK(value()->IsUndefined() || value()->IsSmi() || value()->IsHeapNumber());
-/* Don't check yet, will still be undefined...
-  if (value()->IsHeapNumber() && isnan(HeapNumber::cast(value())->value())) {
-    CHECK(year()->IsHeapNumber() && isnan(HeapNumber::cast(year())->value()));
-    CHECK(month()->IsHeapNumber() && isnan(HeapNumber::cast(month())->value()));
-    CHECK(day()->IsHeapNumber() && isnan(HeapNumber::cast(day())->value()));
-    CHECK(hour()->IsHeapNumber() && isnan(HeapNumber::cast(hour())->value()));
-    CHECK(min()->IsHeapNumber() && isnan(HeapNumber::cast(min())->value()));
-    CHECK(sec()->IsHeapNumber() && isnan(HeapNumber::cast(sec())->value()));
-    CHECK(ms()->IsHeapNumber() && isnan(HeapNumber::cast(ms())->value()));
-    return;
+  if (local()->IsHeapObject()) {
+    VerifyHeapPointer(local());
   }
-  CHECK(year()->IsSmi());
-  CHECK(month()->IsSmi());
-  CHECK(day()->IsSmi());
-  CHECK(hour()->IsSmi());
-  CHECK(min()->IsSmi());
-  CHECK(sec()->IsSmi());
-  CHECK(ms()->IsSmi());
-  int month = Smi::cast(this->month())->value();
-  int day = Smi::cast(this->day())->value();
-  int hour = Smi::cast(this->hour())->value();
-  int min = Smi::cast(this->min())->value();
-  int sec = Smi::cast(this->sec())->value();
-  int ms = Smi::cast(this->ms())->value();
-  CHECK(1 <= month && month <= 12);
-  CHECK(1 <= day && day <= 31);
-  CHECK(0 <= hour && hour <= 23);
-  CHECK(0 <= min && min <= 59);
-  CHECK(0 <= sec && sec <= 59);
-  CHECK(0 <= ms && ms <= 999);
-*/
+  CHECK(value()->IsUndefined() || value()->IsSmi() || value()->IsHeapNumber());
+  CHECK(local()->IsUndefined() || local()->IsSmi() || local()->IsHeapNumber());
+  CHECK(year()->IsUndefined() || year()->IsSmi() || year()->IsNaN());
+  CHECK(month()->IsUndefined() || month()->IsSmi() || month()->IsNaN());
+  CHECK(day()->IsUndefined() || day()->IsSmi() || day()->IsNaN());
+  CHECK(hour()->IsUndefined() || hour()->IsSmi() || hour()->IsNaN());
+  CHECK(min()->IsUndefined() || min()->IsSmi() || min()->IsNaN());
+  CHECK(sec()->IsUndefined() || sec()->IsSmi() || sec()->IsNaN());
+  CHECK(weekday()->IsUndefined() || weekday()->IsSmi() || weekday()->IsNaN());
+  if (month()->IsSmi()) {
+    int month = Smi::cast(this->month())->value();
+    CHECK(0 <= month && month <= 11);
+  }
+  if (day()->IsSmi()) {
+    int day = Smi::cast(this->day())->value();
+    CHECK(1 <= day && day <= 31);
+  }
+  if (hour()->IsSmi()) {
+    int hour = Smi::cast(this->hour())->value();
+    CHECK(0 <= hour && hour <= 23);
+  }
+  if (min()->IsSmi()) {
+    int min = Smi::cast(this->min())->value();
+    CHECK(0 <= min && min <= 59);
+  }
+  if (sec()->IsSmi()) {
+    int sec = Smi::cast(this->sec())->value();
+    CHECK(0 <= sec && sec <= 59);
+  }
+  if (weekday()->IsSmi()) {
+    int weekday = Smi::cast(this->weekday())->value();
+    CHECK(0 <= weekday && weekday <= 6);
+  }
 }
 
 

@@ -893,6 +893,7 @@ class Object : public MaybeObject {
 
   // Extract the number.
   inline double Number();
+  inline bool IsNaN();
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -6033,6 +6034,8 @@ class JSDate: public JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
   // [value]: the time value.
   DECL_ACCESSORS(value, Object)
+  // [local]: the offset for the local time value.
+  DECL_ACCESSORS(local, Object)
   // [year]: caches year. Either undefined, smi, or NaN.
   DECL_ACCESSORS(year, Object)
   // [month]: caches month. Either undefined, smi, or NaN.
@@ -6045,8 +6048,8 @@ class JSDate: public JSObject {
   DECL_ACCESSORS(min, Object)
   // [sec]: caches seconds. Either undefined, smi, or NaN.
   DECL_ACCESSORS(sec, Object)
-  // [ms]: caches milliseconds. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(ms, Object)
+  // [weekday]: caches day of week. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(weekday, Object)
 
   // Casting.
   static inline JSDate* cast(Object* obj);
@@ -6064,17 +6067,18 @@ class JSDate: public JSObject {
 
   // Layout description.
   static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kYearOffset = kValueOffset + kPointerSize;
+  static const int kLocalOffset = kValueOffset + kPointerSize;
+  static const int kYearOffset = kLocalOffset + kPointerSize;
   static const int kMonthOffset = kYearOffset + kPointerSize;
   static const int kDayOffset = kMonthOffset + kPointerSize;
   static const int kHourOffset = kDayOffset + kPointerSize;
   static const int kMinOffset = kHourOffset + kPointerSize;
   static const int kSecOffset = kMinOffset + kPointerSize;
-  static const int kMsOffset = kSecOffset + kPointerSize;
-  static const int kSize = kMsOffset + kPointerSize;
+  static const int kWeekdayOffset = kSecOffset + kPointerSize;
+  static const int kSize = kWeekdayOffset + kPointerSize;
 
   // Index of first field not requiring a write barrier.
-  static const int kFirstBarrierFree = 1;  // year
+  static const int kFirstBarrierFree = 2;  // year
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
