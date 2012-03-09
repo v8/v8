@@ -1211,11 +1211,6 @@ class Literal: public Expression {
  public:
   DECLARE_NODE_TYPE(Literal)
 
-  // Check if this literal is identical to the other literal.
-  bool IsIdenticalTo(const Literal* other) const {
-    return handle_.is_identical_to(other->handle_);
-  }
-
   virtual bool IsPropertyName() {
     if (handle_->IsSymbol()) {
       uint32_t ignored;
@@ -1248,6 +1243,16 @@ class Literal: public Expression {
 
   Handle<Object> handle() const { return handle_; }
 
+  // Support for using Literal as a HashMap key. NOTE: Currently, this works
+  // only for string and number literals!
+  uint32_t Hash() { return ToString()->Hash(); }
+
+  static bool Match(void* literal1, void* literal2) {
+    Handle<String> s1 = static_cast<Literal*>(literal1)->ToString();
+    Handle<String> s2 = static_cast<Literal*>(literal2)->ToString();
+    return s1->Equals(*s2);
+  }
+
  protected:
   template<class> friend class AstNodeFactory;
 
@@ -1256,6 +1261,8 @@ class Literal: public Expression {
         handle_(handle) { }
 
  private:
+  Handle<String> ToString();
+
   Handle<Object> handle_;
 };
 

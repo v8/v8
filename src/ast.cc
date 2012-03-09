@@ -243,55 +243,21 @@ bool IsEqualNumber(void* first, void* second) {
 
 
 void ObjectLiteral::CalculateEmitStore() {
-  ZoneHashMap properties(&IsEqualString);
-  ZoneHashMap elements(&IsEqualNumber);
-  for (int i = this->properties()->length() - 1; i >= 0; i--) {
-    ObjectLiteral::Property* property = this->properties()->at(i);
+  ZoneHashMap table(Literal::Match);
+  for (int i = properties()->length() - 1; i >= 0; i--) {
+    ObjectLiteral::Property* property = properties()->at(i);
     Literal* literal = property->key();
-    Handle<Object> handle = literal->handle();
-
-    if (handle->IsNull()) {
-      continue;
-    }
-
-    uint32_t hash;
-    ZoneHashMap* table;
-    void* key;
-    Factory* factory = Isolate::Current()->factory();
-    if (handle->IsSymbol()) {
-      Handle<String> name(String::cast(*handle));
-      if (name->AsArrayIndex(&hash)) {
-        Handle<Object> key_handle = factory->NewNumberFromUint(hash);
-        key = key_handle.location();
-        table = &elements;
-      } else {
-        key = name.location();
-        hash = name->Hash();
-        table = &properties;
-      }
-    } else if (handle->ToArrayIndex(&hash)) {
-      key = handle.location();
-      table = &elements;
-    } else {
-      ASSERT(handle->IsNumber());
-      double num = handle->Number();
-      char arr[100];
-      Vector<char> buffer(arr, ARRAY_SIZE(arr));
-      const char* str = DoubleToCString(num, buffer);
-      Handle<String> name = factory->NewStringFromAscii(CStrVector(str));
-      key = name.location();
-      hash = name->Hash();
-      table = &properties;
-    }
+    if (literal->handle()->IsNull()) continue;
+    uint32_t hash = literal->Hash();
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
-    if (property->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (table->Lookup(key, hash, false) != NULL) {
-        property->set_emit_store(false);
-      }
+    if (property->kind() == ObjectLiteral::Property::COMPUTED &&
+        table.Lookup(literal, hash, false) != NULL) {
+      property->set_emit_store(false);
+    } else {
+      // Add key to the table.
+      table.Lookup(literal, hash, true);
     }
-    // Add key to the table.
-    table->Lookup(key, hash, true);
   }
 }
 
@@ -1167,5 +1133,23 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     add_flag(kDontInline);
   }
 }
+
+
+Handle<String> Literal::ToString() {
+  if (handle_->IsString()) return Handle<String>::cast(handle_);
+  ASSERT(handle_->IsNumber());
+  char arr[100];
+  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  const char* str;
+  if (handle_->IsSmi()) {
+    // Optimization only, the heap number case would subsume this.
+    OS::SNPrintF(buffer, "%d", Smi::cast(*handle_)->value());
+    str = arr;
+  } else {
+    str = DoubleToCString(handle_->Number(), buffer);
+  }
+  return FACTORY->NewStringFromAscii(CStrVector(str));
+}
+
 
 } }  // namespace v8::internal

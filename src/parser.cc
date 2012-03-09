@@ -3899,17 +3899,11 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   return isolate()->factory()->undefined_value();
 }
 
-// Defined in ast.cc
-bool IsEqualString(void* first, void* second);
-bool IsEqualNumber(void* first, void* second);
-
-
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
  public:
   ObjectLiteralPropertyChecker(Parser* parser, LanguageMode language_mode) :
-    props(&IsEqualString),
-    elems(&IsEqualNumber),
+    props_(Literal::Match),
     parser_(parser),
     language_mode_(language_mode) {
   }
@@ -3938,8 +3932,7 @@ class ObjectLiteralPropertyChecker {
     }
   }
 
-  HashMap props;
-  HashMap elems;
+  HashMap props_;
   Parser* parser_;
   LanguageMode language_mode_;
 };
@@ -3949,44 +3942,9 @@ void ObjectLiteralPropertyChecker::CheckProperty(
     ObjectLiteral::Property* property,
     Scanner::Location loc,
     bool* ok) {
-
   ASSERT(property != NULL);
-
-  Literal* lit = property->key();
-  Handle<Object> handle = lit->handle();
-
-  uint32_t hash;
-  HashMap* map;
-  void* key;
-
-  if (handle->IsSymbol()) {
-    Handle<String> name(String::cast(*handle));
-    if (name->AsArrayIndex(&hash)) {
-      Handle<Object> key_handle = FACTORY->NewNumberFromUint(hash);
-      key = key_handle.location();
-      map = &elems;
-    } else {
-      key = handle.location();
-      hash = name->Hash();
-      map = &props;
-    }
-  } else if (handle->ToArrayIndex(&hash)) {
-    key = handle.location();
-    map = &elems;
-  } else {
-    ASSERT(handle->IsNumber());
-    double num = handle->Number();
-    char arr[100];
-    Vector<char> buffer(arr, ARRAY_SIZE(arr));
-    const char* str = DoubleToCString(num, buffer);
-    Handle<String> name = FACTORY->NewStringFromAscii(CStrVector(str));
-    key = name.location();
-    hash = name->Hash();
-    map = &props;
-  }
-
-  // Lookup property previously defined, if any.
-  HashMap::Entry* entry = map->Lookup(key, hash, true);
+  Literal* literal = property->key();
+  HashMap::Entry* entry = props_.Lookup(literal, literal->Hash(), true);
   intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
   intptr_t curr = GetPropertyKind(property);
 
