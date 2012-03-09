@@ -51,6 +51,11 @@ class DateCache {
   static const int64_t kMaxTimeInMs =
       static_cast<int64_t>(864000000) * 10000000;
 
+  // Conservative upper bound on time that can be stored in JSDate
+  // before UTC conversion.
+  static const int64_t kMaxTimeBeforeUTCInMs =
+      kMaxTimeInMs + 10 * kMsPerDay;
+
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
   // Sentinel that denotes an invalid cache stamp.
@@ -176,7 +181,8 @@ class DateCache {
 
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
-    return static_cast<int>(OS::DaylightSavingsOffset(time_sec * 1000));
+    double time_ms = static_cast<double>(time_sec * 1000);
+    return static_cast<int>(OS::DaylightSavingsOffset(time_ms));
   }
 
   virtual int GetLocalOffsetFromOS() {

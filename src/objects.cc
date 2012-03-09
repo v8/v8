@@ -12987,7 +12987,7 @@ Object* JSDate::DoGetField(FieldIndex index) {
     if (stamp != date_cache->stamp() && stamp->IsSmi()) {
       // Since the stamp is not NaN, the value is also not NaN.
       int64_t local_time_ms =
-          static_cast<int64_t>(date_cache->ToLocal(value()->Number()));
+          date_cache->ToLocal(static_cast<int64_t>(value()->Number()));
       SetLocalFields(local_time_ms, date_cache);
     }
     switch (index) {
@@ -13009,7 +13009,7 @@ Object* JSDate::DoGetField(FieldIndex index) {
   double time = value()->Number();
   if (isnan(time)) return GetIsolate()->heap()->nan_value();
 
-  int64_t local_time_ms = static_cast<int64_t>(date_cache->ToLocal(time));
+  int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
   int days = DateCache::DaysFromTime(local_time_ms);
 
   if (index == kDays) return Smi::FromInt(days);

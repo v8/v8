@@ -7569,8 +7569,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
   if (isnan(time)) {
     value = isolate->heap()->nan_value();
     is_value_nan = true;
+  } else if (!is_utc &&
+             (time < -DateCache::kMaxTimeBeforeUTCInMs ||
+              time > DateCache::kMaxTimeBeforeUTCInMs)) {
+    value = isolate->heap()->nan_value();
+    is_value_nan = true;
   } else {
-    time = is_utc ? time : date_cache->ToUTC(time);
+    time = is_utc ? time : date_cache->ToUTC(static_cast<int64_t>(time));
     if (time < -DateCache::kMaxTimeInMs ||
         time > DateCache::kMaxTimeInMs) {
       value = isolate->heap()->nan_value();
@@ -9059,7 +9064,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
-  const char* zone = OS::LocalTimezone(time);
+  const char* zone = OS::LocalTimezone(static_cast<double>(time));
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
 }
 
@@ -9071,7 +9076,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateToUTC) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   int64_t time = isolate->date_cache()->ToUTC(static_cast<int64_t>(x));
 
-  return isolate->heap()->NumberFromDouble(time);
+  return isolate->heap()->NumberFromDouble(static_cast<double>(time));
 }
 
 
