@@ -127,28 +127,6 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
-  // We can optionally optimize based on counters rather than statistical
-  // sampling.
-  if (info->ShouldSelfOptimize()) {
-    if (FLAG_trace_opt_verbose) {
-      PrintF("[adding self-optimization header to %s]\n",
-             *info->function()->debug_name()->ToCString());
-    }
-    has_self_optimization_header_ = true;
-    MaybeObject* maybe_cell = isolate()->heap()->AllocateJSGlobalPropertyCell(
-        Smi::FromInt(Compiler::kCallsUntilPrimitiveOpt));
-    JSGlobalPropertyCell* cell;
-    if (maybe_cell->To(&cell)) {
-      __ sub(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)),
-             Immediate(Smi::FromInt(1)));
-      Handle<Code> compile_stub(
-          isolate()->builtins()->builtin(Builtins::kLazyRecompile));
-      STATIC_ASSERT(kSmiTag == 0);
-      __ j(zero, compile_stub);
-      ASSERT(masm_->pc_offset() == self_optimization_header_size());
-    }
-  }
-
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
       info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -330,6 +308,25 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
+void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
+  __ mov(ebx, Immediate(profiling_counter_));
+  __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+         Immediate(Smi::FromInt(delta)));
+}
+
+
+void FullCodeGenerator::EmitProfilingCounterReset() {
+  int reset_value = FLAG_interrupt_budget;
+  if (info_->ShouldSelfOptimize() && !FLAG_retry_self_opt) {
+    // Self-optimization is a one-off thing: if it fails, don't try again.
+    reset_value = Smi::kMaxValue;
+  }
+  __ mov(ebx, Immediate(profiling_counter_));
+  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+         Immediate(Smi::FromInt(reset_value)));
+}
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");
@@ -342,15 +339,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(127, Max(1, distance / 100));
     }
-    if (Serializer::enabled()) {
-      __ mov(ebx, Immediate(profiling_counter_));
-      __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
-             Immediate(Smi::FromInt(weight)));
-    } else {
-      // This version is slightly faster, but not snapshot safe.
-      __ sub(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(weight)));
-    }
+    EmitProfilingCounterDecrement(weight);
     __ j(positive, &ok, Label::kNear);
     InterruptStub stub;
     __ CallStub(&stub);
@@ -379,15 +368,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
   __ test(eax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
 
   if (FLAG_count_based_interrupts) {
-    // Reset the countdown.
-    if (Serializer::enabled()) {
-      __ mov(ebx, Immediate(profiling_counter_));
-      __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
-             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
-    } else {
-      __ mov(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
-    }
+    EmitProfilingCounterReset();
   }
 
   __ bind(&ok);
@@ -410,37 +391,28 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ push(eax);
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
-    if (FLAG_interrupt_at_exit) {
+    if (FLAG_interrupt_at_exit || FLAG_self_optimization) {
       // Pretend that the exit is a backwards jump to the entry.
       int weight = 1;
-      if (FLAG_weighted_back_edges) {
+      if (info_->ShouldSelfOptimize()) {
+        weight = FLAG_interrupt_budget / FLAG_self_opt_count;
+      } else if (FLAG_weighted_back_edges) {
         int distance = masm_->pc_offset();
         weight = Min(127, Max(1, distance / 100));
       }
-      if (Serializer::enabled()) {
-        __ mov(ebx, Immediate(profiling_counter_));
-        __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
-               Immediate(Smi::FromInt(weight)));
-      } else {
-        // This version is slightly faster, but not snapshot safe.
-        __ sub(Operand::Cell(profiling_counter_),
-               Immediate(Smi::FromInt(weight)));
-      }
+      EmitProfilingCounterDecrement(weight);
       Label ok;
       __ j(positive, &ok, Label::kNear);
       __ push(eax);
-      InterruptStub stub;
-      __ CallStub(&stub);
-      __ pop(eax);
-      // Reset the countdown.
-      if (Serializer::enabled()) {
-        __ mov(ebx, Immediate(profiling_counter_));
-        __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
-               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      if (info_->ShouldSelfOptimize() && FLAG_direct_self_opt) {
+        __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+        __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
       } else {
-        __ mov(Operand::Cell(profiling_counter_),
-               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+        InterruptStub stub;
+        __ CallStub(&stub);
       }
+      __ pop(eax);
+      EmitProfilingCounterReset();
       __ bind(&ok);
     }
 #ifdef DEBUG

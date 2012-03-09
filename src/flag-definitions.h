@@ -180,6 +180,9 @@ DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
 DEFINE_int(frame_count, 2, "number of stack frames inspected by the profiler")
 DEFINE_bool(self_optimization, false,
             "primitive functions trigger their own optimization")
+DEFINE_bool(direct_self_opt, false,
+            "call recompile stub directly when self-optimizing")
+DEFINE_bool(retry_self_opt, true, "re-try self-optimization if it failed")
 DEFINE_bool(count_based_interrupts, false,
             "trigger profiler ticks based on counting instead of timing")
 DEFINE_bool(interrupt_at_exit, false,
@@ -190,6 +193,7 @@ DEFINE_int(interrupt_budget, 10000,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 0,
            "percentage of ICs that must have type info to allow optimization")
+DEFINE_int(self_opt_count, 170, "call count before self-optimization")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
