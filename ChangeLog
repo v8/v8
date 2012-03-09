@@ -1,3 +1,14 @@
+2012-03-09: Version 3.9.16
+
+        Added basic interface inference for modules (behind the --harmony flag).
+
+        Added Object.is, Number.isFinite, Number.isNaN.
+
+        Updated the Unicode tables to Unicode version 6.1.0.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-06: Version 3.9.15
 
         Fix the heap profiler crash caused by memory layout changes between
