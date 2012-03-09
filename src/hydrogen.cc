@@ -1485,6 +1485,11 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
     GVNFlagSet side_effects;
     while (instr != NULL) {
       side_effects.Add(instr->ChangesFlags());
+      if (instr->IsSoftDeoptimize()) {
+        block_side_effects_[id].RemoveAll();
+        side_effects.RemoveAll();
+        break;
+      }
       instr = instr->next();
     }
     block_side_effects_[id].Add(side_effects);
@@ -5295,10 +5300,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   AddInstruction(context);
   inner_env->BindContext(context);
 #endif
-  HBasicBlock* body_entry = CreateBasicBlock(inner_env);
-  current_block()->Goto(body_entry);
-  body_entry->SetJoinId(return_id);
-  set_current_block(body_entry);
+  AddSimulate(return_id);
+  current_block()->UpdateEnvironment(inner_env);
   AddInstruction(new(zone()) HEnterInlined(target,
                                            arguments->length(),
                                            function,
@@ -6651,15 +6654,6 @@ static bool IsLiteralCompareNil(HValue* left,
 }
 
 
-static bool IsLiteralCompareBool(HValue* left,
-                                 Token::Value op,
-                                 HValue* right) {
-  return op == Token::EQ_STRICT &&
-      ((left->IsConstant() && HConstant::cast(left)->handle()->IsBoolean()) ||
-       (right->IsConstant() && HConstant::cast(right)->handle()->IsBoolean()));
-}
-
-
 void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -6706,12 +6700,6 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   if (IsLiteralCompareNil(left, op, right, f->null_value(), &sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
-  }
-  if (IsLiteralCompareBool(left, op, right)) {
-    HCompareObjectEqAndBranch* result =
-        new(zone()) HCompareObjectEqAndBranch(left, right);
-    result->set_position(expr->position());
-    return ast_context()->ReturnControl(result, expr->id());
   }
 
   if (op == Token::INSTANCEOF) {

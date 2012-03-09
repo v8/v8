@@ -450,8 +450,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -477,8 +476,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -2253,9 +2251,8 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
-  // Do a single full GC. Use kMakeHeapIterableMask to ensure that
-  // incremental garbage collection is stopped.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  // Do a single full GC, ensure incremental marking is stopped.
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All object should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -2279,7 +2276,7 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, counter.NumberOfWeakCalls());
@@ -2288,7 +2285,7 @@ THREADED_TEST(ApiObjectGroups) {
   g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(7, counter.NumberOfWeakCalls());
 }
 
@@ -2344,7 +2341,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
   // Do a single full GC
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All object should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -2368,7 +2365,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All objects should be gone. 7 global handles in total.
   CHECK_EQ(7, counter.NumberOfWeakCalls());

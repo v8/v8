@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -246,6 +246,8 @@ function FormatMessage(message) {
       "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
       "harmony_const_assign",         ["Assignment to constant variable."],
+      "invalid_module_path",          ["Module does not export '", "%0", "', or export is not itself a module"],
+      "module_type_error",            ["Module '", "%0", "' used improperly"],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {
@@ -769,8 +771,7 @@ function DefineOneShotAccessor(obj, name, fun) {
     hasBeenSet = true;
     value = v;
   };
-  %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
-  %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
+  %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);
 }
 
 function CallSite(receiver, fun, pos) {

@@ -1159,6 +1159,10 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Label test, body;
 
   Iteration loop_statement(this, stmt);
+
+  // Set statement position for a break slot before entering the for-body.
+  SetStatementPosition(stmt);
+
   if (stmt->init() != NULL) {
     Visit(stmt->init());
   }
@@ -1173,7 +1177,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   __ bind(loop_statement.continue_label());
-  SetStatementPosition(stmt);
   if (stmt->next() != NULL) {
     Visit(stmt->next());
   }

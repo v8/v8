@@ -995,23 +995,14 @@ enum PropertyDescriptorIndices {
   DESCRIPTOR_SIZE
 };
 
-// Returns an array with the property description:
-//  if args[1] is not a property on args[0]
-//          returns undefined
-//  if args[1] is a data property on args[0]
-//         [false, value, Writeable, Enumerable, Configurable]
-//  if args[1] is an accessor on args[0]
-//         [true, GetFunction, SetFunction, Enumerable, Configurable]
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
-  ASSERT(args.length() == 2);
+
+static MaybeObject* GetOwnProperty(Isolate* isolate,
+                                   Handle<JSObject> obj,
+                                   Handle<String> name) {
   Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
   LookupResult result(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
@@ -1073,10 +1064,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
                 AccessorPair::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->getter());
+              elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
             }
             if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->setter());
+              elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
             }
             break;
           }
@@ -1123,10 +1114,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->getter());
+      elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
     }
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->setter());
+      elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());
@@ -1142,6 +1133,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
   }
 
   return *desc;
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
+  ASSERT(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  return GetOwnProperty(isolate, obj, name);
 }
 
 
@@ -4307,6 +4314,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
                                     args.at<Object>(1));
 }
 
+
+static bool IsValidAccessor(Handle<Object> obj) {
+  return obj->IsUndefined() || obj->IsSpecFunction() || obj->IsNull();
+}
+
+
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
 // Step 4b - define a new accessor property.
@@ -4317,18 +4330,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   ASSERT(args.length() == 5);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag, 2);
-  Object* fun = args[3];
+  RUNTIME_ASSERT(!obj->IsNull());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
+  RUNTIME_ASSERT(IsValidAccessor(getter));
+  CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
+  RUNTIME_ASSERT(IsValidAccessor(setter));
   CONVERT_SMI_ARG_CHECKED(unchecked, 4);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  RUNTIME_ASSERT(!obj->IsNull());
-  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
-  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
-  return obj->DefineAccessor(name, component, fun, attr);
+  // TODO(svenpanne) Define getter/setter/attributes in a single step.
+  if (getter->IsNull() && setter->IsNull()) {
+    JSArray* array;
+    { MaybeObject* maybe_array = GetOwnProperty(isolate, obj, name);
+      if (!maybe_array->To(&array)) return maybe_array;
+    }
+    Object* current = FixedArray::cast(array->elements())->get(GETTER_INDEX);
+    getter = Handle<Object>(current, isolate);
+  }
+  if (!getter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_GETTER, *getter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+  if (!setter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_SETTER, *setter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+
+  return isolate->heap()->undefined_value();
 }
 
 // Implements part of 8.12.9 DefineOwnProperty.
@@ -4342,9 +4374,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-  Handle<Object> obj_value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj_value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked, 3);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
@@ -10493,9 +10524,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       details->set(0, *value);
       details->set(1, property_details);
       if (hasJavaScriptAccessors) {
+        AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
         details->set(2, isolate->heap()->ToBoolean(caught_exception));
-        details->set(3, AccessorPair::cast(*result_callback_obj)->getter());
-        details->set(4, AccessorPair::cast(*result_callback_obj)->setter());
+        details->set(3, accessors->SafeGet(ACCESSOR_GETTER));
+        details->set(4, accessors->SafeGet(ACCESSOR_SETTER));
       }
 
       return *isolate->factory()->NewJSArrayWithElements(details);
@@ -10719,16 +10751,6 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
   }
   ASSERT(save != NULL);
   return save;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  FrameInspector frame_inspector(frame, frame->GetInlineCount() - 1, isolate);
-  return isolate->heap()->ToBoolean(frame_inspector.IsConstructor());
 }
 
 
@@ -12903,7 +12925,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
 // Performs a GC.
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
-  isolate->heap()->CollectAllGarbage(true, "%CollectGarbage");
+  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "%CollectGarbage");
   return isolate->heap()->undefined_value();
 }
 

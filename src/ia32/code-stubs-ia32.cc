@@ -6155,7 +6155,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // ebx: instance type
 
   // Calculate length of sub string using the smi values.
-  Label result_longer_than_two;
   __ mov(ecx, Operand(esp, 1 * kPointerSize));  // To index.
   __ JumpIfNotSmi(ecx, &runtime);
   __ mov(edx, Operand(esp, 2 * kPointerSize));  // From index.
@@ -6168,43 +6167,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
   __ bind(&not_original_string);
-  // Special handling of sub-strings of length 1 and 2. One character strings
-  // are handled in the runtime system (looked up in the single character
-  // cache). Two character strings are looked for in the symbol cache.
-  __ cmp(ecx, Immediate(Smi::FromInt(2)));
-  __ j(greater, &result_longer_than_two);
-  __ j(less, &runtime);
 
-  // Sub string of length 2 requested.
-  // eax: string
-  // ebx: instance type
-  // ecx: sub string length (smi, value is 2)
-  // edx: from index (smi)
-  __ JumpIfInstanceTypeIsNotSequentialAscii(ebx, ebx, &runtime);
-
-  // Get the two characters forming the sub string.
-  __ SmiUntag(edx);  // From index is no longer smi.
-  __ movzx_b(ebx, FieldOperand(eax, edx, times_1, SeqAsciiString::kHeaderSize));
-  __ movzx_b(ecx,
-             FieldOperand(eax, edx, times_1, SeqAsciiString::kHeaderSize + 1));
-
-  // Try to lookup two character string in symbol table.
-  Label combine_two_char, save_two_char;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, ebx, ecx, eax, edx, edi, &combine_two_char, &save_two_char);
-  __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&combine_two_char);
-  __ shl(ecx, kBitsPerByte);
-  __ or_(ebx, ecx);
-  __ bind(&save_two_char);
-  __ AllocateAsciiString(eax, 2, ecx, edx, &runtime);
-  __ mov_w(FieldOperand(eax, SeqAsciiString::kHeaderSize), ebx);
-  __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&result_longer_than_two);
   // eax: string
   // ebx: instance type
   // ecx: sub string length (smi)
@@ -6271,11 +6234,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(eax, ebx, no_reg, &runtime);
     __ bind(&set_slice_header);
-    __ mov(FieldOperand(eax, SlicedString::kOffsetOffset), edx);
     __ mov(FieldOperand(eax, SlicedString::kLengthOffset), ecx);
-    __ mov(FieldOperand(eax, SlicedString::kParentOffset), edi);
     __ mov(FieldOperand(eax, SlicedString::kHashFieldOffset),
            Immediate(String::kEmptyHashField));
+    __ mov(FieldOperand(eax, SlicedString::kParentOffset), edi);
+    __ mov(FieldOperand(eax, SlicedString::kOffsetOffset), edx);
     __ IncrementCounter(counters->sub_string_native(), 1);
     __ ret(3 * kPointerSize);
 

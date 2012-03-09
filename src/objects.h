@@ -854,6 +854,8 @@ class JSReceiver;
 class Object : public MaybeObject {
  public:
   // Type testing.
+  bool IsObject() { return true; }
+
 #define IS_TYPE_FUNCTION_DECL(type_)  inline bool Is##type_();
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
@@ -2506,8 +2508,8 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor,
                                           TransitionFlag transition_flag);
 
-  // Remove all transitions.  Return  a copy of the array with all transitions
-  // removed, or a Failure object if the new array could not be allocated.
+  // Return a copy of the array with all transitions and null descriptors
+  // removed. Return a Failure object in case of an allocation failure.
   MUST_USE_RESULT MaybeObject* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
@@ -7943,6 +7945,9 @@ class AccessorPair: public Struct {
       set_setter(value);
     }
   }
+
+  // Same as get, but returns undefined instead of the hole.
+  Object* SafeGet(AccessorComponent component);
 
   bool ContainsAccessor() {
     return IsJSAccessor(getter()) || IsJSAccessor(setter());

@@ -168,7 +168,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
-DEFINE_bool(inline_construct, true, "inline constructor calls")
+DEFINE_bool(inline_construct, false, "inline constructor calls")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 DEFINE_bool(optimize_for_in, true,
@@ -486,6 +486,11 @@ DEFINE_bool(print_global_handles, false, "report global handles after GC")
 
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")
+
+// interface.cc
+DEFINE_bool(print_interfaces, false, "print interfaces")
+DEFINE_bool(print_interface_details, false, "print interface inference details")
+DEFINE_int(print_interface_depth, 5, "depth for printing interfaces")
 
 // objects.cc
 DEFINE_bool(trace_normalization,

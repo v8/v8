@@ -5229,12 +5229,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);
-    __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ Integer32ToSmi(rcx, rcx);
     __ movq(FieldOperand(rax, SlicedString::kLengthOffset), rcx);
-    __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
     __ movq(FieldOperand(rax, SlicedString::kHashFieldOffset),
            Immediate(String::kEmptyHashField));
+    __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
+    __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ IncrementCounter(counters->sub_string_native(), 1);
     __ ret(kArgumentsSize);
 

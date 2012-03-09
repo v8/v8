@@ -25,135 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-modules
+// Test Harmony Number.isFinite() and Number.isNaN() functions.
 
-// Test basic module syntax, with and without automatic semicolon insertion.
+assertTrue(Number.isFinite(0));
+assertTrue(Number.isFinite(Number.MIN_VALUE));
+assertTrue(Number.isFinite(Number.MAX_VALUE));
+assertFalse(Number.isFinite(Number.NaN));
+assertFalse(Number.isFinite(Number.POSITIVE_INFINITY));
+assertFalse(Number.isFinite(Number.NEGATIVE_INFINITY));
+assertFalse(Number.isFinite(new Number(0)));
+assertFalse(Number.isFinite(1/0));
+assertFalse(Number.isFinite(-1/0));
+assertFalse(Number.isFinite({}));
+assertFalse(Number.isFinite([]));
+assertFalse(Number.isFinite("s"));
+assertFalse(Number.isFinite(null));
+assertFalse(Number.isFinite(undefined));
 
-module A {}
-
-module A1 = A
-module A2 = A;
-module A3 = A2
-
-module B {
-  export vx
-  export vy, lz, c, f
-
-  var vx
-  var vx, vy;
-  var vx = 0, vy
-  let lx, ly
-  let lz = 1
-  const c = 9
-  function f() {}
-
-  module C0 {}
-
-  export module C {
-    let x
-    export module D { export let x }
-    let y
-  }
-
-  let zz = ""
-
-  export var x0
-  export var x1, x2 = 6, x3
-  export let y0
-  export let y1 = 0, y2
-  export const z0 = 0
-  export const z1 = 2, z2 = 3
-  export function f0() {}
-  export module M1 {}
-  export module M2 = C.D
-  export module M3 at "http://where"
-
-  import i0 from I
-  import i1, i2, i3, M from I
-  import i4, i5 from "http://where"
-}
-
-module I {
-  export let i0, i1, i2, i3;
-  export module M {}
-}
-
-module C1 = B.C;
-module D1 = B.C.D
-module D2 = C1.D
-module D3 = D2
-
-module E1 at "http://where"
-module E2 at "http://where";
-module E3 = E1.F
-
-// Check that ASI does not interfere.
-
-module X
-{
-let x
-}
-
-module Y
-=
-X
-
-module Z
-at
-"file://local"
-
-import
-x
-,
-y
-from
-"file://local"
-
-
-module Wrap {
-export
-x
-,
-y
-
-export
-var
-v1 = 1
-
-export
-let
-v2 = 2
-
-export
-const
-v3 = 3
-
-export
-function
-f
-(
-)
-{
-}
-
-export
-module V
-{
-}
-}
-
-export A, A1, A2, A3, B, I, C1, D1, D2, D3, E1, E2, E3, X, Y, Z, Wrap, x, y, UU
-
-
-
-// Check that 'module' still works as an identifier.
-
-var module
-module = {}
-module["a"] = 6
-function module() {}
-function f(module) { return module }
-try {} catch (module) {}
-
-module
-v = 20
+assertFalse(Number.isNaN(0));
+assertFalse(Number.isNaN(Number.MIN_VALUE));
+assertFalse(Number.isNaN(Number.MAX_VALUE));
+assertTrue(Number.isNaN(Number.NaN));
+assertFalse(Number.isNaN(Number.POSITIVE_INFINITY));
+assertFalse(Number.isNaN(Number.NEGATIVE_INFINITY));
+assertFalse(Number.isNaN(new Number(0)));
+assertFalse(Number.isNaN(1/0));
+assertFalse(Number.isNaN(-1/0));
+assertFalse(Number.isNaN({}));
+assertFalse(Number.isNaN([]));
+assertFalse(Number.isNaN("s"));
+assertFalse(Number.isNaN(null));
+assertFalse(Number.isNaN(undefined));

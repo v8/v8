@@ -499,7 +499,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->PreciseSweepingRequired() &&
+      !mark_compact_collector()->abort_incremental_marking_ &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
@@ -578,6 +578,17 @@ static void VerifySymbolTable() {
 }
 
 
+static bool AbortIncrementalMarkingAndCollectGarbage(
+    Heap* heap,
+    AllocationSpace space,
+    const char* gc_reason = NULL) {
+  heap->mark_compact_collector()->SetFlags(Heap::kAbortIncrementalMarkingMask);
+  bool result = heap->CollectGarbage(space, gc_reason);
+  heap->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
+  return result;
+}
+
+
 void Heap::ReserveSpace(
     int new_space_size,
     int pointer_space_size,
@@ -604,28 +615,28 @@ void Heap::ReserveSpace(
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(OLD_POINTER_SPACE,
-                           "failed to reserve space in the old pointer space");
+      AbortIncrementalMarkingAndCollectGarbage(this, OLD_POINTER_SPACE,
+          "failed to reserve space in the old pointer space");
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(OLD_DATA_SPACE,
-                           "failed to reserve space in the old data space");
+      AbortIncrementalMarkingAndCollectGarbage(this, OLD_DATA_SPACE,
+          "failed to reserve space in the old data space");
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(CODE_SPACE,
-                           "failed to reserve space in the code space");
+      AbortIncrementalMarkingAndCollectGarbage(this, CODE_SPACE,
+          "failed to reserve space in the code space");
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(MAP_SPACE,
-                           "failed to reserve space in the map space");
+      AbortIncrementalMarkingAndCollectGarbage(this, MAP_SPACE,
+          "failed to reserve space in the map space");
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(CELL_SPACE,
-                           "failed to reserve space in the cell space");
+      AbortIncrementalMarkingAndCollectGarbage(this, CELL_SPACE,
+          "failed to reserve space in the cell space");
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -637,8 +648,8 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(LO_SPACE,
-                           "failed to reserve space in the large object space");
+      AbortIncrementalMarkingAndCollectGarbage(this, LO_SPACE,
+          "failed to reserve space in the large object space");
       gc_performed = true;
     }
   }

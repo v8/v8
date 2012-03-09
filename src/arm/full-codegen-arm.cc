@@ -1498,11 +1498,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ ldr(r0, MemOperand(sp));
         __ push(r0);
         VisitForStackValue(key);
-        __ mov(r1, Operand(property->kind() == ObjectLiteral::Property::SETTER ?
-                           Smi::FromInt(1) :
-                           Smi::FromInt(0)));
-        __ push(r1);
-        VisitForStackValue(value);
+        if (property->kind() == ObjectLiteral::Property::GETTER) {
+          VisitForStackValue(value);
+          __ LoadRoot(r1, Heap::kNullValueRootIndex);
+          __ push(r1);
+        } else {
+          __ LoadRoot(r1, Heap::kNullValueRootIndex);
+          __ push(r1);
+          VisitForStackValue(value);
+        }
         __ mov(r0, Operand(Smi::FromInt(NONE)));
         __ push(r0);
         __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);

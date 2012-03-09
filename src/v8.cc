@@ -223,19 +223,17 @@ typedef union {
 
 Object* V8::FillHeapNumberWithRandom(Object* heap_number,
                                      Context* context) {
+  double_int_union r;
   uint64_t random_bits = Random(context);
-  // Make a double* from address (heap_number + sizeof(double)).
-  double_int_union* r = reinterpret_cast<double_int_union*>(
-      reinterpret_cast<char*>(heap_number) +
-      HeapNumber::kValueOffset - kHeapObjectTag);
   // Convert 32 random bits to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  const double binary_million = 1048576.0;
-  r->double_value = binary_million;
-  r->uint64_t_value |=  random_bits;
-  r->double_value -= binary_million;
+  static const double binary_million = 1048576.0;
+  r.double_value = binary_million;
+  r.uint64_t_value |= random_bits;
+  r.double_value -= binary_million;
 
+  HeapNumber::cast(heap_number)->set_value(r.double_value);
   return heap_number;
 }
 

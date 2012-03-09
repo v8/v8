@@ -525,7 +525,8 @@ Extension::Extension(const char* name,
                      int source_length)
     : name_(name),
       source_length_(source_length >= 0 ?
-                  source_length : (source ? strlen(source) : 0)),
+                     source_length :
+                     (source ? static_cast<int>(strlen(source)) : 0)),
       source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
@@ -6070,6 +6071,11 @@ void HeapProfiler::DefineWrapperClass(uint16_t class_id,
                                                              callback);
 }
 
+
+int HeapProfiler::GetPersistentHandleCount() {
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->global_handles()->NumberOfGlobalHandles();
+}
 
 
 v8::Testing::StressType internal::Testing::stress_type_ =

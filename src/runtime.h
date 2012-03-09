@@ -70,8 +70,6 @@ namespace internal {
   F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
   \
-  F(IsConstructCall, 0, 1) \
-  \
   F(GetOwnProperty, 2, 1) \
   \
   F(IsExtensible, 1, 1) \

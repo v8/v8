@@ -3133,14 +3133,63 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
+  class DeferredDoRandom: public LDeferredCode {
+   public:
+    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredRandom(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LRandom* instr_;
+  };
+
+  DeferredDoRandom* deferred = new DeferredDoRandom(this, instr);
   // Having marked this instruction as a call we can use any
   // registers.
   ASSERT(ToDoubleRegister(instr->result()).is(f0));
   ASSERT(ToRegister(instr->InputAt(0)).is(a0));
 
-  __ PrepareCallCFunction(1, a1);
+  static const int kSeedSize = sizeof(uint32_t);
+  STATIC_ASSERT(kPointerSize == kSeedSize);
+
   __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  static const int kRandomSeedOffset =
+      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
+  __ lw(a2, FieldMemOperand(a0, kRandomSeedOffset));
+  // a2: FixedArray of the global context's random seeds
+
+  // Load state[0].
+  __ lw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));
+  __ Branch(deferred->entry(), eq, a1, Operand(zero_reg));
+  // Load state[1].
+  __ lw(a0, FieldMemOperand(a2, ByteArray::kHeaderSize + kSeedSize));
+  // a1: state[0].
+  // a0: state[1].
+
+  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
+  __ And(a3, a1, Operand(0xFFFF));
+  __ li(t0, Operand(18273));
+  __ mul(a3, a3, t0);
+  __ srl(a1, a1, 16);
+  __ Addu(a1, a3, a1);
+  // Save state[0].
+  __ sw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));
+
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
+  __ And(a3, a0, Operand(0xFFFF));
+  __ li(t0, Operand(36969));
+  __ mul(a3, a3, t0);
+  __ srl(a0, a0, 16),
+  __ Addu(a0, a3, a0);
+  // Save state[1].
+  __ sw(a0, FieldMemOperand(a2, ByteArray::kHeaderSize + kSeedSize));
+
+  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
+  __ And(a0, a0, Operand(0x3FFFF));
+  __ sll(a1, a1, 14);
+  __ Addu(v0, a0, a1);
+
+  __ bind(deferred->exit());
 
   // 0x41300000 is the top half of 1.0 x 2^20 as a double.
   __ li(a2, Operand(0x41300000));
@@ -3150,6 +3199,12 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ Move(f14, zero_reg, a2);
   // Subtract to get the result.
   __ sub_d(f0, f12, f14);
+}
+
+void LCodeGen::DoDeferredRandom(LRandom* instr) {
+  __ PrepareCallCFunction(1, scratch0());
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  // Return value is in v0.
 }
 
 

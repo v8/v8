@@ -3050,16 +3050,64 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
+  class DeferredDoRandom: public LDeferredCode {
+   public:
+    DeferredDoRandom(LCodeGen* codegen, LRandom* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredRandom(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LRandom* instr_;
+  };
+
+  DeferredDoRandom* deferred = new DeferredDoRandom(this, instr);
+
   // Having marked this instruction as a call we can use any
   // registers.
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
   ASSERT(ToRegister(instr->InputAt(0)).is(eax));
+  // Assert that the register size is indeed the size of each seed.
+  static const int kSeedSize = sizeof(uint32_t);
+  STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ PrepareCallCFunction(1, ebx);
   __ mov(eax, FieldOperand(eax, GlobalObject::kGlobalContextOffset));
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  static const int kRandomSeedOffset =
+      FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
+  __ mov(ebx, FieldOperand(eax, kRandomSeedOffset));
+  // ebx: FixedArray of the global context's random seeds
 
+  // Load state[0].
+  __ mov(ecx, FieldOperand(ebx, ByteArray::kHeaderSize));
+  // If state[0] == 0, call runtime to initialize seeds.
+  __ test(ecx, ecx);
+  __ j(zero, deferred->entry());
+  // Load state[1].
+  __ mov(eax, FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize));
+  // ecx: state[0]
+  // eax: state[1]
+
+  // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
+  __ movzx_w(edx, ecx);
+  __ imul(edx, edx, 18273);
+  __ shr(ecx, 16);
+  __ add(ecx, edx);
+  // Save state[0].
+  __ mov(FieldOperand(ebx, ByteArray::kHeaderSize), ecx);
+
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
+  __ movzx_w(edx, eax);
+  __ imul(edx, edx, 36969);
+  __ shr(eax, 16);
+  __ add(eax, edx);
+  // Save state[1].
+  __ mov(FieldOperand(ebx, ByteArray::kHeaderSize + kSeedSize), eax);
+
+  // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
+  __ shl(ecx, 14);
+  __ and_(eax, Immediate(0x3FFFF));
+  __ add(eax, ecx);
+
+  __ bind(deferred->exit());
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
@@ -3069,6 +3117,14 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ cvtss2sd(xmm2, xmm2);
   __ xorps(xmm1, xmm2);
   __ subsd(xmm1, xmm2);
+}
+
+
+void LCodeGen::DoDeferredRandom(LRandom* instr) {
+  __ PrepareCallCFunction(1, ebx);
+  __ mov(Operand(esp, 0), eax);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  // Return value is in eax.
 }
 
 

@@ -1735,8 +1735,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&too_few);
     EnterArgumentsAdaptorFrame(masm);
 
-    // TODO(MIPS): Optimize these loops.
-
     // Calculate copy start address into a0 and copy end address is fp.
     // a0: actual number of arguments as a smi
     // a1: function
@@ -1758,9 +1756,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label copy;
     __ bind(&copy);
     __ lw(t0, MemOperand(a0));  // Adjusted above for return addr and receiver.
-    __ push(t0);
+    __ Subu(sp, sp, kPointerSize);
     __ Subu(a0, a0, kPointerSize);
-    __ Branch(&copy, ne, a0, Operand(t3));
+    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(t3));
+    __ sw(t0, MemOperand(sp));  // In the delay slot.
 
     // Fill the remaining expected arguments with undefined.
     // a1: function
@@ -1773,8 +1772,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     Label fill;
     __ bind(&fill);
-    __ push(t0);
-    __ Branch(&fill, ne, sp, Operand(a2));
+    __ Subu(sp, sp, kPointerSize);
+    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a2));
+    __ sw(t0, MemOperand(sp));
   }
 
   // Call the entry point.

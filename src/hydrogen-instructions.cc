@@ -1348,12 +1348,13 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 
 Range* HBitwise::InferRange(Zone* zone) {
   if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
+  const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
-      : 0xffffffff;
+      : kDefaultMask;
   int32_t right_mask = (right()->range() != NULL)
       ? right()->range()->Mask()
-      : 0xffffffff;
+      : kDefaultMask;
   int32_t result_mask = (op() == Token::BIT_AND)
       ? left_mask & right_mask
       : left_mask | right_mask;
