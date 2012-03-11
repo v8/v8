@@ -5981,7 +5981,7 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
-      ToInternal(this)->GetEntryById(id));
+      ToInternal(this)->GetEntryById(static_cast<i::SnapshotObjectId>(id)));
 }
 
 
