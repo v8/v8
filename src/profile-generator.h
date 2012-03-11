@@ -577,16 +577,18 @@ class HeapEntry BASE_EMBEDDED {
                          int retainer_index);
   void SetUnidirElementReference(int child_index, int index, HeapEntry* entry);
 
-  int EntrySize() { return EntriesSize(1, children_count_, retainers_count_); }
+  size_t EntrySize() {
+    return EntriesSize(1, children_count_, retainers_count_);
+  }
 
   void Print(
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
   Handle<HeapObject> GetHeapObject();
 
-  static int EntriesSize(int entries_count,
-                         int children_count,
-                         int retainers_count);
+  static size_t EntriesSize(int entries_count,
+                            int children_count,
+                            int retainers_count);
 
  private:
   HeapGraphEdge* children_arr() {
@@ -647,7 +649,7 @@ class HeapSnapshot {
   HeapEntry* natives_root() { return natives_root_entry_; }
   HeapEntry* gc_subroot(int index) { return gc_subroot_entries_[index]; }
   List<HeapEntry*>* entries() { return &entries_; }
-  int raw_entries_size() { return raw_entries_size_; }
+  size_t raw_entries_size() { return raw_entries_size_; }
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
@@ -687,7 +689,7 @@ class HeapSnapshot {
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
-  int raw_entries_size_;
+  size_t raw_entries_size_;
 
   friend class HeapSnapshotTester;
 

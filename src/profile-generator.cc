@@ -1096,9 +1096,9 @@ const char* HeapEntry::TypeAsString() {
 }
 
 
-int HeapEntry::EntriesSize(int entries_count,
-                           int children_count,
-                           int retainers_count) {
+size_t HeapEntry::EntriesSize(int entries_count,
+                              int children_count,
+                              int retainers_count) {
   return sizeof(HeapEntry) * entries_count         // NOLINT
       + sizeof(HeapGraphEdge) * children_count     // NOLINT
       + sizeof(HeapGraphEdge*) * retainers_count;  // NOLINT
@@ -1114,13 +1114,14 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 36;
-  static const int kMaxSerializableSnapshotRawSize = 256 * MB;
+  static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 48;
-  static const int kMaxSerializableSnapshotRawSize = 768 * MB;
+  static const uint64_t kMaxSerializableSnapshotRawSize =
+      static_cast<uint64_t>(6000) * MB;
 };
 
 }  // namespace
@@ -3437,8 +3438,8 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
   HeapEntry* root = result->AddRootEntry(1);
   const char* text = snapshot_->collection()->names()->GetFormatted(
       "The snapshot is too big. "
-      "Maximum snapshot size is %d MB. "
-      "Actual snapshot size is %d MB.",
+      "Maximum snapshot size is %"  V8_PTR_PREFIX "u MB. "
+      "Actual snapshot size is %"  V8_PTR_PREFIX "u MB.",
       SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
       (snapshot_->raw_entries_size() + MB - 1) / MB);
   HeapEntry* message = result->AddEntry(
