@@ -1472,7 +1472,8 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 }
 
 
-Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(SnapshotObjectId id) {
+Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
+    SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
