@@ -965,7 +965,7 @@ HeapEntry* HeapGraphEdge::From() {
 void HeapEntry::Init(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
-                     uint64_t id,
+                     SnapshotObjectId id,
                      int self_size,
                      int children_count,
                      int retainers_count) {
@@ -980,7 +980,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   dominator_ = NULL;
 
   union {
-    uint64_t set_id;
+    SnapshotObjectId set_id;
     Id stored_id;
   } id_adaptor = {id};
   id_ = id_adaptor.stored_id;
@@ -1221,7 +1221,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag,
 
 HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   const char* name,
-                                  uint64_t id,
+                                  SnapshotObjectId id,
                                   int size,
                                   int children_count,
                                   int retainers_count) {
@@ -1253,7 +1253,7 @@ HeapEntry* HeapSnapshot::GetNextEntryToInit() {
 }
 
 
-HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
+HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
 
   // Perform a binary search by id.
@@ -1262,7 +1262,7 @@ HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
   while (low <= high) {
     int mid =
         (static_cast<unsigned int>(low) + static_cast<unsigned int>(high)) >> 1;
-    uint64_t mid_id = entries_by_id->at(mid)->id();
+    SnapshotObjectId mid_id = entries_by_id->at(mid)->id();
     if (mid_id > id)
       high = mid - 1;
     else if (mid_id < id)
@@ -1298,12 +1298,12 @@ void HeapSnapshot::Print(int max_depth) {
 
 // We split IDs on evens for embedder objects (see
 // HeapObjectsMap::GenerateId) and odds for native objects.
-const uint64_t HeapObjectsMap::kInternalRootObjectId = 1;
-const uint64_t HeapObjectsMap::kGcRootsObjectId =
+const SnapshotObjectId HeapObjectsMap::kInternalRootObjectId = 1;
+const SnapshotObjectId HeapObjectsMap::kGcRootsObjectId =
     HeapObjectsMap::kInternalRootObjectId + HeapObjectsMap::kObjectIdStep;
-const uint64_t HeapObjectsMap::kGcRootsFirstSubrootId =
+const SnapshotObjectId HeapObjectsMap::kGcRootsFirstSubrootId =
     HeapObjectsMap::kGcRootsObjectId + HeapObjectsMap::kObjectIdStep;
-const uint64_t HeapObjectsMap::kFirstAvailableObjectId =
+const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
@@ -1325,12 +1325,12 @@ void HeapObjectsMap::SnapshotGenerationFinished() {
 }
 
 
-uint64_t HeapObjectsMap::FindObject(Address addr) {
+SnapshotObjectId HeapObjectsMap::FindObject(Address addr) {
   if (!initial_fill_mode_) {
-    uint64_t existing = FindEntry(addr);
+    SnapshotObjectId existing = FindEntry(addr);
     if (existing != 0) return existing;
   }
-  uint64_t id = next_id_;
+  SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
   AddEntry(addr, id);
   return id;
@@ -1353,7 +1353,7 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
 }
 
 
-void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
+void HeapObjectsMap::AddEntry(Address addr, SnapshotObjectId id) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   ASSERT(entry->value == NULL);
   entry->value = reinterpret_cast<void*>(entries_->length());
@@ -1361,7 +1361,7 @@ void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
 }
 
 
-uint64_t HeapObjectsMap::FindEntry(Address addr) {
+SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
   if (entry != NULL) {
     int entry_index =
@@ -1401,8 +1401,8 @@ void HeapObjectsMap::RemoveDeadEntries() {
 }
 
 
-uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
-  uint64_t id = static_cast<uint64_t>(info->GetHash());
+SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+  SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
   id ^= HashSequentialString(label,
                              static_cast<int>(strlen(label)),
@@ -1472,7 +1472,8 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 }
 
 
-Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
+Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
+    SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
@@ -3526,21 +3527,21 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  // The buffer needs space for 6 ints, 1 uint64_t, 7 commas, \n and \0
+  // The buffer needs space for 6 ints, 1 unsigned, 7 commas, \n and \0
   static const int kBufferSize =
       6 * MaxDecimalDigitsIn<sizeof(int)>::kSigned  // NOLINT
-      + MaxDecimalDigitsIn<sizeof(uint64_t)>::kUnsigned  // NOLINT
+      + MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
       + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
   STATIC_CHECK(sizeof(int) == sizeof(entry->type()));  // NOLINT
   STATIC_CHECK(sizeof(int) == sizeof(GetStringId(entry->name())));  // NOLINT
-  STATIC_CHECK(sizeof(uint64_t) == sizeof(entry->id()));  // NOLINT
+  STATIC_CHECK(sizeof(unsigned) == sizeof(entry->id()));  // NOLINT
   STATIC_CHECK(sizeof(int) == sizeof(entry->self_size()));  // NOLINT
   STATIC_CHECK(sizeof(int) == sizeof(entry->retained_size()));  // NOLINT
   STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(entry->dominator())));  // NOLINT
   STATIC_CHECK(sizeof(int) == sizeof(children.length()));  // NOLINT
-  int result = OS::SNPrintF(buffer, "\n,%d,%d,%llu,%d,%d,%d,%d",
+  int result = OS::SNPrintF(buffer, "\n,%d,%d,%u,%d,%d,%d,%d",
       entry->type(),
       GetStringId(entry->name()),
       entry->id(),
