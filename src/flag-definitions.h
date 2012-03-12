@@ -177,22 +177,28 @@ DEFINE_bool(optimize_for_in, true,
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
-DEFINE_int(frame_count, 2, "number of stack frames inspected by the profiler")
+DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
 DEFINE_bool(self_optimization, false,
             "primitive functions trigger their own optimization")
+DEFINE_bool(direct_self_opt, false,
+            "call recompile stub directly when self-optimizing")
+DEFINE_bool(retry_self_opt, false, "re-try self-optimization if it failed")
 DEFINE_bool(count_based_interrupts, false,
             "trigger profiler ticks based on counting instead of timing")
 DEFINE_bool(interrupt_at_exit, false,
             "insert an interrupt check at function exit")
 DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
-DEFINE_int(interrupt_budget, 10000,
+DEFINE_int(interrupt_budget, 5900,
            "execution budget before interrupt is triggered")
-DEFINE_int(type_info_threshold, 0,
+DEFINE_int(type_info_threshold, 40,
            "percentage of ICs that must have type info to allow optimization")
+DEFINE_int(self_opt_count, 130, "call count before self-optimization")
 
 DEFINE_implication(experimental_profiler, watch_ic_patching)
 DEFINE_implication(experimental_profiler, self_optimization)
+// Not implying direct_self_opt here because it seems to be a bad idea.
+DEFINE_implication(experimental_profiler, retry_self_opt)
 DEFINE_implication(experimental_profiler, count_based_interrupts)
 DEFINE_implication(experimental_profiler, interrupt_at_exit)
 DEFINE_implication(experimental_profiler, weighted_back_edges)

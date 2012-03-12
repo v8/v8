@@ -172,7 +172,8 @@ class LCodeGen;
   V(ForInPrepareMap)                            \
   V(ForInCacheArray)                            \
   V(CheckMapValue)                              \
-  V(LoadFieldByIndex)
+  V(LoadFieldByIndex)                           \
+  V(DateField)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -999,6 +1000,24 @@ class LValueOf: public LTemplateInstruction<1, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
   DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+};
+
+
+class LDateField: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LDateField(LOperand* date, LOperand* temp, Smi* index)
+      : index_(index) {
+    inputs_[0] = date;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-field")
+  DECLARE_HYDROGEN_ACCESSOR(DateField)
+
+  Smi* index() const { return index_; }
+
+ private:
+  Smi* index_;
 };
 
 

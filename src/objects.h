@@ -64,6 +64,7 @@
 //             - JSBuiltinsObject
 //           - JSGlobalProxy
 //           - JSValue
+//             - JSDate
 //           - JSMessageObject
 //         - JSProxy
 //           - JSFunctionProxy
@@ -300,6 +301,7 @@ const int kVariableSizeSentinel = 0;
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
+  V(JS_DATE_TYPE)                                                              \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -619,6 +621,7 @@ enum InstanceType {
   JS_PROXY_TYPE,  // LAST_JS_PROXY_TYPE
 
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
@@ -813,6 +816,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
   V(JSValue)                                   \
+  V(JSDate)                                    \
   V(JSMessageObject)                           \
   V(StringWrapper)                             \
   V(Foreign)                                   \
@@ -889,6 +893,7 @@ class Object : public MaybeObject {
 
   // Extract the number.
   inline double Number();
+  inline bool IsNaN();
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -5994,7 +5999,7 @@ class JSBuiltinsObject: public GlobalObject {
 };
 
 
-// Representation for JS Wrapper objects, String, Number, Boolean, Date, etc.
+// Representation for JS Wrapper objects, String, Number, Boolean, etc.
 class JSValue: public JSObject {
  public:
   // [value]: the object being wrapped.
@@ -6020,6 +6025,106 @@ class JSValue: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
+};
+
+
+class DateCache;
+
+// Representation for JS date objects.
+class JSDate: public JSObject {
+ public:
+  // If one component is NaN, all of them are, indicating a NaN time value.
+  // [value]: the time value.
+  DECL_ACCESSORS(value, Object)
+  // [year]: caches year. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(year, Object)
+  // [month]: caches month. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(month, Object)
+  // [day]: caches day. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(day, Object)
+  // [weekday]: caches day of week. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(weekday, Object)
+  // [hour]: caches hours. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(hour, Object)
+  // [min]: caches minutes. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(min, Object)
+  // [sec]: caches seconds. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(sec, Object)
+  // [cache stamp]: sample of the date cache stamp at the
+  // moment when local fields were cached.
+  DECL_ACCESSORS(cache_stamp, Object)
+
+  // Casting.
+  static inline JSDate* cast(Object* obj);
+
+  // Returns the date field with the specified index.
+  // See FieldIndex for the list of date fields.
+  static MaybeObject* GetField(Object* date, Smi* index);
+
+  void SetValue(Object* value, bool is_value_nan);
+
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSDatePrint() {
+    JSDatePrint(stdout);
+  }
+  void JSDatePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSDateVerify();
+#endif
+  // The order is important. It must be kept in sync with date macros
+  // in macros.py.
+  enum FieldIndex {
+    kDateValue,
+    kYear,
+    kMonth,
+    kDay,
+    kWeekday,
+    kHour,
+    kMinute,
+    kSecond,
+    kFirstUncachedField,
+    kMillisecond = kFirstUncachedField,
+    kDays,
+    kTimeInDay,
+    kFirstUTCField,
+    kYearUTC = kFirstUTCField,
+    kMonthUTC,
+    kDayUTC,
+    kWeekdayUTC,
+    kHourUTC,
+    kMinuteUTC,
+    kSecondUTC,
+    kMillisecondUTC,
+    kDaysUTC,
+    kTimeInDayUTC,
+    kTimezoneOffset
+  };
+
+  // Layout description.
+  static const int kValueOffset = JSObject::kHeaderSize;
+  static const int kYearOffset = kValueOffset + kPointerSize;
+  static const int kMonthOffset = kYearOffset + kPointerSize;
+  static const int kDayOffset = kMonthOffset + kPointerSize;
+  static const int kWeekdayOffset = kDayOffset + kPointerSize;
+  static const int kHourOffset = kWeekdayOffset  + kPointerSize;
+  static const int kMinOffset = kHourOffset + kPointerSize;
+  static const int kSecOffset = kMinOffset + kPointerSize;
+  static const int kCacheStampOffset = kSecOffset + kPointerSize;
+  static const int kSize = kCacheStampOffset + kPointerSize;
+
+ private:
+  inline Object* DoGetField(FieldIndex index);
+
+  Object* GetUTCField(FieldIndex index, double value, DateCache* date_cache);
+
+  // Computes and caches the cacheable fields of the date.
+  inline void SetLocalFields(int64_t local_time_ms, DateCache* date_cache);
+
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
 };
 
 

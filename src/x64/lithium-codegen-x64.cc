@@ -1224,6 +1224,49 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
 }
 
 
+void LCodeGen::DoDateField(LDateField* instr) {
+  Register object = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Smi* index = instr->index();
+  Label runtime, done;
+  ASSERT(object.is(result));
+  ASSERT(object.is(rax));
+
+#ifdef DEBUG
+  __ AbortIfSmi(object);
+  __ CmpObjectType(object, JS_DATE_TYPE, kScratchRegister);
+  __ Assert(equal, "Trying to get date field from non-date.");
+#endif
+
+  if (index->value() == 0) {
+    __ movq(result, FieldOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ movq(kScratchRegister, stamp);
+      __ cmpq(kScratchRegister, FieldOperand(object,
+                                             JSDate::kCacheStampOffset));
+      __ j(not_equal, &runtime, Label::kNear);
+      __ movq(result, FieldOperand(object, JSDate::kValueOffset +
+                                           kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2);
+#ifdef _WIN64
+  __ movq(rcx, object);
+  __ movq(rdx, index, RelocInfo::NONE);
+#else
+  __ movq(rdi, object);
+  __ movq(rsi, index, RelocInfo::NONE);
+#endif
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ bind(&done);
+  }
+}
+
+
 void LCodeGen::DoBitNotI(LBitNotI* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->Equals(instr->result()));

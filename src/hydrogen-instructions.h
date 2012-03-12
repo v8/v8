@@ -184,7 +184,8 @@ class LChunkBuilder;
   V(ForInPrepareMap)                           \
   V(ForInCacheArray)                           \
   V(CheckMapValue)                             \
-  V(LoadFieldByIndex)
+  V(LoadFieldByIndex)                          \
+  V(DateField)
 
 #define GVN_FLAG_LIST(V)                       \
   V(Calls)                                     \
@@ -4599,6 +4600,26 @@ class HValueOf: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ValueOf)
+};
+
+
+class HDateField: public HUnaryOperation {
+ public:
+  HDateField(HValue* date, Smi* index)
+      : HUnaryOperation(date), index_(index) {
+    set_representation(Representation::Tagged());
+  }
+
+  Smi* index() const { return index_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField)
+
+ private:
+  Smi* index_;
 };
 
 

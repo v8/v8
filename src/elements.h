@@ -29,6 +29,8 @@
 #define V8_ELEMENTS_H_
 
 #include "objects.h"
+#include "heap.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +42,8 @@ class ElementsAccessor {
   explicit ElementsAccessor(const char* name) : name_(name) { }
   virtual ~ElementsAccessor() { }
 
-  virtual const char* name() const { return name_; }
+  virtual ElementsKind kind() const = 0;
+  const char* name() const { return name_; }
 
   // Returns true if a holder contains an element with the specified key
   // without iterating up the prototype chain.  The caller can optionally pass
@@ -85,6 +88,25 @@ class ElementsAccessor {
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
+  // Copy elements from one backing store to another. Typically, callers specify
+  // the source JSObject or JSArray in source_holder. If the holder's backing
+  // store is available, it can be passed in source and source_holder is
+  // ignored.
+  virtual MaybeObject* CopyElements(JSObject* source_holder,
+                                    uint32_t source_start,
+                                    FixedArrayBase* destination,
+                                    ElementsKind destination_kind,
+                                    uint32_t destination_start,
+                                    int copy_size,
+                                    FixedArrayBase* source = NULL) = 0;
+
+  MaybeObject* CopyElements(JSObject* from_holder,
+                            FixedArrayBase* to,
+                            ElementsKind to_kind,
+                            FixedArrayBase* from = NULL) {
+    return CopyElements(from_holder, 0, to, to_kind, 0, -1, from);
+  }
+
   virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
                                                JSObject* holder,
                                                FixedArray* to,
@@ -122,6 +144,17 @@ class ElementsAccessor {
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
+
+
+void CopyObjectToObjectElements(AssertNoAllocation* no_gc,
+                                FixedArray* from_obj,
+                                ElementsKind from_kind,
+                                uint32_t from_start,
+                                FixedArray* to_obj,
+                                ElementsKind to_kind,
+                                uint32_t to_start,
+                                int copy_size);
+
 
 } }  // namespace v8::internal
 

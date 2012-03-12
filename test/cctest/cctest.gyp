@@ -57,6 +57,7 @@
         'test-conversions.cc',
         'test-cpu-profiler.cc',
         'test-dataflow.cc',
+        'test-date.cc',
         'test-debug.cc',
         'test-decls.cc',
         'test-deoptimization.cc',

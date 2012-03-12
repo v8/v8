@@ -1,3 +1,12 @@
+2012-03-12: Version 3.9.17
+
+        Fixed VFP detection through compiler defines. (issue 1996)
+
+        Add Code-related fields to postmortem metadata.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-09: Version 3.9.16
 
         Added basic interface inference for modules (behind the --harmony flag).

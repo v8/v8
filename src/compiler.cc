@@ -116,7 +116,6 @@ void CompilationInfo::DisableOptimization() {
 bool CompilationInfo::ShouldSelfOptimize() {
   return FLAG_self_optimization &&
       FLAG_crankshaft &&
-      !Serializer::enabled() &&
       !function()->flags()->Contains(kDontSelfOptimize) &&
       !function()->flags()->Contains(kDontOptimize) &&
       function()->scope()->allows_lazy_recompilation() &&

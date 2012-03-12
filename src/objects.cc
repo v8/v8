@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "date.h"
 #include "elements.h"
 #include "execution.h"
 #include "full-codegen.h"
@@ -1067,7 +1068,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
       double length = JSArray::cast(this)->length()->Number();
-      accumulator->Add("<JS array[%u]>", static_cast<uint32_t>(length));
+      accumulator->Add("<JS Array[%u]>", static_cast<uint32_t>(length));
       break;
     }
     case JS_WEAK_MAP_TYPE: {
@@ -1338,6 +1339,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_VALUE_TYPE:
+    case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
@@ -8454,43 +8456,6 @@ void Code::Disassemble(const char* name, FILE* out) {
 #endif  // ENABLE_DISASSEMBLER
 
 
-static void CopyFastElementsToFast(FixedArray* source,
-                                   FixedArray* destination,
-                                   WriteBarrierMode mode) {
-  int count = source->length();
-  int copy_size = Min(count, destination->length());
-  if (mode == SKIP_WRITE_BARRIER ||
-      !Page::FromAddress(destination->address())->IsFlagSet(
-          MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
-    Address to = destination->address() + FixedArray::kHeaderSize;
-    Address from = source->address() + FixedArray::kHeaderSize;
-    memcpy(reinterpret_cast<void*>(to),
-           reinterpret_cast<void*>(from),
-           kPointerSize * copy_size);
-  } else {
-    for (int i = 0; i < copy_size; ++i) {
-      destination->set(i, source->get(i), mode);
-    }
-  }
-}
-
-
-static void CopySlowElementsToFast(SeededNumberDictionary* source,
-                                   FixedArray* destination,
-                                   WriteBarrierMode mode) {
-  int destination_length = destination->length();
-  for (int i = 0; i < source->Capacity(); ++i) {
-    Object* key = source->KeyAt(i);
-    if (key->IsNumber()) {
-      uint32_t entry = static_cast<uint32_t>(key->Number());
-      if (entry < static_cast<uint32_t>(destination_length)) {
-        destination->set(entry, source->ValueAt(i), mode);
-      }
-    }
-  }
-}
-
-
 MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     int capacity,
     int length,
@@ -8524,79 +8489,17 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 
   FixedArrayBase* old_elements_raw = elements();
   ElementsKind elements_kind = GetElementsKind();
-  switch (elements_kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
-      AssertNoAllocation no_gc;
-      WriteBarrierMode mode(new_elements->GetWriteBarrierMode(no_gc));
-      CopyFastElementsToFast(FixedArray::cast(old_elements_raw),
-                             new_elements, mode);
-      set_map_and_elements(new_map, new_elements);
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      AssertNoAllocation no_gc;
-      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
-      CopySlowElementsToFast(SeededNumberDictionary::cast(old_elements_raw),
-                             new_elements,
-                             mode);
-      set_map_and_elements(new_map, new_elements);
-      break;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      AssertNoAllocation no_gc;
-      WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
-      // The object's map and the parameter map are unchanged, the unaliased
-      // arguments are copied to the new backing store.
-      FixedArray* parameter_map = FixedArray::cast(old_elements_raw);
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      if (arguments->IsDictionary()) {
-        CopySlowElementsToFast(SeededNumberDictionary::cast(arguments),
-                               new_elements,
-                               mode);
-      } else {
-        CopyFastElementsToFast(arguments, new_elements, mode);
-      }
-      parameter_map->set(1, new_elements);
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* old_elements = FixedDoubleArray::cast(old_elements_raw);
-      uint32_t old_length = static_cast<uint32_t>(old_elements->length());
-      // Fill out the new array with this content and array holes.
-      for (uint32_t i = 0; i < old_length; i++) {
-        if (!old_elements->is_the_hole(i)) {
-          Object* obj;
-          // Objects must be allocated in the old object space, since the
-          // overall number of HeapNumbers needed for the conversion might
-          // exceed the capacity of new space, and we would fail repeatedly
-          // trying to convert the FixedDoubleArray.
-          MaybeObject* maybe_value_object =
-              GetHeap()->AllocateHeapNumber(old_elements->get_scalar(i),
-                                            TENURED);
-          if (!maybe_value_object->To(&obj)) return maybe_value_object;
-          // Force write barrier. It's not worth trying to exploit
-          // elems->GetWriteBarrierMode(), since it requires an
-          // AssertNoAllocation stack object that would have to be positioned
-          // after the HeapNumber allocation anyway.
-          new_elements->set(i, obj, UPDATE_WRITE_BARRIER);
-        }
-      }
-      set_map(new_map);
-      set_elements(new_elements);
-      break;
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
-      UNREACHABLE();
-      break;
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsKind to_kind = (elements_kind == FAST_SMI_ONLY_ELEMENTS)
+      ? FAST_SMI_ONLY_ELEMENTS
+      : FAST_ELEMENTS;
+  //  int copy_size = Min(old_elements_raw->length(), new_elements->length());
+  accessor->CopyElements(this, new_elements, to_kind);
+  if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
+    set_map_and_elements(new_map, new_elements);
+  } else {
+    FixedArray* parameter_map = FixedArray::cast(old_elements_raw);
+    parameter_map->set(1, new_elements);
   }
 
   if (FLAG_trace_elements_transitions) {
@@ -12968,5 +12871,134 @@ int BreakPointInfo::GetBreakPointCount() {
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
+
+MaybeObject* JSDate::GetField(Object* object, Smi* index) {
+  return JSDate::cast(object)->DoGetField(
+      static_cast<FieldIndex>(index->value()));
+}
+
+
+Object* JSDate::DoGetField(FieldIndex index) {
+  ASSERT(index != kDateValue);
+
+  DateCache* date_cache = GetIsolate()->date_cache();
+
+  if (index < kFirstUncachedField) {
+    Object* stamp = cache_stamp();
+    if (stamp != date_cache->stamp() && stamp->IsSmi()) {
+      // Since the stamp is not NaN, the value is also not NaN.
+      int64_t local_time_ms =
+          date_cache->ToLocal(static_cast<int64_t>(value()->Number()));
+      SetLocalFields(local_time_ms, date_cache);
+    }
+    switch (index) {
+      case kYear: return year();
+      case kMonth: return month();
+      case kDay: return day();
+      case kWeekday: return weekday();
+      case kHour: return hour();
+      case kMinute: return min();
+      case kSecond: return sec();
+      default: UNREACHABLE();
+    }
+  }
+
+  if (index >= kFirstUTCField) {
+    return GetUTCField(index, value()->Number(), date_cache);
+  }
+
+  double time = value()->Number();
+  if (isnan(time)) return GetIsolate()->heap()->nan_value();
+
+  int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));
+  int days = DateCache::DaysFromTime(local_time_ms);
+
+  if (index == kDays) return Smi::FromInt(days);
+
+  int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);
+  if (index == kMillisecond) return Smi::FromInt(time_in_day_ms % 1000);
+  ASSERT(index == kTimeInDay);
+  return Smi::FromInt(time_in_day_ms);
+}
+
+
+Object* JSDate::GetUTCField(FieldIndex index,
+                            double value,
+                            DateCache* date_cache) {
+  ASSERT(index >= kFirstUTCField);
+
+  if (isnan(value)) return GetIsolate()->heap()->nan_value();
+
+  int64_t time_ms = static_cast<int64_t>(value);
+
+  if (index == kTimezoneOffset) {
+    return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
+  }
+
+  int days = DateCache::DaysFromTime(time_ms);
+
+  if (index == kWeekdayUTC) return Smi::FromInt(date_cache->Weekday(days));
+
+  if (index <= kDayUTC) {
+    int year, month, day;
+    date_cache->YearMonthDayFromDays(days, &year, &month, &day);
+    if (index == kYearUTC) return Smi::FromInt(year);
+    if (index == kMonthUTC) return Smi::FromInt(month);
+    ASSERT(index == kDayUTC);
+    return Smi::FromInt(day);
+  }
+
+  int time_in_day_ms = DateCache::TimeInDay(time_ms, days);
+  switch (index) {
+    case kHourUTC: return Smi::FromInt(time_in_day_ms / (60 * 60 * 1000));
+    case kMinuteUTC: return Smi::FromInt((time_in_day_ms / (60 * 1000)) % 60);
+    case kSecondUTC: return Smi::FromInt((time_in_day_ms / 1000) % 60);
+    case kMillisecondUTC: return Smi::FromInt(time_in_day_ms % 1000);
+    case kDaysUTC: return Smi::FromInt(days);
+    case kTimeInDayUTC: return Smi::FromInt(time_in_day_ms);
+    default: UNREACHABLE();
+  }
+
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void JSDate::SetValue(Object* value, bool is_value_nan) {
+  set_value(value);
+  if (is_value_nan) {
+    HeapNumber* nan = GetIsolate()->heap()->nan_value();
+    set_cache_stamp(nan, SKIP_WRITE_BARRIER);
+    set_year(nan, SKIP_WRITE_BARRIER);
+    set_month(nan, SKIP_WRITE_BARRIER);
+    set_day(nan, SKIP_WRITE_BARRIER);
+    set_hour(nan, SKIP_WRITE_BARRIER);
+    set_min(nan, SKIP_WRITE_BARRIER);
+    set_sec(nan, SKIP_WRITE_BARRIER);
+    set_weekday(nan, SKIP_WRITE_BARRIER);
+  } else {
+    set_cache_stamp(Smi::FromInt(DateCache::kInvalidStamp), SKIP_WRITE_BARRIER);
+  }
+}
+
+
+void JSDate::SetLocalFields(int64_t local_time_ms, DateCache* date_cache) {
+  int days = DateCache::DaysFromTime(local_time_ms);
+  int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);
+  int year, month, day;
+  date_cache->YearMonthDayFromDays(days, &year, &month, &day);
+  int weekday = date_cache->Weekday(days);
+  int hour = time_in_day_ms / (60 * 60 * 1000);
+  int min = (time_in_day_ms / (60 * 1000)) % 60;
+  int sec = (time_in_day_ms / 1000) % 60;
+  set_cache_stamp(date_cache->stamp());
+  set_year(Smi::FromInt(year), SKIP_WRITE_BARRIER);
+  set_month(Smi::FromInt(month), SKIP_WRITE_BARRIER);
+  set_day(Smi::FromInt(day), SKIP_WRITE_BARRIER);
+  set_weekday(Smi::FromInt(weekday), SKIP_WRITE_BARRIER);
+  set_hour(Smi::FromInt(hour), SKIP_WRITE_BARRIER);
+  set_min(Smi::FromInt(min), SKIP_WRITE_BARRIER);
+  set_sec(Smi::FromInt(sec), SKIP_WRITE_BARRIER);
+}
 
 } }  // namespace v8::internal

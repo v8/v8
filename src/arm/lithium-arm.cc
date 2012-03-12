@@ -1602,6 +1602,13 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
+  LOperand* object = UseFixed(instr->value(), r0);
+  LDateField* result = new LDateField(object, FixedTemp(r1), instr->index());
+  return MarkAsCall(DefineFixed(result, r0), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   LOperand* value = UseRegisterAtStart(instr->index());
   LOperand* length = UseRegister(instr->length());

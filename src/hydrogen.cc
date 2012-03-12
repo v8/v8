@@ -7122,6 +7122,17 @@ void HGraphBuilder::GenerateValueOf(CallRuntime* call) {
 }
 
 
+void HGraphBuilder::GenerateDateField(CallRuntime* call) {
+  ASSERT(call->arguments()->length() == 2);
+  ASSERT_NE(NULL, call->arguments()->at(1)->AsLiteral());
+  Smi* index = Smi::cast(*(call->arguments()->at(1)->AsLiteral()->handle()));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* date = Pop();
+  HDateField* result = new(zone()) HDateField(date, index);
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
 void HGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 2);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

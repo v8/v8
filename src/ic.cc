@@ -2490,9 +2490,13 @@ CompareIC::State CompareIC::TargetState(State state,
           return HEAP_NUMBERS;
         }
       }
-      if (!Token::IsEqualityOp(op_)) return GENERIC;
-      if (x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
+      if (x->IsSymbol() && y->IsSymbol()) {
+        // We compare symbols as strings if we need to determine
+        // the order in a non-equality compare.
+        return Token::IsEqualityOp(op_) ? SYMBOLS : STRINGS;
+      }
       if (x->IsString() && y->IsString()) return STRINGS;
+      if (!Token::IsEqualityOp(op_)) return GENERIC;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map() &&
