@@ -396,7 +396,7 @@ bool IncrementalMarking::WorthActivating() {
   return !FLAG_expose_gc &&
       FLAG_incremental_marking &&
       !Serializer::enabled() &&
-      heap_->PromotedSpaceSize() > kActivationThreshold;
+      heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
 
 
