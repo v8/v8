@@ -4186,8 +4186,6 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
 
 MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
                                               PretenureFlag pretenure) {
-  // V8 only supports characters in the Basic Multilingual Plane.
-  const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
   Access<UnicodeCache::Utf8Decoder>
@@ -4195,8 +4193,12 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   while (decoder->has_more()) {
-    decoder->GetNext();
-    chars++;
+    uint32_t r = decoder->GetNext();
+    if (r <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      chars++;
+    } else {
+      chars += 2;
+    }
   }
 
   Object* result;
@@ -4207,10 +4209,15 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   // Convert and copy the characters into the new object.
   String* string_result = String::cast(result);
   decoder->Reset(string.start(), string.length());
-  for (int i = 0; i < chars; i++) {
-    uc32 r = decoder->GetNext();
-    if (r > kMaxSupportedChar) { r = unibrow::Utf8::kBadChar; }
-    string_result->Set(i, r);
+  int i = 0;
+  while (i < chars) {
+    uint32_t r = decoder->GetNext();
+    if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      string_result->Set(i++, unibrow::Utf16::LeadSurrogate(r));
+      string_result->Set(i++, unibrow::Utf16::TrailSurrogate(r));
+    } else {
+      string_result->Set(i++, r);
+    }
   }
   return result;
 }
@@ -4267,7 +4274,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
                                           uint32_t hash_field) {
   ASSERT(chars >= 0);
   // Ensure the chars matches the number of characters in the buffer.
-  ASSERT(static_cast<unsigned>(chars) == buffer->Length());
+  ASSERT(static_cast<unsigned>(chars) == buffer->Utf16Length());
   // Determine whether the string is ASCII.
   bool is_ascii = true;
   while (buffer->has_more()) {
@@ -4313,8 +4320,15 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  for (int i = 0; i < chars; i++) {
-    answer->Set(i, buffer->GetNext());
+  int i = 0;
+  while (i < chars) {
+    uint32_t character = buffer->GetNext();
+    if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      answer->Set(i++, unibrow::Utf16::LeadSurrogate(character));
+      answer->Set(i++, unibrow::Utf16::TrailSurrogate(character));
+    } else {
+      answer->Set(i++, character);
+    }
   }
   return answer;
 }

@@ -4284,7 +4284,7 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone) {
-    return new(zone) Range(0, String::kMaxUC16CharCode);
+    return new(zone) Range(0, String::kMaxUtf16CodeUnit);
   }
 };
 

@@ -172,7 +172,7 @@ class ParserApi {
   static bool Parse(CompilationInfo* info, int flags);
 
   // Generic preparser generating full preparse data.
-  static ScriptDataImpl* PreParse(UC16CharacterStream* source,
+  static ScriptDataImpl* PreParse(Utf16CharacterStream* source,
                                   v8::Extension* extension,
                                   int flags);
 
@@ -542,7 +542,7 @@ class Parser {
 
 
   FunctionLiteral* ParseLazy(CompilationInfo* info,
-                             UC16CharacterStream* source,
+                             Utf16CharacterStream* source,
                              ZoneScope* zone_scope);
 
   Isolate* isolate() { return isolate_; }
@@ -712,7 +712,7 @@ class Parser {
           scanner().literal_ascii_string(), tenured);
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
-            scanner().literal_uc16_string(), tenured);
+            scanner().literal_utf16_string(), tenured);
     }
   }
 
@@ -722,7 +722,7 @@ class Parser {
           scanner().next_literal_ascii_string(), tenured);
     } else {
       return isolate_->factory()->NewStringFromTwoByte(
-          scanner().next_literal_uc16_string(), tenured);
+          scanner().next_literal_utf16_string(), tenured);
     }
   }
 

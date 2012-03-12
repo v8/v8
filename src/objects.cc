@@ -6051,9 +6051,11 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   buffer->Reset(offset, this);
   int character_position = offset;
   int utf8_bytes = 0;
+  int last = unibrow::Utf16::kNoPreviousCharacter;
   while (buffer->has_more() && character_position++ < offset + length) {
     uint16_t character = buffer->GetNext();
-    utf8_bytes += unibrow::Utf8::Length(character);
+    utf8_bytes += unibrow::Utf8::Length(character, last);
+    last = character;
   }
 
   if (length_return) {
@@ -6067,13 +6069,15 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   buffer->Seek(offset);
   character_position = offset;
   int utf8_byte_position = 0;
+  last = unibrow::Utf16::kNoPreviousCharacter;
   while (buffer->has_more() && character_position++ < offset + length) {
     uint16_t character = buffer->GetNext();
     if (allow_nulls == DISALLOW_NULLS && character == 0) {
       character = ' ';
     }
     utf8_byte_position +=
-        unibrow::Utf8::Encode(result + utf8_byte_position, character);
+        unibrow::Utf8::Encode(result + utf8_byte_position, character, last);
+    last = character;
   }
   result[utf8_byte_position] = 0;
   return SmartArrayPointer<char>(result);
@@ -6383,73 +6387,6 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
 
   UNREACHABLE();
-  return 0;
-}
-
-
-// This method determines the type of string involved and then gets the UTF8
-// length of the string.  It doesn't flatten the string and has log(n) recursion
-// for a string of length n.
-int String::Utf8Length(String* input, int from, int to) {
-  if (from == to) return 0;
-  int total = 0;
-  while (true) {
-    if (input->IsAsciiRepresentation()) return total + to - from;
-    switch (StringShape(input).representation_tag()) {
-      case kConsStringTag: {
-        ConsString* str = ConsString::cast(input);
-        String* first = str->first();
-        String* second = str->second();
-        int first_length = first->length();
-        if (first_length - from < to - first_length) {
-          if (first_length > from) {
-            // Left hand side is shorter.
-            total += Utf8Length(first, from, first_length);
-            input = second;
-            from = 0;
-            to -= first_length;
-          } else {
-            // We only need the right hand side.
-            input = second;
-            from -= first_length;
-            to -= first_length;
-          }
-        } else {
-          if (first_length <= to) {
-            // Right hand side is shorter.
-            total += Utf8Length(second, 0, to - first_length);
-            input = first;
-            to = first_length;
-          } else {
-            // We only need the left hand side.
-            input = first;
-          }
-        }
-        continue;
-      }
-      case kExternalStringTag:
-      case kSeqStringTag: {
-        Vector<const uc16> vector = input->GetFlatContent().ToUC16Vector();
-        const uc16* p = vector.start();
-        for (int i = from; i < to; i++) {
-          total += unibrow::Utf8::Length(p[i]);
-        }
-        return total;
-      }
-      case kSlicedStringTag: {
-        SlicedString* str = SlicedString::cast(input);
-        int offset = str->offset();
-        input = str->parent();
-        from += offset;
-        to += offset;
-        continue;
-      }
-      default:
-        break;
-    }
-    UNREACHABLE();
-    return 0;
-  }
   return 0;
 }
 
@@ -6847,8 +6784,10 @@ static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
   // General slow case check.  We know that the ia and ib iterators
   // have the same length.
   while (ia->has_more()) {
-    uc32 ca = ia->GetNext();
-    uc32 cb = ib->GetNext();
+    uint32_t ca = ia->GetNext();
+    uint32_t cb = ib->GetNext();
+    ASSERT(ca <= unibrow::Utf16::kMaxNonSurrogateCharCode);
+    ASSERT(cb <= unibrow::Utf16::kMaxNonSurrogateCharCode);
     if (ca != cb)
       return false;
   }
@@ -7031,8 +6970,14 @@ bool String::IsEqualTo(Vector<const char> str) {
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {
-    uc32 r = decoder->GetNext();
-    if (Get(i) != r) return false;
+    uint32_t r = decoder->GetNext();
+    if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      if (i > slen - 1) return false;
+      if (Get(i++) != unibrow::Utf16::LeadSurrogate(r)) return false;
+      if (Get(i) != unibrow::Utf16::TrailSurrogate(r)) return false;
+    } else {
+      if (Get(i) != r) return false;
+    }
   }
   return i == slen && !decoder->has_more();
 }
@@ -7159,6 +7104,22 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   ASSERT((length > String::kMaxCachedArrayIndexLength) ||
          (value & String::kContainsCachedArrayIndexMask) == 0);
   return value;
+}
+
+
+void StringHasher::AddSurrogatePair(uc32 c) {
+  uint16_t lead = unibrow::Utf16::LeadSurrogate(c);
+  AddCharacter(lead);
+  uint16_t trail = unibrow::Utf16::TrailSurrogate(c);
+  AddCharacter(trail);
+}
+
+
+void StringHasher::AddSurrogatePairNoIndex(uc32 c) {
+  uint16_t lead = unibrow::Utf16::LeadSurrogate(c);
+  AddCharacterNoIndex(lead);
+  uint16_t trail = unibrow::Utf16::TrailSurrogate(c);
+  AddCharacterNoIndex(trail);
 }
 
 
@@ -10655,7 +10616,7 @@ class Utf8SymbolKey : public HashTableKey {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
-    chars_ = buffer.Length();
+    chars_ = buffer.Utf16Length();
     hash_field_ = String::ComputeHashField(&buffer, chars_, seed_);
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.

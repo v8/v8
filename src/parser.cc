@@ -258,7 +258,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
           scanner().literal_ascii_string());
     } else {
       return isolate()->factory()->LookupTwoByteSymbol(
-          scanner().literal_uc16_string());
+          scanner().literal_utf16_string());
     }
   }
   return LookupCachedSymbol(symbol_id);
@@ -279,7 +279,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
           scanner().literal_ascii_string());
     } else {
       result = isolate()->factory()->LookupTwoByteSymbol(
-          scanner().literal_uc16_string());
+          scanner().literal_utf16_string());
     }
     symbol_cache_.at(symbol_id) = result;
     return result;
@@ -576,12 +576,12 @@ FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
     // identical calls.
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
     return DoParseProgram(info, source, &zone_scope);
   } else {
-    GenericStringUC16CharacterStream stream(source, 0, source->length());
+    GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
     return DoParseProgram(info, source, &zone_scope);
   }
@@ -665,16 +665,16 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
   // Initialize parser state.
   source->TryFlatten();
   if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   } else {
-    GenericStringUC16CharacterStream stream(source,
-                                            shared_info->start_position(),
-                                            shared_info->end_position());
+    GenericStringUtf16CharacterStream stream(source,
+                                             shared_info->start_position(),
+                                             shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   }
@@ -682,7 +682,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
 
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
-                                   UC16CharacterStream* source,
+                                   Utf16CharacterStream* source,
                                    ZoneScope* zone_scope) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
@@ -4285,7 +4285,7 @@ class SingletonLogger : public ParserRecorder {
 
   // Logs a symbol creation of a literal or identifier.
   virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUC16Symbol(int start, Vector<const uc16> literal) { }
+  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -5874,7 +5874,7 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
+static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
@@ -5915,17 +5915,17 @@ ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
   PartialParserRecorder recorder;
   int source_length = source->length();
   if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source_length);
     return DoPreParse(&stream, flags, &recorder);
   } else {
-    GenericStringUC16CharacterStream stream(source, 0, source_length);
+    GenericStringUtf16CharacterStream stream(source, 0, source_length);
     return DoPreParse(&stream, flags, &recorder);
   }
 }
 
 
-ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source,
                                     v8::Extension* extension,
                                     int flags) {
   Handle<Script> no_script;

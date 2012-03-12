@@ -461,18 +461,20 @@ class Logger::NameBuffer {
       utf8_pos_ += utf8_length;
       return;
     }
-    int uc16_length = Min(str->length(), kUc16BufferSize);
-    String::WriteToFlat(str, uc16_buffer_, 0, uc16_length);
+    int uc16_length = Min(str->length(), kUtf16BufferSize);
+    String::WriteToFlat(str, utf16_buffer, 0, uc16_length);
+    int previous = unibrow::Utf16::kNoPreviousCharacter;
     for (int i = 0; i < uc16_length && utf8_pos_ < kUtf8BufferSize; ++i) {
-      uc16 c = uc16_buffer_[i];
+      uc16 c = utf16_buffer[i];
       if (c <= String::kMaxAsciiCharCodeU) {
         utf8_buffer_[utf8_pos_++] = static_cast<char>(c);
       } else {
-        int char_length = unibrow::Utf8::Length(c);
+        int char_length = unibrow::Utf8::Length(c, previous);
         if (utf8_pos_ + char_length > kUtf8BufferSize) break;
-        unibrow::Utf8::Encode(utf8_buffer_ + utf8_pos_, c);
+        unibrow::Utf8::Encode(utf8_buffer_ + utf8_pos_, c, previous);
         utf8_pos_ += char_length;
       }
+      previous = c;
     }
   }
 
@@ -504,11 +506,11 @@ class Logger::NameBuffer {
 
  private:
   static const int kUtf8BufferSize = 512;
-  static const int kUc16BufferSize = 128;
+  static const int kUtf16BufferSize = 128;
 
   int utf8_pos_;
   char utf8_buffer_[kUtf8BufferSize];
-  uc16 uc16_buffer_[kUc16BufferSize];
+  uc16 utf16_buffer[kUtf16BufferSize];
 };
 
 
