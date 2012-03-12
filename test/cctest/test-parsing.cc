@@ -361,7 +361,7 @@ TEST(Regress928) {
 
   int first_function =
       static_cast<int>(strstr(program, "function") - program);
-  int first_lbrace = first_function + static_cast<int>(strlen("function () "));
+  int first_lbrace = first_function + i::StrLength("function () ");
   CHECK_EQ('{', program[first_lbrace]);
   i::FunctionEntry entry1 = data->GetFunctionEntry(first_lbrace);
   CHECK(!entry1.is_valid());
@@ -369,7 +369,7 @@ TEST(Regress928) {
   int second_function =
       static_cast<int>(strstr(program + first_lbrace, "function") - program);
   int second_lbrace =
-      second_function + static_cast<int>(strlen("function () "));
+      second_function + i::StrLength("function () ");
   CHECK_EQ('{', program[second_lbrace]);
   i::FunctionEntry entry2 = data->GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());
@@ -752,7 +752,7 @@ TEST(RegExpScanning) {
 
 
 static int Utf8LengthHelper(const char* s) {
-  int len = strlen(s);
+  int len = i::StrLength(s);
   int character_length = len;
   for (int i = 0; i < len; i++) {
     unsigned char c = s[i];
