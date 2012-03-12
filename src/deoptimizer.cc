@@ -847,7 +847,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::ARGUMENTS_OBJECT: {
       // Use the arguments marker value as a sentinel and fill in the arguments
       // object after the deoptimized frame is built.
-      ASSERT(frame_index == 0);  // Only supported for first frame.
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,

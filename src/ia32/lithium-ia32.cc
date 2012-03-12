@@ -1111,17 +1111,25 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 }
 
 
+LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
+  LOperand* receiver = UseRegister(instr->receiver());
+  LOperand* function = UseRegisterAtStart(instr->function());
+  LOperand* temp = TempRegister();
+  LWrapReceiver* result =
+      new(zone()) LWrapReceiver(receiver, function, temp);
+  return AssignEnvironment(DefineSameAsFirst(result));
+}
+
+
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), edi);
   LOperand* receiver = UseFixed(instr->receiver(), eax);
   LOperand* length = UseFixed(instr->length(), ebx);
   LOperand* elements = UseFixed(instr->elements(), ecx);
-  LOperand* temp = FixedTemp(edx);
   LApplyArguments* result = new(zone()) LApplyArguments(function,
                                                         receiver,
                                                         length,
-                                                        elements,
-                                                        temp);
+                                                        elements);
   return MarkAsCall(DefineFixed(result, eax), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 

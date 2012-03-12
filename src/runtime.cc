@@ -8112,25 +8112,8 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsSmi());
-  Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  ASSERT(isolate->heap()->IsAllocationAllowed());
-  int jsframes = deoptimizer->jsframe_count();
-
-  deoptimizer->MaterializeHeapNumbers();
-  delete deoptimizer;
-
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < jsframes - 1; i++) it.Advance();
-  frame = it.frame();
-
-  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
+                                              JavaScriptFrame* frame) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
   Handle<Object> arguments;
   for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
@@ -8147,6 +8130,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       frame->SetExpression(i, *arguments);
     }
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args[0]->IsSmi());
+  Deoptimizer::BailoutType type =
+      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
+  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  ASSERT(isolate->heap()->IsAllocationAllowed());
+  int jsframes = deoptimizer->jsframe_count();
+
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
+  JavaScriptFrameIterator it(isolate);
+  for (int i = 0; i < jsframes - 1; i++) {
+    MaterializeArgumentsObjectInFrame(isolate, it.frame());
+    it.Advance();
+  }
+
+  JavaScriptFrame* frame = it.frame();
+  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  MaterializeArgumentsObjectInFrame(isolate, frame);
 
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());

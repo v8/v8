@@ -173,7 +173,8 @@ class LCodeGen;
   V(ForInCacheArray)                            \
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
-  V(DateField)
+  V(DateField)                                  \
+  V(WrapReceiver)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -456,18 +457,33 @@ class LControlInstruction: public LTemplateInstruction<0, I, T> {
 };
 
 
-class LApplyArguments: public LTemplateInstruction<1, 4, 1> {
+class LWrapReceiver: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LWrapReceiver(LOperand* receiver,
+                LOperand* function,
+                LOperand* temp) {
+    inputs_[0] = receiver;
+    inputs_[1] = function;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
+
+  LOperand* receiver() { return inputs_[0]; }
+  LOperand* function() { return inputs_[1]; }
+};
+
+
+class LApplyArguments: public LTemplateInstruction<1, 4, 0> {
  public:
   LApplyArguments(LOperand* function,
                   LOperand* receiver,
                   LOperand* length,
-                  LOperand* elements,
-                  LOperand* temp) {
+                  LOperand* elements) {
     inputs_[0] = function;
     inputs_[1] = receiver;
     inputs_[2] = length;
     inputs_[3] = elements;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")

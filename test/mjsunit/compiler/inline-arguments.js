@@ -27,11 +27,30 @@
 
 // Flags: --allow-natives-syntax
 
-// Test inlining functions that use arguments.
-function f() { return g(1, 2, 3); }
+function A() {
+}
 
-function g(x, y, z) { return %_ArgumentsLength(); }
+A.prototype.X = function (a, b, c) {
+  assertTrue(this instanceof A);
+  assertEquals(1, a);
+  assertEquals(2, b);
+  assertEquals(3, c);
+};
 
-for (var i = 0; i < 5; ++i) f();
-%OptimizeFunctionOnNextCall(f);
-assertEquals(3, f());
+A.prototype.Y = function () {
+  this.X.apply(this, arguments);
+};
+
+A.prototype.Z = function () {
+  this.Y(1,2,3);
+};
+
+var a = new A();
+a.Z(4,5,6);
+a.Z(4,5,6);
+%OptimizeFunctionOnNextCall(a.Z);
+a.Z(4,5,6);
+A.prototype.X.apply = function (receiver, args) {
+  return Function.prototype.apply.call(this, receiver, args);
+};
+a.Z(4,5,6);
