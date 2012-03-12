@@ -175,19 +175,16 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
 #ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
 static ModuloFunction modulo_function = NULL;
-static LazyMutex modulo_function_mutex = LAZY_MUTEX_INITIALIZER;
+V8_DECLARE_ONCE(modulo_function_init_once);
 // Defined in codegen-x64.cc.
 ModuloFunction CreateModuloFunction();
 
+void init_modulo_function() {
+  modulo_function = CreateModuloFunction();
+}
+
 double modulo(double x, double y) {
-  if (modulo_function == NULL) {
-    ScopedLock lock(modulo_function_mutex.Pointer());
-    if (modulo_function == NULL) {
-      ModuloFunction temp = CreateModuloFunction();
-      MemoryBarrier();
-      modulo_function = temp;
-    }
-  }
+  CallOnce(&modulo_function_init_once, &init_modulo_function);
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   return (*modulo_function)(x, y);
@@ -208,17 +205,15 @@ double modulo(double x, double y) {
 #endif  // _WIN64
 
 
-static LazyMutex math_function_mutex = LAZY_MUTEX_INITIALIZER;
-
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
+V8_DECLARE_ONCE(fast_##name##_init_once);                \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
 double fast_##name(double x) {                           \
-  if (fast_##name##_function == NULL) {                  \
-    ScopedLock lock(math_function_mutex.Pointer());      \
-    UnaryMathFunction temp = generator;                  \
-    MemoryBarrier();                                     \
-    fast_##name##_function = temp;                       \
-  }                                                      \
+  CallOnce(&fast_##name##_init_once,                     \
+           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 

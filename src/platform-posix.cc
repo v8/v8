@@ -127,17 +127,15 @@ double modulo(double x, double y) {
 }
 
 
-static LazyMutex math_function_mutex = LAZY_MUTEX_INITIALIZER;
-
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
+V8_DECLARE_ONCE(fast_##name##_init_once);                \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
 double fast_##name(double x) {                           \
-  if (fast_##name##_function == NULL) {                  \
-    ScopedLock lock(math_function_mutex.Pointer());      \
-    UnaryMathFunction temp = generator;                  \
-    MemoryBarrier();                                     \
-    fast_##name##_function = temp;                       \
-  }                                                      \
+  CallOnce(&fast_##name##_init_once,                     \
+           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 
