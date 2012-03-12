@@ -127,13 +127,13 @@ double modulo(double x, double y) {
 }
 
 
-static Mutex* math_function_mutex = OS::CreateMutex();
+static LazyMutex math_function_mutex = LAZY_MUTEX_INITIALIZER;
 
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
 double fast_##name(double x) {                           \
   if (fast_##name##_function == NULL) {                  \
-    ScopedLock lock(math_function_mutex);                \
+    ScopedLock lock(math_function_mutex.Pointer());      \
     UnaryMathFunction temp = generator;                  \
     MemoryBarrier();                                     \
     fast_##name##_function = temp;                       \
