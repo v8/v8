@@ -149,14 +149,14 @@ static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
 static OS::MemCopyFunction memcopy_function = NULL;
-static Mutex* memcopy_function_mutex = OS::CreateMutex();
+static LazyMutex memcopy_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-ia32.cc.
 OS::MemCopyFunction CreateMemCopyFunction();
 
 // Copy memory area to disjoint memory area.
 void OS::MemCopy(void* dest, const void* src, size_t size) {
   if (memcopy_function == NULL) {
-    ScopedLock lock(memcopy_function_mutex);
+    ScopedLock lock(memcopy_function_mutex.Pointer());
     if (memcopy_function == NULL) {
       OS::MemCopyFunction temp = CreateMemCopyFunction();
       MemoryBarrier();
@@ -175,13 +175,13 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
 #ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
 static ModuloFunction modulo_function = NULL;
-static Mutex* modulo_function_mutex = OS::CreateMutex();
+static LazyMutex modulo_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-x64.cc.
 ModuloFunction CreateModuloFunction();
 
 double modulo(double x, double y) {
   if (modulo_function == NULL) {
-    ScopedLock lock(modulo_function_mutex);
+    ScopedLock lock(modulo_function_mutex.Pointer());
     if (modulo_function == NULL) {
       ModuloFunction temp = CreateModuloFunction();
       MemoryBarrier();
@@ -2058,7 +2058,7 @@ class SamplerThread : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static LazyMutex mutex_;
   static SamplerThread* instance_;
 
  private:
@@ -2066,7 +2066,7 @@ class SamplerThread : public Thread {
 };
 
 
-Mutex* SamplerThread::mutex_ = OS::CreateMutex();
+LazyMutex SamplerThread::mutex_ = LAZY_MUTEX_INITIALIZER;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 

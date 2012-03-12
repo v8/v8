@@ -97,16 +97,25 @@ struct Register {
   int code_;
 };
 
+const int kRegister_eax_Code = 0;
+const int kRegister_ecx_Code = 1;
+const int kRegister_edx_Code = 2;
+const int kRegister_ebx_Code = 3;
+const int kRegister_esp_Code = 4;
+const int kRegister_ebp_Code = 5;
+const int kRegister_esi_Code = 6;
+const int kRegister_edi_Code = 7;
+const int kRegister_no_reg_Code = -1;
 
-const Register eax = { 0 };
-const Register ecx = { 1 };
-const Register edx = { 2 };
-const Register ebx = { 3 };
-const Register esp = { 4 };
-const Register ebp = { 5 };
-const Register esi = { 6 };
-const Register edi = { 7 };
-const Register no_reg = { -1 };
+const Register eax = { kRegister_eax_Code };
+const Register ecx = { kRegister_ecx_Code };
+const Register edx = { kRegister_edx_Code };
+const Register ebx = { kRegister_ebx_Code };
+const Register esp = { kRegister_esp_Code };
+const Register ebp = { kRegister_ebp_Code };
+const Register esi = { kRegister_esi_Code };
+const Register edi = { kRegister_edi_Code };
+const Register no_reg = { kRegister_no_reg_Code };
 
 
 inline const char* Register::AllocationIndexToString(int index) {
