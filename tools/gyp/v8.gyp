@@ -40,10 +40,16 @@
               'toolsets': ['target'],
             }],
             ['v8_use_snapshot=="true"', {
-              'dependencies': ['v8_snapshot'],
+              # The dependency on v8_base should come from a transitive
+              # dependency however the Android toolchain requires libv8_base.a
+              # to appear before libv8_snapshot.a so it's listed explicitly.
+              'dependencies': ['v8_base', 'v8_snapshot'],
             },
             {
-              'dependencies': ['v8_nosnapshot'],
+              # The dependency on v8_base should come from a transitive
+              # dependency however the Android toolchain requires libv8_base.a
+              # to appear before libv8_snapshot.a so it's listed explicitly.
+              'dependencies': ['v8_base', 'v8_nosnapshot'],
             }],
             ['component=="shared_library"', {
               'type': '<(component)',
