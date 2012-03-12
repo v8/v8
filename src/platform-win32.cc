@@ -208,27 +208,27 @@ double modulo(double x, double y) {
 #endif  // _WIN64
 
 
-static Mutex* transcendental_function_mutex = OS::CreateMutex();
+static Mutex* math_function_mutex = OS::CreateMutex();
 
-#define TRANSCENDENTAL_FUNCTION(name, type)                   \
-static TranscendentalFunction fast_##name##_function = NULL;  \
-double fast_##name(double x) {                                \
-  if (fast_##name##_function == NULL) {                       \
-    ScopedLock lock(transcendental_function_mutex);           \
-    TranscendentalFunction temp =                             \
-        CreateTranscendentalFunction(type);                   \
-    MemoryBarrier();                                          \
-    fast_##name##_function = temp;                            \
-  }                                                           \
-  return (*fast_##name##_function)(x);                        \
+#define UNARY_MATH_FUNCTION(name, generator)             \
+static UnaryMathFunction fast_##name##_function = NULL;  \
+double fast_##name(double x) {                           \
+  if (fast_##name##_function == NULL) {                  \
+    ScopedLock lock(math_function_mutex);                \
+    UnaryMathFunction temp = generator;                  \
+    MemoryBarrier();                                     \
+    fast_##name##_function = temp;                       \
+  }                                                      \
+  return (*fast_##name##_function)(x);                   \
 }
 
-TRANSCENDENTAL_FUNCTION(sin, TranscendentalCache::SIN)
-TRANSCENDENTAL_FUNCTION(cos, TranscendentalCache::COS)
-TRANSCENDENTAL_FUNCTION(tan, TranscendentalCache::TAN)
-TRANSCENDENTAL_FUNCTION(log, TranscendentalCache::LOG)
+UNARY_MATH_FUNCTION(sin, CreateTranscendentalFunction(TranscendentalCache::SIN))
+UNARY_MATH_FUNCTION(cos, CreateTranscendentalFunction(TranscendentalCache::COS))
+UNARY_MATH_FUNCTION(tan, CreateTranscendentalFunction(TranscendentalCache::TAN))
+UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
+UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
-#undef TRANSCENDENTAL_FUNCTION
+#undef MATH_FUNCTION
 
 
 // ----------------------------------------------------------------------------

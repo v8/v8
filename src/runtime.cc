@@ -7441,9 +7441,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   if (y == y_int) {
     result = power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   } else  if (y == 0.5) {
-    result = (isinf(x)) ? V8_INFINITY : sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? V8_INFINITY
+                        : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else if (y == -0.5) {
-    result = (isinf(x)) ? 0 : 1.0 / sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? 0
+                        : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else {
     result = power_double_double(x, y);
   }
@@ -7529,7 +7531,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   isolate->counters()->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(sqrt(x));
+  return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
 }
 
 

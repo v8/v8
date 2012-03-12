@@ -102,6 +102,7 @@ double fast_sin(double input);
 double fast_cos(double input);
 double fast_tan(double input);
 double fast_log(double input);
+double fast_sqrt(double input);
 
 // Forward declarations.
 class Socket;
