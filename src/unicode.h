@@ -117,19 +117,19 @@ class Buffer {
 
 class Utf16 {
  public:
-  static inline bool IsLeadSurrogate(int32_t code) {
+  static inline bool IsLeadSurrogate(int code) {
     if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xd800;
   }
-  static inline bool IsTrailSurrogate(int32_t code) {
+  static inline bool IsTrailSurrogate(int code) {
     if (code == kNoPreviousCharacter) return false;
     return (code & 0xfc00) == 0xdc00;
   }
 
-  static inline int32_t CombineSurrogatePair(uchar lead, uchar trail) {
+  static inline int CombineSurrogatePair(uchar lead, uchar trail) {
     return 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
   }
-  static const int32_t kNoPreviousCharacter = -1;
+  static const int kNoPreviousCharacter = -1;
   static const uchar kMaxNonSurrogateCharCode = 0xffff;
   // Encoding a single UTF-16 code unit will produce 1, 2 or 3 bytes
   // of UTF-8 data.  The special case where the unit is a surrogate
@@ -140,10 +140,10 @@ class Utf16 {
   // One UTF-16 surrogate is endoded (illegally) as 3 UTF-8 bytes.
   // The illegality stems from the surrogate not being part of a pair.
   static const int kUtf8BytesToCodeASurrogate = 3;
-  static inline uchar LeadSurrogate(int32_t char_code) {
+  static inline uchar LeadSurrogate(int char_code) {
     return 0xd800 + (((char_code - 0x10000) >> 10) & 0x3ff);
   }
-  static inline uchar TrailSurrogate(int32_t char_code) {
+  static inline uchar TrailSurrogate(int char_code) {
     return 0xdc00 + (char_code & 0x3ff);
   }
 };
