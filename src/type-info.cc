@@ -154,6 +154,13 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
 }
 
 
+bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
+    ObjectLiteral::Property* prop) {
+  Handle<Object> map_or_code = GetInfo(prop->key()->id());
+  return map_or_code->IsMap();
+}
+
+
 bool TypeFeedbackOracle::IsForInFastCase(ForInStatement* stmt) {
   Handle<Object> value = GetInfo(stmt->PrepareId());
   return value->IsSmi() &&
@@ -265,6 +272,13 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
   return Handle<JSFunction>::cast(GetInfo(expr->id()));
+}
+
+
+Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
+    ObjectLiteral::Property* prop) {
+  ASSERT(ObjectLiteralStoreIsMonomorphic(prop));
+  return Handle<Map>::cast(GetInfo(prop->key()->id()));
 }
 
 

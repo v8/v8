@@ -602,6 +602,13 @@ void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
+void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
+      ? oracle->GetObjectLiteralStoreMap(this)
+      : Handle<Map>::null();
+}
+
+
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
 

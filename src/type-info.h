@@ -29,6 +29,7 @@
 #define V8_TYPE_INFO_H_
 
 #include "allocation.h"
+#include "ast.h"
 #include "globals.h"
 #include "zone-inl.h"
 
@@ -243,6 +244,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
+  bool ObjectLiteralStoreIsMonomorphic(ObjectLiteral::Property* prop);
 
   bool IsForInFastCase(ForInStatement* expr);
 
@@ -271,6 +273,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
+
+  Handle<Map> GetObjectLiteralStoreMap(ObjectLiteral::Property* prop);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 

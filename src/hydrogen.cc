@@ -3738,18 +3738,13 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsSymbol()) {
           if (property->emit_store()) {
+            property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
             Handle<String> name = Handle<String>::cast(key->handle());
-            HStoreNamedGeneric* store =
-                new(zone()) HStoreNamedGeneric(
-                                context,
-                                literal,
-                                name,
-                                value,
-                                function_strict_mode_flag());
+            HInstruction* store = BuildStoreNamed(literal, value, property);
             AddInstruction(store);
-            AddSimulate(key->id());
+            if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
             CHECK_ALIVE(VisitForEffect(value));
           }
@@ -3949,6 +3944,25 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                          name,
                          value,
                          function_strict_mode_flag());
+}
+
+
+HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
+                                             HValue* value,
+                                             ObjectLiteral::Property* prop) {
+  Literal* key = prop->key()->AsLiteral();
+  Handle<String> name = Handle<String>::cast(key->handle());
+  ASSERT(!name.is_null());
+
+  LookupResult lookup(isolate());
+  Handle<Map> type = prop->GetReceiverType();
+  bool is_monomorphic = prop->IsMonomorphic() &&
+      ComputeStoredField(type, name, &lookup);
+
+  return is_monomorphic
+      ? BuildStoreNamedField(object, name, value, type, &lookup,
+                             true)  // Needs smi and map check.
+      : BuildStoreNamedGeneric(object, name, value);
 }
 
 
