@@ -554,14 +554,14 @@ function StringSlice(start, end) {
     }
   } else {
     if (start_i > s_len) {
-      start_i = s_len;
+      return '';
     }
   }
 
   if (end_i < 0) {
     end_i += s_len;
     if (end_i < 0) {
-      end_i = 0;
+      return '';
     }
   } else {
     if (end_i > s_len) {
@@ -569,12 +569,11 @@ function StringSlice(start, end) {
     }
   }
 
-  var num_c = end_i - start_i;
-  if (num_c < 0) {
-    num_c = 0;
+  if (end_i <= start_i) {
+    return '';
   }
 
-  return SubString(s, start_i, start_i + num_c);
+  return SubString(s, start_i, end_i);
 }
 
 

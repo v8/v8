@@ -216,7 +216,7 @@ DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
 DEFINE_int(interrupt_budget, 5900,
            "execution budget before interrupt is triggered")
-DEFINE_int(type_info_threshold, 40,
+DEFINE_int(type_info_threshold, 15,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
 
