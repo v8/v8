@@ -2613,6 +2613,10 @@ void HGraphBuilder::SetUpScope(Scope* scope) {
   AddInstruction(undefined_constant);
   graph_->set_undefined_constant(undefined_constant);
 
+  HArgumentsObject* object = new(zone()) HArgumentsObject;
+  AddInstruction(object);
+  graph()->SetArgumentsObject(object);
+
   // Set the initial values of parameters including "this".  "This" has
   // parameter index 0.
   ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
@@ -2640,11 +2644,6 @@ void HGraphBuilder::SetUpScope(Scope* scope) {
       return Bailout("context-allocated arguments");
     }
 
-    if (!graph()->HasArgumentsObject()) {
-      HArgumentsObject* object = new(zone()) HArgumentsObject;
-      AddInstruction(object);
-      graph()->SetArgumentsObject(object);
-    }
     environment()->Bind(scope->arguments(),
                         graph()->GetArgumentsObject());
   }
@@ -5339,11 +5338,6 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   // If the function uses arguments object create and bind one.
   if (function->scope()->arguments() != NULL) {
     ASSERT(function->scope()->arguments()->IsStackAllocated());
-    if (!graph()->HasArgumentsObject()) {
-      HArgumentsObject* object = new(zone()) HArgumentsObject;
-      AddInstruction(object);
-      graph()->SetArgumentsObject(object);
-    }
     environment()->Bind(function->scope()->arguments(),
                         graph()->GetArgumentsObject());
   }

@@ -293,7 +293,6 @@ class HGraph: public ZoneObject {
   HArgumentsObject* GetArgumentsObject() const {
     return arguments_object_.get();
   }
-  bool HasArgumentsObject() const { return arguments_object_.is_set(); }
 
   void SetArgumentsObject(HArgumentsObject* object) {
     arguments_object_.set(object);

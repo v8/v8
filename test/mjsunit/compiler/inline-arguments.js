@@ -54,3 +54,29 @@ A.prototype.X.apply = function (receiver, args) {
   return Function.prototype.apply.call(this, receiver, args);
 };
 a.Z(4,5,6);
+
+
+// Ensure that HArgumentsObject is inserted in a correct place
+// and dominates all uses.
+function F1() { }
+function F2() { F1.apply(this, arguments); }
+function F3(x, y) {
+  if (x) {
+    F2(y);
+  }
+}
+
+function F31() {
+  return F1.apply(this, arguments);
+}
+
+function F4() {
+  F3(true, false);
+  return F31(1);
+}
+
+F4(1);
+F4(1);
+F4(1);
+%OptimizeFunctionOnNextCall(F4);
+F4(1);
