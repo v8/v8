@@ -185,8 +185,6 @@
                         'cflags': ['-msoft-float'],
                         'ldflags': ['-msoft-float'],
                       }],
-                    ],
-                    'conditions': [
                       ['mips_arch_variant=="mips32r2"', {
                         'cflags': ['-mips32r2', '-Wa,-mips32r2'],
                       }],
