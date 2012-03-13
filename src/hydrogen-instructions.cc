@@ -885,6 +885,15 @@ HValue* HChange::Canonicalize() {
 }
 
 
+HValue* HWrapReceiver::Canonicalize() {
+  if (HasNoUses()) return NULL;
+  if (receiver()->type().IsJSObject()) {
+    return receiver();
+  }
+  return this;
+}
+
+
 void HTypeof::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }

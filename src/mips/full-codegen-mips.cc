@@ -2970,6 +2970,52 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 2);
+  ASSERT_NE(NULL, args->at(1)->AsLiteral());
+  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->handle()));
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label runtime, done;
+  Register object = v0;
+  Register result = v0;
+  Register scratch0 = t5;
+  Register scratch1 = a1;
+
+#ifdef DEBUG
+  __ AbortIfSmi(object);
+  __ GetObjectType(object, scratch1, scratch1);
+  __ Assert(eq, "Trying to get date field from non-date.",
+      scratch1, Operand(JS_DATE_TYPE));
+#endif
+
+  if (index->value() == 0) {
+    __ lw(result, FieldMemOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ li(scratch1, Operand(stamp));
+      __ lw(scratch1, MemOperand(scratch1));
+      __ lw(scratch0, FieldMemOperand(object, JSDate::kCacheStampOffset));
+      __ Branch(&runtime, ne, scratch1, Operand(scratch0));
+      __ lw(result, FieldMemOperand(object, JSDate::kValueOffset +
+                                            kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch1);
+    __ li(a1, Operand(index));
+    __ Move(a0, object);
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
+  }
+
+  context()->Plug(v0);
+}
+
+
 void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   // Load the arguments on the stack and call the runtime function.
   ZoneList<Expression*>* args = expr->arguments();

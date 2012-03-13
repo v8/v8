@@ -185,7 +185,8 @@ class LChunkBuilder;
   V(ForInCacheArray)                           \
   V(CheckMapValue)                             \
   V(LoadFieldByIndex)                          \
-  V(DateField)
+  V(DateField)                                 \
+  V(WrapReceiver)
 
 #define GVN_FLAG_LIST(V)                       \
   V(Calls)                                     \
@@ -2503,6 +2504,27 @@ class HBinaryOperation: public HTemplateInstruction<3> {
 };
 
 
+class HWrapReceiver: public HTemplateInstruction<2> {
+ public:
+  HWrapReceiver(HValue* receiver, HValue* function) {
+    set_representation(Representation::Tagged());
+    SetOperandAt(0, receiver);
+    SetOperandAt(1, function);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* receiver() { return OperandAt(0); }
+  HValue* function() { return OperandAt(1); }
+
+  virtual HValue* Canonicalize();
+
+  DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
+};
+
+
 class HApplyArguments: public HTemplateInstruction<4> {
  public:
   HApplyArguments(HValue* function,
@@ -4284,7 +4306,7 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone) {
-    return new(zone) Range(0, String::kMaxUC16CharCode);
+    return new(zone) Range(0, String::kMaxUtf16CodeUnit);
   }
 };
 

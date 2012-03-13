@@ -6616,12 +6616,17 @@ class StringHasher {
   inline bool has_trivial_hash();
 
   // Add a character to the hash and update the array index calculation.
-  inline void AddCharacter(uc32 c);
+  inline void AddCharacter(uint32_t c);
 
   // Adds a character to the hash but does not update the array index
   // calculation.  This can only be called when it has been verified
   // that the input is not an array index.
-  inline void AddCharacterNoIndex(uc32 c);
+  inline void AddCharacterNoIndex(uint32_t c);
+
+  // Add a character above 0xffff as a surrogate pair.  These can get into
+  // the hasher through the routines that take a UTF-8 string and make a symbol.
+  void AddSurrogatePair(uc32 c);
+  void AddSurrogatePairNoIndex(uc32 c);
 
   // Returns the value to store in the hash field of a string with
   // the given length and contents.
@@ -6871,9 +6876,6 @@ class String: public HeapObject {
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
 
-  inline int Utf8Length() { return Utf8Length(this, 0, length()); }
-  static int Utf8Length(String* input, int from, int to);
-
   // Return a 16 bit Unicode representation of the string.
   // The string should be nearly flat, otherwise the performance of
   // of this method may be very bad.  Setting robustness_flag to
@@ -6939,7 +6941,7 @@ class String: public HeapObject {
   // Max ASCII char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
-  static const int kMaxUC16CharCode = 0xffff;
+  static const int kMaxUtf16CodeUnit = 0xffff;
 
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates

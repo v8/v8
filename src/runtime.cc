@@ -7441,9 +7441,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   if (y == y_int) {
     result = power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   } else  if (y == 0.5) {
-    result = (isinf(x)) ? V8_INFINITY : sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? V8_INFINITY
+                        : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else if (y == -0.5) {
-    result = (isinf(x)) ? 0 : 1.0 / sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? 0
+                        : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else {
     result = power_double_double(x, y);
   }
@@ -7529,7 +7531,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   isolate->counters()->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(sqrt(x));
+  return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
 }
 
 
@@ -8112,25 +8114,8 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsSmi());
-  Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  ASSERT(isolate->heap()->IsAllocationAllowed());
-  int jsframes = deoptimizer->jsframe_count();
-
-  deoptimizer->MaterializeHeapNumbers();
-  delete deoptimizer;
-
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < jsframes - 1; i++) it.Advance();
-  frame = it.frame();
-
-  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
+                                              JavaScriptFrame* frame) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
   Handle<Object> arguments;
   for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
@@ -8147,6 +8132,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       frame->SetExpression(i, *arguments);
     }
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args[0]->IsSmi());
+  Deoptimizer::BailoutType type =
+      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
+  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  ASSERT(isolate->heap()->IsAllocationAllowed());
+  int jsframes = deoptimizer->jsframe_count();
+
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
+  JavaScriptFrameIterator it(isolate);
+  for (int i = 0; i < jsframes - 1; i++) {
+    MaterializeArgumentsObjectInFrame(isolate, it.frame());
+    it.Advance();
+  }
+
+  JavaScriptFrame* frame = it.frame();
+  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  MaterializeArgumentsObjectInFrame(isolate, frame);
 
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());

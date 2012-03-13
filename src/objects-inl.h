@@ -4463,7 +4463,11 @@ bool StringHasher::has_trivial_hash() {
 }
 
 
-void StringHasher::AddCharacter(uc32 c) {
+void StringHasher::AddCharacter(uint32_t c) {
+  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    AddSurrogatePair(c);  // Not inlined.
+    return;
+  }
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
   raw_running_hash_ += c;
@@ -4492,8 +4496,12 @@ void StringHasher::AddCharacter(uc32 c) {
 }
 
 
-void StringHasher::AddCharacterNoIndex(uc32 c) {
+void StringHasher::AddCharacterNoIndex(uint32_t c) {
   ASSERT(!is_array_index());
+  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    AddSurrogatePairNoIndex(c);  // Not inlined.
+    return;
+  }
   raw_running_hash_ += c;
   raw_running_hash_ += (raw_running_hash_ << 10);
   raw_running_hash_ ^= (raw_running_hash_ >> 6);

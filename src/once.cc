@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+#include "once.h"
 
-function A() {
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sched.h>
+#endif
+
+#include "atomicops.h"
+#include "checks.h"
+
+namespace v8 {
+namespace internal {
+
+void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
+  AtomicWord state = Acquire_Load(once);
+  // Fast path. The provided function was already executed.
+  if (state == ONCE_STATE_DONE) {
+    return;
+  }
+
+  // The function execution did not complete yet. The once object can be in one
+  // of the two following states:
+  //   - UNINITIALIZED: We are the first thread calling this function.
+  //   - EXECUTING_FUNCTION: Another thread is already executing the function.
+  //
+  // First, try to change the state from UNINITIALIZED to EXECUTING_FUNCTION
+  // atomically.
+  state = Acquire_CompareAndSwap(
+      once, ONCE_STATE_UNINITIALIZED, ONCE_STATE_EXECUTING_FUNCTION);
+  if (state == ONCE_STATE_UNINITIALIZED) {
+    // We are the first thread to call this function, so we have to call the
+    // function.
+    init_func(arg);
+    Release_Store(once, ONCE_STATE_DONE);
+  } else {
+    // Another thread has already started executing the function. We need to
+    // wait until it completes the initialization.
+    while (state == ONCE_STATE_EXECUTING_FUNCTION) {
+#ifdef _WIN32
+      ::Sleep(0);
+#else
+      sched_yield();
+#endif
+      state = Acquire_Load(once);
+    }
+  }
 }
 
-A.prototype.X = function (a, b, c) {
-  assertTrue(this instanceof A);
-  assertEquals(1, a);
-  assertEquals(2, b);
-  assertEquals(3, c);
-};
-
-A.prototype.Y = function () {
-  this.X.apply(this, arguments);
-};
-
-A.prototype.Z = function () {
-  this.Y(1,2,3);
-};
-
-var a = new A();
-a.Z(4,5,6);
-a.Z(4,5,6);
-%OptimizeFunctionOnNextCall(a.Z);
-a.Z(4,5,6);
-A.prototype.X.apply = function (receiver, args) {
-  return Function.prototype.apply.call(this, receiver, args);
-};
-a.Z(4,5,6);
+} }  // namespace v8::internal

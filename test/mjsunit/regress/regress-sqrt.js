@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,30 +27,21 @@
 
 // Flags: --allow-natives-syntax
 
-function A() {
+// Check that Math.sqrt returns the same value regardless of being
+// optimized or not.
+
+function f(x) {
+  return Math.sqrt(x);
 }
 
-A.prototype.X = function (a, b, c) {
-  assertTrue(this instanceof A);
-  assertEquals(1, a);
-  assertEquals(2, b);
-  assertEquals(3, c);
-};
+var x = 7.0506280066499245e-233;
 
-A.prototype.Y = function () {
-  this.X.apply(this, arguments);
-};
+var a = f(x);
 
-A.prototype.Z = function () {
-  this.Y(1,2,3);
-};
+f(0.1);
+f(0.2);
+%OptimizeFunctionOnNextCall(f);
 
-var a = new A();
-a.Z(4,5,6);
-a.Z(4,5,6);
-%OptimizeFunctionOnNextCall(a.Z);
-a.Z(4,5,6);
-A.prototype.X.apply = function (receiver, args) {
-  return Function.prototype.apply.call(this, receiver, args);
-};
-a.Z(4,5,6);
+var b = f(x);
+
+assertEquals(a, b);

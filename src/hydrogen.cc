@@ -2639,10 +2639,14 @@ void HGraphBuilder::SetUpScope(Scope* scope) {
     if (!scope->arguments()->IsStackAllocated()) {
       return Bailout("context-allocated arguments");
     }
-    HArgumentsObject* object = new(zone()) HArgumentsObject;
-    AddInstruction(object);
-    graph()->SetArgumentsObject(object);
-    environment()->Bind(scope->arguments(), object);
+
+    if (!graph()->HasArgumentsObject()) {
+      HArgumentsObject* object = new(zone()) HArgumentsObject;
+      AddInstruction(object);
+      graph()->SetArgumentsObject(object);
+    }
+    environment()->Bind(scope->arguments(),
+                        graph()->GetArgumentsObject());
   }
 }
 
@@ -5226,10 +5230,21 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-  // Don't inline functions that uses the arguments object.
+  // If the function uses the arguments object check that inlining of functions
+  // with arguments object is enabled and the arguments-variable is
+  // stack allocated.
   if (function->scope()->arguments() != NULL) {
-    TraceInline(target, caller, "target requires special argument handling");
-    return false;
+    if (!FLAG_inline_arguments) {
+      TraceInline(target, caller, "target uses arguments object");
+      return false;
+    }
+
+    if (!function->scope()->arguments()->IsStackAllocated()) {
+      TraceInline(target,
+                  caller,
+                  "target uses non-stackallocated arguments object");
+      return false;
+    }
   }
 
   // All declarations must be inlineable.
@@ -5307,6 +5322,17 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
                                            function,
                                            call_kind,
                                            function_state()->is_construct()));
+  // If the function uses arguments object create and bind one.
+  if (function->scope()->arguments() != NULL) {
+    ASSERT(function->scope()->arguments()->IsStackAllocated());
+    if (!graph()->HasArgumentsObject()) {
+      HArgumentsObject* object = new(zone()) HArgumentsObject;
+      AddInstruction(object);
+      graph()->SetArgumentsObject(object);
+    }
+    environment()->Bind(function->scope()->arguments(),
+                        graph()->GetArgumentsObject());
+  }
   VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
   if (HasStackOverflow()) {
@@ -5645,13 +5671,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   HValue* arg_two_value = environment()->Lookup(arg_two->var());
   if (!arg_two_value->CheckFlag(HValue::kIsArguments)) return false;
 
-  // Our implementation of arguments (based on this stack frame or an
-  // adapter below it) does not work for inlined functions.
-  if (function_state()->outer() != NULL) {
-    Bailout("Function.prototype.apply optimization in inlined function");
-    return true;
-  }
-
   // Found pattern f.apply(receiver, arguments).
   VisitForValue(prop->obj());
   if (HasStackOverflow() || current_block() == NULL) return true;
@@ -5662,13 +5681,55 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   VisitForValue(args->at(0));
   if (HasStackOverflow() || current_block() == NULL) return true;
   HValue* receiver = Pop();
-  HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
-  HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
-  HInstruction* result =
-      new(zone()) HApplyArguments(function, receiver, length, elements);
-  result->set_position(expr->position());
-  ast_context()->ReturnInstruction(result, expr->id());
-  return true;
+
+  if (function_state()->outer() == NULL) {
+    HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
+    HInstruction* length =
+        AddInstruction(new(zone()) HArgumentsLength(elements));
+    HValue* wrapped_receiver =
+        AddInstruction(new(zone()) HWrapReceiver(receiver, function));
+    HInstruction* result =
+        new(zone()) HApplyArguments(function,
+                                    wrapped_receiver,
+                                    length,
+                                    elements);
+    result->set_position(expr->position());
+    ast_context()->ReturnInstruction(result, expr->id());
+    return true;
+  } else {
+    // We are inside inlined function and we know exactly what is inside
+    // arguments object.
+    HValue* context = environment()->LookupContext();
+
+    HValue* wrapped_receiver =
+        AddInstruction(new(zone()) HWrapReceiver(receiver, function));
+    PushAndAdd(new(zone()) HPushArgument(wrapped_receiver));
+
+    int parameter_count = environment()->parameter_count();
+    for (int i = 1; i < environment()->parameter_count(); i++) {
+      PushAndAdd(new(zone()) HPushArgument(environment()->Lookup(i)));
+    }
+
+    if (environment()->outer()->frame_type() == ARGUMENTS_ADAPTOR) {
+      HEnvironment* adaptor = environment()->outer();
+      parameter_count = adaptor->parameter_count();
+
+      for (int i = environment()->parameter_count();
+           i < adaptor->parameter_count();
+           i++) {
+        PushAndAdd(new(zone()) HPushArgument(adaptor->Lookup(i)));
+      }
+    }
+
+    HInvokeFunction* call = new(zone()) HInvokeFunction(
+        context,
+        function,
+        parameter_count);
+    Drop(parameter_count);
+    call->set_position(expr->position());
+    ast_context()->ReturnInstruction(call, expr->id());
+    return true;
+  }
 }
 
 

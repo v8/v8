@@ -2544,14 +2544,9 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 }
 
 
-void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
-  ASSERT(receiver.is(rax));  // Used for parameter count.
-  ASSERT(function.is(rdi));  // Required by InvokeFunction.
-  ASSERT(ToRegister(instr->result()).is(rax));
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
@@ -2594,6 +2589,17 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ movq(receiver,
           FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
+}
+
+
+void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  ASSERT(receiver.is(rax));  // Used for parameter count.
+  ASSERT(function.is(rdi));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(rax));
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
