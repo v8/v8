@@ -943,7 +943,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
     __ And(fval, ival, Operand(kBinary32SignMask));
     // Negate value if it is negative.
     __ subu(scratch1, zero_reg, ival);
-    __ movn(ival, scratch1, fval);
+    __ Movn(ival, scratch1, fval);
 
     // We have -1, 0 or 1, which we treat specially. Register ival contains
     // absolute value: it is either equal to 1 (special case of -1 and 1),
@@ -957,14 +957,14 @@ static void StoreIntAsFloat(MacroAssembler* masm,
     __ Xor(scratch1, ival, Operand(1));
     __ li(scratch2, exponent_word_for_1);
     __ or_(scratch2, fval, scratch2);
-    __ movz(fval, scratch2, scratch1);  // Only if ival is equal to 1.
+    __ Movz(fval, scratch2, scratch1);  // Only if ival is equal to 1.
     __ Branch(&done);
 
     __ bind(&not_special);
     // Count leading zeros.
     // Gets the wrong answer for 0, but we already checked for that case above.
     Register zeros = scratch2;
-    __ clz(zeros, ival);
+    __ Clz(zeros, ival);
 
     // Compute exponent and or it into the exponent register.
     __ li(scratch1, (kBitsPerInt - 1) + kBinary32ExponentBias);
@@ -3623,7 +3623,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
       __ li(t0, 0x7ff);
       __ Xor(t1, t5, Operand(0xFF));
-      __ movz(t5, t0, t1);  // Set t5 to 0x7ff only if t5 is equal to 0xff.
+      __ Movz(t5, t0, t1);  // Set t5 to 0x7ff only if t5 is equal to 0xff.
       __ Branch(&exponent_rebiased, eq, t0, Operand(0xff));
 
       // Rebias exponent.
@@ -3917,7 +3917,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         __ xor_(t1, t6, t5);
         __ li(t2, kBinary32ExponentMask);
-        __ movz(t6, t2, t1);  // Only if t6 is equal to t5.
+        __ Movz(t6, t2, t1);  // Only if t6 is equal to t5.
         __ Branch(&nan_or_infinity_or_zero, eq, t6, Operand(t5));
 
         // Rebias exponent.
@@ -3930,12 +3930,12 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ Slt(t1, t1, t6);
         __ And(t2, t3, Operand(HeapNumber::kSignMask));
         __ Or(t2, t2, Operand(kBinary32ExponentMask));
-        __ movn(t3, t2, t1);  // Only if t6 is gt kBinary32MaxExponent.
+        __ Movn(t3, t2, t1);  // Only if t6 is gt kBinary32MaxExponent.
         __ Branch(&done, gt, t6, Operand(kBinary32MaxExponent));
 
         __ Slt(t1, t6, Operand(kBinary32MinExponent));
         __ And(t2, t3, Operand(HeapNumber::kSignMask));
-        __ movn(t3, t2, t1);  // Only if t6 is lt kBinary32MinExponent.
+        __ Movn(t3, t2, t1);  // Only if t6 is lt kBinary32MinExponent.
         __ Branch(&done, lt, t6, Operand(kBinary32MinExponent));
 
         __ And(t7, t3, Operand(HeapNumber::kSignMask));
@@ -3985,11 +3985,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         // and infinities. All these should be converted to 0.
         __ li(t5, HeapNumber::kExponentMask);
         __ and_(t6, t3, t5);
-        __ movz(t3, zero_reg, t6);  // Only if t6 is equal to zero.
+        __ Movz(t3, zero_reg, t6);  // Only if t6 is equal to zero.
         __ Branch(&done, eq, t6, Operand(zero_reg));
 
         __ xor_(t2, t6, t5);
-        __ movz(t3, zero_reg, t2);  // Only if t6 is equal to t5.
+        __ Movz(t3, zero_reg, t2);  // Only if t6 is equal to t5.
         __ Branch(&done, eq, t6, Operand(t5));
 
         // Unbias exponent.
@@ -3997,13 +3997,13 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ Subu(t6, t6, Operand(HeapNumber::kExponentBias));
         // If exponent is negative then result is 0.
         __ slt(t2, t6, zero_reg);
-        __ movn(t3, zero_reg, t2);  // Only if exponent is negative.
+        __ Movn(t3, zero_reg, t2);  // Only if exponent is negative.
         __ Branch(&done, lt, t6, Operand(zero_reg));
 
         // If exponent is too big then result is minimal value.
         __ slti(t1, t6, meaningfull_bits - 1);
         __ li(t2, min_value);
-        __ movz(t3, t2, t1);  // Only if t6 is ge meaningfull_bits - 1.
+        __ Movz(t3, t2, t1);  // Only if t6 is ge meaningfull_bits - 1.
         __ Branch(&done, ge, t6, Operand(meaningfull_bits - 1));
 
         __ And(t5, t3, Operand(HeapNumber::kSignMask));
@@ -4014,7 +4014,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ subu(t6, t9, t6);
         __ slt(t1, t6, zero_reg);
         __ srlv(t2, t3, t6);
-        __ movz(t3, t2, t1);  // Only if t6 is positive.
+        __ Movz(t3, t2, t1);  // Only if t6 is positive.
         __ Branch(&sign, ge, t6, Operand(zero_reg));
 
         __ subu(t6, zero_reg, t6);
@@ -4026,7 +4026,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         __ bind(&sign);
         __ subu(t2, t3, zero_reg);
-        __ movz(t3, t2, t5);  // Only if t5 is zero.
+        __ Movz(t3, t2, t5);  // Only if t5 is zero.
 
         __ bind(&done);
 

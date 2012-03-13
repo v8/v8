@@ -1018,7 +1018,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
         } else {
           // Generate standard code.
           __ li(at, constant);
-          __ mul(result, left, at);
+          __ Mul(result, left, at);
         }
     }
 
@@ -1036,7 +1036,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
       __ sra(at, result, 31);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(at));
     } else {
-      __ mul(result, left, right);
+      __ Mul(result, left, right);
     }
 
     if (bailout_on_minus_zero) {
@@ -2664,8 +2664,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
   // Result is the frame pointer for the frame if not adapted and for the real
   // frame below the adaptor frame if adapted.
-  __ movn(result, fp, temp);  // move only if temp is not equal to zero (ne)
-  __ movz(result, scratch, temp);  // move only if temp is equal to zero (eq)
+  __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
+  __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
 }
 
 

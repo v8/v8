@@ -62,6 +62,9 @@
     # Similar to the ARM hard float ABI but on MIPS.
     'v8_use_mips_abi_hardfloat%': 'true',
 
+    # Default arch variant for MIPS.
+    'mips_arch_variant%': 'mips32r2',
+
     'v8_enable_debugger_support%': 1,
 
     'v8_enable_disassembler%': 0,
@@ -182,8 +185,13 @@
                         'cflags': ['-msoft-float'],
                         'ldflags': ['-msoft-float'],
                       }],
+                    ],
+                    'conditions': [
                       ['mips_arch_variant=="mips32r2"', {
                         'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                      }],
+                      ['mips_arch_variant=="loongson"', {
+                        'cflags': ['-mips3', '-Wa,-mips3'],
                       }, {
                         'cflags': ['-mips32', '-Wa,-mips32'],
                       }],
@@ -208,6 +216,9 @@
               }],
               ['mips_arch_variant=="mips32r2"', {
                 'defines': ['_MIPS_ARCH_MIPS32R2',],
+              }],
+              ['mips_arch_variant=="loongson"', {
+                'defines': ['_MIPS_ARCH_LOONGSON',],
               }],
               # The MIPS assembler assumes the host is 32 bits,
               # so force building 32-bit host tools.
