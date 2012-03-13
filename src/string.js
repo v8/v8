@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -610,6 +610,12 @@ function StringSplit(separator, limit) {
 
   if (limit === 0) return [];
 
+  // Separator is a regular expression.
+  return StringSplitOnRegExp(subject, separator, limit, length);
+}
+
+
+function StringSplitOnRegExp(subject, separator, limit, length) {
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 
   if (length === 0) {
