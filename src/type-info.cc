@@ -382,6 +382,10 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
       case BinaryOpIC::SMI:
         switch (result_type) {
           case BinaryOpIC::UNINITIALIZED:
+            if (expr->op() == Token::DIV) {
+              return TypeInfo::Double();
+            }
+            return TypeInfo::Smi();
           case BinaryOpIC::SMI:
             return TypeInfo::Smi();
           case BinaryOpIC::INT32:

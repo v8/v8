@@ -2261,20 +2261,7 @@ class HPhi: public HValue {
     SetFlag(kFlexibleRepresentation);
   }
 
-  virtual Representation InferredRepresentation() {
-    bool double_occurred = false;
-    bool int32_occurred = false;
-    for (int i = 0; i < OperandCount(); ++i) {
-      HValue* value = OperandAt(i);
-      if (value->representation().IsDouble()) double_occurred = true;
-      if (value->representation().IsInteger32()) int32_occurred = true;
-      if (value->representation().IsTagged()) return Representation::Tagged();
-    }
-
-    if (double_occurred) return Representation::Double();
-    if (int32_occurred) return Representation::Integer32();
-    return Representation::None();
-  }
+  virtual Representation InferredRepresentation();
 
   virtual Range* InferRange(Zone* zone);
   virtual Representation RequiredInputRepresentation(int index) {
