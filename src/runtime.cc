@@ -1337,6 +1337,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       attr |= READ_ONLY;
     }
 
+    LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
+
     // Safari does not allow the invocation of callback setters for
     // function declarations. To mimic this behavior, we do not allow
     // the invocation of setters for function values. This makes a
@@ -1344,9 +1346,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // handlers such as "function onload() {}". Firefox does call the
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
-    if (value->IsJSFunction()) {
-      // Do not change DONT_DELETE to false from true.
+    if (is_function_declaration) {
       if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        // Do not overwrite READ_ONLY properties.
+        if (lookup.GetAttributes() & READ_ONLY) {
+          if (language_mode != CLASSIC_MODE) {
+            Handle<Object> args[] = { name };
+            return isolate->Throw(*isolate->factory()->NewTypeError(
+                "strict_cannot_assign", HandleVector(args, ARRAY_SIZE(args))));
+          }
+          continue;
+        }
+        // Do not change DONT_DELETE to false from true.
         attr |= lookup.GetAttributes() & DONT_DELETE;
       }
       PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
@@ -1356,14 +1367,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
           JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
                                                      attributes));
     } else {
-      LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
-      StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
-          ? kNonStrictMode : kStrictMode;
       RETURN_IF_EMPTY_HANDLE(
           isolate,
           JSReceiver::SetProperty(global, name, value,
                                   static_cast<PropertyAttributes>(attr),
-                                  strict_mode_flag));
+                                  language_mode == CLASSIC_MODE
+                                      ? kNonStrictMode : kStrictMode));
     }
   }
 
