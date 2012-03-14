@@ -3752,7 +3752,6 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
-            Handle<String> name = Handle<String>::cast(key->handle());
             HInstruction* store = BuildStoreNamed(literal, value, property);
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
