@@ -1,3 +1,11 @@
+2012-03-14: Version 3.9.19
+
+        Ensure there is a smi check of the receiver for global load and call
+        ICs (Chromium issue 117794).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-13: Version 3.9.18
 
         Ensure consistency of Math.sqrt on Intel platforms.
