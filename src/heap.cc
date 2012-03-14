@@ -81,7 +81,7 @@ Heap::Heap()
       max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * LUMP_OF_MEMORY),
-      max_executable_size_(128l * LUMP_OF_MEMORY),
+      max_executable_size_(256l * LUMP_OF_MEMORY),
 
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
