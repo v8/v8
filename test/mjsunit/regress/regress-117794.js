@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,58 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Loads specialized to be from the global object should not omit the
+// smi check on the receiver.  The code below should not crash.
 
-function A() {
+print = function() {}
+
+function constructor() {};
+
+function assertHasOwnProperties(object, limit) {
+  for (var i = 0; i < limit; i++) {  }
 }
 
-A.prototype.X = function (a, b, c) {
-  assertTrue(this instanceof A);
-  assertEquals(1, a);
-  assertEquals(2, b);
-  assertEquals(3, c);
-};
-
-A.prototype.Y = function () {
-  this.X.apply(this, arguments);
-};
-
-A.prototype.Z = function () {
-  this.Y(1,2,3);
-};
-
-var a = new A();
-a.Z(4,5,6);
-a.Z(4,5,6);
-%OptimizeFunctionOnNextCall(a.Z);
-a.Z(4,5,6);
-A.prototype.X.apply = function (receiver, args) {
-  return Function.prototype.apply.call(this, receiver, args);
-};
-a.Z(4,5,6);
-
-
-// Ensure that HArgumentsObject is inserted in a correct place
-// and dominates all uses.
-function F1() { }
-function F2() { F1.apply(this, arguments); }
-function F3(x, y) {
-  if (x) {
-    F2(y);
-  }
+try {
+  Object.keys();
+} catch(exc2) {
+  print(exc2.stack);
 }
 
-function F31() {
-  return F1.apply(this, arguments);
+var x1 = new Object();
+
+try {
+  new Function("A Man Called Horse", x1.d);
+} catch(exc3) {
+  print(exc3.stack);
 }
 
-function F4() {
-  F3(true, false);
-  return F31(1);
+try {
+  (-(true)).toPrecision(0x30, 'lib1-f1');
+} catch(exc1) {
+  print(exc1.stack);
 }
-
-F4(1);
-F4(1);
-F4(1);
-%OptimizeFunctionOnNextCall(F4);
-F4(1);

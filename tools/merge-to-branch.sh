@@ -88,7 +88,7 @@ shift $OPTION_COUNT
 ########## Regular workflow
 
 # If there is a merge in progress, abort.
-[[ -e "$ALREADY_MERGING_SENTINEL_FILE" ]] && [[ -z "$START_STEP" ]] \
+[[ -e "$ALREADY_MERGING_SENTINEL_FILE" ]] && [[ $START_STEP -eq 0 ]] \
    && die "A merge is already in progress"
 touch "$ALREADY_MERGING_SENTINEL_FILE"
 

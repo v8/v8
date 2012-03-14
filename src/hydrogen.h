@@ -293,7 +293,6 @@ class HGraph: public ZoneObject {
   HArgumentsObject* GetArgumentsObject() const {
     return arguments_object_.get();
   }
-  bool HasArgumentsObject() const { return arguments_object_.is_set(); }
 
   void SetArgumentsObject(HArgumentsObject* object) {
     arguments_object_.set(object);
@@ -1077,6 +1076,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildStoreNamed(HValue* object,
                                 HValue* value,
                                 Expression* expr);
+  HInstruction* BuildStoreNamed(HValue* object,
+                                HValue* value,
+                                ObjectLiteral::Property* prop);
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,

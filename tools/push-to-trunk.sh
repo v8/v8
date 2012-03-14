@@ -332,6 +332,9 @@ if [ -n "$CHROME_PATH" ] ; then
     # Check for a clean workdir.
     [[ -z "$(git status -s -uno)" ]] \
       || die "Workspace is not clean. Please commit or undo your changes."
+    # Assert that the DEPS file is there.
+    [[ -w "DEPS" ]] || die "DEPS file not present or not writable; \
+current directory is: $(pwd)."
   fi
 
   let CURRENT_STEP+=1
@@ -348,7 +351,7 @@ if [ -n "$CHROME_PATH" ] ; then
   if [ $START_STEP -le $CURRENT_STEP ] ; then
     echo ">>> Step $CURRENT_STEP: Create and upload CL."
     # Patch DEPS file.
-    sed -e "/\"v8_revision\": /s/\"[0-9]+\"/\"$TRUNK_REVISION\"/" \
+    sed -r -e "/\"v8_revision\": /s/\"[0-9]+\"/\"$TRUNK_REVISION\"/" \
         -i DEPS
     restore_version_if_unset
     echo -n "Please enter the email address of a reviewer for the roll CL: "

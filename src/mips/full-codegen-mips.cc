@@ -1251,7 +1251,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
       __ subu(at, v0, at);  // Sub as compare: at == 0 on eq.
       if (local->mode() == CONST) {
         __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
-        __ movz(v0, a0, at);  // Conditional move: return Undefined if TheHole.
+        __ Movz(v0, a0, at);  // Conditional move: return Undefined if TheHole.
       } else {  // LET || CONST_HARMONY
         __ Branch(done, ne, at, Operand(zero_reg));
         __ li(a0, Operand(var->name()));
@@ -1343,7 +1343,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
             // Uninitalized const bindings outside of harmony mode are unholed.
             ASSERT(var->mode() == CONST);
             __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
-            __ movz(v0, a0, at);  // Conditional move: Undefined if TheHole.
+            __ Movz(v0, a0, at);  // Conditional move: Undefined if TheHole.
           }
           context()->Plug(v0);
           break;

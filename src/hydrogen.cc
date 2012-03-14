@@ -2613,6 +2613,10 @@ void HGraphBuilder::SetUpScope(Scope* scope) {
   AddInstruction(undefined_constant);
   graph_->set_undefined_constant(undefined_constant);
 
+  HArgumentsObject* object = new(zone()) HArgumentsObject;
+  AddInstruction(object);
+  graph()->SetArgumentsObject(object);
+
   // Set the initial values of parameters including "this".  "This" has
   // parameter index 0.
   ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
@@ -2640,11 +2644,6 @@ void HGraphBuilder::SetUpScope(Scope* scope) {
       return Bailout("context-allocated arguments");
     }
 
-    if (!graph()->HasArgumentsObject()) {
-      HArgumentsObject* object = new(zone()) HArgumentsObject;
-      AddInstruction(object);
-      graph()->SetArgumentsObject(object);
-    }
     environment()->Bind(scope->arguments(),
                         graph()->GetArgumentsObject());
   }
@@ -3738,18 +3737,13 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsSymbol()) {
           if (property->emit_store()) {
+            property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
             Handle<String> name = Handle<String>::cast(key->handle());
-            HStoreNamedGeneric* store =
-                new(zone()) HStoreNamedGeneric(
-                                context,
-                                literal,
-                                name,
-                                value,
-                                function_strict_mode_flag());
+            HInstruction* store = BuildStoreNamed(literal, value, property);
             AddInstruction(store);
-            AddSimulate(key->id());
+            if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
             CHECK_ALIVE(VisitForEffect(value));
           }
@@ -3949,6 +3943,25 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                          name,
                          value,
                          function_strict_mode_flag());
+}
+
+
+HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
+                                             HValue* value,
+                                             ObjectLiteral::Property* prop) {
+  Literal* key = prop->key()->AsLiteral();
+  Handle<String> name = Handle<String>::cast(key->handle());
+  ASSERT(!name.is_null());
+
+  LookupResult lookup(isolate());
+  Handle<Map> type = prop->GetReceiverType();
+  bool is_monomorphic = prop->IsMonomorphic() &&
+      ComputeStoredField(type, name, &lookup);
+
+  return is_monomorphic
+      ? BuildStoreNamedField(object, name, value, type, &lookup,
+                             true)  // Needs smi and map check.
+      : BuildStoreNamedGeneric(object, name, value);
 }
 
 
@@ -5325,11 +5338,6 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   // If the function uses arguments object create and bind one.
   if (function->scope()->arguments() != NULL) {
     ASSERT(function->scope()->arguments()->IsStackAllocated());
-    if (!graph()->HasArgumentsObject()) {
-      HArgumentsObject* object = new(zone()) HArgumentsObject;
-      AddInstruction(object);
-      graph()->SetArgumentsObject(object);
-    }
     environment()->Bind(function->scope()->arguments(),
                         graph()->GetArgumentsObject());
   }

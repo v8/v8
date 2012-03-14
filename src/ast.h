@@ -1320,6 +1320,11 @@ class ObjectLiteral: public MaterializedLiteral {
     Expression* value() { return value_; }
     Kind kind() { return kind_; }
 
+    // Type feedback information.
+    void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+    bool IsMonomorphic() { return !receiver_type_.is_null(); }
+    Handle<Map> GetReceiverType() { return receiver_type_; }
+
     bool IsCompileTimeValue();
 
     void set_emit_store(bool emit_store);
@@ -1336,6 +1341,7 @@ class ObjectLiteral: public MaterializedLiteral {
     Expression* value_;
     Kind kind_;
     bool emit_store_;
+    Handle<Map> receiver_type_;
   };
 
   DECLARE_NODE_TYPE(ObjectLiteral)
