@@ -288,7 +288,7 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 
   bool has_pending_exception;
   Handle<Object> result =
-      Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+      Execution::Call(fun, self, 0, NULL, &has_pending_exception, true);
   // Check for pending exception and return the result.
   if (has_pending_exception) return Failure::Exception();
   return *result;

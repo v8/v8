@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,11 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that getters can be defined and called on value prototypes.
-//
-// This used to fail because of an invalid cast of the receiver to a
-// JSObject.
+// Test that getters and setters pass unwrapped this values in strict mode
+// and wrapped this values is non-strict mode.
 
-String.prototype.__defineGetter__('x', function() { return this; });
-assertEquals(Object('asdf'), 'asdf'.x);
+function TestAccessorWrapping(primitive) {
+  var prototype = Object.getPrototypeOf(Object(primitive))
+  // Check that strict mode passes unwrapped this value.
+  var strict_type = typeof primitive;
+  Object.defineProperty(prototype, "strict", {
+    get: function() { "use strict"; assertSame(strict_type, typeof this); },
+    set: function() { "use strict"; assertSame(strict_type, typeof this); }
+  });
+  primitive.strict = primitive.strict;
+  // Check that non-strict mode passes wrapped this value.
+  var sloppy_type = typeof Object(primitive);
+  Object.defineProperty(prototype, "sloppy", {
+    get: function() { assertSame(sloppy_type, typeof this); },
+    set: function() { assertSame(sloppy_type, typeof this); }
+  });
+  primitive.sloppy = primitive.sloppy;
+}
 
+TestAccessorWrapping(true);
+TestAccessorWrapping(0);
+TestAccessorWrapping({});
+TestAccessorWrapping("");
