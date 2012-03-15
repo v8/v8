@@ -1421,6 +1421,16 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+void FullCodeGenerator::EmitAccessor(Expression* expression) {
+  if (expression == NULL) {
+    __ LoadRoot(a1, Heap::kNullValueRootIndex);
+    __ push(a1);
+  } else {
+    VisitForStackValue(expression);
+  }
+}
+
+
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   Handle<FixedArray> constant_properties = expr->constant_properties();
@@ -1456,6 +1466,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // marked expressions, no store code is emitted.
   expr->CalculateEmitStore();
 
+  AccessorTable accessor_table(isolate()->zone());
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->IsCompileTimeValue()) continue;
@@ -1505,25 +1516,27 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         }
         break;
       case ObjectLiteral::Property::GETTER:
+        accessor_table.find(key)->second->getter = value;
+        break;
       case ObjectLiteral::Property::SETTER:
-        // Duplicate receiver on stack.
-        __ lw(a0, MemOperand(sp));
-        __ push(a0);
-        VisitForStackValue(key);
-        if (property->kind() == ObjectLiteral::Property::GETTER) {
-          VisitForStackValue(value);
-          __ LoadRoot(a1, Heap::kNullValueRootIndex);
-          __ push(a1);
-        } else {
-          __ LoadRoot(a1, Heap::kNullValueRootIndex);
-          __ push(a1);
-          VisitForStackValue(value);
-        }
-        __ li(a0, Operand(Smi::FromInt(NONE)));
-        __ push(a0);
-        __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
+        accessor_table.find(key)->second->setter = value;
         break;
     }
+  }
+
+  // Emit code to define accessors, using only a single call to the runtime for
+  // each pair of corresponding getters and setters.
+  for (AccessorTable::Iterator it = accessor_table.begin();
+       it != accessor_table.end();
+       ++it) {
+    __ lw(a0, MemOperand(sp));  // Duplicate receiver.
+    __ push(a0);
+    VisitForStackValue(it->first);
+    EmitAccessor(it->second->getter);
+    EmitAccessor(it->second->setter);
+    __ li(a0, Operand(Smi::FromInt(NONE)));
+    __ push(a0);
+    __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
   }
 
   if (expr->has_function()) {
