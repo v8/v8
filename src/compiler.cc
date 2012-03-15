@@ -453,6 +453,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
+  script->set_compilation_state(
+      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   isolate->debugger()->OnAfterCompile(

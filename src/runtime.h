@@ -418,6 +418,7 @@ namespace internal {
   F(DebugReferencedBy, 3, 1) \
   F(DebugConstructedBy, 2, 1) \
   F(DebugGetPrototype, 1, 1) \
+  F(DebugSetScriptSource, 2, 1) \
   F(SystemBreak, 0, 1) \
   F(DebugDisassembleFunction, 1, 1) \
   F(DebugDisassembleConstructor, 1, 1) \

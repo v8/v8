@@ -12277,6 +12277,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPrototype) {
 }
 
 
+// Patches script source (should be called upon BeforeCompile event).
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
+  Handle<String> source(String::cast(args[1]));
+
+  RUNTIME_ASSERT(script_wrapper->value()->IsScript());
+  Handle<Script> script(Script::cast(script_wrapper->value()));
+
+  int compilation_state = Smi::cast(script->compilation_state())->value();
+  RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
+  script->set_source(*source);
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SystemBreak) {
   ASSERT(args.length() == 0);
   CPU::DebugBreak();
