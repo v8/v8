@@ -3599,6 +3599,12 @@ Handle<Value> Function::GetName() const {
 }
 
 
+Handle<Value> Function::GetInferredName() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  return Utils::ToLocal(i::Handle<i::Object>(func->shared()->inferred_name()));
+}
+
+
 ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
@@ -4024,6 +4030,13 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
       heap->CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(heap->SizeOfObjects());
   heap_statistics->set_heap_size_limit(heap->MaxReserved());
+}
+
+
+void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::V8::VisitExternalResources");
+  isolate->heap()->VisitExternalResources(visitor);
 }
 
 
