@@ -2262,7 +2262,15 @@ Representation HPhi::InferredRepresentation() {
   bool int32_occurred = false;
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* value = OperandAt(i);
-    if (value->IsUnknownOSRValue()) continue;
+    if (value->IsUnknownOSRValue()) {
+      HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
+      if (hint_value != NULL) {
+        Representation hint = hint_value->representation();
+        if (hint.IsDouble()) double_occurred = true;
+        if (hint.IsInteger32()) int32_occurred = true;
+      }
+      continue;
+    }
     if (value->representation().IsDouble()) double_occurred = true;
     if (value->representation().IsInteger32()) int32_occurred = true;
     if (value->representation().IsTagged()) {

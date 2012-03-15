@@ -3423,13 +3423,27 @@ class HCallStub: public HUnaryCall {
 
 class HUnknownOSRValue: public HTemplateInstruction<0> {
  public:
-  HUnknownOSRValue() { set_representation(Representation::Tagged()); }
+  HUnknownOSRValue()
+      : incoming_value_(NULL) {
+    set_representation(Representation::Tagged());
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  void set_incoming_value(HPhi* value) {
+    incoming_value_ = value;
+  }
+
+  HPhi* incoming_value() {
+    return incoming_value_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
+
+ private:
+  HPhi* incoming_value_;
 };
 
 
