@@ -331,7 +331,7 @@ class TemplateHashMap: private TemplateHashMapImpl<AllocationPolicy> {
   Iterator begin() const { return Iterator(this, this->Start()); }
   Iterator end() const { return Iterator(this, NULL); }
   Iterator find(Key* key, bool insert = false) {
-    return Iterator(this, Lookup(key, key->Hash(), insert));
+    return Iterator(this, this->Lookup(key, key->Hash(), insert));
   }
 };
 
