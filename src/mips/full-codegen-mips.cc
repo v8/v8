@@ -1516,10 +1516,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         }
         break;
       case ObjectLiteral::Property::GETTER:
-        accessor_table.find(key)->second->getter = value;
+        accessor_table.lookup(key)->second->getter = value;
         break;
       case ObjectLiteral::Property::SETTER:
-        accessor_table.find(key)->second->setter = value;
+        accessor_table.lookup(key)->second->setter = value;
         break;
     }
   }
