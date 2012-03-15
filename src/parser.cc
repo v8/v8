@@ -604,10 +604,14 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
-    if (!info->is_global() &&
-        (info->shared_info().is_null() || info->shared_info()->is_function())) {
-      scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
-      scope = NewScope(scope, EVAL_SCOPE);
+    if (info->is_eval()) {
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      if (!info->is_global() && (shared.is_null() || shared->is_function())) {
+        scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
+      }
+      if (!scope->is_global_scope() || info->language_mode() != CLASSIC_MODE) {
+        scope = NewScope(scope, EVAL_SCOPE);
+      }
     }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
@@ -616,13 +620,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
-    ParseSourceElements(body, Token::EOS, &ok);
+    ParseSourceElements(body, Token::EOS, info->is_eval(), &ok);
     if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
     if (ok && is_extended_mode()) {
-      CheckConflictingVarDeclarations(scope, &ok);
+      CheckConflictingVarDeclarations(top_scope_, &ok);
     }
 
     if (ok) {
@@ -1096,6 +1100,7 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
 
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
+                                  bool is_eval,
                                   bool* ok) {
   // SourceElements ::
   //   (ModuleElement)* <end_token>
@@ -1138,6 +1143,17 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
+          // TODO(mstarzinger): Global strict eval calls, need their own scope
+          // as specified in ES5 10.4.2(3). The correct fix would be to always
+          // add this scope in DoParseProgram(), but that requires adaptations
+          // all over the code base, so we go with a quick-fix for now.
+          if (is_eval && !top_scope_->is_eval_scope()) {
+            ASSERT(top_scope_->is_global_scope());
+            Scope* scope = NewScope(top_scope_, EVAL_SCOPE);
+            scope->set_start_position(top_scope_->start_position());
+            scope->set_end_position(top_scope_->end_position());
+            top_scope_ = scope;
+          }
           // TODO(ES6): Fix entering extended mode, once it is specified.
           top_scope_->SetLanguageMode(FLAG_harmony_scoping
                                       ? EXTENDED_MODE : STRICT_MODE);
@@ -4548,7 +4564,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      factory()->NewThisFunction(),
                                      RelocInfo::kNoPosition)));
       }
-      ParseSourceElements(body, Token::RBRACE, CHECK_OK);
+      ParseSourceElements(body, Token::RBRACE, false, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
