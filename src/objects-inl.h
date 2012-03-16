@@ -1734,65 +1734,6 @@ bool FixedDoubleArray::is_the_hole(int index) {
 }
 
 
-void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
-  int old_length = from->length();
-  ASSERT(old_length < length());
-  if (old_length * kDoubleSize >= OS::kMinComplexMemCopy) {
-    OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
-                FIELD_ADDR(from, kHeaderSize),
-                old_length * kDoubleSize);
-  } else {
-    for (int i = 0; i < old_length; ++i) {
-      if (from->is_the_hole(i)) {
-        set_the_hole(i);
-      } else {
-        set(i, from->get_scalar(i));
-      }
-    }
-  }
-  int offset = kHeaderSize + old_length * kDoubleSize;
-  for (int current = from->length(); current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-}
-
-
-void FixedDoubleArray::Initialize(FixedArray* from) {
-  int old_length = from->length();
-  ASSERT(old_length <= length());
-  for (int i = 0; i < old_length; i++) {
-    Object* hole_or_object = from->get(i);
-    if (hole_or_object->IsTheHole()) {
-      set_the_hole(i);
-    } else {
-      set(i, hole_or_object->Number());
-    }
-  }
-  int offset = kHeaderSize + old_length * kDoubleSize;
-  for (int current = from->length(); current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-}
-
-
-void FixedDoubleArray::Initialize(SeededNumberDictionary* from) {
-  int offset = kHeaderSize;
-  for (int current = 0; current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-  for (int i = 0; i < from->Capacity(); i++) {
-    Object* key = from->KeyAt(i);
-    if (key->IsNumber()) {
-      uint32_t entry = static_cast<uint32_t>(key->Number());
-      set(entry, from->ValueAt(i)->Number());
-    }
-  }
-}
-
-
 WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
   Heap* heap = GetHeap();
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;

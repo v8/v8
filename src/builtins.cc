@@ -508,8 +508,7 @@ BUILTIN(ArrayPush) {
     }
     FixedArray* new_elms = FixedArray::cast(obj);
 
-    AssertNoAllocation no_gc;
-    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
                                new_elms, FAST_ELEMENTS, 0, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
 
@@ -645,8 +644,7 @@ BUILTIN(ArrayUnshift) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* new_elms = FixedArray::cast(obj);
-    AssertNoAllocation no_gc;
-    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
                                new_elms, FAST_ELEMENTS, to_add, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
     elms = new_elms;
@@ -757,8 +755,7 @@ BUILTIN(ArraySlice) {
   JSArray* result_array;
   if (!maybe_array->To(&result_array)) return maybe_array;
 
-  AssertNoAllocation no_gc;
-  CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, k,
+  CopyObjectToObjectElements(elms, FAST_ELEMENTS, k,
                              FixedArray::cast(result_array->elements()),
                              FAST_ELEMENTS, 0, result_len);
 
@@ -831,9 +828,8 @@ BUILTIN(ArraySplice) {
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   {
-    AssertNoAllocation no_gc;
     // Fill newly created array.
-    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, actual_start,
+    CopyObjectToObjectElements(elms, FAST_ELEMENTS, actual_start,
                                FixedArray::cast(result_array->elements()),
                                FAST_ELEMENTS, 0, actual_delete_count);
   }
@@ -883,12 +879,11 @@ BUILTIN(ArraySplice) {
       FixedArray* new_elms = FixedArray::cast(obj);
 
       {
-        AssertNoAllocation no_gc;
         // Copy the part before actual_start as is.
-        CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+        CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
                                    new_elms, FAST_ELEMENTS, 0, actual_start);
         const int to_copy = len - actual_delete_count - actual_start;
-        CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS,
+        CopyObjectToObjectElements(elms, FAST_ELEMENTS,
                                    actual_start + actual_delete_count,
                                    new_elms, FAST_ELEMENTS,
                                    actual_start + item_count, to_copy);
@@ -973,14 +968,13 @@ BUILTIN(ArrayConcat) {
   if (result_len == 0) return result_array;
 
   // Copy data.
-  AssertNoAllocation no_gc;
   int start_pos = 0;
   FixedArray* result_elms(FixedArray::cast(result_array->elements()));
   for (int i = 0; i < n_arguments; i++) {
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
     FixedArray* elms = FixedArray::cast(array->elements());
-    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
                                result_elms, FAST_ELEMENTS,
                                start_pos, len);
     start_pos += len;

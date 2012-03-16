@@ -8448,23 +8448,23 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     if (!maybe->To(&new_map)) return maybe;
   }
 
-  FixedArrayBase* old_elements_raw = elements();
+  FixedArrayBase* old_elements = elements();
   ElementsKind elements_kind = GetElementsKind();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   ElementsKind to_kind = (elements_kind == FAST_SMI_ONLY_ELEMENTS)
       ? FAST_SMI_ONLY_ELEMENTS
       : FAST_ELEMENTS;
   //  int copy_size = Min(old_elements_raw->length(), new_elements->length());
-  accessor->CopyElements(this, new_elements, to_kind);
+  accessor->CopyElements(this, new_elements, to_kind, SKIP_WRITE_BARRIER);
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
     set_map_and_elements(new_map, new_elements);
   } else {
-    FixedArray* parameter_map = FixedArray::cast(old_elements_raw);
+    FixedArray* parameter_map = FixedArray::cast(old_elements);
     parameter_map->set(1, new_elements);
   }
 
   if (FLAG_trace_elements_transitions) {
-    PrintElementsTransition(stdout, elements_kind, old_elements_raw,
+    PrintElementsTransition(stdout, elements_kind, old_elements,
                             GetElementsKind(), new_elements);
   }
 
@@ -8497,38 +8497,21 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   }
 
   FixedArrayBase* old_elements = elements();
-  ElementsKind elements_kind(GetElementsKind());
-  AssertNoAllocation no_gc;
-  if (old_elements->length() != 0) {
-    switch (elements_kind) {
-      case FAST_SMI_ONLY_ELEMENTS:
-      case FAST_ELEMENTS: {
-        elems->Initialize(FixedArray::cast(old_elements));
-        break;
-      }
-      case FAST_DOUBLE_ELEMENTS: {
-        elems->Initialize(FixedDoubleArray::cast(old_elements));
-        break;
-      }
-      case DICTIONARY_ELEMENTS: {
-        elems->Initialize(SeededNumberDictionary::cast(old_elements));
-        break;
-      }
-      default:
-        UNREACHABLE();
-        break;
-    }
+  ElementsKind elements_kind = GetElementsKind();
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS,
+                         SKIP_WRITE_BARRIER);
+  if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
+    set_map_and_elements(new_map, elems);
+  } else {
+    FixedArray* parameter_map = FixedArray::cast(old_elements);
+    parameter_map->set(1, elems);
   }
 
   if (FLAG_trace_elements_transitions) {
     PrintElementsTransition(stdout, elements_kind, old_elements,
                             FAST_DOUBLE_ELEMENTS, elems);
   }
-
-  ASSERT(new_map->has_fast_double_elements());
-  set_map(new_map);
-  ASSERT(elems->IsFixedDoubleArray());
-  set_elements(elems);
 
   if (IsJSArray()) {
     JSArray::cast(this)->set_length(Smi::FromInt(length));

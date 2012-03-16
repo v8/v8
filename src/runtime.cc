@@ -6769,6 +6769,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
         ascii = false;
       }
     } else {
+      ASSERT(!elt->IsTheHole());
       return isolate->Throw(isolate->heap()->illegal_argument_symbol());
     }
     if (increment > String::kMaxLength - position) {

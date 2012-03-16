@@ -2338,10 +2338,6 @@ class FixedArray: public FixedArrayBase {
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray: public FixedArrayBase {
  public:
-  inline void Initialize(FixedArray* from);
-  inline void Initialize(FixedDoubleArray* from);
-  inline void Initialize(SeededNumberDictionary* from);
-
   // Setter and getter for elements.
   inline double get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
