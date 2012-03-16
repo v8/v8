@@ -104,6 +104,7 @@ Heap::Heap()
       gc_post_processing_depth_(0),
       ms_count_(0),
       gc_count_(0),
+      remembered_unmapped_pages_index_(0),
       unflattened_strings_length_(0),
 #ifdef DEBUG
       allocation_allowed_(true),
@@ -6969,6 +6970,21 @@ void Heap::FreeQueuedChunks() {
     isolate_->memory_allocator()->Free(chunk);
   }
   chunks_queued_for_free_ = NULL;
+}
+
+
+void Heap::RememberUnmappedPage(Address page, bool compacted) {
+  uintptr_t p = reinterpret_cast<uintptr_t>(page);
+  // Tag the page pointer to make it findable in the dump file.
+  if (compacted) {
+    p ^= 0xc1ead & (Page::kPageSize - 1);  // Cleared.
+  } else {
+    p ^= 0x1d1ed & (Page::kPageSize - 1);  // I died.
+  }
+  remembered_unmapped_pages_[remembered_unmapped_pages_index_] =
+      reinterpret_cast<Address>(p);
+  remembered_unmapped_pages_index_++;
+  remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
 } }  // namespace v8::internal

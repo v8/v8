@@ -594,6 +594,9 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
 
+  isolate_->heap()->RememberUnmappedPage(
+      reinterpret_cast<Address>(chunk), chunk->IsEvacuationCandidate());
+
   delete chunk->slots_buffer();
   delete chunk->skip_list();
 

@@ -3427,7 +3427,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
-    p->ClearEvacuationCandidate();
     p->ResetLiveBytes();
     space->ReleasePage(p);
   }
