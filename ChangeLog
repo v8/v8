@@ -1,3 +1,11 @@
+2012-03-19: Version 3.9.21
+
+        Fixed push-to-trunk script (and re-push).
+
+        Added API call that identifies strings that are guaranteed only to
+        contain ASCII characters.
+
+
 2012-03-19: Version 3.9.20
 
         Fixed declarations escaping global strict eval. (Issue 1624)
