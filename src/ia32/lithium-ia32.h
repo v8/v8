@@ -2289,7 +2289,6 @@ class LChunk: public ZoneObject {
       graph_(graph),
       instructions_(32),
       pointer_maps_(8),
-      num_double_slots_(0),
       inlined_closures_(1) { }
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
@@ -2303,8 +2302,6 @@ class LChunk: public ZoneObject {
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
   int spill_slot_count() const { return spill_slot_count_; }
-  int num_double_slots() const { return num_double_slots_; }
-
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
@@ -2346,7 +2343,6 @@ class LChunk: public ZoneObject {
   HGraph* const graph_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
-  int num_double_slots_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 

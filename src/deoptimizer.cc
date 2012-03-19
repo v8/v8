@@ -358,8 +358,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       output_count_(0),
       jsframe_count_(0),
       output_(NULL),
-      frame_alignment_marker_(isolate->heap()->frame_alignment_marker()),
-      has_alignment_padding_(0),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     if (type == DEBUGGER) {
