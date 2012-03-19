@@ -6755,6 +6755,15 @@ static bool IsLiteralCompareNil(HValue* left,
 }
 
 
+static bool IsLiteralCompareBool(HValue* left,
+                                 Token::Value op,
+                                 HValue* right) {
+  return op == Token::EQ_STRICT &&
+      ((left->IsConstant() && HConstant::cast(left)->handle()->IsBoolean()) ||
+       (right->IsConstant() && HConstant::cast(right)->handle()->IsBoolean()));
+}
+
+
 void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -6801,6 +6810,12 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   if (IsLiteralCompareNil(left, op, right, f->null_value(), &sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
+  }
+  if (IsLiteralCompareBool(left, op, right)) {
+    HCompareObjectEqAndBranch* result =
+        new(zone()) HCompareObjectEqAndBranch(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnControl(result, expr->id());
   }
 
   if (op == Token::INSTANCEOF) {

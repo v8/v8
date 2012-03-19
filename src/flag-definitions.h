@@ -192,7 +192,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
-DEFINE_bool(inline_construct, false, "inline constructor calls")
+DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
