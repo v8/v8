@@ -3694,6 +3694,15 @@ int String::Utf8Length() const {
 }
 
 
+bool String::MayContainNonAscii() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::MayContainNonAscii()")) {
+    return false;
+  }
+  return !str->HasOnlyAsciiChars();
+}
+
+
 int String::WriteUtf8(char* buffer,
                       int capacity,
                       int* nchars_ref,
