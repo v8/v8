@@ -1411,6 +1411,15 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+void FullCodeGenerator::EmitAccessor(Expression* expression) {
+  if (expression == NULL) {
+    __ push(Immediate(isolate()->factory()->null_value()));
+  } else {
+    VisitForStackValue(expression);
+  }
+}
+
+
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   Handle<FixedArray> constant_properties = expr->constant_properties();
@@ -1445,6 +1454,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // marked expressions, no store code is emitted.
   expr->CalculateEmitStore();
 
+  AccessorTable accessor_table(isolate()->zone());
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->IsCompileTimeValue()) continue;
@@ -1456,6 +1466,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       result_saved = true;
     }
     switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
         // Fall through.
@@ -1487,22 +1499,26 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Drop(3);
         }
         break;
-      case ObjectLiteral::Property::SETTER:
       case ObjectLiteral::Property::GETTER:
-        __ push(Operand(esp, 0));  // Duplicate receiver.
-        VisitForStackValue(key);
-        if (property->kind() == ObjectLiteral::Property::GETTER) {
-          VisitForStackValue(value);
-          __ push(Immediate(isolate()->factory()->null_value()));
-        } else {
-          __ push(Immediate(isolate()->factory()->null_value()));
-          VisitForStackValue(value);
-        }
-        __ push(Immediate(Smi::FromInt(NONE)));
-        __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
+        accessor_table.lookup(key)->second->getter = value;
         break;
-      default: UNREACHABLE();
+      case ObjectLiteral::Property::SETTER:
+        accessor_table.lookup(key)->second->setter = value;
+        break;
     }
+  }
+
+  // Emit code to define accessors, using only a single call to the runtime for
+  // each pair of corresponding getters and setters.
+  for (AccessorTable::Iterator it = accessor_table.begin();
+       it != accessor_table.end();
+       ++it) {
+    __ push(Operand(esp, 0));  // Duplicate receiver.
+    VisitForStackValue(it->first);
+    EmitAccessor(it->second->getter);
+    EmitAccessor(it->second->setter);
+    __ push(Immediate(Smi::FromInt(NONE)));
+    __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
   }
 
   if (expr->has_function()) {

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,11 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that getters can be defined and called on value prototypes.
-//
-// This used to fail because of an invalid cast of the receiver to a
-// JSObject.
+// Test that a function declaration cannot overwrite a read-only property.
 
-String.prototype.__defineGetter__('x', function() { return this; });
-assertEquals(Object('asdf'), 'asdf'.x);
+print(0)
+function foobl() {}
+assertTrue(typeof this.foobl == "function");
+assertTrue(Object.getOwnPropertyDescriptor(this, "foobl").writable);
 
+print(1)
+Object.defineProperty(this, "foobl", {value: 1, writable: false});
+assertSame(1, this.foobl);
+assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);
+
+print(2)
+eval("function foobl() {}");
+assertSame(1, this.foobl);
+assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);
+
+print(3)
+eval("function foobl() {}");
+assertSame(1, this.foobl);
+assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);

@@ -2261,20 +2261,7 @@ class HPhi: public HValue {
     SetFlag(kFlexibleRepresentation);
   }
 
-  virtual Representation InferredRepresentation() {
-    bool double_occurred = false;
-    bool int32_occurred = false;
-    for (int i = 0; i < OperandCount(); ++i) {
-      HValue* value = OperandAt(i);
-      if (value->representation().IsDouble()) double_occurred = true;
-      if (value->representation().IsInteger32()) int32_occurred = true;
-      if (value->representation().IsTagged()) return Representation::Tagged();
-    }
-
-    if (double_occurred) return Representation::Double();
-    if (int32_occurred) return Representation::Integer32();
-    return Representation::None();
-  }
+  virtual Representation InferredRepresentation();
 
   virtual Range* InferRange(Zone* zone);
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3436,13 +3423,27 @@ class HCallStub: public HUnaryCall {
 
 class HUnknownOSRValue: public HTemplateInstruction<0> {
  public:
-  HUnknownOSRValue() { set_representation(Representation::Tagged()); }
+  HUnknownOSRValue()
+      : incoming_value_(NULL) {
+    set_representation(Representation::Tagged());
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  void set_incoming_value(HPhi* value) {
+    incoming_value_ = value;
+  }
+
+  HPhi* incoming_value() {
+    return incoming_value_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
+
+ private:
+  HPhi* incoming_value_;
 };
 
 

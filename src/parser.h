@@ -580,7 +580,7 @@ class Parser {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor,
-                            int end_token, bool* ok);
+                            int end_token, bool is_eval, bool* ok);
   Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
   Block* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
   Module* ParseModule(bool* ok);

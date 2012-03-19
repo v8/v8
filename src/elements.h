@@ -88,6 +88,15 @@ class ElementsAccessor {
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
+  // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
+  // of elements from source after source_start to the destination array.
+  static const int kCopyToEnd = -1;
+  // If kCopyToEndAndInitializeToHole is specified as the copy_size to
+  // CopyElements, it copies all of elements from source after source_start to
+  // destination array, padding any remaining uninitialized elements in the
+  // destination array with the hole.
+  static const int kCopyToEndAndInitializeToHole = -2;
+
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
@@ -98,13 +107,16 @@ class ElementsAccessor {
                                     ElementsKind destination_kind,
                                     uint32_t destination_start,
                                     int copy_size,
+                                    WriteBarrierMode mode,
                                     FixedArrayBase* source = NULL) = 0;
 
   MaybeObject* CopyElements(JSObject* from_holder,
                             FixedArrayBase* to,
                             ElementsKind to_kind,
+                            WriteBarrierMode mode,
                             FixedArrayBase* from = NULL) {
-    return CopyElements(from_holder, 0, to, to_kind, 0, -1, from);
+    return CopyElements(from_holder, 0, to, to_kind, 0,
+                        kCopyToEndAndInitializeToHole, mode, from);
   }
 
   virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
@@ -146,14 +158,14 @@ class ElementsAccessor {
 };
 
 
-void CopyObjectToObjectElements(AssertNoAllocation* no_gc,
-                                FixedArray* from_obj,
+void CopyObjectToObjectElements(FixedArray* from_obj,
                                 ElementsKind from_kind,
                                 uint32_t from_start,
                                 FixedArray* to_obj,
                                 ElementsKind to_kind,
                                 uint32_t to_start,
-                                int copy_size);
+                                int copy_size,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 
 } }  // namespace v8::internal

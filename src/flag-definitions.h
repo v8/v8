@@ -192,7 +192,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
-DEFINE_bool(inline_construct, false, "inline constructor calls")
+DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
@@ -307,6 +307,7 @@ DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
+DEFINE_bool(break_on_abort, true, "always cause a debug break before aborting")
 
 // execution.cc
 DEFINE_int(stack_size, kPointerSize * 128,

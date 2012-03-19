@@ -1,3 +1,36 @@
+2012-03-19: Version 3.9.21
+
+        Fixed push-to-trunk script (and re-push).
+
+        Added API call that identifies strings that are guaranteed only to
+        contain ASCII characters.
+
+
+2012-03-19: Version 3.9.20
+
+        Fixed declarations escaping global strict eval. (Issue 1624)
+
+        Fixed wrapping of receiver for non-strict callbacks. (Issue 1973)
+
+        Fixed function declarations overwriting read-only global properties.
+        (Chromium issue 115452)
+
+        Fixed --use-strict flag in combination with --harmony[-scoping].
+
+        Debugger: naive implementation of "step into Function.prototype.bind".
+
+        Debugger: added ability to set script source from within OnBeforeCompile
+
+        Added flag to always call DebugBreak on abort.
+
+        Re-enabled constructor inlining and inline === comparison with boolean
+        constants. (Issue 2009)
+
+        Don't use an explicit s0 in ClampDoubleToUint8. (Issue 2004)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-14: Version 3.9.19
 
         Ensure there is a smi check of the receiver for global load and call

@@ -453,6 +453,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
+  script->set_compilation_state(
+      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   isolate->debugger()->OnAfterCompile(
@@ -521,7 +524,9 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (FLAG_use_strict) info.SetLanguageMode(STRICT_MODE);
+    if (FLAG_use_strict) {
+      info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
+    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);

@@ -1766,6 +1766,12 @@ void HInferRepresentation::InferBasedOnInputs(HValue* current) {
   ASSERT(current->CheckFlag(HValue::kFlexibleRepresentation));
   Representation inferred = current->InferredRepresentation();
   if (inferred.IsSpecialization()) {
+    if (FLAG_trace_representation) {
+      PrintF("Changing #%d representation %s -> %s based on inputs\n",
+             current->id(),
+             r.Mnemonic(),
+             inferred.Mnemonic());
+    }
     current->ChangeRepresentation(inferred);
     AddDependantsToWorklist(current);
   }
@@ -1793,6 +1799,12 @@ void HInferRepresentation::InferBasedOnUses(HValue* value) {
   Representation new_rep = TryChange(value);
   if (!new_rep.IsNone()) {
     if (!value->representation().Equals(new_rep)) {
+      if (FLAG_trace_representation) {
+        PrintF("Changing #%d representation %s -> %s based on uses\n",
+               value->id(),
+               r.Mnemonic(),
+               new_rep.Mnemonic());
+      }
       value->ChangeRepresentation(new_rep);
       AddDependantsToWorklist(value);
     }
@@ -2508,6 +2520,14 @@ HGraph* HGraphBuilder::CreateGraph() {
   if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
   graph()->CollectPhis();
 
+  if (graph()->has_osr_loop_entry()) {
+    const ZoneList<HPhi*>* phis = graph()->osr_loop_entry()->phis();
+    for (int j = 0; j < phis->length(); j++) {
+      HPhi* phi = phis->at(j);
+      graph()->osr_values()->at(phi->merged_index())->set_incoming_value(phi);
+    }
+  }
+
   HInferRepresentation rep(graph());
   rep.Analyze();
 
@@ -3080,8 +3100,8 @@ bool HGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
 }
 
 
-void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
-  if (!HasOsrEntryAt(statement)) return;
+bool HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
+  if (!HasOsrEntryAt(statement)) return false;
 
   HBasicBlock* non_osr_entry = graph()->CreateBasicBlock();
   HBasicBlock* osr_entry = graph()->CreateBasicBlock();
@@ -3096,10 +3116,14 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   int osr_entry_id = statement->OsrEntryId();
   int first_expression_index = environment()->first_expression_index();
   int length = environment()->length();
+  ZoneList<HUnknownOSRValue*>* osr_values =
+      new(zone()) ZoneList<HUnknownOSRValue*>(length);
+
   for (int i = 0; i < first_expression_index; ++i) {
     HUnknownOSRValue* osr_value = new(zone()) HUnknownOSRValue;
     AddInstruction(osr_value);
     environment()->Bind(i, osr_value);
+    osr_values->Add(osr_value);
   }
 
   if (first_expression_index != length) {
@@ -3108,8 +3132,11 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
       HUnknownOSRValue* osr_value = new(zone()) HUnknownOSRValue;
       AddInstruction(osr_value);
       environment()->Push(osr_value);
+      osr_values->Add(osr_value);
     }
   }
+
+  graph()->set_osr_values(osr_values);
 
   AddSimulate(osr_entry_id);
   AddInstruction(new(zone()) HOsrEntry(osr_entry_id));
@@ -3119,6 +3146,7 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   current_block()->Goto(loop_predecessor);
   loop_predecessor->SetJoinId(statement->EntryId());
   set_current_block(loop_predecessor);
+  return true;
 }
 
 
@@ -3142,10 +3170,11 @@ void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  PreProcessOsrEntry(stmt);
+  bool osr_entry = PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
   current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
+  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
 
   BreakAndContinueInfo break_info(stmt);
   CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
@@ -3184,10 +3213,12 @@ void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   ASSERT(current_block() != NULL);
-  PreProcessOsrEntry(stmt);
+  bool osr_entry = PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
   current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
+  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
+
 
   // If the condition is constant true, do not generate a branch.
   HBasicBlock* loop_successor = NULL;
@@ -3229,10 +3260,11 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
     CHECK_ALIVE(Visit(stmt->init()));
   }
   ASSERT(current_block() != NULL);
-  PreProcessOsrEntry(stmt);
+  bool osr_entry = PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
   current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
+  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
 
   HBasicBlock* loop_successor = NULL;
   if (stmt->cond() != NULL) {
@@ -3324,10 +3356,11 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HForInCacheArray::cast(array)->set_index_cache(
       HForInCacheArray::cast(index_cache));
 
-  PreProcessOsrEntry(stmt);
+  bool osr_entry = PreProcessOsrEntry(stmt);
   HBasicBlock* loop_entry = CreateLoopHeaderBlock();
   current_block()->Goto(loop_entry);
   set_current_block(loop_entry);
+  if (osr_entry) graph()->set_osr_loop_entry(loop_entry);
 
   HValue* index = environment()->ExpressionStackAt(0);
   HValue* limit = environment()->ExpressionStackAt(1);
@@ -3740,7 +3773,6 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
-            Handle<String> name = Handle<String>::cast(key->handle());
             HInstruction* store = BuildStoreNamed(literal, value, property);
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
@@ -6723,6 +6755,15 @@ static bool IsLiteralCompareNil(HValue* left,
 }
 
 
+static bool IsLiteralCompareBool(HValue* left,
+                                 Token::Value op,
+                                 HValue* right) {
+  return op == Token::EQ_STRICT &&
+      ((left->IsConstant() && HConstant::cast(left)->handle()->IsBoolean()) ||
+       (right->IsConstant() && HConstant::cast(right)->handle()->IsBoolean()));
+}
+
+
 void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -6769,6 +6810,12 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
   if (IsLiteralCompareNil(left, op, right, f->null_value(), &sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kNullValue);
+  }
+  if (IsLiteralCompareBool(left, op, right)) {
+    HCompareObjectEqAndBranch* result =
+        new(zone()) HCompareObjectEqAndBranch(left, right);
+    result->set_position(expr->position());
+    return ast_context()->ReturnControl(result, expr->id());
   }
 
   if (op == Token::INSTANCEOF) {

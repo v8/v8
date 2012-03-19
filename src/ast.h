@@ -1366,6 +1366,12 @@ class ObjectLiteral: public MaterializedLiteral {
     kHasFunction = 1 << 1
   };
 
+  struct Accessors: public ZoneObject {
+    Accessors() : getter(NULL), setter(NULL) { }
+    Expression* getter;
+    Expression* setter;
+  };
+
  protected:
   template<class> friend class AstNodeFactory;
 

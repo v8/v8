@@ -1337,6 +1337,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       attr |= READ_ONLY;
     }
 
+    LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
+
     // Safari does not allow the invocation of callback setters for
     // function declarations. To mimic this behavior, we do not allow
     // the invocation of setters for function values. This makes a
@@ -1344,9 +1346,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // handlers such as "function onload() {}". Firefox does call the
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
-    if (value->IsJSFunction()) {
-      // Do not change DONT_DELETE to false from true.
+    if (is_function_declaration) {
       if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        // Do not overwrite READ_ONLY properties.
+        if (lookup.GetAttributes() & READ_ONLY) {
+          if (language_mode != CLASSIC_MODE) {
+            Handle<Object> args[] = { name };
+            return isolate->Throw(*isolate->factory()->NewTypeError(
+                "strict_cannot_assign", HandleVector(args, ARRAY_SIZE(args))));
+          }
+          continue;
+        }
+        // Do not change DONT_DELETE to false from true.
         attr |= lookup.GetAttributes() & DONT_DELETE;
       }
       PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
@@ -1356,14 +1367,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
           JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
                                                      attributes));
     } else {
-      LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
-      StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
-          ? kNonStrictMode : kStrictMode;
       RETURN_IF_EMPTY_HANDLE(
           isolate,
           JSReceiver::SetProperty(global, name, value,
                                   static_cast<PropertyAttributes>(attr),
-                                  strict_mode_flag));
+                                  language_mode == CLASSIC_MODE
+                                      ? kNonStrictMode : kStrictMode));
     }
   }
 
@@ -6760,6 +6769,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
         ascii = false;
       }
     } else {
+      ASSERT(!elt->IsTheHole());
       return isolate->Throw(isolate->heap()->illegal_argument_symbol());
     }
     if (increment > String::kMaxLength - position) {
@@ -12268,6 +12278,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPrototype) {
 }
 
 
+// Patches script source (should be called upon BeforeCompile event).
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
+  Handle<String> source(String::cast(args[1]));
+
+  RUNTIME_ASSERT(script_wrapper->value()->IsScript());
+  Handle<Script> script(Script::cast(script_wrapper->value()));
+
+  int compilation_state = Smi::cast(script->compilation_state())->value();
+  RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
+  script->set_source(*source);
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SystemBreak) {
   ASSERT(args.length() == 0);
   CPU::DebugBreak();
@@ -13324,6 +13353,7 @@ void Runtime::PerformGC(Object* result) {
     if (isolate->heap()->new_space()->AddFreshPage()) {
       return;
     }
+
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
     isolate->heap()->CollectGarbage(failure->allocation_space(),

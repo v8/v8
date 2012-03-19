@@ -313,6 +313,26 @@ class HGraph: public ZoneObject {
   void Verify(bool do_full_verify) const;
 #endif
 
+  bool has_osr_loop_entry() {
+    return osr_loop_entry_.is_set();
+  }
+
+  HBasicBlock* osr_loop_entry() {
+    return osr_loop_entry_.get();
+  }
+
+  void set_osr_loop_entry(HBasicBlock* entry) {
+    osr_loop_entry_.set(entry);
+  }
+
+  ZoneList<HUnknownOSRValue*>* osr_values() {
+    return osr_values_.get();
+  }
+
+  void set_osr_values(ZoneList<HUnknownOSRValue*>* values) {
+    osr_values_.set(values);
+  }
+
  private:
   void Postorder(HBasicBlock* block,
                  BitVector* visited,
@@ -352,6 +372,9 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> constant_false_;
   SetOncePointer<HConstant> constant_hole_;
   SetOncePointer<HArgumentsObject> arguments_object_;
+
+  SetOncePointer<HBasicBlock> osr_loop_entry_;
+  SetOncePointer<ZoneList<HUnknownOSRValue*> > osr_values_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -886,7 +909,7 @@ class HGraphBuilder: public AstVisitor {
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
 
-  void PreProcessOsrEntry(IterationStatement* statement);
+  bool PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
   bool HasOsrEntryAt(IterationStatement* statement);
   void VisitLoopBody(IterationStatement* stmt,

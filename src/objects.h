@@ -2338,10 +2338,6 @@ class FixedArray: public FixedArrayBase {
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray: public FixedArrayBase {
  public:
-  inline void Initialize(FixedArray* from);
-  inline void Initialize(FixedDoubleArray* from);
-  inline void Initialize(SeededNumberDictionary* from);
-
   // Setter and getter for elements.
   inline double get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
@@ -4978,6 +4974,12 @@ class Script: public Struct {
     COMPILATION_TYPE_EVAL = 1
   };
 
+  // Script compilation state.
+  enum CompilationState {
+    COMPILATION_STATE_INITIAL = 0,
+    COMPILATION_STATE_COMPILED = 1
+  };
+
   // [source]: the script source.
   DECL_ACCESSORS(source, Object)
 
@@ -5008,6 +5010,9 @@ class Script: public Struct {
 
   // [compilation]: how the the script was compiled.
   DECL_ACCESSORS(compilation_type, Smi)
+
+  // [is_compiled]: determines whether the script has already been compiled.
+  DECL_ACCESSORS(compilation_state, Smi)
 
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
@@ -5045,7 +5050,9 @@ class Script: public Struct {
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
+  static const int kCompilationStateOffset =
+      kCompilationTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationStateOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
   static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
@@ -7573,9 +7580,6 @@ class Oddball: public HeapObject {
   static const byte kArgumentMarker = 4;
   static const byte kUndefined = 5;
   static const byte kOther = 6;
-
-  // The ToNumber value of a hidden oddball is a negative smi.
-  static const int kLeastHiddenOddballNumber = -5;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,

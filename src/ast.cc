@@ -1061,8 +1061,6 @@ void AstConstructionVisitor::VisitForStatement(ForStatement* node) {
 
 void AstConstructionVisitor::VisitForInStatement(ForInStatement* node) {
   increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
   add_flag(kDontSelfOptimize);
 }
 

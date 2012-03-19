@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,11 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that getters can be defined and called on value prototypes.
-//
-// This used to fail because of an invalid cast of the receiver to a
-// JSObject.
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
 
-String.prototype.__defineGetter__('x', function() { return this; });
-assertEquals(Object('asdf'), 'asdf'.x);
+var script_number = 0;
+var script_names = [];
+var exception = null;
 
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.BeforeCompile) {
+    event_data.script().setSource(event_data.script().source() +
+        " //@ sourceURL=proper_location_" + (++script_number));
+  } else if (event == Debug.DebugEvent.AfterCompile) {
+    try {
+      event_data.script().setSource("a=1 //@ sourceURL=wrong_location");
+    } catch(e) {
+      exception = e;
+    }
+    script_names.push(event_data.script().name());
+  }
+};
+
+
+// Add the debug event listener.
+Debug.setListener(listener);
+
+// Compile different sources.
+eval('a=1');
+eval('(function(){})');
+
+assertEquals(2, script_names.length);
+assertEquals("proper_location_1", script_names[0]);
+assertEquals("proper_location_2", script_names[1]);
+
+assertEquals("illegal access", exception);
+
+Debug.setListener(null);
