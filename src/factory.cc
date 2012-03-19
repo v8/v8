@@ -554,7 +554,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       FLAG_always_opt &&
       result->is_compiled() &&
       !function_info->is_toplevel() &&
-      function_info->allows_lazy_compilation()) {
+      function_info->allows_lazy_compilation() &&
+      !function_info->optimization_disabled()) {
     result->MarkForLazyRecompilation();
   }
   return result;

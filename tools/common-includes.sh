@@ -176,7 +176,7 @@ the uploaded CL."
 # Takes a file containing the patch to apply as first argument.
 apply_patch() {
   patch -p1 < "$1" > "$PATCH_OUTPUT_FILE" || \
-    cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."
+    { cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."; }
   tee < "$PATCH_OUTPUT_FILE" >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
   rm "$PATCH_OUTPUT_FILE"
 }
