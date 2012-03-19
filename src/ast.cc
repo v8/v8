@@ -399,6 +399,9 @@ bool FunctionDeclaration::IsInlineable() const {
 
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
+  is_uninitialized_ = oracle->LoadIsUninitialized(this);
+  if (is_uninitialized_) return;
+
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {

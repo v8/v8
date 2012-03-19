@@ -277,7 +277,9 @@ static void CreateTraceCallerFunction(const char* func_name,
 TEST(CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
   i::FLAG_use_inlining = false;
-
+  // This test does not work with --always-opt because we don't replace the code
+  // in the JSFunction at deoptimization in that case.
+  i::FLAG_always_opt = false;
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -307,6 +309,7 @@ TEST(CFromJSStackTrace) {
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
   int base = 0;
   CHECK_GT(sample.frames_count, base + 1);
+
   CHECK(IsAddressWithinFuncCode("JSFuncDoTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 1]));
 }

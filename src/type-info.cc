@@ -77,6 +77,17 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 }
 
 
+bool TypeFeedbackOracle::LoadIsUninitialized(Property* expr) {
+  Handle<Object> map_or_code = GetInfo(expr->id());
+  if (map_or_code->IsMap()) return false;
+  if (map_or_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    return code->is_inline_cache_stub() && code->ic_state() == UNINITIALIZED;
+  }
+  return false;
+}
+
+
 bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsMap()) return true;
@@ -649,7 +660,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
               SetInfo(ast_id, map);
             }
           }
-        } else if (target->ic_state() == MEGAMORPHIC) {
+        } else {
           SetInfo(ast_id, target);
         }
         break;

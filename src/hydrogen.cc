@@ -4523,6 +4523,10 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
 
 HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
                                                    Property* expr) {
+  if (expr->IsUninitialized()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
+  }
   ASSERT(expr->key()->IsPropertyName());
   Handle<Object> name = expr->key()->AsLiteral()->handle();
   HValue* context = environment()->LookupContext();

@@ -239,6 +239,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                      Isolate* isolate);
 
   bool LoadIsMonomorphicNormal(Property* expr);
+  bool LoadIsUninitialized(Property* expr);
   bool LoadIsMegamorphicWithTypeInfo(Property* expr);
   bool StoreIsMonomorphicNormal(Expression* expr);
   bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
