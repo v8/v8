@@ -1527,6 +1527,7 @@ class Property: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   bool IsArrayLength() { return is_array_length_; }
+  bool IsUninitialized() { return is_uninitialized_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1540,6 +1541,7 @@ class Property: public Expression {
         key_(key),
         pos_(pos),
         is_monomorphic_(false),
+        is_uninitialized_(false),
         is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
@@ -1552,6 +1554,7 @@ class Property: public Expression {
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
+  bool is_uninitialized_ : 1;
   bool is_array_length_ : 1;
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;

@@ -1017,6 +1017,15 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(*code);
   } else if (state == MONOMORPHIC) {
+    // We are transitioning from monomorphic to megamorphic case.
+    // Place the current monomorphic stub and stub compiled for
+    // the receiver into stub cache.
+    Map* map = target()->FindFirstMap();
+    if (map != NULL) {
+      isolate()->stub_cache()->Set(*name, map, target());
+    }
+    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+
     set_target(*megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
     // Cache code holding map should be consistent with

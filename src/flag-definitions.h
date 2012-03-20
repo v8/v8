@@ -200,7 +200,7 @@ DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 
 // Experimental profiler changes.
-DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
+DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
 DEFINE_bool(self_optimization, false,

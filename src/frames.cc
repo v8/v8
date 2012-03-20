@@ -1302,7 +1302,7 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
     Address inner_pointer) {
   Heap* heap = isolate_->heap();
   // Check if the inner pointer points into a large object chunk.
-  LargePage* large_page = heap->lo_space()->FindPageContainingPc(inner_pointer);
+  LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
   if (large_page != NULL) {
     return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
   }
