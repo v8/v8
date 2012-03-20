@@ -33,6 +33,7 @@
 #include "builtins.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
+#include "heap-profiler.h"
 #include "mark-compact.h"
 #include "vm-state-inl.h"
 
@@ -380,6 +381,8 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
     MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
   }
 
+  HEAP_PROFILE(heap, ObjectMoveEvent(elms->address(),
+                                     elms->address() + size_delta));
   return FixedArray::cast(HeapObject::FromAddress(
       elms->address() + to_trim * kPointerSize));
 }
