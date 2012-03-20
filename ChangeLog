@@ -1,3 +1,13 @@
+2012-03-20: Version 3.9.22
+
+        Enabled count-based profiler by default.
+
+        Implemented a hash based look-up to speed up address checks
+        in large object space (issue 853).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-19: Version 3.9.21
 
         Fixed push-to-trunk script (and re-push).
