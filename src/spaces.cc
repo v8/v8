@@ -2593,11 +2593,12 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   // Register all MemoryChunk::kAlignment-aligned chunks covered by
   // this large page in the chunk map.
-  uintptr_t base = reinterpret_cast<uintptr_t>(page)/MemoryChunk::kAlignment;
-  uintptr_t limit = base + (page->size()-1)/MemoryChunk::kAlignment;
+  uintptr_t base = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
+  uintptr_t limit = base + (page->size() - 1) / MemoryChunk::kAlignment;
   for (uintptr_t key = base; key <= limit; key++) {
     HashMap::Entry* entry = chunk_map_.Lookup(reinterpret_cast<void*>(key),
-                                              key, true);
+                                              static_cast<uint32_t>(key),
+                                              true);
     ASSERT(entry != NULL);
     entry->value = page;
   }
@@ -2629,7 +2630,8 @@ MaybeObject* LargeObjectSpace::FindObject(Address a) {
 LargePage* LargeObjectSpace::FindPage(Address a) {
   uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
   HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
-                                        key, false);
+                                        static_cast<uint32_t>(key),
+                                        false);
   if (e != NULL) {
     ASSERT(e->value != NULL);
     LargePage* page = reinterpret_cast<LargePage*>(e->value);
@@ -2680,7 +2682,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       uintptr_t base = reinterpret_cast<uintptr_t>(page)/alignment;
       uintptr_t limit = base + (page->size()-1)/alignment;
       for (uintptr_t key = base; key <= limit; key++) {
-        chunk_map_.Remove(reinterpret_cast<void*>(key), key);
+        chunk_map_.Remove(reinterpret_cast<void*>(key),
+                          static_cast<uint32_t>(key));
       }
 
       if (is_pointer_object) {
