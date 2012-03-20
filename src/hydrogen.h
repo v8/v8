@@ -400,6 +400,10 @@ class HEnvironment: public ZoneObject {
     return outer;
   }
 
+  HEnvironment* arguments_environment() {
+    return outer()->frame_type() == ARGUMENTS_ADAPTOR ? outer() : this;
+  }
+
   // Simple accessors.
   Handle<JSFunction> closure() const { return closure_; }
   const ZoneList<HValue*>* values() const { return &values_; }

@@ -5749,20 +5749,11 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
         AddInstruction(new(zone()) HWrapReceiver(receiver, function));
     PushAndAdd(new(zone()) HPushArgument(wrapped_receiver));
 
-    int parameter_count = environment()->parameter_count();
-    for (int i = 1; i < environment()->parameter_count(); i++) {
-      PushAndAdd(new(zone()) HPushArgument(environment()->Lookup(i)));
-    }
+    HEnvironment* arguments_env = environment()->arguments_environment();
 
-    if (environment()->outer()->frame_type() == ARGUMENTS_ADAPTOR) {
-      HEnvironment* adaptor = environment()->outer();
-      parameter_count = adaptor->parameter_count();
-
-      for (int i = environment()->parameter_count();
-           i < adaptor->parameter_count();
-           i++) {
-        PushAndAdd(new(zone()) HPushArgument(adaptor->Lookup(i)));
-      }
+    int parameter_count = arguments_env->parameter_count();
+    for (int i = 1; i < arguments_env->parameter_count(); i++) {
+      PushAndAdd(new(zone()) HPushArgument(arguments_env->Lookup(i)));
     }
 
     HInvokeFunction* call = new(zone()) HInvokeFunction(
