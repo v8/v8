@@ -268,6 +268,7 @@ void RuntimeProfiler::OptimizeNow() {
 
     // Do not record non-optimizable functions.
     if (!function->IsOptimizable()) continue;
+    if (function->shared()->optimization_disabled()) continue;
 
     // Only record top-level code on top of the execution stack and
     // avoid optimizing excessively large scripts since top-level code
