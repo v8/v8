@@ -634,13 +634,9 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ bind(&skip);
   }
 
-  if (cc == al) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-  } else {
-    // TODO(plind): The Arm port is a little different here, due to their
-    // DeOpt jump table, which is not used for Mips yet.
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
-  }
+  // TODO(plind): The Arm port is a little different here, due to their
+  // DeOpt jump table, which is not used for Mips yet.
+  __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
 }
 
 

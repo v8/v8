@@ -577,8 +577,8 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
           masm->isolate());
-  __ li(a0, Operand(5));
-  __ li(a1, Operand(ref));
+  __ PrepareCEntryArgs(5);
+  __ PrepareCEntryFunction(ref);
 
   CEntryStub stub(1);
   __ CallStub(&stub);
@@ -4107,7 +4107,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(a0, &miss_force_generic);
+  __ JumpIfNotSmi(a0, &miss_force_generic, at, USE_DELAY_SLOT);
+  // The delay slot can be safely used here, a1 is an object pointer.
 
   // Get the elements array.
   __ lw(a2, FieldMemOperand(a1, JSObject::kElementsOffset));
@@ -4115,7 +4116,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 
   // Check that the key is within bounds.
   __ lw(a3, FieldMemOperand(a2, FixedArray::kLengthOffset));
-  __ Branch(&miss_force_generic, hs, a0, Operand(a3));
+  __ Branch(USE_DELAY_SLOT, &miss_force_generic, hs, a0, Operand(a3));
 
   // Load the result and make sure it's not the hole.
   __ Addu(a3, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4125,8 +4126,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   __ lw(t0, MemOperand(t0));
   __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
   __ Branch(&miss_force_generic, eq, t0, Operand(t1));
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, t0);
-  __ Ret();
 
   __ bind(&miss_force_generic);
   Handle<Code> stub =

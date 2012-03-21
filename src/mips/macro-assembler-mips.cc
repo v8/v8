@@ -2438,8 +2438,15 @@ void MacroAssembler::Jump(intptr_t target,
                           Register rs,
                           const Operand& rt,
                           BranchDelaySlot bd) {
+  Label skip;
+  if (cond != cc_always) {
+    Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
+  }
+  // The first instruction of 'li' may be placed in the delay slot.
+  // This is not an issue, t9 is expected to be clobbered anyway.
   li(t9, Operand(target, rmode));
-  Jump(t9, cond, rs, rt, bd);
+  Jump(t9, al, zero_reg, Operand(zero_reg), bd);
+  bind(&skip);
 }
 
 
@@ -2569,7 +2576,7 @@ void MacroAssembler::Call(Handle<Code> code,
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, rs, rt, bd);
-  ASSERT_EQ(CallSize(code, rmode, ast_id, cond, rs, rt),
+  ASSERT_EQ(CallSize(code, rmode, ast_id, cond, rs, rt, bd),
             SizeOfCodeGeneratedSince(&start));
 }
 
@@ -2639,14 +2646,16 @@ void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
     nop();
 }
 
+void MacroAssembler::DropAndRet(int drop) {
+  Ret(USE_DELAY_SLOT);
+  addiu(sp, sp, drop * kPointerSize);
+}
 
 void MacroAssembler::DropAndRet(int drop,
                                 Condition cond,
                                 Register r1,
                                 const Operand& r2) {
-  // This is a workaround to make sure only one branch instruction is
-  // generated. It relies on Drop and Ret not creating branches if
-  // cond == cc_always.
+  // Both Drop and Ret need to be conditional.
   Label skip;
   if (cond != cc_always) {
     Branch(&skip, NegateCondition(cond), r1, r2);
@@ -2713,8 +2722,8 @@ void MacroAssembler::Push(Handle<Object> handle) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {
-  mov(a0, zero_reg);
-  li(a1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
+  PrepareCEntryArgs(0);
+  PrepareCEntryFunction(ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(1);
   ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
@@ -3876,10 +3885,13 @@ void MacroAssembler::GetObjectType(Register object,
 // -----------------------------------------------------------------------------
 // Runtime calls.
 
-void MacroAssembler::CallStub(CodeStub* stub, Condition cond,
-                              Register r1, const Operand& r2) {
+void MacroAssembler::CallStub(CodeStub* stub,
+                              Condition cond,
+                              Register r1,
+                              const Operand& r2,
+                              BranchDelaySlot bd) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond, r1, r2);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond, r1, r2, bd);
 }
 
 
@@ -3962,8 +3974,7 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   lw(t1, MemOperand(at));
   Branch(&promote_scheduled_exception, ne, t0, Operand(t1));
   li(s0, Operand(stack_space));
-  LeaveExitFrame(false, s0);
-  Ret();
+  LeaveExitFrame(false, s0, true);
 
   bind(&promote_scheduled_exception);
   TailCallExternalReference(
@@ -4161,8 +4172,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  li(a0, num_arguments);
-  li(a1, Operand(ExternalReference(f, isolate())));
+  PrepareCEntryArgs(num_arguments);
+  PrepareCEntryFunction(ExternalReference(f, isolate()));
   CEntryStub stub(1);
   CallStub(&stub);
 }
@@ -4170,8 +4181,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
 void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
-  li(a0, Operand(function->nargs));
-  li(a1, Operand(ExternalReference(function, isolate())));
+  PrepareCEntryArgs(function->nargs);
+  PrepareCEntryFunction(ExternalReference(function, isolate()));
   CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
@@ -4183,12 +4194,13 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 
 
 void MacroAssembler::CallExternalReference(const ExternalReference& ext,
-                                           int num_arguments) {
-  li(a0, Operand(num_arguments));
-  li(a1, Operand(ext));
+                                           int num_arguments,
+                                           BranchDelaySlot bd) {
+  PrepareCEntryArgs(num_arguments);
+  PrepareCEntryFunction(ext);
 
   CEntryStub stub(1);
-  CallStub(&stub);
+  CallStub(&stub, al, zero_reg, Operand(zero_reg), bd);
 }
 
 
@@ -4199,7 +4211,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  li(a0, Operand(num_arguments));
+  PrepareCEntryArgs(num_arguments);
   JumpToExternalReference(ext);
 }
 
@@ -4213,10 +4225,16 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
-  li(a1, Operand(builtin));
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
+                                             BranchDelaySlot bd) {
+  PrepareCEntryFunction(builtin);
   CEntryStub stub(1);
-  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Jump(stub.GetCode(),
+       RelocInfo::CODE_TARGET,
+       al,
+       zero_reg,
+       Operand(zero_reg),
+       bd);
 }
 
 
@@ -4563,7 +4581,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count) {
+                                    Register argument_count,
+                                    bool do_return) {
   // Optionally restore all double registers.
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
@@ -4589,11 +4608,17 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(sp, fp);  // Respect ABI stack constraint.
   lw(fp, MemOperand(sp, ExitFrameConstants::kCallerFPOffset));
   lw(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
-  addiu(sp, sp, 8);
+
   if (argument_count.is_valid()) {
     sll(t8, argument_count, kPointerSizeLog2);
     addu(sp, sp, t8);
   }
+
+  if (do_return) {
+    Ret(USE_DELAY_SLOT);
+    // If returning, the instruction in the delay slot will be the addiu below.
+  }
+  addiu(sp, sp, 8);
 }
 
 
