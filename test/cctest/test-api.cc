@@ -5870,6 +5870,7 @@ THREADED_TEST(Utf16) {
       "p.push(String.fromCharCode(0xdc00));"
       "var a = [];"
       "var b = [];"
+      "var c = [];"
       "var alens = [];"
       "for (var i = 0; i < 3; i++) {"
       "  p[1] = String.fromCharCode(lead++);"
@@ -5877,17 +5878,21 @@ THREADED_TEST(Utf16) {
       "    p[2] = String.fromCharCode(trail++);"
       "    a.push(p[i] + p[j]);"
       "    b.push(p[i] + p[j]);"
+      "    c.push(p[i] + p[j]);"
       "    alens.push(plens[i] + plens[j]);"
       "  }"
       "}"
       "alens[5] -= 2;"  // Here the surrogate pairs match up.
       "var a2 = [];"
       "var b2 = [];"
+      "var c2 = [];"
       "var a2lens = [];"
       "for (var m = 0; m < 9; m++) {"
       "  for (var n = 0; n < 9; n++) {"
       "    a2.push(a[m] + a[n]);"
       "    b2.push(b[m] + b[n]);"
+      "    var newc = 'x' + c[m] + c[n] + 'y';"
+      "    c2.push(newc.substring(1, newc.length - 1));"
       "    var utf = alens[m] + alens[n];"  // And here.
            // The 'n's that start with 0xdc.. are 6-8
            // The 'm's that end with 0xd8.. are 1, 4 and 7
@@ -5899,6 +5904,7 @@ THREADED_TEST(Utf16) {
   Utf16Helper(context, "a2", "a2lens", 81);
   WriteUtf8Helper(context, "b", "alens", 9);
   WriteUtf8Helper(context, "b2", "a2lens", 81);
+  WriteUtf8Helper(context, "c2", "a2lens", 81);
 }
 
 
