@@ -3721,7 +3721,7 @@ static int RecursivelySerializeToUtf8(i::String* string,
           previous_character = character;
         }
         *last_character = previous_character;
-        return utf8_bytes + current - buffer;
+        return static_cast<int>(utf8_bytes + current - buffer);
       }
       case i::kSeqStringTag: {
         const uint16_t* data =
@@ -3734,7 +3734,7 @@ static int RecursivelySerializeToUtf8(i::String* string,
           previous_character = character;
         }
         *last_character = previous_character;
-        return utf8_bytes + current - buffer;
+        return static_cast<int>(utf8_bytes + current - buffer);
       }
       case i::kSlicedStringTag: {
         i::SlicedString* slice = i::SlicedString::cast(string);
@@ -3818,7 +3818,7 @@ int String::WriteUtf8(char* buffer,
     return len;
   }
 
-  if (capacity == -1 || capacity >= string_length * 3) {
+  if (capacity == -1 || capacity / 3 >= string_length) {
     int32_t previous = unibrow::Utf16::kNoPreviousCharacter;
     const int kMaxRecursion = 100;
     int utf8_bytes =
