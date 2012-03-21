@@ -1,3 +1,11 @@
+2012-03-21: Version 3.9.23
+
+        Use correct arguments adaptation environment when inlining function
+        containing arguments. (Issue 2014)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-20: Version 3.9.22
 
         Enabled count-based profiler by default.
