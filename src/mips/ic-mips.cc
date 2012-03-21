@@ -512,8 +512,8 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     __ Push(a3, a2);
 
     // Call the entry.
-    __ li(a0, Operand(2));
-    __ li(a1, Operand(ExternalReference(IC_Utility(id), isolate)));
+    __ PrepareCEntryArgs(2);
+    __ PrepareCEntryFunction(ExternalReference(IC_Utility(id), isolate));
 
     CEntryStub stub(1);
     __ CallStub(&stub);
@@ -844,8 +844,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   Label slow, notin;
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a1, a0, a2, a3, t0, &notin, &slow);
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, mapped_location);
-  __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a2.
   MemOperand unmapped_location =
@@ -853,8 +853,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ lw(a2, unmapped_location);
   __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
   __ Branch(&slow, eq, a2, Operand(a3));
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a2);
-  __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
 }

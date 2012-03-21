@@ -4814,11 +4814,54 @@ void Heap::EnsureHeapIsIterable() {
 }
 
 
+void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
+  // This flag prevents incremental marking from requesting GC via stack guard
+  idle_notification_will_schedule_next_gc_ = true;
+  incremental_marking()->Step(step_size);
+  idle_notification_will_schedule_next_gc_ = false;
+
+  if (incremental_marking()->IsComplete()) {
+    bool uncommit = false;
+    if (gc_count_at_last_idle_gc_ == gc_count_) {
+      // No GC since the last full GC, the mutator is probably not active.
+      isolate_->compilation_cache()->Clear();
+      uncommit = true;
+    }
+    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    gc_count_at_last_idle_gc_ = gc_count_;
+    if (uncommit) {
+      new_space_.Shrink();
+      UncommitFromSpace();
+    }
+  }
+}
+
+
 bool Heap::IdleNotification(int hint) {
-  if (hint >= 1000) return IdleGlobalGC();
-  if (contexts_disposed_ > 0 || !FLAG_incremental_marking ||
+  intptr_t size_factor = Min(Max(hint, 30), 1000) / 10;
+  // The size factor is in range [3..100].
+  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
+
+  if (contexts_disposed_ > 0) {
+    int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
+    if (hint >= mark_sweep_time && !FLAG_expose_gc) {
+      HistogramTimerScope scope(isolate_->counters()->gc_context());
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: contexts disposed");
+    } else {
+      AdvanceIdleIncrementalMarking(step_size);
+      contexts_disposed_ = 0;
+    }
+    // Make sure that we have no pending context disposals.
+    // Take into account that we might have decided to delay full collection
+    // because incremental marking is in progress.
+    ASSERT((contexts_disposed_ == 0) || !incremental_marking()->IsStopped());
+    return false;
+  }
+
+  if (hint >= 1000 || !FLAG_incremental_marking ||
       FLAG_expose_gc || Serializer::enabled()) {
-    return true;
+    return IdleGlobalGC();
   }
 
   // By doing small chunks of GC work in each IdleNotification,
@@ -4830,9 +4873,6 @@ bool Heap::IdleNotification(int hint) {
   // 3. many lazy sweep steps.
   // Use mark-sweep-compact events to count incremental GCs in a round.
 
-  intptr_t size_factor = Min(Max(hint, 30), 1000) / 10;
-  // The size factor is in range [3..100].
-  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (incremental_marking()->IsStopped()) {
     if (!IsSweepingComplete() &&
@@ -4859,32 +4899,14 @@ bool Heap::IdleNotification(int hint) {
   }
 
   if (incremental_marking()->IsStopped()) {
-    if (hint < 1000 && !WorthStartingGCWhenIdle()) {
+    if (!WorthStartingGCWhenIdle()) {
       FinishIdleRound();
       return true;
     }
     incremental_marking()->Start();
   }
 
-  // This flag prevents incremental marking from requesting GC via stack guard
-  idle_notification_will_schedule_next_gc_ = true;
-  incremental_marking()->Step(step_size);
-  idle_notification_will_schedule_next_gc_ = false;
-
-  if (incremental_marking()->IsComplete()) {
-    bool uncommit = false;
-    if (gc_count_at_last_idle_gc_ == gc_count_) {
-      // No GC since the last full GC, the mutator is probably not active.
-      isolate_->compilation_cache()->Clear();
-      uncommit = true;
-    }
-    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
-    gc_count_at_last_idle_gc_ = gc_count_;
-    if (uncommit) {
-      new_space_.Shrink();
-      UncommitFromSpace();
-    }
-  }
+  AdvanceIdleIncrementalMarking(step_size);
   return false;
 }
 
@@ -4917,13 +4939,7 @@ bool Heap::IdleGlobalGC() {
   }
 
   if (number_idle_notifications_ == kIdlesBeforeScavenge) {
-    if (contexts_disposed_ > 0) {
-      HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kReduceMemoryFootprintMask,
-                        "idle notification: contexts disposed");
-    } else {
-      CollectGarbage(NEW_SPACE, "idle notification");
-    }
+    CollectGarbage(NEW_SPACE, "idle notification");
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
   } else if (number_idle_notifications_ == kIdlesBeforeMarkSweep) {
@@ -4942,23 +4958,6 @@ bool Heap::IdleGlobalGC() {
     last_idle_notification_gc_count_ = gc_count_;
     number_idle_notifications_ = 0;
     finished = true;
-  } else if (contexts_disposed_ > 0) {
-    if (FLAG_expose_gc) {
-      contexts_disposed_ = 0;
-    } else {
-      HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kReduceMemoryFootprintMask,
-                        "idle notification: contexts disposed");
-      last_idle_notification_gc_count_ = gc_count_;
-    }
-    // If this is the first idle notification, we reset the
-    // notification count to avoid letting idle notifications for
-    // context disposal garbage collections start a potentially too
-    // aggressive idle GC cycle.
-    if (number_idle_notifications_ <= 1) {
-      number_idle_notifications_ = 0;
-      uncommit = false;
-    }
   } else if (number_idle_notifications_ > kIdlesBeforeMarkCompact) {
     // If we have received more than kIdlesBeforeMarkCompact idle
     // notifications we do not perform any cleanup because we don't
@@ -4966,11 +4965,6 @@ bool Heap::IdleGlobalGC() {
     finished = true;
   }
 
-  // Make sure that we have no pending context disposals and
-  // conditionally uncommit from space.
-  // Take into account that we might have decided to delay full collection
-  // because incremental marking is in progress.
-  ASSERT((contexts_disposed_ == 0) || !incremental_marking()->IsStopped());
   if (uncommit) UncommitFromSpace();
 
   return finished;

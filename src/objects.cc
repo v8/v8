@@ -7380,7 +7380,6 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
-  ASSERT(!shared()->optimization_disabled());
   Builtins* builtins = GetIsolate()->builtins();
   ReplaceCode(builtins->builtin(Builtins::kLazyRecompile));
 }

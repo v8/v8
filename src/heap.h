@@ -1966,8 +1966,23 @@ class Heap {
     return incremental_marking()->WorthActivating();
   }
 
+  // Estimates how many milliseconds a Mark-Sweep would take to complete.
+  // In idle notification handler we assume that this function will return:
+  // - a number less than 10 for small heaps, which are less than 8Mb.
+  // - a number greater than 10 for large heaps, which are greater than 32Mb.
+  int TimeMarkSweepWouldTakeInMs() {
+    // Rough estimate of how many megabytes of heap can be processed in 1 ms.
+    static const int kMbPerMs = 2;
+
+    int heap_size_mb = static_cast<int>(SizeOfObjects() / MB);
+    return heap_size_mb / kMbPerMs;
+  }
+
   // Returns true if no more GC work is left.
   bool IdleGlobalGC();
+
+  void AdvanceIdleIncrementalMarking(intptr_t step_size);
+
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

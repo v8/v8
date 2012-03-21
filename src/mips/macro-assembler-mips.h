@@ -193,10 +193,14 @@ class MacroAssembler: public Assembler {
             Register reg = no_reg,
             const Operand& op = Operand(no_reg));
 
-  void DropAndRet(int drop = 0,
-                  Condition cond = cc_always,
-                  Register reg = no_reg,
-                  const Operand& op = Operand(no_reg));
+  // Trivial case of DropAndRet that utilizes the delay slot and only emits
+  // 2 instructions.
+  void DropAndRet(int drop);
+
+  void DropAndRet(int drop,
+                  Condition cond,
+                  Register reg,
+                  const Operand& op);
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
@@ -773,7 +777,9 @@ class MacroAssembler: public Assembler {
                       int stack_space = 0);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(bool save_doubles, Register arg_count);
+  void LeaveExitFrame(bool save_doubles,
+                      Register arg_count,
+                      bool do_return = false);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1084,9 +1090,22 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // Runtime calls.
 
+  // See comments at the beginning of CEntryStub::Generate.
+  inline void PrepareCEntryArgs(int num_args) {
+    li(s0, num_args);
+    li(s1, (num_args - 1) * kPointerSize);
+  }
+
+  inline void PrepareCEntryFunction(const ExternalReference& ref) {
+    li(s2, Operand(ref));
+  }
+
   // Call a code stub.
-  void CallStub(CodeStub* stub, Condition cond = cc_always,
-                Register r1 = zero_reg, const Operand& r2 = Operand(zero_reg));
+  void CallStub(CodeStub* stub,
+                Condition cond = cc_always,
+                Register r1 = zero_reg,
+                const Operand& r2 = Operand(zero_reg),
+                BranchDelaySlot bd = PROTECT);
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
@@ -1102,7 +1121,8 @@ class MacroAssembler: public Assembler {
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
-                             int num_arguments);
+                             int num_arguments,
+                             BranchDelaySlot bd = PROTECT);
 
   // Tail call of a runtime routine (jump).
   // Like JumpToExternalReference, but also takes care of passing the number
@@ -1168,7 +1188,8 @@ class MacroAssembler: public Assembler {
   void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
 
   // Jump to the builtin routine.
-  void JumpToExternalReference(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin,
+                               BranchDelaySlot bd = PROTECT);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.

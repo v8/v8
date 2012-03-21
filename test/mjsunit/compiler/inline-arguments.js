@@ -80,3 +80,36 @@ F4(1);
 F4(1);
 %OptimizeFunctionOnNextCall(F4);
 F4(1);
+
+
+// Test correct adapation of arguments.
+// Strict mode prevents arguments object from shadowing parameters.
+(function () {
+  "use strict";
+
+  function G2() {
+    assertArrayEquals([1,2], arguments);
+  }
+
+  function G4() {
+    assertArrayEquals([1,2,3,4], arguments);
+  }
+
+  function adapt2to4(a, b, c, d) {
+    G2.apply(this, arguments);
+  }
+
+  function adapt4to2(a, b) {
+    G4.apply(this, arguments);
+  }
+
+  function test_adaptation() {
+    adapt2to4(1, 2);
+    adapt4to2(1, 2, 3, 4);
+  }
+
+  test_adaptation();
+  test_adaptation();
+  %OptimizeFunctionOnNextCall(test_adaptation);
+  test_adaptation();
+})();
