@@ -81,6 +81,16 @@ enum BranchDelaySlot {
   PROTECT
 };
 
+// Flags used for the li macro-assembler function.
+enum LiFlags {
+  // If the constant value can be represented in just 16 bits, then
+  // optimize the li to use a single instruction, rather than lui/ori pair.
+  OPTIMIZE_SIZE = 0,
+  // Always use 2 instructions (lui/ori pair), even if the constant could
+  // be loaded with just one, so that this value is patchable later.
+  CONSTANT_SIZE = 1
+};
+
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
@@ -184,6 +194,12 @@ class MacroAssembler: public Assembler {
     Ret(cond, rs, rt, bd);
   }
 
+  void Branch(Label* L,
+              Condition cond,
+              Register rs,
+              Heap::RootListIndex index,
+              BranchDelaySlot bdslot = PROTECT);
+
 #undef COND_ARGS
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -247,7 +263,6 @@ class MacroAssembler: public Assembler {
   void jmp(Label* L) {
     Branch(L);
   }
-
 
   // Load an object from the root table.
   void LoadRoot(Register destination,
@@ -579,12 +594,13 @@ class MacroAssembler: public Assembler {
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
   // Load int32 in the rd register.
-  void li(Register rd, Operand j, bool gen2instr = false);
-  inline void li(Register rd, int32_t j, bool gen2instr = false) {
-    li(rd, Operand(j), gen2instr);
+  void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
+    li(rd, Operand(j), mode);
   }
-  inline void li(Register dst, Handle<Object> value, bool gen2instr = false) {
-    li(dst, Operand(value), gen2instr);
+  inline void li(Register dst, Handle<Object> value,
+                 LiFlags mode = OPTIMIZE_SIZE) {
+    li(dst, Operand(value), mode);
   }
 
   // Push multiple registers on the stack.

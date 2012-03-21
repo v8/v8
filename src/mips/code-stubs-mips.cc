@@ -3942,13 +3942,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Special handling of out of memory exceptions.
   Failure* out_of_memory = Failure::OutOfMemoryException();
-  __ Branch(USE_DELAY_SLOT, throw_out_of_memory_exception, eq,
-            v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ Branch(USE_DELAY_SLOT,
+            throw_out_of_memory_exception,
+            eq,
+            v0,
+            Operand(reinterpret_cast<int32_t>(out_of_memory)));
   // If we throw the OOM exception, the value of a3 doesn't matter.
   // Any instruction can be in the delay slot that's not a jump.
 
   // Retrieve the pending exception and clear the variable.
-  __ li(a3, Operand(isolate->factory()->the_hole_value()));
+  __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate)));
   __ lw(v0, MemOperand(t0));
@@ -3956,8 +3959,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ Branch(throw_termination_exception, eq,
-            v0, Operand(isolate->factory()->termination_exception()));
+  __ LoadRoot(t0, Heap::kTerminationExceptionRootIndex);
+  __ Branch(throw_termination_exception, eq, v0, Operand(t0));
 
   // Handle normal exception.
   __ jmp(throw_normal_exception);
@@ -4084,6 +4087,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
   }
 
+  __ InitializeRootRegister();
   __ lw(s0, MemOperand(sp, offset_to_argv + kCArgsSlotsSize));
 
   // We build an EntryFrame.
@@ -4156,7 +4160,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ li(t1, Operand(isolate->factory()->the_hole_value()));
+  __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate)));
   __ sw(t1, MemOperand(t0));
@@ -4200,7 +4204,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(t1);
-  __ Branch(&non_outermost_js_2, ne, t1,
+  __ Branch(&non_outermost_js_2,
+            ne,
+            t1,
             Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   __ li(t1, Operand(ExternalReference(js_entry_sp)));
   __ sw(zero_reg, MemOperand(t1));
@@ -4365,8 +4371,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow, ne, scratch, Operand(JS_FUNCTION_TYPE));
 
   // Null is not instance of anything.
-  __ Branch(&object_not_null, ne, scratch,
-      Operand(masm->isolate()->factory()->null_value()));
+  __ Branch(&object_not_null,
+            ne,
+            scratch,
+            Operand(masm->isolate()->factory()->null_value()));
   __ li(v0, Operand(Smi::FromInt(1)));
   __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
@@ -4471,8 +4479,10 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   Label runtime;
   __ lw(a3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ lw(a2, MemOperand(a3, StandardFrameConstants::kContextOffset));
-  __ Branch(&runtime, ne,
-            a2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Branch(&runtime,
+            ne,
+            a2,
+            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Patch the arguments.length and the parameters pointer in the current frame.
   __ lw(a2, MemOperand(a3, ArgumentsAdaptorFrameConstants::kLengthOffset));
@@ -4504,7 +4514,9 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   Label adaptor_frame, try_allocate;
   __ lw(a3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ lw(a2, MemOperand(a3, StandardFrameConstants::kContextOffset));
-  __ Branch(&adaptor_frame, eq, a2,
+  __ Branch(&adaptor_frame,
+            eq,
+            a2,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // No adaptor, parameter count = argument count.
@@ -5115,14 +5127,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
 
   Label success;
-  __ Branch(&success, eq,
-            v0, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ Branch(&success, eq, v0, Operand(NativeRegExpMacroAssembler::SUCCESS));
   Label failure;
-  __ Branch(&failure, eq,
-            v0, Operand(NativeRegExpMacroAssembler::FAILURE));
+  __ Branch(&failure, eq, v0, Operand(NativeRegExpMacroAssembler::FAILURE));
   // If not exception it can only be retry. Handle that in the runtime system.
-  __ Branch(&runtime, ne,
-            v0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
+  __ Branch(&runtime, ne, v0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
@@ -5875,10 +5884,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ Branch(&tmp, Ugreater, scratch, Operand(static_cast<int>('9' - '0')));
   __ Or(c1, c1, scratch1);
   __ bind(&tmp);
-  __ Branch(not_found,
-            Uless_equal,
-            scratch,
-            Operand(static_cast<int>('9' - '0')));
+  __ Branch(
+      not_found, Uless_equal, scratch, Operand(static_cast<int>('9' - '0')));
 
   __ bind(&not_array_index);
   // Calculate the two character string hash.
@@ -6548,8 +6555,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ Branch(&string_add_flat_result, lt, t2,
-           Operand(ConsString::kMinLength));
+  __ Branch(&string_add_flat_result, lt, t2, Operand(ConsString::kMinLength));
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   ASSERT(IsPowerOf2(String::kMaxLength + 1));
@@ -7076,8 +7082,10 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   // Push return address (accessible to GC through exit frame pc).
   // This spot for ra was reserved in EnterExitFrame.
   masm->sw(ra, MemOperand(sp, kCArgsSlotsSize));
-  masm->li(ra, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
-                    RelocInfo::CODE_TARGET), true);
+  masm->li(ra,
+           Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                   RelocInfo::CODE_TARGET),
+           CONSTANT_SIZE);
   // Call the function.
   masm->Jump(t9);
   // Make sure the stored 'ra' points to this position.

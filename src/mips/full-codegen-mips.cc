@@ -120,7 +120,7 @@ class JumpPatchSite BASE_EMBEDDED {
 
 
 int FullCodeGenerator::self_optimization_header_size() {
-  return 11 * Instruction::kInstrSize;
+  return 10 * Instruction::kInstrSize;
 }
 
 
@@ -2613,7 +2613,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   Label entry, loop;
   // The use of t2 to store the valueOf symbol asumes that it is not otherwise
   // used in the loop below.
-  __ li(t2, Operand(FACTORY->value_of_symbol()));
+  __ LoadRoot(t2, Heap::kvalue_of_symbolRootIndex);
   __ jmp(&entry);
   __ bind(&loop);
   __ lw(a3, MemOperand(t0, 0));

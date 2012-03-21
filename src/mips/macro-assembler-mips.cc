@@ -768,13 +768,12 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-
 //------------Pseudo-instructions-------------
 
-void MacroAssembler::li(Register rd, Operand j, bool gen2instr) {
+void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   ASSERT(!j.is_reg());
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (!MustUseReg(j.rmode_) && !gen2instr) {
+  if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
     // Normal load of an immediate value which does not need Relocation Info.
     if (is_int16(j.imm32_)) {
       addiu(rd, zero_reg, j.imm32_);
@@ -786,7 +785,7 @@ void MacroAssembler::li(Register rd, Operand j, bool gen2instr) {
       lui(rd, (j.imm32_ >> kLuiShift) & kImm16Mask);
       ori(rd, rd, (j.imm32_ & kImm16Mask));
     }
-  } else if (MustUseReg(j.rmode_) || gen2instr) {
+  } else {
     if (MustUseReg(j.rmode_)) {
       RecordRelocInfo(j.rmode_, j.imm32_);
     }
@@ -1644,6 +1643,16 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
       BranchShort(L, cond, rs, rt, bdslot);
     }
   }
+}
+
+
+void MacroAssembler::Branch(Label* L,
+                            Condition cond,
+                            Register rs,
+                            Heap::RootListIndex index,
+                            BranchDelaySlot bdslot) {
+  LoadRoot(at, index);
+  Branch(L, cond, rs, Operand(at), bdslot);
 }
 
 
@@ -2541,7 +2550,7 @@ void MacroAssembler::Call(Address target,
   // Must record previous source positions before the
   // li() generates a new code target.
   positions_recorder()->WriteRecordedPositions();
-  li(t9, Operand(target_int, rmode), true);
+  li(t9, Operand(target_int, rmode), CONSTANT_SIZE);
   Call(t9, cond, rs, rt, bd);
   ASSERT_EQ(CallSize(target, rmode, cond, rs, rt, bd),
             SizeOfCodeGeneratedSince(&start));
@@ -2752,7 +2761,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   unsigned state =
       StackHandler::IndexField::encode(handler_index) |
       StackHandler::KindField::encode(kind);
-  li(t1, Operand(CodeObject()));
+  li(t1, Operand(CodeObject()), CONSTANT_SIZE);
   li(t2, Operand(state));
 
   // Push the frame pointer, context, state, and code object.
@@ -3381,7 +3390,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   // Ensure that the object is a heap number
   CheckMap(value_reg,
            scratch1,
-           isolate()->factory()->heap_number_map(),
+           Heap::kHeapNumberMapRootIndex,
            fail,
            DONT_DO_SMI_CHECK);
 
@@ -4493,7 +4502,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   addiu(sp, sp, -5 * kPointerSize);
   li(t8, Operand(Smi::FromInt(type)));
-  li(t9, Operand(CodeObject()));
+  li(t9, Operand(CodeObject()), CONSTANT_SIZE);
   sw(ra, MemOperand(sp, 4 * kPointerSize));
   sw(fp, MemOperand(sp, 3 * kPointerSize));
   sw(cp, MemOperand(sp, 2 * kPointerSize));
@@ -4537,7 +4546,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
     sw(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
 
-  li(t8, Operand(CodeObject()));  // Accessed from ExitFrame::code_slot.
+  // Accessed from ExitFrame::code_slot.
+  li(t8, Operand(CodeObject()), CONSTANT_SIZE);
   sw(t8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
@@ -5263,7 +5273,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
      FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
   Label not_smi;
   JumpIfNotSmi(descriptors, &not_smi);
-  li(descriptors, Operand(FACTORY->empty_descriptor_array()));
+  LoadRoot(descriptors, Heap::kEmptyDescriptorArrayRootIndex);
   bind(&not_smi);
 }
 

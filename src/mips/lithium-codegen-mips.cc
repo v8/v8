@@ -2077,7 +2077,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
   // with true or false.
-  __ li(result, Operand(factory()->the_hole_value()), true);
+  __ li(result, Operand(factory()->the_hole_value()), CONSTANT_SIZE);
   __ Branch(&done);
 
   // The inlined call site cache did not match. Check null and string before
@@ -2132,7 +2132,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-    __ li(temp, Operand(delta * kPointerSize), true);
+    __ li(temp, Operand(delta * kPointerSize), CONSTANT_SIZE);
     __ StoreToSafepointRegisterSlot(temp, temp);
   }
   CallCodeGeneric(stub.GetCode(),
