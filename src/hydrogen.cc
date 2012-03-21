@@ -4523,7 +4523,7 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
 
 HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
                                                    Property* expr) {
-  if (expr->IsUninitialized()) {
+  if (expr->IsUninitialized() && !FLAG_always_opt) {
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
   }
