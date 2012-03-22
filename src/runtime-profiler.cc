@@ -290,7 +290,12 @@ void RuntimeProfiler::OptimizeNow() {
           // If this particular function hasn't had any ICs patched for enough
           // ticks, optimize it now.
           Optimize(function, "hot and stable");
+        } else if (ticks >= 100) {
+          // If this function does not have enough type info, but has
+          // seen a huge number of ticks, optimize it as it is.
+          Optimize(function, "not much type info but very hot");
         } else {
+          function->shared()->set_profiler_ticks(ticks + 1);
           if (FLAG_trace_opt_verbose) {
             PrintF("[not yet optimizing ");
             function->PrintName();
