@@ -84,7 +84,6 @@ inline Heap* _inline_get_heap_();
   V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Smi, stack_limit, StackLimit)                                              \
-  V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   /* The first 32 roots above this line should be boring from a GC point of */ \
   /* view.  This means they are never in new space and never on a page that */ \
