@@ -8140,6 +8140,14 @@ static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
         ASSERT(*arguments != isolate->heap()->undefined_value());
       }
       frame->SetExpression(i, *arguments);
+      if (FLAG_trace_deopt) {
+        PrintF("Materializing arguments object for frame %p - %p: %p ",
+               reinterpret_cast<void*>(frame->sp()),
+               reinterpret_cast<void*>(frame->fp()),
+               reinterpret_cast<void*>(*arguments));
+        arguments->ShortPrint();
+        PrintF("\n");
+      }
     }
   }
 }
