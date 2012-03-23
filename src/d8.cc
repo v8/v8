@@ -1436,11 +1436,13 @@ int Shell::RunMain(int argc, char* argv[]) {
     }
     if (!options.last_run) {
       context.Dispose();
+#if !defined(V8_SHARED)
       if (i::FLAG_send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
         V8::IdleNotification(kLongIdlePauseInMs);
       }
+#endif  // !V8_SHARED
     }
 
 #ifndef V8_SHARED
