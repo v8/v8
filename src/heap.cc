@@ -1353,28 +1353,6 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
 }
 
 
-void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
-  AssertNoAllocation no_allocation;
-
-  class VisitorAdapter : public ObjectVisitor {
-   public:
-    explicit VisitorAdapter(v8::ExternalResourceVisitor* visitor)
-        : visitor_(visitor) {}
-    virtual void VisitPointers(Object** start, Object** end) {
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsExternalString()) {
-          visitor_->VisitExternalString(Utils::ToLocal(
-              Handle<String>(String::cast(*p))));
-        }
-      }
-    }
-   private:
-    v8::ExternalResourceVisitor* visitor_;
-  } visitor_adapter(visitor);
-  external_string_table_.Iterate(&visitor_adapter);
-}
-
-
 class NewSpaceScavenger : public StaticNewSpaceVisitor<NewSpaceScavenger> {
  public:
   static inline void VisitPointer(Heap* heap, Object** p) {

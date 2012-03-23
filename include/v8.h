@@ -1732,14 +1732,6 @@ class Function : public Object {
   V8EXPORT Handle<Value> GetName() const;
 
   /**
-   * Name inferred from variable or property assignment of this function.
-   * Used to facilitate debugging and profiling of JavaScript code written
-   * in an OO style, where many functions are anonymous but are assigned
-   * to object properties.
-   */
-  V8EXPORT Handle<Value> GetInferredName() const;
-
-  /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
@@ -2853,17 +2845,6 @@ class V8EXPORT StartupDataDecompressor {  // NOLINT
  */
 typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
 
-
-/**
- * Interface for iterating though all external resources in the heap.
- */
-class V8EXPORT ExternalResourceVisitor {  // NOLINT
- public:
-  virtual ~ExternalResourceVisitor() {}
-  virtual void VisitExternalString(Handle<String> string) {}
-};
-
-
 /**
  * Container class for static utility functions.
  */
@@ -3205,13 +3186,6 @@ class V8EXPORT V8 {
    * Get statistics about the heap memory usage.
    */
   static void GetHeapStatistics(HeapStatistics* heap_statistics);
-
-  /**
-   * Iterates through all external resources referenced from current isolate
-   * heap. This method is not expected to be used except for debugging purposes
-   * and may be quite slow.
-   */
-  static void VisitExternalResources(ExternalResourceVisitor* visitor);
 
   /**
    * Optional notification that the embedder is idle.
