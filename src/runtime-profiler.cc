@@ -88,7 +88,9 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       sampler_threshold_size_factor_(kSamplerThresholdSizeFactorInit),
       sampler_ticks_until_threshold_adjustment_(
           kSamplerTicksBetweenThresholdAdjustment),
-      sampler_window_position_(0) {
+      sampler_window_position_(0),
+      any_ic_changed_(false),
+      code_generated_(false) {
   ClearSampleBuffer();
 }
 
