@@ -113,6 +113,7 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
     first_ = last_ = entry;
   }
   instr->InsertAfter(last_);
+  last_ = instr;
 }
 
 
@@ -164,15 +165,11 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 }
 
 
-void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
-  bool drop_extra = state != NULL && state->drop_extra();
-  bool arguments_pushed = state != NULL && state->arguments_pushed();
-
+void HBasicBlock::Goto(HBasicBlock* block, bool drop_extra) {
   if (block->IsInlineReturnTarget()) {
-    AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+    AddInstruction(new(zone()) HLeaveInlined);
     last_environment_ = last_environment()->DiscardInlined(drop_extra);
   }
-
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(block);
   Finish(instr);
@@ -181,13 +178,10 @@ void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
 
 void HBasicBlock::AddLeaveInlined(HValue* return_value,
                                   HBasicBlock* target,
-                                  FunctionState* state) {
-  bool drop_extra = state != NULL && state->drop_extra();
-  bool arguments_pushed = state != NULL && state->arguments_pushed();
-
+                                  bool drop_extra) {
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
-  AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+  AddInstruction(new(zone()) HLeaveInlined);
   last_environment_ = last_environment()->DiscardInlined(drop_extra);
   last_environment()->Push(return_value);
   AddSimulate(AstNode::kNoNumber);
@@ -2184,8 +2178,6 @@ FunctionState::FunctionState(HGraphBuilder* owner,
       return_handling_(return_handling),
       function_return_(NULL),
       test_context_(NULL),
-      entry_(NULL),
-      arguments_elements_(NULL),
       outer_(owner->function_state()) {
   if (outer_ != NULL) {
     // State for an inline function.
@@ -2345,8 +2337,8 @@ void TestContext::ReturnControl(HControlInstruction* instr, int ast_id) {
   instr->SetSuccessorAt(0, empty_true);
   instr->SetSuccessorAt(1, empty_false);
   owner()->current_block()->Finish(instr);
-  empty_true->Goto(if_true(), owner()->function_state());
-  empty_false->Goto(if_false(), owner()->function_state());
+  empty_true->Goto(if_true(), owner()->function_state()->drop_extra());
+  empty_false->Goto(if_false(), owner()->function_state()->drop_extra());
   owner()->set_current_block(NULL);
 }
 
@@ -2367,8 +2359,8 @@ void TestContext::BuildBranch(HValue* value) {
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
-  empty_true->Goto(if_true(), owner()->function_state());
-  empty_false->Goto(if_false(), owner()->function_state());
+  empty_true->Goto(if_true(), owner()->function_state()->drop_extra());
+  empty_false->Goto(if_false(), owner()->function_state()->drop_extra());
   builder->set_current_block(NULL);
 }
 
@@ -2859,10 +2851,10 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     if (context->IsTest()) {
       TestContext* test = TestContext::cast(context);
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(test->if_true(), function_state());
+      current_block()->Goto(test->if_true(), function_state()->drop_extra());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return(), function_state());
+      current_block()->Goto(function_return(), function_state()->drop_extra());
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
@@ -2879,10 +2871,10 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       current_block()->Finish(typecheck);
       if_spec_object->AddLeaveInlined(return_value,
                                       function_return(),
-                                      function_state());
+                                      function_state()->drop_extra());
       not_spec_object->AddLeaveInlined(receiver,
                                        function_return(),
-                                       function_state());
+                                       function_state()->drop_extra());
     }
   } else {
     // Return from an inlined function, visit the subexpression in the
@@ -2894,14 +2886,14 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
                       test->if_false());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return(), function_state());
+      current_block()->Goto(function_return(), function_state()->drop_extra());
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
       HValue* return_value = Pop();
       current_block()->AddLeaveInlined(return_value,
                                        function_return(),
-                                       function_state());
+                                       function_state()->drop_extra());
     }
   }
   set_current_block(NULL);
@@ -4945,70 +4937,31 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     return false;
   }
 
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.
   if (function_state()->outer() != NULL) {
-    // Push arguments when entering inlined function.
-    if (!function_state()->arguments_pushed()) {
-      HEnvironment* arguments_env = environment()->arguments_environment();
-
-      HInstruction* insert_after = function_state()->entry();
-      ASSERT(insert_after->IsEnterInlined());
-      HEnterInlined::cast(insert_after)->set_materializes_arguments(true);
-
-      for (int i = 0; i < arguments_env->parameter_count(); i++) {
-        HValue* argument = arguments_env->Lookup(i);
-        HInstruction* push_argument = new(zone()) HPushArgument(argument);
-        push_argument->InsertAfter(insert_after);
-        insert_after = push_argument;
-      }
-
-      HInstruction* arguments_elements = new(zone()) HArgumentsElements();
-      arguments_elements->ClearFlag(HValue::kUseGVN);
-      arguments_elements->InsertAfter(insert_after);
-      function_state()->set_arguments_elements(arguments_elements);
-    }
+    Bailout("arguments access in inlined function");
+    return true;
   }
 
   HInstruction* result = NULL;
   if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     if (!name->IsEqualTo(CStrVector("length"))) return false;
-
-    if (function_state()->outer() == NULL) {
-      HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
-      result = new(zone()) HArgumentsLength(elements);
-    } else {
-      // Number of arguments without receiver.
-      int argument_count = environment()->
-          arguments_environment()->parameter_count() - 1;
-      result = new(zone()) HConstant(
-        Handle<Object>(Smi::FromInt(argument_count)),
-        Representation::Integer32());
-    }
+    HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
+    result = new(zone()) HArgumentsLength(elements);
   } else {
     Push(graph()->GetArgumentsObject());
     VisitForValue(expr->key());
     if (HasStackOverflow() || current_block() == NULL) return true;
     HValue* key = Pop();
     Drop(1);  // Arguments object.
-    if (function_state()->outer() == NULL) {
-      HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
-      HInstruction* length = AddInstruction(
-          new(zone()) HArgumentsLength(elements));
-      HInstruction* checked_key =
-          AddInstruction(new(zone()) HBoundsCheck(key, length));
-      result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
-    } else {
-      // Number of arguments without receiver.
-      HInstruction* elements = function_state()->arguments_elements();
-      int argument_count = environment()->
-          arguments_environment()->parameter_count() - 1;
-      HInstruction* length = AddInstruction(new(zone()) HConstant(
-        Handle<Object>(Smi::FromInt(argument_count)),
-        Representation::Integer32()));
-      HInstruction* checked_key =
-          AddInstruction(new(zone()) HBoundsCheck(key, length));
-      result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
-    }
+    HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
+    HInstruction* length = AddInstruction(
+        new(zone()) HArgumentsLength(elements));
+    HInstruction* checked_key =
+        AddInstruction(new(zone()) HBoundsCheck(key, length));
+    result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
   }
   ast_context()->ReturnInstruction(result, expr->id());
   return true;
@@ -5416,24 +5369,19 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   AddInstruction(context);
   inner_env->BindContext(context);
 #endif
+  AddSimulate(return_id);
+  current_block()->UpdateEnvironment(inner_env);
+  AddInstruction(new(zone()) HEnterInlined(target,
+                                           arguments->length(),
+                                           function,
+                                           call_kind,
+                                           function_state()->is_construct()));
   // If the function uses arguments object create and bind one.
   if (function->scope()->arguments() != NULL) {
     ASSERT(function->scope()->arguments()->IsStackAllocated());
-    inner_env->Bind(function->scope()->arguments(),
-                    graph()->GetArgumentsObject());
+    environment()->Bind(function->scope()->arguments(),
+                        graph()->GetArgumentsObject());
   }
-
-  AddSimulate(return_id);
-  current_block()->UpdateEnvironment(inner_env);
-
-  HInstruction* enter_inlined =
-      AddInstruction(new(zone()) HEnterInlined(target,
-                                               arguments->length(),
-                                               function,
-                                               call_kind,
-                                               function_state()->is_construct(),
-                                               function->scope()->arguments()));
-  function_state()->set_entry(enter_inlined);
   VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
   if (HasStackOverflow()) {
@@ -5462,17 +5410,17 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
           : undefined;
       current_block()->AddLeaveInlined(return_value,
                                        function_return(),
-                                       function_state());
+                                       function_state()->drop_extra());
     } else if (call_context()->IsEffect()) {
       ASSERT(function_return() != NULL);
-      current_block()->Goto(function_return(), function_state());
+      current_block()->Goto(function_return(), function_state()->drop_extra());
     } else {
       ASSERT(call_context()->IsTest());
       ASSERT(inlined_test_context() != NULL);
       HBasicBlock* target = function_state()->is_construct()
           ? inlined_test_context()->if_true()
           : inlined_test_context()->if_false();
-      current_block()->Goto(target, function_state());
+      current_block()->Goto(target, function_state()->drop_extra());
     }
   }
 
@@ -5490,12 +5438,12 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
     if (if_true->HasPredecessor()) {
       if_true->SetJoinId(ast_id);
       HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-      if_true->Goto(true_target, function_state());
+      if_true->Goto(true_target, function_state()->drop_extra());
     }
     if (if_false->HasPredecessor()) {
       if_false->SetJoinId(ast_id);
       HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-      if_false->Goto(false_target, function_state());
+      if_false->Goto(false_target, function_state()->drop_extra());
     }
     set_current_block(NULL);
     return true;

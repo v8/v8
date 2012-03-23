@@ -1353,15 +1353,12 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 int arguments_count,
                 FunctionLiteral* function,
                 CallKind call_kind,
-                bool is_construct,
-                Variable* arguments)
+                bool is_construct)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
-        is_construct_(is_construct),
-        arguments_(arguments),
-        materializes_arguments_(false) {
+        is_construct_(is_construct) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1376,13 +1373,6 @@ class HEnterInlined: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  bool materializes_arguments() { return materializes_arguments_; }
-  void set_materializes_arguments(bool materializes_arguments) {
-    materializes_arguments_ = materializes_arguments;
-  }
-
-  Variable* arguments() { return arguments_; }
-
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
  private:
@@ -1391,28 +1381,18 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   CallKind call_kind_;
   bool is_construct_;
-  Variable* arguments_;
-  bool materializes_arguments_;
 };
 
 
 class HLeaveInlined: public HTemplateInstruction<0> {
  public:
-  explicit HLeaveInlined(bool arguments_pushed)
-      : arguments_pushed_(arguments_pushed) { }
+  HLeaveInlined() {}
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
-  bool arguments_pushed() {
-    return arguments_pushed_;
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
-
- private:
-  bool arguments_pushed_;
 };
 
 

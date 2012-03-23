@@ -2543,29 +2543,25 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
-  if (instr->from_inlined()) {
-    __ lea(result, Operand(esp, -2 * kPointerSize));
-  } else {
-    // Check for arguments adapter frame.
-    Label done, adapted;
-    __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
-    __ cmp(Operand(result),
-           Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-    __ j(equal, &adapted, Label::kNear);
+  // Check for arguments adapter frame.
+  Label done, adapted;
+  __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
+  __ cmp(Operand(result),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(equal, &adapted, Label::kNear);
 
-    // No arguments adaptor frame.
-    __ mov(result, Operand(ebp));
-    __ jmp(&done, Label::kNear);
+  // No arguments adaptor frame.
+  __ mov(result, Operand(ebp));
+  __ jmp(&done, Label::kNear);
 
-    // Arguments adaptor frame present.
-    __ bind(&adapted);
-    __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  // Arguments adaptor frame present.
+  __ bind(&adapted);
+  __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
 
-    // Result is the frame pointer for the frame if not adapted and for the real
-    // frame below the adaptor frame if adapted.
-    __ bind(&done);
-  }
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
+  __ bind(&done);
 }
 
 
@@ -2684,11 +2680,6 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->InputAt(0);
   EmitPushTaggedOperand(argument);
-}
-
-
-void LCodeGen::DoPop(LPop* instr) {
-  __ Drop(instr->count());
 }
 
 

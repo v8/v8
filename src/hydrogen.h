@@ -42,7 +42,6 @@ namespace internal {
 
 // Forward declarations.
 class BitVector;
-class FunctionState;
 class HEnvironment;
 class HGraph;
 class HLoopInformation;
@@ -122,7 +121,7 @@ class HBasicBlock: public ZoneObject {
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
-  void Goto(HBasicBlock* block, FunctionState* state = NULL);
+  void Goto(HBasicBlock* block, bool drop_extra = false);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
@@ -137,7 +136,7 @@ class HBasicBlock: public ZoneObject {
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value,
                        HBasicBlock* target,
-                       FunctionState* state = NULL);
+                       bool drop_extra = false);
 
   // If a target block is tagged as an inline function return, all
   // predecessors should contain the inlined exit sequence:
@@ -716,16 +715,6 @@ class FunctionState {
 
   FunctionState* outer() { return outer_; }
 
-  HInstruction* entry() { return entry_; }
-  void set_entry(HInstruction* entry) { entry_ = entry; }
-
-  HInstruction* arguments_elements() { return arguments_elements_; }
-  void set_arguments_elements(HInstruction* arguments_elements) {
-    arguments_elements_ = arguments_elements;
-  }
-
-  bool arguments_pushed() { return arguments_elements() != NULL; }
-
  private:
   HGraphBuilder* owner_;
 
@@ -751,12 +740,6 @@ class FunctionState {
   // When inlining a call in a test context, a context containing a pair of
   // return blocks.  NULL in all other cases.
   TestContext* test_context_;
-
-  // When inlining HEnterInlined instruction corresponding to the function
-  // entry.
-  HInstruction* entry_;
-
-  HInstruction* arguments_elements_;
 
   FunctionState* outer_;
 };
