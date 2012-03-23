@@ -1436,6 +1436,11 @@ int Shell::RunMain(int argc, char* argv[]) {
     }
     if (!options.last_run) {
       context.Dispose();
+      if (i::FLAG_send_idle_notification) {
+        const int kLongIdlePauseInMs = 1000;
+        V8::ContextDisposedNotification();
+        V8::IdleNotification(kLongIdlePauseInMs);
+      }
     }
 
 #ifndef V8_SHARED
@@ -1490,6 +1495,7 @@ int Shell::Main(int argc, char* argv[]) {
     int stress_runs = i::FLAG_stress_runs;
     for (int i = 0; i < stress_runs && result == 0; i++) {
       printf("============ Run %d/%d ============\n", i + 1, stress_runs);
+      options.last_run = (i == stress_runs - 1);
       result = RunMain(argc, argv);
     }
 #endif

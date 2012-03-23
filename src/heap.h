@@ -1480,6 +1480,13 @@ class Heap {
 
   void ClearNormalizedMapCaches();
 
+  // Clears the cache of ICs related to this map.
+  void ClearCacheOnMap(Map* map) {
+    if (FLAG_cleanup_code_caches_at_gc) {
+      map->ClearCodeCache(this);
+    }
+  }
+
   GCTracer* tracer() { return tracer_; }
 
   // Returns the size of objects residing in non new spaces.
@@ -1585,6 +1592,16 @@ class Heap {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
+  // Global inline caching age: it is incremented on some GCs after context
+  // disposal. We use it to flush inline caches.
+  int global_ic_age() {
+    return global_ic_age_;
+  }
+
+  void AgeInlineCaches() {
+    ++global_ic_age_;
+  }
+
  private:
   Heap();
 
@@ -1611,6 +1628,8 @@ class Heap {
 
   // For keeping track of context disposals.
   int contexts_disposed_;
+
+  int global_ic_age_;
 
   int scan_on_scavenge_pages_;
 

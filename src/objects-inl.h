@@ -4130,7 +4130,7 @@ ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
-
+INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 
 byte* Code::instruction_start()  {
   return FIELD_ADDR(this, kHeaderSize);
@@ -4713,6 +4713,7 @@ void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
+  //  - IncrementalMarking::Step
   ASSERT(!heap->InNewSpace(heap->raw_unchecked_empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->raw_unchecked_empty_fixed_array());
 }

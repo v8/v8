@@ -92,6 +92,7 @@ Heap::Heap()
       always_allocate_scope_depth_(0),
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
+      global_ic_age_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -3393,6 +3394,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_type_feedback_info(undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
+  code->set_ic_age(global_ic_age_);
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -4838,13 +4840,21 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
 
 
 bool Heap::IdleNotification(int hint) {
-  intptr_t size_factor = Min(Max(hint, 30), 1000) / 10;
+  const int kMaxHint = 1000;
+  intptr_t size_factor = Min(Max(hint, 30), kMaxHint) / 10;
   // The size factor is in range [3..100].
   intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
+    if (hint >= kMaxHint) {
+      // The embedder is requesting a lot of GC work after context disposal,
+      // we age inline caches so that they don't keep objects from
+      // the old context alive.
+      AgeInlineCaches();
+    }
     int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
-    if (hint >= mark_sweep_time && !FLAG_expose_gc) {
+    if (hint >= mark_sweep_time && !FLAG_expose_gc &&
+        incremental_marking()->IsStopped()) {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(kReduceMemoryFootprintMask,
                         "idle notification: contexts disposed");
@@ -4859,7 +4869,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (hint >= 1000 || !FLAG_incremental_marking ||
+  if (hint >= kMaxHint || !FLAG_incremental_marking ||
       FLAG_expose_gc || Serializer::enabled()) {
     return IdleGlobalGC();
   }

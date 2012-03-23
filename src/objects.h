@@ -4180,6 +4180,11 @@ class Code: public HeapObject {
   // it is only used by the garbage collector itself.
   DECL_ACCESSORS(gc_metadata, Object)
 
+  // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
+  // at the moment when this object was created.
+  inline void set_ic_age(int count);
+  inline int ic_age();
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -4432,8 +4437,9 @@ class Code: public HeapObject {
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
   static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kGCMetadataOffset + kPointerSize;
-
+  static const int kICAgeOffset =
+      kGCMetadataOffset + kPointerSize;
+  static const int kFlagsOffset = kICAgeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlagsSize = 2 * kIntSize;
 
