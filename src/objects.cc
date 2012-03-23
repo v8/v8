@@ -7450,7 +7450,7 @@ bool JSFunction::IsInlineable() {
 
 
 MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
-  ASSERT(value->IsJSObject());
+  ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
   if (has_initial_map()) {
     // If the function has allocated the initial map
@@ -7477,11 +7477,11 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
   ASSERT(should_have_prototype());
   Object* construct_prototype = value;
 
-  // If the value is not a JSObject, store the value in the map's
+  // If the value is not a JSReceiver, store the value in the map's
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (!value->IsJSObject()) {
+  if (!value->IsJSReceiver()) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
