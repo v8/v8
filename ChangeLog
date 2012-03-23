@@ -1,3 +1,14 @@
+2012-03-23: Version 3.9.24
+
+        Activated count-based profiler for ARM.
+
+        Fixed use of proxies as f.prototype properties. (issue 2021)
+
+        Enabled snapshots on MIPS.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-21: Version 3.9.23
 
         Use correct arguments adaptation environment when inlining function
