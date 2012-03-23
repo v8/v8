@@ -1627,9 +1627,14 @@ class JSObject: public JSReceiver {
       String* name,
       bool continue_search);
 
+  static void DefineAccessor(Handle<JSObject> object,
+                             Handle<String> name,
+                             Handle<Object> getter,
+                             Handle<Object> setter,
+                             PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
-                                              AccessorComponent component,
-                                              Object* fun,
+                                              Object* getter,
+                                              Object* setter,
                                               PropertyAttributes attributes);
   Object* LookupAccessor(String* name, AccessorComponent component);
 
@@ -2178,13 +2183,13 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineElementAccessor(
       uint32_t index,
-      AccessorComponent component,
-      Object* fun,
+      Object* getter,
+      Object* setter,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
-      AccessorComponent component,
-      Object* fun,
+      Object* getter,
+      Object* setter,
       PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
 
@@ -8045,22 +8050,14 @@ class AccessorPair: public Struct {
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
-  Object* get(AccessorComponent component) {
-    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
-    return (component == ACCESSOR_GETTER) ? getter() : setter();
-  }
+  // Note: Returns undefined instead in case of a hole.
+  Object* GetComponent(AccessorComponent component);
 
-  void set(AccessorComponent component, Object* value) {
-    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
-    if (component == ACCESSOR_GETTER) {
-      set_getter(value);
-    } else {
-      set_setter(value);
-    }
+  // Set both components, skipping arguments which are a JavaScript null.
+  void SetComponents(Object* getter, Object* setter) {
+    if (!getter->IsNull()) set_getter(getter);
+    if (!setter->IsNull()) set_setter(setter);
   }
-
-  // Same as get, but returns undefined instead of the hole.
-  Object* SafeGet(AccessorComponent component);
 
   bool ContainsAccessor() {
     return IsJSAccessor(getter()) || IsJSAccessor(setter());

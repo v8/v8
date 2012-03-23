@@ -1065,10 +1065,10 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
                 AccessorPair::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
+              elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
             }
             if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
+              elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
             }
             break;
           }
@@ -1115,10 +1115,10 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
+      elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
     }
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
+      elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());
@@ -4350,26 +4350,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  // TODO(svenpanne) Define getter/setter/attributes in a single step.
-  if (getter->IsNull() && setter->IsNull()) {
-    JSArray* array;
-    { MaybeObject* maybe_array = GetOwnProperty(isolate, obj, name);
-      if (!maybe_array->To(&array)) return maybe_array;
-    }
-    Object* current = FixedArray::cast(array->elements())->get(GETTER_INDEX);
-    getter = Handle<Object>(current, isolate);
-  }
-  if (!getter->IsNull()) {
-    MaybeObject* ok =
-        obj->DefineAccessor(*name, ACCESSOR_GETTER, *getter, attr);
-    if (ok->IsFailure()) return ok;
-  }
-  if (!setter->IsNull()) {
-    MaybeObject* ok =
-        obj->DefineAccessor(*name, ACCESSOR_SETTER, *setter, attr);
-    if (ok->IsFailure()) return ok;
-  }
-
+  bool fast = obj->HasFastProperties();
+  JSObject::DefineAccessor(obj, name, getter, setter, attr);
+  if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -10231,8 +10214,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       if (hasJavaScriptAccessors) {
         AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
         details->set(2, isolate->heap()->ToBoolean(caught_exception));
-        details->set(3, accessors->SafeGet(ACCESSOR_GETTER));
-        details->set(4, accessors->SafeGet(ACCESSOR_SETTER));
+        details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
+        details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
       }
 
       return *isolate->factory()->NewJSArrayWithElements(details);

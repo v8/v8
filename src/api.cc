@@ -3064,8 +3064,11 @@ bool Object::SetAccessor(Handle<String> name,
   i::Handle<i::AccessorInfo> info = MakeAccessorInfo(name,
                                                      getter, setter, data,
                                                      settings, attributes);
+  bool fast = Utils::OpenHandle(this)->HasFastProperties();
   i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(this), info);
-  return !result.is_null() && !result->IsUndefined();
+  if (result.is_null() || result->IsUndefined()) return false;
+  if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(this), 0);
+  return true;
 }
 
 
