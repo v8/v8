@@ -4727,7 +4727,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ movq(result,
           FieldOperand(result, FixedArray::SizeFor(instr->idx())));
   Condition cc = masm()->CheckSmi(result);
-  DeoptimizeIf(NegateCondition(cc), instr->environment());
+  DeoptimizeIf(cc, instr->environment());
 }
 
 
