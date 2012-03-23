@@ -604,6 +604,7 @@ extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
 extern const Instr kBlxRegMask;
 extern const Instr kBlxRegPattern;
+extern const Instr kBlxIp;
 
 extern const Instr kMovMvnMask;
 extern const Instr kMovMvnPattern;
