@@ -359,9 +359,9 @@ current directory is: $(pwd)."
     git commit -am "Update V8 to version $MAJOR.$MINOR.$BUILD.
 
 TBR=$REVIEWER" || die "'git commit' failed."
-    git cl upload --send-mail --use-commit-queue \
+    git cl upload --send-mail \
       || die "'git cl upload' failed, please try again."
-    echo "CL uploaded and sent to commit queue."
+    echo "CL uploaded."
   fi
 
   let CURRENT_STEP+=1

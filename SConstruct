@@ -218,9 +218,12 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32'],
       'mipsabi:softfloat': {
         'CPPDEFINES':    ['__mips_soft_float=1'],
+        'fpu:on': {
+          'CPPDEFINES' : ['CAN_USE_FPU_INSTRUCTIONS']
+        }
       },
       'mipsabi:hardfloat': {
-        'CPPDEFINES':    ['__mips_hard_float=1'],
+        'CPPDEFINES':    ['__mips_hard_float=1', 'CAN_USE_FPU_INSTRUCTIONS'],
       }
     },
     'arch:x64': {
@@ -575,7 +578,10 @@ SAMPLE_FLAGS = {
         },
         'mipsabi:hardfloat': {
           'CCFLAGS':      ['-mhard-float'],
-          'LINKFLAGS':    ['-mhard-float']
+          'LINKFLAGS':    ['-mhard-float'],
+          'fpu:on': {
+            'CPPDEFINES' : ['CAN_USE_FPU_INSTRUCTIONS']
+          }
         }
       }
     },
@@ -1145,6 +1151,11 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'on',
     'help': 'use vfp3 instructions when building the snapshot [Arm only]'
+  },
+  'fpu': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'use fpu instructions when building the snapshot [MIPS only]'
   },
 
 }

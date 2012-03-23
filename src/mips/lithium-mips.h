@@ -179,7 +179,8 @@ class LCodeGen;
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
   V(DateField)                                  \
-  V(WrapReceiver)
+  V(WrapReceiver)                               \
+  V(Pop)
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
   virtual Opcode opcode() const { return LInstruction::k##type; } \
@@ -533,9 +534,15 @@ class LArgumentsLength: public LTemplateInstruction<1, 1, 0> {
 
 class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
  public:
-  LArgumentsElements() { }
+  explicit LArgumentsElements(bool from_inlined)
+      : from_inlined_(from_inlined) { }
+
+  bool from_inlined() const { return from_inlined_; }
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsElements, "arguments-elements")
+
+ private:
+  bool from_inlined_;
 };
 
 
@@ -1355,6 +1362,19 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
+};
+
+
+class LPop: public LTemplateInstruction<0, 0, 0> {
+ public:
+  explicit LPop(int count) : count_(count) { }
+
+  int count() const { return count_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Pop, "pop")
+
+ private:
+  int count_;
 };
 
 

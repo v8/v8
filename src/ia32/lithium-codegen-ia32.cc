@@ -2543,25 +2543,29 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
-  // Check for arguments adapter frame.
-  Label done, adapted;
-  __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
-  __ cmp(Operand(result),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adapted, Label::kNear);
+  if (instr->from_inlined()) {
+    __ lea(result, Operand(esp, -2 * kPointerSize));
+  } else {
+    // Check for arguments adapter frame.
+    Label done, adapted;
+    __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
+    __ cmp(Operand(result),
+           Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ j(equal, &adapted, Label::kNear);
 
-  // No arguments adaptor frame.
-  __ mov(result, Operand(ebp));
-  __ jmp(&done, Label::kNear);
+    // No arguments adaptor frame.
+    __ mov(result, Operand(ebp));
+    __ jmp(&done, Label::kNear);
 
-  // Arguments adaptor frame present.
-  __ bind(&adapted);
-  __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    // Arguments adaptor frame present.
+    __ bind(&adapted);
+    __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
 
-  // Result is the frame pointer for the frame if not adapted and for the real
-  // frame below the adaptor frame if adapted.
-  __ bind(&done);
+    // Result is the frame pointer for the frame if not adapted and for the real
+    // frame below the adaptor frame if adapted.
+    __ bind(&done);
+  }
 }
 
 
@@ -2680,6 +2684,11 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->InputAt(0);
   EmitPushTaggedOperand(argument);
+}
+
+
+void LCodeGen::DoPop(LPop* instr) {
+  __ Drop(instr->count());
 }
 
 
@@ -4461,33 +4470,47 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     }
   }
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ mov(ecx, FieldOperand(source, i));
       __ mov(FieldOperand(result, elements_offset + i), ecx);
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ lea(ecx, Operand(result, *offset));
-      __ mov(FieldOperand(result, total_offset), ecx);
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(ecx, Handle<HeapObject>::cast(value));
-      __ mov(FieldOperand(result, total_offset), ecx);
+    // Copy elements backing store content.
+    int elements_length = elements->length();
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        int32_t value_low = value & 0xFFFFFFFF;
+        int32_t value_high = value >> 32;
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ mov(FieldOperand(result, total_offset), Immediate(value_low));
+        __ mov(FieldOperand(result, total_offset + 4), Immediate(value_high));
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ lea(ecx, Operand(result, *offset));
+          __ mov(FieldOperand(result, total_offset), ecx);
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(ecx, Handle<HeapObject>::cast(value));
+          __ mov(FieldOperand(result, total_offset), ecx);
+        } else {
+          __ mov(FieldOperand(result, total_offset), Immediate(value));
+        }
+      }
     } else {
-      __ mov(FieldOperand(result, total_offset), Immediate(value));
+      UNREACHABLE();
     }
   }
 }

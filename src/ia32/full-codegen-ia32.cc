@@ -34,6 +34,7 @@
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "isolate-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "stub-cache.h"
@@ -100,7 +101,9 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+// TODO(jkummerow): Obsolete as soon as x64 is updated. Remove.
 int FullCodeGenerator::self_optimization_header_size() {
+  UNREACHABLE();
   return 13;
 }
 
@@ -321,10 +324,18 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     // Self-optimization is a one-off thing: if it fails, don't try again.
     reset_value = Smi::kMaxValue;
   }
+  if (isolate()->IsDebuggerActive()) {
+    // Detect debug break requests as soon as possible.
+    reset_value = 10;
+  }
   __ mov(ebx, Immediate(profiling_counter_));
   __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
          Immediate(Smi::FromInt(reset_value)));
 }
+
+
+static const int kMaxBackEdgeWeight = 127;
+static const int kBackEdgeDistanceDivisor = 100;
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
@@ -337,7 +348,8 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
     if (FLAG_weighted_back_edges) {
       ASSERT(back_edge_target->is_bound());
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
-      weight = Min(127, Max(1, distance / 100));
+      weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kBackEdgeDistanceDivisor));
     }
     EmitProfilingCounterDecrement(weight);
     __ j(positive, &ok, Label::kNear);
@@ -398,7 +410,8 @@ void FullCodeGenerator::EmitReturnSequence() {
         weight = FLAG_interrupt_budget / FLAG_self_opt_count;
       } else if (FLAG_weighted_back_edges) {
         int distance = masm_->pc_offset();
-        weight = Min(127, Max(1, distance / 100));
+        weight = Min(kMaxBackEdgeWeight,
+                     Max(1, distance / kBackEdgeDistanceDivisor));
       }
       EmitProfilingCounterDecrement(weight);
       Label ok;

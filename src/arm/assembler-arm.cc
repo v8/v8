@@ -139,7 +139,6 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
-
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   Instr* pc = reinterpret_cast<Instr*>(pc_);
@@ -258,6 +257,7 @@ const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
 const Instr kBlxRegPattern =
     B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | BLX;
+const Instr kBlxIp = al | kBlxRegPattern | ip.code();
 const Instr kMovMvnMask = 0x6d * B21 | 0xf * B16;
 const Instr kMovMvnPattern = 0xd * B21;
 const Instr kMovMvnFlip = B22;

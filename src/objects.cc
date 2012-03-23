@@ -4324,21 +4324,20 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 static bool UpdateGetterSetterInDictionary(
     SeededNumberDictionary* dictionary,
     uint32_t index,
-    AccessorComponent component,
-    Object* fun,
+    Object* getter,
+    Object* setter,
     PropertyAttributes attributes) {
   int entry = dictionary->FindEntry(index);
   if (entry != SeededNumberDictionary::kNotFound) {
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
-    // TODO(mstarzinger): We should check for details.IsDontDelete() here once
-    // we only call into the runtime once to set both getter and setter.
     if (details.type() == CALLBACKS && result->IsAccessorPair()) {
+      ASSERT(!details.IsDontDelete());
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(entry,
                                  PropertyDetails(attributes, CALLBACKS, index));
       }
-      AccessorPair::cast(result)->set(component, fun);
+      AccessorPair::cast(result)->SetComponents(getter, setter);
       return true;
     }
   }
@@ -4347,8 +4346,8 @@ static bool UpdateGetterSetterInDictionary(
 
 
 MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
-                                             AccessorComponent component,
-                                             Object* fun,
+                                             Object* getter,
+                                             Object* setter,
                                              PropertyAttributes attributes) {
   switch (GetElementsKind()) {
     case FAST_SMI_ONLY_ELEMENTS:
@@ -4369,8 +4368,8 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
     case DICTIONARY_ELEMENTS:
       if (UpdateGetterSetterInDictionary(element_dictionary(),
                                          index,
-                                         component,
-                                         fun,
+                                         getter,
+                                         setter,
                                          attributes)) {
         return GetHeap()->undefined_value();
       }
@@ -4390,8 +4389,8 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
               SeededNumberDictionary::cast(arguments);
           if (UpdateGetterSetterInDictionary(dictionary,
                                              index,
-                                             component,
-                                             fun,
+                                             getter,
+                                             setter,
                                              attributes)) {
             return GetHeap()->undefined_value();
           }
@@ -4405,23 +4404,22 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(component, fun);
+  accessors->SetComponents(getter, setter);
 
   return SetElementCallback(index, accessors, attributes);
 }
 
 
 MaybeObject* JSObject::DefinePropertyAccessor(String* name,
-                                              AccessorComponent component,
-                                              Object* fun,
+                                              Object* getter,
+                                              Object* setter,
                                               PropertyAttributes attributes) {
   // Lookup the name.
   LookupResult result(GetHeap()->isolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
-    // TODO(mstarzinger): We should check for result.IsDontDelete() here once
-    // we only call into the runtime once to set both getter and setter.
     if (result.type() == CALLBACKS) {
+      ASSERT(!result.IsDontDelete());
       Object* obj = result.GetCallbackObject();
       // Need to preserve old getters/setters.
       if (obj->IsAccessorPair()) {
@@ -4430,7 +4428,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
               AccessorPair::cast(obj)->CopyWithoutTransitions();
           if (!maybe_copy->To(&copy)) return maybe_copy;
         }
-        copy->set(component, fun);
+        copy->SetComponents(getter, setter);
         // Use set to update attributes.
         return SetPropertyCallback(name, copy, attributes);
       }
@@ -4441,7 +4439,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
   { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  accessors->set(component, fun);
+  accessors->SetComponents(getter, setter);
 
   return SetPropertyCallback(name, accessors, attributes);
 }
@@ -4512,12 +4510,6 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
 MaybeObject* JSObject::SetPropertyCallback(String* name,
                                            Object* structure,
                                            PropertyAttributes attributes) {
-  PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
-
-  bool convert_back_to_fast = HasFastProperties() &&
-      (map()->instance_descriptors()->number_of_descriptors()
-          < DescriptorArray::kMaxNumberOfDescriptors);
-
   // Normalize object to make this operation simple.
   { MaybeObject* maybe_ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (maybe_ok->IsFailure()) return maybe_ok;
@@ -4538,22 +4530,29 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
   }
 
   // Update the dictionary with the new CALLBACKS property.
+  PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
   { MaybeObject* maybe_ok = SetNormalizedProperty(name, structure, details);
     if (maybe_ok->IsFailure()) return maybe_ok;
   }
 
-  if (convert_back_to_fast) {
-    MaybeObject* maybe_ok = TransformToFastProperties(0);
-    if (maybe_ok->IsFailure()) return maybe_ok;
-  }
   return GetHeap()->undefined_value();
 }
 
+
+void JSObject::DefineAccessor(Handle<JSObject> object,
+                              Handle<String> name,
+                              Handle<Object> getter,
+                              Handle<Object> setter,
+                              PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->DefineAccessor(*name, *getter, *setter, attributes));
+}
+
 MaybeObject* JSObject::DefineAccessor(String* name,
-                                      AccessorComponent component,
-                                      Object* fun,
+                                      Object* getter,
+                                      Object* setter,
                                       PropertyAttributes attributes) {
-  ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   Isolate* isolate = GetIsolate();
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -4566,8 +4565,8 @@ MaybeObject* JSObject::DefineAccessor(String* name,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(name, component,
-                                                 fun, attributes);
+    return JSObject::cast(proto)->DefineAccessor(
+        name, getter, setter, attributes);
   }
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4581,8 +4580,8 @@ MaybeObject* JSObject::DefineAccessor(String* name,
 
   uint32_t index = 0;
   return name->AsArrayIndex(&index) ?
-      DefineElementAccessor(index, component, fun, attributes) :
-      DefinePropertyAccessor(name, component, fun, attributes);
+      DefineElementAccessor(index, getter, setter, attributes) :
+      DefinePropertyAccessor(name, getter, setter, attributes);
 }
 
 
@@ -4696,7 +4695,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
           Object* element = dictionary->ValueAt(entry);
           if (dictionary->DetailsAt(entry).type() == CALLBACKS &&
               element->IsAccessorPair()) {
-            return AccessorPair::cast(element)->SafeGet(component);
+            return AccessorPair::cast(element)->GetComponent(component);
           }
         }
       }
@@ -4712,7 +4711,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
-            return AccessorPair::cast(obj)->SafeGet(component);
+            return AccessorPair::cast(obj)->GetComponent(component);
           }
         }
       }
@@ -5949,8 +5948,8 @@ MaybeObject* AccessorPair::CopyWithoutTransitions() {
 }
 
 
-Object* AccessorPair::SafeGet(AccessorComponent component) {
-    Object* accessor = get(component);
+Object* AccessorPair::GetComponent(AccessorComponent component) {
+    Object* accessor = (component == ACCESSOR_GETTER) ? getter() : setter();
     return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
 }
 
@@ -7451,7 +7450,7 @@ bool JSFunction::IsInlineable() {
 
 
 MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
-  ASSERT(value->IsJSObject());
+  ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
   if (has_initial_map()) {
     // If the function has allocated the initial map
@@ -7478,11 +7477,11 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
   ASSERT(should_have_prototype());
   Object* construct_prototype = value;
 
-  // If the value is not a JSObject, store the value in the map's
+  // If the value is not a JSReceiver, store the value in the map's
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (!value->IsJSObject()) {
+  if (!value->IsJSReceiver()) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.

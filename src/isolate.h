@@ -929,6 +929,7 @@ class Isolate {
   }
 #endif
 
+  inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
 
 #ifdef DEBUG

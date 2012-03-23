@@ -599,6 +599,9 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   SetBlock(block);
   previous->next_ = this;
   if (next != NULL) next->previous_ = this;
+  if (block->last() == previous) {
+    block->set_last(this);
+  }
 }
 
 

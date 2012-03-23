@@ -173,7 +173,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // prepared to generate it, but we don't expect to have to.
   bool found_code = false;
   Code* stack_check_code = NULL;
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
@@ -290,7 +290,12 @@ void RuntimeProfiler::OptimizeNow() {
           // If this particular function hasn't had any ICs patched for enough
           // ticks, optimize it now.
           Optimize(function, "hot and stable");
+        } else if (ticks >= 100) {
+          // If this function does not have enough type info, but has
+          // seen a huge number of ticks, optimize it as it is.
+          Optimize(function, "not much type info but very hot");
         } else {
+          function->shared()->set_profiler_ticks(ticks + 1);
           if (FLAG_trace_opt_verbose) {
             PrintF("[not yet optimizing ");
             function->PrintName();
@@ -344,7 +349,7 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM)
   if (FLAG_count_based_interrupts) return;
 #endif
   isolate_->stack_guard()->RequestRuntimeProfilerTick();

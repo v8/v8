@@ -604,6 +604,7 @@ extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
 extern const Instr kBlxRegMask;
 extern const Instr kBlxRegPattern;
+extern const Instr kBlxIp;
 
 extern const Instr kMovMvnMask;
 extern const Instr kMovMvnPattern;
@@ -685,20 +686,18 @@ class Assembler : public AssemblerBase {
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
-  inline static void set_target_at(Address constant_pool_entry, Address target);
+  inline static void deserialization_set_special_target_at(
+      Address constant_pool_entry, Address target);
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches to runtime code.
   inline static void set_external_target_at(Address constant_pool_entry,
-                                            Address target) {
-    set_target_at(constant_pool_entry, target);
-  }
+                                            Address target);
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a
   // pointer.
-  static const int kCallTargetSize = kPointerSize;
-  static const int kExternalTargetSize = kPointerSize;
+  static const int kSpecialTargetSize = kPointerSize;
 
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);

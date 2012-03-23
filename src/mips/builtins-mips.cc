@@ -1097,8 +1097,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Set up the context from the function argument.
     __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
-    __ InitializeRootRegister();
-
     // Push the function and the receiver onto the stack.
     __ Push(a1, a2);
 

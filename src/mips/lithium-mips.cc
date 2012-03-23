@@ -1076,7 +1076,8 @@ LInstruction* LChunkBuilder::DoArgumentsLength(HArgumentsLength* length) {
 
 
 LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
-  return DefineAsRegister(new(zone()) LArgumentsElements);
+  return DefineAsRegister(new(zone()) LArgumentsElements(
+      current_block_->last_environment()->outer() != NULL));
 }
 
 
@@ -2277,6 +2278,9 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->call_kind(),
                                                instr->is_construct());
+  if (instr->materializes_arguments()) {
+    inner->Bind(instr->arguments(), graph()->GetArgumentsObject());
+  }
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;
@@ -2284,10 +2288,21 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
+  LInstruction* pop = NULL;
+
+  HEnvironment* env = current_block_->last_environment();
+
+  if (instr->arguments_pushed()) {
+    int argument_count = env->arguments_environment()->parameter_count();
+    pop = new(zone()) LPop(argument_count);
+    argument_count_ -= argument_count;
+  }
+
   HEnvironment* outer = current_block_->last_environment()->
       DiscardInlined(false);
   current_block_->UpdateEnvironment(outer);
-  return NULL;
+
+  return pop;
 }
 
 

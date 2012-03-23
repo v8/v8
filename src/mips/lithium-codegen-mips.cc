@@ -2077,7 +2077,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
   // with true or false.
-  __ li(result, Operand(factory()->the_hole_value()), true);
+  __ li(result, Operand(factory()->the_hole_value()), CONSTANT_SIZE);
   __ Branch(&done);
 
   // The inlined call site cache did not match. Check null and string before
@@ -2132,7 +2132,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-    __ li(temp, Operand(delta * kPointerSize), true);
+    __ li(temp, Operand(delta * kPointerSize), CONSTANT_SIZE);
     __ StoreToSafepointRegisterSlot(temp, temp);
   }
   CallCodeGeneric(stub.GetCode(),
@@ -2651,16 +2651,20 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register temp = scratch1();
   Register result = ToRegister(instr->result());
 
-  // Check if the calling frame is an arguments adaptor frame.
-  Label done, adapted;
-  __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
-  __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  if (instr->from_inlined()) {
+    __ Subu(result, sp, 2 * kPointerSize);
+  } else {
+    // Check if the calling frame is an arguments adaptor frame.
+    Label done, adapted;
+    __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
+    __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
-  // Result is the frame pointer for the frame if not adapted and for the real
-  // frame below the adaptor frame if adapted.
-  __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
-  __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
+    // Result is the frame pointer for the frame if not adapted and for the real
+    // frame below the adaptor frame if adapted.
+    __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
+    __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
+  }
 }
 
 
@@ -2790,6 +2794,11 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     Register argument_reg = EmitLoadRegister(argument, at);
     __ push(argument_reg);
   }
+}
+
+
+void LCodeGen::DoPop(LPop* instr) {
+  __ Drop(instr->count());
 }
 
 
