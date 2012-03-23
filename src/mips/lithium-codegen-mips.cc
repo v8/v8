@@ -2651,20 +2651,16 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register temp = scratch1();
   Register result = ToRegister(instr->result());
 
-  if (instr->from_inlined()) {
-    __ Subu(result, sp, 2 * kPointerSize);
-  } else {
-    // Check if the calling frame is an arguments adaptor frame.
-    Label done, adapted;
-    __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
-    __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  // Check if the calling frame is an arguments adaptor frame.
+  Label done, adapted;
+  __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
+  __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
-    // Result is the frame pointer for the frame if not adapted and for the real
-    // frame below the adaptor frame if adapted.
-    __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
-    __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
-  }
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
+  __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
+  __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
 }
 
 
@@ -2794,11 +2790,6 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     Register argument_reg = EmitLoadRegister(argument, at);
     __ push(argument_reg);
   }
-}
-
-
-void LCodeGen::DoPop(LPop* instr) {
-  __ Drop(instr->count());
 }
 
 
