@@ -4238,34 +4238,46 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     }
   }
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ movq(rcx, FieldOperand(source, i));
       __ movq(FieldOperand(result, elements_offset + i), rcx);
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ lea(rcx, Operand(result, *offset));
-      __ movq(FieldOperand(result, total_offset), rcx);
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
-      __ movq(FieldOperand(result, total_offset), rcx);
+    // Copy elements backing store content.
+    int elements_length = elements->length();
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ movq(rcx, value, RelocInfo::NONE);
+        __ movq(FieldOperand(result, total_offset), rcx);
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ lea(rcx, Operand(result, *offset));
+          __ movq(FieldOperand(result, total_offset), rcx);
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
+          __ movq(FieldOperand(result, total_offset), rcx);
+        } else {
+          __ movq(rcx, value, RelocInfo::NONE);
+          __ movq(FieldOperand(result, total_offset), rcx);
+        }
+      }
     } else {
-      __ movq(rcx, value, RelocInfo::NONE);
-      __ movq(FieldOperand(result, total_offset), rcx);
+      UNREACHABLE();
     }
   }
 }

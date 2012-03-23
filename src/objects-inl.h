@@ -944,6 +944,12 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_UINT32_FIELD(p, offset, value) \
   (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_INT64_FIELD(p, offset) \
+  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_INT64_FIELD(p, offset, value) \
+  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_SHORT_FIELD(p, offset) \
   (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)))
 
@@ -1701,6 +1707,12 @@ double FixedDoubleArray::get_scalar(int index) {
   return result;
 }
 
+int64_t FixedDoubleArray::get_representation(int index) {
+  ASSERT(map() != HEAP->fixed_cow_array_map() &&
+         map() != HEAP->fixed_array_map());
+  ASSERT(index >= 0 && index < this->length());
+  return READ_INT64_FIELD(this, kHeaderSize + index * kDoubleSize);
+}
 
 MaybeObject* FixedDoubleArray::get(int index) {
   if (is_the_hole(index)) {

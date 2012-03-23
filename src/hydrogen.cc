@@ -3683,22 +3683,27 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
       elements->map() != boilerplate->GetHeap()->fixed_cow_array_map()) {
-    if (!boilerplate->HasFastElements()) return false;
-    int length = elements->length();
-    for (int i = 0; i < length; i++) {
-      if ((*max_properties)-- == 0) return false;
-      Handle<Object> value = JSObject::GetElement(boilerplate, i);
-      if (value->IsJSObject()) {
-        Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-        if (!IsFastLiteral(value_object,
-                           max_depth - 1,
-                           max_properties,
-                           total_size)) {
-          return false;
+    if (boilerplate->HasFastDoubleElements()) {
+      *total_size += FixedDoubleArray::SizeFor(elements->length());
+    } else if (boilerplate->HasFastElements()) {
+      int length = elements->length();
+      for (int i = 0; i < length; i++) {
+        if ((*max_properties)-- == 0) return false;
+        Handle<Object> value = JSObject::GetElement(boilerplate, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          if (!IsFastLiteral(value_object,
+                             max_depth - 1,
+                             max_properties,
+                             total_size)) {
+            return false;
+          }
         }
       }
+      *total_size += FixedArray::SizeFor(length);
+    } else {
+      return false;
     }
-    *total_size += FixedArray::SizeFor(length);
   }
 
   Handle<FixedArray> properties(boilerplate->properties());

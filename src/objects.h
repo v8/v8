@@ -2345,6 +2345,7 @@ class FixedDoubleArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
+  inline int64_t get_representation(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
