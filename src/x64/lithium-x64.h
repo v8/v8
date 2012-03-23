@@ -71,7 +71,7 @@ class LCodeGen;
   V(CallStub)                                   \
   V(CheckFunction)                              \
   V(CheckInstanceType)                          \
-  V(CheckMap)                                   \
+  V(CheckMaps)                                  \
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
@@ -1857,14 +1857,14 @@ class LCheckInstanceType: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckMap: public LTemplateInstruction<0, 1, 0> {
+class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LCheckMap(LOperand* value) {
+  explicit LCheckMaps(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckMap, "check-map")
-  DECLARE_HYDROGEN_ACCESSOR(CheckMap)
+  DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
+  DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
 };
 
 

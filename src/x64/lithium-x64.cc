@@ -1737,9 +1737,9 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
+LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LCheckMap* result = new(zone()) LCheckMap(value);
+  LCheckMaps* result = new(zone()) LCheckMaps(value);
   return AssignEnvironment(result);
 }
 

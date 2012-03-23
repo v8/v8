@@ -3910,21 +3910,22 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-// Sets the lookup result and returns true if the store can be inlined.
-static bool ComputeStoredField(Handle<Map> type,
-                               Handle<String> name,
-                               LookupResult* lookup) {
+// Sets the lookup result and returns true if the load/store can be inlined.
+static bool ComputeLoadStoreField(Handle<Map> type,
+                                  Handle<String> name,
+                                  LookupResult* lookup,
+                                  bool is_store) {
   type->LookupInDescriptors(NULL, *name, lookup);
   if (!lookup->IsFound()) return false;
   if (lookup->type() == FIELD) return true;
-  return (lookup->type() == MAP_TRANSITION) &&
+  return is_store && (lookup->type() == MAP_TRANSITION) &&
       (type->unused_property_fields() > 0);
 }
 
 
-static int ComputeStoredFieldIndex(Handle<Map> type,
-                                   Handle<String> name,
-                                   LookupResult* lookup) {
+static int ComputeLoadStoreFieldIndex(Handle<Map> type,
+                                      Handle<String> name,
+                                      LookupResult* lookup) {
   ASSERT(lookup->type() == FIELD || lookup->type() == MAP_TRANSITION);
   if (lookup->type() == FIELD) {
     return lookup->GetLocalFieldIndexFromMap(*type);
@@ -3943,11 +3944,10 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
-                                         ALLOW_ELEMENT_TRANSITION_MAPS));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, type));
   }
 
-  int index = ComputeStoredFieldIndex(type, name, lookup);
+  int index = ComputeLoadStoreFieldIndex(type, name, lookup);
   bool is_in_object = index < 0;
   int offset = index * kPointerSize;
   if (index < 0) {
@@ -3993,7 +3993,7 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
   LookupResult lookup(isolate());
   Handle<Map> type = prop->GetReceiverType();
   bool is_monomorphic = prop->IsMonomorphic() &&
-      ComputeStoredField(type, name, &lookup);
+      ComputeLoadStoreField(type, name, &lookup, true);
 
   return is_monomorphic
       ? BuildStoreNamedField(object, name, value, type, &lookup,
@@ -4015,12 +4015,53 @@ HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
   LookupResult lookup(isolate());
   SmallMapList* types = expr->GetReceiverTypes();
   bool is_monomorphic = expr->IsMonomorphic() &&
-      ComputeStoredField(types->first(), name, &lookup);
+      ComputeLoadStoreField(types->first(), name, &lookup, true);
 
   return is_monomorphic
       ? BuildStoreNamedField(object, name, value, types->first(), &lookup,
                              true)  // Needs smi and map check.
       : BuildStoreNamedGeneric(object, name, value);
+}
+
+
+void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
+                                                    HValue* object,
+                                                    SmallMapList* types,
+                                                    Handle<String> name) {
+  int count = 0;
+  int previous_field_index = 0;
+  bool is_monomorphic_field = true;
+  Handle<Map> map;
+  LookupResult lookup(isolate());
+  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+    map = types->at(i);
+    if (ComputeLoadStoreField(map, name, &lookup, false)) {
+      int index = ComputeLoadStoreFieldIndex(map, name, &lookup);
+      if (count == 0) {
+        previous_field_index = index;
+      } else if (is_monomorphic_field) {
+        is_monomorphic_field = (index == previous_field_index);
+      }
+      ++count;
+    }
+  }
+
+  // Use monomorphic load if property lookup results in the same field index
+  // for all maps.  Requires special map check on the set of all handled maps.
+  HInstruction* instr;
+  if (count == types->length() && is_monomorphic_field) {
+    AddInstruction(new(zone()) HCheckMaps(object, types));
+    instr = BuildLoadNamedField(object, expr, map, &lookup, false);
+  } else {
+    HValue* context = environment()->LookupContext();
+    instr = new(zone()) HLoadNamedFieldPolymorphic(context,
+                                                   object,
+                                                   types,
+                                                   name);
+  }
+
+  instr->set_position(expr->position());
+  return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
 
@@ -4037,7 +4078,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(isolate());
-    if (ComputeStoredField(map, name, &lookup)) {
+    if (ComputeLoadStoreField(map, name, &lookup, true)) {
       if (count == 0) {
         AddInstruction(new(zone()) HCheckNonSmi(object));  // Only needed once.
         join = graph()->CreateBasicBlock();
@@ -4508,8 +4549,7 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
-                                         ALLOW_ELEMENT_TRANSITION_MAPS));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, type));
   }
 
   int index = lookup->GetLocalFieldIndexFromMap(*type);
@@ -4553,8 +4593,7 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                true);
   } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
     AddInstruction(new(zone()) HCheckNonSmi(obj));
-    AddInstruction(new(zone()) HCheckMap(obj, map, NULL,
-                                         ALLOW_ELEMENT_TRANSITION_MAPS));
+    AddInstruction(HCheckMaps::NewWithTransitions(obj, map));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   } else {
@@ -4656,12 +4695,12 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* val,
                                                            Handle<Map> map,
                                                            bool is_store) {
-  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMap(object, map));
+  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMaps(object, map));
   bool fast_smi_only_elements = map->has_fast_smi_only_elements();
   bool fast_elements = map->has_fast_elements();
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
-    AddInstruction(new(zone()) HCheckMap(
+    AddInstruction(new(zone()) HCheckMaps(
         elements, isolate()->factory()->fixed_array_map()));
   }
   HInstruction* length = NULL;
@@ -4811,7 +4850,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
           elements_kind == FAST_ELEMENTS ||
           elements_kind == FAST_DOUBLE_ELEMENTS) {
         if (is_store && elements_kind != FAST_DOUBLE_ELEMENTS) {
-          AddInstruction(new(zone()) HCheckMap(
+          AddInstruction(new(zone()) HCheckMaps(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
         }
@@ -5015,8 +5054,8 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       instr = BuildLoadNamed(obj, expr, types->first(), name);
     } else if (types != NULL && types->length() > 1) {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
-      HValue* context = environment()->LookupContext();
-      instr = new(zone()) HLoadNamedFieldPolymorphic(context, obj, types, name);
+      HandlePolymorphicLoadNamedField(expr, obj, types, name);
+      return;
     } else {
       instr = BuildLoadNamedGeneric(obj, expr);
     }
@@ -5057,8 +5096,7 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
   // its prototypes.
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(receiver));
-    AddInstruction(new(zone()) HCheckMap(receiver, receiver_map, NULL,
-                                         ALLOW_ELEMENT_TRANSITION_MAPS));
+    AddInstruction(HCheckMaps::NewWithTransitions(receiver, receiver_map));
   }
   if (!expr->holder().is_null()) {
     AddInstruction(new(zone()) HCheckPrototypeMaps(
@@ -6869,11 +6907,9 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<Map> map = oracle()->GetCompareMap(expr);
         if (!map.is_null()) {
           AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(new(zone()) HCheckMap(left, map, NULL,
-                                               ALLOW_ELEMENT_TRANSITION_MAPS));
+          AddInstruction(HCheckMaps::NewWithTransitions(left, map));
           AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(new(zone()) HCheckMap(right, map, NULL,
-                                               ALLOW_ELEMENT_TRANSITION_MAPS));
+          AddInstruction(HCheckMaps::NewWithTransitions(right, map));
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
           result->set_position(expr->position());
