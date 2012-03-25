@@ -844,7 +844,8 @@ class FastDoubleElementsAccessor
                              JSObject* holder,
                              uint32_t key,
                              FixedDoubleArray* backing_store) {
-    return !backing_store->is_the_hole(key);
+    return key < static_cast<uint32_t>(backing_store->length()) &&
+        !backing_store->is_the_hole(key);
   }
 };
 
