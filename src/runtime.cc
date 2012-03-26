@@ -7582,7 +7582,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
     }
   }
   date->SetValue(value, is_value_nan);
-  return *date;
+  return value;
 }
 
 
