@@ -137,8 +137,7 @@ void CopyObjectToObjectElements(FixedArray* from,
                                 FixedArray* to,
                                 ElementsKind to_kind,
                                 uint32_t to_start,
-                                int raw_copy_size,
-                                WriteBarrierMode mode) {
+                                int raw_copy_size) {
   ASSERT(to->map() != HEAP->fixed_cow_array_map());
   ASSERT(from_kind == FAST_ELEMENTS || from_kind == FAST_SMI_ONLY_ELEMENTS);
   ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
@@ -166,8 +165,7 @@ void CopyObjectToObjectElements(FixedArray* from,
   CopyWords(reinterpret_cast<Object**>(to_address) + to_start,
             reinterpret_cast<Object**>(from_address) + from_start,
             copy_size);
-  if (from_kind == FAST_ELEMENTS && to_kind == FAST_ELEMENTS &&
-      mode == UPDATE_WRITE_BARRIER) {
+  if (from_kind == FAST_ELEMENTS && to_kind == FAST_ELEMENTS) {
     Heap* heap = from->GetHeap();
     if (!heap->InNewSpace(to)) {
       heap->RecordWrites(to->address(),
@@ -184,8 +182,7 @@ static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
                                            FixedArray* to,
                                            ElementsKind to_kind,
                                            uint32_t to_start,
-                                           int raw_copy_size,
-                                           WriteBarrierMode mode) {
+                                           int raw_copy_size) {
   int copy_size = raw_copy_size;
   Heap* heap = from->GetHeap();
   if (raw_copy_size < 0) {
@@ -476,8 +473,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                                        FixedArrayBase* to,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
-                                       int copy_size,
-                                       WriteBarrierMode mode) {
+                                       int copy_size) {
     UNREACHABLE();
     return NULL;
   }
@@ -488,7 +484,6 @@ class ElementsAccessorBase : public ElementsAccessor {
                                     ElementsKind to_kind,
                                     uint32_t to_start,
                                     int copy_size,
-                                    WriteBarrierMode mode,
                                     FixedArrayBase* from) {
     if (from == NULL) {
       from = from_holder->elements();
@@ -497,7 +492,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       return from;
     }
     return ElementsAccessorSubclass::CopyElementsImpl(
-        from, from_start, to, to_kind, to_start, copy_size, mode);
+        from, from_start, to, to_kind, to_start, copy_size);
   }
 
   virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
@@ -734,14 +729,13 @@ class FastObjectElementsAccessor
                                        FixedArrayBase* to,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
-                                       int copy_size,
-                                       WriteBarrierMode mode) {
+                                       int copy_size) {
     switch (to_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS: {
         CopyObjectToObjectElements(
             FixedArray::cast(from), ElementsTraits::Kind, from_start,
-            FixedArray::cast(to), to_kind, to_start, copy_size, mode);
+            FixedArray::cast(to), to_kind, to_start, copy_size);
         return from;
       }
       case FAST_DOUBLE_ELEMENTS:
@@ -809,8 +803,7 @@ class FastDoubleElementsAccessor
                                        FixedArrayBase* to,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
-                                       int copy_size,
-                                       WriteBarrierMode mode) {
+                                       int copy_size) {
     switch (to_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
@@ -844,7 +837,8 @@ class FastDoubleElementsAccessor
                              JSObject* holder,
                              uint32_t key,
                              FixedDoubleArray* backing_store) {
-    return !backing_store->is_the_hole(key);
+    return key < static_cast<uint32_t>(backing_store->length()) &&
+        !backing_store->is_the_hole(key);
   }
 };
 
@@ -1107,14 +1101,13 @@ class DictionaryElementsAccessor
                                        FixedArrayBase* to,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
-                                       int copy_size,
-                                       WriteBarrierMode mode) {
+                                       int copy_size) {
     switch (to_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
         CopyDictionaryToObjectElements(
             SeededNumberDictionary::cast(from), from_start,
-            FixedArray::cast(to), to_kind, to_start, copy_size, mode);
+            FixedArray::cast(to), to_kind, to_start, copy_size);
         return from;
       case FAST_DOUBLE_ELEMENTS:
         CopyDictionaryToDoubleElements(
@@ -1252,13 +1245,12 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
                                        FixedArrayBase* to,
                                        ElementsKind to_kind,
                                        uint32_t to_start,
-                                       int copy_size,
-                                       WriteBarrierMode mode) {
+                                       int copy_size) {
     FixedArray* parameter_map = FixedArray::cast(from);
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
     ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
     return accessor->CopyElements(NULL, from_start, to, to_kind,
-                                  to_start, copy_size, mode, arguments);
+                                  to_start, copy_size, arguments);
   }
 
   static uint32_t GetCapacityImpl(FixedArray* parameter_map) {
