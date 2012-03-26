@@ -49,6 +49,7 @@ OPTIONS:
   -h    Show this message
   -s    Specify the step where to start work. Default: 0.
   -p    Specify a patch file to apply as part of the merge
+  -r    Reverse specified patches
 EOF
 }
 
@@ -68,7 +69,7 @@ restore_patch_commit_hashes_if_unset() {
 
 ########## Option parsing
 
-while getopts ":hs:fp:" OPTION ; do
+while getopts ":hs:fp:r" OPTION ; do
   case $OPTION in
     h)  usage
         exit 0
@@ -76,6 +77,8 @@ while getopts ":hs:fp:" OPTION ; do
     p)  EXTRA_PATCH=$OPTARG
         ;;
     f)  rm -f "$ALREADY_MERGING_SENTINEL_FILE"
+        ;;
+    r)  REVERSE_PATCH="--reverse"
         ;;
     s)  START_STEP=$OPTARG
         ;;
@@ -134,7 +137,11 @@ revisions associated with the patches."
   if [ -z "$REVISION_LIST" ] ; then
     NEW_COMMIT_MSG="Applied patch to $MERGE_TO_BRANCH branch."
   else
-    NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
+    if [ -n "$REVERSE_PATCH" ] ; then
+      NEW_COMMIT_MSG="Rollback of$REVISION_LIST in $MERGE_TO_BRANCH branch."
+    else
+      NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
+    fi;
   fi;
 
   echo "$NEW_COMMIT_MSG" > $COMMITMSG_FILE
