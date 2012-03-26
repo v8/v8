@@ -1406,6 +1406,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
 
+    if (shared->ic_age() != heap->global_ic_age()) {
+      shared->ResetForNewContext(heap->global_ic_age());
+    }
+
     if (!known_flush_code_candidate) {
       known_flush_code_candidate = IsFlushable(heap, shared);
       if (known_flush_code_candidate) {
