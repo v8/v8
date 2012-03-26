@@ -344,12 +344,12 @@ TEST(HeapSnapshotInternalReferences) {
 }
 
 
-// Trying to introduce a check helper for uint64_t causes many
+// Trying to introduce a check helper for uint32_t causes many
 // overloading ambiguities, so it seems easier just to cast
 // them to a signed type.
-#define CHECK_EQ_UINT64_T(a, b) \
-  CHECK_EQ(static_cast<int64_t>(a), static_cast<int64_t>(b))
-#define CHECK_NE_UINT64_T(a, b) \
+#define CHECK_EQ_SNAPSHOT_OBJECT_ID(a, b) \
+  CHECK_EQ(static_cast<int32_t>(a), static_cast<int32_t>(b))
+#define CHECK_NE_SNAPSHOT_OBJECT_ID(a, b) \
   CHECK((a) != (b))  // NOLINT
 
 TEST(HeapEntryIdsAndArrayShift) {
@@ -378,8 +378,8 @@ TEST(HeapEntryIdsAndArrayShift) {
 
   const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
-  CHECK_NE_UINT64_T(0, global1->GetId());
-  CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, global1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(global1->GetId(), global2->GetId());
 
   const v8::HeapGraphNode* a1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
@@ -400,9 +400,9 @@ TEST(HeapEntryIdsAndArrayShift) {
       GetProperty(e2, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_NE(NULL, k2);
 
-  CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
-  CHECK_EQ_UINT64_T(e1->GetId(), e2->GetId());
-  CHECK_EQ_UINT64_T(k1->GetId(), k2->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(a1->GetId(), a2->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(e1->GetId(), e2->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(k1->GetId(), k2->GetId());
 }
 
 TEST(HeapEntryIdsAndGC) {
@@ -424,40 +424,40 @@ TEST(HeapEntryIdsAndGC) {
 
   const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
-  CHECK_NE_UINT64_T(0, global1->GetId());
-  CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, global1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(global1->GetId(), global2->GetId());
   const v8::HeapGraphNode* A1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "A");
   CHECK_NE(NULL, A1);
   const v8::HeapGraphNode* A2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "A");
   CHECK_NE(NULL, A2);
-  CHECK_NE_UINT64_T(0, A1->GetId());
-  CHECK_EQ_UINT64_T(A1->GetId(), A2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, A1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(A1->GetId(), A2->GetId());
   const v8::HeapGraphNode* B1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "B");
   CHECK_NE(NULL, B1);
   const v8::HeapGraphNode* B2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "B");
   CHECK_NE(NULL, B2);
-  CHECK_NE_UINT64_T(0, B1->GetId());
-  CHECK_EQ_UINT64_T(B1->GetId(), B2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, B1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(B1->GetId(), B2->GetId());
   const v8::HeapGraphNode* a1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a1);
   const v8::HeapGraphNode* a2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a2);
-  CHECK_NE_UINT64_T(0, a1->GetId());
-  CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, a1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(a1->GetId(), a2->GetId());
   const v8::HeapGraphNode* b1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "b");
   CHECK_NE(NULL, b1);
   const v8::HeapGraphNode* b2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "b");
   CHECK_NE(NULL, b2);
-  CHECK_NE_UINT64_T(0, b1->GetId());
-  CHECK_EQ_UINT64_T(b1->GetId(), b2->GetId());
+  CHECK_NE_SNAPSHOT_OBJECT_ID(0, b1->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(b1->GetId(), b2->GetId());
 }
 
 
@@ -695,7 +695,7 @@ static void CheckChildrenIds(const v8::HeapSnapshot* snapshot,
     const v8::HeapGraphEdge* prop = node->GetChild(i);
     const v8::HeapGraphNode* child =
         snapshot->GetNodeById(prop->GetToNode()->GetId());
-    CHECK_EQ_UINT64_T(prop->GetToNode()->GetId(), child->GetId());
+    CHECK_EQ_SNAPSHOT_OBJECT_ID(prop->GetToNode()->GetId(), child->GetId());
     CHECK_EQ(prop->GetToNode(), child);
     CheckChildrenIds(snapshot, child, level + 1, max_level);
   }

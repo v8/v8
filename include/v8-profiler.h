@@ -64,6 +64,7 @@
  */
 namespace v8 {
 
+typedef uint32_t SnapshotObjectId;
 
 /**
  * CpuProfileNode represents a node in a call graph.
@@ -274,7 +275,7 @@ class V8EXPORT HeapGraphNode {
    * Returns node id. For the same heap object, the id remains the same
    * across all snapshots.
    */
-  uint64_t GetId() const;
+  SnapshotObjectId GetId() const;
 
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
@@ -338,7 +339,7 @@ class V8EXPORT HeapSnapshot {
   const HeapGraphNode* GetRoot() const;
 
   /** Returns a node by its id. */
-  const HeapGraphNode* GetNodeById(uint64_t id) const;
+  const HeapGraphNode* GetNodeById(SnapshotObjectId id) const;
 
   /** Returns total nodes count in the snapshot. */
   int GetNodesCount() const;
