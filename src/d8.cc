@@ -426,14 +426,20 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   }
 
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
-  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
-  persistent_array.MarkIndependent();
   if (data == NULL && length != 0) {
-    data = calloc(length, element_size);
+    // Prepend the size of the allocated chunk to the data itself.
+    int total_size = length * element_size + sizeof(size_t);
+    data = malloc(total_size);
     if (data == NULL) {
       return ThrowException(String::New("Memory allocation failed."));
     }
+    *reinterpret_cast<size_t*>(data) = total_size;
+    data = reinterpret_cast<size_t*>(data) + 1;
+    memset(data, 0, length * element_size);
+    V8::AdjustAmountOfExternalAllocatedMemory(total_size);
   }
+  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent();
 
   array->SetIndexedPropertiesToExternalArrayData(
       reinterpret_cast<uint8_t*>(data) + offset, type,
@@ -452,6 +458,9 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   Handle<Object> converted_object = object->ToObject();
   Local<Value> prop_value = converted_object->Get(prop_name);
   if (data != NULL && !prop_value->IsObject()) {
+    data = reinterpret_cast<size_t*>(data) - 1;
+    V8::AdjustAmountOfExternalAllocatedMemory(
+        -(*reinterpret_cast<size_t*>(data)));
     free(data);
   }
   object.Dispose();
