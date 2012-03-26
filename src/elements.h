@@ -107,16 +107,14 @@ class ElementsAccessor {
                                     ElementsKind destination_kind,
                                     uint32_t destination_start,
                                     int copy_size,
-                                    WriteBarrierMode mode,
                                     FixedArrayBase* source = NULL) = 0;
 
   MaybeObject* CopyElements(JSObject* from_holder,
                             FixedArrayBase* to,
                             ElementsKind to_kind,
-                            WriteBarrierMode mode,
                             FixedArrayBase* from = NULL) {
     return CopyElements(from_holder, 0, to, to_kind, 0,
-                        kCopyToEndAndInitializeToHole, mode, from);
+                        kCopyToEndAndInitializeToHole, from);
   }
 
   virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
@@ -164,8 +162,7 @@ void CopyObjectToObjectElements(FixedArray* from_obj,
                                 FixedArray* to_obj,
                                 ElementsKind to_kind,
                                 uint32_t to_start,
-                                int copy_size,
-                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+                                int copy_size);
 
 
 } }  // namespace v8::internal
