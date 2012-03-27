@@ -4029,7 +4029,8 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
                                                     SmallMapList* types,
                                                     Handle<String> name) {
   int count = 0;
-  int previous_field_index = 0;
+  int previous_field_offset = 0;
+  bool previous_field_is_in_object = false;
   bool is_monomorphic_field = true;
   Handle<Map> map;
   LookupResult lookup(isolate());
@@ -4037,10 +4038,21 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     map = types->at(i);
     if (ComputeLoadStoreField(map, name, &lookup, false)) {
       int index = ComputeLoadStoreFieldIndex(map, name, &lookup);
+      bool is_in_object = index < 0;
+      int offset = index * kPointerSize;
+      if (index < 0) {
+        // Negative property indices are in-object properties, indexed
+        // from the end of the fixed part of the object.
+        offset += map->instance_size();
+      } else {
+        offset += FixedArray::kHeaderSize;
+      }
       if (count == 0) {
-        previous_field_index = index;
+        previous_field_offset = offset;
+        previous_field_is_in_object = is_in_object;
       } else if (is_monomorphic_field) {
-        is_monomorphic_field = (index == previous_field_index);
+        is_monomorphic_field = (offset == previous_field_offset) &&
+                               (is_in_object == previous_field_is_in_object);
       }
       ++count;
     }
