@@ -986,8 +986,8 @@ void Shell::OnExit() {
     printf("+--------------------------------------------+-------------+\n");
     delete [] counters;
   }
-  if (counters_file_ != NULL)
-    delete counters_file_;
+  delete counters_file_;
+  delete counter_map_;
 }
 #endif  // V8_SHARED
 
