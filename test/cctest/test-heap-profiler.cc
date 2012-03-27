@@ -414,13 +414,20 @@ TEST(HeapEntryIdsAndGC) {
       "function B(x) { this.x = x; }\n"
       "var a = new A();\n"
       "var b = new B(a);");
+  v8::Local<v8::String> s1_str = v8_str("s1");
+  v8::Local<v8::String> s2_str = v8_str("s2");
   const v8::HeapSnapshot* snapshot1 =
-      v8::HeapProfiler::TakeSnapshot(v8_str("s1"));
+      v8::HeapProfiler::TakeSnapshot(s1_str);
 
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
-      v8::HeapProfiler::TakeSnapshot(v8_str("s2"));
+      v8::HeapProfiler::TakeSnapshot(s2_str);
+
+  // Second snapshot has one more string, it is it's name 's2'.
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(
+    snapshot1->GetMaxSnapshotJSObjectId(),
+    snapshot2->GetMaxSnapshotJSObjectId());
 
   const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);

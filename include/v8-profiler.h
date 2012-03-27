@@ -347,6 +347,9 @@ class V8EXPORT HeapSnapshot {
   /** Returns a node by index. */
   const HeapGraphNode* GetNode(int index) const;
 
+  /** Returns a max seen JS object Id. */
+  SnapshotObjectId GetMaxSnapshotJSObjectId() const;
+
   /**
    * Deletes the snapshot and removes it from HeapProfiler's list.
    * All pointers to nodes, edges and paths previously returned become

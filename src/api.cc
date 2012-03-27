@@ -6157,6 +6157,13 @@ const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
 }
 
 
+SnapshotObjectId HeapSnapshot::GetMaxSnapshotJSObjectId() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetMaxSnapshotJSObjectId");
+  return ToInternal(this)->max_snapshot_js_object_id();
+}
+
+
 void HeapSnapshot::Serialize(OutputStream* stream,
                              HeapSnapshot::SerializationFormat format) const {
   i::Isolate* isolate = i::Isolate::Current();

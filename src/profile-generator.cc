@@ -1133,7 +1133,8 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       gc_roots_entry_(NULL),
       natives_root_entry_(NULL),
       raw_entries_(NULL),
-      entries_sorted_(false) {
+      entries_sorted_(false),
+      max_snapshot_js_object_id_(0) {
   STATIC_CHECK(
       sizeof(HeapGraphEdge) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapGraphEdgeSize);
@@ -1223,6 +1224,11 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   int retainers_count) {
   HeapEntry* entry = GetNextEntryToInit();
   entry->Init(this, type, name, id, size, children_count, retainers_count);
+
+  // Track only js objects. They have odd ids.
+  if (id % HeapObjectsMap::kObjectIdStep && id > max_snapshot_js_object_id_)
+    max_snapshot_js_object_id_ = id;
+
   return entry;
 }
 
