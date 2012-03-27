@@ -812,7 +812,7 @@ class SignalSender : public Thread {
   }
 
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
@@ -825,7 +825,7 @@ class SignalSender : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -919,7 +919,7 @@ class SignalSender : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static LazyMutex mutex_;
+  static Mutex* mutex_;
   static SignalSender* instance_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
@@ -929,7 +929,7 @@ class SignalSender : public Thread {
 };
 
 
-LazyMutex SignalSender::mutex_ = LAZY_MUTEX_INITIALIZER;
+Mutex* SignalSender::mutex_ = OS::CreateMutex();
 SignalSender* SignalSender::instance_ = NULL;
 struct sigaction SignalSender::old_signal_handler_;
 bool SignalSender::signal_handler_installed_ = false;

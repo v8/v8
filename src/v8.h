@@ -116,7 +116,6 @@ class V8 : public AllStatic {
   static void FireCallCompletedCallback(Isolate* isolate);
 
  private:
-  static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
   // True if engine is currently running

@@ -81,41 +81,17 @@
 
 #ifdef FLAG_MODE_DECLARE
 // Structure used to hold a collection of arguments to the JavaScript code.
-#define JSARGUMENTS_INIT {{}}
 struct JSArguments {
 public:
-  inline int argc() const {
-    return static_cast<int>(storage_[0]);
-  }
-  inline const char** argv() const {
-    return reinterpret_cast<const char**>(storage_[1]);
-  }
-  inline const char*& operator[] (int idx) const {
-    return argv()[idx];
-  }
-  inline JSArguments& operator=(JSArguments args) {
-    set_argc(args.argc());
-    set_argv(args.argv());
-    return *this;
-  }
-  static JSArguments Create(int argc, const char** argv) {
-    JSArguments args;
-    args.set_argc(argc);
-    args.set_argv(argv);
-    return args;
-  }
+  JSArguments();
+  JSArguments(int argc, const char** argv);
+  int argc() const;
+  const char** argv();
+  const char*& operator[](int idx);
+  JSArguments& operator=(JSArguments args);
 private:
-  void set_argc(int argc) {
-    storage_[0] = argc;
-  }
-  void set_argv(const char** argv) {
-    storage_[1] = reinterpret_cast<AtomicWord>(argv);
-  }
-public:
-  // Contains argc and argv. Unfortunately we have to store these two fields
-  // into a single one to avoid making the initialization macro (which would be
-  // "{ 0, NULL }") contain a coma.
-  AtomicWord storage_[2];
+  int argc_;
+  const char** argv_;
 };
 #endif
 
@@ -446,7 +422,7 @@ DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 DEFINE_string(map_counters, "", "Map counters to a file")
-DEFINE_args(js_arguments, JSARGUMENTS_INIT,
+DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
 
 #if defined(WEBOS__)
