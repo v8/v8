@@ -330,9 +330,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // May be an empty handle.
-  if (!code.is_null()) {
-    isolate->runtime_profiler()->NotifyCodeGenerated(code->instruction_size());
-  }
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit && !code.is_null()) {
     GDBJITLineInfo* lineinfo =

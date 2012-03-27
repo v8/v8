@@ -313,14 +313,6 @@ void RuntimeProfiler::OptimizeNow() {
         // If no IC was patched since the last tick and this function is very
         // small, optimistically optimize it now.
         Optimize(function, "small function");
-      } else if (!code_generated_ &&
-          !any_ic_changed_ &&
-          total_code_generated_ > 0 &&
-          total_code_generated_ < 2000) {
-        // If no code was generated and no IC was patched since the last tick,
-        // but a little code has already been generated since last Reset(),
-        // then type info might already be stable and we can optimize now.
-        Optimize(function, "stable on startup");
       } else {
         shared_code->set_profiler_ticks(ticks + 1);
       }
@@ -341,7 +333,6 @@ void RuntimeProfiler::OptimizeNow() {
   }
   if (FLAG_watch_ic_patching) {
     any_ic_changed_ = false;
-    code_generated_ = false;
   } else {  // !FLAG_watch_ic_patching
     // Add the collected functions as samples. It's important not to do
     // this as part of collecting them because this will interfere with
@@ -371,9 +362,7 @@ void RuntimeProfiler::SetUp() {
 
 
 void RuntimeProfiler::Reset() {
-  if (FLAG_watch_ic_patching) {
-    total_code_generated_ = 0;
-  } else {  // !FLAG_watch_ic_patching
+  if (!FLAG_watch_ic_patching) {
     sampler_threshold_ = kSamplerThresholdInit;
     sampler_threshold_size_factor_ = kSamplerThresholdSizeFactorInit;
     sampler_ticks_until_threshold_adjustment_ =
