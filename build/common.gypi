@@ -142,8 +142,10 @@
                   'USE_EABI_HARDFLOAT=1',
                   'CAN_USE_VFP_INSTRUCTIONS',
                 ],
-                'cflags': [
-                  '-mfloat-abi=hard',
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'cflags': ['-mfloat-abi=hard',],
+                  }],
                 ],
               }, {
                 'defines': [
