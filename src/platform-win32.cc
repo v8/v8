@@ -66,16 +66,8 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 
 
 #ifndef __MINGW64_VERSION_MAJOR
-
-// Not sure this the correct interpretation of _mkgmtime
-time_t _mkgmtime(tm* timeptr) {
-  return mktime(timeptr);
-}
-
-
 #define _TRUNCATE 0
 #define STRUNCATE 80
-
 #endif  // __MINGW64_VERSION_MAJOR
 
 
@@ -511,11 +503,14 @@ int64_t Time::LocalOffset() {
   // Convert to local time, as struct with fields for day, hour, year, etc.
   tm posix_local_time_struct;
   if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
-  // Convert local time in struct to POSIX time as if it were a UTC time.
-  time_t local_posix_time = _mkgmtime(&posix_local_time_struct);
-  Time localtime(1000.0 * local_posix_time);
 
-  return localtime.Diff(&rounded_to_second);
+  if (posix_local_time_struct.tm_isdst > 0) {
+    return (tzinfo_.Bias + tzinfo_.DaylightBias) * -kMsPerMinute;
+  } else if (posix_local_time_struct.tm_isdst == 0) {
+    return (tzinfo_.Bias + tzinfo_.StandardBias) * -kMsPerMinute;
+  } else {
+    return tzinfo_.Bias * -kMsPerMinute;
+  }
 }
 
 
