@@ -34,6 +34,7 @@
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "isolate-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "stub-cache.h"
@@ -100,11 +101,6 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-int FullCodeGenerator::self_optimization_header_size() {
-  return 20;
-}
-
-
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -122,31 +118,10 @@ void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
+  profiling_counter_ = isolate()->factory()->NewJSGlobalPropertyCell(
+      Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget)));
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
-
-  // We can optionally optimize based on counters rather than statistical
-  // sampling.
-  if (info->ShouldSelfOptimize()) {
-    if (FLAG_trace_opt_verbose) {
-      PrintF("[adding self-optimization header to %s]\n",
-             *info->function()->debug_name()->ToCString());
-    }
-    has_self_optimization_header_ = true;
-    MaybeObject* maybe_cell = isolate()->heap()->AllocateJSGlobalPropertyCell(
-        Smi::FromInt(Compiler::kCallsUntilPrimitiveOpt));
-    JSGlobalPropertyCell* cell;
-    if (maybe_cell->To(&cell)) {
-      __ movq(rax, Handle<JSGlobalPropertyCell>(cell),
-              RelocInfo::EMBEDDED_OBJECT);
-      __ SmiAddConstant(FieldOperand(rax, JSGlobalPropertyCell::kValueOffset),
-                        Smi::FromInt(-1));
-      Handle<Code> compile_stub(
-          isolate()->builtins()->builtin(Builtins::kLazyRecompile));
-      __ j(zero, compile_stub, RelocInfo::CODE_TARGET);
-      ASSERT(masm_->pc_offset() == self_optimization_header_size());
-    }
-  }
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
@@ -322,14 +297,57 @@ void FullCodeGenerator::ClearAccumulator() {
 }
 
 
+void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
+  __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
+  __ SmiAddConstant(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+                    Smi::FromInt(-delta));
+}
+
+
+void FullCodeGenerator::EmitProfilingCounterReset() {
+  int reset_value = FLAG_interrupt_budget;
+  if (info_->ShouldSelfOptimize() && !FLAG_retry_self_opt) {
+    // Self-optimization is a one-off thing; if it fails, don't try again.
+    reset_value = Smi::kMaxValue;
+  }
+  if (isolate()->IsDebuggerActive()) {
+    // Detect debug break requests as soon as possible.
+    reset_value = 10;
+  }
+  __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
+  __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+          Smi::FromInt(reset_value));
+}
+
+
+static const int kMaxBackEdgeWeight = 127;
+static const int kBackEdgeDistanceDivisor = 162;
+
+
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
-  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  __ j(above_equal, &ok, Label::kNear);
-  StackCheckStub stub;
-  __ CallStub(&stub);
+
+  if (FLAG_count_based_interrupts) {
+    int weight = 1;
+    if (FLAG_weighted_back_edges) {
+      ASSERT(back_edge_target->is_bound());
+      int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
+      weight = Min(kMaxBackEdgeWeight,
+                   Max(1, distance / kBackEdgeDistanceDivisor));
+    }
+    EmitProfilingCounterDecrement(weight);
+    __ j(positive, &ok, Label::kNear);
+    InterruptStub stub;
+    __ CallStub(&stub);
+  } else {
+    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+    __ j(above_equal, &ok, Label::kNear);
+    StackCheckStub stub;
+    __ CallStub(&stub);
+  }
+
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
@@ -341,6 +359,10 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
   // builtin.
   ASSERT(loop_depth() > 0);
   __ testl(rax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
+
+  if (FLAG_count_based_interrupts) {
+    EmitProfilingCounterReset();
+  }
 
   __ bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
@@ -360,6 +382,31 @@ void FullCodeGenerator::EmitReturnSequence() {
     if (FLAG_trace) {
       __ push(rax);
       __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+    if (FLAG_interrupt_at_exit || FLAG_self_optimization) {
+      // Pretend that the exit is a backwards jump to the entry.
+      int weight = 1;
+      if (info_->ShouldSelfOptimize()) {
+        weight = FLAG_interrupt_budget / FLAG_self_opt_count;
+      } else if (FLAG_weighted_back_edges) {
+        int distance = masm_->pc_offset();
+        weight = Min(kMaxBackEdgeWeight,
+                     Max(1, distance = kBackEdgeDistanceDivisor));
+      }
+      EmitProfilingCounterDecrement(weight);
+      Label ok;
+      __ j(positive, &ok, Label::kNear);
+      __ push(rax);
+      if (info_->ShouldSelfOptimize() && FLAG_direct_self_opt) {
+        __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+        __ CallRuntime(Runtime::kOptimizeFunctionOnNextCall, 1);
+      } else {
+        InterruptStub stub;
+        __ CallStub(&stub);
+      }
+      __ pop(rax);
+      EmitProfilingCounterReset();
+      __ bind(&ok);
     }
 #ifdef DEBUG
     // Add a label for checking the size of the code used for returning.
@@ -856,7 +903,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Record position before stub call for type feedback.
     SetSourcePosition(clause->position());
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
-    __ call(ic, RelocInfo::CODE_TARGET, clause->CompareId());
+    CallIC(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
 
     __ testq(rax, rax);
@@ -1155,7 +1202,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
-  __ call(ic, mode);
+  CallIC(ic, mode);
 }
 
 
@@ -1236,7 +1283,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ Move(rcx, var->name());
       __ movq(rax, GlobalObjectOperand());
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-      __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+      CallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
       context()->Plug(rax);
       break;
     }
@@ -1446,7 +1493,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Code> ic = is_classic_mode()
                 ? isolate()->builtins()->StoreIC_Initialize()
                 : isolate()->builtins()->StoreIC_Initialize_Strict();
-            __ call(ic, RelocInfo::CODE_TARGET, key->id());
+            CallIC(ic, RelocInfo::CODE_TARGET, key->id());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
             VisitForEffect(value);
@@ -1716,14 +1763,14 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   Literal* key = prop->key()->AsLiteral();
   __ Move(rcx, key->handle());
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  __ call(ic, RelocInfo::CODE_TARGET, prop->id());
+  CallIC(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-  __ call(ic, RelocInfo::CODE_TARGET, prop->id());
+  CallIC(ic, RelocInfo::CODE_TARGET, prop->id());
 }
 
 
@@ -1745,7 +1792,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ bind(&stub_call);
   __ movq(rax, rcx);
   BinaryOpStub stub(op, mode);
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  CallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   patch_site.EmitPatchInfo();
   __ jmp(&done, Label::kNear);
 
@@ -1794,7 +1841,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   __ pop(rdx);
   BinaryOpStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  CallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   patch_site.EmitPatchInfo();
   context()->Plug(rax);
 }
@@ -1835,7 +1882,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
           : isolate()->builtins()->StoreIC_Initialize_Strict();
-      __ call(ic);
+      CallIC(ic);
       break;
     }
     case KEYED_PROPERTY: {
@@ -1848,7 +1895,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
-      __ call(ic);
+      CallIC(ic);
       break;
     }
   }
@@ -1865,7 +1912,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     Handle<Code> ic = is_classic_mode()
         ? isolate()->builtins()->StoreIC_Initialize()
         : isolate()->builtins()->StoreIC_Initialize_Strict();
-    __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    CallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
   } else if (op == Token::INIT_CONST) {
     // Const initializers need a write barrier.
     ASSERT(!var->IsParameter());  // No const parameters.
@@ -1973,7 +2020,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   Handle<Code> ic = is_classic_mode()
       ? isolate()->builtins()->StoreIC_Initialize()
       : isolate()->builtins()->StoreIC_Initialize_Strict();
-  __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+  CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -2013,7 +2060,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   Handle<Code> ic = is_classic_mode()
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
       : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
-  __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+  CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -2047,6 +2094,14 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 }
 
 
+void FullCodeGenerator::CallIC(Handle<Code> code,
+                               RelocInfo::Mode rmode,
+                               unsigned ast_id) {
+  ic_total_count_++;
+  __ call(code, rmode, ast_id);
+}
+
+
 void FullCodeGenerator::EmitCallWithIC(Call* expr,
                                        Handle<Object> name,
                                        RelocInfo::Mode mode) {
@@ -2064,7 +2119,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Call the IC initialization code.
   Handle<Code> ic =
       isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
-  __ call(ic, mode, expr->id());
+  CallIC(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2097,7 +2152,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   Handle<Code> ic =
       isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count);
   __ movq(rcx, Operand(rsp, (arg_count + 1) * kPointerSize));  // Key.
-  __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+  CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -3737,7 +3792,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic =
         isolate()->stub_cache()->ComputeCallInitialize(arg_count, mode);
-    __ call(ic, mode, expr->id());
+    CallIC(ic, mode, expr->id());
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   } else {
@@ -3895,7 +3950,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   // accumulator register rax.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  CallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   context()->Plug(rax);
 }
 
@@ -4016,7 +4071,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ movq(rdx, rax);
     __ Move(rax, Smi::FromInt(1));
   }
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->CountId());
+  CallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->CountId());
   patch_site.EmitPatchInfo();
   __ bind(&done);
 
@@ -4050,7 +4105,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->StoreIC_Initialize()
           : isolate()->builtins()->StoreIC_Initialize_Strict();
-      __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+      CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -4067,7 +4122,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
-      __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+      CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -4094,7 +4149,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
-    __ call(ic);
+    CallIC(ic);
     PrepareForBailout(expr, TOS_REG);
     context()->Plug(rax);
   } else if (proxy != NULL && proxy->var()->IsLookupSlot()) {
@@ -4274,7 +4329,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       // Record position and call the compare IC.
       SetSourcePosition(expr->position());
       Handle<Code> ic = CompareIC::GetUninitialized(op);
-      __ call(ic, RelocInfo::CODE_TARGET, expr->id());
+      CallIC(ic, RelocInfo::CODE_TARGET, expr->id());
       patch_site.EmitPatchInfo();
 
       PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);

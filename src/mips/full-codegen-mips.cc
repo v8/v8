@@ -120,13 +120,6 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-// TODO(jkummerow): Obsolete as soon as x64 is updated. Remove.
-int FullCodeGenerator::self_optimization_header_size() {
-  UNREACHABLE();
-  return 10 * Instruction::kInstrSize;
-}
-
-
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
