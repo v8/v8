@@ -35,6 +35,8 @@
 namespace v8 {
 namespace internal {
 
+typedef uint32_t SnapshotObjectId;
+
 class TokenEnumerator {
  public:
   TokenEnumerator();
@@ -645,9 +647,6 @@ class HeapSnapshot {
   HeapEntry* gc_subroot(int index) { return gc_subroot_entries_[index]; }
   List<HeapEntry*>* entries() { return &entries_; }
   size_t raw_entries_size() { return raw_entries_size_; }
-  SnapshotObjectId max_snapshot_js_object_id() const {
-    return max_snapshot_js_object_id_;
-  }
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
@@ -688,7 +687,6 @@ class HeapSnapshot {
   List<HeapEntry*> entries_;
   bool entries_sorted_;
   size_t raw_entries_size_;
-  SnapshotObjectId max_snapshot_js_object_id_;
 
   friend class HeapSnapshotTester;
 
