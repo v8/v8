@@ -462,6 +462,9 @@ void Time::SetToCurrentTime() {
   // Check if we need to resync due to elapsed time.
   needs_resync |= (time_now.t_ - init_time.t_) > kMaxClockElapsedTime;
 
+  // Check if we need to resync due to backwards time change.
+  needs_resync |= time_now.t_ < init_time.t_;
+
   // Resync the clock if necessary.
   if (needs_resync) {
     GetSystemTimeAsFileTime(&init_time.ft_);
