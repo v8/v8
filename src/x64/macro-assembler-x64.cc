@@ -799,15 +799,8 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 }
 
 
-#define REG(Name) { kRegister_ ## Name ## _Code }
-
-static const Register saved_regs[] = {
-  REG(rax), REG(rcx), REG(rdx), REG(rbx), REG(rbp), REG(rsi), REG(rdi), REG(r8),
-  REG(r9), REG(r10), REG(r11)
-};
-
-#undef REG
-
+static const Register saved_regs[] =
+    { rax, rcx, rdx, rbx, rbp, rsi, rdi, r8, r9, r10, r11 };
 static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
 
@@ -2425,8 +2418,7 @@ void MacroAssembler::Dropad() {
 
 // Order general registers are pushed by Pushad:
 // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
-const int
-MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
+int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     0,
     1,
     2,

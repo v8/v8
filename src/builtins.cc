@@ -1567,30 +1567,30 @@ struct BuiltinDesc {
   BuiltinExtraArguments extra_args;
 };
 
-#define BUILTIN_FUNCTION_TABLE_INIT { V8_ONCE_INIT, {} }
-
 class BuiltinFunctionTable {
  public:
-  BuiltinDesc* functions() {
-    CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
-    return functions_;
+  BuiltinFunctionTable() {
+    Builtins::InitBuiltinFunctionTable();
   }
 
-  OnceType once_;
-  BuiltinDesc functions_[Builtins::builtin_count + 1];
+  static const BuiltinDesc* functions() { return functions_; }
+
+ private:
+  static BuiltinDesc functions_[Builtins::builtin_count + 1];
 
   friend class Builtins;
 };
 
-static BuiltinFunctionTable builtin_function_table =
-    BUILTIN_FUNCTION_TABLE_INIT;
+BuiltinDesc BuiltinFunctionTable::functions_[Builtins::builtin_count + 1];
+
+static const BuiltinFunctionTable builtin_function_table_init;
 
 // Define array of pointers to generators and C builtin functions.
 // We do this in a sort of roundabout way so that we can do the initialization
 // within the lexical scope of Builtins:: and within a context where
 // Code::Flags names a non-abstract type.
 void Builtins::InitBuiltinFunctionTable() {
-  BuiltinDesc* functions = builtin_function_table.functions_;
+  BuiltinDesc* functions = BuiltinFunctionTable::functions_;
   functions[builtin_count].generator = NULL;
   functions[builtin_count].c_code = NULL;
   functions[builtin_count].s_name = NULL;
@@ -1634,7 +1634,7 @@ void Builtins::SetUp(bool create_heap_objects) {
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
 
-  const BuiltinDesc* functions = builtin_function_table.functions();
+  const BuiltinDesc* functions = BuiltinFunctionTable::functions();
 
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful

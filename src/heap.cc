@@ -60,7 +60,8 @@
 namespace v8 {
 namespace internal {
 
-static LazyMutex gc_initializer_mutex = LAZY_MUTEX_INITIALIZER;
+
+static Mutex* gc_initializer_mutex = OS::CreateMutex();
 
 
 Heap::Heap()
@@ -5865,7 +5866,7 @@ bool Heap::SetUp(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  gc_initializer_mutex.Pointer()->Lock();
+  gc_initializer_mutex->Lock();
   static bool initialized_gc = false;
   if (!initialized_gc) {
       initialized_gc = true;
@@ -5873,7 +5874,7 @@ bool Heap::SetUp(bool create_heap_objects) {
       NewSpaceScavenger::Initialize();
       MarkCompactCollector::Initialize();
   }
-  gc_initializer_mutex.Pointer()->Unlock();
+  gc_initializer_mutex->Unlock();
 
   MarkMapPointersAsEncoded(false);
 

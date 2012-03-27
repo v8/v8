@@ -31,7 +31,6 @@
 #include "deoptimizer.h"
 #include "frames-inl.h"
 #include "full-codegen.h"
-#include "lazy-instance.h"
 #include "mark-compact.h"
 #include "safepoint-table.h"
 #include "scopeinfo.h"
@@ -1381,12 +1380,12 @@ struct JSCallerSavedCodeData {
 };
 
 
-static LazyInstance<JSCallerSavedCodeData>::type caller_saved_code_data =
-    LAZY_INSTANCE_INITIALIZER;
+static const JSCallerSavedCodeData kCallerSavedCodeData;
+
 
 int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
-  return caller_saved_code_data.Get().reg_code[n];
+  return kCallerSavedCodeData.reg_code[n];
 }
 
 
