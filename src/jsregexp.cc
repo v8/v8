@@ -4226,7 +4226,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
     // as a "singleton block").
     unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int pos = bottom;
-    while (pos < top) {
+    while (pos <= top) {
       int length = isolate->jsregexp_canonrange()->get(pos, '\0', range);
       uc16 block_end;
       if (length == 0) {
