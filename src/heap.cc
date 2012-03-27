@@ -1953,7 +1953,7 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->set_ic_total_count(0);
-  info->set_ic_with_typeinfo_count(0);
+  info->set_ic_with_type_info_count(0);
   info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
                                 SKIP_WRITE_BARRIER);
   return info;
@@ -2899,7 +2899,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_deopt_counter(FLAG_deopt_every_n_times);
-  share->set_profiler_ticks(0);
   share->set_ic_age(0);
 
   // Set integer fields (smi or int, depending on the architecture).

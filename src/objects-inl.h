@@ -3073,6 +3073,19 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 }
 
 
+int Code::profiler_ticks() {
+  ASSERT(kind() == FUNCTION);
+  return READ_BYTE_FIELD(this, kProfilerTicksOffset);
+}
+
+
+void Code::set_profiler_ticks(int ticks) {
+  ASSERT(kind() == FUNCTION);
+  ASSERT(ticks < 256);
+  WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+}
+
+
 unsigned Code::stack_slots() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
   return READ_UINT32_FIELD(this, kStackSlotsOffset);
@@ -3492,6 +3505,7 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
 
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -3542,8 +3556,6 @@ SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
-SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -3597,11 +3609,6 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
-
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
-                        profiler_ticks,
-                        kProfilerTicksOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, ic_age, kICAgeOffset)
 #endif
 
 
@@ -4805,7 +4812,7 @@ Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
 
 
 SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
-SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
+SMI_ACCESSORS(TypeFeedbackInfo, ic_with_type_info_count,
               kIcWithTypeinfoCountOffset)
 ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)

@@ -65,6 +65,12 @@ static const int kSizeLimit = 1500;
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;
+// If a function does not have enough type info (according to
+// FLAG_type_info_threshold), but has seen a huge number of ticks,
+// optimize it as it is.
+static const int kTicksWhenNotEnoughTypeInfo = 100;
+// We only have one byte to store the number of ticks.
+STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
@@ -105,20 +111,20 @@ void RuntimeProfiler::GlobalSetup() {
 
 
 static void GetICCounts(JSFunction* function,
-                        int* ic_with_typeinfo_count,
+                        int* ic_with_type_info_count,
                         int* ic_total_count,
                         int* percentage) {
   *ic_total_count = 0;
-  *ic_with_typeinfo_count = 0;
+  *ic_with_type_info_count = 0;
   Object* raw_info =
       function->shared()->code()->type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
-    *ic_with_typeinfo_count = info->ic_with_typeinfo_count();
+    *ic_with_type_info_count = info->ic_with_type_info_count();
     *ic_total_count = info->ic_total_count();
   }
   *percentage = *ic_total_count > 0
-      ? 100 * *ic_with_typeinfo_count / *ic_total_count
+      ? 100 * *ic_with_type_info_count / *ic_total_count
       : 100;
 }
 
@@ -257,13 +263,14 @@ void RuntimeProfiler::OptimizeNow() {
       }
     }
 
-    if (function->IsMarkedForLazyRecompilation() &&
-        function->shared()->code()->kind() == Code::FUNCTION) {
-      Code* unoptimized = function->shared()->code();
-      int nesting = unoptimized->allow_osr_at_loop_nesting_level();
+    Code* shared_code = function->shared()->code();
+    if (shared_code->kind() != Code::FUNCTION) continue;
+
+    if (function->IsMarkedForLazyRecompilation()) {
+      int nesting = shared_code->allow_osr_at_loop_nesting_level();
       if (nesting == 0) AttemptOnStackReplacement(function);
       int new_nesting = Min(nesting + 1, Code::kMaxLoopNestingMarker);
-      unoptimized->set_allow_osr_at_loop_nesting_level(new_nesting);
+      shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
     }
 
     // Do not record non-optimizable functions.
@@ -281,7 +288,7 @@ void RuntimeProfiler::OptimizeNow() {
     }
 
     if (FLAG_watch_ic_patching) {
-      int ticks = function->shared()->profiler_ticks();
+      int ticks = shared_code->profiler_ticks();
 
       if (ticks >= kProfilerTicksBeforeOptimization) {
         int typeinfo, total, percentage;
@@ -290,12 +297,10 @@ void RuntimeProfiler::OptimizeNow() {
           // If this particular function hasn't had any ICs patched for enough
           // ticks, optimize it now.
           Optimize(function, "hot and stable");
-        } else if (ticks >= 100) {
-          // If this function does not have enough type info, but has
-          // seen a huge number of ticks, optimize it as it is.
+        } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
           Optimize(function, "not much type info but very hot");
         } else {
-          function->shared()->set_profiler_ticks(ticks + 1);
+          shared_code->set_profiler_ticks(ticks + 1);
           if (FLAG_trace_opt_verbose) {
             PrintF("[not yet optimizing ");
             function->PrintName();
@@ -304,7 +309,7 @@ void RuntimeProfiler::OptimizeNow() {
           }
         }
       } else if (!any_ic_changed_ &&
-          function->shared()->code()->instruction_size() < kMaxSizeEarlyOpt) {
+          shared_code->instruction_size() < kMaxSizeEarlyOpt) {
         // If no IC was patched since the last tick and this function is very
         // small, optimistically optimize it now.
         Optimize(function, "small function");
@@ -317,7 +322,7 @@ void RuntimeProfiler::OptimizeNow() {
         // then type info might already be stable and we can optimize now.
         Optimize(function, "stable on startup");
       } else {
-        function->shared()->set_profiler_ticks(ticks + 1);
+        shared_code->set_profiler_ticks(ticks + 1);
       }
     } else {  // !FLAG_watch_ic_patching
       samples[sample_count++] = function;

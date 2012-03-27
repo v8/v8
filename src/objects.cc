@@ -7871,9 +7871,9 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   code()->ClearInlineCaches();
+  code()->set_profiler_ticks(0);
   set_ic_age(new_ic_age);
   set_opt_count(0);
-  set_profiler_ticks(0);
 }
 
 
