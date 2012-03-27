@@ -427,6 +427,11 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
   if (data == NULL && length != 0) {
+    // Make sure the total size fits into a (signed) int.
+    static const int kMaxSize = 0x7fffffff;
+    if (length > (kMaxSize - sizeof(size_t)) / element_size) {
+      return ThrowException(String::New("Array exceeds maximum size (2G)"));
+    }
     // Prepend the size of the allocated chunk to the data itself.
     int total_size = length * element_size + sizeof(size_t);
     data = malloc(total_size);
@@ -460,7 +465,7 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   if (data != NULL && !prop_value->IsObject()) {
     data = reinterpret_cast<size_t*>(data) - 1;
     V8::AdjustAmountOfExternalAllocatedMemory(
-        -(*reinterpret_cast<size_t*>(data)));
+        -static_cast<int>(*reinterpret_cast<size_t*>(data)));
     free(data);
   }
   object.Dispose();
