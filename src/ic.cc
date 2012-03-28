@@ -1374,7 +1374,7 @@ MaybeObject* StoreIC::Store(State state,
       // Strict mode doesn't allow setting non-existent global property
       // or an assignment to a read only property.
       if (strict_mode == kStrictMode) {
-        if (lookup.IsFound() && lookup.IsReadOnly()) {
+        if (lookup.IsProperty() && lookup.IsReadOnly()) {
           return TypeError("strict_read_only_property", object, name);
         } else if (IsContextual(object)) {
           return ReferenceError("not_defined", name);
