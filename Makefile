@@ -211,31 +211,37 @@ clean: $(addsuffix .clean,$(ARCHES)) native.clean
 
 # GYP file generation targets.
 $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=ia32 \
 	              -S-ia32 $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-x64: $(GYPFILES) $(ENVFILE)
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
 	              -S-x64 $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE) build/armu.gypi
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
 	              -S-arm $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/mipsu.gypi \
 	              -S-mips $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
 
 $(OUTDIR)/Makefile-android: $(GYPFILES) $(ENVFILE) build/android.gypi \
                             must-set-ANDROID_NDK_ROOT
+	GYP_GENERATORS=make \
 	CC="${ANDROID_TOOL_PREFIX}-gcc" \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
