@@ -127,17 +127,15 @@ double modulo(double x, double y) {
 }
 
 
-static Mutex* math_function_mutex = OS::CreateMutex();
-
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
+V8_DECLARE_ONCE(fast_##name##_init_once);                \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
 double fast_##name(double x) {                           \
-  if (fast_##name##_function == NULL) {                  \
-    ScopedLock lock(math_function_mutex);                \
-    UnaryMathFunction temp = generator;                  \
-    MemoryBarrier();                                     \
-    fast_##name##_function = temp;                       \
-  }                                                      \
+  CallOnce(&fast_##name##_init_once,                     \
+           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 
@@ -307,14 +305,14 @@ int OS::VSNPrintF(Vector<char> str,
 
 #if defined(V8_TARGET_ARCH_IA32)
 static OS::MemCopyFunction memcopy_function = NULL;
-static Mutex* memcopy_function_mutex = OS::CreateMutex();
+static LazyMutex memcopy_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-ia32.cc.
 OS::MemCopyFunction CreateMemCopyFunction();
 
 // Copy memory area to disjoint memory area.
 void OS::MemCopy(void* dest, const void* src, size_t size) {
   if (memcopy_function == NULL) {
-    ScopedLock lock(memcopy_function_mutex);
+    ScopedLock lock(memcopy_function_mutex.Pointer());
     if (memcopy_function == NULL) {
       OS::MemCopyFunction temp = CreateMemCopyFunction();
       MemoryBarrier();
