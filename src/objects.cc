@@ -7873,6 +7873,11 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   code()->ClearInlineCaches();
   code()->set_profiler_ticks(0);
   set_ic_age(new_ic_age);
+  if (optimization_disabled() && opt_count() >= Compiler::kDefaultMaxOptCount) {
+    // Re-enable optimizations if they were disabled due to opt_count limit.
+    set_optimization_disabled(false);
+    code()->set_optimizable(true);
+  }
   set_opt_count(0);
 }
 
