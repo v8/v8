@@ -645,6 +645,7 @@ class HeapSnapshot {
   HeapEntry* gc_subroot(int index) { return gc_subroot_entries_[index]; }
   List<HeapEntry*>* entries() { return &entries_; }
   size_t raw_entries_size() { return raw_entries_size_; }
+  void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
   }
@@ -704,6 +705,9 @@ class HeapObjectsMap {
   void SnapshotGenerationFinished();
   SnapshotObjectId FindObject(Address addr);
   void MoveObject(Address from, Address to);
+  SnapshotObjectId last_assigned_id() const {
+    return next_id_ - kObjectIdStep;
+  }
 
   static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
@@ -768,6 +772,9 @@ class HeapSnapshotsCollection {
   SnapshotObjectId GetObjectId(Address addr) { return ids_.FindObject(addr); }
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
+  SnapshotObjectId last_assigned_id() const {
+    return ids_.last_assigned_id();
+  }
 
  private:
   INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {

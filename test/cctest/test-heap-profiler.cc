@@ -424,12 +424,9 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(s2_str);
 
-  // Second snapshot has one more string, it is it's name 's2'.
-  CHECK(
-    snapshot1->GetMaxSnapshotJSObjectId() <=
-    snapshot2->GetMaxSnapshotJSObjectId() &&
-    snapshot2->GetMaxSnapshotJSObjectId() <=
-    snapshot1->GetMaxSnapshotJSObjectId() + i::HeapObjectsMap::kObjectIdStep);
+  CHECK(snapshot1->GetMaxSnapshotJSObjectId() > 7000);
+  CHECK(snapshot1->GetMaxSnapshotJSObjectId() <=
+        snapshot2->GetMaxSnapshotJSObjectId());
 
   const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);

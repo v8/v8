@@ -1158,6 +1158,11 @@ void HeapSnapshot::Delete() {
 }
 
 
+void HeapSnapshot::RememberLastJSObjectId() {
+  max_snapshot_js_object_id_ = collection_->last_assigned_id();
+}
+
+
 void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
@@ -1224,11 +1229,6 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   int retainers_count) {
   HeapEntry* entry = GetNextEntryToInit();
   entry->Init(this, type, name, id, size, children_count, retainers_count);
-
-  // Track only js objects. They have odd ids.
-  if (id % HeapObjectsMap::kObjectIdStep && id > max_snapshot_js_object_id_)
-    max_snapshot_js_object_id_ = id;
-
   return entry;
 }
 
@@ -3110,6 +3110,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
   // Pass 2. Fill references.
   if (!FillReferences()) return false;
+
+  snapshot_->RememberLastJSObjectId();
 
   if (!SetEntriesDominators()) return false;
   if (!CalculateRetainedSizes()) return false;
