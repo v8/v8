@@ -512,6 +512,16 @@ void RegisteredExtension::Register(RegisteredExtension* that) {
 }
 
 
+void RegisteredExtension::UnregisterAll() {
+  RegisteredExtension* re = first_extension_;
+  while (re != NULL) {
+    RegisteredExtension* next = re->next();
+    delete re;
+    re = next;
+  }
+}
+
+
 void RegisterExtension(Extension* that) {
   RegisteredExtension* extension = new RegisteredExtension(that);
   RegisteredExtension::Register(extension);

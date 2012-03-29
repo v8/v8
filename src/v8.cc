@@ -106,6 +106,7 @@ void V8::TearDown() {
 
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
+  RegisteredExtension::UnregisterAll();
 
   isolate->TearDown();
   delete isolate;
