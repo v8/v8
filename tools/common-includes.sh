@@ -77,20 +77,27 @@ delete_branch() {
 persist() {
   local VARNAME=$1
   local FILE="$PERSISTFILE_BASENAME-$VARNAME"
-  echo "${!VARNAME}" > $FILE
+  local VALUE="${!VARNAME}"
+  if [ -z "$VALUE" ] ; then
+    VALUE="__EMPTY__"
+  fi
+  echo "$VALUE" > $FILE
 }
 
 restore() {
   local VARNAME=$1
   local FILE="$PERSISTFILE_BASENAME-$VARNAME"
   local VALUE="$(cat $FILE)"
+  [[ -z "$VALUE" ]] && die "Variable '$VARNAME' could not be restored."
+  if [ "$VALUE" == "__EMPTY__" ] ; then
+    VALUE=""
+  fi
   eval "$VARNAME=\"$VALUE\""
 }
 
 restore_if_unset() {
   local VARNAME=$1
   [[ -z "${!VARNAME}" ]] && restore "$VARNAME"
-  [[ -z "${!VARNAME}" ]] && die "Variable '$VARNAME' could not be restored."
 }
 
 initial_environment_checks() {
