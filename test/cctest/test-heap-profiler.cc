@@ -424,7 +424,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(s2_str);
 
-  CHECK(snapshot1->GetMaxSnapshotJSObjectId() > 7000);
+  CHECK_GT(snapshot1->GetMaxSnapshotJSObjectId(), 7000);
   CHECK(snapshot1->GetMaxSnapshotJSObjectId() <=
         snapshot2->GetMaxSnapshotJSObjectId());
 
