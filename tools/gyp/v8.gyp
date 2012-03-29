@@ -360,7 +360,7 @@
             '../../src/jsregexp.h',
             '../../src/isolate.cc',
             '../../src/isolate.h',
-            '../../src/lazy-instance.h'
+            '../../src/lazy-instance.h',
             '../../src/list-inl.h',
             '../../src/list.h',
             '../../src/lithium.cc',
