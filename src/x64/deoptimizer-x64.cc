@@ -113,7 +113,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
 static const byte kJnsInstruction = 0x79;
 static const byte kJnsOffset = 0x1f;
-static const byte kJnsOffsetDebugCode = 0x53;
 static const byte kJaeInstruction = 0x73;
 static const byte kJaeOffset = 0x07;
 static const byte kCallInstruction = 0xe8;
@@ -146,15 +145,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   //
   if (FLAG_count_based_interrupts) {
     ASSERT_EQ(kJnsInstruction,       *(call_target_address - 3));
-    if (FLAG_debug_code) {
-      // FullCodeGenerator::EmitProfilingCounterReset() makes use of
-      // masm->Move(Operand&, Smi*), which generates additional code
-      // when FLAG_debug_code is set, so the jump offset is larger
-      // in that case.
-      ASSERT_EQ(kJnsOffsetDebugCode, *(call_target_address - 2));
-    } else {
-      ASSERT_EQ(kJnsOffset,          *(call_target_address - 2));
-    }
+    ASSERT_EQ(kJnsOffset,            *(call_target_address - 2));
   } else {
     ASSERT_EQ(kJaeInstruction,       *(call_target_address - 3));
     ASSERT_EQ(kJaeOffset,            *(call_target_address - 2));
@@ -184,12 +175,7 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
   ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   if (FLAG_count_based_interrupts) {
     *(call_target_address - 3) = kJnsInstruction;
-    if (FLAG_debug_code) {
-      // See comment above: larger jump offset if debug code is generated.
-      *(call_target_address - 2) = kJnsOffsetDebugCode;
-    } else {
-      *(call_target_address - 2) = kJnsOffset;
-    }
+    *(call_target_address - 2) = kJnsOffset;
   } else {
     *(call_target_address - 3) = kJaeInstruction;
     *(call_target_address - 2) = kJaeOffset;

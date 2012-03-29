@@ -315,8 +315,11 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     reset_value = 10;
   }
   __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
-  __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
-          Smi::FromInt(reset_value));
+  __ movq(kScratchRegister,
+          reinterpret_cast<uint64_t>(Smi::FromInt(reset_value)),
+          RelocInfo::NONE);
+  __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+          kScratchRegister);
 }
 
 
