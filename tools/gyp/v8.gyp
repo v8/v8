@@ -59,6 +59,11 @@
                 '../../src/v8dll-main.cc',
               ],
               'conditions': [
+                ['OS=="mac"', {
+                  'xcode_settings': {
+                    'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
+                  },
+                }],
                 ['OS=="win"', {
                   'defines': [
                     'BUILDING_V8_SHARED',
