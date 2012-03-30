@@ -205,7 +205,7 @@ class PrintablePrinter {
   const char* operator*() {
     if (character_ >= ' ' && character_ <= '~') {
       buffer_[0] = '(';
-      buffer_[1] = character_;
+      buffer_[1] = static_cast<char>(character_);
       buffer_[2] = ')';
       buffer_[3] = '\0';
     } else {
