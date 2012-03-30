@@ -191,7 +191,7 @@ struct LazyInstanceImpl {
         &once_,
         // Casts to void* are needed here to avoid breaking strict aliasing
         // rules.
-        reinterpret_cast<void (*)(void*)>(&InitInstance),
+        reinterpret_cast<void(*)(void*)>(&InitInstance),  // NOLINT
         reinterpret_cast<void*>(&storage_));
   }
 

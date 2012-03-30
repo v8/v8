@@ -214,7 +214,9 @@ UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
 
 void MathSetup() {
+#ifdef _WIN64
   init_modulo_function();
+#endif
   init_fast_sin_function();
   init_fast_cos_function();
   init_fast_tan_function();
