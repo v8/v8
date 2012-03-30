@@ -7869,6 +7869,19 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 }
 
 
+void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
+  code()->ClearInlineCaches();
+  code()->set_profiler_ticks(0);
+  set_ic_age(new_ic_age);
+  if (optimization_disabled() && opt_count() >= Compiler::kDefaultMaxOptCount) {
+    // Re-enable optimizations if they were disabled due to opt_count limit.
+    set_optimization_disabled(false);
+    code()->set_optimizable(true);
+  }
+  set_opt_count(0);
+}
+
+
 static void GetMinInobjectSlack(Map* map, void* data) {
   int slack = map->unused_property_fields();
   if (*reinterpret_cast<int*>(data) > slack) {
@@ -8113,6 +8126,21 @@ Map* Code::FindFirstMap() {
     if (object->IsMap()) return Map::cast(object);
   }
   return NULL;
+}
+
+
+void Code::ClearInlineCaches() {
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+             RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
+    if (target->is_inline_cache_stub()) {
+      IC::Clear(info->pc());
+    }
+  }
 }
 
 

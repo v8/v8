@@ -1133,7 +1133,8 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       gc_roots_entry_(NULL),
       natives_root_entry_(NULL),
       raw_entries_(NULL),
-      entries_sorted_(false) {
+      entries_sorted_(false),
+      max_snapshot_js_object_id_(0) {
   STATIC_CHECK(
       sizeof(HeapGraphEdge) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapGraphEdgeSize);
@@ -1154,6 +1155,11 @@ HeapSnapshot::~HeapSnapshot() {
 void HeapSnapshot::Delete() {
   collection_->RemoveSnapshot(this);
   delete this;
+}
+
+
+void HeapSnapshot::RememberLastJSObjectId() {
+  max_snapshot_js_object_id_ = collection_->last_assigned_id();
 }
 
 
@@ -3104,6 +3110,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
   // Pass 2. Fill references.
   if (!FillReferences()) return false;
+
+  snapshot_->RememberLastJSObjectId();
 
   if (!SetEntriesDominators()) return false;
   if (!CalculateRetainedSizes()) return false;

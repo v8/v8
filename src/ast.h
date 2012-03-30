@@ -270,6 +270,7 @@ class SmallMapList {
 
   void Reserve(int capacity) { list_.Reserve(capacity); }
   void Clear() { list_.Clear(); }
+  void Sort() { list_.Sort(); }
 
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }

@@ -66,16 +66,8 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 
 
 #ifndef __MINGW64_VERSION_MAJOR
-
-// Not sure this the correct interpretation of _mkgmtime
-time_t _mkgmtime(tm* timeptr) {
-  return mktime(timeptr);
-}
-
-
 #define _TRUNCATE 0
 #define STRUNCATE 80
-
 #endif  // __MINGW64_VERSION_MAJOR
 
 
@@ -149,14 +141,14 @@ static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
 static OS::MemCopyFunction memcopy_function = NULL;
-static Mutex* memcopy_function_mutex = OS::CreateMutex();
+static LazyMutex memcopy_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-ia32.cc.
 OS::MemCopyFunction CreateMemCopyFunction();
 
 // Copy memory area to disjoint memory area.
 void OS::MemCopy(void* dest, const void* src, size_t size) {
   if (memcopy_function == NULL) {
-    ScopedLock lock(memcopy_function_mutex);
+    ScopedLock lock(memcopy_function_mutex.Pointer());
     if (memcopy_function == NULL) {
       OS::MemCopyFunction temp = CreateMemCopyFunction();
       MemoryBarrier();
@@ -175,19 +167,16 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
 #ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
 static ModuloFunction modulo_function = NULL;
-static Mutex* modulo_function_mutex = OS::CreateMutex();
+V8_DECLARE_ONCE(modulo_function_init_once);
 // Defined in codegen-x64.cc.
 ModuloFunction CreateModuloFunction();
 
+void init_modulo_function() {
+  modulo_function = CreateModuloFunction();
+}
+
 double modulo(double x, double y) {
-  if (modulo_function == NULL) {
-    ScopedLock lock(modulo_function_mutex);
-    if (modulo_function == NULL) {
-      ModuloFunction temp = CreateModuloFunction();
-      MemoryBarrier();
-      modulo_function = temp;
-    }
-  }
+  CallOnce(&modulo_function_init_once, &init_modulo_function);
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   return (*modulo_function)(x, y);
@@ -208,17 +197,15 @@ double modulo(double x, double y) {
 #endif  // _WIN64
 
 
-static Mutex* math_function_mutex = OS::CreateMutex();
-
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
+V8_DECLARE_ONCE(fast_##name##_init_once);                \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
 double fast_##name(double x) {                           \
-  if (fast_##name##_function == NULL) {                  \
-    ScopedLock lock(math_function_mutex);                \
-    UnaryMathFunction temp = generator;                  \
-    MemoryBarrier();                                     \
-    fast_##name##_function = temp;                       \
-  }                                                      \
+  CallOnce(&fast_##name##_init_once,                     \
+           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 
@@ -475,6 +462,9 @@ void Time::SetToCurrentTime() {
   // Check if we need to resync due to elapsed time.
   needs_resync |= (time_now.t_ - init_time.t_) > kMaxClockElapsedTime;
 
+  // Check if we need to resync due to backwards time change.
+  needs_resync |= time_now.t_ < init_time.t_;
+
   // Resync the clock if necessary.
   if (needs_resync) {
     GetSystemTimeAsFileTime(&init_time.ft_);
@@ -516,11 +506,14 @@ int64_t Time::LocalOffset() {
   // Convert to local time, as struct with fields for day, hour, year, etc.
   tm posix_local_time_struct;
   if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
-  // Convert local time in struct to POSIX time as if it were a UTC time.
-  time_t local_posix_time = _mkgmtime(&posix_local_time_struct);
-  Time localtime(1000.0 * local_posix_time);
 
-  return localtime.Diff(&rounded_to_second);
+  if (posix_local_time_struct.tm_isdst > 0) {
+    return (tzinfo_.Bias + tzinfo_.DaylightBias) * -kMsPerMinute;
+  } else if (posix_local_time_struct.tm_isdst == 0) {
+    return (tzinfo_.Bias + tzinfo_.StandardBias) * -kMsPerMinute;
+  } else {
+    return tzinfo_.Bias * -kMsPerMinute;
+  }
 }
 
 
@@ -1961,7 +1954,7 @@ class SamplerThread : public Thread {
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
@@ -1972,7 +1965,7 @@ class SamplerThread : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -2058,7 +2051,7 @@ class SamplerThread : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static LazyMutex mutex_;
   static SamplerThread* instance_;
 
  private:
@@ -2066,7 +2059,7 @@ class SamplerThread : public Thread {
 };
 
 
-Mutex* SamplerThread::mutex_ = OS::CreateMutex();
+LazyMutex SamplerThread::mutex_ = LAZY_MUTEX_INITIALIZER;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 

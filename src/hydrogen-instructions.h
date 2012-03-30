@@ -85,7 +85,7 @@ class LChunkBuilder;
   V(Change)                                    \
   V(CheckFunction)                             \
   V(CheckInstanceType)                         \
-  V(CheckMap)                                  \
+  V(CheckMaps)                                 \
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
@@ -1998,14 +1998,9 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 };
 
 
-class HCheckMap: public HTemplateInstruction<2> {
+class HCheckMaps: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value,
-            Handle<Map> map,
-            HValue* typecheck = NULL,
-            CompareMapMode mode = REQUIRE_EXACT_MAP)
-      : map_(map),
-        mode_(mode) {
+  HCheckMaps(HValue* value, Handle<Map> map, HValue* typecheck = NULL) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -2013,14 +2008,49 @@ class HCheckMap: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
-    // If the map to check doesn't have the untransitioned elements, it must not
-    // be hoisted above TransitionElements instructions.
-    if (mode == REQUIRE_EXACT_MAP || !map->has_fast_smi_only_elements()) {
-      SetGVNFlag(kDependsOnElementsKind);
+    SetGVNFlag(kDependsOnElementsKind);
+    map_set()->Add(map);
+  }
+  HCheckMaps(HValue* value, SmallMapList* maps) {
+    SetOperandAt(0, value);
+    SetOperandAt(1, value);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnElementsKind);
+    for (int i = 0; i < maps->length(); i++) {
+      map_set()->Add(maps->at(i));
     }
-    has_element_transitions_ =
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL) != NULL ||
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL) != NULL;
+    map_set()->Sort();
+  }
+
+  static HCheckMaps* NewWithTransitions(HValue* object, Handle<Map> map) {
+    HCheckMaps* check_map = new HCheckMaps(object, map);
+    SmallMapList* map_set = check_map->map_set();
+
+    // If the map to check has the untransitioned elements, it can be hoisted
+    // above TransitionElements instructions.
+    if (map->has_fast_smi_only_elements()) {
+      check_map->ClearGVNFlag(kDependsOnElementsKind);
+    }
+
+    Map* transitioned_fast_element_map =
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL);
+    ASSERT(transitioned_fast_element_map == NULL ||
+           map->elements_kind() != FAST_ELEMENTS);
+    if (transitioned_fast_element_map != NULL) {
+      map_set->Add(Handle<Map>(transitioned_fast_element_map));
+    }
+    Map* transitioned_double_map =
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL);
+    ASSERT(transitioned_double_map == NULL ||
+           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    if (transitioned_double_map != NULL) {
+      map_set->Add(Handle<Map>(transitioned_double_map));
+    }
+    map_set->Sort();
+
+    return check_map;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2030,25 +2060,23 @@ class HCheckMap: public HTemplateInstruction<2> {
   virtual HType CalculateInferredType();
 
   HValue* value() { return OperandAt(0); }
-  Handle<Map> map() const { return map_; }
-  CompareMapMode mode() const { return mode_; }
+  SmallMapList* map_set() { return &map_set_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckMap)
+  DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
  protected:
   virtual bool DataEquals(HValue* other) {
-    HCheckMap* b = HCheckMap::cast(other);
-    // Two CheckMaps instructions are DataEqual if their maps are identical and
-    // they have the same mode. The mode comparison can be ignored if the map
-    // has no elements transitions.
-    return map_.is_identical_to(b->map()) &&
-        (b->mode() == mode() || !has_element_transitions_);
+    HCheckMaps* b = HCheckMaps::cast(other);
+    // Relies on the fact that map_set has been sorted before.
+    if (map_set()->length() != b->map_set()->length()) return false;
+    for (int i = 0; i < map_set()->length(); i++) {
+      if (!map_set()->at(i).is_identical_to(b->map_set()->at(i))) return false;
+    }
+    return true;
   }
 
  private:
-  bool has_element_transitions_;
-  Handle<Map> map_;
-  CompareMapMode mode_;
+  SmallMapList map_set_;
 };
 
 

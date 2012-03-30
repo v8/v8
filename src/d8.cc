@@ -426,14 +426,25 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   }
 
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
-  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
-  persistent_array.MarkIndependent();
   if (data == NULL && length != 0) {
-    data = calloc(length, element_size);
+    // Make sure the total size fits into a (signed) int.
+    static const int kMaxSize = 0x7fffffff;
+    if (length > (kMaxSize - sizeof(size_t)) / element_size) {
+      return ThrowException(String::New("Array exceeds maximum size (2G)"));
+    }
+    // Prepend the size of the allocated chunk to the data itself.
+    int total_size = length * element_size + sizeof(size_t);
+    data = malloc(total_size);
     if (data == NULL) {
       return ThrowException(String::New("Memory allocation failed."));
     }
+    *reinterpret_cast<size_t*>(data) = total_size;
+    data = reinterpret_cast<size_t*>(data) + 1;
+    memset(data, 0, length * element_size);
+    V8::AdjustAmountOfExternalAllocatedMemory(total_size);
   }
+  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent();
 
   array->SetIndexedPropertiesToExternalArrayData(
       reinterpret_cast<uint8_t*>(data) + offset, type,
@@ -452,6 +463,9 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   Handle<Object> converted_object = object->ToObject();
   Local<Value> prop_value = converted_object->Get(prop_name);
   if (data != NULL && !prop_value->IsObject()) {
+    data = reinterpret_cast<size_t*>(data) - 1;
+    V8::AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<int>(*reinterpret_cast<size_t*>(data)));
     free(data);
   }
   object.Dispose();
@@ -977,8 +991,8 @@ void Shell::OnExit() {
     printf("+--------------------------------------------+-------------+\n");
     delete [] counters;
   }
-  if (counters_file_ != NULL)
-    delete counters_file_;
+  delete counters_file_;
+  delete counter_map_;
 }
 #endif  // V8_SHARED
 

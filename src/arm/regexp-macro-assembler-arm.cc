@@ -480,6 +480,44 @@ void RegExpMacroAssemblerARM::CheckNotCharacterAfterMinusAnd(
 }
 
 
+void RegExpMacroAssemblerARM::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmp(r0, Operand(to - from));
+  BranchOrBacktrack(ls, on_in_range);  // Unsigned lower-or-same condition.
+}
+
+
+void RegExpMacroAssemblerARM::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmp(r0, Operand(to - from));
+  BranchOrBacktrack(hi, on_not_in_range);  // Unsigned higher condition.
+}
+
+
+void RegExpMacroAssemblerARM::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ mov(r0, Operand(table));
+  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+    __ and_(r1, current_character(), Operand(kTableSize - 1));
+    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  } else {
+    __ add(r1,
+           current_character(),
+           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  }
+  __ ldrb(r0, MemOperand(r0, r1));
+  __ cmp(r0, Operand(0));
+  BranchOrBacktrack(ne, on_bit_set);
+}
+
+
 bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned

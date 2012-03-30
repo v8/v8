@@ -7582,7 +7582,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
     }
   }
   date->SetValue(value, is_value_nan);
-  return *date;
+  return value;
 }
 
 
@@ -8043,8 +8043,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   ASSERT(args.length() == 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
-  function->shared()->set_profiler_ticks(0);
-
   // If the function is not compiled ignore the lazy
   // recompilation. This can happen if the debugger is activated and
   // the function is returned to the not compiled state.
@@ -8067,6 +8065,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
+  function->shared()->code()->set_profiler_ticks(0);
   if (JSFunction::CompileOptimized(function,
                                    AstNode::kNoNumber,
                                    CLEAR_EXCEPTION)) {
@@ -8358,12 +8357,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF("]\n");
   }
   Handle<Code> check_code;
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     check_code = interrupt_stub.GetCode();
   } else  // NOLINT
-#endif
   {  // NOLINT
     StackCheckStub check_stub;
     check_code = check_stub.GetCode();

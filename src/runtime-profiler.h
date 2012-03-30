@@ -63,13 +63,6 @@ class RuntimeProfiler {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void NotifyCodeGenerated(int generated_code_size) {
-    if (FLAG_watch_ic_patching) {
-      code_generated_ = true;
-      total_code_generated_ += generated_code_size;
-    }
-  }
-
   // Rate limiting support.
 
   // VM thread interface.
@@ -130,13 +123,11 @@ class RuntimeProfiler {
 
   bool any_ic_changed_;
   bool code_generated_;
-  int total_code_generated_;
 
   // Possible state values:
   //   -1            => the profiler thread is waiting on the semaphore
   //   0 or positive => the number of isolates running JavaScript code.
   static Atomic32 state_;
-  static Semaphore* semaphore_;
 
 #ifdef DEBUG
   static bool has_been_globally_set_up_;

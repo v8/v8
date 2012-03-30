@@ -296,58 +296,44 @@ Failure* IC::ReferenceError(const char* type, Handle<String> name) {
 }
 
 
+static int ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state) {
+  bool was_uninitialized =
+      old_state == UNINITIALIZED || old_state == PREMONOMORPHIC;
+  bool is_uninitialized =
+      new_state == UNINITIALIZED || new_state == PREMONOMORPHIC;
+  return (was_uninitialized && !is_uninitialized) ?  1 :
+         (!was_uninitialized && is_uninitialized) ? -1 : 0;
+}
+
+
 void IC::PostPatching(Address address, Code* target, Code* old_target) {
-  if (FLAG_type_info_threshold > 0) {
-    if (old_target->is_inline_cache_stub() &&
-        target->is_inline_cache_stub()) {
-      State old_state = old_target->ic_state();
-      State new_state = target->ic_state();
-      bool was_uninitialized =
-          old_state == UNINITIALIZED || old_state == PREMONOMORPHIC;
-      bool is_uninitialized =
-          new_state == UNINITIALIZED || new_state == PREMONOMORPHIC;
-      int delta = 0;
-      if (was_uninitialized && !is_uninitialized) {
-        delta = 1;
-      } else if (!was_uninitialized && is_uninitialized) {
-        delta = -1;
-      }
-      if (delta != 0) {
-        Code* host = target->GetHeap()->isolate()->
-            inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
-        // Not all Code objects have TypeFeedbackInfo.
-        if (host->type_feedback_info()->IsTypeFeedbackInfo()) {
-          TypeFeedbackInfo* info =
-              TypeFeedbackInfo::cast(host->type_feedback_info());
-          info->set_ic_with_typeinfo_count(
-              info->ic_with_typeinfo_count() + delta);
-        }
-      }
+  if (FLAG_type_info_threshold == 0 && !FLAG_watch_ic_patching) {
+    return;
+  }
+  Code* host = target->GetHeap()->isolate()->
+      inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
+  if (host->kind() != Code::FUNCTION) return;
+
+  if (FLAG_type_info_threshold > 0 &&
+      old_target->is_inline_cache_stub() &&
+      target->is_inline_cache_stub()) {
+    int delta = ComputeTypeInfoCountDelta(old_target->ic_state(),
+                                          target->ic_state());
+    // Not all Code objects have TypeFeedbackInfo.
+    if (delta != 0 && host->type_feedback_info()->IsTypeFeedbackInfo()) {
+      TypeFeedbackInfo* info =
+          TypeFeedbackInfo::cast(host->type_feedback_info());
+      info->set_ic_with_type_info_count(
+          info->ic_with_type_info_count() + delta);
     }
   }
   if (FLAG_watch_ic_patching) {
+    host->set_profiler_ticks(0);
     Isolate::Current()->runtime_profiler()->NotifyICChanged();
-    // We do not want to optimize until the ICs have settled down,
-    // so when they are patched, we postpone optimization for the
-    // current function and the functions above it on the stack that
-    // might want to inline this one.
-    StackFrameIterator it;
-    if (it.done()) return;
-    it.Advance();
-    static const int kStackFramesToMark = Compiler::kMaxInliningLevels - 1;
-    for (int i = 0; i < kStackFramesToMark; ++i) {
-      if (it.done()) return;
-      StackFrame* raw_frame = it.frame();
-      if (raw_frame->is_java_script()) {
-        JSFunction* function =
-            JSFunction::cast(JavaScriptFrame::cast(raw_frame)->function());
-        if (function->IsOptimized()) continue;
-        SharedFunctionInfo* shared = function->shared();
-        shared->set_profiler_ticks(0);
-      }
-      it.Advance();
-    }
   }
+  // TODO(2029): When an optimized function is patched, it would
+  // be nice to propagate the corresponding type information to its
+  // unoptimized version for the benefit of later inlining.
 }
 
 
@@ -1374,7 +1360,7 @@ MaybeObject* StoreIC::Store(State state,
       // Strict mode doesn't allow setting non-existent global property
       // or an assignment to a read only property.
       if (strict_mode == kStrictMode) {
-        if (lookup.IsFound() && lookup.IsReadOnly()) {
+        if (lookup.IsProperty() && lookup.IsReadOnly()) {
           return TypeError("strict_read_only_property", object, name);
         } else if (IsContextual(object)) {
           return ReferenceError("not_defined", name);

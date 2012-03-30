@@ -965,16 +965,13 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMap::PrintDataTo(StringStream* stream) {
+void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" %p", *map());
-  if (mode() == REQUIRE_EXACT_MAP) {
-    stream->Add(" [EXACT]");
-  } else if (!has_element_transitions_) {
-    stream->Add(" [EXACT*]");
-  } else {
-    stream->Add(" [MATCH ELEMENTS]");
+  stream->Add(" [%p", *map_set()->first());
+  for (int i = 1; i < map_set()->length(); ++i) {
+    stream->Add(",%p", *map_set()->at(i));
   }
+  stream->Add("]");
 }
 
 
@@ -1879,7 +1876,7 @@ HType HValue::CalculateInferredType() {
 }
 
 
-HType HCheckMap::CalculateInferredType() {
+HType HCheckMaps::CalculateInferredType() {
   return value()->type();
 }
 

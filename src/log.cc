@@ -35,6 +35,7 @@
 #include "global-handles.h"
 #include "log.h"
 #include "macro-assembler.h"
+#include "platform.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
 #include "string-stream.h"
@@ -1728,13 +1729,14 @@ void Logger::EnableSlidingStateWindow() {
   }
 }
 
+// Protects the state below.
+static LazyMutex active_samplers_mutex = LAZY_MUTEX_INITIALIZER;
 
-Mutex* SamplerRegistry::mutex_ = OS::CreateMutex();
 List<Sampler*>* SamplerRegistry::active_samplers_ = NULL;
 
 
 bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
-  ScopedLock lock(mutex_);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   for (int i = 0;
        ActiveSamplersExist() && i < active_samplers_->length();
        ++i) {
@@ -1761,7 +1763,7 @@ SamplerRegistry::State SamplerRegistry::GetState() {
 
 void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
   ASSERT(sampler->IsActive());
-  ScopedLock lock(mutex_);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   if (active_samplers_ == NULL) {
     active_samplers_ = new List<Sampler*>;
   } else {
@@ -1773,7 +1775,7 @@ void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
 
 void SamplerRegistry::RemoveActiveSampler(Sampler* sampler) {
   ASSERT(sampler->IsActive());
-  ScopedLock lock(mutex_);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   ASSERT(active_samplers_ != NULL);
   bool removed = active_samplers_->RemoveElement(sampler);
   ASSERT(removed);

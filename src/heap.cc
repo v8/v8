@@ -60,8 +60,7 @@
 namespace v8 {
 namespace internal {
 
-
-static Mutex* gc_initializer_mutex = OS::CreateMutex();
+static LazyMutex gc_initializer_mutex = LAZY_MUTEX_INITIALIZER;
 
 
 Heap::Heap()
@@ -1954,7 +1953,7 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
     if (!maybe_info->To(&info)) return maybe_info;
   }
   info->set_ic_total_count(0);
-  info->set_ic_with_typeinfo_count(0);
+  info->set_ic_with_type_info_count(0);
   info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
                                 SKIP_WRITE_BARRIER);
   return info;
@@ -2898,9 +2897,9 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_deopt_counter(FLAG_deopt_every_n_times);
-  share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
+  share->set_deopt_counter(FLAG_deopt_every_n_times);
+  share->set_ic_age(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -5866,7 +5865,7 @@ bool Heap::SetUp(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  gc_initializer_mutex->Lock();
+  gc_initializer_mutex.Pointer()->Lock();
   static bool initialized_gc = false;
   if (!initialized_gc) {
       initialized_gc = true;
@@ -5874,7 +5873,7 @@ bool Heap::SetUp(bool create_heap_objects) {
       NewSpaceScavenger::Initialize();
       MarkCompactCollector::Initialize();
   }
-  gc_initializer_mutex->Unlock();
+  gc_initializer_mutex.Pointer()->Unlock();
 
   MarkMapPointersAsEncoded(false);
 

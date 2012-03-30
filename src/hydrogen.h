@@ -1029,6 +1029,10 @@ class HGraphBuilder: public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
+  void HandlePolymorphicLoadNamedField(Property* expr,
+                                       HValue* object,
+                                       SmallMapList* types,
+                                       Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,

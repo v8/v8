@@ -512,6 +512,16 @@ void RegisteredExtension::Register(RegisteredExtension* that) {
 }
 
 
+void RegisteredExtension::UnregisterAll() {
+  RegisteredExtension* re = first_extension_;
+  while (re != NULL) {
+    RegisteredExtension* next = re->next();
+    delete re;
+    re = next;
+  }
+}
+
+
 void RegisterExtension(Extension* that) {
   RegisteredExtension* extension = new RegisteredExtension(that);
   RegisteredExtension::Register(extension);
@@ -4170,7 +4180,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 
 bool v8::V8::Initialize() {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  i::Isolate* isolate = i::Isolate::Current();
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
@@ -5063,7 +5073,7 @@ Local<Number> v8::Number::New(double value) {
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
@@ -5341,7 +5351,7 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
 
 
 Isolate* Isolate::GetCurrent() {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  i::Isolate* isolate = i::Isolate::Current();
   return reinterpret_cast<Isolate*>(isolate);
 }
 
@@ -6019,7 +6029,7 @@ Handle<String> HeapGraphNode::GetName() const {
 }
 
 
-uint64_t HeapGraphNode::GetId() const {
+SnapshotObjectId HeapGraphNode::GetId() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetId");
   return ToInternal(this)->id();
@@ -6134,11 +6144,11 @@ const HeapGraphNode* HeapSnapshot::GetRoot() const {
 }
 
 
-const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
+const HeapGraphNode* HeapSnapshot::GetNodeById(SnapshotObjectId id) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
-      ToInternal(this)->GetEntryById(static_cast<i::SnapshotObjectId>(id)));
+      ToInternal(this)->GetEntryById(id));
 }
 
 
@@ -6154,6 +6164,13 @@ const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->entries()->at(index));
+}
+
+
+SnapshotObjectId HeapSnapshot::GetMaxSnapshotJSObjectId() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetMaxSnapshotJSObjectId");
+  return ToInternal(this)->max_snapshot_js_object_id();
 }
 
 
