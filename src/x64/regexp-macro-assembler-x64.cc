@@ -572,6 +572,42 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
 }
 
 
+void RegExpMacroAssemblerX64::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ leal(rax, Operand(current_character(), -from));
+  __ cmpl(rax, Immediate(to - from));
+  BranchOrBacktrack(below_equal, on_in_range);
+}
+
+
+void RegExpMacroAssemblerX64::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ leal(rax, Operand(current_character(), -from));
+  __ cmpl(rax, Immediate(to - from));
+  BranchOrBacktrack(above, on_not_in_range);
+}
+
+
+void RegExpMacroAssemblerX64::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ Move(rax, table);
+  Register index = current_character();
+  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+    __ movq(rbx, current_character());
+    __ and_(rbx, Immediate(kTableMask));
+    index = rbx;
+  }
+  __ cmpb(FieldOperand(rax, index, times_1, ByteArray::kHeaderSize),
+          Immediate(0));
+  BranchOrBacktrack(not_equal, on_bit_set);
+}
+
+
 bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned

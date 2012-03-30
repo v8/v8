@@ -1534,6 +1534,357 @@ static inline bool EmitAtomLetter(Isolate* isolate,
 }
 
 
+static void EmitBoundaryTest(RegExpMacroAssembler* masm,
+                             int border,
+                             Label* fall_through,
+                             Label* above_or_equal,
+                             Label* below) {
+  if (below != fall_through) {
+    masm->CheckCharacterLT(border, below);
+    if (above_or_equal != fall_through) masm->GoTo(above_or_equal);
+  } else {
+    masm->CheckCharacterGT(border - 1, above_or_equal);
+  }
+}
+
+
+static void EmitDoubleBoundaryTest(RegExpMacroAssembler* masm,
+                                   int first,
+                                   int last,
+                                   Label* fall_through,
+                                   Label* in_range,
+                                   Label* out_of_range) {
+  if (in_range == fall_through) {
+    if (first == last) {
+      masm->CheckNotCharacter(first, out_of_range);
+    } else {
+      masm->CheckCharacterNotInRange(first, last, out_of_range);
+    }
+  } else {
+    if (first == last) {
+      masm->CheckCharacter(first, in_range);
+    } else {
+      masm->CheckCharacterInRange(first, last, in_range);
+    }
+    if (out_of_range != fall_through) masm->GoTo(out_of_range);
+  }
+}
+
+
+// even_label is for ranges[i] to ranges[i + 1] where i - start_index is even.
+// odd_label is for ranges[i] to ranges[i + 1] where i - start_index is odd.
+static void EmitUseLookupTable(
+    RegExpMacroAssembler* masm,
+    ZoneList<int>* ranges,
+    int start_index,
+    int end_index,
+    int min_char,
+    Label* fall_through,
+    Label* even_label,
+    Label* odd_label) {
+  static const int kSize = RegExpMacroAssembler::kTableSize;
+  static const int kMask = RegExpMacroAssembler::kTableMask;
+
+  int base = (min_char & ~kMask);
+  USE(base);
+
+  // Assert that everything is on one kTableSize page.
+  for (int i = start_index; i <= end_index; i++) {
+    ASSERT_EQ(ranges->at(i) & ~kMask, base);
+  }
+  ASSERT(start_index == 0 || (ranges->at(start_index - 1) & ~kMask) <= base);
+
+  char templ[kSize];
+  Label* on_bit_set;
+  Label* on_bit_clear;
+  int bit;
+  if (even_label == fall_through) {
+    on_bit_set = odd_label;
+    on_bit_clear = even_label;
+    bit = 1;
+  } else {
+    on_bit_set = even_label;
+    on_bit_clear = odd_label;
+    bit = 0;
+  }
+  for (int i = 0; i < (ranges->at(start_index) & kMask) && i < kSize; i++) {
+    templ[i] = bit;
+  }
+  int j = 0;
+  bit ^= 1;
+  for (int i = start_index; i < end_index; i++) {
+    for (j = (ranges->at(i) & kMask); j < (ranges->at(i + 1) & kMask); j++) {
+      templ[j] = bit;
+    }
+    bit ^= 1;
+  }
+  for (int i = j; i < kSize; i++) {
+    templ[i] = bit;
+  }
+  // TODO(erikcorry): Cache these.
+  Handle<ByteArray> ba = FACTORY->NewByteArray(kSize, TENURED);
+  for (int i = 0; i < kSize; i++) {
+    ba->set(i, templ[i]);
+  }
+  masm->CheckBitInTable(ba, on_bit_set);
+  if (on_bit_clear != fall_through) masm->GoTo(on_bit_clear);
+}
+
+
+static void CutOutRange(RegExpMacroAssembler* masm,
+                        ZoneList<int>* ranges,
+                        int start_index,
+                        int end_index,
+                        int cut_index,
+                        Label* even_label,
+                        Label* odd_label) {
+  bool odd = (((cut_index - start_index) & 1) == 1);
+  Label* in_range_label = odd ? odd_label : even_label;
+  Label dummy;
+  EmitDoubleBoundaryTest(masm,
+                         ranges->at(cut_index),
+                         ranges->at(cut_index + 1) - 1,
+                         &dummy,
+                         in_range_label,
+                         &dummy);
+  ASSERT(!dummy.is_linked());
+  // Cut out the single range by rewriting the array.  This creates a new
+  // range that is a merger of the two ranges on either side of the one we
+  // are cutting out.  The oddity of the labels is preserved.
+  for (int j = cut_index; j > start_index; j--) {
+    ranges->at(j) = ranges->at(j - 1);
+  }
+  for (int j = cut_index + 1; j < end_index; j++) {
+    ranges->at(j) = ranges->at(j + 1);
+  }
+}
+
+
+// Unicode case.  Split the search space into kSize spaces that are handled
+// with recursion.
+static void SplitSearchSpace(ZoneList<int>* ranges,
+                             int start_index,
+                             int end_index,
+                             int* new_start_index,
+                             int* new_end_index,
+                             int* border) {
+  static const int kSize = RegExpMacroAssembler::kTableSize;
+  static const int kMask = RegExpMacroAssembler::kTableMask;
+
+  int first = ranges->at(start_index);
+  int last = ranges->at(end_index) - 1;
+
+  *new_start_index = start_index;
+  *border = (ranges->at(start_index) & ~kMask) + kSize;
+  while (*new_start_index < end_index) {
+    if (ranges->at(*new_start_index) > *border) break;
+    (*new_start_index)++;
+  }
+  // new_start_index is the index of the first edge that is beyond the
+  // current kSize space.
+
+  // For very large search spaces we do a binary chop search of the non-ASCII
+  // space instead of just going to the end of the current kSize space.  The
+  // heuristics are complicated a little by the fact that any 128-character
+  // encoding space can be quickly tested with a table lookup, so we don't
+  // wish to do binary chop search at a smaller granularity than that.  A
+  // 128-character space can take up a lot of space in the ranges array if,
+  // for example, we only want to match every second character (eg. the lower
+  // case characters on some Unicode pages).
+  int binary_chop_index = (end_index + start_index) / 2;
+  // The first test ensures that we get to the code that handles the ASCII
+  // range with a single not-taken branch, speeding up this important
+  // character range (even non-ASCII charset-based text has spaces and
+  // punctuation).
+  if (*border - 1 > String::kMaxAsciiCharCode &&  // ASCII case.
+      end_index - start_index > (*new_start_index - start_index) * 2 &&
+      last - first > kSize * 2 &&
+      binary_chop_index > *new_start_index &&
+      ranges->at(binary_chop_index) >= first + 2 * kSize) {
+    int scan_forward_for_section_border = binary_chop_index;;
+    int new_border = (ranges->at(binary_chop_index) | kMask) + 1;
+
+    while (scan_forward_for_section_border < end_index) {
+      if (ranges->at(scan_forward_for_section_border) > new_border) {
+        *new_start_index = scan_forward_for_section_border;
+        *border = new_border;
+        break;
+      }
+      scan_forward_for_section_border++;
+    }
+  }
+
+  ASSERT(*new_start_index > start_index);
+  *new_end_index = *new_start_index - 1;
+  if (ranges->at(*new_end_index) == *border) {
+    (*new_end_index)--;
+  }
+  if (*border >= ranges->at(end_index)) {
+    *border = ranges->at(end_index);
+    *new_start_index = end_index;  // Won't be used.
+    *new_end_index = end_index - 1;
+  }
+}
+
+
+// Gets a series of segment boundaries representing a character class.  If the
+// character is in the range between an even and an odd boundary (counting from
+// start_index) then go to even_label, otherwise go to odd_label.  We already
+// know that the character is in the range of min_char to max_char inclusive.
+// Either label can be NULL indicating backtracking.  Either label can also be
+// equal to the fall_through label.
+static void GenerateBranches(RegExpMacroAssembler* masm,
+                             ZoneList<int>* ranges,
+                             int start_index,
+                             int end_index,
+                             uc16 min_char,
+                             uc16 max_char,
+                             Label* fall_through,
+                             Label* even_label,
+                             Label* odd_label) {
+  int first = ranges->at(start_index);
+  int last = ranges->at(end_index) - 1;
+
+  ASSERT_LT(min_char, first);
+
+  // Just need to test if the character is before or on-or-after
+  // a particular character.
+  if (start_index == end_index) {
+    EmitBoundaryTest(masm, first, fall_through, even_label, odd_label);
+    return;
+  }
+
+  // Another almost trivial case:  There is one interval in the middle that is
+  // different from the end intervals.
+  if (start_index + 1 == end_index) {
+    EmitDoubleBoundaryTest(
+        masm, first, last, fall_through, even_label, odd_label);
+    return;
+  }
+
+  // It's not worth using table lookup if there are very few intervals in the
+  // character class.
+  if (end_index - start_index <= 6) {
+    // It is faster to test for individual characters, so we look for those
+    // first, then try arbitrary ranges in the second round.
+    static int kNoCutIndex = -1;
+    int cut = kNoCutIndex;
+    for (int i = start_index; i < end_index; i++) {
+      if (ranges->at(i) == ranges->at(i + 1) - 1) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut == kNoCutIndex) cut = start_index;
+    CutOutRange(
+        masm, ranges, start_index, end_index, cut, even_label, odd_label);
+    ASSERT_GE(end_index - start_index, 2);
+    GenerateBranches(masm,
+                     ranges,
+                     start_index + 1,
+                     end_index - 1,
+                     min_char,
+                     max_char,
+                     fall_through,
+                     even_label,
+                     odd_label);
+    return;
+  }
+
+  // If there are a lot of intervals in the regexp, then we will use tables to
+  // determine whether the character is inside or outside the character class.
+  static const int kBits = RegExpMacroAssembler::kTableSizeBits;
+
+  if ((max_char >> kBits) == (min_char >> kBits)) {
+    EmitUseLookupTable(masm,
+                       ranges,
+                       start_index,
+                       end_index,
+                       min_char,
+                       fall_through,
+                       even_label,
+                       odd_label);
+    return;
+  }
+
+  if ((min_char >> kBits) != (first >> kBits)) {
+    masm->CheckCharacterLT(first, odd_label);
+    GenerateBranches(masm,
+                     ranges,
+                     start_index + 1,
+                     end_index,
+                     first,
+                     max_char,
+                     fall_through,
+                     odd_label,
+                     even_label);
+    return;
+  }
+
+  int new_start_index = 0;
+  int new_end_index = 0;
+  int border = 0;
+
+  SplitSearchSpace(ranges,
+                   start_index,
+                   end_index,
+                   &new_start_index,
+                   &new_end_index,
+                   &border);
+
+  Label handle_rest;
+  Label* above = &handle_rest;
+  if (border == last + 1) {
+    // We didn't find any section that started after the limit, so everything
+    // above the border is one of the terminal labels.
+    above = (end_index & 1) != (start_index & 1) ? odd_label : even_label;
+    ASSERT(new_end_index == end_index - 1);
+  }
+
+  ASSERT_LE(start_index, new_end_index);
+  ASSERT_LE(new_start_index, end_index);
+  ASSERT_LT(start_index, new_start_index);
+  ASSERT_LT(new_end_index, end_index);
+  ASSERT(new_end_index + 1 == new_start_index ||
+         (new_end_index + 2 == new_start_index &&
+          border == ranges->at(new_end_index + 1)));
+  ASSERT_LT(min_char, border - 1);
+  ASSERT_LT(border, max_char);
+  ASSERT_LT(ranges->at(new_end_index), border);
+  ASSERT(border < ranges->at(new_start_index) ||
+         (border == ranges->at(new_start_index) &&
+          new_start_index == end_index &&
+          new_end_index == end_index - 1 &&
+          border == last + 1));
+  ASSERT(new_start_index == 0 || border >= ranges->at(new_start_index - 1));
+
+  masm->CheckCharacterGT(border - 1, above);
+  Label dummy;
+  GenerateBranches(masm,
+                   ranges,
+                   start_index,
+                   new_end_index,
+                   min_char,
+                   border - 1,
+                   &dummy,
+                   even_label,
+                   odd_label);
+  if (handle_rest.is_linked()) {
+    masm->Bind(&handle_rest);
+    bool flip = (new_start_index & 1) != (start_index & 1);
+    GenerateBranches(masm,
+                     ranges,
+                     new_start_index,
+                     end_index,
+                     border,
+                     max_char,
+                     &dummy,
+                     flip ? odd_label : even_label,
+                     flip ? even_label : odd_label);
+  }
+}
+
+
 static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           RegExpCharacterClass* cc,
                           bool ascii,
@@ -1542,17 +1893,16 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           bool check_offset,
                           bool preloaded) {
   ZoneList<CharacterRange>* ranges = cc->ranges();
+  if (!CharacterRange::IsCanonical(ranges)) {
+    CharacterRange::Canonicalize(ranges);
+  }
+
   int max_char;
   if (ascii) {
     max_char = String::kMaxAsciiCharCode;
   } else {
     max_char = String::kMaxUtf16CodeUnit;
   }
-
-  Label success;
-
-  Label* char_is_in_class =
-      cc->is_negated() ? on_failure : &success;
 
   int range_count = ranges->length();
 
@@ -1567,8 +1917,6 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 
   if (last_valid_range < 0) {
     if (!cc->is_negated()) {
-      // TODO(plesner): We can remove this when the node level does our
-      // ASCII optimizations for us.
       macro_assembler->GoTo(on_failure);
     }
     if (check_offset) {
@@ -1577,6 +1925,18 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     return;
   }
 
+  if (last_valid_range == 0 &&
+      ranges->at(0).IsEverything(max_char)) {
+    if (cc->is_negated()) {
+      macro_assembler->GoTo(on_failure);
+    } else {
+      // This is a common case hit by non-anchored expressions.
+      if (check_offset) {
+        macro_assembler->CheckPosition(cp_offset, on_failure);
+      }
+    }
+    return;
+  }
   if (last_valid_range == 0 &&
       !cc->is_negated() &&
       ranges->at(0).IsEverything(max_char)) {
@@ -1597,64 +1957,43 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
       return;
   }
 
-  for (int i = 0; i < last_valid_range; i++) {
+
+  // A new list with ascending entries.  Each entry is a code unit
+  // where there is a boundary between code units that are part of
+  // the class and code units that are not.  Normally we insert an
+  // entry at zero which goes to the failure label, but if there
+  // was already one there we fall through for success on that entry.
+  // Subsequent entries have alternating meaning (success/failure).
+  ZoneList<int>* range_boundaries = new ZoneList<int>(last_valid_range);
+
+  bool zeroth_entry_is_failure = !cc->is_negated();
+
+  for (int i = 0; i <= last_valid_range; i++) {
     CharacterRange& range = ranges->at(i);
-    Label next_range;
-    uc16 from = range.from();
-    uc16 to = range.to();
-    if (from > max_char) {
-      continue;
-    }
-    if (to > max_char) to = max_char;
-    if (to == from) {
-      macro_assembler->CheckCharacter(to, char_is_in_class);
+    if (range.from() == 0) {
+      ASSERT_EQ(i, 0);
+      zeroth_entry_is_failure = !zeroth_entry_is_failure;
     } else {
-      if (from != 0) {
-        macro_assembler->CheckCharacterLT(from, &next_range);
-      }
-      if (to != max_char) {
-        macro_assembler->CheckCharacterLT(to + 1, char_is_in_class);
-      } else {
-        macro_assembler->GoTo(char_is_in_class);
-      }
+      range_boundaries->Add(range.from());
     }
-    macro_assembler->Bind(&next_range);
+    range_boundaries->Add(range.to() + 1);
+  }
+  int end_index = range_boundaries->length() - 1;
+  if (range_boundaries->at(end_index) > max_char) {
+    end_index--;
   }
 
-  CharacterRange& range = ranges->at(last_valid_range);
-  uc16 from = range.from();
-  uc16 to = range.to();
-
-  if (to > max_char) to = max_char;
-  ASSERT(to >= from);
-
-  if (to == from) {
-    if (cc->is_negated()) {
-      macro_assembler->CheckCharacter(to, on_failure);
-    } else {
-      macro_assembler->CheckNotCharacter(to, on_failure);
-    }
-  } else {
-    if (from != 0) {
-      if (cc->is_negated()) {
-        macro_assembler->CheckCharacterLT(from, &success);
-      } else {
-        macro_assembler->CheckCharacterLT(from, on_failure);
-      }
-    }
-    if (to != String::kMaxUtf16CodeUnit) {
-      if (cc->is_negated()) {
-        macro_assembler->CheckCharacterLT(to + 1, on_failure);
-      } else {
-        macro_assembler->CheckCharacterGT(to, on_failure);
-      }
-    } else {
-      if (cc->is_negated()) {
-        macro_assembler->GoTo(on_failure);
-      }
-    }
-  }
-  macro_assembler->Bind(&success);
+  Label fall_through;
+  GenerateBranches(macro_assembler,
+                   range_boundaries,
+                   0,  // start_index.
+                   end_index,
+                   0,  // min_char.
+                   max_char,
+                   &fall_through,
+                   zeroth_entry_is_failure ? &fall_through : on_failure,
+                   zeroth_entry_is_failure ? on_failure : &fall_through);
+  macro_assembler->Bind(&fall_through);
 }
 
 
