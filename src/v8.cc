@@ -260,6 +260,8 @@ void V8::InitializeOncePerProcessImpl() {
     use_crankshaft_ = false;
   }
 
+  OS::PostSetUp();
+
   RuntimeProfiler::GlobalSetup();
 
   ElementsAccessor::InitializeOncePerProcess();

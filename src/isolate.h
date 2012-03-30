@@ -430,25 +430,19 @@ class Isolate {
   // not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
     return reinterpret_cast<PerIsolateThreadData*>(
-        Thread::GetThreadLocal(per_isolate_thread_data_key()));
+        Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
-    const Thread::LocalStorageKey key = isolate_key();
     Isolate* isolate = reinterpret_cast<Isolate*>(
-        Thread::GetExistingThreadLocal(key));
-    if (!isolate) {
-      EnsureDefaultIsolate();
-      isolate = reinterpret_cast<Isolate*>(
-          Thread::GetExistingThreadLocal(key));
-    }
+        Thread::GetExistingThreadLocal(isolate_key_));
     ASSERT(isolate != NULL);
     return isolate;
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
-    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key()));
+    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
   }
 
   // Usually called by Init(), but can be called early e.g. to allow
@@ -470,7 +464,7 @@ class Isolate {
   // for legacy API reasons.
   void TearDown();
 
-  bool IsDefaultIsolate() const;
+  bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   // Ensures that process-wide resources and the default isolate have been
   // allocated. It is only necessary to call this method in rare cases, for
@@ -495,10 +489,14 @@ class Isolate {
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
-  static Thread::LocalStorageKey isolate_key();
+  static Thread::LocalStorageKey isolate_key() {
+    return isolate_key_;
+  }
 
   // Returns the key used to store process-wide thread IDs.
-  static Thread::LocalStorageKey thread_id_key();
+  static Thread::LocalStorageKey thread_id_key() {
+    return thread_id_key_;
+  }
 
   static Thread::LocalStorageKey per_isolate_thread_data_key();
 
@@ -1081,6 +1079,16 @@ class Isolate {
    private:
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
+
+  // This mutex protects highest_thread_id_, thread_data_table_ and
+  // default_isolate_.
+  static Mutex* process_wide_mutex_;
+
+  static Thread::LocalStorageKey per_isolate_thread_data_key_;
+  static Thread::LocalStorageKey isolate_key_;
+  static Thread::LocalStorageKey thread_id_key_;
+  static Isolate* default_isolate_;
+  static ThreadDataTable* thread_data_table_;
 
   void Deinit();
 
