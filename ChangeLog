@@ -1,3 +1,30 @@
+2012-03-30: Version 3.10.0
+
+        Fixed store IC writability check in strict mode
+        (Chromium issue 120099).
+
+        Resynchronize timers if the Windows system time was changed.
+        (Chromium issue 119815)
+
+        Removed "-mfloat-abi=hard" from host compiler cflags when building for
+        hardfp ARM
+        (https://code.google.com/p/chrome-os-partner/issues/detail?id=8539)
+
+        Fixed edge case for case independent regexp character classes
+        (issue 2032).
+
+        Reset function info counters after context disposal.
+        (Chromium issue 117767, V8 issue 1902)
+
+        Fixed missing write barrier in CopyObjectToObjectElements.
+        (Chromium issue 119926)
+
+        Fixed missing bounds check in HasElementImpl.
+        (Chromium issue 119925)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-23: Version 3.9.24
 
         Activated count-based profiler for ARM.
