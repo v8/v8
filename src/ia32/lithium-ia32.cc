@@ -2380,6 +2380,9 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->call_kind(),
                                                instr->is_construct());
+  if (instr->arguments() != NULL) {
+    inner->Bind(instr->arguments(), graph()->GetArgumentsObject());
+  }
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;
