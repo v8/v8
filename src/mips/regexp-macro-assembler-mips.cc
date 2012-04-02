@@ -482,6 +482,42 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
 }
 
 
+void RegExpMacroAssemblerMIPS::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ Subu(a0, current_character(), Operand(from));
+  // Unsigned lower-or-same condition.
+  BranchOrBacktrack(on_in_range, ls, a0, Operand(to - from));
+}
+
+
+void RegExpMacroAssemblerMIPS::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ Subu(a0, current_character(), Operand(from));
+  // Unsigned higher condition.
+  BranchOrBacktrack(on_not_in_range, hi, a0, Operand(to - from));
+}
+
+
+void RegExpMacroAssemblerMIPS::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ li(a0, Operand(table));
+  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+    __ And(a1, current_character(), Operand(kTableSize - 1));
+    __ Addu(a0, a0, a1);
+  } else {
+    __ Addu(a0, a0, current_character());
+  }
+
+  __ lbu(a0, MemOperand(a0, ByteArray::kHeaderSize - kHeapObjectTag));
+  BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
+}
+
+
 bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
