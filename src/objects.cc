@@ -3751,13 +3751,11 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
   MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
   StringDictionary* dictionary;
   if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
-  MaybeObject* store_result =
-      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
-                                 dictionary,
-                                 DONT_ENUM,
-                                 kNonStrictMode);
-  if (store_result->IsFailure()) return store_result;
-  return dictionary;
+  // Using AddProperty or SetPropertyPostInterceptor here could fail, because
+  // object might be non-extensible.
+  return HasFastProperties()
+      ? AddFastProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM)
+      : AddSlowProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM);
 }
 
 
