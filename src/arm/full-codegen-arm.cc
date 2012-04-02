@@ -3653,7 +3653,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ JumpIfInstanceTypeIsNotSequentialAscii(scratch1, scratch2, &bailout);
   __ ldr(scratch1, FieldMemOperand(string, SeqAsciiString::kLengthOffset));
-  __ add(string_length, string_length, Operand(scratch1));
+  __ add(string_length, string_length, Operand(scratch1), SetCC);
   __ b(vs, &bailout);
   __ cmp(element, elements_end);
   __ b(lt, &loop);
@@ -3690,7 +3690,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ b(ne, &bailout);
   __ tst(scratch2, Operand(0x80000000));
   __ b(ne, &bailout);
-  __ add(string_length, string_length, Operand(scratch2));
+  __ add(string_length, string_length, Operand(scratch2), SetCC);
   __ b(vs, &bailout);
   __ SmiUntag(string_length);
 
