@@ -513,7 +513,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
     __ Addu(a0, a0, current_character());
   }
 
-  __ lbu(a0, MemOperand(a0, ByteArray::kHeaderSize - kHeapObjectTag));
+  __ lbu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 

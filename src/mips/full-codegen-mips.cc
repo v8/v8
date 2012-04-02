@@ -2977,7 +2977,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     __ Move(f14, zero_reg, a1);
     // Subtract and store the result in the heap number.
     __ sub_d(f0, f12, f14);
-    __ sdc1(f0, MemOperand(s0, HeapNumber::kValueOffset - kHeapObjectTag));
+    __ sdc1(f0, FieldMemOperand(s0, HeapNumber::kValueOffset));
     __ mov(v0, s0);
   } else {
     __ PrepareCallCFunction(2, a0);
