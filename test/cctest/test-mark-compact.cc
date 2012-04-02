@@ -534,9 +534,9 @@ TEST(BootUpMemoryUse) {
     intptr_t booted_memory = MemoryInUse();
     if (sizeof(initial_memory) == 8) {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 3500 * 1024);  // 3396.
+        CHECK_LE(booted_memory - initial_memory, 3600 * 1024);  // 3396.
       } else {
-        CHECK_LE(booted_memory - initial_memory, 3500 * 1024);  // 3432.
+        CHECK_LE(booted_memory - initial_memory, 3600 * 1024);  // 3432.
       }
     } else {
       if (v8::internal::Snapshot::IsEnabled()) {
