@@ -452,8 +452,12 @@ void RegExpMacroAssemblerARM::CheckNotCharacter(unsigned c,
 void RegExpMacroAssemblerARM::CheckCharacterAfterAnd(uint32_t c,
                                                      uint32_t mask,
                                                      Label* on_equal) {
-  __ and_(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ and_(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(eq, on_equal);
 }
 
@@ -461,8 +465,12 @@ void RegExpMacroAssemblerARM::CheckCharacterAfterAnd(uint32_t c,
 void RegExpMacroAssemblerARM::CheckNotCharacterAfterAnd(unsigned c,
                                                         unsigned mask,
                                                         Label* on_not_equal) {
-  __ and_(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ and_(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(ne, on_not_equal);
 }
 

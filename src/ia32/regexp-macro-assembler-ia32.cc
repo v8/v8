@@ -504,8 +504,8 @@ void RegExpMacroAssemblerIA32::CheckCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ test(current_character(), Immediate(mask));
   } else {
-    __ mov(eax, current_character());
-    __ and_(eax, mask);
+    __ mov(eax, mask);
+    __ and_(eax, current_character());
     __ cmp(eax, c);
   }
   BranchOrBacktrack(equal, on_equal);
@@ -518,8 +518,8 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ test(current_character(), Immediate(mask));
   } else {
-    __ mov(eax, current_character());
-    __ and_(eax, mask);
+    __ mov(eax, mask);
+    __ and_(eax, current_character());
     __ cmp(eax, c);
   }
   BranchOrBacktrack(not_equal, on_not_equal);
@@ -569,8 +569,8 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
   __ mov(eax, Immediate(table));
   Register index = current_character();
   if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
-    __ mov(ebx, current_character());
-    __ and_(ebx, kTableSize - 1);
+    __ mov(ebx, kTableSize - 1);
+    __ and_(ebx, current_character());
     index = ebx;
   }
   __ cmpb(FieldOperand(eax, index, times_1, ByteArray::kHeaderSize), 0);
