@@ -637,7 +637,9 @@ class MemoryChunk {
   friend class MemoryAllocator;
 };
 
+
 STATIC_CHECK(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
@@ -950,11 +952,11 @@ class MemoryAllocator {
 
   void TearDown();
 
-  Page* AllocatePage(PagedSpace* owner, Executability executable);
+  Page* AllocatePage(
+      intptr_t size, PagedSpace* owner, Executability executable);
 
-  LargePage* AllocateLargePage(intptr_t object_size,
-                                      Executability executable,
-                                      Space* owner);
+  LargePage* AllocateLargePage(
+      intptr_t object_size, Space* owner, Executability executable);
 
   void Free(MemoryChunk* chunk);
 
@@ -1624,6 +1626,8 @@ class PagedSpace : public Space {
 
   // Maximum capacity of this space.
   intptr_t max_capacity_;
+
+  intptr_t SizeOfFirstPage();
 
   // Accounting information for this space.
   AllocationStats accounting_stats_;
