@@ -167,7 +167,6 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
 #ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
 static ModuloFunction modulo_function = NULL;
-V8_DECLARE_ONCE(modulo_function_init_once);
 // Defined in codegen-x64.cc.
 ModuloFunction CreateModuloFunction();
 
@@ -176,7 +175,6 @@ void init_modulo_function() {
 }
 
 double modulo(double x, double y) {
-  CallOnce(&modulo_function_init_once, &init_modulo_function);
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   return (*modulo_function)(x, y);
@@ -199,13 +197,10 @@ double modulo(double x, double y) {
 
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
-V8_DECLARE_ONCE(fast_##name##_init_once);                \
 void init_fast_##name##_function() {                     \
   fast_##name##_function = generator;                    \
 }                                                        \
 double fast_##name(double x) {                           \
-  CallOnce(&fast_##name##_init_once,                     \
-           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 
@@ -216,6 +211,18 @@ UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
 #undef MATH_FUNCTION
+
+
+void MathSetup() {
+#ifdef _WIN64
+  init_modulo_function();
+#endif
+  init_fast_sin_function();
+  init_fast_cos_function();
+  init_fast_tan_function();
+  init_fast_log_function();
+  init_fast_sqrt_function();
+}
 
 
 // ----------------------------------------------------------------------------
@@ -565,6 +572,13 @@ void OS::SetUp() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
+}
+
+
+void OS::PostSetUp() {
+  // Math functions depend on CPU features therefore they are initialized after
+  // CPU.
+  MathSetup();
 }
 
 

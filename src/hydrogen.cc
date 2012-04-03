@@ -5425,7 +5425,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
                                            arguments->length(),
                                            function,
                                            call_kind,
-                                           function_state()->is_construct()));
+                                           function_state()->is_construct(),
+                                           function->scope()->arguments()));
   // If the function uses arguments object create and bind one.
   if (function->scope()->arguments() != NULL) {
     ASSERT(function->scope()->arguments()->IsStackAllocated());

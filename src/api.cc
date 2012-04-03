@@ -4180,7 +4180,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 
 bool v8::V8::Initialize() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
@@ -5073,7 +5073,7 @@ Local<Number> v8::Number::New(double value) {
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
@@ -5351,7 +5351,7 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
 
 
 Isolate* Isolate::GetCurrent() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   return reinterpret_cast<Isolate*>(isolate);
 }
 
