@@ -145,7 +145,6 @@ Heap::Heap()
       number_idle_notifications_(0),
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
-      idle_notification_will_schedule_next_gc_(false),
       mark_sweeps_since_idle_round_started_(0),
       ms_count_at_last_idle_notification_(0),
       gc_count_at_last_idle_gc_(0),
@@ -504,11 +503,17 @@ bool Heap::CollectGarbage(AllocationSpace space,
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
-    if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+    // Make progress in incremental marking.
+    const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
+    incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,
+                                IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (!incremental_marking()->IsComplete()) {
+      if (FLAG_trace_incremental_marking) {
+        PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+      }
+      collector = SCAVENGER;
+      collector_reason = "incremental marking delaying mark-sweep";
     }
-    collector = SCAVENGER;
-    collector_reason = "incremental marking delaying mark-sweep";
   }
 
   bool next_gc_likely_to_collect_more = false;
@@ -4817,10 +4822,8 @@ void Heap::EnsureHeapIsIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
-  // This flag prevents incremental marking from requesting GC via stack guard
-  idle_notification_will_schedule_next_gc_ = true;
-  incremental_marking()->Step(step_size);
-  idle_notification_will_schedule_next_gc_ = false;
+  incremental_marking()->Step(step_size,
+                              IncrementalMarking::NO_GC_VIA_STACK_GUARD);
 
   if (incremental_marking()->IsComplete()) {
     bool uncommit = false;

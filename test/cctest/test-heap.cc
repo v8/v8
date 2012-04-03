@@ -1521,16 +1521,12 @@ TEST(InstanceOfStubWriteBarrier) {
 
   while (!Marking::IsBlack(Marking::MarkBitFrom(f->code())) &&
          !marking->IsStopped()) {
-    marking->Step(MB);
+    // Discard any pending GC requests otherwise we will get GC when we enter
+    // code below.
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   }
 
   CHECK(marking->IsMarking());
-
-  // Discard any pending GC requests otherwise we will get GC when we enter
-  // code below.
-  if (ISOLATE->stack_guard()->IsGCRequest()) {
-    ISOLATE->stack_guard()->Continue(GC_REQUEST);
-  }
 
   {
     v8::HandleScope scope;

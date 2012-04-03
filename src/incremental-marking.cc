@@ -743,7 +743,7 @@ void IncrementalMarking::Finalize() {
 }
 
 
-void IncrementalMarking::MarkingComplete() {
+void IncrementalMarking::MarkingComplete(CompletionAction action) {
   state_ = COMPLETE;
   // We will set the stack guard to request a GC now.  This will mean the rest
   // of the GC gets performed as soon as possible (we can't do a GC here in a
@@ -754,13 +754,14 @@ void IncrementalMarking::MarkingComplete() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
-  if (!heap_->idle_notification_will_schedule_next_gc()) {
+  if (action == GC_VIA_STACK_GUARD) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
 
 
-void IncrementalMarking::Step(intptr_t allocated_bytes) {
+void IncrementalMarking::Step(intptr_t allocated_bytes,
+                              CompletionAction action) {
   if (heap_->gc_state() != Heap::NOT_IN_GC ||
       !FLAG_incremental_marking ||
       !FLAG_incremental_marking_steps ||
@@ -833,7 +834,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       Marking::MarkBlack(obj_mark_bit);
       MemoryChunk::IncrementLiveBytesFromGC(obj->address(), size);
     }
-    if (marking_deque_.IsEmpty()) MarkingComplete();
+    if (marking_deque_.IsEmpty()) MarkingComplete(action);
   }
 
   allocated_ = 0;
