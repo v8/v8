@@ -1390,9 +1390,11 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_FLOAT_ARRAY_TYPE:
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       break;
-    case SHARED_FUNCTION_INFO_TYPE:
-      SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
+    case SHARED_FUNCTION_INFO_TYPE: {
+      SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(this);
+      shared->SharedFunctionInfoIterateBody(v);
       break;
+    }
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
         case NAME##_TYPE:
@@ -7926,6 +7928,12 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
+void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
+  v->VisitSharedFunctionInfo(this);
+  SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
+}
+
+
 #define DECLARE_TAG(ignore1, name, ignore2) name,
 const char* const VisitorSynchronization::kTags[
     VisitorSynchronization::kNumberOfSyncTags] = {
@@ -7982,7 +7990,6 @@ void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   VisitPointer(&target);
   CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
 }
-
 
 void ObjectVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);

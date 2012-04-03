@@ -1593,3 +1593,90 @@ TEST(PrototypeTransitionClearing) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
 }
+
+
+TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
+  i::FLAG_allow_natives_syntax = true;
+#ifdef DEBUG
+  i::FLAG_verify_heap = true;
+#endif
+  InitializeVM();
+  if (!i::V8::UseCrankshaft()) return;
+  v8::HandleScope outer_scope;
+
+  {
+    v8::HandleScope scope;
+    CompileRun(
+        "function f () {"
+        "  var s = 0;"
+        "  for (var i = 0; i < 100; i++)  s += i;"
+        "  return s;"
+        "}"
+        "f(); f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+  }
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+  CHECK(f->IsOptimized());
+
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  marking->Abort();
+  marking->Start();
+
+  // The following two calls will increment HEAP->global_ic_age().
+  const int kLongIdlePauseInMs = 1000;
+  v8::V8::ContextDisposedNotification();
+  v8::V8::IdleNotification(kLongIdlePauseInMs);
+
+  while (!marking->IsStopped() && !marking->IsComplete()) {
+    marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+
+  CHECK_EQ(HEAP->global_ic_age(), f->shared()->ic_age());
+  CHECK_EQ(0, f->shared()->opt_count());
+  CHECK_EQ(0, f->shared()->code()->profiler_ticks());
+}
+
+
+TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
+  i::FLAG_allow_natives_syntax = true;
+#ifdef DEBUG
+  i::FLAG_verify_heap = true;
+#endif
+  InitializeVM();
+  if (!i::V8::UseCrankshaft()) return;
+  v8::HandleScope outer_scope;
+
+  {
+    v8::HandleScope scope;
+    CompileRun(
+        "function f () {"
+        "  var s = 0;"
+        "  for (var i = 0; i < 100; i++)  s += i;"
+        "  return s;"
+        "}"
+        "f(); f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+  }
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+  CHECK(f->IsOptimized());
+
+  HEAP->incremental_marking()->Abort();
+
+  // The following two calls will increment HEAP->global_ic_age().
+  // Since incremental marking is off, IdleNotification will do full GC.
+  const int kLongIdlePauseInMs = 1000;
+  v8::V8::ContextDisposedNotification();
+  v8::V8::IdleNotification(kLongIdlePauseInMs);
+
+  CHECK_EQ(HEAP->global_ic_age(), f->shared()->ic_age());
+  CHECK_EQ(0, f->shared()->opt_count());
+  CHECK_EQ(0, f->shared()->code()->profiler_ticks());
+}

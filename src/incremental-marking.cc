@@ -205,6 +205,12 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
     MarkObject(target);
   }
 
+  void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {
+    if (shared->ic_age() != heap_->global_ic_age()) {
+      shared->ResetForNewContext(heap_->global_ic_age());
+    }
+  }
+
   void VisitPointer(Object** p) {
     Object* obj = *p;
     if (obj->NonFailureIsHeapObject()) {
