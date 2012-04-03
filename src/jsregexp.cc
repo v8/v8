@@ -108,6 +108,36 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
 }
 
 
+// More makes code generation slower, less makes V8 benchmark score lower.
+const int kMaxLookaheadForBoyerMoore = 8;
+// In a 3-character pattern you can maximally step forwards 3 characters
+// at a time, which is not always enough to pay for the extra logic.
+const int kPatternTooShortForBoyerMoore = 2;
+
+
+// Identifies the sort of regexps where the regexp engine is faster
+// than the code used for atom matches.
+static bool HasFewDifferentCharacters(Handle<String> pattern) {
+  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  if (length <= kPatternTooShortForBoyerMoore) return false;
+  const int kMod = 128;
+  bool character_found[kMod];
+  int different = 0;
+  memset(&character_found[0], 0, sizeof(character_found));
+  for (int i = 0; i < length; i++) {
+    int ch = (pattern->Get(i) & (kMod - 1));
+    if (!character_found[ch]) {
+      character_found[ch] = true;
+      different++;
+      // We declare a regexp low-alphabet if it has at least 3 times as many
+      // characters as it has different characters.
+      if (different * 3 > length) return false;
+    }
+  }
+  return true;
+}
+
+
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
@@ -141,9 +171,14 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return Handle<Object>::null();
   }
 
-  if (parse_result.simple && !flags.is_ignore_case()) {
+  bool has_been_compiled = false;
+
+  if (parse_result.simple &&
+      !flags.is_ignore_case() &&
+      !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
+    has_been_compiled = true;
   } else if (parse_result.tree->IsAtom() &&
       !flags.is_ignore_case() &&
       parse_result.capture_count == 0) {
@@ -151,8 +186,12 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string =
         isolate->factory()->NewStringFromTwoByte(atom_pattern);
-    AtomCompile(re, pattern, flags, atom_string);
-  } else {
+    if (!HasFewDifferentCharacters(atom_string)) {
+      AtomCompile(re, pattern, flags, atom_string);
+      has_been_compiled = true;
+    }
+  }
+  if (!has_been_compiled) {
     IrregexpInitialize(re, pattern, flags, parse_result.capture_count);
   }
   ASSERT(re->data()->IsFixedArray());
@@ -3429,6 +3468,7 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   return true;
 }
 
+
 /* Code generation for choice nodes.
  *
  * We generate quick checks that do a mask and compare to eliminate a
@@ -3507,7 +3547,6 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
  *        \______________/
  */
 
-
 void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   int choice_count = alternatives_->length();
@@ -3577,9 +3616,6 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   int eats_at_least = kEatsAtLeastNotYetInitialized;
 
   bool skip_was_emitted = false;
-
-  // More makes code generation slower, less makes V8 benchmark score lower.
-  const int kMaxLookaheadForBoyerMoore = 8;
 
   if (!greedy_loop && choice_count == 2) {
     GuardedAlternative alt1 = alternatives_->at(1);
