@@ -820,6 +820,9 @@ bool Debug::Load() {
           v8::Handle<ObjectTemplate>(),
           NULL);
 
+  // Fail if no context could be created.
+  if (context.is_null()) return false;
+
   // Use the debugger context.
   SaveContext save(isolate_);
   isolate_->set_context(*context);
