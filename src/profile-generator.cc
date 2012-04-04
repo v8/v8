@@ -3510,7 +3510,7 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 
 // This function won't work correctly for MIN_INT but this is not
 // a problem in case of heap snapshots serialization.
-static int itoa(int value, Vector<char>& buffer, int buffer_pos) {
+static int itoa(int value, const Vector<char>& buffer, int buffer_pos) {
   if (value < 0) {
     buffer[buffer_pos++] = '-';
     value = -value;
