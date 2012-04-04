@@ -5279,6 +5279,7 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
+  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddLeaveScriptCallback()")) return;
   i::V8::AddCallCompletedCallback(callback);
@@ -5286,6 +5287,7 @@ void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveLeaveScriptCallback()")) return;
   i::V8::RemoveCallCompletedCallback(callback);
