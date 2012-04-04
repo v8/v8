@@ -3353,9 +3353,7 @@ class OutputStreamWriter {
       MaybeWriteChunk();
     }
   }
-  void AddNumber(int n) { AddNumberImpl<int>(n, "%d"); }
   void AddNumber(unsigned n) { AddNumberImpl<unsigned>(n, "%u"); }
-  void AddNumber(uint64_t n) { AddNumberImpl<uint64_t>(n, "%llu"); }
   void Finalize() {
     if (aborted_) return;
     ASSERT(chunk_pos_ < chunk_size_);
@@ -3510,6 +3508,31 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 }
 
 
+// This function won't work correctly for MIN_INT but this is not
+// a problem in case of heap snapshots serialization.
+static int itoa(int value, Vector<char>& buffer, int buffer_pos) {
+  if (value < 0) {
+    buffer[buffer_pos++] = '-';
+    value = -value;
+  }
+
+  int number_of_digits = 0;
+  int t = value;
+  do {
+    ++number_of_digits;
+  } while (t /= 10);
+
+  buffer_pos += number_of_digits;
+  int result = buffer_pos;
+  do {
+    int last_digit = value % 10;
+    buffer[--buffer_pos] = '0' + last_digit;
+    value /= 10;
+  } while (value);
+  return result;
+}
+
+
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
   // The buffer needs space for 3 ints, 3 commas and \0
   static const int kBufferSize =
@@ -3519,13 +3542,14 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
       || edge->type() == HeapGraphEdge::kHidden
       || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
-  STATIC_CHECK(sizeof(int) == sizeof(edge->type()));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(edge_name_or_index));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(edge->to())));  // NOLINT
-  int result = OS::SNPrintF(buffer, ",%d,%d,%d",
-      edge->type(), edge_name_or_index, GetNodeId(edge->to()));
-  USE(result);
-  ASSERT(result != -1);
+  int buffer_pos = 0;
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(edge->type(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(edge_name_or_index, buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(GetNodeId(edge->to()), buffer, buffer_pos);
+  buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
 }
 
@@ -3538,23 +3562,23 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
       + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
-  STATIC_CHECK(sizeof(int) == sizeof(entry->type()));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(GetStringId(entry->name())));  // NOLINT
-  STATIC_CHECK(sizeof(unsigned) == sizeof(entry->id()));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(entry->self_size()));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(entry->retained_size()));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(entry->dominator())));  // NOLINT
-  STATIC_CHECK(sizeof(int) == sizeof(children.length()));  // NOLINT
-  int result = OS::SNPrintF(buffer, "\n,%d,%d,%u,%d,%d,%d,%d",
-      entry->type(),
-      GetStringId(entry->name()),
-      entry->id(),
-      entry->self_size(),
-      entry->retained_size(),
-      GetNodeId(entry->dominator()),
-      children.length());
-  USE(result);
-  ASSERT(result != -1);
+  int buffer_pos = 0;
+  buffer[buffer_pos++] = '\n';
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(entry->type(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(GetStringId(entry->name()), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(entry->id(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(entry->self_size(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(entry->retained_size(), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(GetNodeId(entry->dominator()), buffer, buffer_pos);
+  buffer[buffer_pos++] = ',';
+  buffer_pos = itoa(children.length(), buffer, buffer_pos);
+  buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
   for (int i = 0; i < children.length(); ++i) {
     SerializeEdge(&children[i]);
