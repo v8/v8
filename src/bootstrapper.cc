@@ -2295,6 +2295,12 @@ Genesis::Genesis(Isolate* isolate,
   HandleScope scope;
   SaveContext saved_context(isolate);
 
+  // During genesis, the boilerplate for stack overflow won't work until the
+  // environment has been at least partially initialized. Add a stack check
+  // before entering JS code to catch overflow early.
+  StackLimitCheck check(Isolate::Current());
+  if (check.HasOverflowed()) return;
+
   Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
   if (!new_context.is_null()) {
     global_context_ =
