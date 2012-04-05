@@ -42,6 +42,7 @@
 #include "natives.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
+#include "once.h"
 #include "runtime-profiler.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
@@ -59,8 +60,6 @@
 
 namespace v8 {
 namespace internal {
-
-static LazyMutex gc_initializer_mutex = LAZY_MUTEX_INITIALIZER;
 
 
 Heap::Heap()
@@ -5850,6 +5849,15 @@ class HeapDebugUtils {
 
 #endif
 
+
+V8_DECLARE_ONCE(initialize_gc_once);
+
+static void InitializeGCOnce() {
+  InitializeScavengingVisitorsTables();
+  NewSpaceScavenger::Initialize();
+  MarkCompactCollector::Initialize();
+}
+
 bool Heap::SetUp(bool create_heap_objects) {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
@@ -5868,15 +5876,7 @@ bool Heap::SetUp(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  gc_initializer_mutex.Pointer()->Lock();
-  static bool initialized_gc = false;
-  if (!initialized_gc) {
-      initialized_gc = true;
-      InitializeScavengingVisitorsTables();
-      NewSpaceScavenger::Initialize();
-      MarkCompactCollector::Initialize();
-  }
-  gc_initializer_mutex.Pointer()->Unlock();
+  CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
   MarkMapPointersAsEncoded(false);
 

@@ -101,7 +101,7 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-void RuntimeProfiler::GlobalSetup() {
+void RuntimeProfiler::GlobalSetUp() {
   ASSERT(!has_been_globally_set_up_);
   enabled_ = V8::UseCrankshaft() && FLAG_opt;
 #ifdef DEBUG

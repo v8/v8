@@ -79,37 +79,8 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
-void OS::SetUp() {
-  // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = Ticks() ^ (getpid() << 16);
-  srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
-
-#ifdef __arm__
-  // When running on ARM hardware check that the EABI used by V8 and
-  // by the C code is the same.
-  bool hard_float = OS::ArmUsingHardFloat();
-  if (hard_float) {
-#if !USE_EABI_HARDFLOAT
-    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
-           "-DUSE_EABI_HARDFLOAT\n");
-    exit(1);
-#endif
-  } else {
-#if USE_EABI_HARDFLOAT
-    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
-           "-DUSE_EABI_HARDFLOAT\n");
-    exit(1);
-#endif
-  }
-#endif
-}
-
-
 void OS::PostSetUp() {
-  // Math functions depend on CPU features therefore they are initialized after
-  // CPU.
-  MathSetup();
+  POSIXPostSetUp();
 }
 
 
@@ -1084,6 +1055,12 @@ class SignalSender : public Thread {
         vm_tgid_(getpid()),
         interval_(interval) {}
 
+  static void SetUp() {
+    if (!mutex_) {
+      mutex_ = OS::CreateMutex();
+    }
+  }
+
   static void InstallSignalHandler() {
     struct sigaction sa;
     sa.sa_sigaction = ProfilerSignalHandler;
@@ -1101,7 +1078,7 @@ class SignalSender : public Thread {
   }
 
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
@@ -1114,7 +1091,7 @@ class SignalSender : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -1217,7 +1194,7 @@ class SignalSender : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static LazyMutex mutex_;
+  static Mutex* mutex_;
   static SignalSender* instance_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
@@ -1227,10 +1204,38 @@ class SignalSender : public Thread {
 };
 
 
-LazyMutex SignalSender::mutex_ = LAZY_MUTEX_INITIALIZER;
+Mutex* SignalSender::mutex_ = NULL;
 SignalSender* SignalSender::instance_ = NULL;
 struct sigaction SignalSender::old_signal_handler_;
 bool SignalSender::signal_handler_installed_ = false;
+
+
+void OS::SetUp() {
+  // Seed the random number generator. We preserve microsecond resolution.
+  uint64_t seed = Ticks() ^ (getpid() << 16);
+  srandom(static_cast<unsigned int>(seed));
+  limit_mutex = CreateMutex();
+
+#ifdef __arm__
+  // When running on ARM hardware check that the EABI used by V8 and
+  // by the C code is the same.
+  bool hard_float = OS::ArmUsingHardFloat();
+  if (hard_float) {
+#if !USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  } else {
+#if USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  }
+#endif
+  SignalSender::SetUp();
+}
 
 
 Sampler::Sampler(Isolate* isolate, int interval)

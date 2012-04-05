@@ -535,6 +535,8 @@ class ExternalReference BASE_EMBEDDED {
     DIRECT_GETTER_CALL
   };
 
+  static void SetUp();
+
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 
   ExternalReference(Builtins::CFunctionId id, Isolate* isolate);

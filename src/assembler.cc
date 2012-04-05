@@ -99,21 +99,7 @@ struct DoubleConstant BASE_EMBEDDED {
   double the_hole_nan;
 };
 
-struct InitializeDoubleConstants {
-  static void Construct(DoubleConstant* double_constants) {
-    double_constants->min_int = kMinInt;
-    double_constants->one_half = 0.5;
-    double_constants->minus_zero = -0.0;
-    double_constants->uint8_max_value = 255;
-    double_constants->zero = 0.0;
-    double_constants->canonical_non_hole_nan = OS::nan_value();
-    double_constants->the_hole_nan = BitCast<double>(kHoleNanInt64);
-    double_constants->negative_infinity = -V8_INFINITY;
-  }
-};
-
-static LazyInstance<DoubleConstant, InitializeDoubleConstants>::type
-    double_constants = LAZY_INSTANCE_INITIALIZER;
+static DoubleConstant double_constants;
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
@@ -726,6 +712,18 @@ void RelocInfo::Verify() {
 // -----------------------------------------------------------------------------
 // Implementation of ExternalReference
 
+void ExternalReference::SetUp() {
+  double_constants.min_int = kMinInt;
+  double_constants.one_half = 0.5;
+  double_constants.minus_zero = -0.0;
+  double_constants.uint8_max_value = 255;
+  double_constants.zero = 0.0;
+  double_constants.canonical_non_hole_nan = OS::nan_value();
+  double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
+  double_constants.negative_infinity = -V8_INFINITY;
+}
+
+
 ExternalReference::ExternalReference(Builtins::CFunctionId id, Isolate* isolate)
   : address_(Redirect(isolate, Builtins::c_function_address(id))) {}
 
@@ -958,50 +956,47 @@ ExternalReference ExternalReference::scheduled_exception_address(
 
 
 ExternalReference ExternalReference::address_of_min_int() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->min_int));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.min_int));
 }
 
 
 ExternalReference ExternalReference::address_of_one_half() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->one_half));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.one_half));
 }
 
 
 ExternalReference ExternalReference::address_of_minus_zero() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->minus_zero));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.minus_zero));
 }
 
 
 ExternalReference ExternalReference::address_of_zero() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->zero));
+  return ExternalReference(reinterpret_cast<void*>(&double_constants.zero));
 }
 
 
 ExternalReference ExternalReference::address_of_uint8_max_value() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->uint8_max_value));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.uint8_max_value));
 }
 
 
 ExternalReference ExternalReference::address_of_negative_infinity() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->negative_infinity));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.negative_infinity));
 }
 
 
 ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->canonical_non_hole_nan));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.canonical_non_hole_nan));
 }
 
 
 ExternalReference ExternalReference::address_of_the_hole_nan() {
-  return ExternalReference(reinterpret_cast<void*>(
-      &double_constants.Pointer()->the_hole_nan));
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.the_hole_nan));
 }
 
 
