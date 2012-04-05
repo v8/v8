@@ -4406,6 +4406,9 @@ class HAllocateObject: public HTemplateInstruction<1> {
     set_representation(Representation::Tagged());
   }
 
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxSize = 64 * kPointerSize;
+
   HValue* context() { return OperandAt(0); }
   Handle<JSFunction> constructor() { return constructor_; }
 
