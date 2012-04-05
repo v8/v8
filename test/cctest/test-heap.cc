@@ -1702,8 +1702,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
       "f(1); f(2); f(3);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(4);");
-  CHECK(res->IsObject());
-  CHECK(res->ToObject()->GetRealNamedProperty(v8_str("x"))->Int32Value() == 4);
+  CHECK_EQ(4, res->ToObject()->GetRealNamedProperty(v8_str("x"))->Int32Value());
 
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
