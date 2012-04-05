@@ -29,7 +29,7 @@
 
 var d = 0;
 function recurse() {
-  if (++d == 26130) { // A magic number just below stack overflow  on ia32
+  if (++d == 25515) { // A magic number just below stack overflow  on ia32
     %DebugBreak();
   }
   recurse();
