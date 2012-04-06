@@ -1185,7 +1185,7 @@ void HeapSnapshot::ClearPaint() {
 
 HeapEntry* HeapSnapshot::AddRootEntry(int children_count) {
   ASSERT(root_entry_ == NULL);
-  ASSERT(entries_.is_empty()); // Root entry must be the first one.
+  ASSERT(entries_.is_empty());  // Root entry must be the first one.
   return (root_entry_ = AddEntry(HeapEntry::kObject,
                                  "",
                                  HeapObjectsMap::kInternalRootObjectId,
