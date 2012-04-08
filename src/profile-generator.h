@@ -477,7 +477,8 @@ class HeapGraphEdge BASE_EMBEDDED {
     return name_;
   }
   HeapEntry* to() { return to_; }
-  INLINE(HeapEntry* from());
+
+  HeapEntry* From();
 
  private:
   int child_index_ : 29;
@@ -563,8 +564,6 @@ class HeapEntry BASE_EMBEDDED {
   void clear_paint() { painted_ = false; }
   bool painted() { return painted_; }
   void paint() { painted_ = true; }
-  bool reachable_from_window() { return reachable_from_window_; }
-  void set_reachable_from_window() { reachable_from_window_ = true; }
 
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
@@ -601,9 +600,8 @@ class HeapEntry BASE_EMBEDDED {
   const char* TypeAsString();
 
   unsigned painted_: 1;
-  unsigned reachable_from_window_: 1;
   unsigned type_: 4;
-  int children_count_: 26;
+  int children_count_: 27;
   int retainers_count_;
   int self_size_;
   union {
@@ -1102,8 +1100,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool CalculateRetainedSizes();
   bool CountEntriesAndReferences();
   bool FillReferences();
-  void FillPostorderIndexes(Vector<HeapEntry*>* entries);
-  void MarkWindowReachableObjects();
+  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();

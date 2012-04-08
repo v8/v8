@@ -109,13 +109,13 @@ TEST(HeapSnapshot) {
 
   // Verify, that JS global object of env2 has '..2' properties.
   const v8::HeapGraphNode* a2_node =
-      GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a2");
+      GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "a2");
   CHECK_NE(NULL, a2_node);
   CHECK_NE(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_1"));
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "b2_1"));
   CHECK_NE(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_2"));
-  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c2"));
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "b2_2"));
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "c2"));
 
   // Paint all nodes reachable from global object.
   NamedEntriesDetector det;
@@ -142,7 +142,7 @@ TEST(HeapSnapshotObjectSizes) {
       v8::HeapProfiler::TakeSnapshot(v8_str("sizes"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* x =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "x");
   CHECK_NE(NULL, x);
   const v8::HeapGraphNode* x1 =
       GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
@@ -169,7 +169,7 @@ TEST(BoundFunctionInSnapshot) {
       v8::HeapProfiler::TakeSnapshot(v8_str("sizes"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* f =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "boundFunction");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "boundFunction");
   CHECK(f);
   CHECK_EQ(v8::String::New("native_bind"), f->GetName());
   const v8::HeapGraphNode* bindings =
@@ -233,15 +233,15 @@ TEST(HeapSnapshotCodeObjects) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* compiled =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "compiled");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "compiled");
   CHECK_NE(NULL, compiled);
   CHECK_EQ(v8::HeapGraphNode::kClosure, compiled->GetType());
   const v8::HeapGraphNode* lazy =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
   const v8::HeapGraphNode* anonymous =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
   v8::String::AsciiValue anonymous_name(anonymous->GetName());
@@ -293,9 +293,9 @@ TEST(HeapSnapshotHeapNumbers) {
   const v8::HeapSnapshot* snapshot =
       v8::HeapProfiler::TakeSnapshot(v8_str("numbers"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_EQ(NULL, GetProperty(global, v8::HeapGraphEdge::kProperty, "a"));
+  CHECK_EQ(NULL, GetProperty(global, v8::HeapGraphEdge::kShortcut, "a"));
   const v8::HeapGraphNode* b =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "b");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "b");
   CHECK_NE(NULL, b);
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
@@ -313,10 +313,10 @@ TEST(HeapSnapshotSlicedString) {
       v8::HeapProfiler::TakeSnapshot(v8_str("strings"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* parent_string =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "parent_string");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "parent_string");
   CHECK_NE(NULL, parent_string);
   const v8::HeapGraphNode* child_string =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "child_string");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "child_string");
   CHECK_NE(NULL, child_string);
   const v8::HeapGraphNode* parent =
       GetProperty(child_string, v8::HeapGraphEdge::kInternal, "parent");
@@ -384,17 +384,24 @@ TEST(HeapEntryIdsAndArrayShift) {
   const v8::HeapGraphNode* a1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a1);
+  const v8::HeapGraphNode* e1 =
+      GetProperty(a1, v8::HeapGraphEdge::kHidden, "1");
+  CHECK_NE(NULL, e1);
   const v8::HeapGraphNode* k1 =
-      GetProperty(a1, v8::HeapGraphEdge::kInternal, "elements");
+      GetProperty(e1, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_NE(NULL, k1);
   const v8::HeapGraphNode* a2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a2);
+  const v8::HeapGraphNode* e2 =
+      GetProperty(a2, v8::HeapGraphEdge::kHidden, "1");
+  CHECK_NE(NULL, e2);
   const v8::HeapGraphNode* k2 =
-      GetProperty(a2, v8::HeapGraphEdge::kInternal, "elements");
+      GetProperty(e2, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_NE(NULL, k2);
 
   CHECK_EQ_SNAPSHOT_OBJECT_ID(a1->GetId(), a2->GetId());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(e1->GetId(), e2->GetId());
   CHECK_EQ_SNAPSHOT_OBJECT_ID(k1->GetId(), k2->GetId());
 }
 
@@ -507,7 +514,7 @@ TEST(HeapEntryDominator) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* node6 =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "node6");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "node6");
   CHECK_NE(NULL, node6);
   const v8::HeapGraphNode* node5 =
       GetProperty(node6, v8::HeapGraphEdge::kProperty, "a");
@@ -651,7 +658,7 @@ TEST(HeapSnapshotJSONSerialization) {
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
       "      parsed.nodes[1 + children_offset + child_to_node_offset],"
-      "      \"b\", property_type),\n"
+      "      \"b\",shortcut_type),\n"
       "    \"x\", property_type),"
       "  \"s\", property_type)");
   CHECK(!string_obj_pos_val.IsEmpty());
@@ -952,8 +959,9 @@ TEST(HeapSnapshotImplicitReferences) {
       v8::HeapProfiler::TakeSnapshot(v8_str("implicit_refs"));
 
   const v8::HeapGraphNode* global_object = GetGlobalObject(snapshot);
+  // Use kShortcut type to skip intermediate JSGlobalPropertyCell
   const v8::HeapGraphNode* obj0 = GetProperty(
-      global_object, v8::HeapGraphEdge::kProperty, "root_object");
+      global_object, v8::HeapGraphEdge::kShortcut, "root_object");
   CHECK(obj0);
   CHECK_EQ(v8::HeapGraphNode::kObject, obj0->GetType());
   const v8::HeapGraphNode* obj1 = GetProperty(
@@ -1126,7 +1134,7 @@ TEST(GetHeapValue) {
       env->Global()->GetPrototype().As<v8::Object>();
   CHECK(js_global == global->GetHeapValue());
   const v8::HeapGraphNode* obj = GetProperty(
-      global, v8::HeapGraphEdge::kProperty, "a");
+      global, v8::HeapGraphEdge::kShortcut, "a");
   CHECK(obj->GetHeapValue()->IsObject());
   v8::Local<v8::Object> js_obj = js_global->Get(v8_str("a")).As<v8::Object>();
   CHECK(js_obj == obj->GetHeapValue());
@@ -1155,7 +1163,7 @@ TEST(GetHeapValueForDeletedObject) {
       v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* obj = GetProperty(
-      global, v8::HeapGraphEdge::kProperty, "a");
+      global, v8::HeapGraphEdge::kShortcut, "a");
   const v8::HeapGraphNode* prop = GetProperty(
       obj, v8::HeapGraphEdge::kProperty, "p");
   {
@@ -1242,7 +1250,7 @@ TEST(FastCaseGetter) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* obj1 =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "obj1");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "obj1");
   CHECK_NE(NULL, obj1);
   const v8::HeapGraphNode* getterFunction =
       GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get-propWithGetter");
@@ -1324,7 +1332,7 @@ TEST(SfiAndJsFunctionWeakRefs) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* fun =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "fun");
   CHECK(HasWeakEdge(fun));
   const v8::HeapGraphNode* shared =
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
