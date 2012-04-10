@@ -27,11 +27,13 @@
 
 #include "v8.h"
 
+#include "assembler.h"
 #include "isolate.h"
 #include "elements.h"
 #include "bootstrapper.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "frames.h"
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "lithium-allocator.h"
@@ -262,7 +264,7 @@ void V8::InitializeOncePerProcessImpl() {
 
   OS::PostSetUp();
 
-  RuntimeProfiler::GlobalSetup();
+  RuntimeProfiler::GlobalSetUp();
 
   ElementsAccessor::InitializeOncePerProcess();
 
@@ -273,6 +275,9 @@ void V8::InitializeOncePerProcessImpl() {
   }
 
   LOperand::SetUpCaches();
+  SetUpJSCallerSavedCodeData();
+  SamplerRegistry::SetUp();
+  ExternalReference::SetUp();
 }
 
 void V8::InitializeOncePerProcess() {

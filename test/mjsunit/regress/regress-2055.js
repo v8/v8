@@ -25,15 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Test that array literal boilerplate objects can be transitioned while
+// existing un-transitioned clones are still being populated.
 
-namespace v8 {
-namespace internal {
+function test1(depth) {
+  if (--depth < 0) {
+    return [];
+  } else {
+    return [ 0, test1(depth) ];
+  }
+}
+assertEquals([0,[0,[]]], test1(2));
 
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_POSIX_H_
+function test2(depth) {
+  if (--depth < 0) {
+    return [];
+  } else {
+    var o = [ 0, test2(depth) ];
+    return (depth == 0) ? 0.5 : o;
+  }
+}
+assertEquals([0,0.5], test2(2));

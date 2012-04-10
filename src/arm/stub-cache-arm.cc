@@ -1730,7 +1730,7 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   // We can't address the last element in one operation. Compute the more
   // expensive shift first, and use an offset later on.
   __ add(elements, elements, Operand(r4, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ ldr(r0, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ ldr(r0, FieldMemOperand(elements, FixedArray::kHeaderSize));
   __ cmp(r0, r6);
   __ b(eq, &call_builtin);
 
@@ -1738,7 +1738,7 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
   // Fill with the hole.
-  __ str(r6, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ str(r6, FieldMemOperand(elements, FixedArray::kHeaderSize));
   __ Drop(argc + 1);
   __ Ret();
 

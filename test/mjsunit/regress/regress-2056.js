@@ -25,15 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
+var cases = [
+    [0.0, 0.0, 0.0, 0,0],
+    [undefined, 0.0, NaN, NaN],
+    [0.0, undefined, NaN, NaN],
+    [NaN, 0.0, NaN, NaN],
+    [0.0, NaN, NaN, NaN],
+    [-NaN, 0.0, NaN, NaN],
+    [0.0, -NaN, NaN, NaN],
+    [Infinity, 0.0, Infinity, 0.0],
+    [0.0, Infinity, Infinity, 0.0],
+    [-Infinity, 0.0, 0.0, -Infinity],
+    [0.0, -Infinity, 0.0, -Infinity]
+];
 
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
+function do_min(a, b) {
+    return Math.min(a, b);
+}
 
-} }  // namespace v8::internal
+function do_max(a, b) {
+    return Math.max(a, b);
+}
 
-#endif  // V8_PLATFORM_POSIX_H_
+// Make sure that non-crankshaft results match expectations.
+for (i = 0; i < cases.length; ++i) {
+    var c = cases[i];
+    assertEquals(c[3], do_min(c[0], c[1]));
+    assertEquals(c[2], do_max(c[0], c[1]));
+}
+
+// Make sure that crankshaft results match expectations.
+for (i = 0; i < cases.length; ++i) {
+    var c = cases[i];
+    %OptimizeFunctionOnNextCall(do_min);
+    %OptimizeFunctionOnNextCall(do_max);
+    assertEquals(c[3], do_min(c[0], c[1]));
+    assertEquals(c[2], do_max(c[0], c[1]));
+}

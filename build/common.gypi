@@ -238,6 +238,19 @@
             ],
           }],
         ],
+      }, {  # Section for OS=="mac".
+        'conditions': [
+          ['target_arch=="ia32"', {
+            'xcode_settings': {
+              'ARCHS': ['i386'],
+            }
+          }],
+          ['target_arch=="x64"', {
+            'xcode_settings': {
+              'ARCHS': ['x86_64'],
+            }
+          }],
+        ],
       }],
       ['v8_use_liveobjectlist=="true"', {
         'defines': [

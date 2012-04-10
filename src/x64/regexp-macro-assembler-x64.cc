@@ -542,9 +542,13 @@ void RegExpMacroAssemblerX64::CheckNotCharacter(uint32_t c,
 void RegExpMacroAssemblerX64::CheckCharacterAfterAnd(uint32_t c,
                                                      uint32_t mask,
                                                      Label* on_equal) {
-  __ movl(rax, current_character());
-  __ and_(rax, Immediate(mask));
-  __ cmpl(rax, Immediate(c));
+  if (c == 0) {
+    __ testl(current_character(), Immediate(mask));
+  } else {
+    __ movl(rax, Immediate(mask));
+    __ and_(rax, current_character());
+    __ cmpl(rax, Immediate(c));
+  }
   BranchOrBacktrack(equal, on_equal);
 }
 
@@ -552,9 +556,13 @@ void RegExpMacroAssemblerX64::CheckCharacterAfterAnd(uint32_t c,
 void RegExpMacroAssemblerX64::CheckNotCharacterAfterAnd(uint32_t c,
                                                         uint32_t mask,
                                                         Label* on_not_equal) {
-  __ movl(rax, current_character());
-  __ and_(rax, Immediate(mask));
-  __ cmpl(rax, Immediate(c));
+  if (c == 0) {
+    __ testl(current_character(), Immediate(mask));
+  } else {
+    __ movl(rax, Immediate(mask));
+    __ and_(rax, current_character());
+    __ cmpl(rax, Immediate(c));
+  }
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 

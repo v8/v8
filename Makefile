@@ -266,4 +266,4 @@ $(ENVFILE).new:
 # Dependencies.
 dependencies:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1026
+	    --revision 1282

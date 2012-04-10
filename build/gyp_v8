@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -156,7 +156,12 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
-  gyp_args.append('-Dtarget_arch=ia32')
+  target_arch = None
+  for p in gyp_args:
+    if p.find('-Dtarget_arch=') == 0:
+      target_arch = p
+  if target_arch is None:
+    gyp_args.append('-Dtarget_arch=ia32')
   if utils.GuessOS() == 'linux':
     gyp_args.append('-S-ia32')
   run_gyp(gyp_args)

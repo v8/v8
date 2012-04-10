@@ -65,8 +65,12 @@
 //   static LazyInstance<MyClass, MyCreateTrait>::type my_instance =
 //      LAZY_INSTANCE_INITIALIZER;
 //
-// WARNING: This implementation of LazyInstance is NOT thread-safe by default.
-// See ThreadSafeInitOnceTrait declared below for that.
+// WARNINGS:
+// - This implementation of LazyInstance is NOT THREAD-SAFE by default. See
+//   ThreadSafeInitOnceTrait declared below for that.
+// - Lazy initialization comes with a cost. Make sure that you don't use it on
+//   critical path. Consider adding your initialization code to a function
+//   which is explicitly called once.
 //
 // Notes for advanced users:
 // LazyInstance can actually be used in two different ways:
@@ -107,9 +111,17 @@ struct LeakyInstanceTrait {
 
 // Traits that define how an instance is allocated and accessed.
 
+// TODO(kalmard): __alignof__ is only defined for GCC > 4.2. Fix alignment issue
+// on MIPS with other compilers.
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 2))
+#define LAZY_ALIGN(x) __attribute__((aligned(__alignof__(x))))
+#else
+#define LAZY_ALIGN(x)
+#endif
+
 template <typename T>
 struct StaticallyAllocatedInstanceTrait {
-  typedef char StorageType[sizeof(T)];
+  typedef char StorageType[sizeof(T)] LAZY_ALIGN(T);
 
   static T* MutableInstance(StorageType* storage) {
     return reinterpret_cast<T*>(storage);
@@ -120,6 +132,8 @@ struct StaticallyAllocatedInstanceTrait {
     ConstructTrait::Construct(MutableInstance(storage));
   }
 };
+
+#undef LAZY_ALIGN
 
 
 template <typename T>
@@ -208,7 +222,8 @@ struct LazyInstanceImpl {
 
   mutable OnceType once_;
   // Note that the previous field, OnceType, is an AtomicWord which guarantees
-  // the correct alignment of the storage field below.
+  // 4-byte alignment of the storage field below. If compiling with GCC (>4.2),
+  // the LAZY_ALIGN macro above will guarantee correctness for any alignment.
   mutable StorageType storage_;
 };
 

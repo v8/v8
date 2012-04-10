@@ -5730,7 +5730,27 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
         set_current_block(return_left);
         Push(left);
         set_current_block(return_right);
-        Push(right);
+        // The branch above always returns the right operand if either of
+        // them is NaN, but the spec requires that max/min(NaN, X) = NaN.
+        // We add another branch that checks if the left operand is NaN or not.
+        if (left_operand->representation().IsDouble()) {
+          // If left_operand != left_operand then it is NaN.
+          HCompareIDAndBranch* compare_nan = new(zone()) HCompareIDAndBranch(
+              left_operand, left_operand, Token::EQ);
+          compare_nan->SetInputRepresentation(left_operand->representation());
+          HBasicBlock* left_is_number = graph()->CreateBasicBlock();
+          HBasicBlock* left_is_nan = graph()->CreateBasicBlock();
+          compare_nan->SetSuccessorAt(0, left_is_number);
+          compare_nan->SetSuccessorAt(1, left_is_nan);
+          current_block()->Finish(compare_nan);
+          set_current_block(left_is_nan);
+          Push(left);
+          set_current_block(left_is_number);
+          Push(right);
+          return_right = CreateJoin(left_is_number, left_is_nan, expr->id());
+        } else {
+          Push(right);
+        }
 
         HBasicBlock* join = CreateJoin(return_left, return_right, expr->id());
         set_current_block(join);
@@ -6028,7 +6048,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
 // Checks whether allocation using the given constructor can be inlined.
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
-      constructor->initial_map()->instance_type() == JS_OBJECT_TYPE;
+      constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
+      constructor->initial_map()->instance_size() < HAllocateObject::kMaxSize;
 }
 
 

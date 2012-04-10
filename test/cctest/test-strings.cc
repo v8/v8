@@ -587,3 +587,36 @@ TEST(SliceFromSlice) {
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
   CHECK_EQ("cdefghijklmnopqrstuvwx", *(string->ToCString()));
 }
+
+
+TEST(AsciiArrayJoin) {
+  // Set heap limits.
+  static const int K = 1024;
+  v8::ResourceConstraints constraints;
+  constraints.set_max_young_space_size(256 * K);
+  constraints.set_max_old_space_size(4 * K * K);
+  v8::SetResourceConstraints(&constraints);
+
+  // String s is made of 2^17 = 131072 'c' characters and a is an array
+  // starting with 'bad', followed by 2^14 times the string s. That means the
+  // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
+  // summing the lengths of the strings (as Smis) overflows and wraps.
+  static const char* join_causing_out_of_memory =
+      "var two_14 = Math.pow(2, 14);"
+      "var two_17 = Math.pow(2, 17);"
+      "var s = Array(two_17 + 1).join('c');"
+      "var a = ['bad'];"
+      "for (var i = 1; i <= two_14; i++) a.push(s);"
+      "a.join("");";
+
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(v8::String::New(join_causing_out_of_memory));
+  v8::Local<v8::Value> result = script->Run();
+
+  // Check for out of memory state.
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
+}

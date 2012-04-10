@@ -40,6 +40,8 @@ typedef uint32_t RegList;
 // Get the number of registers in a given register list.
 int NumRegs(RegList list);
 
+void SetUpJSCallerSavedCodeData();
+
 // Return the code of the n-th saved register available to JavaScript.
 int JSCallerSavedCode(int n);
 

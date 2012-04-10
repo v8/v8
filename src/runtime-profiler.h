@@ -43,7 +43,7 @@ class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
 
-  static void GlobalSetup();
+  static void GlobalSetUp();
 
   static inline bool IsEnabled() {
     ASSERT(has_been_globally_set_up_);

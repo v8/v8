@@ -3004,26 +3004,26 @@ void Code::set_is_pregenerated(bool value) {
 
 
 bool Code::optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
 }
 
 
 void Code::set_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
 }
 
 
 bool Code::has_deoptimization_support() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3031,14 +3031,14 @@ void Code::set_has_deoptimization_support(bool value) {
 
 
 bool Code::has_debug_break_slots() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
 }
 
 
 void Code::set_has_debug_break_slots(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3046,14 +3046,14 @@ void Code::set_has_debug_break_slots(bool value) {
 
 
 bool Code::is_compiled_optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsIsCompiledOptimizable::decode(flags);
 }
 
 
 void Code::set_compiled_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3061,26 +3061,26 @@ void Code::set_compiled_optimizable(bool value) {
 
 
 int Code::allow_osr_at_loop_nesting_level() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
   WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
 }
 
 
 int Code::profiler_ticks() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kProfilerTicksOffset);
 }
 
 
 void Code::set_profiler_ticks(int ticks) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(ticks < 256);
   WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
 }
@@ -3112,13 +3112,13 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 
 
 unsigned Code::stack_check_table_offset() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
 }
 
 
 void Code::set_stack_check_table_offset(unsigned offset) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
 }

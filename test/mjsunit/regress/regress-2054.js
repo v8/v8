@@ -25,15 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Test that we can correctly optimize top level code that contains a
+// throw (or return) as it's last statement.
 
-namespace v8 {
-namespace internal {
-
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_POSIX_H_
+var N = 1e5;  // Number of iterations that trigger optimization.
+for (var i = 0; i < N; i++) {
+  if (i > N) throw new Error;
+}

@@ -25,15 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
-
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_POSIX_H_
+var d = 0;
+function recurse() {
+  if (++d == 25135) { // A magic number just below stack overflow  on ia32
+    %DebugBreak();
+  }
+  recurse();
+}
+assertThrows(function() { recurse();} );

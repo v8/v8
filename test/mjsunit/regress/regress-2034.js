@@ -25,15 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
+// Flags: --harmony-collections
 
-namespace v8 {
-namespace internal {
+var key = {};
+var map = new WeakMap;
+Object.preventExtensions(key);
 
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
+// Try querying using frozen key.
+assertFalse(map.has(key));
+assertSame(undefined, map.get(key));
 
-} }  // namespace v8::internal
+// Try adding using frozen key.
+map.set(key, 1);
+assertTrue(map.has(key));
+assertSame(1, map.get(key));
 
-#endif  // V8_PLATFORM_POSIX_H_
+// Try deleting using frozen key.
+map.delete(key, 1);
+assertFalse(map.has(key));
+assertSame(undefined, map.get(key));

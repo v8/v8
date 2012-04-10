@@ -190,8 +190,10 @@ class RegExpImpl {
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
 
-  static bool CompileIrregexp(Handle<JSRegExp> re, bool is_ascii);
-  static inline bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
+  static bool CompileIrregexp(
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
+  static inline bool EnsureCompiledIrregexp(
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
 
 
   // Set the subject cache.  The previous string buffer is not deleted, so the
@@ -419,6 +421,90 @@ class DispatchTable : public ZoneObject {
 };
 
 
+// Improve the speed that we scan for an initial point where a non-anchored
+// regexp can match by using a Boyer-Moore-like table. This is done by
+// identifying non-greedy non-capturing loops in the nodes that eat any
+// character one at a time.  For example in the middle of the regexp
+// /foo[\s\S]*?bar/ we find such a loop.  There is also such a loop implicitly
+// inserted at the start of any non-anchored regexp.
+//
+// When we have found such a loop we look ahead in the nodes to find the set of
+// characters that can come at given distances. For example for the regexp
+// /.?foo/ we know that there are at least 3 characters ahead of us, and the
+// sets of characters that can occur are [any, [f, o], [o]]. We find a range in
+// the lookahead info where the set of characters is reasonably constrained. In
+// our example this is from index 1 to 2 (0 is not constrained). We can now
+// look 3 characters ahead and if we don't find one of [f, o] (the union of
+// [f, o] and [o]) then we can skip forwards by the range size (in this case 2).
+//
+// For Unicode input strings we do the same, but modulo 128.
+//
+// We also look at the first string fed to the regexp and use that to get a hint
+// of the character frequencies in the inputs. This affects the assessment of
+// whether the set of characters is 'reasonably constrained'.
+//
+// We also have another lookahead mechanism (called quick check in the code),
+// which uses a wide load of multiple characters followed by a mask and compare
+// to determine whether a match is possible at this point.
+class BoyerMooreLookahead {
+ public:
+  BoyerMooreLookahead(int length, int map_length, RegExpCompiler* compiler);
+
+  int length() { return length_; }
+  int max_char() { return max_char_; }
+  RegExpCompiler* compiler() { return compiler_; }
+
+  static const int kTooManyCharacters = 32;
+
+  int Count(int map_number) {
+    ZoneList<bool>* map = bitmaps_->at(map_number);
+    if (map == NULL) return map_length_;
+    int count = 0;
+    for (int i = 0; i < map_length_; i++) {
+      if (map->at(i)) count++;
+    }
+    return count;
+  }
+
+  void Set(int map_number, int character) {
+    if (character > max_char_) return;
+    ZoneList<bool>* map = bitmaps_->at(map_number);
+    if (map == NULL) return;
+    map->at(character & (map_length_ - 1)) = true;
+  }
+
+  void SetAll(int map_number) {
+    bitmaps_->at(map_number) = NULL;
+  }
+
+  void SetRest(int from_map) {
+    for (int i = from_map; i < length_; i++) SetAll(i);
+  }
+  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
+
+ private:
+  // This is the value obtained by EatsAtLeast.  If we do not have at least this
+  // many characters left in the sample string then the match is bound to fail.
+  // Therefore it is OK to read a character this far ahead of the current match
+  // point.
+  int length_;
+  // We conservatively consider all character values modulo this length.  For
+  // ASCII there is no loss of precision, since this has a value of 128.
+  int map_length_;
+  RegExpCompiler* compiler_;
+  // 0x7f for ASCII, 0xffff for UTF-16.
+  int max_char_;
+  ZoneList<ZoneList<bool>*>* bitmaps_;
+
+  int GetSkipTable(int min_lookahead,
+                   int max_lookahead,
+                   Handle<ByteArray> boolean_skip_table);
+  bool FindWorthwhileInterval(int* from, int* to);
+  int FindBestInterval(
+    int max_number_of_chars, int old_biggest_points, int* from, int* to);
+};
+
+
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
   VISIT(End)                                                         \
   VISIT(Action)                                                      \
@@ -635,6 +721,22 @@ class RegExpNode: public ZoneObject {
                                     bool not_at_start) = 0;
   static const int kNodeIsTooComplexForGreedyLoops = -1;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
+  // Only returns the successor for a text node of length 1 that matches any
+  // character and that has no guards on it.
+  virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
+      RegExpCompiler* compiler) {
+    return NULL;
+  }
+
+  // Collects information on the possible code units (mod 128) that can match if
+  // we look forward.  This is used for a Boyer-Moore-like string searching
+  // implementation.  TODO(erikcorry):  This should share more code with
+  // EatsAtLeast, GetQuickCheckDetails and ComputeFirstCharacterSet.
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+    UNREACHABLE();
+  }
+
   Label* label() { return &label_; }
   // If non-generic code is generated for a node (i.e. the node is not at the
   // start of the trace) then it cannot be reused.  This variable sets a limit
@@ -747,6 +849,10 @@ class SeqRegExpNode: public RegExpNode {
       : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+    on_success_->FillInBMInfo(offset, bm, not_at_start);
+  }
  private:
   RegExpNode* on_success_;
 };
@@ -793,6 +899,8 @@ class ActionNode: public SeqRegExpNode {
     return on_success()->GetQuickCheckDetails(
         details, compiler, filled_in, not_at_start);
   }
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
@@ -860,6 +968,10 @@ class TextNode: public SeqRegExpNode {
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent(bool is_ascii);
   virtual int GreedyLoopTextLength();
+  virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
+      RegExpCompiler* compiler);
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   virtual TextNode* Clone() {
     TextNode* result = new TextNode(*this);
     result->CalculateOffsets();
@@ -928,6 +1040,8 @@ class AssertionNode: public SeqRegExpNode {
                                     RegExpCompiler* compiler,
                                     int filled_in,
                                     bool not_at_start);
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   virtual int ComputeFirstCharacterSet(int budget);
   virtual AssertionNode* Clone() { return new AssertionNode(*this); }
   AssertionNodeType type() { return type_; }
@@ -961,6 +1075,12 @@ class BackReferenceNode: public SeqRegExpNode {
                                     bool not_at_start) {
     return;
   }
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+    // Working out the set of characters that a backreference can match is too
+    // hard, so we just say that any character can match.
+    bm->SetRest(offset);
+  }
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
   virtual int ComputeFirstCharacterSet(int budget);
 
@@ -983,6 +1103,11 @@ class EndNode: public RegExpNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
+    // Returning 0 from EatsAtLeast should ensure we never get here.
+    UNREACHABLE();
+  }
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
@@ -1071,6 +1196,8 @@ class ChoiceNode: public RegExpNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
@@ -1089,7 +1216,7 @@ class ChoiceNode: public RegExpNode {
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard* guard,
                      Trace* trace);
-  int CalculatePreloadCharacters(RegExpCompiler* compiler, bool not_at_start);
+  int CalculatePreloadCharacters(RegExpCompiler* compiler, int eats_at_least);
   void EmitOutOfLineContinuation(RegExpCompiler* compiler,
                                  Trace* trace,
                                  GuardedAlternative alternative,
@@ -1119,6 +1246,10 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+    alternatives_->at(1).node()->FillInBMInfo(offset, bm, not_at_start);
+  }
   // For a negative lookahead we don't emit the quick check for the
   // alternative that is expected to fail.  This is because quick check code
   // starts by loading enough characters for the alternative that takes fewest
@@ -1146,6 +1277,8 @@ class LoopChoiceNode: public ChoiceNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
+  virtual void FillInBMInfo(
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   virtual int ComputeFirstCharacterSet(int budget);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
@@ -1458,6 +1591,7 @@ class RegExpEngine: public AllStatic {
                                    bool ignore_case,
                                    bool multiline,
                                    Handle<String> pattern,
+                                   Handle<String> sample_subject,
                                    bool is_ascii);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);

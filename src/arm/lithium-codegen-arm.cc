@@ -4472,6 +4472,14 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
                         deferred->entry(),
                         TAG_OBJECT);
 
+  __ bind(deferred->exit());
+  if (FLAG_debug_code) {
+    Label is_in_new_space;
+    __ JumpIfInNewSpace(result, scratch, &is_in_new_space);
+    __ Abort("Allocated object is not in new-space");
+    __ bind(&is_in_new_space);
+  }
+
   // Load the initial map.
   Register map = scratch;
   __ LoadHeapObject(map, constructor);
@@ -4490,14 +4498,14 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
       __ str(scratch, FieldMemOperand(result, property_offset));
     }
   }
-
-  __ bind(deferred->exit());
 }
 
 
 void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
   Register result = ToRegister(instr->result());
   Handle<JSFunction> constructor = instr->hydrogen()->constructor();
+  Handle<Map> initial_map(constructor->initial_map());
+  int instance_size = initial_map->instance_size();
 
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
@@ -4505,9 +4513,9 @@ void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
   __ mov(result, Operand(0));
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ LoadHeapObject(r0, constructor);
+  __ mov(r0, Operand(Smi::FromInt(instance_size)));
   __ push(r0);
-  CallRuntimeFromDeferred(Runtime::kNewObject, 1, instr);
+  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   __ StoreToSafepointRegisterSlot(r0, result);
 }
 

@@ -25,15 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PLATFORM_POSIX_H_
-#define V8_PLATFORM_POSIX_H_
 
-namespace v8 {
-namespace internal {
+// See http://code.google.com/p/v8/issues/detail?id=2058
 
-// Used by platform implementation files during OS::PostSetUp().
-void POSIXPostSetUp();
-
-} }  // namespace v8::internal
-
-#endif  // V8_PLATFORM_POSIX_H_
+// A match after a replace with a function argument needs to reset
+// the flag that determines whether we are using indices or substrings
+// to indicate the last match.
+"Now is the".replace(/Now (\w+) the/g, function() {
+  "foo bar".match(/( )/);
+  assertEquals(RegExp.$1, " ");
+})

@@ -42,6 +42,7 @@
 #include "natives.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
+#include "once.h"
 #include "runtime-profiler.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
@@ -59,8 +60,6 @@
 
 namespace v8 {
 namespace internal {
-
-static LazyMutex gc_initializer_mutex = LAZY_MUTEX_INITIALIZER;
 
 
 Heap::Heap()
@@ -145,7 +144,6 @@ Heap::Heap()
       number_idle_notifications_(0),
       last_idle_notification_gc_count_(0),
       last_idle_notification_gc_count_init_(false),
-      idle_notification_will_schedule_next_gc_(false),
       mark_sweeps_since_idle_round_started_(0),
       ms_count_at_last_idle_notification_(0),
       gc_count_at_last_idle_gc_(0),
@@ -504,11 +502,17 @@ bool Heap::CollectGarbage(AllocationSpace space,
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
-    if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+    // Make progress in incremental marking.
+    const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
+    incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,
+                                IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (!incremental_marking()->IsComplete()) {
+      if (FLAG_trace_incremental_marking) {
+        PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+      }
+      collector = SCAVENGER;
+      collector_reason = "incremental marking delaying mark-sweep";
     }
-    collector = SCAVENGER;
-    collector_reason = "incremental marking delaying mark-sweep";
   }
 
   bool next_gc_likely_to_collect_more = false;
@@ -4817,10 +4821,8 @@ void Heap::EnsureHeapIsIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
-  // This flag prevents incremental marking from requesting GC via stack guard
-  idle_notification_will_schedule_next_gc_ = true;
-  incremental_marking()->Step(step_size);
-  idle_notification_will_schedule_next_gc_ = false;
+  incremental_marking()->Step(step_size,
+                              IncrementalMarking::NO_GC_VIA_STACK_GUARD);
 
   if (incremental_marking()->IsComplete()) {
     bool uncommit = false;
@@ -5847,6 +5849,15 @@ class HeapDebugUtils {
 
 #endif
 
+
+V8_DECLARE_ONCE(initialize_gc_once);
+
+static void InitializeGCOnce() {
+  InitializeScavengingVisitorsTables();
+  NewSpaceScavenger::Initialize();
+  MarkCompactCollector::Initialize();
+}
+
 bool Heap::SetUp(bool create_heap_objects) {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
@@ -5865,15 +5876,7 @@ bool Heap::SetUp(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  gc_initializer_mutex.Pointer()->Lock();
-  static bool initialized_gc = false;
-  if (!initialized_gc) {
-      initialized_gc = true;
-      InitializeScavengingVisitorsTables();
-      NewSpaceScavenger::Initialize();
-      MarkCompactCollector::Initialize();
-  }
-  gc_initializer_mutex.Pointer()->Unlock();
+  CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
   MarkMapPointersAsEncoded(false);
 

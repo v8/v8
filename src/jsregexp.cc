@@ -108,6 +108,36 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
 }
 
 
+// More makes code generation slower, less makes V8 benchmark score lower.
+const int kMaxLookaheadForBoyerMoore = 8;
+// In a 3-character pattern you can maximally step forwards 3 characters
+// at a time, which is not always enough to pay for the extra logic.
+const int kPatternTooShortForBoyerMoore = 2;
+
+
+// Identifies the sort of regexps where the regexp engine is faster
+// than the code used for atom matches.
+static bool HasFewDifferentCharacters(Handle<String> pattern) {
+  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  if (length <= kPatternTooShortForBoyerMoore) return false;
+  const int kMod = 128;
+  bool character_found[kMod];
+  int different = 0;
+  memset(&character_found[0], 0, sizeof(character_found));
+  for (int i = 0; i < length; i++) {
+    int ch = (pattern->Get(i) & (kMod - 1));
+    if (!character_found[ch]) {
+      character_found[ch] = true;
+      different++;
+      // We declare a regexp low-alphabet if it has at least 3 times as many
+      // characters as it has different characters.
+      if (different * 3 > length) return false;
+    }
+  }
+  return true;
+}
+
+
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
@@ -141,9 +171,14 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return Handle<Object>::null();
   }
 
-  if (parse_result.simple && !flags.is_ignore_case()) {
+  bool has_been_compiled = false;
+
+  if (parse_result.simple &&
+      !flags.is_ignore_case() &&
+      !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
+    has_been_compiled = true;
   } else if (parse_result.tree->IsAtom() &&
       !flags.is_ignore_case() &&
       parse_result.capture_count == 0) {
@@ -151,8 +186,12 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string =
         isolate->factory()->NewStringFromTwoByte(atom_pattern);
-    AtomCompile(re, pattern, flags, atom_string);
-  } else {
+    if (!HasFewDifferentCharacters(atom_string)) {
+      AtomCompile(re, pattern, flags, atom_string);
+      has_been_compiled = true;
+    }
+  }
+  if (!has_been_compiled) {
     IrregexpInitialize(re, pattern, flags, parse_result.capture_count);
   }
   ASSERT(re->data()->IsFixedArray());
@@ -280,7 +319,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 // from the source pattern.
 // If compilation fails, an exception is thrown and this function
 // returns false.
-bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
+bool RegExpImpl::EnsureCompiledIrregexp(
+    Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii) {
   Object* compiled_code = re->DataAt(JSRegExp::code_index(is_ascii));
 #ifdef V8_INTERPRETED_REGEXP
   if (compiled_code->IsByteArray()) return true;
@@ -296,7 +336,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
     ASSERT(compiled_code->IsSmi());
     return true;
   }
-  return CompileIrregexp(re, is_ascii);
+  return CompileIrregexp(re, sample_subject, is_ascii);
 }
 
 
@@ -316,7 +356,9 @@ static bool CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
 }
 
 
-bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
+bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
+                                 Handle<String> sample_subject,
+                                 bool is_ascii) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
   ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
@@ -365,6 +407,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             flags.is_ignore_case(),
                             flags.is_multiline(),
                             pattern,
+                            sample_subject,
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
@@ -435,7 +478,7 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
 
   // Check the asciiness of the underlying storage.
   bool is_ascii = subject->IsAsciiRepresentationUnderneath();
-  if (!EnsureCompiledIrregexp(regexp, is_ascii)) return -1;
+  if (!EnsureCompiledIrregexp(regexp, subject, is_ascii)) return -1;
 
 #ifdef V8_INTERPRETED_REGEXP
   // Byte-code regexp needs space allocated for all its registers.
@@ -466,7 +509,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
 #ifndef V8_INTERPRETED_REGEXP
   ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
-    EnsureCompiledIrregexp(regexp, is_ascii);
+    EnsureCompiledIrregexp(regexp, subject, is_ascii);
     Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
     NativeRegExpMacroAssembler::Result res =
         NativeRegExpMacroAssembler::Match(code,
@@ -784,6 +827,53 @@ DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
 }
 
 
+class FrequencyCollator {
+ public:
+  FrequencyCollator() : total_samples_(0) {
+    for (int i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
+      frequencies_[i] = CharacterFrequency(i);
+    }
+  }
+
+  void CountCharacter(int character) {
+    int index = (character & RegExpMacroAssembler::kTableMask);
+    frequencies_[index].Increment();
+    total_samples_++;
+  }
+
+  // Does not measure in percent, but rather per-128 (the table size from the
+  // regexp macro assembler).
+  int Frequency(int in_character) {
+    ASSERT((in_character & RegExpMacroAssembler::kTableMask) == in_character);
+    if (total_samples_ < 1) return 1;  // Division by zero.
+    int freq_in_per128 =
+        (frequencies_[in_character].counter() * 128) / total_samples_;
+    return freq_in_per128;
+  }
+
+ private:
+  class CharacterFrequency {
+   public:
+    CharacterFrequency() : counter_(0), character_(-1) { }
+    explicit CharacterFrequency(int character)
+        : counter_(0), character_(character) { }
+
+    void Increment() { counter_++; }
+    int counter() { return counter_; }
+    int character() { return character_; }
+
+   private:
+    int counter_;
+    int character_;
+  };
+
+
+ private:
+  CharacterFrequency frequencies_[RegExpMacroAssembler::kTableSize];
+  int total_samples_;
+};
+
+
 class RegExpCompiler {
  public:
   RegExpCompiler(int capture_count, bool ignore_case, bool is_ascii);
@@ -819,6 +909,7 @@ class RegExpCompiler {
 
   inline bool ignore_case() { return ignore_case_; }
   inline bool ascii() { return ascii_; }
+  FrequencyCollator* frequency_collator() { return &frequency_collator_; }
 
   int current_expansion_factor() { return current_expansion_factor_; }
   void set_current_expansion_factor(int value) {
@@ -837,6 +928,7 @@ class RegExpCompiler {
   bool ascii_;
   bool reg_exp_too_big_;
   int current_expansion_factor_;
+  FrequencyCollator frequency_collator_;
 };
 
 
@@ -865,7 +957,8 @@ RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case, bool ascii)
       ignore_case_(ignore_case),
       ascii_(ascii),
       reg_exp_too_big_(false),
-      current_expansion_factor_(1) {
+      current_expansion_factor_(1),
+      frequency_collator_() {
   accept_ = new EndNode(EndNode::ACCEPT);
   ASSERT(next_register_ - 1 <= RegExpMacroAssembler::kMaxRegister);
 }
@@ -2056,6 +2149,17 @@ int ActionNode::EatsAtLeast(int still_to_find,
 }
 
 
+void ActionNode::FillInBMInfo(int offset,
+                              BoyerMooreLookahead* bm,
+                              bool not_at_start) {
+  if (type_ == BEGIN_SUBMATCH) {
+    bm->SetRest(offset);
+  } else if (type_ != POSITIVE_SUBMATCH_SUCCESS) {
+    on_success()->FillInBMInfo(offset, bm, not_at_start);
+  }
+}
+
+
 int AssertionNode::EatsAtLeast(int still_to_find,
                                int recursion_depth,
                                bool not_at_start) {
@@ -2069,6 +2173,14 @@ int AssertionNode::EatsAtLeast(int still_to_find,
   return on_success()->EatsAtLeast(still_to_find,
                                    recursion_depth + 1,
                                    not_at_start);
+}
+
+
+void AssertionNode::FillInBMInfo(
+    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+  // Match the behaviour of EatsAtLeast on this node.
+  if (type() == AT_START && not_at_start) return;
+  on_success()->FillInBMInfo(offset, bm, not_at_start);
 }
 
 
@@ -2501,6 +2613,16 @@ void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           compiler,
                                           characters_filled_in,
                                           not_at_start);
+}
+
+
+void LoopChoiceNode::FillInBMInfo(
+    int offset, BoyerMooreLookahead* bm, bool nas) {
+  if (body_can_be_zero_length_) {
+    bm->SetRest(offset);
+    return;
+  }
+  ChoiceNode::FillInBMInfo(offset, bm, nas);
 }
 
 
@@ -3000,6 +3122,30 @@ int TextNode::GreedyLoopTextLength() {
 }
 
 
+RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
+    RegExpCompiler* compiler) {
+  if (elms_->length() != 1) return NULL;
+  TextElement elm = elms_->at(0);
+  if (elm.type != TextElement::CHAR_CLASS) return NULL;
+  RegExpCharacterClass* node = elm.data.u_char_class;
+  ZoneList<CharacterRange>* ranges = node->ranges();
+  if (!CharacterRange::IsCanonical(ranges)) {
+    CharacterRange::Canonicalize(ranges);
+  }
+  if (node->is_negated()) {
+    return ranges->length() == 0 ? on_success() : NULL;
+  }
+  if (ranges->length() != 1) return NULL;
+  uint32_t max_char;
+  if (compiler->ascii()) {
+    max_char = String::kMaxAsciiCharCode;
+  } else {
+    max_char = String::kMaxUtf16CodeUnit;
+  }
+  return ranges->at(0).IsEverything(max_char) ? on_success() : NULL;
+}
+
+
 // Finds the fixed match length of a sequence of nodes that goes from
 // this alternative and back to this choice node.  If there are variable
 // length nodes or other complications in the way then return a sentinel
@@ -3064,8 +3210,8 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler,
-                                           bool not_at_start) {
-  int preload_characters = EatsAtLeast(4, 0, not_at_start);
+                                           int eats_at_least) {
+  int preload_characters = Min(4, eats_at_least);
   if (compiler->macro_assembler()->CanReadUnaligned()) {
     bool ascii = compiler->ascii();
     if (ascii) {
@@ -3129,6 +3275,198 @@ class AlternativeGenerationList {
   ZoneList<AlternativeGeneration*> alt_gens_;
   AlternativeGeneration a_few_alt_gens_[kAFew];
 };
+
+
+BoyerMooreLookahead::BoyerMooreLookahead(
+    int length, int map_length, RegExpCompiler* compiler)
+    : length_(length),
+      map_length_(map_length),
+      compiler_(compiler) {
+  ASSERT(IsPowerOf2(map_length));
+  if (compiler->ascii()) {
+    max_char_ = String::kMaxAsciiCharCode;
+  } else {
+    max_char_ = String::kMaxUtf16CodeUnit;
+  }
+  bitmaps_ = new ZoneList<ZoneList<bool>*>(length);
+  for (int i = 0; i < length; i++) {
+    bitmaps_->Add(new ZoneList<bool>(map_length));
+    ZoneList<bool>* map = bitmaps_->at(i);
+    for (int i = 0; i < map_length; i++) {
+      map->Add(false);
+    }
+  }
+}
+
+
+// Find the longest range of lookahead that has the fewest number of different
+// characters that can occur at a given position.  Since we are optimizing two
+// different parameters at once this is a tradeoff.
+bool BoyerMooreLookahead::FindWorthwhileInterval(int* from, int* to) {
+  int biggest_points = 0;
+  for (int max_number_of_chars = 4;
+       max_number_of_chars < kTooManyCharacters;
+       max_number_of_chars *= 2) {
+    biggest_points =
+        FindBestInterval(max_number_of_chars, biggest_points, from, to);
+  }
+  if (biggest_points == 0) return false;
+  return true;
+}
+
+
+// Find the highest-points range between 0 and length_ where the character
+// information is not too vague.  'Too vague' means that there are more than
+// max_number_of_chars that can occur at this position.  Calculates the number
+// of points as the product of width-of-the-range and
+// probability-of-finding-one-of-the-characters, where the probability is
+// calculated using the frequency distribution of the sample subject string.
+int BoyerMooreLookahead::FindBestInterval(
+    int max_number_of_chars, int old_biggest_points, int* from, int* to) {
+  int biggest_points = old_biggest_points;
+  static const int kSize = RegExpMacroAssembler::kTableSize;
+  for (int i = 0; i < length_; ) {
+    while (i < length_ && Count(i) > max_number_of_chars) i++;
+    if (i == length_) break;
+    int remembered_from = i;
+    bool union_map[kSize];
+    for (int j = 0; j < kSize; j++) union_map[j] = false;
+    while (i < length_ && Count(i) <= max_number_of_chars) {
+      ZoneList<bool>* map = bitmaps_->at(i);
+      for (int j = 0; j < kSize; j++) union_map[j] |= map->at(j);
+      i++;
+    }
+    int frequency = 0;
+    for (int j = 0; j < kSize; j++) {
+      if (union_map[j]) {
+        // Add 1 to the frequency to give a small per-character boost for
+        // the cases where our sampling is not good enough and many
+        // characters have a frequency of zero.  This means the frequency
+        // can theoretically be up to 2*kSize though we treat it mostly as
+        // a fraction of kSize.
+        frequency += compiler_->frequency_collator()->Frequency(j) + 1;
+      }
+    }
+    // We use the probability of skipping times the distance we are skipping to
+    // judge the effectiveness of this.  Actually we have a cut-off:  By
+    // dividing by 2 we switch off the skipping if the probability of skipping
+    // is less than 50%.  This is because the multibyte mask-and-compare
+    // skipping in quickcheck is more likely to do well on this case.
+    bool in_quickcheck_range = ((i - remembered_from < 4) ||
+        (compiler_->ascii() ? remembered_from <= 4 : remembered_from <= 2));
+    // Called 'probability' but it is only a rough estimate and can actually
+    // be outside the 0-kSize range.
+    int probability = (in_quickcheck_range ? kSize / 2 : kSize) - frequency;
+    int points = (i - remembered_from) * probability;
+    if (points > biggest_points) {
+      *from = remembered_from;
+      *to = i - 1;
+      biggest_points = points;
+    }
+  }
+  return biggest_points;
+}
+
+
+// Take all the characters that will not prevent a successful match if they
+// occur in the subject string in the range between min_lookahead and
+// max_lookahead (inclusive) measured from the current position.  If the
+// character at max_lookahead offset is not one of these characters, then we
+// can safely skip forwards by the number of characters in the range.
+int BoyerMooreLookahead::GetSkipTable(int min_lookahead,
+                                      int max_lookahead,
+                                      Handle<ByteArray> boolean_skip_table) {
+  const int kSize = RegExpMacroAssembler::kTableSize;
+
+  const int kSkipArrayEntry = 0;
+  const int kDontSkipArrayEntry = 1;
+
+  for (int i = 0; i < kSize; i++) {
+    boolean_skip_table->set(i, kSkipArrayEntry);
+  }
+  int skip = max_lookahead + 1 - min_lookahead;
+
+  for (int i = max_lookahead; i >= min_lookahead; i--) {
+    ZoneList<bool>* map = bitmaps_->at(i);
+    for (int j = 0; j < map_length_; j++) {
+      if (map->at(j)) {
+        boolean_skip_table->set(j, kDontSkipArrayEntry);
+      }
+    }
+  }
+
+  return skip;
+}
+
+
+// See comment above on the implementation of GetSkipTable.
+bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
+  int min_lookahead = 0;
+  int max_lookahead = 0;
+
+  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return false;
+
+  bool found_single_character = false;
+  bool abandoned_search_for_single_character = false;
+  int single_character = 0;
+  for (int i = max_lookahead; i >= min_lookahead; i--) {
+    ZoneList<bool>* map = bitmaps_->at(i);
+    for (int j = 0; j < map_length_; j++) {
+      if (map->at(j)) {
+        if (found_single_character) {
+          found_single_character = false;  // Found two.
+          abandoned_search_for_single_character = true;
+          break;
+        } else {
+          found_single_character = true;
+          single_character = j;
+        }
+      }
+    }
+    if (abandoned_search_for_single_character) break;
+  }
+
+  int lookahead_width = max_lookahead + 1 - min_lookahead;
+
+  if (found_single_character && lookahead_width == 1 && max_lookahead < 3) {
+    // The mask-compare can probably handle this better.
+    return false;
+  }
+
+  if (found_single_character) {
+    Label cont, again;
+    masm->Bind(&again);
+    masm->LoadCurrentCharacter(max_lookahead, &cont, true);
+    if (max_char_ > map_length_) {
+      ASSERT(map_length_ == RegExpMacroAssembler::kTableSize);
+      masm->CheckCharacterAfterAnd(single_character,
+                                   RegExpMacroAssembler::kTableMask,
+                                   &cont);
+    } else {
+      masm->CheckCharacter(single_character, &cont);
+    }
+    masm->AdvanceCurrentPosition(lookahead_width);
+    masm->GoTo(&again);
+    masm->Bind(&cont);
+    return true;
+  }
+
+  Handle<ByteArray> boolean_skip_table =
+      FACTORY->NewByteArray(map_length_, TENURED);
+  int skip_distance = GetSkipTable(
+      min_lookahead, max_lookahead, boolean_skip_table);
+  ASSERT(skip_distance != 0);
+
+  Label cont, again;
+  masm->Bind(&again);
+  masm->LoadCurrentCharacter(max_lookahead, &cont, true);
+  masm->CheckBitInTable(boolean_skip_table, &cont);
+  masm->AdvanceCurrentPosition(skip_distance);
+  masm->GoTo(&again);
+  masm->Bind(&cont);
+
+  return true;
+}
 
 
 /* Code generation for choice nodes.
@@ -3209,7 +3547,6 @@ class AlternativeGenerationList {
  *        \______________/
  */
 
-
 void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   int choice_count = alternatives_->length();
@@ -3274,10 +3611,48 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   int first_normal_choice = greedy_loop ? 1 : 0;
 
-  int preload_characters =
-      CalculatePreloadCharacters(compiler,
-                                 current_trace->at_start() == Trace::FALSE);
-  bool preload_is_current =
+  bool not_at_start = current_trace->at_start() == Trace::FALSE;
+  const int kEatsAtLeastNotYetInitialized = -1;
+  int eats_at_least = kEatsAtLeastNotYetInitialized;
+
+  bool skip_was_emitted = false;
+
+  if (!greedy_loop && choice_count == 2) {
+    GuardedAlternative alt1 = alternatives_->at(1);
+    if (alt1.guards() == NULL || alt1.guards()->length() == 0) {
+      RegExpNode* eats_anything_node = alt1.node();
+      if (eats_anything_node->GetSuccessorOfOmnivorousTextNode(compiler) ==
+          this) {
+        // At this point we know that we are at a non-greedy loop that will eat
+        // any character one at a time.  Any non-anchored regexp has such a
+        // loop prepended to it in order to find where it starts.  We look for
+        // a pattern of the form ...abc... where we can look 6 characters ahead
+        // and step forwards 3 if the character is not one of abc.  Abc need
+        // not be atoms, they can be any reasonably limited character class or
+        // small alternation.
+        ASSERT(trace->is_trivial());  // This is the case on LoopChoiceNodes.
+        eats_at_least =
+            Min(kMaxLookaheadForBoyerMoore,
+                EatsAtLeast(kMaxLookaheadForBoyerMoore, 0, not_at_start));
+        if (eats_at_least >= 1) {
+          BoyerMooreLookahead bm(eats_at_least,
+                                 RegExpMacroAssembler::kTableSize,
+                                 compiler);
+          GuardedAlternative alt0 = alternatives_->at(0);
+          alt0.node()->FillInBMInfo(0, &bm, not_at_start);
+          skip_was_emitted = bm.EmitSkipInstructions(macro_assembler);
+        }
+      }
+    }
+  }
+
+  if (eats_at_least == kEatsAtLeastNotYetInitialized) {
+    // Save some time by looking at most one machine word ahead.
+    eats_at_least = EatsAtLeast(compiler->ascii() ? 4 : 2, 0, not_at_start);
+  }
+  int preload_characters = CalculatePreloadCharacters(compiler, eats_at_least);
+
+  bool preload_is_current = !skip_was_emitted &&
       (current_trace->characters_preloaded() == preload_characters);
   bool preload_has_checked_bounds = preload_is_current;
 
@@ -5432,6 +5807,76 @@ int BackReferenceNode::ComputeFirstCharacterSet(int budget) {
 }
 
 
+void ChoiceNode::FillInBMInfo(
+    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+  ZoneList<GuardedAlternative>* alts = alternatives();
+  for (int i = 0; i < alts->length(); i++) {
+    GuardedAlternative& alt = alts->at(i);
+    if (alt.guards() != NULL && alt.guards()->length() != 0) {
+      bm->SetRest(offset);  // Give up trying to fill in info.
+      return;
+    }
+    alt.node()->FillInBMInfo(offset, bm, not_at_start);
+  }
+}
+
+
+void TextNode::FillInBMInfo(
+    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+  if (offset >= bm->length()) return;
+  int max_char = bm->max_char();
+  for (int i = 0; i < elements()->length(); i++) {
+    if (offset >= bm->length()) return;
+    TextElement text = elements()->at(i);
+    if (text.type == TextElement::ATOM) {
+      RegExpAtom* atom = text.data.u_atom;
+      for (int j = 0; j < atom->length(); j++, offset++) {
+        if (offset >= bm->length()) return;
+        uc16 character = atom->data()[j];
+        if (bm->compiler()->ignore_case()) {
+          unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+          int length = GetCaseIndependentLetters(
+              ISOLATE,
+              character,
+              bm->max_char() == String::kMaxAsciiCharCode,
+              chars);
+          for (int j = 0; j < length; j++) {
+            bm->Set(offset, chars[j]);
+          }
+        } else {
+          if (character <= max_char) bm->Set(offset, character);
+        }
+      }
+    } else {
+      ASSERT(text.type == TextElement::CHAR_CLASS);
+      RegExpCharacterClass* char_class = text.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = char_class->ranges();
+      if (char_class->is_negated()) {
+        bm->SetAll(offset);
+      } else {
+        for (int k = 0; k < ranges->length(); k++) {
+          CharacterRange& range = ranges->at(k);
+          if (range.from() > max_char) continue;
+          int to = Min(max_char, static_cast<int>(range.to()));
+          if (to - range.from() >= BoyerMooreLookahead::kTooManyCharacters) {
+            bm->SetAll(offset);
+            break;
+          }
+          for (int m = range.from(); m <= to; m++) {
+            bm->Set(offset, m);
+          }
+        }
+      }
+      offset++;
+    }
+  }
+  if (offset >= bm->length()) return;
+  on_success()->FillInBMInfo(offset,
+                             bm,
+                             true);  // Not at start after a text node.
+}
+
+
 int TextNode::ComputeFirstCharacterSet(int budget) {
   budget--;
   if (budget >= 0) {
@@ -5589,15 +6034,30 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
-RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
-                                                      bool ignore_case,
-                                                      bool is_multiline,
-                                                      Handle<String> pattern,
-                                                      bool is_ascii) {
+RegExpEngine::CompilationResult RegExpEngine::Compile(
+    RegExpCompileData* data,
+    bool ignore_case,
+    bool is_multiline,
+    Handle<String> pattern,
+    Handle<String> sample_subject,
+    bool is_ascii) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
     return IrregexpRegExpTooBig();
   }
   RegExpCompiler compiler(data->capture_count, ignore_case, is_ascii);
+
+  // Sample some characters from the middle of the string.
+  static const int kSampleSize = 128;
+
+  FlattenString(sample_subject);
+  int chars_sampled = 0;
+  int half_way = (sample_subject->length() - kSampleSize) / 2;
+  for (int i = Max(0, half_way);
+       i < sample_subject->length() && chars_sampled < kSampleSize;
+       i++, chars_sampled++) {
+    compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
+  }
+
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body = RegExpCapture::ToNode(data->tree,
                                                     0,

@@ -1,3 +1,33 @@
+2012-04-10: Version 3.10.1
+
+        Fixed bug with arguments object in inlined functions (issue 2045).
+
+        Fixed performance bug with lazy initialization (Chromium issue
+        118686).
+
+        Added suppport for Mac OS X 64bit builds with GYP.
+        (Patch contributed by Filipe David Manana <fdmanana@gmail.com>)
+
+        Fixed bug with hidden properties (issue 2034).
+
+        Fixed a performance bug when reloading pages (Chromium issue 117767,
+        V8 issue 1902).
+
+        Fixed bug when optimizing throw in top-level code (issue 2054).
+
+        Fixed two bugs with array literals (issue 2055, Chromium issue 121407).
+
+        Fixed bug with Math.min/Math.max with NaN inputs (issue 2056).
+
+        Fixed a bug with the new runtime profiler (Chromium issue 121147).
+
+        Fixed compilation of V8 using uClibc.
+
+        Optimized boot-up memory use.
+
+        Optimized regular expressions.
+
+
 2012-03-30: Version 3.10.0
 
         Fixed store IC writability check in strict mode

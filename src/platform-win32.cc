@@ -141,20 +141,11 @@ static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
 static OS::MemCopyFunction memcopy_function = NULL;
-static LazyMutex memcopy_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-ia32.cc.
 OS::MemCopyFunction CreateMemCopyFunction();
 
 // Copy memory area to disjoint memory area.
 void OS::MemCopy(void* dest, const void* src, size_t size) {
-  if (memcopy_function == NULL) {
-    ScopedLock lock(memcopy_function_mutex.Pointer());
-    if (memcopy_function == NULL) {
-      OS::MemCopyFunction temp = CreateMemCopyFunction();
-      MemoryBarrier();
-      memcopy_function = temp;
-    }
-  }
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   (*memcopy_function)(dest, src, size);
@@ -563,22 +554,13 @@ char* Time::LocalTimezone() {
 }
 
 
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srand(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
-}
-
-
 void OS::PostSetUp() {
   // Math functions depend on CPU features therefore they are initialized after
   // CPU.
   MathSetup();
+#if defined(V8_TARGET_ARCH_IA32)
+  memcopy_function = CreateMemCopyFunction();
+#endif
 }
 
 
@@ -1967,8 +1949,14 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
+  static void SetUp() {
+    if (!mutex_) {
+      mutex_ = OS::CreateMutex();
+    }
+  }
+
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
@@ -1979,7 +1967,7 @@ class SamplerThread : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_.Pointer());
+    ScopedLock lock(mutex_);
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -2065,7 +2053,7 @@ class SamplerThread : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static LazyMutex mutex_;
+  static Mutex* mutex_;
   static SamplerThread* instance_;
 
  private:
@@ -2073,8 +2061,21 @@ class SamplerThread : public Thread {
 };
 
 
-LazyMutex SamplerThread::mutex_ = LAZY_MUTEX_INITIALIZER;
+Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
+
+
+void OS::SetUp() {
+  // Seed the random number generator.
+  // Convert the current time to a 64-bit integer first, before converting it
+  // to an unsigned. Going directly can cause an overflow and the seed to be
+  // set to all ones. The seed will be identical for different instances that
+  // call this setup code within the same millisecond.
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  srand(static_cast<unsigned int>(seed));
+  limit_mutex = CreateMutex();
+  SamplerThread::SetUp();
+}
 
 
 Sampler::Sampler(Isolate* isolate, int interval)

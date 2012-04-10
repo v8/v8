@@ -189,7 +189,9 @@ function StringMatch(regexp) {
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
-    return %StringMatch(subject, regexp, lastMatchInfo);
+    var result = %StringMatch(subject, regexp, lastMatchInfo);
+    if (result !== null) lastMatchInfoOverride = null;
+    return result;
   }
   // Non-regexp argument.
   regexp = new $RegExp(regexp);
