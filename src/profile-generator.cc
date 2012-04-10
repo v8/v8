@@ -2109,12 +2109,11 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
     // Add function variable.
     if (scope_info->HasFunctionName()) {
       String* name = scope_info->FunctionName();
-      int idx = Context::MIN_CONTEXT_SLOTS + context_locals;
-#ifdef DEBUG
       VariableMode mode;
-      ASSERT(idx == scope_info->FunctionContextSlotIndex(name, &mode));
-#endif
-      SetClosureReference(js_obj, entry, name, context->get(idx));
+      int idx = scope_info->FunctionContextSlotIndex(name, &mode);
+      if (idx >= 0) {
+        SetClosureReference(js_obj, entry, name, context->get(idx));
+      }
     }
   }
 }
