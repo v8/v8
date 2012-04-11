@@ -1800,6 +1800,8 @@ class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+
+  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 

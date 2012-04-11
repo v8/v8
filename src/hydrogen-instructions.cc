@@ -2093,6 +2093,17 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+bool HStoreKeyedFastDoubleElement::NeedsCanonicalization() {
+  // If value was loaded from unboxed double backing store or
+  // converted from an integer then we don't have to canonicalize it.
+  if (value()->IsLoadKeyedFastDoubleElement() ||
+      (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
+    return false;
+  }
+  return true;
+}
+
+
 #define H_CONSTANT_INT32(val)                                                  \
 new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
                     Representation::Integer32())

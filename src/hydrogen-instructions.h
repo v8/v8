@@ -4226,6 +4226,8 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
     return StoringValueNeedsWriteBarrier(value());
   }
 
+  bool NeedsCanonicalization();
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement)

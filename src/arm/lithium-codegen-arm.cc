@@ -3624,7 +3624,6 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   Register scratch = scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
-  Label not_nan;
 
   // Calculate the effective address of the slot in the array to store the
   // double value.
@@ -3647,13 +3646,15 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
            Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  // Check for NaN. All NaNs must be canonicalized.
-  __ VFPCompareAndSetFlags(value, value);
+  if (instr->NeedsCanonicalization()) {
+    // Check for NaN. All NaNs must be canonicalized.
+    __ VFPCompareAndSetFlags(value, value);
+    // Only load canonical NaN if the comparison above set the overflow.
+    __ Vmov(value,
+            FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
+            vs);
+  }
 
-  // Only load canonical NaN if the comparison above set the overflow.
-  __ Vmov(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double(), vs);
-
-  __ bind(&not_nan);
   __ vstr(value, scratch, 0);
 }
 
