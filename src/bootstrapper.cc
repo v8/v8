@@ -1317,6 +1317,12 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->set_compiling_natives(true);
 #endif
+  // During genesis, the boilerplate for stack overflow won't work until the
+  // environment has been at least partially initialized. Add a stack check
+  // before entering JS code to catch overflow early.
+  StackLimitCheck check(Isolate::Current());
+  if (check.HasOverflowed()) return false;
+
   bool result = CompileScriptCached(name,
                                     source,
                                     NULL,

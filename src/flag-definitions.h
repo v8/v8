@@ -249,7 +249,9 @@ DEFINE_bool(debugger_auto_break, true,
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
 // execution.cc
-DEFINE_int(stack_size, kPointerSize * 128,
+// Slightly less than 1MB on 64-bit, since Windows' default stack size for
+// the main execution thread is 1MB for both 32 and 64-bit.
+DEFINE_int(stack_size, kPointerSize * 123,
            "default size of stack region v8 is allowed to use (in KkBytes)")
 
 // frames.cc
