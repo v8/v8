@@ -29,6 +29,8 @@
 // own but contains the parts which are the same across POSIX platforms Linux,
 // Mac OS, FreeBSD and OpenBSD.
 
+#include "platform-posix.h"
+
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -129,13 +131,10 @@ double modulo(double x, double y) {
 
 #define UNARY_MATH_FUNCTION(name, generator)             \
 static UnaryMathFunction fast_##name##_function = NULL;  \
-V8_DECLARE_ONCE(fast_##name##_init_once);                \
 void init_fast_##name##_function() {                     \
   fast_##name##_function = generator;                    \
 }                                                        \
 double fast_##name(double x) {                           \
-  CallOnce(&fast_##name##_init_once,                     \
-           &init_fast_##name##_function);                \
   return (*fast_##name##_function)(x);                   \
 }
 
@@ -146,6 +145,15 @@ UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
 #undef MATH_FUNCTION
+
+
+void MathSetup() {
+  init_fast_sin_function();
+  init_fast_cos_function();
+  init_fast_tan_function();
+  init_fast_log_function();
+  init_fast_sqrt_function();
+}
 
 
 double OS::nan_value() {

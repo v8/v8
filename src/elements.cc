@@ -199,10 +199,13 @@ static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
     }
 #endif
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length());
   ASSERT(to != from);
   ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
   if (copy_size == 0) return;
+  uint32_t to_length = to->length();
+  if (to_start + copy_size > to_length) {
+    copy_size = to_length - to_start;
+  }
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
@@ -356,8 +359,11 @@ static void CopyDictionaryToDoubleElements(SeededNumberDictionary* from,
       }
     }
   }
-  ASSERT(copy_size + static_cast<int>(to_start) <= to->length());
   if (copy_size == 0) return;
+  uint32_t to_length = to->length();
+  if (to_start + copy_size > to_length) {
+    copy_size = to_length - to_start;
+  }
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {

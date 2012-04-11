@@ -1353,12 +1353,14 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 int arguments_count,
                 FunctionLiteral* function,
                 CallKind call_kind,
-                bool is_construct)
+                bool is_construct,
+                Variable* arguments)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
-        is_construct_(is_construct) {
+        is_construct_(is_construct),
+        arguments_(arguments) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1373,6 +1375,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  Variable* arguments() { return arguments_; }
+
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
  private:
@@ -1381,6 +1385,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   CallKind call_kind_;
   bool is_construct_;
+  Variable* arguments_;
 };
 
 

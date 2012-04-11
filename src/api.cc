@@ -4170,7 +4170,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 
 bool v8::V8::Initialize() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
@@ -4277,6 +4277,7 @@ Persistent<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
+  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Context::New()");
   LOG_API(isolate, "Context::New");
@@ -5063,7 +5064,7 @@ Local<Number> v8::Number::New(double value) {
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
@@ -5269,6 +5270,7 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
+  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddLeaveScriptCallback()")) return;
   i::V8::AddCallCompletedCallback(callback);
@@ -5276,6 +5278,7 @@ void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  i::Isolate::EnsureDefaultIsolate();
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::RemoveLeaveScriptCallback()")) return;
   i::V8::RemoveCallCompletedCallback(callback);
@@ -5341,7 +5344,7 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
 
 
 Isolate* Isolate::GetCurrent() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   return reinterpret_cast<Isolate*>(isolate);
 }
 
