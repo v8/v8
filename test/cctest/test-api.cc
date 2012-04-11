@@ -10871,7 +10871,8 @@ THREADED_TEST(ExternalAllocatedMemory) {
   CHECK(!env.IsEmpty());
   const intptr_t kSize = 1024*1024;
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize), kSize);
-  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0l);
+  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize),
+           static_cast<intptr_t>(0));
 }
 
 
