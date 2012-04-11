@@ -462,7 +462,8 @@ void HValue::PrintChangesTo(StringStream* stream) {
       add_comma = true;                           \
       stream->Add(#type);                         \
     }
-    GVN_FLAG_LIST(PRINT_DO);
+    GVN_TRACKED_FLAG_LIST(PRINT_DO);
+    GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
 #undef PRINT_DO
   }
   stream->Add("]");
@@ -1733,6 +1734,9 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
   stream->Add(" = ");
   value()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
+  if (NeedsWriteBarrier()) {
+    stream->Add(" (write-barrier)");
+  }
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }

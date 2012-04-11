@@ -1223,6 +1223,30 @@ class HValueMap: public ZoneObject {
 };
 
 
+class HSideEffectMap BASE_EMBEDDED {
+ public:
+  HSideEffectMap();
+  HSideEffectMap(HSideEffectMap* other);
+
+  void Kill(GVNFlagSet flags);
+
+  void Store(GVNFlagSet flags, HInstruction* instr);
+
+  bool IsEmpty() const { return count_ == 0; }
+
+  inline HInstruction* operator[](int i) const {
+    ASSERT(0 <= i);
+    ASSERT(i < kNumberOfTrackedSideEffects);
+    return data_[i];
+  }
+  inline HInstruction* at(int i) const { return operator[](i); }
+
+ private:
+  int count_;
+  HInstruction* data_[kNumberOfTrackedSideEffects];
+};
+
+
 class HStatistics: public Malloced {
  public:
   void Initialize(CompilationInfo* info);

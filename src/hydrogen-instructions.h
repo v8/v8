@@ -188,7 +188,10 @@ class LChunkBuilder;
   V(DateField)                                 \
   V(WrapReceiver)
 
-#define GVN_FLAG_LIST(V)                       \
+#define GVN_TRACKED_FLAG_LIST(V)               \
+  V(NewSpacePromotion)
+
+#define GVN_UNTRACKED_FLAG_LIST(V)             \
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
@@ -506,14 +509,18 @@ class HUseIterator BASE_EMBEDDED {
 
 // There must be one corresponding kDepends flag for every kChanges flag and
 // the order of the kChanges flags must be exactly the same as of the kDepends
-// flags.
+// flags. All tracked flags should appear before untracked ones.
 enum GVNFlag {
   // Declare global value numbering flags.
 #define DECLARE_FLAG(type) kChanges##type, kDependsOn##type,
-  GVN_FLAG_LIST(DECLARE_FLAG)
+  GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
   kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1
+  kLastFlag = kAfterLastFlag - 1,
+#define COUNT_FLAG(type) + 1
+  kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
+#undef COUNT_FLAG
 };
 
 typedef EnumSet<GVNFlag> GVNFlagSet;
@@ -530,6 +537,10 @@ class HValue: public ZoneObject {
     // implement DataEquals(), which will be used to determine if other
     // occurrences of the instruction are indeed the same.
     kUseGVN,
+    // Track instructions that are dominating side effects. If an instruction
+    // sets this flag, it must implement SetSideEffectDominator() and should
+    // indicate which side effects to track by setting GVN flags.
+    kTrackSideEffectDominators,
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
@@ -544,6 +555,12 @@ class HValue: public ZoneObject {
 
   static const int kChangesToDependsFlagsLeftShift = 1;
 
+  static GVNFlag ChangesFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2);
+  }
+  static GVNFlag DependsOnFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2 + 1);
+  }
   static GVNFlagSet ConvertChangesToDependsFlags(GVNFlagSet flags) {
     return GVNFlagSet(flags.ToIntegral() << kChangesToDependsFlagsLeftShift);
   }
@@ -726,6 +743,13 @@ class HValue: public ZoneObject {
 
   virtual HType CalculateInferredType();
 
+  // This function must be overridden for instructions which have the
+  // kTrackSideEffectDominators flag set, to track instructions that are
+  // dominating side effects.
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    UNREACHABLE();
+  }
+
 #ifdef DEBUG
   virtual void Verify() = 0;
 #endif
@@ -756,7 +780,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kDependsOn##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -765,7 +790,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kChanges##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -781,6 +807,7 @@ class HValue: public ZoneObject {
   // an executing program (i.e. are not safe to repeat, move or remove);
   static GVNFlagSet AllObservableSideEffectsFlagSet() {
     GVNFlagSet result = AllChangesFlagSet();
+    result.Remove(kChangesNewSpacePromotion);
     result.Remove(kChangesElementsKind);
     result.Remove(kChangesElementsPointer);
     result.Remove(kChangesMaps);
@@ -3557,6 +3584,12 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 }
 
 
+inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
+                                            HValue* new_space_dominator) {
+  return !object->IsAllocateObject() || (object != new_space_dominator);
+}
+
+
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
@@ -4023,9 +4056,12 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    int offset)
       : name_(name),
         is_in_object_(in_object),
-        offset_(offset) {
+        offset_(offset),
+        new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
+    SetFlag(kTrackSideEffectDominators);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
     if (is_in_object_) {
       SetGVNFlag(kChangesInobjectFields);
     } else {
@@ -4038,6 +4074,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    ASSERT(side_effect == kChangesNewSpacePromotion);
+    new_space_dominator_ = dominator;
+  }
   virtual void PrintDataTo(StringStream* stream);
 
   HValue* object() { return OperandAt(0); }
@@ -4048,9 +4088,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
+  HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
-    return StoringValueNeedsWriteBarrier(value());
+    return StoringValueNeedsWriteBarrier(value()) &&
+        ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
  private:
@@ -4058,6 +4100,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool is_in_object_;
   int offset_;
   Handle<Map> transition_;
+  HValue* new_space_dominator_;
 };
 
 
@@ -4404,6 +4447,7 @@ class HAllocateObject: public HTemplateInstruction<1> {
       : constructor_(constructor) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   // Maximum instance size for which allocations will be inlined.
