@@ -1315,7 +1315,16 @@ HeapObjectsMap::HeapObjectsMap()
     : initial_fill_mode_(true),
       next_id_(kFirstAvailableObjectId),
       entries_map_(AddressesMatch),
-      entries_(new List<EntryInfo>()) { }
+      entries_(new List<EntryInfo>()) {
+  // This dummy element solves a problem with entries_map_.
+  // When we do lookup in HashMap we see no difference between two cases:
+  // it has an entry with NULL as the value or it has created
+  // a new entry on the fly with NULL as the default value.
+  // With such dummy element we have a guaranty that all entries_map_ entries
+  // will have the value field grater than 0.
+  // This fact is using in MoveObject method.
+  entries_->Add(EntryInfo(0, NULL));
+}
 
 
 HeapObjectsMap::~HeapObjectsMap() {
@@ -1337,31 +1346,47 @@ SnapshotObjectId HeapObjectsMap::FindObject(Address addr) {
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
   AddEntry(addr, id);
+  // Here and in other places the length of entries_ list has to be
+  // the same or greater than the length of entries_map_. But entries_ list
+  // has a dummy element at index 0.
+  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
   return id;
 }
 
 
 void HeapObjectsMap::MoveObject(Address from, Address to) {
+  ASSERT(to != NULL);
+  ASSERT(from != NULL);
   if (from == to) return;
-  HashMap::Entry* entry = entries_map_.Lookup(from, AddressHash(from), false);
-  if (entry != NULL) {
-    void* value = entry->value;
-    entries_map_.Remove(from, AddressHash(from));
-    if (to != NULL) {
-      entry = entries_map_.Lookup(to, AddressHash(to), true);
-      // We can have an entry at the new location, it is OK, as GC can overwrite
-      // dead objects with alive objects being moved.
-      entry->value = value;
-    }
+  void* from_value = entries_map_.Remove(from, AddressHash(from));
+  if (from_value == NULL) return;
+  int from_entry_info_index =
+      static_cast<int>(reinterpret_cast<intptr_t>(from_value));
+  entries_->at(from_entry_info_index).addr = to;
+  HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
+  if (to_entry->value != NULL) {
+    int to_entry_info_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(to_entry->value));
+    // Without this operation we will have two EntryInfo's with the same
+    // value in addr field. It is bad because later at RemoveDeadEntries
+    // one of this entry will be removed with the corresponding entries_map_
+    // entry.
+    entries_->at(to_entry_info_index).addr = NULL;
   }
+  to_entry->value = reinterpret_cast<void*>(from_entry_info_index);
 }
 
 
 void HeapObjectsMap::AddEntry(Address addr, SnapshotObjectId id) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   ASSERT(entry->value == NULL);
+  ASSERT(entries_->length() > 0 &&
+         entries_->at(0).id == 0 &&
+         entries_->at(0).addr == NULL);
+  ASSERT(entries_->at(entries_->length() - 1).id < id);
   entry->value = reinterpret_cast<void*>(entries_->length());
-  entries_->Add(EntryInfo(id));
+  entries_->Add(EntryInfo(id, addr));
+  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
 }
 
 
@@ -1372,6 +1397,8 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_->at(entry_index);
     entry_info.accessed = true;
+    ASSERT(static_cast<uint32_t>(entries_->length()) >
+           entries_map_.occupancy());
     return entry_info.id;
   } else {
     return 0;
@@ -1380,28 +1407,31 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 
 
 void HeapObjectsMap::RemoveDeadEntries() {
-  List<EntryInfo>* new_entries = new List<EntryInfo>();
-  List<void*> dead_entries;
-  for (HashMap::Entry* entry = entries_map_.Start();
-       entry != NULL;
-       entry = entries_map_.Next(entry)) {
-    int entry_index =
-        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-    EntryInfo& entry_info = entries_->at(entry_index);
+  ASSERT(entries_->length() > 0 &&
+         entries_->at(0).id == 0 &&
+         entries_->at(0).addr == NULL);
+  int first_free_entry = 1;
+  for (int i = 1; i < entries_->length(); ++i) {
+    EntryInfo& entry_info = entries_->at(i);
     if (entry_info.accessed) {
-      entry->value = reinterpret_cast<void*>(new_entries->length());
-      new_entries->Add(EntryInfo(entry_info.id, false));
+      if (first_free_entry != i) {
+        entries_->at(first_free_entry) = entry_info;
+      }
+      entries_->at(first_free_entry).accessed = false;
+      HashMap::Entry* entry = entries_map_.Lookup(
+          entry_info.addr, AddressHash(entry_info.addr), false);
+      ASSERT(entry);
+      entry->value = reinterpret_cast<void*>(first_free_entry);
+      ++first_free_entry;
     } else {
-      dead_entries.Add(entry->key);
+      if (entry_info.addr) {
+        entries_map_.Remove(entry_info.addr, AddressHash(entry_info.addr));
+      }
     }
   }
-  for (int i = 0; i < dead_entries.length(); ++i) {
-    void* raw_entry = dead_entries[i];
-    entries_map_.Remove(
-        raw_entry, AddressHash(reinterpret_cast<Address>(raw_entry)));
-  }
-  delete entries_;
-  entries_ = new_entries;
+  entries_->Rewind(first_free_entry);
+  ASSERT(static_cast<uint32_t>(entries_->length()) - 1 ==
+         entries_map_.occupancy());
 }
 
 

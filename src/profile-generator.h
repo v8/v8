@@ -722,11 +722,12 @@ class HeapObjectsMap {
 
  private:
   struct EntryInfo {
-    explicit EntryInfo(SnapshotObjectId id) : id(id), accessed(true) { }
-    EntryInfo(SnapshotObjectId id, bool accessed)
-      : id(id),
-        accessed(accessed) { }
+    EntryInfo(SnapshotObjectId id, Address addr)
+      : id(id), addr(addr), accessed(true) { }
+    EntryInfo(SnapshotObjectId id, Address addr, bool accessed)
+      : id(id), addr(addr), accessed(accessed) { }
     SnapshotObjectId id;
+    Address addr;
     bool accessed;
   };
 
