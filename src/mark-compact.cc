@@ -2592,12 +2592,17 @@ void MarkCompactCollector::ProcessWeakMaps() {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
     ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+    Object** anchor = reinterpret_cast<Object**>(table->address());
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
-        int idx = ObjectHashTable::EntryToValueIndex(i);
-        Object** slot =
-            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(idx));
-        StaticMarkingVisitor::VisitPointer(heap(), slot);
+        Object** key_slot =
+            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
+                ObjectHashTable::EntryToIndex(i)));
+        RecordSlot(anchor, key_slot, *key_slot);
+        Object** value_slot =
+            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
+                ObjectHashTable::EntryToValueIndex(i)));
+        StaticMarkingVisitor::MarkObjectByPointer(this, anchor, value_slot);
       }
     }
     weak_map_obj = weak_map->next();

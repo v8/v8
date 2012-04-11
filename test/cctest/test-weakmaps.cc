@@ -158,7 +158,7 @@ TEST(Shrinking) {
 
 // Test that weak map values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
-TEST(Regress2060) {
+TEST(Regress2060a) {
   FLAG_always_compact = true;
   LocalContext context;
   v8::HandleScope scope;
@@ -184,5 +184,40 @@ TEST(Regress2060) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+}
+
+
+// Test that weak map keys on an evacuation candidate which are reachable by
+// other strong paths are correctly recorded in the slots buffer.
+TEST(Regress2060b) {
+  FLAG_always_compact = true;
+  FLAG_verify_heap = true;
+  LocalContext context;
+  v8::HandleScope scope;
+  Handle<JSFunction> function =
+      FACTORY->NewFunction(FACTORY->function_symbol(), FACTORY->null_value());
+
+  // Start second old-space page so that keys land on evacuation candidate.
+  Page* first_page = HEAP->old_pointer_space()->anchor()->next_page();
+  FACTORY->NewFixedArray(900 * KB / kPointerSize, TENURED);
+
+  // Fill up weak map with keys on an evacuation candidate.
+  Handle<JSObject> keys[32];
+  for (int i = 0; i < 32; i++) {
+    keys[i] = FACTORY->NewJSObject(function, TENURED);
+    CHECK(!HEAP->InNewSpace(keys[i]->address()));
+    CHECK(!first_page->Contains(keys[i]->address()));
+  }
+  Handle<JSWeakMap> weakmap = AllocateJSWeakMap();
+  for (int i = 0; i < 32; i++) {
+    PutIntoWeakMap(weakmap, keys[i], Handle<Smi>(Smi::FromInt(i)));
+  }
+
+  // Force compacting garbage collection. The subsequent collections are used
+  // to verify that key references were actually updated.
+  CHECK(FLAG_always_compact);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 }
