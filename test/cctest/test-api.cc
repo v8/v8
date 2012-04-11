@@ -10869,9 +10869,9 @@ THREADED_TEST(ExternalAllocatedMemory) {
   v8::HandleScope outer;
   v8::Persistent<Context> env(Context::New());
   CHECK(!env.IsEmpty());
-  const int kSize = 1024*1024;
+  const intptr_t kSize = 1024*1024;
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize), kSize);
-  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0);
+  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0l);
 }
 
 

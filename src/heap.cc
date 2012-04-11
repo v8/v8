@@ -5676,7 +5676,7 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 }
 
 
-int Heap::PromotedExternalMemorySize() {
+intptr_t Heap::PromotedExternalMemorySize() {
   if (amount_of_external_allocated_memory_
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
   return amount_of_external_allocated_memory_
