@@ -1381,13 +1381,15 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 CallKind call_kind,
                 bool is_construct,
-                Variable* arguments)
+                Variable* arguments_var,
+                ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
         is_construct_(is_construct),
-        arguments_(arguments) {
+        arguments_var_(arguments_var),
+        arguments_values_(arguments_values) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1402,7 +1404,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  Variable* arguments() { return arguments_; }
+  Variable* arguments_var() { return arguments_var_; }
+  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -1412,19 +1415,28 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   CallKind call_kind_;
   bool is_construct_;
-  Variable* arguments_;
+  Variable* arguments_var_;
+  ZoneList<HValue*>* arguments_values_;
 };
 
 
 class HLeaveInlined: public HTemplateInstruction<0> {
  public:
-  HLeaveInlined() {}
+  explicit HLeaveInlined(bool arguments_pushed)
+      : arguments_pushed_(arguments_pushed) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  bool arguments_pushed() {
+    return arguments_pushed_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
+
+ private:
+  bool arguments_pushed_;
 };
 
 
@@ -2604,7 +2616,7 @@ class HApplyArguments: public HTemplateInstruction<4> {
 
 class HArgumentsElements: public HTemplateInstruction<0> {
  public:
-  HArgumentsElements() {
+  explicit HArgumentsElements(bool from_inlined) : from_inlined_(from_inlined) {
     // The value produced by this instruction is a pointer into the stack
     // that looks as if it was a smi because of alignment.
     set_representation(Representation::Tagged());
@@ -2617,8 +2629,12 @@ class HArgumentsElements: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  bool from_inlined() const { return from_inlined_; }
+
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+  bool from_inlined_;
 };
 
 
