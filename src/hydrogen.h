@@ -1226,7 +1226,7 @@ class HValueMap: public ZoneObject {
 class HSideEffectMap BASE_EMBEDDED {
  public:
   HSideEffectMap();
-  HSideEffectMap(HSideEffectMap* other);
+  explicit HSideEffectMap(HSideEffectMap* other);
 
   void Kill(GVNFlagSet flags);
 
