@@ -5161,32 +5161,43 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
-        // Do not inline if the return representation is not certain.
-        if (!left->representation().Equals(right->representation())) {
-          Push(left);
-          Push(right);
-          return false;
-        }
-
         Pop();  // Pop receiver.
-        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
-        HCompareIDAndBranch* compare = NULL;
 
-        if (left->representation().IsTagged()) {
-          HChange* left_cvt =
-              new(zone()) HChange(left, Representation::Double(), false, true);
-          left_cvt->SetFlag(HValue::kBailoutOnMinusZero);
-          AddInstruction(left_cvt);
-          HChange* right_cvt =
-              new(zone()) HChange(right, Representation::Double(), false, true);
-          right_cvt->SetFlag(HValue::kBailoutOnMinusZero);
-          AddInstruction(right_cvt);
-          compare = new(zone()) HCompareIDAndBranch(left_cvt, right_cvt, op);
-          compare->SetInputRepresentation(Representation::Double());
-        } else {
-          compare = new(zone()) HCompareIDAndBranch(left, right, op);
-          compare->SetInputRepresentation(left->representation());
+        HValue* left_operand = left;
+        HValue* right_operand = right;
+
+        // If we do not have two integers, we convert to double for comparison.
+        if (!left->representation().IsInteger32() ||
+            !right->representation().IsInteger32()) {
+          if (!left->representation().IsDouble()) {
+            HChange* left_convert = new(zone()) HChange(
+                left,
+                Representation::Double(),
+                false,  // Do not truncate when converting to double.
+                true);  // Deoptimize for undefined.
+            left_convert->SetFlag(HValue::kBailoutOnMinusZero);
+            left_operand = AddInstruction(left_convert);
+          }
+          if (!right->representation().IsDouble()) {
+            HChange* right_convert = new(zone()) HChange(
+                right,
+                Representation::Double(),
+                false,  // Do not truncate when converting to double.
+                true);  // Deoptimize for undefined.
+            right_convert->SetFlag(HValue::kBailoutOnMinusZero);
+            right_operand = AddInstruction(right_convert);
+          }
         }
+
+        ASSERT(left_operand->representation().Equals(
+               right_operand->representation()));
+        ASSERT(!left_operand->representation().IsTagged());
+
+        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
+
+        HCompareIDAndBranch* compare =
+            new(zone()) HCompareIDAndBranch(left_operand, right_operand, op);
+        compare->SetInputRepresentation(left_operand->representation());
 
         HBasicBlock* return_left = graph()->CreateBasicBlock();
         HBasicBlock* return_right = graph()->CreateBasicBlock();
@@ -5198,7 +5209,27 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
         set_current_block(return_left);
         Push(left);
         set_current_block(return_right);
-        Push(right);
+        // The branch above always returns the right operand if either of
+        // them is NaN, but the spec requires that max/min(NaN, X) = NaN.
+        // We add another branch that checks if the left operand is NaN or not.
+        if (left_operand->representation().IsDouble()) {
+          // If left_operand != left_operand then it is NaN.
+          HCompareIDAndBranch* compare_nan = new(zone()) HCompareIDAndBranch(
+              left_operand, left_operand, Token::EQ);
+          compare_nan->SetInputRepresentation(left_operand->representation());
+          HBasicBlock* left_is_number = graph()->CreateBasicBlock();
+          HBasicBlock* left_is_nan = graph()->CreateBasicBlock();
+          compare_nan->SetSuccessorAt(0, left_is_number);
+          compare_nan->SetSuccessorAt(1, left_is_nan);
+          current_block()->Finish(compare_nan);
+          set_current_block(left_is_nan);
+          Push(left);
+          set_current_block(left_is_number);
+          Push(right);
+          return_right = CreateJoin(left_is_number, left_is_nan, expr->id());
+        } else {
+          Push(right);
+        }
 
         HBasicBlock* join = CreateJoin(return_left, return_right, expr->id());
         set_current_block(join);
