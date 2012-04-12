@@ -35,7 +35,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       function lookup(name) {
-	return exec_state.frame(0).evaluate(name).value();
+        return exec_state.frame(0).evaluate(name).value();
       }
 
       assertEquals(3, lookup("e"));
@@ -43,9 +43,9 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(1, lookup("a"));
 
       try {
-	assertEquals(2, lookup("b"));
+        assertEquals(2, lookup("b"));
       } catch (e) {
-	assertEquals("ReferenceError: b is not defined", e.toString());
+        assertEquals("ReferenceError: b is not defined", e.toString());
       }
     }
   } catch (e) {
