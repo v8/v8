@@ -3368,6 +3368,44 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
 }
 
 
+static void GenerateSmiKeyCheck(MacroAssembler* masm,
+                                Register key,
+                                Register scratch0,
+                                Register scratch1,
+                                DwVfpRegister double_scratch0,
+                                Label* fail) {
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    Label key_ok;
+    // Check for smi or a smi inside a heap number.  We convert the heap
+    // number and check if the conversion is exact and fits into the smi
+    // range.
+    __ JumpIfSmi(key, &key_ok);
+    __ CheckMap(key,
+                scratch0,
+                Heap::kHeapNumberMapRootIndex,
+                fail,
+                DONT_DO_SMI_CHECK);
+    __ sub(ip, key, Operand(kHeapObjectTag));
+    __ vldr(double_scratch0, ip, HeapNumber::kValueOffset);
+    __ EmitVFPTruncate(kRoundToZero,
+                       double_scratch0.low(),
+                       double_scratch0,
+                       scratch0,
+                       scratch1,
+                       kCheckForInexactConversion);
+    __ b(ne, fail);
+    __ vmov(scratch0, double_scratch0.low());
+    __ TrySmiTag(scratch0, fail, scratch1);
+    __ mov(key, scratch0);
+    __ bind(&key_ok);
+  } else {
+    // Check that the key is a smi.
+    __ JumpIfNotSmi(key, fail);
+  }
+}
+
+
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3384,8 +3422,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(key, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, key, r4, r5, d1, &miss_force_generic);
 
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // r3: elements array
@@ -3715,8 +3753,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(key, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, key, r4, r5, d1, &miss_force_generic);
 
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
@@ -4041,8 +4079,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(r0, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, r0, r4, r5, d1, &miss_force_generic);
 
   // Get the elements array.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -4093,8 +4131,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(key_reg, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
 
   // Get the elements array.
   __ ldr(elements_reg,
@@ -4169,8 +4207,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(key_reg, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
@@ -4336,7 +4374,9 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
-  __ JumpIfNotSmi(key_reg, &miss_force_generic);
+
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
 
   __ ldr(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));

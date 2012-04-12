@@ -3112,6 +3112,32 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   __ jmp(miss_ic, RelocInfo::CODE_TARGET);
 }
 
+
+static void GenerateSmiKeyCheck(MacroAssembler* masm,
+                                Register key,
+                                Register scratch,
+                                XMMRegister xmm_scratch0,
+                                XMMRegister xmm_scratch1,
+                                Label* fail) {
+  // Check that key is a smi or a heap number containing a smi and branch
+  // if the check fails.
+  Label key_ok;
+  __ JumpIfSmi(key, &key_ok);
+  __ CheckMap(key,
+              masm->isolate()->factory()->heap_number_map(),
+              fail,
+              DONT_DO_SMI_CHECK);
+  __ movsd(xmm_scratch0, FieldOperand(key, HeapNumber::kValueOffset));
+  __ cvttsd2si(scratch, xmm_scratch0);
+  __ cvtlsi2sd(xmm_scratch1, scratch);
+  __ ucomisd(xmm_scratch1, xmm_scratch0);
+  __ j(not_equal, fail);
+  __ j(parity_even, fail);  // NaN.
+  __ Integer32ToSmi(key, scratch);
+  __ bind(&key_ok);
+}
+
+
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3125,8 +3151,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3260,8 +3286,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3442,8 +3468,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3484,8 +3510,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3540,8 +3566,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(rax, &transition_elements_kind);
@@ -3682,8 +3708,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
