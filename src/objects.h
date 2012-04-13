@@ -2186,6 +2186,7 @@ class JSObject: public JSReceiver {
       Object* getter,
       Object* setter,
       PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(String* name);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
       Object* getter,
