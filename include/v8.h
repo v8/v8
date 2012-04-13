@@ -1969,6 +1969,7 @@ class Arguments {
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
   inline Isolate* GetIsolate() const;
+
  private:
   static const int kIsolateIndex = 0;
   static const int kDataIndex = -1;
@@ -1999,6 +2000,7 @@ class V8EXPORT AccessorInfo {
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
+
  private:
   internal::Object** args_;
 };
