@@ -318,6 +318,7 @@ static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
 const char kArrayBufferReferencePropName[] = "_is_array_buffer_";
 const char kArrayBufferMarkerPropName[] = "_array_buffer_ref_";
 
+static const int kExternalArrayAllocationHeaderSize = 2;
 
 Handle<Value> Shell::CreateExternalArray(const Arguments& args,
                                          ExternalArrayType type,
@@ -433,13 +434,14 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
       return ThrowException(String::New("Array exceeds maximum size (2G)"));
     }
     // Prepend the size of the allocated chunk to the data itself.
-    int total_size = length * element_size + sizeof(size_t);
+    int total_size = length * element_size +
+        kExternalArrayAllocationHeaderSize * sizeof(size_t);
     data = malloc(total_size);
     if (data == NULL) {
       return ThrowException(String::New("Memory allocation failed."));
     }
     *reinterpret_cast<size_t*>(data) = total_size;
-    data = reinterpret_cast<size_t*>(data) + 1;
+    data = reinterpret_cast<size_t*>(data) + kExternalArrayAllocationHeaderSize;
     memset(data, 0, length * element_size);
     V8::AdjustAmountOfExternalAllocatedMemory(total_size);
   }
@@ -463,7 +465,7 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   Handle<Object> converted_object = object->ToObject();
   Local<Value> prop_value = converted_object->Get(prop_name);
   if (data != NULL && !prop_value->IsObject()) {
-    data = reinterpret_cast<size_t*>(data) - 1;
+    data = reinterpret_cast<size_t*>(data) - kExternalArrayAllocationHeaderSize;
     V8::AdjustAmountOfExternalAllocatedMemory(
         -static_cast<int>(*reinterpret_cast<size_t*>(data)));
     free(data);
