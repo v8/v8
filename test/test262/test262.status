@@ -33,7 +33,16 @@ def FAIL_OK = FAIL, OKAY
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
+# Not yet analyzed.
+15.10.4.1-5: FAIL
+15.4.4.4-5-c-i-1: FAIL
+
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
+11.2.3-3_3: FAIL
+
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
+8.14.4-8-b_1: FAIL
+8.14.4-8-b_2: FAIL
 15.2.3.6-4-405: FAIL
 15.2.3.6-4-410: FAIL
 15.2.3.6-4-415: FAIL
@@ -64,6 +73,9 @@ S7.8.4_A7.2_T3: FAIL_OK
 S7.8.4_A7.2_T4: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 S7.8.4_A7.2_T6: FAIL_OK
+Sbp_7.8.4_A6.1_T4: FAIL_OK
+Sbp_7.8.4_A6.2_T1: FAIL_OK
+Sbp_7.8.4_A6.2_T2: FAIL_OK
 
 # Linux for ia32 (and therefore simulators) default to extended 80 bit floating
 # point formats, so these tests checking 64-bit FP precision fail. The other
