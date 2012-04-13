@@ -184,7 +184,8 @@ the uploaded CL."
 apply_patch() {
   patch $REVERSE_PATCH -p1 < "$1" > "$PATCH_OUTPUT_FILE" || \
     { cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."; }
-  tee < "$PATCH_OUTPUT_FILE" >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
+  tee < "$PATCH_OUTPUT_FILE" >(grep "patching file" \
+                               | awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
   rm "$PATCH_OUTPUT_FILE"
 }
 
