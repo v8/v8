@@ -379,7 +379,8 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(kScratchRegister, InterceptorInfo::kDataOffset));
-  __ push(Immediate(reinterpret_cast<intptr_t>(masm->isolate())));
+  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ push(kScratchRegister);
 }
 
 
@@ -475,8 +476,8 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(Operand(rsp, 3 * kPointerSize), call_data);
   }
-  __ movq(Operand(rsp, 4 * kPointerSize),
-          Immediate(reinterpret_cast<intptr_t>(masm->isolate())));
+  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
 
   // Prepare arguments.
   __ lea(rbx, Operand(rsp, 4 * kPointerSize));
@@ -1009,7 +1010,8 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ Push(Handle<Object>(callback->data()));
   }
-  __ push(Immediate(reinterpret_cast<intptr_t>(isolate())));  // isolate
+  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ push(kScratchRegister);  // isolate
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
@@ -1184,7 +1186,8 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ push(holder_reg);
       __ Move(holder_reg, callback);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
-      __ push(Immediate(reinterpret_cast<intptr_t>(isolate())));
+      __ movq(kScratchRegister, ExternalReference::isolate_address());
+      __ push(kScratchRegister);
       __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
