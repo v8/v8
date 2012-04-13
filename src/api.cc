@@ -6237,6 +6237,27 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
 }
 
 
+void HeapProfiler::StartHeapObjectsTracking() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::StartHeapObjectsTracking");
+  i::HeapProfiler::StartHeapObjectsTracking();
+}
+
+
+void HeapProfiler::StopHeapObjectsTracking() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::StopHeapObjectsTracking");
+  i::HeapProfiler::StopHeapObjectsTracking();
+}
+
+
+void HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
+  return i::HeapProfiler::PushHeapObjectsStats(stream);
+}
+
+
 void HeapProfiler::DeleteAllSnapshots() {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");

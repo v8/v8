@@ -710,6 +710,9 @@ class HeapObjectsMap {
     return next_id_ - kObjectIdStep;
   }
 
+  void StopHeapObjectsTracking();
+  void PushHeapObjectsStats(OutputStream* stream);
+
   static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
 
@@ -730,9 +733,16 @@ class HeapObjectsMap {
     Address addr;
     bool accessed;
   };
+  struct TimeInterval {
+    explicit TimeInterval(SnapshotObjectId id) : id(id), count(0) { }
+    SnapshotObjectId id;
+    uint32_t count;
+  };
 
   void AddEntry(Address addr, SnapshotObjectId id);
   SnapshotObjectId FindEntry(Address addr);
+  SnapshotObjectId FindOrAddEntry(Address addr);
+  void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
   static bool AddressesMatch(void* key1, void* key2) {
@@ -749,6 +759,7 @@ class HeapObjectsMap {
   SnapshotObjectId next_id_;
   HashMap entries_map_;
   List<EntryInfo>* entries_;
+  List<TimeInterval> time_intervals_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
 };
@@ -760,6 +771,11 @@ class HeapSnapshotsCollection {
   ~HeapSnapshotsCollection();
 
   bool is_tracking_objects() { return is_tracking_objects_; }
+  void PushHeapObjectsStats(OutputStream* stream) {
+    return ids_.PushHeapObjectsStats(stream);
+  }
+  void StartHeapObjectsTracking() { is_tracking_objects_ = true; }
+  void StopHeapObjectsTracking() { ids_.StopHeapObjectsTracking(); }
 
   HeapSnapshot* NewSnapshot(
       HeapSnapshot::Type type, const char* name, unsigned uid);

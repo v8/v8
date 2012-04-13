@@ -3741,7 +3741,8 @@ class V8EXPORT Locker {
 class V8EXPORT OutputStream {  // NOLINT
  public:
   enum OutputEncoding {
-    kAscii = 0  // 7-bit ASCII.
+    kAscii = 0,  // 7-bit ASCII.
+    kUint32 = 1
   };
   enum WriteResult {
     kContinue = 0,
@@ -3760,6 +3761,12 @@ class V8EXPORT OutputStream {  // NOLINT
    * will not be called in case writing was aborted.
    */
   virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of heap stats data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) = 0;
 };
 
 

@@ -1406,6 +1406,82 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 }
 
 
+SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr) {
+  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
+  if (entry->value != NULL) {
+    int entry_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+    EntryInfo& entry_info = entries_->at(entry_index);
+    entry_info.accessed = true;
+    return entry_info.id;
+  }
+  entry->value = reinterpret_cast<void*>(entries_->length());
+  SnapshotObjectId id = next_id_;
+  next_id_ += kObjectIdStep;
+  entries_->Add(EntryInfo(id, addr));
+  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  return id;
+}
+
+
+void HeapObjectsMap::StopHeapObjectsTracking() {
+  time_intervals_.Clear();
+}
+
+void HeapObjectsMap::UpdateHeapObjectsMap() {
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "HeapSnapshotsCollection::UpdateHeapObjectsMap");
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    FindOrAddEntry(obj->address());
+  }
+  initial_fill_mode_ = false;
+  RemoveDeadEntries();
+}
+
+
+void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
+  UpdateHeapObjectsMap();
+  time_intervals_.Add(TimeInterval(next_id_));
+  int prefered_chunk_size = stream->GetChunkSize();
+  List<uint32_t> stats_buffer;
+  ASSERT(!entries_->is_empty());
+  EntryInfo* entry_info = &entries_->first();
+  EntryInfo* end_entry_info = &entries_->last() + 1;
+  for (int time_interval_index = 0;
+       time_interval_index < time_intervals_.length();
+       ++time_interval_index) {
+    TimeInterval& time_interval = time_intervals_[time_interval_index];
+    SnapshotObjectId time_interval_id = time_interval.id;
+    uint32_t entries_count = 0;
+    while (entry_info < end_entry_info && entry_info->id < time_interval_id) {
+      ++entries_count;
+      ++entry_info;
+    }
+    if (time_interval.count != entries_count) {
+      stats_buffer.Add(time_interval_index);
+      stats_buffer.Add(time_interval.count = entries_count);
+      if (stats_buffer.length() >= prefered_chunk_size) {
+        OutputStream::WriteResult result = stream->WriteUint32Chunk(
+            &stats_buffer.first(), stats_buffer.length());
+        if (result == OutputStream::kAbort) return;
+        stats_buffer.Clear();
+      }
+    }
+  }
+  ASSERT(entry_info == end_entry_info);
+  if (!stats_buffer.is_empty()) {
+    OutputStream::WriteResult result =
+        stream->WriteUint32Chunk(&stats_buffer.first(), stats_buffer.length());
+    if (result == OutputStream::kAbort) return;
+  }
+  stream->EndOfStream();
+}
+
+
 void HeapObjectsMap::RemoveDeadEntries() {
   ASSERT(entries_->length() > 0 &&
          entries_->at(0).id == 0 &&
