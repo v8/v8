@@ -565,6 +565,8 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ Push(scratch, receiver, holder);
   __ lw(scratch, FieldMemOperand(scratch, InterceptorInfo::kDataOffset));
   __ push(scratch);
+  __ li(scratch, Operand(ExternalReference::isolate_address()));
+  __ push(scratch);
 }
 
 
@@ -579,7 +581,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
           masm->isolate());
-  __ PrepareCEntryArgs(5);
+  __ PrepareCEntryArgs(6);
   __ PrepareCEntryFunction(ref);
 
   CEntryStub stub(1);
@@ -587,10 +589,10 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static const int kFastApiCallArguments = 3;
+static const int kFastApiCallArguments = 4;
 
 
-// Reserves space for the extra arguments to FastHandleApiCall in the
+// Reserves space for the extra arguments to API function in the
 // caller's frame.
 //
 // These arguments are set by CheckPrototypes and GenerateFastApiDirectCall.
@@ -616,7 +618,8 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[0]              : holder (set by CheckPrototypes)
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
-  //  -- sp[12]             : last JS argument
+  //  -- sp[12]             : isolate
+  //  -- sp[16]             : last JS argument
   //  -- ...
   //  -- sp[(argc + 3) * 4] : first JS argument
   //  -- sp[(argc + 4) * 4] : receiver
@@ -626,7 +629,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   __ LoadHeapObject(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
 
-  // Pass the additional arguments FastHandleApiCall expects.
+  // Pass the additional arguments.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
@@ -636,14 +639,17 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ li(t2, call_data);
   }
 
-  // Store JS function and call data.
+  __ li(t3, Operand(ExternalReference::isolate_address()));
+  // Store JS function, call data and isolate.
   __ sw(t1, MemOperand(sp, 1 * kPointerSize));
   __ sw(t2, MemOperand(sp, 2 * kPointerSize));
+  __ sw(t3, MemOperand(sp, 3 * kPointerSize));
 
-  // a2 points to call data as expected by Arguments
-  // (refer to layout above).
-  __ Addu(a2, sp, Operand(2 * kPointerSize));
+  // Prepare arguments.
+  __ Addu(a2, sp, Operand(3 * kPointerSize));
 
+  // Allocate the v8::Arguments structure in the arguments' space since
+  // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -658,9 +664,9 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   // Arguments is built at sp + 1 (sp is a reserved spot for ra).
   __ Addu(a1, sp, kPointerSize);
 
-  // v8::Arguments::implicit_args = data
+  // v8::Arguments::implicit_args_
   __ sw(a2, MemOperand(a1, 0 * kPointerSize));
-  // v8::Arguments::values = last argument
+  // v8::Arguments::values_
   __ Addu(t0, a2, Operand(argc * kPointerSize));
   __ sw(t0, MemOperand(a1, 1 * kPointerSize));
   // v8::Arguments::length_ = argc
@@ -838,7 +844,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           ExternalReference(
               IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
               masm->isolate()),
-          5);
+          6);
     // Restore the name_ register.
     __ pop(name_);
     // Leave the internal frame.
@@ -1207,7 +1213,13 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ li(scratch3, Handle<Object>(callback->data()));
   }
-  __ Push(reg, scratch3, name_reg);
+  __ Subu(sp, sp, 4 * kPointerSize);
+  __ sw(reg, MemOperand(sp, 3 * kPointerSize));
+  __ sw(scratch3, MemOperand(sp, 2 * kPointerSize));
+  __ li(scratch3, Operand(ExternalReference::isolate_address()));
+  __ sw(scratch3, MemOperand(sp, 1 * kPointerSize));
+  __ sw(name_reg, MemOperand(sp, 0 * kPointerSize));
+
   __ mov(a2, scratch2);  // Saved in case scratch2 == a1.
   __ mov(a1, sp);  // a1 (first argument - see note below) = Handle<String>
 
@@ -1226,7 +1238,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   // a2 (second argument - see note above) = AccessorInfo&
   __ Addu(a2, sp, kPointerSize);
 
-  const int kStackUnwindSpace = 4;
+  const int kStackUnwindSpace = 5;
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ExternalReference ref =
@@ -1342,24 +1354,17 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       // Important invariant in CALLBACKS case: the code above must be
       // structured to never clobber |receiver| register.
       __ li(scratch2, callback);
-      // holder_reg is either receiver or scratch1.
-      if (!receiver.is(holder_reg)) {
-        ASSERT(scratch1.is(holder_reg));
-        __ Push(receiver, holder_reg);
-        __ lw(scratch3,
-              FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
-        __ Push(scratch3, scratch2, name_reg);
-      } else {
-        __ push(receiver);
-        __ lw(scratch3,
-              FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
-        __ Push(holder_reg, scratch3, scratch2, name_reg);
-      }
+
+      __ Push(receiver, holder_reg);
+      __ lw(scratch3,
+            FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+      __ li(scratch1, Operand(ExternalReference::isolate_address()));
+      __ Push(scratch3, scratch1, scratch2, name_reg);
 
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
                             masm()->isolate());
-      __ TailCallExternalReference(ref, 5, 1);
+      __ TailCallExternalReference(ref, 6, 1);
     }
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
@@ -1372,7 +1377,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), masm()->isolate());
-    __ TailCallExternalReference(ref, 5, 1);
+    __ TailCallExternalReference(ref, 6, 1);
   }
 }
 
