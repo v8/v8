@@ -108,6 +108,7 @@ class CustomArguments : public Relocatable {
 
   void IterateInstance(ObjectVisitor* v);
   Object** end() { return values_ + ARRAY_SIZE(values_) - 1; }
+
  private:
   Object* values_[4];
 };

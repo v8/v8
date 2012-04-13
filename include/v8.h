@@ -1969,6 +1969,7 @@ class Arguments {
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
   inline Isolate* GetIsolate() const;
+
  private:
   static const int kIsolateIndex = 0;
   static const int kDataIndex = -1;
@@ -1999,6 +2000,7 @@ class V8EXPORT AccessorInfo {
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
+
  private:
   internal::Object** args_;
 };
@@ -3770,7 +3772,11 @@ class V8EXPORT OutputStream {  // NOLINT
    * can be stopped by returning kAbort as function result. EndOfStream
    * will not be called in case writing was aborted.
    */
-  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) = 0;
+  // TODO(loislo): Make this pure virtual when WebKit's V8 bindings
+  // have been updated.
+  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) {
+    return kAbort;
+  };
 };
 
 
