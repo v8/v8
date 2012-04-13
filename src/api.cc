@@ -5208,7 +5208,7 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
 }
 
 
-int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
     return 0;
@@ -6234,6 +6234,27 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
           *Utils::OpenHandle(*title), internal_type, control));
+}
+
+
+void HeapProfiler::StartHeapObjectsTracking() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::StartHeapObjectsTracking");
+  i::HeapProfiler::StartHeapObjectsTracking();
+}
+
+
+void HeapProfiler::StopHeapObjectsTracking() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::StopHeapObjectsTracking");
+  i::HeapProfiler::StopHeapObjectsTracking();
+}
+
+
+void HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
+  return i::HeapProfiler::PushHeapObjectsStats(stream);
 }
 
 

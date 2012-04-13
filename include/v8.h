@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -107,6 +107,7 @@ class Data;
 class AccessorInfo;
 class StackTrace;
 class StackFrame;
+class Isolate;
 
 namespace internal {
 
@@ -1236,8 +1237,7 @@ class String : public Primitive {
    * this function should not otherwise delete or modify the resource. Neither
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
-   */
-  V8EXPORT static Local<String> NewExternal(
+   */ V8EXPORT static Local<String> NewExternal(
       ExternalAsciiStringResource* resource);
 
   /**
@@ -1968,10 +1968,12 @@ class Arguments {
   inline Local<Object> Holder() const;
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
+  inline Isolate* GetIsolate() const;
  private:
-  static const int kDataIndex = 0;
-  static const int kCalleeIndex = -1;
-  static const int kHolderIndex = -2;
+  static const int kIsolateIndex = 0;
+  static const int kDataIndex = -1;
+  static const int kCalleeIndex = -2;
+  static const int kHolderIndex = -3;
 
   friend class ImplementationUtilities;
   inline Arguments(internal::Object** implicit_args,
@@ -1993,6 +1995,7 @@ class V8EXPORT AccessorInfo {
  public:
   inline AccessorInfo(internal::Object** args)
       : args_(args) { }
+  inline Isolate* GetIsolate() const;
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
@@ -3153,7 +3156,8 @@ class V8EXPORT V8 {
    *   that is kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
-  static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
+  static intptr_t AdjustAmountOfExternalAllocatedMemory(
+      intptr_t change_in_bytes);
 
   /**
    * Suspends recording of tick samples in the profiler.
@@ -3741,7 +3745,8 @@ class V8EXPORT Locker {
 class V8EXPORT OutputStream {  // NOLINT
  public:
   enum OutputEncoding {
-    kAscii = 0  // 7-bit ASCII.
+    kAscii = 0,  // 7-bit ASCII.
+    kUint32 = 1
   };
   enum WriteResult {
     kContinue = 0,
@@ -3760,6 +3765,12 @@ class V8EXPORT OutputStream {  // NOLINT
    * will not be called in case writing was aborted.
    */
   virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of heap stats data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) = 0;
 };
 
 
@@ -4048,6 +4059,11 @@ Local<Value> Arguments::Data() const {
 }
 
 
+Isolate* Arguments::GetIsolate() const {
+  return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
+}
+
+
 bool Arguments::IsConstructCall() const {
   return is_construct_call_;
 }
@@ -4280,6 +4296,11 @@ External* External::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<External*>(value);
+}
+
+
+Isolate* AccessorInfo::GetIsolate() const {
+  return *reinterpret_cast<Isolate**>(&args_[-3]);
 }
 
 

@@ -261,7 +261,8 @@ $(ENVFILE): $(ENVFILE).new
 
 # Stores current GYPFLAGS in a file.
 $(ENVFILE).new:
-	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new;
+	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new; \
+	    echo "CXX=$(CXX)" >> $(ENVFILE).new
 
 # Dependencies.
 dependencies:

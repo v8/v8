@@ -388,14 +388,17 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
   // Check context slot lookup.
   VariableMode mode;
+  Variable::Location location = Variable::CONTEXT;
   InitializationFlag init_flag;
   int index = scope_info_->ContextSlotIndex(*name, &mode, &init_flag);
   if (index < 0) {
     // Check parameters.
-    mode = VAR;
-    init_flag = kCreatedInitialized;
     index = scope_info_->ParameterIndex(*name);
     if (index < 0) return NULL;
+
+    mode = DYNAMIC;
+    location = Variable::LOOKUP;
+    init_flag = kCreatedInitialized;
   }
 
   Variable* var =
@@ -405,7 +408,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
                          true,
                          Variable::NORMAL,
                          init_flag);
-  var->AllocateTo(Variable::CONTEXT, index);
+  var->AllocateTo(location, index);
   return var;
 }
 
@@ -949,10 +952,14 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       break;
 
     case BOUND_EVAL_SHADOWED:
-      // We found a variable variable binding that might be shadowed
-      // by 'eval' introduced variable bindings.
+      // We either found a variable binding that might be shadowed by eval  or
+      // gave up on it (e.g. by encountering a local with the same in the outer
+      // scope which was not promoted to a context, this can happen if we use
+      // debugger to evaluate arbitrary expressions at a break point).
       if (var->is_global()) {
         var = NonLocal(proxy->name(), DYNAMIC_GLOBAL);
+      } else if (var->is_dynamic()) {
+        var = NonLocal(proxy->name(), DYNAMIC);
       } else {
         Variable* invalidated = var;
         var = NonLocal(proxy->name(), DYNAMIC_LOCAL);

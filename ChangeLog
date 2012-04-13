@@ -1,3 +1,26 @@
+2012-04-13: Version 3.10.2
+
+        Fixed native ARM build (issues 1744, 539)
+
+        Return LOOKUP variable instead of CONTEXT for non-context allocated
+        outer scope parameters (Chromium issue 119609).
+
+        Fixed regular and ElementsKind transitions interfering with each other
+        (Chromium issue 122271).
+
+        Improved performance of keyed loads/stores which have a HeapNumber
+        index (issues 1388, 1295).
+
+        Fixed WeakMap processing for evacuation candidates (issue 2060).
+
+        Bailout on possible direct eval calls (Chromium issue 122681).
+
+        Do not assume that names of function expressions are context-allocated
+        (issue 2051).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-10: Version 3.10.1
 
         Fixed bug with arguments object in inlined functions (issue 2045).

@@ -44,8 +44,6 @@ class HeapSnapshotsCollection;
     }                                                                        \
   } while (false)
 
-// The HeapProfiler writes data to the log files, which can be postprocessed
-// to generate .hp files for use by the GHC/Valgrind tool hp2ps.
 class HeapProfiler {
  public:
   static void SetUp();
@@ -57,6 +55,10 @@ class HeapProfiler {
   static HeapSnapshot* TakeSnapshot(String* name,
                                     int type,
                                     v8::ActivityControl* control);
+
+  static void StartHeapObjectsTracking();
+  static void StopHeapObjectsTracking();
+  static void PushHeapObjectsStats(OutputStream* stream);
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
@@ -83,6 +85,10 @@ class HeapProfiler {
                                  int type,
                                  v8::ActivityControl* control);
   void ResetSnapshots();
+
+  void StartHeapObjectsTrackingImpl();
+  void StopHeapObjectsTrackingImpl();
+  void PushHeapObjectsStatsImpl(OutputStream* stream);
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;

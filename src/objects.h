@@ -2186,6 +2186,7 @@ class JSObject: public JSReceiver {
       Object* getter,
       Object* setter,
       PropertyAttributes attributes);
+  MUST_USE_RESULT MaybeObject* CreateAccessorPairFor(String* name);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
       Object* getter,
@@ -3413,8 +3414,8 @@ class ScopeInfo : public FixedArray {
   // otherwise returns a value < 0. The name must be a symbol (canonicalized).
   int ParameterIndex(String* name);
 
-  // Lookup support for serialized scope info. Returns the
-  // function context slot index if the function name is present (named
+  // Lookup support for serialized scope info. Returns the function context
+  // slot index if the function name is present and context-allocated (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be a symbol (canonicalized).
   int FunctionContextSlotIndex(String* name, VariableMode* mode);

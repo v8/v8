@@ -557,9 +557,14 @@ class TestJSONStream : public v8::OutputStream {
     memcpy(chunk.start(), buffer, chars_written);
     return kContinue;
   }
+  virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
+    ASSERT(false);
+    return kAbort;
+  }
   void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
   int eos_signaled() { return eos_signaled_; }
   int size() { return buffer_.size(); }
+
  private:
   i::Collector<char> buffer_;
   int eos_signaled_;
@@ -689,6 +694,154 @@ TEST(HeapSnapshotJSONSerializationAborting) {
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(0, stream.eos_signaled());
+}
+
+namespace {
+
+class TestStatsStream : public v8::OutputStream {
+ public:
+  TestStatsStream()
+    : eos_signaled_(0),
+      numbers_written_(0),
+      entries_count_(0),
+      intervals_count_(0),
+      first_interval_index_(-1) { }
+  TestStatsStream(const TestStatsStream& stream)
+    : v8::OutputStream(stream),
+      eos_signaled_(stream.eos_signaled_),
+      numbers_written_(stream.numbers_written_),
+      entries_count_(stream.entries_count_),
+      intervals_count_(stream.intervals_count_),
+      first_interval_index_(stream.first_interval_index_) { }
+  virtual ~TestStatsStream() {}
+  virtual void EndOfStream() { ++eos_signaled_; }
+  virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
+    ASSERT(false);
+    return kAbort;
+  }
+  virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int numbers_written) {
+    ++intervals_count_;
+    ASSERT(numbers_written);
+    numbers_written_ += numbers_written;
+    entries_count_ = 0;
+    if (first_interval_index_ == -1 && numbers_written != 0)
+      first_interval_index_ = buffer[0];
+    for (int i = 1; i < numbers_written; i += 2)
+      entries_count_ += buffer[i];
+
+    return kContinue;
+  }
+  int eos_signaled() { return eos_signaled_; }
+  int numbers_written() { return numbers_written_; }
+  uint32_t entries_count() const { return entries_count_; }
+  int intervals_count() const { return intervals_count_; }
+  int first_interval_index() const { return first_interval_index_; }
+
+ private:
+  int eos_signaled_;
+  int numbers_written_;
+  uint32_t entries_count_;
+  int intervals_count_;
+  int first_interval_index_;
+};
+
+}  // namespace
+
+static TestStatsStream GetHeapStatsUpdate() {
+  TestStatsStream stream;
+  v8::HeapProfiler::PushHeapObjectsStats(&stream);
+  CHECK_EQ(1, stream.eos_signaled());
+  return stream;
+}
+
+
+TEST(HeapSnapshotObjectsStats) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::HeapProfiler::StartHeapObjectsTracking();
+  // We have to call GC 5 times. In other case the garbage will be
+  // the reason of flakiness.
+  for (int i = 0; i < 5; ++i) {
+    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  }
+
+  {
+    // Single chunk of data expected in update. Initial data.
+    TestStatsStream stats_update = GetHeapStatsUpdate();
+    CHECK_EQ(1, stats_update.intervals_count());
+    CHECK_EQ(2, stats_update.numbers_written());
+    CHECK_EQ(0, stats_update.first_interval_index());
+  }
+
+  // No data expected in update because nothing has happened.
+  CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
+  {
+    v8::HandleScope inner_scope_1;
+    v8::Local<v8::String> string1 = v8_str("string1");
+    {
+      // Single chunk of data with one new entry expected in update.
+      TestStatsStream stats_update = GetHeapStatsUpdate();
+      CHECK_EQ(1, stats_update.intervals_count());
+      CHECK_EQ(2, stats_update.numbers_written());
+      CHECK_EQ(1, stats_update.entries_count());
+      CHECK_EQ(2, stats_update.first_interval_index());
+    }
+
+    // No data expected in update because nothing happened.
+    CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
+
+    {
+      v8::HandleScope inner_scope_2;
+      v8::Local<v8::String> string2 = v8_str("string2");
+
+      {
+        v8::HandleScope inner_scope_3;
+        v8::Handle<v8::String> string3 = v8::String::New("string3");
+        v8::Handle<v8::String> string4 = v8::String::New("string4");
+
+        {
+          // Single chunk of data with three new entries expected in update.
+          TestStatsStream stats_update = GetHeapStatsUpdate();
+          CHECK_EQ(1, stats_update.intervals_count());
+          CHECK_EQ(2, stats_update.numbers_written());
+          CHECK_EQ(3, stats_update.entries_count());
+          CHECK_EQ(4, stats_update.first_interval_index());
+        }
+      }
+
+      {
+        // Single chunk of data with two left entries expected in update.
+        TestStatsStream stats_update = GetHeapStatsUpdate();
+        CHECK_EQ(1, stats_update.intervals_count());
+        CHECK_EQ(2, stats_update.numbers_written());
+        CHECK_EQ(1, stats_update.entries_count());
+        // Two strings from forth interval were released.
+        CHECK_EQ(4, stats_update.first_interval_index());
+      }
+    }
+
+    {
+      // Single chunk of data with 0 left entries expected in update.
+      TestStatsStream stats_update = GetHeapStatsUpdate();
+      CHECK_EQ(1, stats_update.intervals_count());
+      CHECK_EQ(2, stats_update.numbers_written());
+      CHECK_EQ(0, stats_update.entries_count());
+      // The last string from forth interval was released.
+      CHECK_EQ(4, stats_update.first_interval_index());
+    }
+  }
+  {
+    // Single chunk of data with 0 left entries expected in update.
+    TestStatsStream stats_update = GetHeapStatsUpdate();
+    CHECK_EQ(1, stats_update.intervals_count());
+    CHECK_EQ(2, stats_update.numbers_written());
+    CHECK_EQ(0, stats_update.entries_count());
+    // The only string from the second interval was released.
+    CHECK_EQ(2, stats_update.first_interval_index());
+  }
+
+  v8::HeapProfiler::StopHeapObjectsTracking();
 }
 
 

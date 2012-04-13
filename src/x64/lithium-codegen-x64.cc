@@ -2497,24 +2497,28 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
-  // Check for arguments adapter frame.
-  Label done, adapted;
-  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
-         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adapted, Label::kNear);
+  if (instr->hydrogen()->from_inlined()) {
+    __ lea(result, Operand(rsp, -2 * kPointerSize));
+  } else {
+    // Check for arguments adapter frame.
+    Label done, adapted;
+    __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+    __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
+           Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+    __ j(equal, &adapted, Label::kNear);
 
-  // No arguments adaptor frame.
-  __ movq(result, rbp);
-  __ jmp(&done, Label::kNear);
+    // No arguments adaptor frame.
+    __ movq(result, rbp);
+    __ jmp(&done, Label::kNear);
 
-  // Arguments adaptor frame present.
-  __ bind(&adapted);
-  __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+    // Arguments adaptor frame present.
+    __ bind(&adapted);
+    __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
 
-  // Result is the frame pointer for the frame if not adapted and for the real
-  // frame below the adaptor frame if adapted.
-  __ bind(&done);
+    // Result is the frame pointer for the frame if not adapted and for the real
+    // frame below the adaptor frame if adapted.
+    __ bind(&done);
+  }
 }
 
 
@@ -2637,6 +2641,11 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->InputAt(0);
   EmitPushTaggedOperand(argument);
+}
+
+
+void LCodeGen::DoDrop(LDrop* instr) {
+  __ Drop(instr->count());
 }
 
 
@@ -3421,16 +3430,20 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Label have_value;
 
-  __ ucomisd(value, value);
-  __ j(parity_odd, &have_value);  // NaN.
+  if (instr->NeedsCanonicalization()) {
+    Label have_value;
 
-  __ Set(kScratchRegister, BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-  __ movq(value, kScratchRegister);
+    __ ucomisd(value, value);
+    __ j(parity_odd, &have_value);  // NaN.
 
-  __ bind(&have_value);
+    __ Set(kScratchRegister, BitCast<uint64_t>(
+        FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+    __ movq(value, kScratchRegister);
+
+    __ bind(&have_value);
+  }
+
   Operand double_store_operand = BuildFastArrayOperand(
       instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
       FixedDoubleArray::kHeaderSize - kHeapObjectTag);

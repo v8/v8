@@ -2764,16 +2764,20 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register scratch = scratch0();
   Register result = ToRegister(instr->result());
 
-  // Check if the calling frame is an arguments adaptor frame.
-  Label done, adapted;
-  __ ldr(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
-  __ cmp(result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  if (instr->hydrogen()->from_inlined()) {
+    __ sub(result, sp, Operand(2 * kPointerSize));
+  } else {
+    // Check if the calling frame is an arguments adaptor frame.
+    Label done, adapted;
+    __ ldr(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ ldr(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
+    __ cmp(result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
-  // Result is the frame pointer for the frame if not adapted and for the real
-  // frame below the adaptor frame if adapted.
-  __ mov(result, fp, LeaveCC, ne);
-  __ mov(result, scratch, LeaveCC, eq);
+    // Result is the frame pointer for the frame if not adapted and for the real
+    // frame below the adaptor frame if adapted.
+    __ mov(result, fp, LeaveCC, ne);
+    __ mov(result, scratch, LeaveCC, eq);
+  }
 }
 
 
@@ -2904,6 +2908,11 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     Register argument_reg = EmitLoadRegister(argument, ip);
     __ push(argument_reg);
   }
+}
+
+
+void LCodeGen::DoDrop(LDrop* instr) {
+  __ Drop(instr->count());
 }
 
 
@@ -3615,7 +3624,6 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   Register scratch = scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
-  Label not_nan;
 
   // Calculate the effective address of the slot in the array to store the
   // double value.
@@ -3638,13 +3646,15 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
            Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  // Check for NaN. All NaNs must be canonicalized.
-  __ VFPCompareAndSetFlags(value, value);
+  if (instr->NeedsCanonicalization()) {
+    // Check for NaN. All NaNs must be canonicalized.
+    __ VFPCompareAndSetFlags(value, value);
+    // Only load canonical NaN if the comparison above set the overflow.
+    __ Vmov(value,
+            FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
+            vs);
+  }
 
-  // Only load canonical NaN if the comparison above set the overflow.
-  __ Vmov(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double(), vs);
-
-  __ bind(&not_nan);
   __ vstr(value, scratch, 0);
 }
 

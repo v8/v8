@@ -188,7 +188,10 @@ class LChunkBuilder;
   V(DateField)                                 \
   V(WrapReceiver)
 
-#define GVN_FLAG_LIST(V)                       \
+#define GVN_TRACKED_FLAG_LIST(V)               \
+  V(NewSpacePromotion)
+
+#define GVN_UNTRACKED_FLAG_LIST(V)             \
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
@@ -506,14 +509,18 @@ class HUseIterator BASE_EMBEDDED {
 
 // There must be one corresponding kDepends flag for every kChanges flag and
 // the order of the kChanges flags must be exactly the same as of the kDepends
-// flags.
+// flags. All tracked flags should appear before untracked ones.
 enum GVNFlag {
   // Declare global value numbering flags.
 #define DECLARE_FLAG(type) kChanges##type, kDependsOn##type,
-  GVN_FLAG_LIST(DECLARE_FLAG)
+  GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
   kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1
+  kLastFlag = kAfterLastFlag - 1,
+#define COUNT_FLAG(type) + 1
+  kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
+#undef COUNT_FLAG
 };
 
 typedef EnumSet<GVNFlag> GVNFlagSet;
@@ -530,6 +537,10 @@ class HValue: public ZoneObject {
     // implement DataEquals(), which will be used to determine if other
     // occurrences of the instruction are indeed the same.
     kUseGVN,
+    // Track instructions that are dominating side effects. If an instruction
+    // sets this flag, it must implement SetSideEffectDominator() and should
+    // indicate which side effects to track by setting GVN flags.
+    kTrackSideEffectDominators,
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
@@ -544,6 +555,12 @@ class HValue: public ZoneObject {
 
   static const int kChangesToDependsFlagsLeftShift = 1;
 
+  static GVNFlag ChangesFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2);
+  }
+  static GVNFlag DependsOnFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2 + 1);
+  }
   static GVNFlagSet ConvertChangesToDependsFlags(GVNFlagSet flags) {
     return GVNFlagSet(flags.ToIntegral() << kChangesToDependsFlagsLeftShift);
   }
@@ -726,6 +743,13 @@ class HValue: public ZoneObject {
 
   virtual HType CalculateInferredType();
 
+  // This function must be overridden for instructions which have the
+  // kTrackSideEffectDominators flag set, to track instructions that are
+  // dominating side effects.
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    UNREACHABLE();
+  }
+
 #ifdef DEBUG
   virtual void Verify() = 0;
 #endif
@@ -756,7 +780,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kDependsOn##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -765,7 +790,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kChanges##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -781,6 +807,7 @@ class HValue: public ZoneObject {
   // an executing program (i.e. are not safe to repeat, move or remove);
   static GVNFlagSet AllObservableSideEffectsFlagSet() {
     GVNFlagSet result = AllChangesFlagSet();
+    result.Remove(kChangesNewSpacePromotion);
     result.Remove(kChangesElementsKind);
     result.Remove(kChangesElementsPointer);
     result.Remove(kChangesMaps);
@@ -1354,13 +1381,15 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 CallKind call_kind,
                 bool is_construct,
-                Variable* arguments)
+                Variable* arguments_var,
+                ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
         is_construct_(is_construct),
-        arguments_(arguments) {
+        arguments_var_(arguments_var),
+        arguments_values_(arguments_values) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1375,7 +1404,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  Variable* arguments() { return arguments_; }
+  Variable* arguments_var() { return arguments_var_; }
+  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -1385,19 +1415,28 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   CallKind call_kind_;
   bool is_construct_;
-  Variable* arguments_;
+  Variable* arguments_var_;
+  ZoneList<HValue*>* arguments_values_;
 };
 
 
 class HLeaveInlined: public HTemplateInstruction<0> {
  public:
-  HLeaveInlined() {}
+  explicit HLeaveInlined(bool arguments_pushed)
+      : arguments_pushed_(arguments_pushed) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  bool arguments_pushed() {
+    return arguments_pushed_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
+
+ private:
+  bool arguments_pushed_;
 };
 
 
@@ -2577,7 +2616,7 @@ class HApplyArguments: public HTemplateInstruction<4> {
 
 class HArgumentsElements: public HTemplateInstruction<0> {
  public:
-  HArgumentsElements() {
+  explicit HArgumentsElements(bool from_inlined) : from_inlined_(from_inlined) {
     // The value produced by this instruction is a pointer into the stack
     // that looks as if it was a smi because of alignment.
     set_representation(Representation::Tagged());
@@ -2590,8 +2629,12 @@ class HArgumentsElements: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  bool from_inlined() const { return from_inlined_; }
+
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+  bool from_inlined_;
 };
 
 
@@ -3557,6 +3600,12 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 }
 
 
+inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
+                                            HValue* new_space_dominator) {
+  return !object->IsAllocateObject() || (object != new_space_dominator);
+}
+
+
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
@@ -4023,9 +4072,12 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    int offset)
       : name_(name),
         is_in_object_(in_object),
-        offset_(offset) {
+        offset_(offset),
+        new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
+    SetFlag(kTrackSideEffectDominators);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
     if (is_in_object_) {
       SetGVNFlag(kChangesInobjectFields);
     } else {
@@ -4038,6 +4090,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    ASSERT(side_effect == kChangesNewSpacePromotion);
+    new_space_dominator_ = dominator;
+  }
   virtual void PrintDataTo(StringStream* stream);
 
   HValue* object() { return OperandAt(0); }
@@ -4048,9 +4104,11 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
+  HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
-    return StoringValueNeedsWriteBarrier(value());
+    return StoringValueNeedsWriteBarrier(value()) &&
+        ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
  private:
@@ -4058,6 +4116,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool is_in_object_;
   int offset_;
   Handle<Map> transition_;
+  HValue* new_space_dominator_;
 };
 
 
@@ -4166,6 +4225,8 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
   }
+
+  bool NeedsCanonicalization();
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4404,6 +4465,7 @@ class HAllocateObject: public HTemplateInstruction<1> {
       : constructor_(constructor) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   // Maximum instance size for which allocations will be inlined.

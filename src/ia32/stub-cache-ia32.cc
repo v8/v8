@@ -406,6 +406,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(scratch, InterceptorInfo::kDataOffset));
+  __ push(Immediate(reinterpret_cast<int>(masm->isolate())));
 }
 
 
@@ -419,12 +420,12 @@ static void CompileCallLoadPropertyWithInterceptor(
   __ CallExternalReference(
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate()),
-      5);
+      6);
 }
 
 
 // Number of pointers to be reserved on stack for fast API call.
-static const int kFastApiCallArguments = 3;
+static const int kFastApiCallArguments = 4;
 
 
 // Reserves space for the extra arguments to API function in the
@@ -472,10 +473,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //  -- esp[8]              : api function
   //                           (first fast api call extra argument)
   //  -- esp[12]             : api call data
-  //  -- esp[16]             : last argument
+  //  -- esp[16]             : isolate
+  //  -- esp[20]             : last argument
   //  -- ...
-  //  -- esp[(argc + 3) * 4] : first argument
-  //  -- esp[(argc + 4) * 4] : receiver
+  //  -- esp[(argc + 4) * 4] : first argument
+  //  -- esp[(argc + 5) * 4] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -493,9 +495,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ mov(Operand(esp, 3 * kPointerSize), Immediate(call_data));
   }
+  __ mov(Operand(esp, 4 * kPointerSize),
+         Immediate(reinterpret_cast<int>(masm->isolate())));
 
   // Prepare arguments.
-  __ lea(eax, Operand(esp, 3 * kPointerSize));
+  __ lea(eax, Operand(esp, 4 * kPointerSize));
 
   const int kApiArgc = 1;  // API function gets reference to the v8::Arguments.
 
@@ -679,7 +683,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ CallExternalReference(
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
                           masm->isolate()),
-        5);
+        6);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -746,8 +750,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Register scratch,
                                       Label* miss_label) {
   // Check that the map of the object hasn't changed.
+  CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
+                                             : REQUIRE_EXACT_MAP;
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              miss_label, DO_SMI_CHECK, mode);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -1032,6 +1038,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ push(Immediate(Handle<Object>(callback->data())));
   }
+  __ push(Immediate(reinterpret_cast<int>(isolate())));
 
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
@@ -1042,9 +1049,9 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
 
   __ push(scratch3);  // Restore return address.
 
-  // 3 elements array for v8::Arguments::values_, handler for name and pointer
+  // 4 elements array for v8::Arguments::values_, handler for name and pointer
   // to the values (it considered as smi in GC).
-  const int kStackSpace = 5;
+  const int kStackSpace = 6;
   const int kApiArgc = 2;
 
   __ PrepareCallApiFunction(kApiArgc);
@@ -1197,6 +1204,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ push(holder_reg);
       __ mov(holder_reg, Immediate(callback));
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ push(Immediate(reinterpret_cast<int>(isolate())));
       __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
@@ -1204,7 +1212,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
                             masm()->isolate());
-      __ TailCallExternalReference(ref, 5, 1);
+      __ TailCallExternalReference(ref, 6, 1);
     }
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
@@ -1220,7 +1228,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
     ExternalReference ref =
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
                           isolate());
-    __ TailCallExternalReference(ref, 5, 1);
+    __ TailCallExternalReference(ref, 6, 1);
   }
 }
 
@@ -2158,7 +2166,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(eax, Operand(esp, 4 * kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), eax);
 
   // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
@@ -3301,6 +3309,39 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 }
 
 
+static void GenerateSmiKeyCheck(MacroAssembler* masm,
+                                Register key,
+                                Register scratch,
+                                XMMRegister xmm_scratch0,
+                                XMMRegister xmm_scratch1,
+                                Label* fail) {
+  // Check that key is a smi and if SSE2 is available a heap number
+  // containing a smi and branch if the check fails.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    Label key_ok;
+    __ JumpIfSmi(key, &key_ok);
+    __ cmp(FieldOperand(key, HeapObject::kMapOffset),
+           Immediate(Handle<Map>(masm->isolate()->heap()->heap_number_map())));
+    __ j(not_equal, fail);
+    __ movdbl(xmm_scratch0, FieldOperand(key, HeapNumber::kValueOffset));
+    __ cvttsd2si(scratch, Operand(xmm_scratch0));
+    __ cvtsi2sd(xmm_scratch1, scratch);
+    __ ucomisd(xmm_scratch1, xmm_scratch0);
+    __ j(not_equal, fail);
+    __ j(parity_even, fail);  // NaN.
+    // Check if the key fits in the smi range.
+    __ cmp(scratch, 0xc0000000);
+    __ j(sign, fail);
+    __ SmiTag(scratch);
+    __ mov(key, scratch);
+    __ bind(&key_ok);
+  } else {
+    __ JumpIfNotSmi(key, fail);
+  }
+}
+
+
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3314,8 +3355,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(eax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, eax, ecx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3367,14 +3408,14 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // it to a HeapNumber.
     Label box_int;
     if (elements_kind == EXTERNAL_INT_ELEMENTS) {
-      __ cmp(ecx, 0xC0000000);
+      __ cmp(ecx, 0xc0000000);
       __ j(sign, &box_int);
     } else {
       ASSERT_EQ(EXTERNAL_UNSIGNED_INT_ELEMENTS, elements_kind);
       // The test is different for unsigned int values. Since we need
       // the value to be in the range of a positive smi, we can't
       // handle either of the top two bits being set in the value.
-      __ test(ecx, Immediate(0xC0000000));
+      __ test(ecx, Immediate(0xc0000000));
       __ j(not_zero, &box_int);
     }
 
@@ -3459,7 +3500,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
   // ----------- S t a t e -------------
-  //  -- eax    : key
+  //  -- eax    : value
+  //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
@@ -3468,8 +3510,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(ecx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, ecx, ebx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3664,8 +3706,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(eax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, eax, ecx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3702,8 +3744,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(eax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, eax, ecx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3771,8 +3813,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(ecx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, ecx, ebx, xmm0, xmm1, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(eax, &transition_elements_kind);
@@ -3926,8 +3968,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(ecx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, ecx, ebx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));

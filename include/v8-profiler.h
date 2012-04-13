@@ -418,6 +418,33 @@ class V8EXPORT HeapProfiler {
       ActivityControl* control = NULL);
 
   /**
+   * Starts tracking of heap objects population statistics. After calling
+   * this method, all heap objects relocations done by the garbage collector
+   * are being registered.
+   */
+  static void StartHeapObjectsTracking();
+
+  /**
+   * Adds a new time interval entry to the aggregated statistics array. The
+   * time interval entry contains information on the current heap objects
+   * population size. The method also updates aggregated statistics and
+   * reports updates for all previous time intervals via the OutputStream
+   * object. Updates on each time interval are provided as pairs of time
+   * interval index and updated heap objects count.
+   *
+   * StartHeapObjectsTracking must be called before the first call to this
+   * method.
+   */
+  static void PushHeapObjectsStats(OutputStream* stream);
+
+  /**
+   * Stops tracking of heap objects population statistics, cleans up all
+   * collected data. StartHeapObjectsTracking must be called again prior to
+   * calling PushHeapObjectsStats next time.
+   */
+  static void StopHeapObjectsTracking();
+
+  /**
    * Deletes all snapshots taken. All previously returned pointers to
    * snapshots and their contents become invalid after this call.
    */

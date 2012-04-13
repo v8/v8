@@ -1734,7 +1734,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(0);
         __ bind(&after_alloc_failure);
-        __ ffree();
+        __ fstp(0);  // Pop FPU stack before calling runtime.
         __ jmp(&call_runtime);
       }
 
@@ -1957,7 +1957,7 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(0);
         __ bind(&after_alloc_failure);
-        __ ffree();
+        __ fstp(0);  // Pop FPU stack before calling runtime.
         __ jmp(&call_runtime);
       }
 
@@ -2161,8 +2161,8 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(0);
         __ bind(&after_alloc_failure);
-          __ ffree();
-          __ jmp(&call_runtime);
+        __ fstp(0);  // Pop FPU stack before calling runtime.
+        __ jmp(&call_runtime);
       }
         __ bind(&not_floats);
         break;

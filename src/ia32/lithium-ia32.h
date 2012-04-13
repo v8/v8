@@ -174,7 +174,8 @@ class LCodeGen;
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
   V(DateField)                                  \
-  V(WrapReceiver)
+  V(WrapReceiver)                               \
+  V(Drop)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -525,9 +526,8 @@ class LArgumentsLength: public LTemplateInstruction<1, 1, 0> {
 
 class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
  public:
-  LArgumentsElements() { }
-
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsElements, "arguments-elements")
+  DECLARE_HYDROGEN_ACCESSOR(ArgumentsElements)
 };
 
 
@@ -1401,6 +1401,19 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 };
 
 
+class LDrop: public LTemplateInstruction<0, 0, 0> {
+ public:
+  explicit LDrop(int count) : count_(count) { }
+
+  int count() const { return count_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Drop, "drop")
+
+ private:
+  int count_;
+};
+
+
 class LThisFunction: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
@@ -1787,6 +1800,8 @@ class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+
+  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 

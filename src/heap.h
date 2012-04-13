@@ -1326,7 +1326,8 @@ class Heap {
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
-  inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
+  inline intptr_t AdjustAmountOfExternalAllocatedMemory(
+      intptr_t change_in_bytes);
 
   // Allocate uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length);
@@ -1646,7 +1647,7 @@ class Heap {
   int gc_post_processing_depth_;
 
   // Returns the amount of external memory registered since last global gc.
-  int PromotedExternalMemorySize();
+  intptr_t PromotedExternalMemorySize();
 
   int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
@@ -1711,10 +1712,10 @@ class Heap {
 
   // The amount of external memory registered through the API kept alive
   // by global handles
-  int amount_of_external_allocated_memory_;
+  intptr_t amount_of_external_allocated_memory_;
 
   // Caches the amount of external memory registered at the last global gc.
-  int amount_of_external_allocated_memory_at_last_global_gc_;
+  intptr_t amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.

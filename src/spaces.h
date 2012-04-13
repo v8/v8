@@ -1520,6 +1520,10 @@ class PagedSpace : public Space {
     return size_in_bytes - wasted;
   }
 
+  void ResetFreeList() {
+    free_list_.Reset();
+  }
+
   // Set space allocation info.
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
@@ -2370,11 +2374,6 @@ class FixedSpace : public PagedSpace {
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact();
-
- protected:
-  void ResetFreeList() {
-    free_list_.Reset();
-  }
 
  private:
   // The size of objects in this space.

@@ -4410,37 +4410,29 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
 }
 
 
+MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
+  LookupResult result(GetHeap()->isolate());
+  LocalLookupRealNamedProperty(name, &result);
+  if (result.IsProperty() && result.type() == CALLBACKS) {
+    ASSERT(!result.IsDontDelete());
+    Object* obj = result.GetCallbackObject();
+    if (obj->IsAccessorPair()) {
+      return AccessorPair::cast(obj)->CopyWithoutTransitions();
+    }
+  }
+  return GetHeap()->AllocateAccessorPair();
+}
+
+
 MaybeObject* JSObject::DefinePropertyAccessor(String* name,
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes) {
-  // Lookup the name.
-  LookupResult result(GetHeap()->isolate());
-  LocalLookupRealNamedProperty(name, &result);
-  if (result.IsFound()) {
-    if (result.type() == CALLBACKS) {
-      ASSERT(!result.IsDontDelete());
-      Object* obj = result.GetCallbackObject();
-      // Need to preserve old getters/setters.
-      if (obj->IsAccessorPair()) {
-        AccessorPair* copy;
-        { MaybeObject* maybe_copy =
-              AccessorPair::cast(obj)->CopyWithoutTransitions();
-          if (!maybe_copy->To(&copy)) return maybe_copy;
-        }
-        copy->SetComponents(getter, setter);
-        // Use set to update attributes.
-        return SetPropertyCallback(name, copy, attributes);
-      }
-    }
-  }
-
   AccessorPair* accessors;
-  { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
+  { MaybeObject* maybe_accessors = CreateAccessorPairFor(name);
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
   accessors->SetComponents(getter, setter);
-
   return SetPropertyCallback(name, accessors, attributes);
 }
 
