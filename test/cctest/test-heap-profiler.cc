@@ -707,7 +707,8 @@ class TestStatsStream : public v8::OutputStream {
       intervals_count_(0),
       first_interval_index_(-1) { }
   TestStatsStream(const TestStatsStream& stream)
-    : eos_signaled_(stream.eos_signaled_),
+    : v8::OutputStream(stream),
+      eos_signaled_(stream.eos_signaled_),
       numbers_written_(stream.numbers_written_),
       entries_count_(stream.entries_count_),
       intervals_count_(stream.intervals_count_),
