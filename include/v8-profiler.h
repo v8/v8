@@ -368,16 +368,20 @@ class V8EXPORT HeapSnapshot {
    * with the following structure:
    *
    *  {
-   *    snapshot: {title: "...", uid: nnn},
-   *    nodes: [
-   *      meta-info (JSON string),
-   *      nodes themselves
-   *    ],
-   *    strings: [strings]
+   *    snapshot: {
+   *      title: "...",
+   *      uid: nnn,
+   *      meta: { meta-info },
+   *      node_count: nnn,
+   *      edge_count: nnn
+   *    },
+   *    nodes: [nodes array],
+   *    edges: [edges array],
+   *    strings: [strings array]
    *  }
    *
-   * Outgoing node links are stored after each node. Nodes reference strings
-   * and other nodes by their indexes in corresponding arrays.
+   * Nodes reference strings, other nodes, and edges by their indexes
+   * in corresponding arrays.
    */
   void Serialize(OutputStream* stream, SerializationFormat format) const;
 };

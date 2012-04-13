@@ -618,42 +618,37 @@ TEST(HeapSnapshotJSONSerialization) {
       env->Global()->Get(v8_str("parsed"))->ToObject();
   CHECK(parsed_snapshot->Has(v8_str("snapshot")));
   CHECK(parsed_snapshot->Has(v8_str("nodes")));
+  CHECK(parsed_snapshot->Has(v8_str("edges")));
   CHECK(parsed_snapshot->Has(v8_str("strings")));
 
   // Get node and edge "member" offsets.
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
-      "var parsed_meta = parsed.nodes[0];\n"
-      "var children_count_offset ="
-      "    parsed_meta.fields.indexOf('children_count');\n"
-      "var children_offset ="
-      "    parsed_meta.fields.indexOf('children');\n"
-      "var children_meta ="
-      "    parsed_meta.types[children_offset];\n"
-      "var child_fields_count = children_meta.fields.length;\n"
-      "var child_type_offset ="
-      "    children_meta.fields.indexOf('type');\n"
-      "var child_name_offset ="
-      "    children_meta.fields.indexOf('name_or_index');\n"
-      "var child_to_node_offset ="
-      "    children_meta.fields.indexOf('to_node');\n"
+      "var meta = parsed.snapshot.meta;\n"
+      "var edges_index_offset = meta.node_fields.indexOf('edges_index');\n"
+      "var node_fields_count = meta.node_fields.length;\n"
+      "var edge_fields_count = meta.edge_fields.length;\n"
+      "var edge_type_offset = meta.edge_fields.indexOf('type');\n"
+      "var edge_name_offset = meta.edge_fields.indexOf('name_or_index');\n"
+      "var edge_to_node_offset = meta.edge_fields.indexOf('to_node');\n"
       "var property_type ="
-      "    children_meta.types[child_type_offset].indexOf('property');\n"
+      "    meta.edge_types[edge_type_offset].indexOf('property');\n"
       "var shortcut_type ="
-      "    children_meta.types[child_type_offset].indexOf('shortcut');");
+      "    meta.edge_types[edge_type_offset].indexOf('shortcut');\n"
+      "parsed.nodes.concat(0, 0, 0, 0, 0, 0, parsed.edges.length);");
   CHECK(!meta_analysis_result.IsEmpty());
 
   // A helper function for processing encoded nodes.
   CompileRun(
       "function GetChildPosByProperty(pos, prop_name, prop_type) {\n"
       "  var nodes = parsed.nodes;\n"
+      "  var edges = parsed.edges;\n"
       "  var strings = parsed.strings;\n"
-      "  for (var i = 0,\n"
-      "      count = nodes[pos + children_count_offset] * child_fields_count;\n"
-      "      i < count; i += child_fields_count) {\n"
-      "    var child_pos = pos + children_offset + i;\n"
-      "    if (nodes[child_pos + child_type_offset] === prop_type\n"
-      "       && strings[nodes[child_pos + child_name_offset]] === prop_name)\n"
-      "        return nodes[child_pos + child_to_node_offset];\n"
+      "  for (var i = nodes[pos + edges_index_offset],\n"
+      "      count = nodes[pos + node_fields_count + edges_index_offset];\n"
+      "      i < count; i += edge_fields_count) {\n"
+      "    if (edges[i + edge_type_offset] === prop_type\n"
+      "        && strings[edges[i + edge_name_offset]] === prop_name)\n"
+      "      return edges[i + edge_to_node_offset];\n"
       "  }\n"
       "  return null;\n"
       "}\n");
@@ -662,8 +657,9 @@ TEST(HeapSnapshotJSONSerialization) {
       "GetChildPosByProperty(\n"
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
-      "      parsed.nodes[1 + children_offset + child_to_node_offset],"
-      "      \"b\",shortcut_type),\n"
+      "      parsed.edges[parsed.nodes[edges_index_offset]"
+      "                   + edge_to_node_offset],"
+      "      \"b\", shortcut_type),\n"
       "    \"x\", property_type),"
       "  \"s\", property_type)");
   CHECK(!string_obj_pos_val.IsEmpty());

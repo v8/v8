@@ -648,6 +648,7 @@ class HeapSnapshot {
   HeapEntry* gc_subroot(int index) { return gc_subroot_entries_[index]; }
   List<HeapEntry*>* entries() { return &entries_; }
   size_t raw_entries_size() { return raw_entries_size_; }
+  int number_of_edges() { return number_of_edges_; }
   void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
@@ -690,6 +691,7 @@ class HeapSnapshot {
   List<HeapEntry*> entries_;
   List<HeapEntry*> sorted_entries_;
   size_t raw_entries_size_;
+  int number_of_edges_;
   SnapshotObjectId max_snapshot_js_object_id_;
 
   friend class HeapSnapshotTester;
@@ -1160,12 +1162,14 @@ class HeapSnapshotJSONSerializer {
         v8::internal::kZeroHashSeed);
   }
 
+  void CalculateNodeIndexes(const List<HeapEntry*>& nodes);
   HeapSnapshot* CreateFakeSnapshot();
   int GetStringId(const char* s);
-  void SerializeEdge(HeapGraphEdge* edge);
+  void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
+  void SerializeEdges(const List<HeapEntry*>& nodes);
   void SerializeImpl();
-  void SerializeNode(HeapEntry* entry);
-  void SerializeNodes();
+  void SerializeNode(HeapEntry* entry, int edges_index);
+  void SerializeNodes(const List<HeapEntry*>& nodes);
   void SerializeSnapshot();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();

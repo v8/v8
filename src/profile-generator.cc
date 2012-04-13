@@ -1134,6 +1134,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       gc_roots_entry_(NULL),
       natives_root_entry_(NULL),
       raw_entries_(NULL),
+      number_of_edges_(0),
       max_snapshot_js_object_id_(0) {
   STATIC_CHECK(
       sizeof(HeapGraphEdge) ==
@@ -1167,6 +1168,7 @@ void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
   ASSERT(raw_entries_ == NULL);
+  number_of_edges_ = children_count;
   raw_entries_size_ =
       HeapEntry::EntriesSize(entries_count, children_count, retainers_count);
   raw_entries_ = NewArray<char>(raw_entries_size_);
@@ -3576,14 +3578,37 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
 }
 
 
+void HeapSnapshotJSONSerializer::CalculateNodeIndexes(
+    const List<HeapEntry*>& nodes) {
+  // type,name,id,self_size,retained_size,dominator,children_index.
+  const int node_fields_count = 7;
+  // Root must be the first.
+  ASSERT(nodes.first() == snapshot_->root());
+  // Rewrite node indexes, so they refer to actual array positions. Do this
+  // only once.
+  if (nodes[0]->entry_index() == -1) {
+    int index = 0;
+    for (int i = 0; i < nodes.length(); ++i, index += node_fields_count) {
+      nodes[i]->set_entry_index(index);
+    }
+  }
+}
+
+
 void HeapSnapshotJSONSerializer::SerializeImpl() {
+  List<HeapEntry*>& nodes = *(snapshot_->entries());
+  CalculateNodeIndexes(nodes);
   writer_->AddCharacter('{');
   writer_->AddString("\"snapshot\":{");
   SerializeSnapshot();
   if (writer_->aborted()) return;
   writer_->AddString("},\n");
   writer_->AddString("\"nodes\":[");
-  SerializeNodes();
+  SerializeNodes(nodes);
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+  writer_->AddString("\"edges\":[");
+  SerializeEdges(nodes);
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
   writer_->AddString("\"strings\":[");
@@ -3630,7 +3655,8 @@ static int itoa(int value, const Vector<char>& buffer, int buffer_pos) {
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
+void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
+                                               bool first_edge) {
   // The buffer needs space for 3 ints, 3 commas and \0
   static const int kBufferSize =
       MaxDecimalDigitsIn<sizeof(int)>::kSigned * 3 + 3 + 1;  // NOLINT
@@ -3640,7 +3666,9 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
       || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
   int buffer_pos = 0;
-  buffer[buffer_pos++] = ',';
+  if (!first_edge) {
+    buffer[buffer_pos++] = ',';
+  }
   buffer_pos = itoa(edge->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(edge_name_or_index, buffer, buffer_pos);
@@ -3651,17 +3679,33 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
+void HeapSnapshotJSONSerializer::SerializeEdges(const List<HeapEntry*>& nodes) {
+  bool first_edge = true;
+  for (int i = 0; i < nodes.length(); ++i) {
+    HeapEntry* entry = nodes[i];
+    Vector<HeapGraphEdge> children = entry->children();
+    for (int j = 0; j < children.length(); ++j) {
+      SerializeEdge(&children[j], first_edge);
+      first_edge = false;
+      if (writer_->aborted()) return;
+    }
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry,
+                                               int edges_index) {
   // The buffer needs space for 6 ints, 1 uint32_t, 7 commas, \n and \0
   static const int kBufferSize =
       6 * MaxDecimalDigitsIn<sizeof(int)>::kSigned  // NOLINT
       + MaxDecimalDigitsIn<sizeof(uint32_t)>::kUnsigned  // NOLINT
       + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
-  Vector<HeapGraphEdge> children = entry->children();
   int buffer_pos = 0;
   buffer[buffer_pos++] = '\n';
-  buffer[buffer_pos++] = ',';
+  if (entry->entry_index() != 0) {
+    buffer[buffer_pos++] = ',';
+  }
   buffer_pos = itoa(entry->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(GetStringId(entry->name()), buffer, buffer_pos);
@@ -3674,93 +3718,19 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(entry->dominator()->entry_index(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(children.length(), buffer, buffer_pos);
+  buffer_pos = itoa(edges_index, buffer, buffer_pos);
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
-  for (int i = 0; i < children.length(); ++i) {
-    SerializeEdge(&children[i]);
-    if (writer_->aborted()) return;
-  }
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNodes() {
-  // The first (zero) item of nodes array is an object describing node
-  // serialization layout.  We use a set of macros to improve
-  // readability.
-#define JSON_A(s) "["s"]"
-#define JSON_O(s) "{"s"}"
-#define JSON_S(s) "\""s"\""
-  writer_->AddString(JSON_O(
-    JSON_S("fields") ":" JSON_A(
-        JSON_S("type")
-        "," JSON_S("name")
-        "," JSON_S("id")
-        "," JSON_S("self_size")
-        "," JSON_S("retained_size")
-        "," JSON_S("dominator")
-        "," JSON_S("children_count")
-        "," JSON_S("children"))
-    "," JSON_S("types") ":" JSON_A(
-        JSON_A(
-            JSON_S("hidden")
-            "," JSON_S("array")
-            "," JSON_S("string")
-            "," JSON_S("object")
-            "," JSON_S("code")
-            "," JSON_S("closure")
-            "," JSON_S("regexp")
-            "," JSON_S("number")
-            "," JSON_S("native")
-            "," JSON_S("synthetic"))
-        "," JSON_S("string")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_O(
-            JSON_S("fields") ":" JSON_A(
-                JSON_S("type")
-                "," JSON_S("name_or_index")
-                "," JSON_S("to_node"))
-            "," JSON_S("types") ":" JSON_A(
-                JSON_A(
-                    JSON_S("context")
-                    "," JSON_S("element")
-                    "," JSON_S("property")
-                    "," JSON_S("internal")
-                    "," JSON_S("hidden")
-                    "," JSON_S("shortcut")
-                    "," JSON_S("weak"))
-                "," JSON_S("string_or_number")
-                "," JSON_S("node"))))));
-#undef JSON_S
-#undef JSON_O
-#undef JSON_A
-
-  const int node_fields_count = 7;
-  // type,name,id,self_size,retained_size,dominator,children_count.
+void HeapSnapshotJSONSerializer::SerializeNodes(const List<HeapEntry*>& nodes) {
   const int edge_fields_count = 3;  // type,name|index,to_node.
-
-  List<HeapEntry*>& nodes = *(snapshot_->entries());
-  // Root must be the first.
-  ASSERT(nodes.first() == snapshot_->root());
-  // Rewrite node indexes, so they refer to actual array positions. Do this
-  // only once.
-  if (nodes[0]->entry_index() == -1) {
-    // Nodes start from array index 1.
-    int index = 1;
-    for (int i = 0; i < nodes.length(); ++i) {
-      HeapEntry* node = nodes[i];
-      node->set_entry_index(index);
-      index += node_fields_count +
-          node->children().length() * edge_fields_count;
-    }
-  }
-
+  int edges_index = 0;
   for (int i = 0; i < nodes.length(); ++i) {
-    SerializeNode(nodes[i]);
+    HeapEntry* entry = nodes[i];
+    SerializeNode(entry, edges_index);
+    edges_index += entry->children().length() * edge_fields_count;
     if (writer_->aborted()) return;
   }
 }
@@ -3772,6 +3742,61 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString("\"");
   writer_->AddString(",\"uid\":");
   writer_->AddNumber(snapshot_->uid());
+  writer_->AddString(",\"meta\":");
+  // The object describing node serialization layout.
+  // We use a set of macros to improve readability.
+#define JSON_A(s) "["s"]"
+#define JSON_O(s) "{"s"}"
+#define JSON_S(s) "\""s"\""
+  writer_->AddString(JSON_O(
+    JSON_S("node_fields") ":" JSON_A(
+        JSON_S("type") ","
+        JSON_S("name") ","
+        JSON_S("id") ","
+        JSON_S("self_size") ","
+        JSON_S("retained_size") ","
+        JSON_S("dominator") ","
+        JSON_S("edges_index")) ","
+    JSON_S("node_types") ":" JSON_A(
+        JSON_A(
+            JSON_S("hidden") ","
+            JSON_S("array") ","
+            JSON_S("string") ","
+            JSON_S("object") ","
+            JSON_S("code") ","
+            JSON_S("closure") ","
+            JSON_S("regexp") ","
+            JSON_S("number") ","
+            JSON_S("native") ","
+            JSON_S("synthetic")) ","
+        JSON_S("string") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number")) ","
+    JSON_S("edge_fields") ":" JSON_A(
+        JSON_S("type") ","
+        JSON_S("name_or_index") ","
+        JSON_S("to_node")) ","
+    JSON_S("edge_types") ":" JSON_A(
+        JSON_A(
+            JSON_S("context") ","
+            JSON_S("element") ","
+            JSON_S("property") ","
+            JSON_S("internal") ","
+            JSON_S("hidden") ","
+            JSON_S("shortcut") ","
+            JSON_S("weak")) ","
+        JSON_S("string_or_number") ","
+        JSON_S("node"))));
+#undef JSON_S
+#undef JSON_O
+#undef JSON_A
+  writer_->AddString(",\"node_count\":");
+  writer_->AddNumber(snapshot_->entries()->length());
+  writer_->AddString(",\"edge_count\":");
+  writer_->AddNumber(snapshot_->number_of_edges());
 }
 
 
