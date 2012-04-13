@@ -118,6 +118,8 @@ void V8::TearDown() {
 
   delete call_completed_callbacks_;
   call_completed_callbacks_ = NULL;
+
+  OS::TearDown();
 }
 
 
@@ -248,7 +250,6 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number,
 }
 
 void V8::InitializeOncePerProcessImpl() {
-  // Set up the platform OS support.
   OS::SetUp();
 
   use_crankshaft_ = FLAG_crankshaft;

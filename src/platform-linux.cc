@@ -1055,11 +1055,8 @@ class SignalSender : public Thread {
         vm_tgid_(getpid()),
         interval_(interval) {}
 
-  static void SetUp() {
-    if (!mutex_) {
-      mutex_ = OS::CreateMutex();
-    }
-  }
+  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void TearDown() { delete mutex_; }
 
   static void InstallSignalHandler() {
     struct sigaction sa;
@@ -1235,6 +1232,12 @@ void OS::SetUp() {
   }
 #endif
   SignalSender::SetUp();
+}
+
+
+void OS::TearDown() {
+  SignalSender::TearDown();
+  delete limit_mutex;
 }
 
 

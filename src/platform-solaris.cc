@@ -712,11 +712,8 @@ class SignalSender : public Thread {
       : Thread(Thread::Options("SignalSender", kSignalSenderStackSize)),
         interval_(interval) {}
 
-  static void SetUp() {
-    if (!mutex_) {
-      mutex_ = OS::CreateMutex();
-    }
-  }
+  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void TearDown() { delete mutex_; }
 
   static void InstallSignalHandler() {
     struct sigaction sa;
@@ -867,6 +864,12 @@ void OS::SetUp() {
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
   SignalSender::SetUp();
+}
+
+
+void OS::TearDown() {
+  SignalSender::TearDown();
+  delete limit_mutex;
 }
 
 
