@@ -8608,6 +8608,8 @@ static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(v8_str("data"), info.Data());
   CHECK_EQ(v8_str("x"), name);
   return v8::Integer::New(42);
@@ -9334,6 +9336,8 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
 static v8::Handle<Value> FastApiCallback_TrivialSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This(), args.Holder());
   CHECK(args.Data()->Equals(v8_str("method_data")));
   return v8::Integer::New(args[0]->Int32Value() + 1);
@@ -9342,6 +9346,8 @@ static v8::Handle<Value> FastApiCallback_TrivialSignature(
 static v8::Handle<Value> FastApiCallback_SimpleSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This()->GetPrototype(), args.Holder());
   CHECK(args.Data()->Equals(v8_str("method_data")));
   // Note, we're using HasRealNamedProperty instead of Has to avoid

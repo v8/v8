@@ -379,6 +379,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(kScratchRegister, InterceptorInfo::kDataOffset));
+  __ push(Immediate(reinterpret_cast<intptr_t>(masm->isolate())));
 }
 
 
@@ -393,7 +394,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate());
-  __ Set(rax, 5);
+  __ Set(rax, 6);
   __ LoadAddress(rbx, ref);
 
   CEntryStub stub(1);
@@ -402,7 +403,7 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Number of pointers to be reserved on stack for fast API call.
-static const int kFastApiCallArguments = 3;
+static const int kFastApiCallArguments = 4;
 
 
 // Reserves space for the extra arguments to API function in the
@@ -452,10 +453,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //  -- rsp[16]             : api function
   //                           (first fast api call extra argument)
   //  -- rsp[24]             : api call data
-  //  -- rsp[32]             : last argument
+  //  -- rsp[32]             : isolate
+  //  -- rsp[40]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 3) * 8] : first argument
-  //  -- rsp[(argc + 4) * 8] : receiver
+  //  -- rsp[(argc + 4) * 8] : first argument
+  //  -- rsp[(argc + 5) * 8] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -473,9 +475,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(Operand(rsp, 3 * kPointerSize), call_data);
   }
+  __ movq(Operand(rsp, 4 * kPointerSize),
+          Immediate(reinterpret_cast<intptr_t>(masm->isolate())));
 
   // Prepare arguments.
-  __ lea(rbx, Operand(rsp, 3 * kPointerSize));
+  __ lea(rbx, Operand(rsp, 4 * kPointerSize));
 
 #ifdef _WIN64
   // Win64 uses first register--rcx--for returned value.
@@ -663,7 +667,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ CallExternalReference(
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
                           masm->isolate()),
-        5);
+        6);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -1005,6 +1009,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ Push(Handle<Object>(callback->data()));
   }
+  __ push(Immediate(reinterpret_cast<intptr_t>(isolate())));  // isolate
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
@@ -1022,14 +1027,14 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   __ movq(name_arg, rsp);
   __ push(scratch2);  // Restore return address.
 
-  // 3 elements array for v8::Arguments::values_ and handler for name.
-  const int kStackSpace = 4;
+  // 4 elements array for v8::Arguments::values_ and handler for name.
+  const int kStackSpace = 5;
 
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
   __ PrepareCallApiFunction(kArgStackSpace);
-  __ lea(rax, Operand(name_arg, 3 * kPointerSize));
+  __ lea(rax, Operand(name_arg, 4 * kPointerSize));
 
   // v8::AccessorInfo::args_.
   __ movq(StackSpaceOperand(0), rax);
@@ -1179,6 +1184,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ push(holder_reg);
       __ Move(holder_reg, callback);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ push(Immediate(reinterpret_cast<intptr_t>(isolate())));
       __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
@@ -1186,7 +1192,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
                             isolate());
-      __ TailCallExternalReference(ref, 5, 1);
+      __ TailCallExternalReference(ref, 6, 1);
     }
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
@@ -1201,7 +1207,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), isolate());
-    __ TailCallExternalReference(ref, 5, 1);
+    __ TailCallExternalReference(ref, 6, 1);
   }
 }
 
@@ -1993,7 +1999,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax, Operand(rsp, 3 * kPointerSize));
+  __ movq(rax, Operand(rsp, 4 * kPointerSize));
   __ movq(Operand(rsp, 0 * kPointerSize), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);

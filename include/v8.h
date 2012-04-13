@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -107,6 +107,7 @@ class Data;
 class AccessorInfo;
 class StackTrace;
 class StackFrame;
+class Isolate;
 
 namespace internal {
 
@@ -1967,10 +1968,12 @@ class Arguments {
   inline Local<Object> Holder() const;
   inline bool IsConstructCall() const;
   inline Local<Value> Data() const;
+  inline Isolate* GetIsolate() const;
  private:
-  static const int kDataIndex = 0;
-  static const int kCalleeIndex = -1;
-  static const int kHolderIndex = -2;
+  static const int kIsolateIndex = 0;
+  static const int kDataIndex = -1;
+  static const int kCalleeIndex = -2;
+  static const int kHolderIndex = -3;
 
   friend class ImplementationUtilities;
   inline Arguments(internal::Object** implicit_args,
@@ -1992,6 +1995,7 @@ class V8EXPORT AccessorInfo {
  public:
   inline AccessorInfo(internal::Object** args)
       : args_(args) { }
+  inline Isolate* GetIsolate() const;
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
@@ -4055,6 +4059,11 @@ Local<Value> Arguments::Data() const {
 }
 
 
+Isolate* Arguments::GetIsolate() const {
+  return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
+}
+
+
 bool Arguments::IsConstructCall() const {
   return is_construct_call_;
 }
@@ -4287,6 +4296,11 @@ External* External::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<External*>(value);
+}
+
+
+Isolate* AccessorInfo::GetIsolate() const {
+  return *reinterpret_cast<Isolate**>(&args_[-3]);
 }
 
 
