@@ -62,6 +62,7 @@ class HeapProfiler {
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
+  static SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
   static void DeleteAllSnapshots();
 
   void ObjectMoveEvent(Address from, Address to);

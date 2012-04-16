@@ -790,6 +790,9 @@ class HeapSnapshotsCollection {
   StringsStorage* names() { return &names_; }
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
+  SnapshotObjectId FindObjectId(Address object_addr) {
+    return ids_.FindEntry(object_addr);
+  }
   SnapshotObjectId GetObjectId(Address object_addr, int object_size) {
     return ids_.FindOrAddEntry(object_addr, object_size);
   }

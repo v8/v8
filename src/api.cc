@@ -6218,6 +6218,14 @@ const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 }
 
 
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotObjectId");
+  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
+  return i::HeapProfiler::GetSnapshotObjectId(obj);
+}
+
+
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                HeapSnapshot::Type type,
                                                ActivityControl* control) {

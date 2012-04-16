@@ -909,6 +909,42 @@ TEST(HeapSnapshotGetNodeById) {
 }
 
 
+TEST(HeapSnapshotGetSnapshotObjectId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("globalObject = {};\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("get_snapshot_object_id"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_object =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "globalObject");
+  CHECK(global_object);
+
+  v8::Local<v8::Value> globalObjectHandle =
+      env->Global()->Get(v8::String::New("globalObject"));
+  CHECK(!globalObjectHandle.IsEmpty());
+  CHECK(globalObjectHandle->IsObject());
+
+  v8::SnapshotObjectId id =
+      v8::HeapProfiler::GetSnapshotObjectId(globalObjectHandle);
+  CHECK_NE(static_cast<int>(v8::HeapProfiler::kUnknownObjectId),
+           id);
+  CHECK_EQ(static_cast<int>(id), global_object->GetId());
+}
+
+
+TEST(HeapSnapshotUnknownSnapshotObjectId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("globalObject = {};\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("unknown_object_id"));
+  const v8::HeapGraphNode* node =
+      snapshot->GetNodeById(v8::HeapProfiler::kUnknownObjectId);
+  CHECK_EQ(NULL, node);
+}
+
+
 namespace {
 
 class TestActivityControl : public v8::ActivityControl {

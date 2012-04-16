@@ -1362,7 +1362,6 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   EntryInfo& entry_info = entries_->at(entry_index);
-  entry_info.accessed = true;
   ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
   return entry_info.id;
 }

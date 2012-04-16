@@ -413,6 +413,19 @@ class V8EXPORT HeapProfiler {
   static const HeapSnapshot* FindSnapshot(unsigned uid);
 
   /**
+   * Returns SnapshotObjectId for a heap object referenced by |value| if
+   * it has been seen by the heap profiler, kUnknownObjectId otherwise.
+   */
+  static SnapshotObjectId GetSnapshotObjectId(Handle<Value> value);
+
+  /**
+   * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
+   * it in case heap profiler cannot find id  for the object passed as
+   * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.
+   */
+  static const SnapshotObjectId kUnknownObjectId = 0;
+
+  /**
    * Takes a heap snapshot and returns it. Title may be an empty string.
    * See HeapSnapshot::Type for types description.
    */
