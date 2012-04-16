@@ -1292,7 +1292,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     bool is_var = value->IsUndefined();
     bool is_const = value->IsTheHole();
     bool is_function = value->IsSharedFunctionInfo();
-    bool is_module = value->IsJSObject();
+    bool is_module = value->IsJSModule();
     ASSERT(is_var + is_const + is_function + is_module == 1);
 
     if (is_var || is_const) {
@@ -8594,6 +8594,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
                                             scope_info);
   if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
+  return context;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(ScopeInfo, scope_info, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSModule, instance, 1);
+
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateModuleContext(isolate->context(),
+                                             scope_info);
+  if (!maybe_context->To(&context)) return maybe_context;
+  // Also initialize the context slot of the instance object.
+  instance->set_context(context);
+  isolate->set_context(context);
+
   return context;
 }
 

@@ -142,7 +142,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope) {
   ASSERT(index == scope_info->length());
   ASSERT(scope->num_parameters() == scope_info->ParameterCount());
   ASSERT(scope->num_stack_slots() == scope_info->StackSlotCount());
-  ASSERT(scope->num_heap_slots() == scope_info->ContextLength());
+  ASSERT(scope->num_heap_slots() == scope_info->ContextLength() ||
+         (scope->num_heap_slots() == kVariablePartIndex &&
+          scope_info->ContextLength() == 0));
   return scope_info;
 }
 

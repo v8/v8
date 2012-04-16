@@ -59,6 +59,7 @@
 //           - JSWeakMap
 //           - JSRegExp
 //           - JSFunction
+//           - JSModule
 //           - GlobalObject
 //             - JSGlobalObject
 //             - JSBuiltinsObject
@@ -306,6 +307,7 @@ const int kVariableSizeSentinel = 0;
   V(JS_DATE_TYPE)                                                              \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
+  V(JS_MODULE_TYPE)                                                            \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
   V(JS_BUILTINS_OBJECT_TYPE)                                                   \
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
@@ -626,6 +628,7 @@ enum InstanceType {
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+  JS_MODULE_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
@@ -803,6 +806,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSReceiver)                                \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
+  V(JSModule)                                  \
   V(Map)                                       \
   V(DescriptorArray)                           \
   V(DeoptimizationInputData)                   \
@@ -812,6 +816,7 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedDoubleArray)                          \
   V(Context)                                   \
   V(GlobalContext)                             \
+  V(ModuleContext)                             \
   V(ScopeInfo)                                 \
   V(JSFunction)                                \
   V(Code)                                      \
@@ -5688,6 +5693,35 @@ class SharedFunctionInfo: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
+};
+
+
+// Representation for module instance objects.
+class JSModule: public JSObject {
+ public:
+  // [context]: the context holding the module's locals, or undefined if none.
+  DECL_ACCESSORS(context, Object)
+
+  // Casting.
+  static inline JSModule* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSModulePrint() {
+    JSModulePrint(stdout);
+  }
+  void JSModulePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSModuleVerify();
+#endif
+
+  // Layout description.
+  static const int kContextOffset = JSObject::kHeaderSize;
+  static const int kSize = kContextOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSModule);
 };
 
 

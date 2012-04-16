@@ -291,6 +291,15 @@ Handle<Context> Factory::NewGlobalContext() {
 }
 
 
+Handle<Context> Factory::NewModuleContext(Handle<Context> previous,
+                                          Handle<ScopeInfo> scope_info) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateModuleContext(*previous, *scope_info),
+      Context);
+}
+
+
 Handle<Context> Factory::NewFunctionContext(int length,
                                             Handle<JSFunction> function) {
   CALL_HEAP_FUNCTION(
@@ -324,10 +333,9 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 }
 
 
-Handle<Context> Factory::NewBlockContext(
-    Handle<JSFunction> function,
-    Handle<Context> previous,
-    Handle<ScopeInfo> scope_info) {
+Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
+                                         Handle<Context> previous,
+                                         Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateBlockContext(*function,
@@ -925,6 +933,13 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
+}
+
+
+Handle<JSModule> Factory::NewJSModule() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSModule(), JSModule);
 }
 
 

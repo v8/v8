@@ -421,8 +421,8 @@ class Block: public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
-  Scope* block_scope() const { return block_scope_; }
-  void set_block_scope(Scope* block_scope) { block_scope_ = block_scope; }
+  Scope* scope() const { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -434,13 +434,13 @@ class Block: public BreakableStatement {
       : BreakableStatement(isolate, labels, TARGET_FOR_NAMED_ONLY),
         statements_(capacity),
         is_initializer_block_(is_initializer_block),
-        block_scope_(NULL) {
+        scope_(NULL) {
   }
 
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
-  Scope* block_scope_;
+  Scope* scope_;
 };
 
 
@@ -608,6 +608,7 @@ class ModuleLiteral: public Module {
   DECLARE_NODE_TYPE(ModuleLiteral)
 
   Block* body() const { return body_; }
+  Handle<Context> context() const { return context_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -619,6 +620,7 @@ class ModuleLiteral: public Module {
 
  private:
   Block* body_;
+  Handle<Context> context_;
 };
 
 

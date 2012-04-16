@@ -2768,7 +2768,7 @@ void HGraphBuilder::VisitBlock(Block* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (stmt->block_scope() != NULL) {
+  if (stmt->scope() != NULL) {
     return Bailout("ScopedBlock");
   }
   BreakAndContinueInfo break_info(stmt);
@@ -7250,67 +7250,37 @@ void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
 
 
 void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* var = proxy->var();
-  switch (var->location()) {
-    case Variable::UNALLOCATED: {
-      // TODO(rossberg)
-      return;
-    }
-    case Variable::CONTEXT: {
-      // TODO(rossberg)
-      break;
-    }
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* var = proxy->var();
-  switch (var->location()) {
-    case Variable::UNALLOCATED: {
-      // TODO(rossberg)
-      return;
-    }
-    case Variable::CONTEXT: {
-      // TODO(rossberg)
-      break;
-    }
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* declaration) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleLiteral(ModuleLiteral* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleVariable(ModuleVariable* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModulePath(ModulePath* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleUrl(ModuleUrl* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 

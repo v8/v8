@@ -1333,11 +1333,19 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 
   Expect(Token::RBRACE, CHECK_OK);
   scope->set_end_position(scanner().location().end_pos);
-  body->set_block_scope(scope);
+  body->set_scope(scope);
 
-  scope->interface()->Freeze(ok);
+  // Instance objects have to be created ahead of time (before code generation
+  // linking them) because of potentially cyclic references between them.
+  // We create them here, to avoid another pass over the AST.
+  Interface* interface = scope->interface();
+  interface->MakeModule(ok);
   ASSERT(ok);
-  return factory()->NewModuleLiteral(body, scope->interface());
+  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
+  ASSERT(ok);
+  interface->Freeze(ok);
+  ASSERT(ok);
+  return factory()->NewModuleLiteral(body, interface);
 }
 
 
@@ -1403,7 +1411,14 @@ Module* Parser::ParseModuleUrl(bool* ok) {
 #ifdef DEBUG
   if (FLAG_print_interface_details) PrintF("# Url ");
 #endif
-  return factory()->NewModuleUrl(symbol);
+
+  Module* result = factory()->NewModuleUrl(symbol);
+  Interface* interface = result->interface();
+  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
+  ASSERT(ok);
+  interface->Freeze(ok);
+  ASSERT(ok);
+  return result;
 }
 
 
@@ -2015,7 +2030,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
   block_scope->set_end_position(scanner().location().end_pos);
   block_scope = block_scope->FinalizeBlockScope();
-  body->set_block_scope(block_scope);
+  body->set_scope(block_scope);
   return body;
 }
 
@@ -2917,7 +2932,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         top_scope_ = saved_scope;
         for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
-        body_block->set_block_scope(for_scope);
+        body_block->set_scope(for_scope);
         // Parsed for-in loop w/ let declaration.
         return loop;
 
@@ -2997,7 +3012,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     Block* result = factory()->NewBlock(NULL, 2, false);
     result->AddStatement(init);
     result->AddStatement(loop);
-    result->set_block_scope(for_scope);
+    result->set_scope(for_scope);
     if (loop) loop->Initialize(NULL, cond, next, body);
     return result;
   } else {

@@ -3827,6 +3827,16 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
+MaybeObject* Heap::AllocateJSModule() {
+  // Allocate a fresh map. Modules do not have a prototype.
+  Map* map;
+  MaybeObject* maybe_map = AllocateMap(JS_MODULE_TYPE, JSModule::kSize);
+  if (!maybe_map->To(&map)) return maybe_map;
+  // Allocate the object based on the map.
+  return AllocateJSObjectFromMap(map, TENURED);
+}
+
+
 MaybeObject* Heap::AllocateJSArrayAndStorage(
     ElementsKind elements_kind,
     int length,
@@ -4698,6 +4708,22 @@ MaybeObject* Heap::AllocateGlobalContext() {
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
+}
+
+
+MaybeObject* Heap::AllocateModuleContext(Context* previous,
+                                         ScopeInfo* scope_info) {
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateFixedArrayWithHoles(scope_info->ContextLength(), TENURED);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map_no_write_barrier(module_context_map());
+  context->set_previous(previous);
+  context->set_extension(scope_info);
+  context->set_global(previous->global());
+  return context;
 }
 
 

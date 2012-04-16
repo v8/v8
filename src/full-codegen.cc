@@ -568,32 +568,91 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  ASSERT(globals_.is_empty());
+  ZoneList<Handle<Object> >* saved_globals = globals_;
+  ZoneList<Handle<Object> > inner_globals(10);
+  globals_ = &inner_globals;
+
   AstVisitor::VisitDeclarations(declarations);
-  if (!globals_.is_empty()) {
+  if (!globals_->is_empty()) {
     // Invoke the platform-dependent code generator to do the actual
     // declaration the global functions and variables.
     Handle<FixedArray> array =
-       isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
-    for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
+       isolate()->factory()->NewFixedArray(globals_->length(), TENURED);
+    for (int i = 0; i < globals_->length(); ++i)
+      array->set(i, *globals_->at(i));
     DeclareGlobals(array);
-    globals_.Clear();
   }
+
+  globals_ = saved_globals;
 }
 
 
 void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
-  // TODO(rossberg)
+  Handle<JSModule> instance = module->interface()->Instance();
+  ASSERT(!instance.is_null());
+
+  // Allocate a module context statically.
+  Block* block = module->body();
+  Scope* saved_scope = scope();
+  scope_ = block->scope();
+  Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+
+  // Generate code for module creation and linking.
+  Comment cmnt(masm_, "[ ModuleLiteral");
+  SetStatementPosition(block);
+
+  if (scope_info->HasContext()) {
+    // Set up module context.
+    __ Push(scope_info);
+    __ Push(instance);
+    __ CallRuntime(Runtime::kPushModuleContext, 2);
+    StoreToFrameField(
+        StandardFrameConstants::kContextOffset, context_register());
+  }
+
+  {
+    Comment cmnt(masm_, "[ Declarations");
+    VisitDeclarations(scope_->declarations());
+  }
+
+  scope_ = saved_scope;
+  if (scope_info->HasContext()) {
+    // Pop module context.
+    LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+    // Update local stack frame context field.
+    StoreToFrameField(
+        StandardFrameConstants::kContextOffset, context_register());
+  }
+
+  // Populate module instance object.
+  const PropertyAttributes attr =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE | DONT_ENUM);
+  for (Interface::Iterator it = module->interface()->iterator();
+       !it.done(); it.Advance()) {
+    if (it.interface()->IsModule()) {
+      Handle<Object> value = it.interface()->Instance();
+      ASSERT(!value.is_null());
+      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
+    } else {
+      // TODO(rossberg): set proper getters instead of undefined...
+      // instance->DefineAccessor(*it.name(), ACCESSOR_GETTER, *getter, attr);
+      Handle<Object> value(isolate()->heap()->undefined_value());
+      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
+    }
+  }
+  USE(instance->PreventExtensions());
 }
 
 
 void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
-  // TODO(rossberg)
+  // Noting to do.
+  // The instance object is resolved statically through the module's interface.
 }
 
 
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-  // TODO(rossberg)
+  // Noting to do.
+  // The instance object is resolved statically through the module's interface.
 }
 
 
@@ -855,9 +914,9 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
 
   Scope* saved_scope = scope();
   // Push a block context when entering a block with block scoped variables.
-  if (stmt->block_scope() != NULL) {
+  if (stmt->scope() != NULL) {
     { Comment cmnt(masm_, "[ Extend block context");
-      scope_ = stmt->block_scope();
+      scope_ = stmt->scope();
       Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
       int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
       __ Push(scope_info);
@@ -884,7 +943,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 
   // Pop block context if necessary.
-  if (stmt->block_scope() != NULL) {
+  if (stmt->scope() != NULL) {
     LoadContextField(context_register(), Context::PREVIOUS_INDEX);
     // Update local stack frame context field.
     StoreToFrameField(StandardFrameConstants::kContextOffset,

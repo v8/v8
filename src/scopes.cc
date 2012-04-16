@@ -1099,7 +1099,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // Exceptions: temporary variables are never allocated in a context;
   // catch-bound variables are always allocated in a context.
   if (var->mode() == TEMPORARY) return false;
-  if (is_catch_scope() || is_block_scope()) return true;
+  if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
@@ -1243,7 +1243,8 @@ void Scope::AllocateVariablesRecursively() {
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,
   // even if no local variables were statically allocated in the scope.
-  bool must_have_context = is_with_scope() ||
+  // Likewise for modules.
+  bool must_have_context = is_with_scope() || is_module_scope() ||
       (is_function_scope() && calls_eval());
 
   // If we didn't allocate any locals in the local context, then we only
