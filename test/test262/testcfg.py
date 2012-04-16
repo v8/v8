@@ -104,9 +104,12 @@ class Test262TestConfiguration(test.TestConfiguration):
     archive_url = TEST_262_URL % revision
     archive_name = join(self.root, 'test262-%s.tar.bz2' % revision)
     directory_name = join(self.root, 'data')
+    directory_old_name = join(self.root, 'data.old')
     if not exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
       urllib.urlretrieve(archive_url, archive_name)
+      if exists(directory_name):
+        os.rename(directory_name, directory_old_name)
     if not exists(directory_name):
       print "Extracting test262-%s.tar.bz2 ..." % revision
       md5 = hashlib.md5()
