@@ -706,7 +706,8 @@ class HeapObjectsMap {
   ~HeapObjectsMap();
 
   void SnapshotGenerationFinished();
-  SnapshotObjectId FindObject(Address addr);
+  SnapshotObjectId FindEntry(Address addr);
+  SnapshotObjectId FindOrAddEntry(Address addr, unsigned int size);
   void MoveObject(Address from, Address to);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
@@ -727,23 +728,22 @@ class HeapObjectsMap {
 
  private:
   struct EntryInfo {
-    EntryInfo(SnapshotObjectId id, Address addr)
-      : id(id), addr(addr), accessed(true) { }
-    EntryInfo(SnapshotObjectId id, Address addr, bool accessed)
-      : id(id), addr(addr), accessed(accessed) { }
+  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size)
+      : id(id), addr(addr), size(size), accessed(true) { }
+  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size, bool accessed)
+      : id(id), addr(addr), size(size), accessed(accessed) { }
     SnapshotObjectId id;
     Address addr;
+    unsigned int size;
     bool accessed;
   };
   struct TimeInterval {
-    explicit TimeInterval(SnapshotObjectId id) : id(id), count(0) { }
+    explicit TimeInterval(SnapshotObjectId id) : id(id), size(0), count(0) { }
     SnapshotObjectId id;
+    unsigned int size;
     uint32_t count;
   };
 
-  void AddEntry(Address addr, SnapshotObjectId id);
-  SnapshotObjectId FindEntry(Address addr);
-  SnapshotObjectId FindOrAddEntry(Address addr);
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
@@ -757,7 +757,6 @@ class HeapObjectsMap {
         v8::internal::kZeroHashSeed);
   }
 
-  bool initial_fill_mode_;
   SnapshotObjectId next_id_;
   HashMap entries_map_;
   List<EntryInfo>* entries_;
@@ -789,7 +788,9 @@ class HeapSnapshotsCollection {
   StringsStorage* names() { return &names_; }
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
-  SnapshotObjectId GetObjectId(Address addr) { return ids_.FindObject(addr); }
+  SnapshotObjectId GetObjectId(Address object_addr, int object_size) {
+    return ids_.FindOrAddEntry(object_addr, object_size);
+  }
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
   SnapshotObjectId last_assigned_id() const {

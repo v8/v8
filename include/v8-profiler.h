@@ -433,8 +433,9 @@ class V8EXPORT HeapProfiler {
    * time interval entry contains information on the current heap objects
    * population size. The method also updates aggregated statistics and
    * reports updates for all previous time intervals via the OutputStream
-   * object. Updates on each time interval are provided as pairs of time
-   * interval index and updated heap objects count.
+   * object. Updates on each time interval are provided as a triplet. It has
+   * time interval index, updated heap objects count and updated heap objects
+   * size.
    *
    * StartHeapObjectsTracking must be called before the first call to this
    * method.

@@ -1314,8 +1314,7 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
 HeapObjectsMap::HeapObjectsMap()
-    : initial_fill_mode_(true),
-      next_id_(kFirstAvailableObjectId),
+    : next_id_(kFirstAvailableObjectId),
       entries_map_(AddressesMatch),
       entries_(new List<EntryInfo>()) {
   // This dummy element solves a problem with entries_map_.
@@ -1325,7 +1324,7 @@ HeapObjectsMap::HeapObjectsMap()
   // With such dummy element we have a guaranty that all entries_map_ entries
   // will have the value field grater than 0.
   // This fact is using in MoveObject method.
-  entries_->Add(EntryInfo(0, NULL));
+  entries_->Add(EntryInfo(0, NULL, 0));
 }
 
 
@@ -1335,24 +1334,7 @@ HeapObjectsMap::~HeapObjectsMap() {
 
 
 void HeapObjectsMap::SnapshotGenerationFinished() {
-  initial_fill_mode_ = false;
   RemoveDeadEntries();
-}
-
-
-SnapshotObjectId HeapObjectsMap::FindObject(Address addr) {
-  if (!initial_fill_mode_) {
-    SnapshotObjectId existing = FindEntry(addr);
-    if (existing != 0) return existing;
-  }
-  SnapshotObjectId id = next_id_;
-  next_id_ += kObjectIdStep;
-  AddEntry(addr, id);
-  // Here and in other places the length of entries_ list has to be
-  // the same or greater than the length of entries_map_. But entries_ list
-  // has a dummy element at index 0.
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
-  return id;
 }
 
 
@@ -1379,36 +1361,19 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
 }
 
 
-void HeapObjectsMap::AddEntry(Address addr, SnapshotObjectId id) {
-  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
-  ASSERT(entry->value == NULL);
-  ASSERT(entries_->length() > 0 &&
-         entries_->at(0).id == 0 &&
-         entries_->at(0).addr == NULL);
-  ASSERT(entries_->at(entries_->length() - 1).id < id);
-  entry->value = reinterpret_cast<void*>(entries_->length());
-  entries_->Add(EntryInfo(id, addr));
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
-}
-
-
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
-  if (entry != NULL) {
-    int entry_index =
-        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-    EntryInfo& entry_info = entries_->at(entry_index);
-    entry_info.accessed = true;
-    ASSERT(static_cast<uint32_t>(entries_->length()) >
-           entries_map_.occupancy());
-    return entry_info.id;
-  } else {
-    return 0;
-  }
+  if (entry == NULL) return 0;
+  int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+  EntryInfo& entry_info = entries_->at(entry_index);
+  entry_info.accessed = true;
+  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  return entry_info.id;
 }
 
 
-SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr) {
+SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
+                                                unsigned int size) {
   ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   if (entry->value != NULL) {
@@ -1416,12 +1381,13 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr) {
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_->at(entry_index);
     entry_info.accessed = true;
+    entry_info.size = size;
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_->length());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_->Add(EntryInfo(id, addr));
+  entries_->Add(EntryInfo(id, addr, size));
   ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
   return id;
 }
@@ -1434,13 +1400,12 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 void HeapObjectsMap::UpdateHeapObjectsMap() {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  HeapIterator iterator;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    FindOrAddEntry(obj->address());
+    FindOrAddEntry(obj->address(), obj->Size());
   }
-  initial_fill_mode_ = false;
   RemoveDeadEntries();
 }
 
@@ -1458,14 +1423,19 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
        ++time_interval_index) {
     TimeInterval& time_interval = time_intervals_[time_interval_index];
     SnapshotObjectId time_interval_id = time_interval.id;
-    uint32_t entries_count = 0;
+    uint32_t entries_size = 0;
+    EntryInfo* start_entry_info = entry_info;
     while (entry_info < end_entry_info && entry_info->id < time_interval_id) {
-      ++entries_count;
+      entries_size += entry_info->size;
       ++entry_info;
     }
-    if (time_interval.count != entries_count) {
+    uint32_t entries_count =
+        static_cast<uint32_t>(entry_info - start_entry_info);
+    if (time_interval.count != entries_count ||
+        time_interval.size != entries_size) {
       stats_buffer.Add(time_interval_index);
       stats_buffer.Add(time_interval.count = entries_count);
+      stats_buffer.Add(time_interval.size = entries_size);
       if (stats_buffer.length() >= prefered_chunk_size) {
         OutputStream::WriteResult result = stream->WriteUint32Chunk(
             &stats_buffer.first(), stats_buffer.length());
@@ -1596,7 +1566,7 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    if (ids_.FindObject(obj->address()) == id) {
+    if (ids_.FindEntry(obj->address()) == id) {
       ASSERT(object == NULL);
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
@@ -1897,10 +1867,13 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
                                     const char* name,
                                     int children_count,
                                     int retainers_count) {
+  int object_size = object->Size();
+  SnapshotObjectId object_id =
+    collection_->GetObjectId(object->address(), object_size);
   return snapshot_->AddEntry(type,
                              name,
-                             collection_->GetObjectId(object->address()),
-                             object->Size(),
+                             object_id,
+                             object_size,
                              children_count,
                              retainers_count);
 }
