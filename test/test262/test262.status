@@ -35,7 +35,6 @@ S15.12.2_A1: FAIL
 
 # Not yet analyzed.
 15.10.4.1-5: FAIL
-15.4.4.4-5-c-i-1: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL

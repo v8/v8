@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -465,15 +465,19 @@ function ArrayPush() {
 }
 
 
+// Returns an array containing the array elements of the object followed
+// by the array elements of each argument in order. See ECMA-262,
+// section 15.4.4.7.
 function ArrayConcat(arg1) {  // length == 1
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     throw MakeTypeError("called_on_null_or_undefined",
                         ["Array.prototype.concat"]);
   }
 
+  var array = ToObject(this);
   var arg_count = %_ArgumentsLength();
   var arrays = new InternalArray(1 + arg_count);
-  arrays[0] = this;
+  arrays[0] = array;
   for (var i = 0; i < arg_count; i++) {
     arrays[i + 1] = %_Arguments(i);
   }
