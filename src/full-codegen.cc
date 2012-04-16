@@ -613,31 +613,6 @@ void FullCodeGenerator::VisitDeclarations(
 }
 
 
-void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
-  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
-}
-
-
-void FullCodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
-  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
-}
-
-
-void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
-}
-
-
-void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
-  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
-}
-
-
-void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* decl) {
-  // TODO(rossberg)
-}
-
-
 void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   // TODO(rossberg)
 }

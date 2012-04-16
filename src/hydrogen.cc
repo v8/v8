@@ -2550,7 +2550,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleDeclaration(scope->function(), CONST, NULL, NULL);
+      VisitVariableDeclaration(scope->function());
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -7161,20 +7161,15 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
-  int global_count = 0;
-  for (int i = 0; i < declarations->length(); i++) {
-    Declaration* decl = declarations->at(i);
-    FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
-    HandleDeclaration(decl->proxy(),
-                      decl->mode(),
-                      fun_decl != NULL ? fun_decl->fun() : NULL,
-                      &global_count);
-  }
+  int save_global_count = global_count_;
+  global_count_ = 0;
+
+  AstVisitor::VisitDeclarations(declarations);
 
   // Batch declare global functions and variables.
-  if (global_count > 0) {
+  if (global_count_ > 0) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
+        isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
@@ -7210,40 +7205,35 @@ void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
                                     flags);
     AddInstruction(result);
   }
+
+  global_count_ = save_global_count;
 }
 
 
-void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
-                                      VariableMode mode,
-                                      FunctionLiteral* function,
-                                      int* global_count) {
+void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  VariableMode mode = declaration->mode();
   Variable* var = proxy->var();
-  bool binding_needs_init =
-      (mode == CONST || mode == CONST_HARMONY || mode == LET);
+  bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (var->location()) {
     case Variable::UNALLOCATED:
-      ++(*global_count);
+      ++global_count_;
       return;
     case Variable::PARAMETER:
     case Variable::LOCAL:
+      if (hole_init) {
+        HValue* value = graph()->GetConstantHole();
+        environment()->Bind(var, value);
+      }
+      break;
     case Variable::CONTEXT:
-      if (binding_needs_init || function != NULL) {
-        HValue* value = NULL;
-        if (function != NULL) {
-          CHECK_ALIVE(VisitForValue(function));
-          value = Pop();
-        } else {
-          value = graph()->GetConstantHole();
-        }
-        if (var->IsContextSlot()) {
-          HValue* context = environment()->LookupContext();
-          HStoreContextSlot* store = new HStoreContextSlot(
-              context, var->index(), HStoreContextSlot::kNoCheck, value);
-          AddInstruction(store);
-          if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
-        } else {
-          environment()->Bind(var, value);
-        }
+      if (hole_init) {
+        HValue* value = graph()->GetConstantHole();
+        HValue* context = environment()->LookupContext();
+        HStoreContextSlot* store = new HStoreContextSlot(
+            context, var->index(), HStoreContextSlot::kNoCheck, value);
+        AddInstruction(store);
+        if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
       }
       break;
     case Variable::LOOKUP:
@@ -7252,28 +7242,76 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
 }
 
 
-void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
-  UNREACHABLE();
+void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* var = proxy->var();
+  switch (var->location()) {
+    case Variable::UNALLOCATED:
+      ++global_count_;
+      return;
+    case Variable::PARAMETER:
+    case Variable::LOCAL: {
+      CHECK_ALIVE(VisitForValue(declaration->fun()));
+      HValue* value = Pop();
+      environment()->Bind(var, value);
+      break;
+    }
+    case Variable::CONTEXT: {
+      CHECK_ALIVE(VisitForValue(declaration->fun()));
+      HValue* value = Pop();
+      HValue* context = environment()->LookupContext();
+      HStoreContextSlot* store = new HStoreContextSlot(
+          context, var->index(), HStoreContextSlot::kNoCheck, value);
+      AddInstruction(store);
+      if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
+      break;
+    }
+    case Variable::LOOKUP:
+      return Bailout("unsupported lookup slot in declaration");
+  }
 }
 
 
-void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
-  UNREACHABLE();
+void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* var = proxy->var();
+  switch (var->location()) {
+    case Variable::UNALLOCATED:
+      ++global_count_;
+      return;
+    case Variable::CONTEXT: {
+      // TODO(rossberg)
+      break;
+    }
+    case Variable::PARAMETER:
+    case Variable::LOCAL:
+    case Variable::LOOKUP:
+      UNREACHABLE();
+  }
 }
 
 
-void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  UNREACHABLE();
+void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* var = proxy->var();
+  switch (var->location()) {
+    case Variable::UNALLOCATED:
+      ++global_count_;
+      return;
+    case Variable::CONTEXT: {
+      // TODO(rossberg)
+      break;
+    }
+    case Variable::PARAMETER:
+    case Variable::LOCAL:
+    case Variable::LOOKUP:
+      UNREACHABLE();
+  }
 }
 
 
-void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
-void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
-  UNREACHABLE();
+void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* declaration) {
+  // TODO(rossberg)
 }
 
 

@@ -1289,9 +1289,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // We have to declare a global const property. To capture we only
     // assign to it when evaluating the assignment for "const x =
     // <expr>" the initial value is the hole.
-    bool is_const_property = value->IsTheHole();
-    bool is_function_declaration = false;
-    if (value->IsUndefined() || is_const_property) {
+    bool is_var = value->IsUndefined();
+    bool is_const = value->IsTheHole();
+    bool is_function = value->IsSharedFunctionInfo();
+    bool is_module = value->IsJSObject();
+    ASSERT(is_var + is_const + is_function + is_module == 1);
+
+    if (is_var || is_const) {
       // Lookup the property in the global object, and don't set the
       // value of the variable if the property is already there.
       LookupResult lookup(isolate);
@@ -1299,41 +1303,34 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
-        if (lookup.type() != INTERCEPTOR) {
-          continue;
-        }
+        if (lookup.type() != INTERCEPTOR) continue;
         PropertyAttributes attributes = global->GetPropertyAttribute(*name);
-        if (attributes != ABSENT) {
-          continue;
-        }
+        if (attributes != ABSENT) continue;
         // Fall-through and introduce the absent property by using
         // SetProperty.
       }
-    } else {
-      is_function_declaration = true;
+    } else if (is_function) {
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(value);
       Handle<JSFunction> function =
-          isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                                context,
-                                                                TENURED);
+          isolate->factory()->NewFunctionFromSharedFunctionInfo(
+              shared, context, TENURED);
       value = function;
     }
 
     LookupResult lookup(isolate);
     global->LocalLookup(*name, &lookup);
 
-    // Compute the property attributes. According to ECMA-262, section
-    // 13, page 71, the property must be read-only and
-    // non-deletable. However, neither SpiderMonkey nor KJS creates the
-    // property as read-only, so we don't either.
+    // Compute the property attributes. According to ECMA-262,
+    // the property must be non-configurable except in eval.
     int attr = NONE;
-    if (!DeclareGlobalsEvalFlag::decode(flags)) {
+    bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
+    if (!is_eval || is_module) {
       attr |= DONT_DELETE;
     }
     bool is_native = DeclareGlobalsNativeFlag::decode(flags);
-    if (is_const_property || (is_native && is_function_declaration)) {
+    if (is_const || is_module || (is_native && is_function)) {
       attr |= READ_ONLY;
     }
 
@@ -1346,7 +1343,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // handlers such as "function onload() {}". Firefox does call the
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
-    if (is_function_declaration) {
+    if (is_function || is_module) {
       if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
         // Do not overwrite READ_ONLY properties.
         if (lookup.GetAttributes() & READ_ONLY) {

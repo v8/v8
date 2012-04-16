@@ -913,11 +913,6 @@ class HGraphBuilder: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
-  void HandleDeclaration(VariableProxy* proxy,
-                         VariableMode mode,
-                         FunctionLiteral* function,
-                         int* global_count);
-
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeof(UnaryOperation* expr);
@@ -1167,6 +1162,7 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* current_block_;
 
   int inlined_count_;
+  int global_count_;
 
   Zone* zone_;
 
