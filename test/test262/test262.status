@@ -44,7 +44,7 @@ S15.12.2_A1: FAIL
 15.2.3.6-4-415: FAIL
 15.2.3.6-4-420: FAIL
 
-V8 Bug: http://code.google.com/p/v8/issues/detail?id=1982
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1982
 15.10.4.1-5: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
