@@ -535,17 +535,17 @@ TEST(ExistsInPrototype) {
 
   { ExistsInPrototypeContext context;
     context.Check("var x; x",
-                  1,  // get
+                  0,  // get
                   0,
-                  1,  // declaration
-                  EXPECT_EXCEPTION);
+                  0,  // declaration
+                  EXPECT_RESULT, Undefined());
   }
 
   { ExistsInPrototypeContext context;
     context.Check("var x = 0; x",
                   0,
                   0,
-                  1,  // declaration
+                  0,  // declaration
                   EXPECT_RESULT, Number::New(0));
   }
 
@@ -553,7 +553,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x; x",
                   0,
                   0,
-                  1,  // declaration
+                  0,  // declaration
                   EXPECT_RESULT, Undefined());
   }
 
@@ -561,7 +561,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x = 0; x",
                   0,
                   0,
-                  1,  // declaration
+                  0,  // declaration
                   EXPECT_RESULT, Number::New(0));
   }
 }
@@ -589,7 +589,7 @@ TEST(AbsentInPrototype) {
     context.Check("if (false) { var x = 0; }; x",
                   0,
                   0,
-                  1,  // declaration
+                  0,  // declaration
                   EXPECT_RESULT, Undefined());
   }
 }

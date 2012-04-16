@@ -2254,7 +2254,7 @@ Block* Parser::ParseVariableDeclarations(
     // Global variable declarations must be compiled in a specific
     // way. When the script containing the global variable declaration
     // is entered, the global variable must be declared, so that if it
-    // doesn't exist (not even in a prototype of the global object) it
+    // doesn't exist (on the global object itself, see ES5 errata) it
     // gets created with an initial undefined value. This is handled
     // by the declarations part of the function representing the
     // top-level global code; see Runtime::DeclareGlobalVariable. If
