@@ -464,21 +464,20 @@ class HeapGraphEdge BASE_EMBEDDED {
   void Init(int child_index, Type type, int index, HeapEntry* to);
   void Init(int child_index, int index, HeapEntry* to);
 
-  Type type() { return static_cast<Type>(type_); }
-  int index() {
+  Type type() const { return static_cast<Type>(type_); }
+  int index() const {
     ASSERT(type_ == kElement || type_ == kHidden || type_ == kWeak);
     return index_;
   }
-  const char* name() {
+  const char* name() const {
     ASSERT(type_ == kContextVariable
            || type_ == kProperty
            || type_ == kInternal
            || type_ == kShortcut);
     return name_;
   }
-  HeapEntry* to() { return to_; }
-
-  HeapEntry* From();
+  HeapEntry* to() const { return to_; }
+  INLINE(HeapEntry* from() const);
 
  private:
   int child_index_ : 29;
@@ -564,6 +563,8 @@ class HeapEntry BASE_EMBEDDED {
   void clear_paint() { painted_ = false; }
   bool painted() { return painted_; }
   void paint() { painted_ = true; }
+  bool reachable_from_window() { return reachable_from_window_; }
+  void set_reachable_from_window() { reachable_from_window_ = true; }
 
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
@@ -600,8 +601,9 @@ class HeapEntry BASE_EMBEDDED {
   const char* TypeAsString();
 
   unsigned painted_: 1;
+  unsigned reachable_from_window_: 1;
   unsigned type_: 4;
-  int children_count_: 27;
+  int children_count_: 26;
   int retainers_count_;
   int self_size_;
   union {
@@ -1016,7 +1018,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                     HeapEntry* parent,
                                     String* reference_name,
                                     Object* child);
-  void SetRootShortcutReference(Object* child);
+  void SetWindowReference(Object* window);
   void SetRootGcRootsReference();
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
   void SetGcSubrootReference(
@@ -1120,7 +1122,9 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool CalculateRetainedSizes();
   bool CountEntriesAndReferences();
   bool FillReferences();
-  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
+  void FillPostorderIndexes(Vector<HeapEntry*>* entries);
+  bool IsWindowReference(const HeapGraphEdge& edge);
+  void MarkWindowReachableObjects();
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();

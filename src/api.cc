@@ -5998,7 +5998,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetFromNode");
-  const i::HeapEntry* from = ToInternal(this)->From();
+  const i::HeapEntry* from = ToInternal(this)->from();
   return reinterpret_cast<const HeapGraphNode*>(from);
 }
 

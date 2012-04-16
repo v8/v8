@@ -957,11 +957,6 @@ void HeapGraphEdge::Init(int child_index, int index, HeapEntry* to) {
 }
 
 
-HeapEntry* HeapGraphEdge::From() {
-  return reinterpret_cast<HeapEntry*>(this - child_index_) - 1;
-}
-
-
 void HeapEntry::Init(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
@@ -972,6 +967,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   snapshot_ = snapshot;
   type_ = type;
   painted_ = false;
+  reachable_from_window_ = false;
   name_ = name;
   self_size_ = self_size;
   retained_size_ = 0;
@@ -1991,7 +1987,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     // We use JSGlobalProxy because this is what embedder (e.g. browser)
     // uses for the global object.
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
-    SetRootShortcutReference(proxy->map()->prototype());
+    SetWindowReference(proxy->map()->prototype());
   } else if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
     ExtractClosureReferences(js_obj, entry);
@@ -2259,15 +2255,15 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
       Object* k = dictionary->KeyAt(i);
       if (dictionary->IsKey(k)) {
         Object* target = dictionary->ValueAt(i);
-        SetPropertyReference(
-            js_obj, entry, String::cast(k), target);
         // We assume that global objects can only have slow properties.
-        if (target->IsJSGlobalPropertyCell()) {
-          SetPropertyShortcutReference(js_obj,
-                                       entry,
-                                       String::cast(k),
-                                       JSGlobalPropertyCell::cast(
-                                           target)->value());
+        Object* value = target->IsJSGlobalPropertyCell()
+            ? JSGlobalPropertyCell::cast(target)->value()
+            : target;
+        if (String::cast(k)->length() > 0) {
+          SetPropertyReference(js_obj, entry, String::cast(k), value);
+        } else {
+          TagObject(value, "(hidden properties)");
+          SetInternalReference(js_obj, entry, "hidden_properties", value);
         }
       }
     }
@@ -2636,7 +2632,7 @@ void V8HeapExplorer::SetRootGcRootsReference() {
 }
 
 
-void V8HeapExplorer::SetRootShortcutReference(Object* child_obj) {
+void V8HeapExplorer::SetWindowReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   ASSERT(child_entry != NULL);
   filler_->SetNamedAutoIndexReference(
@@ -2718,7 +2714,7 @@ void V8HeapExplorer::TagGlobalObjects() {
     Handle<JSGlobalObject> global_obj = enumerator.at(i);
     Object* obj_document;
     if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
-       obj_document->IsJSObject()) {
+        obj_document->IsJSObject()) {
       JSObject* document = JSObject::cast(obj_document);
       Object* obj_url;
       if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
@@ -3272,19 +3268,61 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 
-void HeapSnapshotGenerator::FillReversePostorderIndexes(
+bool HeapSnapshotGenerator::IsWindowReference(const HeapGraphEdge& edge) {
+  ASSERT(edge.from() == snapshot_->root());
+  return edge.type() == HeapGraphEdge::kShortcut;
+}
+
+
+void HeapSnapshotGenerator::MarkWindowReachableObjects() {
+  List<HeapEntry*> worklist;
+
+  Vector<HeapGraphEdge> children = snapshot_->root()->children();
+  for (int i = 0; i < children.length(); ++i) {
+    if (IsWindowReference(children[i])) {
+      worklist.Add(children[i].to());
+    }
+  }
+
+  while (!worklist.is_empty()) {
+    HeapEntry* entry = worklist.RemoveLast();
+    if (entry->reachable_from_window()) continue;
+    entry->set_reachable_from_window();
+    Vector<HeapGraphEdge> children = entry->children();
+    for (int i = 0; i < children.length(); ++i) {
+      HeapEntry* child = children[i].to();
+      if (!child->reachable_from_window()) {
+        worklist.Add(child);
+      }
+    }
+  }
+}
+
+
+static bool IsRetainingEdge(HeapGraphEdge* edge) {
+  if (edge->type() == HeapGraphEdge::kShortcut) return false;
+  // The edge is not retaining if it goes from system domain
+  // (i.e. an object not reachable from window) to the user domain
+  // (i.e. a reachable object).
+  return edge->from()->reachable_from_window()
+      || !edge->to()->reachable_from_window();
+}
+
+
+void HeapSnapshotGenerator::FillPostorderIndexes(
     Vector<HeapEntry*>* entries) {
   snapshot_->ClearPaint();
   int current_entry = 0;
   List<HeapEntry*> nodes_to_visit;
-  nodes_to_visit.Add(snapshot_->root());
+  HeapEntry* root = snapshot_->root();
+  nodes_to_visit.Add(root);
   snapshot_->root()->paint();
   while (!nodes_to_visit.is_empty()) {
     HeapEntry* entry = nodes_to_visit.last();
     Vector<HeapGraphEdge> children = entry->children();
     bool has_new_edges = false;
     for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
+      if (entry != root && !IsRetainingEdge(&children[i])) continue;
       HeapEntry* child = children[i].to();
       if (!child->painted()) {
         nodes_to_visit.Add(child);
@@ -3319,6 +3357,7 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
     const Vector<HeapEntry*>& entries,
     Vector<int>* dominators) {
   if (entries.length() == 0) return true;
+  HeapEntry* root = snapshot_->root();
   const int entries_length = entries.length(), root_index = entries_length - 1;
   static const int kNoDominator = -1;
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
@@ -3347,8 +3386,8 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
       int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
       for (int j = 0; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        int ret_index = rets[j]->From()->ordered_index();
+        if (rets[j]->from() != root && !IsRetainingEdge(rets[j])) continue;
+        int ret_index = rets[j]->from()->ordered_index();
         if (dominators->at(ret_index) != kNoDominator) {
           new_idom_index = new_idom_index == kNoDominator
               ? ret_index
@@ -3374,9 +3413,10 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
 
 
 bool HeapSnapshotGenerator::SetEntriesDominators() {
-  // This array is used for maintaining reverse postorder of nodes.
+  MarkWindowReachableObjects();
+  // This array is used for maintaining postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
-  FillReversePostorderIndexes(&ordered_entries);
+  FillPostorderIndexes(&ordered_entries);
   ScopedVector<int> dominators(ordered_entries.length());
   if (!BuildDominatorTree(ordered_entries, &dominators)) return false;
   for (int i = 0; i < ordered_entries.length(); ++i) {
