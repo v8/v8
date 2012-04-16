@@ -781,7 +781,7 @@ TEST(HeapSnapshotObjectsStats) {
   CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
   {
     v8::HandleScope inner_scope_1;
-    v8::Local<v8::String> string1 = v8_str("string1");
+    v8_str("string1");
     {
       // Single chunk of data with one new entry expected in update.
       TestStatsStream stats_update = GetHeapStatsUpdate();
@@ -797,13 +797,13 @@ TEST(HeapSnapshotObjectsStats) {
 
     {
       v8::HandleScope inner_scope_2;
-      v8::Local<v8::String> string2 = v8_str("string2");
+      v8_str("string2");
 
       uint32_t entries_size;
       {
         v8::HandleScope inner_scope_3;
-        v8::Handle<v8::String> string3 = v8::String::New("string3");
-        v8::Handle<v8::String> string4 = v8::String::New("string4");
+        v8_str("string3");
+        v8_str("string4");
 
         {
           // Single chunk of data with three new entries expected in update.
