@@ -1162,7 +1162,7 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* current_block_;
 
   int inlined_count_;
-  int global_count_;
+  ZoneList<Handle<Object> > globals_;
 
   Zone* zone_;
 

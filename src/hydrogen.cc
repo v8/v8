@@ -612,6 +612,7 @@ HGraphBuilder::HGraphBuilder(CompilationInfo* info,
       graph_(NULL),
       current_block_(NULL),
       inlined_count_(0),
+      globals_(10),
       zone_(info->isolate()->zone()),
       inline_bailout_(false) {
   // This is not initialized in the initializer list because the
@@ -7160,70 +7161,40 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  int length = declarations->length();
-  int save_global_count = global_count_;
-  global_count_ = 0;
-
+  ASSERT(globals_.is_empty());
   AstVisitor::VisitDeclarations(declarations);
-
-  // Batch declare global functions and variables.
-  if (global_count_ > 0) {
+  if (!globals_.is_empty()) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
-    for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
-
-      if (var->IsUnallocated()) {
-        array->set(j++, *(var->name()));
-        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
-        if (fun_decl == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
-            array->set_the_hole(j++);
-          } else {
-            array->set_undefined(j++);
-          }
-        } else {
-          Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(fun_decl->fun(), info()->script());
-          // Check for stack-overflow exception.
-          if (function.is_null()) {
-            SetStackOverflow();
-            return;
-          }
-          array->set(j++, *function);
-        }
-      }
-    }
+       isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
+    for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
     int flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
                 DeclareGlobalsNativeFlag::encode(info()->is_native()) |
                 DeclareGlobalsLanguageMode::encode(info()->language_mode());
-    HInstruction* result =
-        new(zone()) HDeclareGlobals(environment()->LookupContext(),
-                                    array,
-                                    flags);
+    HInstruction* result = new(zone()) HDeclareGlobals(
+        environment()->LookupContext(), array, flags);
     AddInstruction(result);
+    globals_.Clear();
   }
-
-  global_count_ = save_global_count;
 }
 
 
 void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   VariableMode mode = declaration->mode();
-  Variable* var = proxy->var();
+  Variable* variable = proxy->var();
   bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
-  switch (var->location()) {
+  switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++global_count_;
+      globals_.Add(variable->name());
+      globals_.Add(variable->binding_needs_init()
+                       ? isolate()->factory()->the_hole_value()
+                       : isolate()->factory()->undefined_value());
       return;
     case Variable::PARAMETER:
     case Variable::LOCAL:
       if (hole_init) {
         HValue* value = graph()->GetConstantHole();
-        environment()->Bind(var, value);
+        environment()->Bind(variable, value);
       }
       break;
     case Variable::CONTEXT:
@@ -7231,7 +7202,7 @@ void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
         HValue* value = graph()->GetConstantHole();
         HValue* context = environment()->LookupContext();
         HStoreContextSlot* store = new HStoreContextSlot(
-            context, var->index(), HStoreContextSlot::kNoCheck, value);
+            context, variable->index(), HStoreContextSlot::kNoCheck, value);
         AddInstruction(store);
         if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
       }
@@ -7244,16 +7215,22 @@ void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
 
 void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
-  Variable* var = proxy->var();
-  switch (var->location()) {
-    case Variable::UNALLOCATED:
-      ++global_count_;
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case Variable::UNALLOCATED: {
+      globals_.Add(variable->name());
+      Handle<SharedFunctionInfo> function =
+          Compiler::BuildFunctionInfo(declaration->fun(), info()->script());
+      // Check for stack-overflow exception.
+      if (function.is_null()) return SetStackOverflow();
+      globals_.Add(function);
       return;
+    }
     case Variable::PARAMETER:
     case Variable::LOCAL: {
       CHECK_ALIVE(VisitForValue(declaration->fun()));
       HValue* value = Pop();
-      environment()->Bind(var, value);
+      environment()->Bind(variable, value);
       break;
     }
     case Variable::CONTEXT: {
@@ -7261,7 +7238,7 @@ void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
       HValue* value = Pop();
       HValue* context = environment()->LookupContext();
       HStoreContextSlot* store = new HStoreContextSlot(
-          context, var->index(), HStoreContextSlot::kNoCheck, value);
+          context, variable->index(), HStoreContextSlot::kNoCheck, value);
       AddInstruction(store);
       if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
       break;
@@ -7276,9 +7253,10 @@ void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* var = proxy->var();
   switch (var->location()) {
-    case Variable::UNALLOCATED:
-      ++global_count_;
+    case Variable::UNALLOCATED: {
+      // TODO(rossberg)
       return;
+    }
     case Variable::CONTEXT: {
       // TODO(rossberg)
       break;
@@ -7295,9 +7273,10 @@ void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* var = proxy->var();
   switch (var->location()) {
-    case Variable::UNALLOCATED:
-      ++global_count_;
+    case Variable::UNALLOCATED: {
+      // TODO(rossberg)
       return;
+    }
     case Variable::CONTEXT: {
       // TODO(rossberg)
       break;

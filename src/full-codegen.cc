@@ -568,48 +568,17 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  int save_global_count = global_count_;
-  global_count_ = 0;
-
+  ASSERT(globals_.is_empty());
   AstVisitor::VisitDeclarations(declarations);
-
-  // Batch declare global functions and variables.
-  if (global_count_ > 0) {
-    Handle<FixedArray> array =
-       isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
-    int length = declarations->length();
-    for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
-
-      if (var->IsUnallocated()) {
-        array->set(j++, *(var->name()));
-        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
-        if (fun_decl == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
-            array->set_the_hole(j++);
-          } else {
-            array->set_undefined(j++);
-          }
-        } else {
-          Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(fun_decl->fun(), script());
-          // Check for stack-overflow exception.
-          if (function.is_null()) {
-            SetStackOverflow();
-            return;
-          }
-          array->set(j++, *function);
-        }
-      }
-    }
+  if (!globals_.is_empty()) {
     // Invoke the platform-dependent code generator to do the actual
     // declaration the global functions and variables.
+    Handle<FixedArray> array =
+       isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
+    for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
     DeclareGlobals(array);
+    globals_.Clear();
   }
-
-  global_count_ = save_global_count;
 }
 
 
