@@ -657,7 +657,7 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
-#ifdef _WIN64
+#if defined(_WIN64) && !defined(__MINGW64__)
   // We need to prepare a slot for result handle on stack and put
   // a pointer to it into 1st arg register.
   EnterApiExitFrame(arg_stack_space + 1);
@@ -705,7 +705,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
        RelocInfo::RUNTIME_ENTRY);
   call(rax);
 
-#ifdef _WIN64
+#if defined(_WIN64) && !defined(__MINGW64__)
   // rax keeps a pointer to v8::Handle, unpack it.
   movq(rax, Operand(rax, 0));
 #endif

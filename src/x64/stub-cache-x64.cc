@@ -482,7 +482,9 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // Prepare arguments.
   __ lea(rbx, Operand(rsp, 4 * kPointerSize));
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register arguments_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register arguments_arg = rdx;
 #else
@@ -1016,7 +1018,10 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register accessor_info_arg = rdx;
+  Register name_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register accessor_info_arg = r8;
   Register name_arg = rdx;
