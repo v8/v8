@@ -34,6 +34,7 @@
 #include "scopeinfo.h"
 #include "unicode.h"
 #include "zone-inl.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
@@ -967,7 +968,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   snapshot_ = snapshot;
   type_ = type;
   painted_ = false;
-  reachable_from_window_ = false;
+  user_reachable_ = false;
   name_ = name;
   self_size_ = self_size;
   retained_size_ = 0;
@@ -1981,7 +1982,15 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     // We use JSGlobalProxy because this is what embedder (e.g. browser)
     // uses for the global object.
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
-    SetWindowReference(proxy->map()->prototype());
+    Object* object = proxy->map()->prototype();
+    bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    is_debug_object = object->IsGlobalObject() &&
+        Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
+#endif
+    if (!is_debug_object) {
+      SetUserGlobalReference(object);
+    }
   } else if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
     ExtractClosureReferences(js_obj, entry);
@@ -2626,7 +2635,7 @@ void V8HeapExplorer::SetRootGcRootsReference() {
 }
 
 
-void V8HeapExplorer::SetWindowReference(Object* child_obj) {
+void V8HeapExplorer::SetUserGlobalReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   ASSERT(child_entry != NULL);
   filler_->SetNamedAutoIndexReference(
@@ -3262,30 +3271,30 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 
-bool HeapSnapshotGenerator::IsWindowReference(const HeapGraphEdge& edge) {
+bool HeapSnapshotGenerator::IsUserGlobalReference(const HeapGraphEdge& edge) {
   ASSERT(edge.from() == snapshot_->root());
   return edge.type() == HeapGraphEdge::kShortcut;
 }
 
 
-void HeapSnapshotGenerator::MarkWindowReachableObjects() {
+void HeapSnapshotGenerator::MarkUserReachableObjects() {
   List<HeapEntry*> worklist;
 
   Vector<HeapGraphEdge> children = snapshot_->root()->children();
   for (int i = 0; i < children.length(); ++i) {
-    if (IsWindowReference(children[i])) {
+    if (IsUserGlobalReference(children[i])) {
       worklist.Add(children[i].to());
     }
   }
 
   while (!worklist.is_empty()) {
     HeapEntry* entry = worklist.RemoveLast();
-    if (entry->reachable_from_window()) continue;
-    entry->set_reachable_from_window();
+    if (entry->user_reachable()) continue;
+    entry->set_user_reachable();
     Vector<HeapGraphEdge> children = entry->children();
     for (int i = 0; i < children.length(); ++i) {
       HeapEntry* child = children[i].to();
-      if (!child->reachable_from_window()) {
+      if (!child->user_reachable()) {
         worklist.Add(child);
       }
     }
@@ -3298,8 +3307,8 @@ static bool IsRetainingEdge(HeapGraphEdge* edge) {
   // The edge is not retaining if it goes from system domain
   // (i.e. an object not reachable from window) to the user domain
   // (i.e. a reachable object).
-  return edge->from()->reachable_from_window()
-      || !edge->to()->reachable_from_window();
+  return edge->from()->user_reachable()
+      || !edge->to()->user_reachable();
 }
 
 
@@ -3407,7 +3416,7 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
 
 
 bool HeapSnapshotGenerator::SetEntriesDominators() {
-  MarkWindowReachableObjects();
+  MarkUserReachableObjects();
   // This array is used for maintaining postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
   FillPostorderIndexes(&ordered_entries);

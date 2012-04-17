@@ -563,8 +563,8 @@ class HeapEntry BASE_EMBEDDED {
   void clear_paint() { painted_ = false; }
   bool painted() { return painted_; }
   void paint() { painted_ = true; }
-  bool reachable_from_window() { return reachable_from_window_; }
-  void set_reachable_from_window() { reachable_from_window_ = true; }
+  bool user_reachable() { return user_reachable_; }
+  void set_user_reachable() { user_reachable_ = true; }
 
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
@@ -601,7 +601,7 @@ class HeapEntry BASE_EMBEDDED {
   const char* TypeAsString();
 
   unsigned painted_: 1;
-  unsigned reachable_from_window_: 1;
+  unsigned user_reachable_: 1;
   unsigned type_: 4;
   int children_count_: 26;
   int retainers_count_;
@@ -1020,7 +1020,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                     HeapEntry* parent,
                                     String* reference_name,
                                     Object* child);
-  void SetWindowReference(Object* window);
+  void SetUserGlobalReference(Object* window);
   void SetRootGcRootsReference();
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
   void SetGcSubrootReference(
@@ -1125,8 +1125,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool CountEntriesAndReferences();
   bool FillReferences();
   void FillPostorderIndexes(Vector<HeapEntry*>* entries);
-  bool IsWindowReference(const HeapGraphEdge& edge);
-  void MarkWindowReachableObjects();
+  bool IsUserGlobalReference(const HeapGraphEdge& edge);
+  void MarkUserReachableObjects();
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();

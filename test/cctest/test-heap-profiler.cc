@@ -7,6 +7,7 @@
 #include "cctest.h"
 #include "heap-profiler.h"
 #include "snapshot.h"
+#include "debug.h"
 #include "utils-inl.h"
 #include "../include/v8-profiler.h"
 
@@ -1561,6 +1562,30 @@ TEST(SfiAndJsFunctionWeakRefs) {
   const v8::HeapGraphNode* shared =
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
   CHECK(HasWeakEdge(shared));
+}
+
+
+TEST(NoDebugObjectInSnapshot) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::internal::Isolate::Current()->debug()->Load();
+  CompileRun("foo = {};");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
+  const v8::HeapGraphNode* root = snapshot->GetRoot();
+  int globals_count = 0;
+  for (int i = 0; i < root->GetChildrenCount(); ++i) {
+    const v8::HeapGraphEdge* edge = root->GetChild(i);
+    if (edge->GetType() == v8::HeapGraphEdge::kShortcut) {
+      ++globals_count;
+      const v8::HeapGraphNode* global = edge->GetToNode();
+      const v8::HeapGraphNode* foo =
+          GetProperty(global, v8::HeapGraphEdge::kProperty, "foo");
+      CHECK_NE(NULL, foo);
+    }
+  }
+  CHECK_EQ(1, globals_count);
 }
 
 
