@@ -741,7 +741,7 @@ class HeapObjectsMap {
   struct TimeInterval {
     explicit TimeInterval(SnapshotObjectId id) : id(id), size(0), count(0) { }
     SnapshotObjectId id;
-    unsigned int size;
+    uint32_t size;
     uint32_t count;
   };
 

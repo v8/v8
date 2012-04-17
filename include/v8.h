@@ -3742,13 +3742,18 @@ class V8EXPORT Locker {
 
 
 /**
+ * A struct for exporting HeapStats data from V8, using "push" model.
+ */
+struct HeapStatsUpdate;
+
+
+/**
  * An interface for exporting data from V8, using "push" model.
  */
 class V8EXPORT OutputStream {  // NOLINT
  public:
   enum OutputEncoding {
-    kAscii = 0,  // 7-bit ASCII.
-    kUint32 = 1
+    kAscii = 0  // 7-bit ASCII.
   };
   enum WriteResult {
     kContinue = 0,
@@ -3772,9 +3777,7 @@ class V8EXPORT OutputStream {  // NOLINT
    * can be stopped by returning kAbort as function result. EndOfStream
    * will not be called in case writing was aborted.
    */
-  // TODO(loislo): Make this pure virtual when WebKit's V8 bindings
-  // have been updated.
-  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) {
+  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
     return kAbort;
   };
 };

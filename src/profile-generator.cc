@@ -1403,7 +1403,7 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   UpdateHeapObjectsMap();
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
-  List<uint32_t> stats_buffer;
+  List<v8::HeapStatsUpdate> stats_buffer;
   ASSERT(!entries_.is_empty());
   EntryInfo* entry_info = &entries_.first();
   EntryInfo* end_entry_info = &entries_.last() + 1;
@@ -1422,11 +1422,12 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
         static_cast<uint32_t>(entry_info - start_entry_info);
     if (time_interval.count != entries_count ||
         time_interval.size != entries_size) {
-      stats_buffer.Add(time_interval_index);
-      stats_buffer.Add(time_interval.count = entries_count);
-      stats_buffer.Add(time_interval.size = entries_size);
+      stats_buffer.Add(v8::HeapStatsUpdate(
+          time_interval_index,
+          time_interval.count = entries_count,
+          time_interval.size = entries_size));
       if (stats_buffer.length() >= prefered_chunk_size) {
-        OutputStream::WriteResult result = stream->WriteUint32Chunk(
+        OutputStream::WriteResult result = stream->WriteHeapStatsChunk(
             &stats_buffer.first(), stats_buffer.length());
         if (result == OutputStream::kAbort) return;
         stats_buffer.Clear();
@@ -1435,8 +1436,8 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   }
   ASSERT(entry_info == end_entry_info);
   if (!stats_buffer.is_empty()) {
-    OutputStream::WriteResult result =
-        stream->WriteUint32Chunk(&stats_buffer.first(), stats_buffer.length());
+    OutputStream::WriteResult result = stream->WriteHeapStatsChunk(
+        &stats_buffer.first(), stats_buffer.length());
     if (result == OutputStream::kAbort) return;
   }
   stream->EndOfStream();

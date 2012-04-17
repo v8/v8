@@ -692,7 +692,7 @@ class TestStatsStream : public v8::OutputStream {
  public:
   TestStatsStream()
     : eos_signaled_(0),
-      numbers_written_(0),
+      updates_written_(0),
       entries_count_(0),
       entries_size_(0),
       intervals_count_(0),
@@ -700,7 +700,7 @@ class TestStatsStream : public v8::OutputStream {
   TestStatsStream(const TestStatsStream& stream)
     : v8::OutputStream(stream),
       eos_signaled_(stream.eos_signaled_),
-      numbers_written_(stream.numbers_written_),
+      updates_written_(stream.updates_written_),
       entries_count_(stream.entries_count_),
       entries_size_(stream.entries_size_),
       intervals_count_(stream.intervals_count_),
@@ -711,22 +711,23 @@ class TestStatsStream : public v8::OutputStream {
     ASSERT(false);
     return kAbort;
   }
-  virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int numbers_written) {
+  virtual WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* buffer,
+                                          int updates_written) {
     ++intervals_count_;
-    ASSERT(numbers_written);
-    numbers_written_ += numbers_written;
+    ASSERT(updates_written);
+    updates_written_ += updates_written;
     entries_count_ = 0;
-    if (first_interval_index_ == -1 && numbers_written != 0)
-      first_interval_index_ = buffer[0];
-    for (int i = 0; i < numbers_written; i += 3) {
-      entries_count_ += buffer[i+1];
-      entries_size_ += buffer[i+2];
+    if (first_interval_index_ == -1 && updates_written != 0)
+      first_interval_index_ = buffer[0].index;
+    for (int i = 0; i < updates_written; ++i) {
+      entries_count_ += buffer[i].count;
+      entries_size_ += buffer[i].size;
     }
 
     return kContinue;
   }
   int eos_signaled() { return eos_signaled_; }
-  int numbers_written() { return numbers_written_; }
+  int updates_written() { return updates_written_; }
   uint32_t entries_count() const { return entries_count_; }
   uint32_t entries_size() const { return entries_size_; }
   int intervals_count() const { return intervals_count_; }
@@ -734,7 +735,7 @@ class TestStatsStream : public v8::OutputStream {
 
  private:
   int eos_signaled_;
-  int numbers_written_;
+  int updates_written_;
   uint32_t entries_count_;
   uint32_t entries_size_;
   int intervals_count_;
@@ -766,13 +767,13 @@ TEST(HeapSnapshotObjectsStats) {
     // Single chunk of data expected in update. Initial data.
     TestStatsStream stats_update = GetHeapStatsUpdate();
     CHECK_EQ(1, stats_update.intervals_count());
-    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_EQ(1, stats_update.updates_written());
     CHECK_LT(0, stats_update.entries_size());
     CHECK_EQ(0, stats_update.first_interval_index());
   }
 
   // No data expected in update because nothing has happened.
-  CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
+  CHECK_EQ(0, GetHeapStatsUpdate().updates_written());
   {
     v8::HandleScope inner_scope_1;
     v8_str("string1");
@@ -780,14 +781,14 @@ TEST(HeapSnapshotObjectsStats) {
       // Single chunk of data with one new entry expected in update.
       TestStatsStream stats_update = GetHeapStatsUpdate();
       CHECK_EQ(1, stats_update.intervals_count());
-      CHECK_EQ(3, stats_update.numbers_written());
+      CHECK_EQ(1, stats_update.updates_written());
       CHECK_LT(0, stats_update.entries_size());
       CHECK_EQ(1, stats_update.entries_count());
       CHECK_EQ(2, stats_update.first_interval_index());
     }
 
     // No data expected in update because nothing happened.
-    CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
+    CHECK_EQ(0, GetHeapStatsUpdate().updates_written());
 
     {
       v8::HandleScope inner_scope_2;
@@ -803,7 +804,7 @@ TEST(HeapSnapshotObjectsStats) {
           // Single chunk of data with three new entries expected in update.
           TestStatsStream stats_update = GetHeapStatsUpdate();
           CHECK_EQ(1, stats_update.intervals_count());
-          CHECK_EQ(3, stats_update.numbers_written());
+          CHECK_EQ(1, stats_update.updates_written());
           CHECK_LT(0, entries_size = stats_update.entries_size());
           CHECK_EQ(3, stats_update.entries_count());
           CHECK_EQ(4, stats_update.first_interval_index());
@@ -814,7 +815,7 @@ TEST(HeapSnapshotObjectsStats) {
         // Single chunk of data with two left entries expected in update.
         TestStatsStream stats_update = GetHeapStatsUpdate();
         CHECK_EQ(1, stats_update.intervals_count());
-        CHECK_EQ(3, stats_update.numbers_written());
+        CHECK_EQ(1, stats_update.updates_written());
         CHECK_GT(entries_size, stats_update.entries_size());
         CHECK_EQ(1, stats_update.entries_count());
         // Two strings from forth interval were released.
@@ -826,7 +827,7 @@ TEST(HeapSnapshotObjectsStats) {
       // Single chunk of data with 0 left entries expected in update.
       TestStatsStream stats_update = GetHeapStatsUpdate();
       CHECK_EQ(1, stats_update.intervals_count());
-      CHECK_EQ(3, stats_update.numbers_written());
+      CHECK_EQ(1, stats_update.updates_written());
       CHECK_EQ(0, stats_update.entries_size());
       CHECK_EQ(0, stats_update.entries_count());
       // The last string from forth interval was released.
@@ -837,7 +838,7 @@ TEST(HeapSnapshotObjectsStats) {
     // Single chunk of data with 0 left entries expected in update.
     TestStatsStream stats_update = GetHeapStatsUpdate();
     CHECK_EQ(1, stats_update.intervals_count());
-    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_EQ(1, stats_update.updates_written());
     CHECK_EQ(0, stats_update.entries_size());
     CHECK_EQ(0, stats_update.entries_count());
     // The only string from the second interval was released.
@@ -854,7 +855,7 @@ TEST(HeapSnapshotObjectsStats) {
     // Single chunk of data with 2 entries expected in update.
     TestStatsStream stats_update = GetHeapStatsUpdate();
     CHECK_EQ(1, stats_update.intervals_count());
-    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_EQ(1, stats_update.updates_written());
     CHECK_LT(0, entries_size = stats_update.entries_size());
     // They are the array and its buffer.
     CHECK_EQ(2, stats_update.entries_count());
@@ -870,7 +871,7 @@ TEST(HeapSnapshotObjectsStats) {
     CHECK_EQ(1, stats_update.intervals_count());
     // The first interval was changed because old buffer was collected.
     // The second interval was changed because new buffer was allocated.
-    CHECK_EQ(6, stats_update.numbers_written());
+    CHECK_EQ(2, stats_update.updates_written());
     CHECK_LT(entries_size, stats_update.entries_size());
     CHECK_EQ(2, stats_update.entries_count());
     CHECK_EQ(8, stats_update.first_interval_index());
