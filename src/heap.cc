@@ -1484,6 +1484,27 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
+STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) == 0);
+
+
+INLINE(static HeapObject* EnsureDoubleAligned(Heap* heap,
+                                              HeapObject* object,
+                                              int size));
+
+static HeapObject* EnsureDoubleAligned(Heap* heap,
+                                       HeapObject* object,
+                                       int size) {
+  if ((OffsetFrom(object->address()) & kDoubleAlignmentMask) != 0) {
+    heap->CreateFillerObjectAt(object->address(), kPointerSize);
+    return HeapObject::FromAddress(object->address() + kPointerSize);
+  } else {
+    heap->CreateFillerObjectAt(object->address() + size - kPointerSize,
+                               kPointerSize);
+    return object;
+  }
+}
+
+
 enum LoggingAndProfiling {
   LOGGING_AND_PROFILING_ENABLED,
   LOGGING_AND_PROFILING_DISABLED
@@ -1607,7 +1628,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
   }
 
-  template<ObjectContents object_contents, SizeRestriction size_restriction>
+
+  template<ObjectContents object_contents,
+           SizeRestriction size_restriction,
+           int alignment>
   static inline void EvacuateObject(Map* map,
                                     HeapObject** slot,
                                     HeapObject* object,
@@ -1616,25 +1640,36 @@ class ScavengingVisitor : public StaticVisitorBase {
                 (object_size <= Page::kMaxNonCodeHeapObjectSize));
     SLOW_ASSERT(object->Size() == object_size);
 
+    int allocation_size = object_size;
+    if (alignment != kObjectAlignment) {
+      ASSERT(alignment == kDoubleAlignment);
+      allocation_size += kPointerSize;
+    }
+
     Heap* heap = map->GetHeap();
     if (heap->ShouldBePromoted(object->address(), object_size)) {
       MaybeObject* maybe_result;
 
       if ((size_restriction != SMALL) &&
-          (object_size > Page::kMaxNonCodeHeapObjectSize)) {
-        maybe_result = heap->lo_space()->AllocateRaw(object_size,
+          (allocation_size > Page::kMaxNonCodeHeapObjectSize)) {
+        maybe_result = heap->lo_space()->AllocateRaw(allocation_size,
                                                      NOT_EXECUTABLE);
       } else {
         if (object_contents == DATA_OBJECT) {
-          maybe_result = heap->old_data_space()->AllocateRaw(object_size);
+          maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
         } else {
-          maybe_result = heap->old_pointer_space()->AllocateRaw(object_size);
+          maybe_result =
+              heap->old_pointer_space()->AllocateRaw(allocation_size);
         }
       }
 
       Object* result = NULL;  // Initialization to please compiler.
       if (maybe_result->ToObject(&result)) {
         HeapObject* target = HeapObject::cast(result);
+
+        if (alignment != kObjectAlignment) {
+          target = EnsureDoubleAligned(heap, target, allocation_size);
+        }
 
         // Order is important: slot might be inside of the target if target
         // was allocated over a dead object and slot comes from the store
@@ -1650,10 +1685,14 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
     }
-    MaybeObject* allocation = heap->new_space()->AllocateRaw(object_size);
+    MaybeObject* allocation = heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
     Object* result = allocation->ToObjectUnchecked();
     HeapObject* target = HeapObject::cast(result);
+
+    if (alignment != kObjectAlignment) {
+      target = EnsureDoubleAligned(heap, target, allocation_size);
+    }
 
     // Order is important: slot might be inside of the target if target
     // was allocated over a dead object and slot comes from the store
@@ -1690,7 +1729,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                         HeapObject** slot,
                                         HeapObject* object) {
     int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
-    EvacuateObject<POINTER_OBJECT, UNKNOWN_SIZE>(map,
+    EvacuateObject<POINTER_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(map,
                                                  slot,
                                                  object,
                                                  object_size);
@@ -1702,10 +1741,11 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     int object_size = FixedDoubleArray::SizeFor(length);
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map,
-                                              slot,
-                                              object,
-                                              object_size);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kDoubleAlignment>(
+        map,
+        slot,
+        object,
+        object_size);
   }
 
 
@@ -1713,7 +1753,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                        HeapObject** slot,
                                        HeapObject* object) {
     int object_size = reinterpret_cast<ByteArray*>(object)->ByteArraySize();
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+        map, slot, object, object_size);
   }
 
 
@@ -1722,7 +1763,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                             HeapObject* object) {
     int object_size = SeqAsciiString::cast(object)->
         SeqAsciiStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+        map, slot, object, object_size);
   }
 
 
@@ -1731,7 +1773,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                               HeapObject* object) {
     int object_size = SeqTwoByteString::cast(object)->
         SeqTwoByteStringSize(map->instance_type());
-    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map, slot, object, object_size);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
+        map, slot, object, object_size);
   }
 
 
@@ -1774,7 +1817,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     int object_size = ConsString::kSize;
-    EvacuateObject<POINTER_OBJECT, SMALL>(map, slot, object, object_size);
+    EvacuateObject<POINTER_OBJECT, SMALL, kObjectAlignment>(
+        map, slot, object, object_size);
   }
 
   template<ObjectContents object_contents>
@@ -1784,14 +1828,16 @@ class ScavengingVisitor : public StaticVisitorBase {
     static inline void VisitSpecialized(Map* map,
                                         HeapObject** slot,
                                         HeapObject* object) {
-      EvacuateObject<object_contents, SMALL>(map, slot, object, object_size);
+      EvacuateObject<object_contents, SMALL, kObjectAlignment>(
+          map, slot, object, object_size);
     }
 
     static inline void Visit(Map* map,
                              HeapObject** slot,
                              HeapObject* object) {
       int object_size = map->instance_size();
-      EvacuateObject<object_contents, SMALL>(map, slot, object, object_size);
+      EvacuateObject<object_contents, SMALL, kObjectAlignment>(
+          map, slot, object, object_size);
     }
   };
 
@@ -4666,6 +4712,11 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = FixedDoubleArray::SizeFor(length);
+
+#ifndef V8_HOST_ARCH_64_BIT
+  size += kPointerSize;
+#endif
+
   if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
     // Too big for new space.
     space = LO_SPACE;
@@ -4678,7 +4729,12 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   AllocationSpace retry_space =
       (size <= Page::kMaxNonCodeHeapObjectSize) ? OLD_DATA_SPACE : LO_SPACE;
 
-  return AllocateRaw(size, space, retry_space);
+  HeapObject* object;
+  { MaybeObject* maybe_object = AllocateRaw(size, space, retry_space);
+    if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
+  }
+
+  return EnsureDoubleAligned(this, object, size);
 }
 
 
