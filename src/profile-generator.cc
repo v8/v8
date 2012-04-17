@@ -1311,8 +1311,7 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
 
 HeapObjectsMap::HeapObjectsMap()
     : next_id_(kFirstAvailableObjectId),
-      entries_map_(AddressesMatch),
-      entries_(new List<EntryInfo>()) {
+      entries_map_(AddressesMatch) {
   // This dummy element solves a problem with entries_map_.
   // When we do lookup in HashMap we see no difference between two cases:
   // it has an entry with NULL as the value or it has created
@@ -1320,12 +1319,7 @@ HeapObjectsMap::HeapObjectsMap()
   // With such dummy element we have a guaranty that all entries_map_ entries
   // will have the value field grater than 0.
   // This fact is using in MoveObject method.
-  entries_->Add(EntryInfo(0, NULL, 0));
-}
-
-
-HeapObjectsMap::~HeapObjectsMap() {
-  delete entries_;
+  entries_.Add(EntryInfo(0, NULL, 0));
 }
 
 
@@ -1342,7 +1336,7 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   if (from_value == NULL) return;
   int from_entry_info_index =
       static_cast<int>(reinterpret_cast<intptr_t>(from_value));
-  entries_->at(from_entry_info_index).addr = to;
+  entries_.at(from_entry_info_index).addr = to;
   HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
   if (to_entry->value != NULL) {
     int to_entry_info_index =
@@ -1351,7 +1345,7 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
     // value in addr field. It is bad because later at RemoveDeadEntries
     // one of this entry will be removed with the corresponding entries_map_
     // entry.
-    entries_->at(to_entry_info_index).addr = NULL;
+    entries_.at(to_entry_info_index).addr = NULL;
   }
   to_entry->value = reinterpret_cast<void*>(from_entry_info_index);
 }
@@ -1361,29 +1355,29 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  EntryInfo& entry_info = entries_->at(entry_index);
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  EntryInfo& entry_info = entries_.at(entry_index);
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   return entry_info.id;
 }
 
 
 SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
                                                 unsigned int size) {
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   if (entry->value != NULL) {
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-    EntryInfo& entry_info = entries_->at(entry_index);
+    EntryInfo& entry_info = entries_.at(entry_index);
     entry_info.accessed = true;
     entry_info.size = size;
     return entry_info.id;
   }
-  entry->value = reinterpret_cast<void*>(entries_->length());
+  entry->value = reinterpret_cast<void*>(entries_.length());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_->Add(EntryInfo(id, addr, size));
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  entries_.Add(EntryInfo(id, addr, size));
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   return id;
 }
 
@@ -1410,9 +1404,9 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
   List<uint32_t> stats_buffer;
-  ASSERT(!entries_->is_empty());
-  EntryInfo* entry_info = &entries_->first();
-  EntryInfo* end_entry_info = &entries_->last() + 1;
+  ASSERT(!entries_.is_empty());
+  EntryInfo* entry_info = &entries_.first();
+  EntryInfo* end_entry_info = &entries_.last() + 1;
   for (int time_interval_index = 0;
        time_interval_index < time_intervals_.length();
        ++time_interval_index) {
@@ -1450,17 +1444,17 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
 
 
 void HeapObjectsMap::RemoveDeadEntries() {
-  ASSERT(entries_->length() > 0 &&
-         entries_->at(0).id == 0 &&
-         entries_->at(0).addr == NULL);
+  ASSERT(entries_.length() > 0 &&
+         entries_.at(0).id == 0 &&
+         entries_.at(0).addr == NULL);
   int first_free_entry = 1;
-  for (int i = 1; i < entries_->length(); ++i) {
-    EntryInfo& entry_info = entries_->at(i);
+  for (int i = 1; i < entries_.length(); ++i) {
+    EntryInfo& entry_info = entries_.at(i);
     if (entry_info.accessed) {
       if (first_free_entry != i) {
-        entries_->at(first_free_entry) = entry_info;
+        entries_.at(first_free_entry) = entry_info;
       }
-      entries_->at(first_free_entry).accessed = false;
+      entries_.at(first_free_entry).accessed = false;
       HashMap::Entry* entry = entries_map_.Lookup(
           entry_info.addr, AddressHash(entry_info.addr), false);
       ASSERT(entry);
@@ -1472,8 +1466,8 @@ void HeapObjectsMap::RemoveDeadEntries() {
       }
     }
   }
-  entries_->Rewind(first_free_entry);
-  ASSERT(static_cast<uint32_t>(entries_->length()) - 1 ==
+  entries_.Rewind(first_free_entry);
+  ASSERT(static_cast<uint32_t>(entries_.length()) - 1 ==
          entries_map_.occupancy());
 }
 

@@ -705,7 +705,6 @@ class HeapSnapshot {
 class HeapObjectsMap {
  public:
   HeapObjectsMap();
-  ~HeapObjectsMap();
 
   void SnapshotGenerationFinished();
   SnapshotObjectId FindEntry(Address addr);
@@ -761,7 +760,7 @@ class HeapObjectsMap {
 
   SnapshotObjectId next_id_;
   HashMap entries_map_;
-  List<EntryInfo>* entries_;
+  List<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
