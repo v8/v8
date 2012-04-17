@@ -1124,6 +1124,27 @@ void PromotionQueue::RelocateQueueHead() {
 }
 
 
+class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
+ public:
+  explicit ScavengeWeakObjectRetainer(Heap* heap) : heap_(heap) { }
+
+  virtual Object* RetainAs(Object* object) {
+    if (!heap_->InFromSpace(object)) {
+      return object;
+    }
+
+    MapWord map_word = HeapObject::cast(object)->map_word();
+    if (map_word.IsForwardingAddress()) {
+      return map_word.ToForwardingAddress();
+    }
+    return NULL;
+  }
+
+ private:
+  Heap* heap_;
+};
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
@@ -1222,6 +1243,9 @@ void Heap::Scavenge() {
   }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
+  ScavengeWeakObjectRetainer weak_object_retainer(this);
+  ProcessWeakReferences(&weak_object_retainer);
+
   ASSERT(new_space_front == new_space_.top());
 
   // Set age mark.
@@ -1308,7 +1332,8 @@ void Heap::UpdateReferencesInExternalStringTable(
 
 static Object* ProcessFunctionWeakReferences(Heap* heap,
                                              Object* function,
-                                             WeakObjectRetainer* retainer) {
+                                             WeakObjectRetainer* retainer,
+                                             bool record_slots) {
   Object* undefined = heap->undefined_value();
   Object* head = undefined;
   JSFunction* tail = NULL;
@@ -1325,6 +1350,12 @@ static Object* ProcessFunctionWeakReferences(Heap* heap,
         // Subsequent elements in the list.
         ASSERT(tail != NULL);
         tail->set_next_function_link(retain);
+        if (record_slots) {
+          Object** next_function =
+              HeapObject::RawField(tail, JSFunction::kNextFunctionLinkOffset);
+          heap->mark_compact_collector()->RecordSlot(
+              next_function, next_function, retain);
+        }
       }
       // Retained function is new tail.
       candidate_function = reinterpret_cast<JSFunction*>(retain);
@@ -1353,6 +1384,15 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
   Object* head = undefined;
   Context* tail = NULL;
   Object* candidate = global_contexts_list_;
+
+  // We don't record weak slots during marking or scavenges.
+  // Instead we do it once when we complete mark-compact cycle.
+  // Note that write barrier has no effect if we are already in the middle of
+  // compacting mark-sweep cycle and we have to record slots manually.
+  bool record_slots =
+      gc_state() == MARK_COMPACT &&
+      mark_compact_collector()->is_compacting();
+
   while (candidate != undefined) {
     // Check whether to keep the candidate in the list.
     Context* candidate_context = reinterpret_cast<Context*>(candidate);
@@ -1368,6 +1408,14 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
                             Context::NEXT_CONTEXT_LINK,
                             retain,
                             UPDATE_WRITE_BARRIER);
+
+        if (record_slots) {
+          Object** next_context =
+              HeapObject::RawField(
+                  tail, FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK));
+          mark_compact_collector()->RecordSlot(
+              next_context, next_context, retain);
+        }
       }
       // Retained context is new tail.
       candidate_context = reinterpret_cast<Context*>(retain);
@@ -1380,11 +1428,19 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
           ProcessFunctionWeakReferences(
               this,
               candidate_context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-              retainer);
+              retainer,
+              record_slots);
       candidate_context->set_unchecked(this,
                                        Context::OPTIMIZED_FUNCTIONS_LIST,
                                        function_list_head,
                                        UPDATE_WRITE_BARRIER);
+      if (record_slots) {
+        Object** optimized_functions =
+            HeapObject::RawField(
+                tail, FixedArray::SizeFor(Context::OPTIMIZED_FUNCTIONS_LIST));
+        mark_compact_collector()->RecordSlot(
+            optimized_functions, optimized_functions, function_list_head);
+      }
     }
 
     // Move to next element in the list.
@@ -1678,7 +1734,12 @@ class ScavengingVisitor : public StaticVisitorBase {
         MigrateObject(heap, object, target, object_size);
 
         if (object_contents == POINTER_OBJECT) {
-          heap->promotion_queue()->insert(target, object_size);
+          if (map->instance_type() == JS_FUNCTION_TYPE) {
+            heap->promotion_queue()->insert(
+                target, JSFunction::kNonWeakFieldsEndOffset);
+          } else {
+            heap->promotion_queue()->insert(target, object_size);
+          }
         }
 
         heap->tracer()->increment_promoted_objects_size(object_size);
