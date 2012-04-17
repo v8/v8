@@ -5112,56 +5112,24 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rax: string
   // rbx: instance type
   // Calculate length of sub string using the smi values.
-  Label result_longer_than_two;
   __ movq(rcx, Operand(rsp, kToOffset));
   __ movq(rdx, Operand(rsp, kFromOffset));
   __ JumpUnlessBothNonNegativeSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx);  // Overflow doesn't happen.
-  __ cmpq(FieldOperand(rax, String::kLengthOffset), rcx);
+  __ cmpq(rcx, FieldOperand(rax, String::kLengthOffset));
   Label not_original_string;
-  __ j(not_equal, &not_original_string, Label::kNear);
+  // Shorter than original string's length: an actual substring.
+  __ j(below, &not_original_string, Label::kNear);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ j(above, &runtime);
+  // Return original string.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(kArgumentsSize);
   __ bind(&not_original_string);
-  // Special handling of sub-strings of length 1 and 2. One character strings
-  // are handled in the runtime system (looked up in the single character
-  // cache). Two character strings are looked for in the symbol cache.
   __ SmiToInteger32(rcx, rcx);
-  __ cmpl(rcx, Immediate(2));
-  __ j(greater, &result_longer_than_two);
-  __ j(less, &runtime);
 
-  // Sub string of length 2 requested.
-  // rax: string
-  // rbx: instance type
-  // rcx: sub string length (value is 2)
-  // rdx: from index (smi)
-  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &runtime);
-
-  // Get the two characters forming the sub string.
-  __ SmiToInteger32(rdx, rdx);  // From index is no longer smi.
-  __ movzxbq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
-  __ movzxbq(rdi,
-             FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize + 1));
-
-  // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, rbx, rdi, r9, r11, r14, r15, &make_two_character_string);
-  __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&make_two_character_string);
-  // Set up registers for allocating the two character string.
-  __ movzxwq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
-  __ AllocateAsciiString(rax, rcx, r11, r14, r15, &runtime);
-  __ movw(FieldOperand(rax, SeqAsciiString::kHeaderSize), rbx);
-  __ IncrementCounter(counters->sub_string_native(), 1);
-  __ ret(3 * kPointerSize);
-
-  __ bind(&result_longer_than_two);
   // rax: string
   // rbx: instance type
   // rcx: sub string length

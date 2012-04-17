@@ -6162,7 +6162,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ sub(ecx, edx);
   __ cmp(ecx, FieldOperand(eax, String::kLengthOffset));
   Label not_original_string;
-  __ j(not_equal, &not_original_string, Label::kNear);
+  // Shorter than original string's length: an actual substring.
+  __ j(below, &not_original_string, Label::kNear);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ j(above, &runtime);
+  // Return original string.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
