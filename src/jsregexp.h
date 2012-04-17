@@ -40,6 +40,7 @@ class RegExpCompiler;
 class RegExpMacroAssembler;
 class RegExpNode;
 class RegExpTree;
+class BoyerMooreLookahead;
 
 class RegExpImpl {
  public:
@@ -224,48 +225,6 @@ enum ElementInSetsRelation {
 };
 
 
-// Represents the relation of two sets.
-// Sets can be either disjoint, partially or fully overlapping, or equal.
-class SetRelation BASE_EMBEDDED {
- public:
-  // Relation is represented by a bit saying whether there are elements in
-  // one set that is not in the other, and a bit saying that there are elements
-  // that are in both sets.
-
-  // Location of an element. Corresponds to the internal areas of
-  // a Venn diagram.
-  enum {
-    kInFirst = 1 << kInsideFirst,
-    kInSecond = 1 << kInsideSecond,
-    kInBoth = 1 << kInsideBoth
-  };
-  SetRelation() : bits_(0) {}
-  ~SetRelation() {}
-  // Add the existence of objects in a particular
-  void SetElementsInFirstSet() { bits_ |= kInFirst; }
-  void SetElementsInSecondSet() { bits_ |= kInSecond; }
-  void SetElementsInBothSets() { bits_ |= kInBoth; }
-  // Check the currently known relation of the sets (common functions only,
-  // for other combinations, use value() to get the bits and check them
-  // manually).
-  // Sets are completely disjoint.
-  bool Disjoint() { return (bits_ & kInBoth) == 0; }
-  // Sets are equal.
-  bool Equals() { return (bits_ & (kInFirst | kInSecond)) == 0; }
-  // First set contains second.
-  bool Contains() { return (bits_ & kInSecond) == 0; }
-  // Second set contains first.
-  bool ContainedIn() { return (bits_ & kInFirst) == 0; }
-  bool NonTrivialIntersection() {
-    return (bits_ == (kInFirst | kInSecond | kInBoth));
-  }
-  int value() { return bits_; }
-
- private:
-  int bits_;
-};
-
-
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) { }
@@ -273,7 +232,7 @@ class CharacterRange {
   CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges);
-  static Vector<const uc16> GetWordBounds();
+  static Vector<const int> GetWordBounds();
   static inline CharacterRange Singleton(uc16 value) {
     return CharacterRange(value, value);
   }
@@ -294,7 +253,7 @@ class CharacterRange {
   bool IsSingleton() { return (from_ == to_); }
   void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_ascii);
   static void Split(ZoneList<CharacterRange>* base,
-                    Vector<const uc16> overlay,
+                    Vector<const int> overlay,
                     ZoneList<CharacterRange>** included,
                     ZoneList<CharacterRange>** excluded);
   // Whether a range list is in canonical form: Ranges ordered by from value,
@@ -305,28 +264,6 @@ class CharacterRange {
   // adjacent ranges are merged. The resulting list may be shorter than the
   // original, but cannot be longer.
   static void Canonicalize(ZoneList<CharacterRange>* ranges);
-  // Check how the set of characters defined by a CharacterRange list relates
-  // to the set of word characters. List must be in canonical form.
-  static SetRelation WordCharacterRelation(ZoneList<CharacterRange>* ranges);
-  // Takes two character range lists (representing character sets) in canonical
-  // form and merges them.
-  // The characters that are only covered by the first set are added to
-  // first_set_only_out. the characters that are only in the second set are
-  // added to second_set_only_out, and the characters that are in both are
-  // added to both_sets_out.
-  // The pointers to first_set_only_out, second_set_only_out and both_sets_out
-  // should be to empty lists, but they need not be distinct, and may be NULL.
-  // If NULL, the characters are dropped, and if two arguments are the same
-  // pointer, the result is the union of the two sets that would be created
-  // if the pointers had been distinct.
-  // This way, the Merge function can compute all the usual set operations:
-  // union (all three out-sets are equal), intersection (only both_sets_out is
-  // non-NULL), and set difference (only first_set is non-NULL).
-  static void Merge(ZoneList<CharacterRange>* first_set,
-                    ZoneList<CharacterRange>* second_set,
-                    ZoneList<CharacterRange>* first_set_only_out,
-                    ZoneList<CharacterRange>* second_set_only_out,
-                    ZoneList<CharacterRange>* both_sets_out);
   // Negate the contents of a character range in canonical form.
   static void Negate(ZoneList<CharacterRange>* src,
                      ZoneList<CharacterRange>* dst);
@@ -418,90 +355,6 @@ class DispatchTable : public ZoneObject {
   OutSet empty_;
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;
-};
-
-
-// Improve the speed that we scan for an initial point where a non-anchored
-// regexp can match by using a Boyer-Moore-like table. This is done by
-// identifying non-greedy non-capturing loops in the nodes that eat any
-// character one at a time.  For example in the middle of the regexp
-// /foo[\s\S]*?bar/ we find such a loop.  There is also such a loop implicitly
-// inserted at the start of any non-anchored regexp.
-//
-// When we have found such a loop we look ahead in the nodes to find the set of
-// characters that can come at given distances. For example for the regexp
-// /.?foo/ we know that there are at least 3 characters ahead of us, and the
-// sets of characters that can occur are [any, [f, o], [o]]. We find a range in
-// the lookahead info where the set of characters is reasonably constrained. In
-// our example this is from index 1 to 2 (0 is not constrained). We can now
-// look 3 characters ahead and if we don't find one of [f, o] (the union of
-// [f, o] and [o]) then we can skip forwards by the range size (in this case 2).
-//
-// For Unicode input strings we do the same, but modulo 128.
-//
-// We also look at the first string fed to the regexp and use that to get a hint
-// of the character frequencies in the inputs. This affects the assessment of
-// whether the set of characters is 'reasonably constrained'.
-//
-// We also have another lookahead mechanism (called quick check in the code),
-// which uses a wide load of multiple characters followed by a mask and compare
-// to determine whether a match is possible at this point.
-class BoyerMooreLookahead {
- public:
-  BoyerMooreLookahead(int length, int map_length, RegExpCompiler* compiler);
-
-  int length() { return length_; }
-  int max_char() { return max_char_; }
-  RegExpCompiler* compiler() { return compiler_; }
-
-  static const int kTooManyCharacters = 32;
-
-  int Count(int map_number) {
-    ZoneList<bool>* map = bitmaps_->at(map_number);
-    if (map == NULL) return map_length_;
-    int count = 0;
-    for (int i = 0; i < map_length_; i++) {
-      if (map->at(i)) count++;
-    }
-    return count;
-  }
-
-  void Set(int map_number, int character) {
-    if (character > max_char_) return;
-    ZoneList<bool>* map = bitmaps_->at(map_number);
-    if (map == NULL) return;
-    map->at(character & (map_length_ - 1)) = true;
-  }
-
-  void SetAll(int map_number) {
-    bitmaps_->at(map_number) = NULL;
-  }
-
-  void SetRest(int from_map) {
-    for (int i = from_map; i < length_; i++) SetAll(i);
-  }
-  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
-
- private:
-  // This is the value obtained by EatsAtLeast.  If we do not have at least this
-  // many characters left in the sample string then the match is bound to fail.
-  // Therefore it is OK to read a character this far ahead of the current match
-  // point.
-  int length_;
-  // We conservatively consider all character values modulo this length.  For
-  // ASCII there is no loss of precision, since this has a value of 128.
-  int map_length_;
-  RegExpCompiler* compiler_;
-  // 0x7f for ASCII, 0xffff for UTF-16.
-  int max_char_;
-  ZoneList<ZoneList<bool>*>* bitmaps_;
-
-  int GetSkipTable(int min_lookahead,
-                   int max_lookahead,
-                   Handle<ByteArray> boolean_skip_table);
-  bool FindWorthwhileInterval(int* from, int* to);
-  int FindBestInterval(
-    int max_number_of_chars, int old_biggest_points, int* from, int* to);
 };
 
 
@@ -687,7 +540,9 @@ class QuickCheckDetails {
 
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : first_character_set_(NULL), trace_count_(0) { }
+  RegExpNode() : first_character_set_(NULL), trace_count_(0) {
+    bm_info_[0] = bm_info_[1] = NULL;
+  }
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
@@ -731,10 +586,17 @@ class RegExpNode: public ZoneObject {
   // Collects information on the possible code units (mod 128) that can match if
   // we look forward.  This is used for a Boyer-Moore-like string searching
   // implementation.  TODO(erikcorry):  This should share more code with
-  // EatsAtLeast, GetQuickCheckDetails and ComputeFirstCharacterSet.
+  // EatsAtLeast, GetQuickCheckDetails.
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     UNREACHABLE();
+  }
+  // We want to avoid recalculating the lookahead info, so we store it on the
+  // node.  Only info that is for this node is stored.  We can tell that the
+  // info is for this node when offset == 0, so the information is calculated
+  // relative to this node.
+  void SaveBMInfo(BoyerMooreLookahead* bm, bool not_at_start, int offset) {
+    if (offset == 0) set_bm_info(not_at_start, bm);
   }
 
   Label* label() { return &label_; }
@@ -759,23 +621,15 @@ class RegExpNode: public ZoneObject {
   SiblingList* siblings() { return &siblings_; }
   void set_siblings(SiblingList* other) { siblings_ = *other; }
 
-  // Return the set of possible next characters recognized by the regexp
-  // (or a safe subset, potentially the set of all characters).
-  ZoneList<CharacterRange>* FirstCharacterSet();
-
-  // Compute (if possible within the budget of traversed nodes) the
-  // possible first characters of the input matched by this node and
-  // its continuation. Returns the remaining budget after the computation.
-  // If the budget is spent, the result is negative, and the cached
-  // first_character_set_ value isn't set.
-  virtual int ComputeFirstCharacterSet(int budget);
-
   // Get and set the cached first character set value.
   ZoneList<CharacterRange>* first_character_set() {
     return first_character_set_;
   }
   void set_first_character_set(ZoneList<CharacterRange>* character_set) {
     first_character_set_ = character_set;
+  }
+  BoyerMooreLookahead* bm_info(bool not_at_start) {
+    return bm_info_[not_at_start ? 1 : 0];
   }
 
  protected:
@@ -801,6 +655,10 @@ class RegExpNode: public ZoneObject {
   // processed before it is on a usable state.
   virtual RegExpNode* Clone() = 0;
 
+  void set_bm_info(bool not_at_start, BoyerMooreLookahead* bm) {
+    bm_info_[not_at_start ? 1 : 0] = bm;
+  }
+
  private:
   static const int kFirstCharBudget = 10;
   Label label_;
@@ -813,6 +671,7 @@ class RegExpNode: public ZoneObject {
   // a trace, in which case it is generic and can be reused by flushing the
   // deferred operations in the current trace and generating a goto.
   int trace_count_;
+  BoyerMooreLookahead* bm_info_[2];
 };
 
 
@@ -833,8 +692,8 @@ class Interval {
     return (from_ <= value) && (value <= to_);
   }
   bool is_empty() { return from_ == kNone; }
-  int from() { return from_; }
-  int to() { return to_; }
+  int from() const { return from_; }
+  int to() const { return to_; }
   static Interval Empty() { return Interval(); }
   static const int kNone = -1;
  private:
@@ -852,6 +711,7 @@ class SeqRegExpNode: public RegExpNode {
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     on_success_->FillInBMInfo(offset, bm, not_at_start);
+    if (offset == 0) set_bm_info(not_at_start, bm);
   }
  private:
   RegExpNode* on_success_;
@@ -905,7 +765,6 @@ class ActionNode: public SeqRegExpNode {
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   virtual ActionNode* Clone() { return new ActionNode(*this); }
-  virtual int ComputeFirstCharacterSet(int budget);
 
  private:
   union {
@@ -978,7 +837,6 @@ class TextNode: public SeqRegExpNode {
     return result;
   }
   void CalculateOffsets();
-  virtual int ComputeFirstCharacterSet(int budget);
 
  private:
   enum TextEmitPassType {
@@ -1009,12 +867,7 @@ class AssertionNode: public SeqRegExpNode {
     AT_START,
     AT_BOUNDARY,
     AT_NON_BOUNDARY,
-    AFTER_NEWLINE,
-    // Types not directly expressible in regexp syntax.
-    // Used for modifying a boundary node if its following character is
-    // known to be word and/or non-word.
-    AFTER_NONWORD_CHARACTER,
-    AFTER_WORD_CHARACTER
+    AFTER_NEWLINE
   };
   static AssertionNode* AtEnd(RegExpNode* on_success) {
     return new AssertionNode(AT_END, on_success);
@@ -1042,12 +895,16 @@ class AssertionNode: public SeqRegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual int ComputeFirstCharacterSet(int budget);
   virtual AssertionNode* Clone() { return new AssertionNode(*this); }
   AssertionNodeType type() { return type_; }
   void set_type(AssertionNodeType type) { type_ = type; }
 
  private:
+  void EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace);
+  enum IfPrevious { kIsNonWord, kIsWord };
+  void BacktrackIfPrevious(RegExpCompiler* compiler,
+                           Trace* trace,
+                           IfPrevious backtrack_if_previous);
   AssertionNode(AssertionNodeType t, RegExpNode* on_success)
       : SeqRegExpNode(on_success), type_(t) { }
   AssertionNodeType type_;
@@ -1076,13 +933,8 @@ class BackReferenceNode: public SeqRegExpNode {
     return;
   }
   virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
-    // Working out the set of characters that a backreference can match is too
-    // hard, so we just say that any character can match.
-    bm->SetRest(offset);
-  }
+      int offset, BoyerMooreLookahead* bm, bool not_at_start);
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
-  virtual int ComputeFirstCharacterSet(int budget);
 
  private:
   int start_reg_;
@@ -1249,6 +1101,7 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     alternatives_->at(1).node()->FillInBMInfo(offset, bm, not_at_start);
+    if (offset == 0) set_bm_info(not_at_start, bm);
   }
   // For a negative lookahead we don't emit the quick check for the
   // alternative that is expected to fail.  This is because quick check code
@@ -1256,7 +1109,6 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   // characters, but on a negative lookahead the negative branch did not take
   // part in that calculation (EatsAtLeast) so the assumptions don't hold.
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
-  virtual int ComputeFirstCharacterSet(int budget);
 };
 
 
@@ -1279,7 +1131,6 @@ class LoopChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual int ComputeFirstCharacterSet(int budget);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
@@ -1297,6 +1148,146 @@ class LoopChoiceNode: public ChoiceNode {
   RegExpNode* loop_node_;
   RegExpNode* continue_node_;
   bool body_can_be_zero_length_;
+};
+
+
+// Improve the speed that we scan for an initial point where a non-anchored
+// regexp can match by using a Boyer-Moore-like table. This is done by
+// identifying non-greedy non-capturing loops in the nodes that eat any
+// character one at a time.  For example in the middle of the regexp
+// /foo[\s\S]*?bar/ we find such a loop.  There is also such a loop implicitly
+// inserted at the start of any non-anchored regexp.
+//
+// When we have found such a loop we look ahead in the nodes to find the set of
+// characters that can come at given distances. For example for the regexp
+// /.?foo/ we know that there are at least 3 characters ahead of us, and the
+// sets of characters that can occur are [any, [f, o], [o]]. We find a range in
+// the lookahead info where the set of characters is reasonably constrained. In
+// our example this is from index 1 to 2 (0 is not constrained). We can now
+// look 3 characters ahead and if we don't find one of [f, o] (the union of
+// [f, o] and [o]) then we can skip forwards by the range size (in this case 2).
+//
+// For Unicode input strings we do the same, but modulo 128.
+//
+// We also look at the first string fed to the regexp and use that to get a hint
+// of the character frequencies in the inputs. This affects the assessment of
+// whether the set of characters is 'reasonably constrained'.
+//
+// We also have another lookahead mechanism (called quick check in the code),
+// which uses a wide load of multiple characters followed by a mask and compare
+// to determine whether a match is possible at this point.
+enum ContainedInLattice {
+  kNotYet = 0,
+  kLatticeIn = 1,
+  kLatticeOut = 2,
+  kLatticeUnknown = 3  // Can also mean both in and out.
+};
+
+
+inline ContainedInLattice Combine(ContainedInLattice a, ContainedInLattice b) {
+  return static_cast<ContainedInLattice>(a | b);
+}
+
+
+ContainedInLattice AddRange(ContainedInLattice a,
+                            const int* ranges,
+                            int ranges_size,
+                            Interval new_range);
+
+
+class BoyerMoorePositionInfo : public ZoneObject {
+ public:
+  BoyerMoorePositionInfo()
+      : map_(new ZoneList<bool>(kMapSize)),
+        map_count_(0),
+        w_(kNotYet),
+        s_(kNotYet),
+        d_(kNotYet),
+        surrogate_(kNotYet) {
+     for (int i = 0; i < kMapSize; i++) {
+       map_->Add(false);
+     }
+  }
+
+  bool& at(int i) { return map_->at(i); }
+
+  static const int kMapSize = 128;
+  static const int kMask = kMapSize - 1;
+
+  int map_count() const { return map_count_; }
+
+  void Set(int character);
+  void SetInterval(const Interval& interval);
+  void SetAll();
+  bool is_non_word() { return w_ == kLatticeOut; }
+  bool is_word() { return w_ == kLatticeIn; }
+
+ private:
+  ZoneList<bool>* map_;
+  int map_count_;  // Number of set bits in the map.
+  ContainedInLattice w_;  // The \w character class.
+  ContainedInLattice s_;  // The \s character class.
+  ContainedInLattice d_;  // The \d character class.
+  ContainedInLattice surrogate_;  // Surrogate UTF-16 code units.
+};
+
+
+class BoyerMooreLookahead : public ZoneObject {
+ public:
+  BoyerMooreLookahead(int length, RegExpCompiler* compiler);
+
+  int length() { return length_; }
+  int max_char() { return max_char_; }
+  RegExpCompiler* compiler() { return compiler_; }
+
+  int Count(int map_number) {
+    return bitmaps_->at(map_number)->map_count();
+  }
+
+  BoyerMoorePositionInfo* at(int i) { return bitmaps_->at(i); }
+
+  void Set(int map_number, int character) {
+    if (character > max_char_) return;
+    BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
+    info->Set(character);
+  }
+
+  void SetInterval(int map_number, const Interval& interval) {
+    if (interval.from() > max_char_) return;
+    BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
+    if (interval.to() > max_char_) {
+      info->SetInterval(Interval(interval.from(), max_char_));
+    } else {
+      info->SetInterval(interval);
+    }
+  }
+
+  void SetAll(int map_number) {
+    bitmaps_->at(map_number)->SetAll();
+  }
+
+  void SetRest(int from_map) {
+    for (int i = from_map; i < length_; i++) SetAll(i);
+  }
+  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
+
+ private:
+  // This is the value obtained by EatsAtLeast.  If we do not have at least this
+  // many characters left in the sample string then the match is bound to fail.
+  // Therefore it is OK to read a character this far ahead of the current match
+  // point.
+  int length_;
+  RegExpCompiler* compiler_;
+  // 0x7f for ASCII, 0xffff for UTF-16.
+  int max_char_;
+  ZoneList<BoyerMoorePositionInfo*>* bitmaps_;
+
+  int GetSkipTable(int min_lookahead,
+                   int max_lookahead,
+                   Handle<ByteArray> boolean_skip_table);
+  bool FindWorthwhileInterval(int* from, int* to);
+  int FindBestInterval(
+    int max_number_of_chars, int old_biggest_points, int* from, int* to);
 };
 
 
