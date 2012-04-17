@@ -964,6 +964,46 @@ typedef struct ucontext {
   __sigset_t uc_sigmask;
 } ucontext_t;
 
+#elif !defined(__GLIBC__) && defined(__i386__)
+// x86 version for Android.
+struct _libc_fpreg {
+  uint16_t significand[4];
+  uint16_t exponent;
+};
+
+struct _libc_fpstate {
+  uint64_t cw;
+  uint64_t sw;
+  uint64_t tag;
+  uint64_t ipoff;
+  uint64_t cssel;
+  uint64_t dataoff;
+  uint64_t datasel;
+  struct _libc_fpreg _st[8];
+  uint64_t status;
+};
+
+typedef struct _libc_fpstate *fpregset_t;
+
+typedef struct mcontext {
+  int32_t gregs[19];
+  fpregset_t fpregs;
+  int64_t oldmask;
+  int64_t cr2;
+} mcontext_t;
+
+typedef uint64_t __sigset_t;
+
+typedef struct ucontext {
+  uint64_t uc_flags;
+  struct ucontext *uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  __sigset_t uc_sigmask;
+  struct _libc_fpstate __fpregs_mem;
+} ucontext_t;
+
+enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif
 
 
@@ -1055,11 +1095,8 @@ class SignalSender : public Thread {
         vm_tgid_(getpid()),
         interval_(interval) {}
 
-  static void SetUp() {
-    if (!mutex_) {
-      mutex_ = OS::CreateMutex();
-    }
-  }
+  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void TearDown() { delete mutex_; }
 
   static void InstallSignalHandler() {
     struct sigaction sa;
@@ -1235,6 +1272,12 @@ void OS::SetUp() {
   }
 #endif
   SignalSender::SetUp();
+}
+
+
+void OS::TearDown() {
+  SignalSender::TearDown();
+  delete limit_mutex;
 }
 
 

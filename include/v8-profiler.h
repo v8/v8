@@ -368,16 +368,20 @@ class V8EXPORT HeapSnapshot {
    * with the following structure:
    *
    *  {
-   *    snapshot: {title: "...", uid: nnn},
-   *    nodes: [
-   *      meta-info (JSON string),
-   *      nodes themselves
-   *    ],
-   *    strings: [strings]
+   *    snapshot: {
+   *      title: "...",
+   *      uid: nnn,
+   *      meta: { meta-info },
+   *      node_count: nnn,
+   *      edge_count: nnn
+   *    },
+   *    nodes: [nodes array],
+   *    edges: [edges array],
+   *    strings: [strings array]
    *  }
    *
-   * Outgoing node links are stored after each node. Nodes reference strings
-   * and other nodes by their indexes in corresponding arrays.
+   * Nodes reference strings, other nodes, and edges by their indexes
+   * in corresponding arrays.
    */
   void Serialize(OutputStream* stream, SerializationFormat format) const;
 };
@@ -409,6 +413,19 @@ class V8EXPORT HeapProfiler {
   static const HeapSnapshot* FindSnapshot(unsigned uid);
 
   /**
+   * Returns SnapshotObjectId for a heap object referenced by |value| if
+   * it has been seen by the heap profiler, kUnknownObjectId otherwise.
+   */
+  static SnapshotObjectId GetSnapshotObjectId(Handle<Value> value);
+
+  /**
+   * A constant for invalid SnapshotObjectId. GetSnapshotObjectId will return
+   * it in case heap profiler cannot find id  for the object passed as
+   * parameter. HeapSnapshot::GetNodeById will always return NULL for such id.
+   */
+  static const SnapshotObjectId kUnknownObjectId = 0;
+
+  /**
    * Takes a heap snapshot and returns it. Title may be an empty string.
    * See HeapSnapshot::Type for types description.
    */
@@ -429,8 +446,9 @@ class V8EXPORT HeapProfiler {
    * time interval entry contains information on the current heap objects
    * population size. The method also updates aggregated statistics and
    * reports updates for all previous time intervals via the OutputStream
-   * object. Updates on each time interval are provided as pairs of time
-   * interval index and updated heap objects count.
+   * object. Updates on each time interval are provided as a triplet. It has
+   * time interval index, updated heap objects count and updated heap objects
+   * size.
    *
    * StartHeapObjectsTracking must be called before the first call to this
    * method.

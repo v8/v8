@@ -544,6 +544,8 @@ class MarkCompactCollector {
 
   void ClearMarkbits();
 
+  bool is_compacting() const { return compacting_; }
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();

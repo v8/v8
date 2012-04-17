@@ -296,7 +296,7 @@ function RegExpToString() {
 // of the last successful match.
 function RegExpGetLastMatch() {
   if (lastMatchInfoOverride !== null) {
-    return lastMatchInfoOverride[0];
+    return OVERRIDE_MATCH(lastMatchInfoOverride);
   }
   var regExpSubject = LAST_SUBJECT(lastMatchInfo);
   return SubString(regExpSubject,
@@ -334,8 +334,8 @@ function RegExpGetLeftContext() {
     subject = LAST_SUBJECT(lastMatchInfo);
   } else {
     var override = lastMatchInfoOverride;
-    start_index = override[override.length - 2];
-    subject = override[override.length - 1];
+    start_index = OVERRIDE_POS(override);
+    subject = OVERRIDE_SUBJECT(override);
   }
   return SubString(subject, 0, start_index);
 }
@@ -349,9 +349,9 @@ function RegExpGetRightContext() {
     subject = LAST_SUBJECT(lastMatchInfo);
   } else {
     var override = lastMatchInfoOverride;
-    subject = override[override.length - 1];
-    var pattern = override[override.length - 3];
-    start_index = override[override.length - 2] + pattern.length;
+    subject = OVERRIDE_SUBJECT(override);
+    var match = OVERRIDE_MATCH(override);
+    start_index = OVERRIDE_POS(override) + match.length;
   }
   return SubString(subject, start_index, subject.length);
 }
@@ -363,7 +363,9 @@ function RegExpGetRightContext() {
 function RegExpMakeCaptureGetter(n) {
   return function() {
     if (lastMatchInfoOverride) {
-      if (n < lastMatchInfoOverride.length - 2) return lastMatchInfoOverride[n];
+      if (n < lastMatchInfoOverride.length - 2) {
+        return OVERRIDE_CAPTURE(lastMatchInfoOverride, n);
+      }
       return '';
     }
     var index = n * 2;

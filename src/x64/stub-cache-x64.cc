@@ -379,8 +379,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(kScratchRegister, InterceptorInfo::kDataOffset));
-  __ movq(kScratchRegister, ExternalReference::isolate_address());
-  __ push(kScratchRegister);
+  __ PushAddress(ExternalReference::isolate_address());
 }
 
 
@@ -482,7 +481,9 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // Prepare arguments.
   __ lea(rbx, Operand(rsp, 4 * kPointerSize));
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register arguments_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register arguments_arg = rdx;
 #else
@@ -1010,13 +1011,15 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ Push(Handle<Object>(callback->data()));
   }
-  __ movq(kScratchRegister, ExternalReference::isolate_address());
-  __ push(kScratchRegister);  // isolate
+  __ PushAddress(ExternalReference::isolate_address());  // isolate
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register accessor_info_arg = rdx;
+  Register name_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register accessor_info_arg = r8;
   Register name_arg = rdx;
@@ -1186,8 +1189,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ push(holder_reg);
       __ Move(holder_reg, callback);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
-      __ movq(kScratchRegister, ExternalReference::isolate_address());
-      __ push(kScratchRegister);
+      __ PushAddress(ExternalReference::isolate_address());
       __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address

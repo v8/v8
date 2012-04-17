@@ -1338,6 +1338,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_MODULE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
@@ -2321,7 +2322,7 @@ Object* Map::GetDescriptorContents(String* sentinel_name,
   }
   // If the transition already exists, return its descriptor.
   if (index != DescriptorArray::kNotFound) {
-    PropertyDetails details(descriptors->GetDetails(index));
+    PropertyDetails details = descriptors->GetDetails(index);
     if (details.type() == ELEMENTS_TRANSITION) {
       return descriptors->GetValue(index);
     } else {
@@ -3025,7 +3026,6 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,
     PropertyAttributes attributes) {
-
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -3094,7 +3094,6 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
       UNREACHABLE();
-      return value;
   }
   UNREACHABLE();  // keep the compiler happy
   return value;
@@ -3345,7 +3344,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details(descs->GetDetails(i));
+    PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
@@ -4207,7 +4206,7 @@ int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details(descs->GetDetails(i));
+    PropertyDetails details = descs->GetDetails(i);
     if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
       result++;
     }
@@ -5688,7 +5687,7 @@ MaybeObject* DescriptorArray::CopyFrom(int dst_index,
                                        int src_index,
                                        const WhitenessWitness& witness) {
   Object* value = src->GetValue(src_index);
-  PropertyDetails details(src->GetDetails(src_index));
+  PropertyDetails details = src->GetDetails(src_index);
   if (details.type() == CALLBACKS && value->IsAccessorPair()) {
     MaybeObject* maybe_copy =
         AccessorPair::cast(value)->CopyWithoutTransitions();
@@ -5731,7 +5730,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   if (replacing) {
     // We are replacing an existing descriptor.  We keep the enumeration
     // index of a visible property.
-    PropertyType t = PropertyDetails(GetDetails(index)).type();
+    PropertyType t = GetDetails(index).type();
     if (t == CONSTANT_FUNCTION ||
         t == FIELD ||
         t == CALLBACKS ||
@@ -5758,8 +5757,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int enumeration_index = NextEnumerationIndex();
   if (!descriptor->ContainsTransition()) {
     if (keep_enumeration_index) {
-      descriptor->SetEnumerationIndex(
-          PropertyDetails(GetDetails(index)).index());
+      descriptor->SetEnumerationIndex(GetDetails(index).index());
     } else {
       descriptor->SetEnumerationIndex(enumeration_index);
       ++enumeration_index;
@@ -5903,10 +5901,10 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
     ASSERT(hash == mid_hash);
     // There might be more, so we find the first one and
     // check them all to see if we have a match.
-    if (name == mid_name  && !is_null_descriptor(mid)) return mid;
+    if (name == mid_name  && !IsNullDescriptor(mid)) return mid;
     while ((mid > low) && (GetKey(mid - 1)->Hash() == hash)) mid--;
     for (; (mid <= high) && (GetKey(mid)->Hash() == hash); mid++) {
-      if (GetKey(mid)->Equals(name) && !is_null_descriptor(mid)) return mid;
+      if (GetKey(mid)->Equals(name) && !IsNullDescriptor(mid)) return mid;
     }
     break;
   }
@@ -5920,7 +5918,7 @@ int DescriptorArray::LinearSearch(String* name, int len) {
     String* entry = GetKey(number);
     if ((entry->Hash() == hash) &&
         name->Equals(entry) &&
-        !is_null_descriptor(number)) {
+        !IsNullDescriptor(number)) {
       return number;
     }
   }

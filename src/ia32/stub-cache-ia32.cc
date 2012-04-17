@@ -4030,6 +4030,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
     int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
     __ AllocateInNewSpace(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
+
     // Restore the key, which is known to be the array length.
     __ mov(ecx, Immediate(0));
 

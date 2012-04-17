@@ -743,11 +743,8 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() {
-    if (!mutex_) {
-      mutex_ = OS::CreateMutex();
-    }
-  }
+  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void TearDown() { delete mutex_; }
 
   static void AddActiveSampler(Sampler* sampler) {
     ScopedLock lock(mutex_);
@@ -878,6 +875,12 @@ void OS::SetUp() {
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
   SamplerThread::SetUp();
+}
+
+
+void OS::TearDown() {
+  SamplerThread::TearDown();
+  delete limit_mutex;
 }
 
 

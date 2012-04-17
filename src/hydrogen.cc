@@ -612,6 +612,7 @@ HGraphBuilder::HGraphBuilder(CompilationInfo* info,
       graph_(NULL),
       current_block_(NULL),
       inlined_count_(0),
+      globals_(10),
       zone_(info->isolate()->zone()),
       inline_bailout_(false) {
   // This is not initialized in the initializer list because the
@@ -2550,7 +2551,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     // Handle implicit declaration of the function name in named function
     // expressions before other declarations.
     if (scope->is_function_scope() && scope->function() != NULL) {
-      HandleDeclaration(scope->function(), CONST, NULL, NULL);
+      VisitVariableDeclaration(scope->function());
     }
     VisitDeclarations(scope->declarations());
     AddSimulate(AstNode::kDeclarationsId);
@@ -2767,7 +2768,7 @@ void HGraphBuilder::VisitBlock(Block* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (stmt->block_scope() != NULL) {
+  if (stmt->scope() != NULL) {
     return Bailout("ScopedBlock");
   }
   BreakAndContinueInfo break_info(stmt);
@@ -3748,10 +3749,11 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     if (boilerplate->HasFastDoubleElements()) {
       *total_size += FixedDoubleArray::SizeFor(elements->length());
     } else if (boilerplate->HasFastElements()) {
+      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
       for (int i = 0; i < length; i++) {
         if ((*max_properties)-- == 0) return false;
-        Handle<Object> value = JSObject::GetElement(boilerplate, i);
+        Handle<Object> value(fast_elements->get(i));
         if (value->IsJSObject()) {
           Handle<JSObject> value_object = Handle<JSObject>::cast(value);
           if (!IsFastLiteral(value_object,
@@ -7160,90 +7162,50 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  int length = declarations->length();
-  int global_count = 0;
-  for (int i = 0; i < declarations->length(); i++) {
-    Declaration* decl = declarations->at(i);
-    FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
-    HandleDeclaration(decl->proxy(),
-                      decl->mode(),
-                      fun_decl != NULL ? fun_decl->fun() : NULL,
-                      &global_count);
-  }
-
-  // Batch declare global functions and variables.
-  if (global_count > 0) {
+  ASSERT(globals_.is_empty());
+  AstVisitor::VisitDeclarations(declarations);
+  if (!globals_.is_empty()) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
-    for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
-
-      if (var->IsUnallocated()) {
-        array->set(j++, *(var->name()));
-        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
-        if (fun_decl == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
-            array->set_the_hole(j++);
-          } else {
-            array->set_undefined(j++);
-          }
-        } else {
-          Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(fun_decl->fun(), info()->script());
-          // Check for stack-overflow exception.
-          if (function.is_null()) {
-            SetStackOverflow();
-            return;
-          }
-          array->set(j++, *function);
-        }
-      }
-    }
+       isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
+    for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
     int flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
                 DeclareGlobalsNativeFlag::encode(info()->is_native()) |
                 DeclareGlobalsLanguageMode::encode(info()->language_mode());
-    HInstruction* result =
-        new(zone()) HDeclareGlobals(environment()->LookupContext(),
-                                    array,
-                                    flags);
+    HInstruction* result = new(zone()) HDeclareGlobals(
+        environment()->LookupContext(), array, flags);
     AddInstruction(result);
+    globals_.Clear();
   }
 }
 
 
-void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
-                                      VariableMode mode,
-                                      FunctionLiteral* function,
-                                      int* global_count) {
-  Variable* var = proxy->var();
-  bool binding_needs_init =
-      (mode == CONST || mode == CONST_HARMONY || mode == LET);
-  switch (var->location()) {
+void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  VariableMode mode = declaration->mode();
+  Variable* variable = proxy->var();
+  bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
+  switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++(*global_count);
+      globals_.Add(variable->name());
+      globals_.Add(variable->binding_needs_init()
+                       ? isolate()->factory()->the_hole_value()
+                       : isolate()->factory()->undefined_value());
       return;
     case Variable::PARAMETER:
     case Variable::LOCAL:
+      if (hole_init) {
+        HValue* value = graph()->GetConstantHole();
+        environment()->Bind(variable, value);
+      }
+      break;
     case Variable::CONTEXT:
-      if (binding_needs_init || function != NULL) {
-        HValue* value = NULL;
-        if (function != NULL) {
-          CHECK_ALIVE(VisitForValue(function));
-          value = Pop();
-        } else {
-          value = graph()->GetConstantHole();
-        }
-        if (var->IsContextSlot()) {
-          HValue* context = environment()->LookupContext();
-          HStoreContextSlot* store = new HStoreContextSlot(
-              context, var->index(), HStoreContextSlot::kNoCheck, value);
-          AddInstruction(store);
-          if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
-        } else {
-          environment()->Bind(var, value);
-        }
+      if (hole_init) {
+        HValue* value = graph()->GetConstantHole();
+        HValue* context = environment()->LookupContext();
+        HStoreContextSlot* store = new HStoreContextSlot(
+            context, variable->index(), HStoreContextSlot::kNoCheck, value);
+        AddInstruction(store);
+        if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
       }
       break;
     case Variable::LOOKUP:
@@ -7252,48 +7214,74 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
 }
 
 
-void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
+void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case Variable::UNALLOCATED: {
+      globals_.Add(variable->name());
+      Handle<SharedFunctionInfo> function =
+          Compiler::BuildFunctionInfo(declaration->fun(), info()->script());
+      // Check for stack-overflow exception.
+      if (function.is_null()) return SetStackOverflow();
+      globals_.Add(function);
+      return;
+    }
+    case Variable::PARAMETER:
+    case Variable::LOCAL: {
+      CHECK_ALIVE(VisitForValue(declaration->fun()));
+      HValue* value = Pop();
+      environment()->Bind(variable, value);
+      break;
+    }
+    case Variable::CONTEXT: {
+      CHECK_ALIVE(VisitForValue(declaration->fun()));
+      HValue* value = Pop();
+      HValue* context = environment()->LookupContext();
+      HStoreContextSlot* store = new HStoreContextSlot(
+          context, variable->index(), HStoreContextSlot::kNoCheck, value);
+      AddInstruction(store);
+      if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
+      break;
+    }
+    case Variable::LOOKUP:
+      return Bailout("unsupported lookup slot in declaration");
+  }
+}
+
+
+void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   UNREACHABLE();
 }
 
 
-void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
+void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* declaration) {
   UNREACHABLE();
 }
 
 
-void HGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
-void HGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
-void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
+void HGraphBuilder::VisitExportDeclaration(ExportDeclaration* declaration) {
   UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleLiteral(ModuleLiteral* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleVariable(ModuleVariable* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModulePath(ModulePath* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 
 void HGraphBuilder::VisitModuleUrl(ModuleUrl* module) {
-  // TODO(rossberg)
+  UNREACHABLE();
 }
 
 

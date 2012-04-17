@@ -5998,7 +5998,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetFromNode");
-  const i::HeapEntry* from = ToInternal(this)->From();
+  const i::HeapEntry* from = ToInternal(this)->from();
   return reinterpret_cast<const HeapGraphNode*>(from);
 }
 
@@ -6215,6 +6215,14 @@ const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
   IsDeadCheck(isolate, "v8::HeapProfiler::FindSnapshot");
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::FindSnapshot(uid));
+}
+
+
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotObjectId");
+  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
+  return i::HeapProfiler::GetSnapshotObjectId(obj);
 }
 
 

@@ -1,3 +1,22 @@
+2012-04-17: Version 3.10.3
+
+        Fixed several bugs in heap profiles (including issue 2078).
+
+        Throw syntax errors on illegal escape sequences.
+
+        Implemented rudimentary module linking (behind --harmony flag)
+
+        Implemented ES5 erratum: Global declarations should shadow
+        inherited properties.
+
+        Made handling of const more consistent when combined with 'eval'
+        and 'with'.
+
+        Fixed V8 on MinGW-x64 (issue 2026).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-13: Version 3.10.2
 
         Fixed native ARM build (issues 1744, 539)

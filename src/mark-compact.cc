@@ -1525,12 +1525,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                              JSFunction::kCodeEntryOffset + kPointerSize),
         HeapObject::RawField(object,
                              JSFunction::kNonWeakFieldsEndOffset));
-
-    // Don't visit the next function list field as it is a weak reference.
-    Object** next_function =
-        HeapObject::RawField(object, JSFunction::kNextFunctionLinkOffset);
-    heap->mark_compact_collector()->RecordSlot(
-        next_function, next_function, *next_function);
   }
 
   static inline void VisitJSRegExpFields(Map* map,

@@ -480,7 +480,10 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  UNIMPLEMENTED_MIPS();
+  ASSERT(minus < String::kMaxUtf16CodeUnit);
+  __ Subu(a0, current_character(), Operand(minus));
+  __ And(a0, a0, Operand(mask));
+  BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
 }
 
 

@@ -25,6 +25,64 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"abcd".replace(/b/g, function() { });
+function oneMatch(re) {
+  "abcd".replace(re, function() { });
+  assertEquals("abcd", RegExp.input);
+  assertEquals("a", RegExp.leftContext);
+  assertEquals("b", RegExp.lastMatch);
+  assertEquals("", RegExp.lastParen);
+  assertEquals(undefined, RegExp.lastIndex);
+  assertEquals(undefined, RegExp.index);
+  assertEquals("cd", RegExp.rightContext);
+  for (var i = 1; i < 10; i++) {
+    assertEquals("", RegExp['$' + i]);
+  }
+}
 
+oneMatch(/b/);
+oneMatch(/b/g);
+
+"abcdabcd".replace(/b/g, function() { });
+assertEquals("abcdabcd", RegExp.input);
+assertEquals("abcda", RegExp.leftContext);
+assertEquals("b", RegExp.lastMatch);
+assertEquals("", RegExp.lastParen);
+assertEquals(undefined, RegExp.lastIndex);
+assertEquals(undefined, RegExp.index);
 assertEquals("cd", RegExp.rightContext);
+for (var i = 1; i < 10; i++) {
+  assertEquals("", RegExp['$' + i]);
+}
+
+function captureMatch(re) {
+  "abcd".replace(re, function() { });
+  assertEquals("abcd", RegExp.input);
+  assertEquals("a", RegExp.leftContext);
+  assertEquals("bc", RegExp.lastMatch);
+  assertEquals("c", RegExp.lastParen);
+  assertEquals(undefined, RegExp.lastIndex);
+  assertEquals(undefined, RegExp.index);
+  assertEquals("d", RegExp.rightContext);
+  assertEquals('b', RegExp.$1);
+  assertEquals('c', RegExp.$2);
+  for (var i = 3; i < 10; i++) {
+    assertEquals("", RegExp['$' + i]);
+  }
+}
+
+captureMatch(/(b)(c)/);
+captureMatch(/(b)(c)/g);
+
+"abcdabcd".replace(/(b)(c)/g, function() { });
+assertEquals("abcdabcd", RegExp.input);
+assertEquals("abcda", RegExp.leftContext);
+assertEquals("bc", RegExp.lastMatch);
+assertEquals("c", RegExp.lastParen);
+assertEquals(undefined, RegExp.lastIndex);
+assertEquals(undefined, RegExp.index);
+assertEquals("d", RegExp.rightContext);
+assertEquals('b', RegExp.$1);
+assertEquals('c', RegExp.$2);
+for (var i = 3; i < 10; i++) {
+  assertEquals("", RegExp['$' + i]);
+}

@@ -189,6 +189,15 @@ HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 }
 
 
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
+  if (!obj->IsHeapObject())
+    return v8::HeapProfiler::kUnknownObjectId;
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->FindObjectId(HeapObject::cast(*obj)->address());
+}
+
+
 void HeapProfiler::DeleteAllSnapshots() {
   HeapProfiler* profiler = Isolate::Current()->heap_profiler();
   ASSERT(profiler != NULL);

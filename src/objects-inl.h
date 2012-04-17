@@ -581,7 +581,8 @@ bool Object::IsContext() {
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
             map == heap->global_context_map() ||
-            map == heap->block_context_map());
+            map == heap->block_context_map() ||
+            map == heap->module_context_map());
   }
   return false;
 }
@@ -591,6 +592,13 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
+}
+
+
+bool Object::IsModuleContext() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->module_context_map();
 }
 
 
@@ -613,6 +621,7 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
@@ -1436,6 +1445,8 @@ int JSObject::GetHeaderSize() {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
+    case JS_MODULE_TYPE:
+      return JSModule::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1922,15 +1933,15 @@ Object* DescriptorArray::GetValue(int descriptor_number) {
 }
 
 
-Smi* DescriptorArray::GetDetails(int descriptor_number) {
+PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return Smi::cast(GetContentArray()->get(ToDetailsIndex(descriptor_number)));
+  Object* details = GetContentArray()->get(ToDetailsIndex(descriptor_number));
+  return PropertyDetails(Smi::cast(details));
 }
 
 
 PropertyType DescriptorArray::GetType(int descriptor_number) {
-  ASSERT(descriptor_number < number_of_descriptors());
-  return PropertyDetails(GetDetails(descriptor_number)).type();
+  return GetDetails(descriptor_number).type();
 }
 
 
@@ -1993,15 +2004,10 @@ bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
 }
 
 
-bool DescriptorArray::IsDontEnum(int descriptor_number) {
-  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
-}
-
-
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             PropertyDetails(GetDetails(descriptor_number)));
+             GetDetails(descriptor_number));
 }
 
 
@@ -4075,6 +4081,16 @@ Address Foreign::foreign_address() {
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
+}
+
+
+ACCESSORS(JSModule, context, Object, kContextOffset)
+
+
+JSModule* JSModule::cast(Object* obj) {
+  ASSERT(obj->IsJSModule());
+  ASSERT(HeapObject::cast(obj)->Size() == JSModule::kSize);
+  return reinterpret_cast<JSModule*>(obj);
 }
 
 

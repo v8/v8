@@ -957,11 +957,6 @@ void HeapGraphEdge::Init(int child_index, int index, HeapEntry* to) {
 }
 
 
-HeapEntry* HeapGraphEdge::From() {
-  return reinterpret_cast<HeapEntry*>(this - child_index_) - 1;
-}
-
-
 void HeapEntry::Init(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
@@ -972,6 +967,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   snapshot_ = snapshot;
   type_ = type;
   painted_ = false;
+  reachable_from_window_ = false;
   name_ = name;
   self_size_ = self_size;
   retained_size_ = 0;
@@ -1134,6 +1130,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       gc_roots_entry_(NULL),
       natives_root_entry_(NULL),
       raw_entries_(NULL),
+      number_of_edges_(0),
       max_snapshot_js_object_id_(0) {
   STATIC_CHECK(
       sizeof(HeapGraphEdge) ==
@@ -1167,6 +1164,7 @@ void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
   ASSERT(raw_entries_ == NULL);
+  number_of_edges_ = children_count;
   raw_entries_size_ =
       HeapEntry::EntriesSize(entries_count, children_count, retainers_count);
   raw_entries_ = NewArray<char>(raw_entries_size_);
@@ -1312,10 +1310,8 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
 HeapObjectsMap::HeapObjectsMap()
-    : initial_fill_mode_(true),
-      next_id_(kFirstAvailableObjectId),
-      entries_map_(AddressesMatch),
-      entries_(new List<EntryInfo>()) {
+    : next_id_(kFirstAvailableObjectId),
+      entries_map_(AddressesMatch) {
   // This dummy element solves a problem with entries_map_.
   // When we do lookup in HashMap we see no difference between two cases:
   // it has an entry with NULL as the value or it has created
@@ -1323,34 +1319,12 @@ HeapObjectsMap::HeapObjectsMap()
   // With such dummy element we have a guaranty that all entries_map_ entries
   // will have the value field grater than 0.
   // This fact is using in MoveObject method.
-  entries_->Add(EntryInfo(0, NULL));
-}
-
-
-HeapObjectsMap::~HeapObjectsMap() {
-  delete entries_;
+  entries_.Add(EntryInfo(0, NULL, 0));
 }
 
 
 void HeapObjectsMap::SnapshotGenerationFinished() {
-  initial_fill_mode_ = false;
   RemoveDeadEntries();
-}
-
-
-SnapshotObjectId HeapObjectsMap::FindObject(Address addr) {
-  if (!initial_fill_mode_) {
-    SnapshotObjectId existing = FindEntry(addr);
-    if (existing != 0) return existing;
-  }
-  SnapshotObjectId id = next_id_;
-  next_id_ += kObjectIdStep;
-  AddEntry(addr, id);
-  // Here and in other places the length of entries_ list has to be
-  // the same or greater than the length of entries_map_. But entries_ list
-  // has a dummy element at index 0.
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
-  return id;
 }
 
 
@@ -1362,7 +1336,7 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   if (from_value == NULL) return;
   int from_entry_info_index =
       static_cast<int>(reinterpret_cast<intptr_t>(from_value));
-  entries_->at(from_entry_info_index).addr = to;
+  entries_.at(from_entry_info_index).addr = to;
   HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
   if (to_entry->value != NULL) {
     int to_entry_info_index =
@@ -1371,56 +1345,39 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
     // value in addr field. It is bad because later at RemoveDeadEntries
     // one of this entry will be removed with the corresponding entries_map_
     // entry.
-    entries_->at(to_entry_info_index).addr = NULL;
+    entries_.at(to_entry_info_index).addr = NULL;
   }
   to_entry->value = reinterpret_cast<void*>(from_entry_info_index);
 }
 
 
-void HeapObjectsMap::AddEntry(Address addr, SnapshotObjectId id) {
-  HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
-  ASSERT(entry->value == NULL);
-  ASSERT(entries_->length() > 0 &&
-         entries_->at(0).id == 0 &&
-         entries_->at(0).addr == NULL);
-  ASSERT(entries_->at(entries_->length() - 1).id < id);
-  entry->value = reinterpret_cast<void*>(entries_->length());
-  entries_->Add(EntryInfo(id, addr));
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
-}
-
-
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
-  if (entry != NULL) {
-    int entry_index =
-        static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-    EntryInfo& entry_info = entries_->at(entry_index);
-    entry_info.accessed = true;
-    ASSERT(static_cast<uint32_t>(entries_->length()) >
-           entries_map_.occupancy());
-    return entry_info.id;
-  } else {
-    return 0;
-  }
+  if (entry == NULL) return 0;
+  int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
+  EntryInfo& entry_info = entries_.at(entry_index);
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
+  return entry_info.id;
 }
 
 
-SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr) {
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
+                                                unsigned int size) {
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   if (entry->value != NULL) {
     int entry_index =
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-    EntryInfo& entry_info = entries_->at(entry_index);
+    EntryInfo& entry_info = entries_.at(entry_index);
     entry_info.accessed = true;
+    entry_info.size = size;
     return entry_info.id;
   }
-  entry->value = reinterpret_cast<void*>(entries_->length());
+  entry->value = reinterpret_cast<void*>(entries_.length());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_->Add(EntryInfo(id, addr));
-  ASSERT(static_cast<uint32_t>(entries_->length()) > entries_map_.occupancy());
+  entries_.Add(EntryInfo(id, addr, size));
+  ASSERT(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
   return id;
 }
 
@@ -1432,13 +1389,12 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 void HeapObjectsMap::UpdateHeapObjectsMap() {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  HeapIterator iterator;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    FindOrAddEntry(obj->address());
+    FindOrAddEntry(obj->address(), obj->Size());
   }
-  initial_fill_mode_ = false;
   RemoveDeadEntries();
 }
 
@@ -1448,22 +1404,27 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
   List<uint32_t> stats_buffer;
-  ASSERT(!entries_->is_empty());
-  EntryInfo* entry_info = &entries_->first();
-  EntryInfo* end_entry_info = &entries_->last() + 1;
+  ASSERT(!entries_.is_empty());
+  EntryInfo* entry_info = &entries_.first();
+  EntryInfo* end_entry_info = &entries_.last() + 1;
   for (int time_interval_index = 0;
        time_interval_index < time_intervals_.length();
        ++time_interval_index) {
     TimeInterval& time_interval = time_intervals_[time_interval_index];
     SnapshotObjectId time_interval_id = time_interval.id;
-    uint32_t entries_count = 0;
+    uint32_t entries_size = 0;
+    EntryInfo* start_entry_info = entry_info;
     while (entry_info < end_entry_info && entry_info->id < time_interval_id) {
-      ++entries_count;
+      entries_size += entry_info->size;
       ++entry_info;
     }
-    if (time_interval.count != entries_count) {
+    uint32_t entries_count =
+        static_cast<uint32_t>(entry_info - start_entry_info);
+    if (time_interval.count != entries_count ||
+        time_interval.size != entries_size) {
       stats_buffer.Add(time_interval_index);
       stats_buffer.Add(time_interval.count = entries_count);
+      stats_buffer.Add(time_interval.size = entries_size);
       if (stats_buffer.length() >= prefered_chunk_size) {
         OutputStream::WriteResult result = stream->WriteUint32Chunk(
             &stats_buffer.first(), stats_buffer.length());
@@ -1483,17 +1444,17 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
 
 
 void HeapObjectsMap::RemoveDeadEntries() {
-  ASSERT(entries_->length() > 0 &&
-         entries_->at(0).id == 0 &&
-         entries_->at(0).addr == NULL);
+  ASSERT(entries_.length() > 0 &&
+         entries_.at(0).id == 0 &&
+         entries_.at(0).addr == NULL);
   int first_free_entry = 1;
-  for (int i = 1; i < entries_->length(); ++i) {
-    EntryInfo& entry_info = entries_->at(i);
+  for (int i = 1; i < entries_.length(); ++i) {
+    EntryInfo& entry_info = entries_.at(i);
     if (entry_info.accessed) {
       if (first_free_entry != i) {
-        entries_->at(first_free_entry) = entry_info;
+        entries_.at(first_free_entry) = entry_info;
       }
-      entries_->at(first_free_entry).accessed = false;
+      entries_.at(first_free_entry).accessed = false;
       HashMap::Entry* entry = entries_map_.Lookup(
           entry_info.addr, AddressHash(entry_info.addr), false);
       ASSERT(entry);
@@ -1505,8 +1466,8 @@ void HeapObjectsMap::RemoveDeadEntries() {
       }
     }
   }
-  entries_->Rewind(first_free_entry);
-  ASSERT(static_cast<uint32_t>(entries_->length()) - 1 ==
+  entries_.Rewind(first_free_entry);
+  ASSERT(static_cast<uint32_t>(entries_.length()) - 1 ==
          entries_map_.occupancy());
 }
 
@@ -1594,7 +1555,7 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    if (ids_.FindObject(obj->address()) == id) {
+    if (ids_.FindEntry(obj->address()) == id) {
       ASSERT(object == NULL);
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
@@ -1895,10 +1856,13 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
                                     const char* name,
                                     int children_count,
                                     int retainers_count) {
+  int object_size = object->Size();
+  SnapshotObjectId object_id =
+    collection_->GetObjectId(object->address(), object_size);
   return snapshot_->AddEntry(type,
                              name,
-                             collection_->GetObjectId(object->address()),
-                             object->Size(),
+                             object_id,
+                             object_size,
                              children_count,
                              retainers_count);
 }
@@ -2016,7 +1980,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     // We use JSGlobalProxy because this is what embedder (e.g. browser)
     // uses for the global object.
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
-    SetRootShortcutReference(proxy->map()->prototype());
+    SetWindowReference(proxy->map()->prototype());
   } else if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
     ExtractClosureReferences(js_obj, entry);
@@ -2187,7 +2151,7 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
   if (!js_obj->IsJSFunction()) return;
 
   JSFunction* func = JSFunction::cast(js_obj);
-  Context* context = func->context();
+  Context* context = func->context()->declaration_context();
   ScopeInfo* scope_info = context->closure()->shared()->scope_info();
 
   if (func->shared()->bound()) {
@@ -2284,15 +2248,15 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
       Object* k = dictionary->KeyAt(i);
       if (dictionary->IsKey(k)) {
         Object* target = dictionary->ValueAt(i);
-        SetPropertyReference(
-            js_obj, entry, String::cast(k), target);
         // We assume that global objects can only have slow properties.
-        if (target->IsJSGlobalPropertyCell()) {
-          SetPropertyShortcutReference(js_obj,
-                                       entry,
-                                       String::cast(k),
-                                       JSGlobalPropertyCell::cast(
-                                           target)->value());
+        Object* value = target->IsJSGlobalPropertyCell()
+            ? JSGlobalPropertyCell::cast(target)->value()
+            : target;
+        if (String::cast(k)->length() > 0) {
+          SetPropertyReference(js_obj, entry, String::cast(k), value);
+        } else {
+          TagObject(value, "(hidden properties)");
+          SetInternalReference(js_obj, entry, "hidden_properties", value);
         }
       }
     }
@@ -2661,7 +2625,7 @@ void V8HeapExplorer::SetRootGcRootsReference() {
 }
 
 
-void V8HeapExplorer::SetRootShortcutReference(Object* child_obj) {
+void V8HeapExplorer::SetWindowReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   ASSERT(child_entry != NULL);
   filler_->SetNamedAutoIndexReference(
@@ -2743,7 +2707,7 @@ void V8HeapExplorer::TagGlobalObjects() {
     Handle<JSGlobalObject> global_obj = enumerator.at(i);
     Object* obj_document;
     if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
-       obj_document->IsJSObject()) {
+        obj_document->IsJSObject()) {
       JSObject* document = JSObject::cast(obj_document);
       Object* obj_url;
       if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
@@ -3297,19 +3261,61 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 
-void HeapSnapshotGenerator::FillReversePostorderIndexes(
+bool HeapSnapshotGenerator::IsWindowReference(const HeapGraphEdge& edge) {
+  ASSERT(edge.from() == snapshot_->root());
+  return edge.type() == HeapGraphEdge::kShortcut;
+}
+
+
+void HeapSnapshotGenerator::MarkWindowReachableObjects() {
+  List<HeapEntry*> worklist;
+
+  Vector<HeapGraphEdge> children = snapshot_->root()->children();
+  for (int i = 0; i < children.length(); ++i) {
+    if (IsWindowReference(children[i])) {
+      worklist.Add(children[i].to());
+    }
+  }
+
+  while (!worklist.is_empty()) {
+    HeapEntry* entry = worklist.RemoveLast();
+    if (entry->reachable_from_window()) continue;
+    entry->set_reachable_from_window();
+    Vector<HeapGraphEdge> children = entry->children();
+    for (int i = 0; i < children.length(); ++i) {
+      HeapEntry* child = children[i].to();
+      if (!child->reachable_from_window()) {
+        worklist.Add(child);
+      }
+    }
+  }
+}
+
+
+static bool IsRetainingEdge(HeapGraphEdge* edge) {
+  if (edge->type() == HeapGraphEdge::kShortcut) return false;
+  // The edge is not retaining if it goes from system domain
+  // (i.e. an object not reachable from window) to the user domain
+  // (i.e. a reachable object).
+  return edge->from()->reachable_from_window()
+      || !edge->to()->reachable_from_window();
+}
+
+
+void HeapSnapshotGenerator::FillPostorderIndexes(
     Vector<HeapEntry*>* entries) {
   snapshot_->ClearPaint();
   int current_entry = 0;
   List<HeapEntry*> nodes_to_visit;
-  nodes_to_visit.Add(snapshot_->root());
+  HeapEntry* root = snapshot_->root();
+  nodes_to_visit.Add(root);
   snapshot_->root()->paint();
   while (!nodes_to_visit.is_empty()) {
     HeapEntry* entry = nodes_to_visit.last();
     Vector<HeapGraphEdge> children = entry->children();
     bool has_new_edges = false;
     for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
+      if (entry != root && !IsRetainingEdge(&children[i])) continue;
       HeapEntry* child = children[i].to();
       if (!child->painted()) {
         nodes_to_visit.Add(child);
@@ -3344,6 +3350,7 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
     const Vector<HeapEntry*>& entries,
     Vector<int>* dominators) {
   if (entries.length() == 0) return true;
+  HeapEntry* root = snapshot_->root();
   const int entries_length = entries.length(), root_index = entries_length - 1;
   static const int kNoDominator = -1;
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
@@ -3372,8 +3379,8 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
       int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
       for (int j = 0; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        int ret_index = rets[j]->From()->ordered_index();
+        if (rets[j]->from() != root && !IsRetainingEdge(rets[j])) continue;
+        int ret_index = rets[j]->from()->ordered_index();
         if (dominators->at(ret_index) != kNoDominator) {
           new_idom_index = new_idom_index == kNoDominator
               ? ret_index
@@ -3399,9 +3406,10 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
 
 
 bool HeapSnapshotGenerator::SetEntriesDominators() {
-  // This array is used for maintaining reverse postorder of nodes.
+  MarkWindowReachableObjects();
+  // This array is used for maintaining postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
-  FillReversePostorderIndexes(&ordered_entries);
+  FillPostorderIndexes(&ordered_entries);
   ScopedVector<int> dominators(ordered_entries.length());
   if (!BuildDominatorTree(ordered_entries, &dominators)) return false;
   for (int i = 0; i < ordered_entries.length(); ++i) {
@@ -3576,14 +3584,37 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
 }
 
 
+void HeapSnapshotJSONSerializer::CalculateNodeIndexes(
+    const List<HeapEntry*>& nodes) {
+  // type,name,id,self_size,retained_size,dominator,children_index.
+  const int node_fields_count = 7;
+  // Root must be the first.
+  ASSERT(nodes.first() == snapshot_->root());
+  // Rewrite node indexes, so they refer to actual array positions. Do this
+  // only once.
+  if (nodes[0]->entry_index() == -1) {
+    int index = 0;
+    for (int i = 0; i < nodes.length(); ++i, index += node_fields_count) {
+      nodes[i]->set_entry_index(index);
+    }
+  }
+}
+
+
 void HeapSnapshotJSONSerializer::SerializeImpl() {
+  List<HeapEntry*>& nodes = *(snapshot_->entries());
+  CalculateNodeIndexes(nodes);
   writer_->AddCharacter('{');
   writer_->AddString("\"snapshot\":{");
   SerializeSnapshot();
   if (writer_->aborted()) return;
   writer_->AddString("},\n");
   writer_->AddString("\"nodes\":[");
-  SerializeNodes();
+  SerializeNodes(nodes);
+  if (writer_->aborted()) return;
+  writer_->AddString("],\n");
+  writer_->AddString("\"edges\":[");
+  SerializeEdges(nodes);
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
   writer_->AddString("\"strings\":[");
@@ -3630,7 +3661,8 @@ static int itoa(int value, const Vector<char>& buffer, int buffer_pos) {
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
+void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
+                                               bool first_edge) {
   // The buffer needs space for 3 ints, 3 commas and \0
   static const int kBufferSize =
       MaxDecimalDigitsIn<sizeof(int)>::kSigned * 3 + 3 + 1;  // NOLINT
@@ -3640,7 +3672,9 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
       || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
   int buffer_pos = 0;
-  buffer[buffer_pos++] = ',';
+  if (!first_edge) {
+    buffer[buffer_pos++] = ',';
+  }
   buffer_pos = itoa(edge->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(edge_name_or_index, buffer, buffer_pos);
@@ -3651,17 +3685,33 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
+void HeapSnapshotJSONSerializer::SerializeEdges(const List<HeapEntry*>& nodes) {
+  bool first_edge = true;
+  for (int i = 0; i < nodes.length(); ++i) {
+    HeapEntry* entry = nodes[i];
+    Vector<HeapGraphEdge> children = entry->children();
+    for (int j = 0; j < children.length(); ++j) {
+      SerializeEdge(&children[j], first_edge);
+      first_edge = false;
+      if (writer_->aborted()) return;
+    }
+  }
+}
+
+
+void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry,
+                                               int edges_index) {
   // The buffer needs space for 6 ints, 1 uint32_t, 7 commas, \n and \0
   static const int kBufferSize =
       6 * MaxDecimalDigitsIn<sizeof(int)>::kSigned  // NOLINT
       + MaxDecimalDigitsIn<sizeof(uint32_t)>::kUnsigned  // NOLINT
       + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
-  Vector<HeapGraphEdge> children = entry->children();
   int buffer_pos = 0;
   buffer[buffer_pos++] = '\n';
-  buffer[buffer_pos++] = ',';
+  if (entry->entry_index() != 0) {
+    buffer[buffer_pos++] = ',';
+  }
   buffer_pos = itoa(entry->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(GetStringId(entry->name()), buffer, buffer_pos);
@@ -3674,93 +3724,19 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
   buffer[buffer_pos++] = ',';
   buffer_pos = itoa(entry->dominator()->entry_index(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(children.length(), buffer, buffer_pos);
+  buffer_pos = itoa(edges_index, buffer, buffer_pos);
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
-  for (int i = 0; i < children.length(); ++i) {
-    SerializeEdge(&children[i]);
-    if (writer_->aborted()) return;
-  }
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNodes() {
-  // The first (zero) item of nodes array is an object describing node
-  // serialization layout.  We use a set of macros to improve
-  // readability.
-#define JSON_A(s) "["s"]"
-#define JSON_O(s) "{"s"}"
-#define JSON_S(s) "\""s"\""
-  writer_->AddString(JSON_O(
-    JSON_S("fields") ":" JSON_A(
-        JSON_S("type")
-        "," JSON_S("name")
-        "," JSON_S("id")
-        "," JSON_S("self_size")
-        "," JSON_S("retained_size")
-        "," JSON_S("dominator")
-        "," JSON_S("children_count")
-        "," JSON_S("children"))
-    "," JSON_S("types") ":" JSON_A(
-        JSON_A(
-            JSON_S("hidden")
-            "," JSON_S("array")
-            "," JSON_S("string")
-            "," JSON_S("object")
-            "," JSON_S("code")
-            "," JSON_S("closure")
-            "," JSON_S("regexp")
-            "," JSON_S("number")
-            "," JSON_S("native")
-            "," JSON_S("synthetic"))
-        "," JSON_S("string")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_S("number")
-        "," JSON_O(
-            JSON_S("fields") ":" JSON_A(
-                JSON_S("type")
-                "," JSON_S("name_or_index")
-                "," JSON_S("to_node"))
-            "," JSON_S("types") ":" JSON_A(
-                JSON_A(
-                    JSON_S("context")
-                    "," JSON_S("element")
-                    "," JSON_S("property")
-                    "," JSON_S("internal")
-                    "," JSON_S("hidden")
-                    "," JSON_S("shortcut")
-                    "," JSON_S("weak"))
-                "," JSON_S("string_or_number")
-                "," JSON_S("node"))))));
-#undef JSON_S
-#undef JSON_O
-#undef JSON_A
-
-  const int node_fields_count = 7;
-  // type,name,id,self_size,retained_size,dominator,children_count.
+void HeapSnapshotJSONSerializer::SerializeNodes(const List<HeapEntry*>& nodes) {
   const int edge_fields_count = 3;  // type,name|index,to_node.
-
-  List<HeapEntry*>& nodes = *(snapshot_->entries());
-  // Root must be the first.
-  ASSERT(nodes.first() == snapshot_->root());
-  // Rewrite node indexes, so they refer to actual array positions. Do this
-  // only once.
-  if (nodes[0]->entry_index() == -1) {
-    // Nodes start from array index 1.
-    int index = 1;
-    for (int i = 0; i < nodes.length(); ++i) {
-      HeapEntry* node = nodes[i];
-      node->set_entry_index(index);
-      index += node_fields_count +
-          node->children().length() * edge_fields_count;
-    }
-  }
-
+  int edges_index = 0;
   for (int i = 0; i < nodes.length(); ++i) {
-    SerializeNode(nodes[i]);
+    HeapEntry* entry = nodes[i];
+    SerializeNode(entry, edges_index);
+    edges_index += entry->children().length() * edge_fields_count;
     if (writer_->aborted()) return;
   }
 }
@@ -3772,6 +3748,61 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString("\"");
   writer_->AddString(",\"uid\":");
   writer_->AddNumber(snapshot_->uid());
+  writer_->AddString(",\"meta\":");
+  // The object describing node serialization layout.
+  // We use a set of macros to improve readability.
+#define JSON_A(s) "["s"]"
+#define JSON_O(s) "{"s"}"
+#define JSON_S(s) "\""s"\""
+  writer_->AddString(JSON_O(
+    JSON_S("node_fields") ":" JSON_A(
+        JSON_S("type") ","
+        JSON_S("name") ","
+        JSON_S("id") ","
+        JSON_S("self_size") ","
+        JSON_S("retained_size") ","
+        JSON_S("dominator") ","
+        JSON_S("edges_index")) ","
+    JSON_S("node_types") ":" JSON_A(
+        JSON_A(
+            JSON_S("hidden") ","
+            JSON_S("array") ","
+            JSON_S("string") ","
+            JSON_S("object") ","
+            JSON_S("code") ","
+            JSON_S("closure") ","
+            JSON_S("regexp") ","
+            JSON_S("number") ","
+            JSON_S("native") ","
+            JSON_S("synthetic")) ","
+        JSON_S("string") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number") ","
+        JSON_S("number")) ","
+    JSON_S("edge_fields") ":" JSON_A(
+        JSON_S("type") ","
+        JSON_S("name_or_index") ","
+        JSON_S("to_node")) ","
+    JSON_S("edge_types") ":" JSON_A(
+        JSON_A(
+            JSON_S("context") ","
+            JSON_S("element") ","
+            JSON_S("property") ","
+            JSON_S("internal") ","
+            JSON_S("hidden") ","
+            JSON_S("shortcut") ","
+            JSON_S("weak")) ","
+        JSON_S("string_or_number") ","
+        JSON_S("node"))));
+#undef JSON_S
+#undef JSON_O
+#undef JSON_A
+  writer_->AddString(",\"node_count\":");
+  writer_->AddNumber(snapshot_->entries()->length());
+  writer_->AddString(",\"edge_count\":");
+  writer_->AddNumber(snapshot_->number_of_edges());
 }
 
 

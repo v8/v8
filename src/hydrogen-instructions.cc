@@ -2272,6 +2272,13 @@ void HIn::PrintDataTo(StringStream* stream) {
 }
 
 
+void HBitwise::PrintDataTo(StringStream* stream) {
+  stream->Add(Token::Name(op_));
+  stream->Add(" ");
+  HBitwiseBinaryOperation::PrintDataTo(stream);
+}
+
+
 Representation HPhi::InferredRepresentation() {
   bool double_occurred = false;
   bool int32_occurred = false;

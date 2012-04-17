@@ -109,13 +109,13 @@ TEST(HeapSnapshot) {
 
   // Verify, that JS global object of env2 has '..2' properties.
   const v8::HeapGraphNode* a2_node =
-      GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "a2");
+      GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "a2");
   CHECK_NE(NULL, a2_node);
   CHECK_NE(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "b2_1"));
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_1"));
   CHECK_NE(
-      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "b2_2"));
-  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "c2"));
+      NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_2"));
+  CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c2"));
 
   // Paint all nodes reachable from global object.
   NamedEntriesDetector det;
@@ -137,12 +137,13 @@ TEST(HeapSnapshotObjectSizes) {
   CompileRun(
       "function X(a, b) { this.a = a; this.b = b; }\n"
       "x = new X(new X(), new X());\n"
+      "dummy = new X();\n"
       "(function() { x.a.a = x.b; })();");
   const v8::HeapSnapshot* snapshot =
       v8::HeapProfiler::TakeSnapshot(v8_str("sizes"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* x =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "x");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "x");
   CHECK_NE(NULL, x);
   const v8::HeapGraphNode* x1 =
       GetProperty(x, v8::HeapGraphEdge::kProperty, "a");
@@ -169,7 +170,7 @@ TEST(BoundFunctionInSnapshot) {
       v8::HeapProfiler::TakeSnapshot(v8_str("sizes"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* f =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "boundFunction");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "boundFunction");
   CHECK(f);
   CHECK_EQ(v8::String::New("native_bind"), f->GetName());
   const v8::HeapGraphNode* bindings =
@@ -233,15 +234,15 @@ TEST(HeapSnapshotCodeObjects) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* compiled =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "compiled");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "compiled");
   CHECK_NE(NULL, compiled);
   CHECK_EQ(v8::HeapGraphNode::kClosure, compiled->GetType());
   const v8::HeapGraphNode* lazy =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "lazy");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "lazy");
   CHECK_NE(NULL, lazy);
   CHECK_EQ(v8::HeapGraphNode::kClosure, lazy->GetType());
   const v8::HeapGraphNode* anonymous =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "anonymous");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "anonymous");
   CHECK_NE(NULL, anonymous);
   CHECK_EQ(v8::HeapGraphNode::kClosure, anonymous->GetType());
   v8::String::AsciiValue anonymous_name(anonymous->GetName());
@@ -293,9 +294,9 @@ TEST(HeapSnapshotHeapNumbers) {
   const v8::HeapSnapshot* snapshot =
       v8::HeapProfiler::TakeSnapshot(v8_str("numbers"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_EQ(NULL, GetProperty(global, v8::HeapGraphEdge::kShortcut, "a"));
+  CHECK_EQ(NULL, GetProperty(global, v8::HeapGraphEdge::kProperty, "a"));
   const v8::HeapGraphNode* b =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "b");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "b");
   CHECK_NE(NULL, b);
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
@@ -313,10 +314,10 @@ TEST(HeapSnapshotSlicedString) {
       v8::HeapProfiler::TakeSnapshot(v8_str("strings"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* parent_string =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "parent_string");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "parent_string");
   CHECK_NE(NULL, parent_string);
   const v8::HeapGraphNode* child_string =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "child_string");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "child_string");
   CHECK_NE(NULL, child_string);
   const v8::HeapGraphNode* parent =
       GetProperty(child_string, v8::HeapGraphEdge::kInternal, "parent");
@@ -384,24 +385,17 @@ TEST(HeapEntryIdsAndArrayShift) {
   const v8::HeapGraphNode* a1 =
       GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a1);
-  const v8::HeapGraphNode* e1 =
-      GetProperty(a1, v8::HeapGraphEdge::kHidden, "1");
-  CHECK_NE(NULL, e1);
   const v8::HeapGraphNode* k1 =
-      GetProperty(e1, v8::HeapGraphEdge::kInternal, "elements");
+      GetProperty(a1, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_NE(NULL, k1);
   const v8::HeapGraphNode* a2 =
       GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
   CHECK_NE(NULL, a2);
-  const v8::HeapGraphNode* e2 =
-      GetProperty(a2, v8::HeapGraphEdge::kHidden, "1");
-  CHECK_NE(NULL, e2);
   const v8::HeapGraphNode* k2 =
-      GetProperty(e2, v8::HeapGraphEdge::kInternal, "elements");
+      GetProperty(a2, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_NE(NULL, k2);
 
   CHECK_EQ_SNAPSHOT_OBJECT_ID(a1->GetId(), a2->GetId());
-  CHECK_EQ_SNAPSHOT_OBJECT_ID(e1->GetId(), e2->GetId());
   CHECK_EQ_SNAPSHOT_OBJECT_ID(k1->GetId(), k2->GetId());
 }
 
@@ -514,7 +508,7 @@ TEST(HeapEntryDominator) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* node6 =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "node6");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "node6");
   CHECK_NE(NULL, node6);
   const v8::HeapGraphNode* node5 =
       GetProperty(node6, v8::HeapGraphEdge::kProperty, "a");
@@ -618,42 +612,37 @@ TEST(HeapSnapshotJSONSerialization) {
       env->Global()->Get(v8_str("parsed"))->ToObject();
   CHECK(parsed_snapshot->Has(v8_str("snapshot")));
   CHECK(parsed_snapshot->Has(v8_str("nodes")));
+  CHECK(parsed_snapshot->Has(v8_str("edges")));
   CHECK(parsed_snapshot->Has(v8_str("strings")));
 
   // Get node and edge "member" offsets.
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
-      "var parsed_meta = parsed.nodes[0];\n"
-      "var children_count_offset ="
-      "    parsed_meta.fields.indexOf('children_count');\n"
-      "var children_offset ="
-      "    parsed_meta.fields.indexOf('children');\n"
-      "var children_meta ="
-      "    parsed_meta.types[children_offset];\n"
-      "var child_fields_count = children_meta.fields.length;\n"
-      "var child_type_offset ="
-      "    children_meta.fields.indexOf('type');\n"
-      "var child_name_offset ="
-      "    children_meta.fields.indexOf('name_or_index');\n"
-      "var child_to_node_offset ="
-      "    children_meta.fields.indexOf('to_node');\n"
+      "var meta = parsed.snapshot.meta;\n"
+      "var edges_index_offset = meta.node_fields.indexOf('edges_index');\n"
+      "var node_fields_count = meta.node_fields.length;\n"
+      "var edge_fields_count = meta.edge_fields.length;\n"
+      "var edge_type_offset = meta.edge_fields.indexOf('type');\n"
+      "var edge_name_offset = meta.edge_fields.indexOf('name_or_index');\n"
+      "var edge_to_node_offset = meta.edge_fields.indexOf('to_node');\n"
       "var property_type ="
-      "    children_meta.types[child_type_offset].indexOf('property');\n"
+      "    meta.edge_types[edge_type_offset].indexOf('property');\n"
       "var shortcut_type ="
-      "    children_meta.types[child_type_offset].indexOf('shortcut');");
+      "    meta.edge_types[edge_type_offset].indexOf('shortcut');\n"
+      "parsed.nodes.concat(0, 0, 0, 0, 0, 0, parsed.edges.length);");
   CHECK(!meta_analysis_result.IsEmpty());
 
   // A helper function for processing encoded nodes.
   CompileRun(
       "function GetChildPosByProperty(pos, prop_name, prop_type) {\n"
       "  var nodes = parsed.nodes;\n"
+      "  var edges = parsed.edges;\n"
       "  var strings = parsed.strings;\n"
-      "  for (var i = 0,\n"
-      "      count = nodes[pos + children_count_offset] * child_fields_count;\n"
-      "      i < count; i += child_fields_count) {\n"
-      "    var child_pos = pos + children_offset + i;\n"
-      "    if (nodes[child_pos + child_type_offset] === prop_type\n"
-      "       && strings[nodes[child_pos + child_name_offset]] === prop_name)\n"
-      "        return nodes[child_pos + child_to_node_offset];\n"
+      "  for (var i = nodes[pos + edges_index_offset],\n"
+      "      count = nodes[pos + node_fields_count + edges_index_offset];\n"
+      "      i < count; i += edge_fields_count) {\n"
+      "    if (edges[i + edge_type_offset] === prop_type\n"
+      "        && strings[edges[i + edge_name_offset]] === prop_name)\n"
+      "      return edges[i + edge_to_node_offset];\n"
       "  }\n"
       "  return null;\n"
       "}\n");
@@ -662,8 +651,9 @@ TEST(HeapSnapshotJSONSerialization) {
       "GetChildPosByProperty(\n"
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
-      "      parsed.nodes[1 + children_offset + child_to_node_offset],"
-      "      \"b\",shortcut_type),\n"
+      "      parsed.edges[parsed.nodes[edges_index_offset]"
+      "                   + edge_to_node_offset],"
+      "      \"b\", property_type),\n"
       "    \"x\", property_type),"
       "  \"s\", property_type)");
   CHECK(!string_obj_pos_val.IsEmpty());
@@ -704,6 +694,7 @@ class TestStatsStream : public v8::OutputStream {
     : eos_signaled_(0),
       numbers_written_(0),
       entries_count_(0),
+      entries_size_(0),
       intervals_count_(0),
       first_interval_index_(-1) { }
   TestStatsStream(const TestStatsStream& stream)
@@ -711,6 +702,7 @@ class TestStatsStream : public v8::OutputStream {
       eos_signaled_(stream.eos_signaled_),
       numbers_written_(stream.numbers_written_),
       entries_count_(stream.entries_count_),
+      entries_size_(stream.entries_size_),
       intervals_count_(stream.intervals_count_),
       first_interval_index_(stream.first_interval_index_) { }
   virtual ~TestStatsStream() {}
@@ -726,14 +718,17 @@ class TestStatsStream : public v8::OutputStream {
     entries_count_ = 0;
     if (first_interval_index_ == -1 && numbers_written != 0)
       first_interval_index_ = buffer[0];
-    for (int i = 1; i < numbers_written; i += 2)
-      entries_count_ += buffer[i];
+    for (int i = 0; i < numbers_written; i += 3) {
+      entries_count_ += buffer[i+1];
+      entries_size_ += buffer[i+2];
+    }
 
     return kContinue;
   }
   int eos_signaled() { return eos_signaled_; }
   int numbers_written() { return numbers_written_; }
   uint32_t entries_count() const { return entries_count_; }
+  uint32_t entries_size() const { return entries_size_; }
   int intervals_count() const { return intervals_count_; }
   int first_interval_index() const { return first_interval_index_; }
 
@@ -741,6 +736,7 @@ class TestStatsStream : public v8::OutputStream {
   int eos_signaled_;
   int numbers_written_;
   uint32_t entries_count_;
+  uint32_t entries_size_;
   int intervals_count_;
   int first_interval_index_;
 };
@@ -770,7 +766,8 @@ TEST(HeapSnapshotObjectsStats) {
     // Single chunk of data expected in update. Initial data.
     TestStatsStream stats_update = GetHeapStatsUpdate();
     CHECK_EQ(1, stats_update.intervals_count());
-    CHECK_EQ(2, stats_update.numbers_written());
+    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_LT(0, stats_update.entries_size());
     CHECK_EQ(0, stats_update.first_interval_index());
   }
 
@@ -778,12 +775,13 @@ TEST(HeapSnapshotObjectsStats) {
   CHECK_EQ(0, GetHeapStatsUpdate().numbers_written());
   {
     v8::HandleScope inner_scope_1;
-    v8::Local<v8::String> string1 = v8_str("string1");
+    v8_str("string1");
     {
       // Single chunk of data with one new entry expected in update.
       TestStatsStream stats_update = GetHeapStatsUpdate();
       CHECK_EQ(1, stats_update.intervals_count());
-      CHECK_EQ(2, stats_update.numbers_written());
+      CHECK_EQ(3, stats_update.numbers_written());
+      CHECK_LT(0, stats_update.entries_size());
       CHECK_EQ(1, stats_update.entries_count());
       CHECK_EQ(2, stats_update.first_interval_index());
     }
@@ -793,18 +791,20 @@ TEST(HeapSnapshotObjectsStats) {
 
     {
       v8::HandleScope inner_scope_2;
-      v8::Local<v8::String> string2 = v8_str("string2");
+      v8_str("string2");
 
+      uint32_t entries_size;
       {
         v8::HandleScope inner_scope_3;
-        v8::Handle<v8::String> string3 = v8::String::New("string3");
-        v8::Handle<v8::String> string4 = v8::String::New("string4");
+        v8_str("string3");
+        v8_str("string4");
 
         {
           // Single chunk of data with three new entries expected in update.
           TestStatsStream stats_update = GetHeapStatsUpdate();
           CHECK_EQ(1, stats_update.intervals_count());
-          CHECK_EQ(2, stats_update.numbers_written());
+          CHECK_EQ(3, stats_update.numbers_written());
+          CHECK_LT(0, entries_size = stats_update.entries_size());
           CHECK_EQ(3, stats_update.entries_count());
           CHECK_EQ(4, stats_update.first_interval_index());
         }
@@ -814,7 +814,8 @@ TEST(HeapSnapshotObjectsStats) {
         // Single chunk of data with two left entries expected in update.
         TestStatsStream stats_update = GetHeapStatsUpdate();
         CHECK_EQ(1, stats_update.intervals_count());
-        CHECK_EQ(2, stats_update.numbers_written());
+        CHECK_EQ(3, stats_update.numbers_written());
+        CHECK_GT(entries_size, stats_update.entries_size());
         CHECK_EQ(1, stats_update.entries_count());
         // Two strings from forth interval were released.
         CHECK_EQ(4, stats_update.first_interval_index());
@@ -825,7 +826,8 @@ TEST(HeapSnapshotObjectsStats) {
       // Single chunk of data with 0 left entries expected in update.
       TestStatsStream stats_update = GetHeapStatsUpdate();
       CHECK_EQ(1, stats_update.intervals_count());
-      CHECK_EQ(2, stats_update.numbers_written());
+      CHECK_EQ(3, stats_update.numbers_written());
+      CHECK_EQ(0, stats_update.entries_size());
       CHECK_EQ(0, stats_update.entries_count());
       // The last string from forth interval was released.
       CHECK_EQ(4, stats_update.first_interval_index());
@@ -835,10 +837,43 @@ TEST(HeapSnapshotObjectsStats) {
     // Single chunk of data with 0 left entries expected in update.
     TestStatsStream stats_update = GetHeapStatsUpdate();
     CHECK_EQ(1, stats_update.intervals_count());
-    CHECK_EQ(2, stats_update.numbers_written());
+    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_EQ(0, stats_update.entries_size());
     CHECK_EQ(0, stats_update.entries_count());
     // The only string from the second interval was released.
     CHECK_EQ(2, stats_update.first_interval_index());
+  }
+
+  v8::Local<v8::Array> array = v8::Array::New();
+  CHECK_EQ(0, array->Length());
+  // Force array's buffer allocation.
+  array->Set(2, v8_num(7));
+
+  uint32_t entries_size;
+  {
+    // Single chunk of data with 2 entries expected in update.
+    TestStatsStream stats_update = GetHeapStatsUpdate();
+    CHECK_EQ(1, stats_update.intervals_count());
+    CHECK_EQ(3, stats_update.numbers_written());
+    CHECK_LT(0, entries_size = stats_update.entries_size());
+    // They are the array and its buffer.
+    CHECK_EQ(2, stats_update.entries_count());
+    CHECK_EQ(8, stats_update.first_interval_index());
+  }
+
+  for (int i = 0; i < 100; ++i)
+    array->Set(i, v8_num(i));
+
+  {
+    // Single chunk of data with 1 entry expected in update.
+    TestStatsStream stats_update = GetHeapStatsUpdate();
+    CHECK_EQ(1, stats_update.intervals_count());
+    // The first interval was changed because old buffer was collected.
+    // The second interval was changed because new buffer was allocated.
+    CHECK_EQ(6, stats_update.numbers_written());
+    CHECK_LT(entries_size, stats_update.entries_size());
+    CHECK_EQ(2, stats_update.entries_count());
+    CHECK_EQ(8, stats_update.first_interval_index());
   }
 
   v8::HeapProfiler::StopHeapObjectsTracking();
@@ -871,6 +906,42 @@ TEST(HeapSnapshotGetNodeById) {
   CheckChildrenIds(snapshot, root, 0, 3);
   // Check a big id, which should not exist yet.
   CHECK_EQ(NULL, snapshot->GetNodeById(0x1000000UL));
+}
+
+
+TEST(HeapSnapshotGetSnapshotObjectId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("globalObject = {};\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("get_snapshot_object_id"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_object =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "globalObject");
+  CHECK(global_object);
+
+  v8::Local<v8::Value> globalObjectHandle =
+      env->Global()->Get(v8::String::New("globalObject"));
+  CHECK(!globalObjectHandle.IsEmpty());
+  CHECK(globalObjectHandle->IsObject());
+
+  v8::SnapshotObjectId id =
+      v8::HeapProfiler::GetSnapshotObjectId(globalObjectHandle);
+  CHECK_NE(static_cast<int>(v8::HeapProfiler::kUnknownObjectId),
+           id);
+  CHECK_EQ(static_cast<int>(id), global_object->GetId());
+}
+
+
+TEST(HeapSnapshotUnknownSnapshotObjectId) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("globalObject = {};\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("unknown_object_id"));
+  const v8::HeapGraphNode* node =
+      snapshot->GetNodeById(v8::HeapProfiler::kUnknownObjectId);
+  CHECK_EQ(NULL, node);
 }
 
 
@@ -1112,9 +1183,8 @@ TEST(HeapSnapshotImplicitReferences) {
       v8::HeapProfiler::TakeSnapshot(v8_str("implicit_refs"));
 
   const v8::HeapGraphNode* global_object = GetGlobalObject(snapshot);
-  // Use kShortcut type to skip intermediate JSGlobalPropertyCell
   const v8::HeapGraphNode* obj0 = GetProperty(
-      global_object, v8::HeapGraphEdge::kShortcut, "root_object");
+      global_object, v8::HeapGraphEdge::kProperty, "root_object");
   CHECK(obj0);
   CHECK_EQ(v8::HeapGraphNode::kObject, obj0->GetType());
   const v8::HeapGraphNode* obj1 = GetProperty(
@@ -1287,7 +1357,7 @@ TEST(GetHeapValue) {
       env->Global()->GetPrototype().As<v8::Object>();
   CHECK(js_global == global->GetHeapValue());
   const v8::HeapGraphNode* obj = GetProperty(
-      global, v8::HeapGraphEdge::kShortcut, "a");
+      global, v8::HeapGraphEdge::kProperty, "a");
   CHECK(obj->GetHeapValue()->IsObject());
   v8::Local<v8::Object> js_obj = js_global->Get(v8_str("a")).As<v8::Object>();
   CHECK(js_obj == obj->GetHeapValue());
@@ -1316,7 +1386,7 @@ TEST(GetHeapValueForDeletedObject) {
       v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* obj = GetProperty(
-      global, v8::HeapGraphEdge::kShortcut, "a");
+      global, v8::HeapGraphEdge::kProperty, "a");
   const v8::HeapGraphNode* prop = GetProperty(
       obj, v8::HeapGraphEdge::kProperty, "p");
   {
@@ -1403,7 +1473,7 @@ TEST(FastCaseGetter) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* obj1 =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "obj1");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "obj1");
   CHECK_NE(NULL, obj1);
   const v8::HeapGraphNode* getterFunction =
       GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get-propWithGetter");
@@ -1485,7 +1555,7 @@ TEST(SfiAndJsFunctionWeakRefs) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NE(NULL, global);
   const v8::HeapGraphNode* fun =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "fun");
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
   CHECK(HasWeakEdge(fun));
   const v8::HeapGraphNode* shared =
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");

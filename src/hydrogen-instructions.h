@@ -3353,6 +3353,8 @@ class HBitwise: public HBitwiseBinaryOperation {
                                    HValue* left,
                                    HValue* right);
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
  protected:

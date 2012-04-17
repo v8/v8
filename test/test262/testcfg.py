@@ -34,8 +34,8 @@ import hashlib
 import tarfile
 
 
-TEST_262_ARCHIVE_REVISION = '3a890174343c'  # This is the r309 revision.
-TEST_262_ARCHIVE_MD5 = 'be5d4cfbe69cef70430907b8f3a92b50'
+TEST_262_ARCHIVE_REVISION = 'fb327c439e20'  # This is the r334 revision.
+TEST_262_ARCHIVE_MD5 = '307acd166ec34629592f240dc12d57ed'
 TEST_262_URL = 'http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2'
 TEST_262_HARNESS = ['sta.js']
 
@@ -104,9 +104,12 @@ class Test262TestConfiguration(test.TestConfiguration):
     archive_url = TEST_262_URL % revision
     archive_name = join(self.root, 'test262-%s.tar.bz2' % revision)
     directory_name = join(self.root, 'data')
+    directory_old_name = join(self.root, 'data.old')
     if not exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
       urllib.urlretrieve(archive_url, archive_name)
+      if exists(directory_name):
+        os.rename(directory_name, directory_old_name)
     if not exists(directory_name):
       print "Extracting test262-%s.tar.bz2 ..." % revision
       md5 = hashlib.md5()
@@ -114,6 +117,7 @@ class Test262TestConfiguration(test.TestConfiguration):
         for chunk in iter(lambda: f.read(8192), ''):
           md5.update(chunk)
       if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
+        os.remove(archive_name)
         raise Exception("Hash mismatch of test data file")
       archive = tarfile.open(archive_name, 'r:bz2')
       archive.extractall(join(self.root))

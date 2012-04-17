@@ -464,21 +464,20 @@ class HeapGraphEdge BASE_EMBEDDED {
   void Init(int child_index, Type type, int index, HeapEntry* to);
   void Init(int child_index, int index, HeapEntry* to);
 
-  Type type() { return static_cast<Type>(type_); }
-  int index() {
+  Type type() const { return static_cast<Type>(type_); }
+  int index() const {
     ASSERT(type_ == kElement || type_ == kHidden || type_ == kWeak);
     return index_;
   }
-  const char* name() {
+  const char* name() const {
     ASSERT(type_ == kContextVariable
            || type_ == kProperty
            || type_ == kInternal
            || type_ == kShortcut);
     return name_;
   }
-  HeapEntry* to() { return to_; }
-
-  HeapEntry* From();
+  HeapEntry* to() const { return to_; }
+  INLINE(HeapEntry* from() const);
 
  private:
   int child_index_ : 29;
@@ -564,6 +563,8 @@ class HeapEntry BASE_EMBEDDED {
   void clear_paint() { painted_ = false; }
   bool painted() { return painted_; }
   void paint() { painted_ = true; }
+  bool reachable_from_window() { return reachable_from_window_; }
+  void set_reachable_from_window() { reachable_from_window_ = true; }
 
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int child_index,
@@ -600,8 +601,9 @@ class HeapEntry BASE_EMBEDDED {
   const char* TypeAsString();
 
   unsigned painted_: 1;
+  unsigned reachable_from_window_: 1;
   unsigned type_: 4;
-  int children_count_: 27;
+  int children_count_: 26;
   int retainers_count_;
   int self_size_;
   union {
@@ -648,6 +650,7 @@ class HeapSnapshot {
   HeapEntry* gc_subroot(int index) { return gc_subroot_entries_[index]; }
   List<HeapEntry*>* entries() { return &entries_; }
   size_t raw_entries_size() { return raw_entries_size_; }
+  int number_of_edges() { return number_of_edges_; }
   void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
@@ -690,6 +693,7 @@ class HeapSnapshot {
   List<HeapEntry*> entries_;
   List<HeapEntry*> sorted_entries_;
   size_t raw_entries_size_;
+  int number_of_edges_;
   SnapshotObjectId max_snapshot_js_object_id_;
 
   friend class HeapSnapshotTester;
@@ -701,10 +705,10 @@ class HeapSnapshot {
 class HeapObjectsMap {
  public:
   HeapObjectsMap();
-  ~HeapObjectsMap();
 
   void SnapshotGenerationFinished();
-  SnapshotObjectId FindObject(Address addr);
+  SnapshotObjectId FindEntry(Address addr);
+  SnapshotObjectId FindOrAddEntry(Address addr, unsigned int size);
   void MoveObject(Address from, Address to);
   SnapshotObjectId last_assigned_id() const {
     return next_id_ - kObjectIdStep;
@@ -725,23 +729,22 @@ class HeapObjectsMap {
 
  private:
   struct EntryInfo {
-    EntryInfo(SnapshotObjectId id, Address addr)
-      : id(id), addr(addr), accessed(true) { }
-    EntryInfo(SnapshotObjectId id, Address addr, bool accessed)
-      : id(id), addr(addr), accessed(accessed) { }
+  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size)
+      : id(id), addr(addr), size(size), accessed(true) { }
+  EntryInfo(SnapshotObjectId id, Address addr, unsigned int size, bool accessed)
+      : id(id), addr(addr), size(size), accessed(accessed) { }
     SnapshotObjectId id;
     Address addr;
+    unsigned int size;
     bool accessed;
   };
   struct TimeInterval {
-    explicit TimeInterval(SnapshotObjectId id) : id(id), count(0) { }
+    explicit TimeInterval(SnapshotObjectId id) : id(id), size(0), count(0) { }
     SnapshotObjectId id;
+    unsigned int size;
     uint32_t count;
   };
 
-  void AddEntry(Address addr, SnapshotObjectId id);
-  SnapshotObjectId FindEntry(Address addr);
-  SnapshotObjectId FindOrAddEntry(Address addr);
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
 
@@ -755,10 +758,9 @@ class HeapObjectsMap {
         v8::internal::kZeroHashSeed);
   }
 
-  bool initial_fill_mode_;
   SnapshotObjectId next_id_;
   HashMap entries_map_;
-  List<EntryInfo>* entries_;
+  List<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
@@ -787,7 +789,12 @@ class HeapSnapshotsCollection {
   StringsStorage* names() { return &names_; }
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
-  SnapshotObjectId GetObjectId(Address addr) { return ids_.FindObject(addr); }
+  SnapshotObjectId FindObjectId(Address object_addr) {
+    return ids_.FindEntry(object_addr);
+  }
+  SnapshotObjectId GetObjectId(Address object_addr, int object_size) {
+    return ids_.FindOrAddEntry(object_addr, object_size);
+  }
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
   SnapshotObjectId last_assigned_id() const {
@@ -1013,7 +1020,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                                     HeapEntry* parent,
                                     String* reference_name,
                                     Object* child);
-  void SetRootShortcutReference(Object* child);
+  void SetWindowReference(Object* window);
   void SetRootGcRootsReference();
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
   void SetGcSubrootReference(
@@ -1117,7 +1124,9 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool CalculateRetainedSizes();
   bool CountEntriesAndReferences();
   bool FillReferences();
-  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
+  void FillPostorderIndexes(Vector<HeapEntry*>* entries);
+  bool IsWindowReference(const HeapGraphEdge& edge);
+  void MarkWindowReachableObjects();
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();
@@ -1160,12 +1169,14 @@ class HeapSnapshotJSONSerializer {
         v8::internal::kZeroHashSeed);
   }
 
+  void CalculateNodeIndexes(const List<HeapEntry*>& nodes);
   HeapSnapshot* CreateFakeSnapshot();
   int GetStringId(const char* s);
-  void SerializeEdge(HeapGraphEdge* edge);
+  void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
+  void SerializeEdges(const List<HeapEntry*>& nodes);
   void SerializeImpl();
-  void SerializeNode(HeapEntry* entry);
-  void SerializeNodes();
+  void SerializeNode(HeapEntry* entry, int edges_index);
+  void SerializeNodes(const List<HeapEntry*>& nodes);
   void SerializeSnapshot();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();

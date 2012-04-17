@@ -262,11 +262,11 @@ void FullCodeGenerator::Generate() {
       // For named function expressions, declare the function name as a
       // constant.
       if (scope()->is_function_scope() && scope()->function() != NULL) {
-        VariableProxy* proxy = scope()->function();
-        ASSERT(proxy->var()->mode() == CONST ||
-               proxy->var()->mode() == CONST_HARMONY);
-        ASSERT(proxy->var()->location() != Variable::UNALLOCATED);
-        EmitDeclaration(proxy, proxy->var()->mode(), NULL);
+        VariableDeclaration* function = scope()->function();
+        ASSERT(function->proxy()->var()->mode() == CONST ||
+               function->proxy()->var()->mode() == CONST_HARMONY);
+        ASSERT(function->proxy()->var()->location() != Variable::UNALLOCATED);
+        VisitVariableDeclaration(function);
       }
       VisitDeclarations(scope()->declarations());
     }
@@ -756,60 +756,51 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
 }
 
 
-void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
-                                        VariableMode mode,
-                                        FunctionLiteral* function) {
+void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
+  // The variable in the declaration always resides in the current function
+  // context.
+  ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
+  if (FLAG_debug_code) {
+    // Check that we're not inside a with or catch context.
+    __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
+    __ cmp(ebx, isolate()->factory()->with_context_map());
+    __ Check(not_equal, "Declaration in with context.");
+    __ cmp(ebx, isolate()->factory()->catch_context_map());
+    __ Check(not_equal, "Declaration in catch context.");
+  }
+}
+
+
+void FullCodeGenerator::VisitVariableDeclaration(
+    VariableDeclaration* declaration) {
   // If it was not possible to allocate the variable at compile time, we
   // need to "declare" it at runtime to make sure it actually exists in the
   // local context.
+  VariableProxy* proxy = declaration->proxy();
+  VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool binding_needs_init = (function == NULL) &&
-      (mode == CONST || mode == CONST_HARMONY || mode == LET);
+  bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++global_count_;
+      globals_->Add(variable->name());
+      globals_->Add(variable->binding_needs_init()
+                        ? isolate()->factory()->the_hole_value()
+                        : isolate()->factory()->undefined_value());
       break;
 
     case Variable::PARAMETER:
     case Variable::LOCAL:
-      if (function != NULL) {
-        Comment cmnt(masm_, "[ Declaration");
-        VisitForAccumulatorValue(function);
-        __ mov(StackOperand(variable), result_register());
-      } else if (binding_needs_init) {
-        Comment cmnt(masm_, "[ Declaration");
+      if (hole_init) {
+        Comment cmnt(masm_, "[ VariableDeclaration");
         __ mov(StackOperand(variable),
                Immediate(isolate()->factory()->the_hole_value()));
       }
       break;
 
     case Variable::CONTEXT:
-      // The variable in the decl always resides in the current function
-      // context.
-      ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
-      if (FLAG_debug_code) {
-        // Check that we're not inside a with or catch context.
-        __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
-        __ cmp(ebx, isolate()->factory()->with_context_map());
-        __ Check(not_equal, "Declaration in with context.");
-        __ cmp(ebx, isolate()->factory()->catch_context_map());
-        __ Check(not_equal, "Declaration in catch context.");
-      }
-      if (function != NULL) {
-        Comment cmnt(masm_, "[ Declaration");
-        VisitForAccumulatorValue(function);
-        __ mov(ContextOperand(esi, variable->index()), result_register());
-        // We know that we have written a function, which is not a smi.
-        __ RecordWriteContextSlot(esi,
-                                  Context::SlotOffset(variable->index()),
-                                  result_register(),
-                                  ecx,
-                                  kDontSaveFPRegs,
-                                  EMIT_REMEMBERED_SET,
-                                  OMIT_SMI_CHECK);
-        PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
-      } else if (binding_needs_init) {
-        Comment cmnt(masm_, "[ Declaration");
+      if (hole_init) {
+        Comment cmnt(masm_, "[ VariableDeclaration");
+        EmitDebugCheckDeclarationContext(variable);
         __ mov(ContextOperand(esi, variable->index()),
                Immediate(isolate()->factory()->the_hole_value()));
         // No write barrier since the hole value is in old space.
@@ -818,14 +809,12 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       break;
 
     case Variable::LOOKUP: {
-      Comment cmnt(masm_, "[ Declaration");
+      Comment cmnt(masm_, "[ VariableDeclaration");
       __ push(esi);
       __ push(Immediate(variable->name()));
-      // Declaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR ||
-             mode == CONST ||
-             mode == CONST_HARMONY ||
-             mode == LET);
+      // VariableDeclaration nodes are always introduced in one of four modes.
+      ASSERT(mode == VAR || mode == LET ||
+             mode == CONST || mode == CONST_HARMONY);
       PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
           ? READ_ONLY : NONE;
       __ push(Immediate(Smi::FromInt(attr)));
@@ -833,9 +822,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
-      if (function != NULL) {
-        VisitForStackValue(function);
-      } else if (binding_needs_init) {
+      if (hole_init) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
@@ -844,6 +831,118 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       break;
     }
   }
+}
+
+
+void FullCodeGenerator::VisitFunctionDeclaration(
+    FunctionDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case Variable::UNALLOCATED: {
+      globals_->Add(variable->name());
+      Handle<SharedFunctionInfo> function =
+          Compiler::BuildFunctionInfo(declaration->fun(), script());
+      // Check for stack-overflow exception.
+      if (function.is_null()) return SetStackOverflow();
+      globals_->Add(function);
+      break;
+    }
+
+    case Variable::PARAMETER:
+    case Variable::LOCAL: {
+      Comment cmnt(masm_, "[ FunctionDeclaration");
+      VisitForAccumulatorValue(declaration->fun());
+      __ mov(StackOperand(variable), result_register());
+      break;
+    }
+
+    case Variable::CONTEXT: {
+      Comment cmnt(masm_, "[ FunctionDeclaration");
+      EmitDebugCheckDeclarationContext(variable);
+      VisitForAccumulatorValue(declaration->fun());
+      __ mov(ContextOperand(esi, variable->index()), result_register());
+      // We know that we have written a function, which is not a smi.
+      __ RecordWriteContextSlot(esi,
+                                Context::SlotOffset(variable->index()),
+                                result_register(),
+                                ecx,
+                                kDontSaveFPRegs,
+                                EMIT_REMEMBERED_SET,
+                                OMIT_SMI_CHECK);
+      PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
+      break;
+    }
+
+    case Variable::LOOKUP: {
+      Comment cmnt(masm_, "[ FunctionDeclaration");
+      __ push(esi);
+      __ push(Immediate(variable->name()));
+      __ push(Immediate(Smi::FromInt(NONE)));
+      VisitForStackValue(declaration->fun());
+      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      break;
+    }
+  }
+}
+
+
+void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  Handle<JSModule> instance = declaration->module()->interface()->Instance();
+  ASSERT(!instance.is_null());
+
+  switch (variable->location()) {
+    case Variable::UNALLOCATED: {
+      Comment cmnt(masm_, "[ ModuleDeclaration");
+      globals_->Add(variable->name());
+      globals_->Add(instance);
+      Visit(declaration->module());
+      break;
+    }
+
+    case Variable::CONTEXT: {
+      Comment cmnt(masm_, "[ ModuleDeclaration");
+      EmitDebugCheckDeclarationContext(variable);
+      __ mov(ContextOperand(esi, variable->index()), Immediate(instance));
+      Visit(declaration->module());
+      break;
+    }
+
+    case Variable::PARAMETER:
+    case Variable::LOCAL:
+    case Variable::LOOKUP:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
+  VariableProxy* proxy = declaration->proxy();
+  Variable* variable = proxy->var();
+  switch (variable->location()) {
+    case Variable::UNALLOCATED:
+      // TODO(rossberg)
+      break;
+
+    case Variable::CONTEXT: {
+      Comment cmnt(masm_, "[ ImportDeclaration");
+      EmitDebugCheckDeclarationContext(variable);
+      // TODO(rossberg)
+      break;
+    }
+
+    case Variable::PARAMETER:
+    case Variable::LOCAL:
+    case Variable::LOOKUP:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
+  // TODO(rossberg)
 }
 
 
@@ -4430,7 +4529,8 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_global_scope()) {
+  if (declaration_scope->is_global_scope() ||
+      declaration_scope->is_module_scope()) {
     // Contexts nested in the global context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.  Pass a smi sentinel and let the runtime look up the empty

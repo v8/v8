@@ -415,14 +415,20 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
 Variable* Scope::LookupFunctionVar(Handle<String> name,
                                    AstNodeFactory<AstNullVisitor>* factory) {
-  if (function_ != NULL && function_->name().is_identical_to(name)) {
-    return function_->var();
+  if (function_ != NULL && function_->proxy()->name().is_identical_to(name)) {
+    return function_->proxy()->var();
   } else if (!scope_info_.is_null()) {
     // If we are backed by a scope info, try to lookup the variable there.
     VariableMode mode;
     int index = scope_info_->FunctionContextSlotIndex(*name, &mode);
     if (index < 0) return NULL;
-    Variable* var = DeclareFunctionVar(name, mode, factory);
+    Variable* var = new Variable(
+        this, name, mode, true /* is valid LHS */,
+        Variable::NORMAL, kCreatedInitialized);
+    VariableProxy* proxy = factory->NewVariableProxy(var);
+    VariableDeclaration* declaration =
+        factory->NewVariableDeclaration(proxy, mode, this);
+    DeclareFunctionVar(declaration);
     var->AllocateTo(Variable::CONTEXT, index);
     return var;
   } else {
@@ -794,7 +800,7 @@ void Scope::Print(int n) {
   // Function name, if any (named function literals, only).
   if (function_ != NULL) {
     Indent(n1, "// (local) function name: ");
-    PrintName(function_->name());
+    PrintName(function_->proxy()->name());
     PrintF("\n");
   }
 
@@ -827,7 +833,7 @@ void Scope::Print(int n) {
   // Print locals.
   Indent(n1, "// function var\n");
   if (function_ != NULL) {
-    PrintVar(n1, function_->var());
+    PrintVar(n1, function_->proxy()->var());
   }
 
   Indent(n1, "// temporary vars\n");
@@ -1093,7 +1099,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // Exceptions: temporary variables are never allocated in a context;
   // catch-bound variables are always allocated in a context.
   if (var->mode() == TEMPORARY) return false;
-  if (is_catch_scope() || is_block_scope()) return true;
+  if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
@@ -1211,7 +1217,7 @@ void Scope::AllocateNonParameterLocals() {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != NULL) {
-    AllocateNonParameterLocal(function_->var());
+    AllocateNonParameterLocal(function_->proxy()->var());
   }
 }
 
@@ -1237,7 +1243,8 @@ void Scope::AllocateVariablesRecursively() {
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,
   // even if no local variables were statically allocated in the scope.
-  bool must_have_context = is_with_scope() ||
+  // Likewise for modules.
+  bool must_have_context = is_with_scope() || is_module_scope() ||
       (is_function_scope() && calls_eval());
 
   // If we didn't allocate any locals in the local context, then we only
@@ -1253,14 +1260,14 @@ void Scope::AllocateVariablesRecursively() {
 
 int Scope::StackLocalCount() const {
   return num_stack_slots() -
-      (function_ != NULL && function_->var()->IsStackLocal() ? 1 : 0);
+      (function_ != NULL && function_->proxy()->var()->IsStackLocal() ? 1 : 0);
 }
 
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
-      (function_ != NULL && function_->var()->IsContextSlot() ? 1 : 0);
+      (function_ != NULL && function_->proxy()->var()->IsContextSlot() ? 1 : 0);
 }
 
 } }  // namespace v8::internal
