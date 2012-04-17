@@ -1933,15 +1933,15 @@ Object* DescriptorArray::GetValue(int descriptor_number) {
 }
 
 
-Smi* DescriptorArray::GetDetails(int descriptor_number) {
+PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return Smi::cast(GetContentArray()->get(ToDetailsIndex(descriptor_number)));
+  Object* details = GetContentArray()->get(ToDetailsIndex(descriptor_number));
+  return PropertyDetails(Smi::cast(details));
 }
 
 
 PropertyType DescriptorArray::GetType(int descriptor_number) {
-  ASSERT(descriptor_number < number_of_descriptors());
-  return PropertyDetails(GetDetails(descriptor_number)).type();
+  return GetDetails(descriptor_number).type();
 }
 
 
@@ -2004,15 +2004,10 @@ bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
 }
 
 
-bool DescriptorArray::IsDontEnum(int descriptor_number) {
-  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
-}
-
-
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             PropertyDetails(GetDetails(descriptor_number)));
+             GetDetails(descriptor_number));
 }
 
 

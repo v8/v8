@@ -2094,7 +2094,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     DescriptorArray* instance_desc = function->map()->instance_descriptors();
     int index = instance_desc->Search(name);
     ASSERT(index != DescriptorArray::kNotFound);
-    PropertyDetails details(instance_desc->GetDetails(index));
+    PropertyDetails details = instance_desc->GetDetails(index);
     CallbacksDescriptor new_desc(name,
         instance_desc->GetValue(index),
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),

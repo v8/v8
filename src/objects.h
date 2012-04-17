@@ -2473,7 +2473,7 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
-  inline Smi* GetDetails(int descriptor_number);
+  inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline JSFunction* GetConstantFunction(int descriptor_number);
@@ -2482,7 +2482,6 @@ class DescriptorArray: public FixedArray {
   inline bool IsProperty(int descriptor_number);
   inline bool IsTransitionOnly(int descriptor_number);
   inline bool IsNullDescriptor(int descriptor_number);
-  inline bool IsDontEnum(int descriptor_number);
 
   class WhitenessWitness {
    public:
@@ -2636,10 +2635,6 @@ class DescriptorArray: public FixedArray {
     return descriptor_number << 1;
   }
 
-  bool is_null_descriptor(int descriptor_number) {
-    return PropertyDetails(GetDetails(descriptor_number)).type() ==
-        NULL_DESCRIPTOR;
-  }
   // Swap operation on FixedArray without using write barriers.
   static inline void NoIncrementalWriteBarrierSwap(
       FixedArray* array, int first, int second);

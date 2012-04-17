@@ -2159,7 +2159,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details = PropertyDetails(descs->GetDetails(i));
+      PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
         case FIELD: {
           HandleScope inner;
