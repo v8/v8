@@ -2157,7 +2157,7 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
   if (!js_obj->IsJSFunction()) return;
 
   JSFunction* func = JSFunction::cast(js_obj);
-  Context* context = func->context();
+  Context* context = func->context()->declaration_context();
   ScopeInfo* scope_info = context->closure()->shared()->scope_info();
 
   if (func->shared()->bound()) {
