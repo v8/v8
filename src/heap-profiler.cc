@@ -194,7 +194,7 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
     return v8::HeapProfiler::kUnknownObjectId;
   HeapProfiler* profiler = Isolate::Current()->heap_profiler();
   ASSERT(profiler != NULL);
-  return profiler->snapshots_->FindObjectId(HeapObject::cast(*obj) ->address());
+  return profiler->snapshots_->FindObjectId(HeapObject::cast(*obj)->address());
 }
 
 
