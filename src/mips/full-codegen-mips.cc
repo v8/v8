@@ -817,7 +817,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
   bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++global_count_;
+      globals_.Add(variable->name());
+      globals_.Add(variable->binding_needs_init()
+                       ? isolate()->factory()->the_hole_value()
+                       : isolate()->factory()->undefined_value());
       break;
 
     case Variable::PARAMETER:
@@ -873,9 +876,15 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
-    case Variable::UNALLOCATED:
-      ++global_count_;
+    case Variable::UNALLOCATED: {
+      globals_.Add(variable->name());
+      Handle<SharedFunctionInfo> function =
+          Compiler::BuildFunctionInfo(declaration->fun(), script());
+      // Check for stack-overflow exception.
+      if (function.is_null()) return SetStackOverflow();
+      globals_.Add(function);
       break;
+    }
 
     case Variable::PARAMETER:
     case Variable::LOCAL: {
@@ -923,7 +932,7 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   Variable* variable = proxy->var();
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++global_count_;
+      // TODO(rossberg): initialize module instance object
       break;
 
     case Variable::CONTEXT: {
@@ -946,7 +955,7 @@ void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
   Variable* variable = proxy->var();
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      ++global_count_;
+      // TODO(rossberg)
       break;
 
     case Variable::CONTEXT: {
