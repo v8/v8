@@ -2561,11 +2561,6 @@ Handle<Primitive> V8EXPORT Null();
 Handle<Boolean> V8EXPORT True();
 Handle<Boolean> V8EXPORT False();
 
-inline Handle<Primitive> Undefined(Isolate* isolate);
-inline Handle<Primitive> Null(Isolate* isolate);
-inline Handle<Boolean> True(Isolate* isolate);
-inline Handle<Boolean> False(Isolate* isolate);
-
 
 /**
  * A set of constraints that specifies the limits of the runtime's memory use.
@@ -3909,13 +3904,6 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kIsolateStateOffset = 0;
-  static const int kIsolateRootsOffset = 2 * kApiPointerSize;
-  static const int kUndefinedValueRootIndex = 5;
-  static const int kNullValueRootIndex = 7;
-  static const int kTrueValueRootIndex = 8;
-  static const int kFalseValueRootIndex = 9;
-
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x82;
@@ -3966,16 +3954,6 @@ class Internals {
   static inline bool IsExternalTwoByteString(int instance_type) {
     int representation = (instance_type & kFullStringRepresentationMask);
     return representation == kExternalTwoByteRepresentationTag;
-  }
-
-  static inline bool IsInitialized(v8::Isolate* isolate) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateStateOffset;
-    return *reinterpret_cast<int*>(addr) == 1;
-  }
-
-  static inline internal::Object** GetRoot(v8::Isolate* isolate, int index) {
-    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateRootsOffset;
-    return reinterpret_cast<internal::Object**>(addr + index * kApiPointerSize);
   }
 
   template <typename T>
@@ -4397,42 +4375,6 @@ Local<Object> AccessorInfo::This() const {
 
 Local<Object> AccessorInfo::Holder() const {
   return Local<Object>(reinterpret_cast<Object*>(&args_[-1]));
-}
-
-
-Handle<Primitive> Undefined(Isolate* isolate) {
-  typedef internal::Object* S;
-  typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return Undefined();
-  S* slot = I::GetRoot(isolate, I::kUndefinedValueRootIndex);
-  return Handle<Primitive>(reinterpret_cast<Primitive*>(slot));
-}
-
-
-Handle<Primitive> Null(Isolate* isolate) {
-  typedef internal::Object* S;
-  typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return Null();
-  S* slot = I::GetRoot(isolate, I::kNullValueRootIndex);
-  return Handle<Primitive>(reinterpret_cast<Primitive*>(slot));
-}
-
-
-Handle<Boolean> True(Isolate* isolate) {
-  typedef internal::Object* S;
-  typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return True();
-  S* slot = I::GetRoot(isolate, I::kTrueValueRootIndex);
-  return Handle<Boolean>(reinterpret_cast<Boolean*>(slot));
-}
-
-
-Handle<Boolean> False(Isolate* isolate) {
-  typedef internal::Object* S;
-  typedef internal::Internals I;
-  if (!I::IsInitialized(isolate)) return False();
-  S* slot = I::GetRoot(isolate, I::kFalseValueRootIndex);
-  return Handle<Boolean>(reinterpret_cast<Boolean*>(slot));
 }
 
 
